@@ -15,10 +15,11 @@ from typing import Iterable, Iterator
 
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, IntegerAttr, i64, IntegerType, IndexType, AnyFloat, \
     AnyFloatAttr
+from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import TypeAttribute, Dialect, AttributeCovT
 from xdsl.irdl import *
 from xdsl.parser import AttrParser
-from xdsl.traits import IsTerminator, HasParent
+from xdsl.traits import IsTerminator, HasParent, SingleBlockImplicitTerminator
 from xdsl.utils.hints import isa
 
 @dataclass
@@ -242,6 +243,12 @@ class ElementAttr(ParametrizedAttribute):
         if len(dim_names) != len(set(dim_names)):
             raise VerifyException("Dimensions in an dlt.element must not have repeated dimension names.")
 
+    def get_dimension(self, name: StringAttr):
+        for dim in self.dimensions:
+            if name == dim.dimensionName:
+                return dim
+        return None
+
     def __lt__(self, other):
         assert isinstance(other, ElementAttr)
         if self.member_specifiers.data < other.member_specifiers.data:
@@ -308,11 +315,20 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
             new_elems.append(new_elem)
         return TypeType(new_elems)
 
+    def get_single_element(self) -> None | ElementAttr:
+        if len(self.elements) == 1:
+            return list(self.elements)[0]
+        else:
+            return None
+
 
 @irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute):
     name = "dlt.ptr"
-    layout: ParameterDef[TypeType]
+    contents_type: ParameterDef[TypeType]
+
+    def __init__(self, type_type: TypeType):
+        super().__init__(tuple([type_type]))
 
 
 @irdl_attr_definition
@@ -334,14 +350,14 @@ class StructOp(IRDLOperation):
     region: Region = region_def("single_block")
 
     def verify_(self) -> None:
-        isa(self.region.block.last_op, YieldOp)
+        isa(self.region.block.last_op, StructYieldOp)
         if self.res.type != self.region.block.last_op.output_type():
             raise VerifyException("Struct result type must be the dlt.type corrosponding to the elements in the yield op")
         pass
 
 @irdl_op_definition
-class YieldOp(IRDLOperation):
-    name = "dlt.yield"
+class StructYieldOp(IRDLOperation):
+    name = "dlt.structYield"
     arguments: VarOperand = var_operand_def(TypeType)
 
     traits = traits_def(
@@ -376,6 +392,10 @@ class PrimitiveOp(IRDLOperation):
     name = "dlt.primitive"
     of: AcceptedTypes = attr_def(AcceptedTypes)
     res: OpResult = result_def(TypeType)
+
+    def __init__(self, of: AcceptedTypes):
+        type = TypeType([ElementAttr(tuple([SetAttr([]), SetAttr([]), of]))])
+        super().__init__(attributes={"of":of}, result_types=[type])
 #TODO
 
 @irdl_op_definition
@@ -423,13 +443,13 @@ class IndexAffineOp(IRDLOperation):
 
 @irdl_op_definition
 class SelectOp(IRDLOperation):
-    name = "dlt.select"
-    tree: OperandDef = operand_def(TypeType)
+    name = "dlt.select" # take a ptrType and constrain a member field or a dimension value.
+    tree: OperandDef = operand_def(PtrType)
     dimensions: AttributeDef = attr_def(ArrayAttr[StringAttr])
     members: AttributeDef = attr_def(SetAttr[MemberAttr])
     values: VarOperand = var_operand_def(IndexType)
 
-    res: OpResult = result_def(TypeType)
+    res: OpResult = result_def(PtrType)
 
     @classmethod
     def parse(cls: type[SelectOp], parser: Parser) -> SelectOp:
@@ -468,13 +488,13 @@ class SelectOp(IRDLOperation):
         return selectOp
 
     @classmethod
-    def calculateResultType(cls, input_type: TypeType, members: Iterable[MemberAttr], dimension_names: Iterable[StringAttr]) -> TypeType:
-        current_type = input_type
+    def calculateResultType(cls, input_type: PtrType, members: Iterable[MemberAttr], dimension_names: Iterable[StringAttr]) -> PtrType:
+        current_type = input_type.contents_type
         for m in members:
             current_type = current_type.selectMember(m)
         for d in dimension_names:
             current_type = current_type.selectDimension(d)
-        return current_type
+        return PtrType(current_type)
 
 
     def print(self, printer: Printer):
@@ -500,27 +520,168 @@ class SelectOp(IRDLOperation):
 
 @irdl_op_definition
 class GetOp(IRDLOperation):
-    name = "dlt.get"
-#TODO
+    name = "dlt.get" # take a PtrType that points only to primitives (no member fields or dimensions) and get the value
+    tree: OperandDef = operand_def(PtrType)
+    get_type: AttributeDef = attr_def(AcceptedTypes)
+    res: OpResult = result_def(AcceptedTypes)
+    #TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
+
 
 @irdl_op_definition
 class SetOp(IRDLOperation):
-    name = "dlt.set"
-#TODO
+    name = "dlt.set" # take a PtrType that points only to primitives (no member fields or dimensions) and set the value
+    tree: OperandDef = operand_def(PtrType)
+    set_type: AttributeDef = attr_def(AcceptedTypes)
+    # TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
+
+
+@irdl_op_definition
+class CopyOp(IRDLOperation):
+    name = "dlt.copy" # take src and dst Ptrtypes and copy all values of the copy_type primitive from one to the other.
+    src: OperandDef = operand_def(PtrType)
+    dst: OperandDef = operand_def(PtrType)
+    # dimensions: AttributeDef = attr_def(SetAttr[DimensionAttr])
+    copy_type: AttributeDef = attr_def(AcceptedTypes)
+
+    # TODO Verify the tree layout types match perfectly
+
+
+@irdl_op_definition
+class ClearOp(IRDLOperation):
+    name = "dlt.clear"  # take a Ptrtype and set all the values of clear_type to 0 - possibly changing the runtime sparsity
+    tree: OperandDef = operand_def(PtrType)
+    # dimensions: AttributeDef = attr_def(SetAttr[DimensionAttr])
+    clear_type: AttributeDef = attr_def(AcceptedTypes)
+
+@irdl_op_definition
+class IterateYieldOp(AbstractYieldOperation[Attribute]):
+    name = "dlt.iterateYield"
+
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(IterateOp)])
+    )
 
 @irdl_op_definition
 class IterateOp(IRDLOperation):
-    name = "dlt.iterate"
+    name = "dlt.iterate" # Iterate over a multiple dimension-extent pairs, given some context tensors that might be used inside.
+    #TODO attribute for type of itteration - Non-zero vs whole space
+    dimensions: ArrayAttr[StringAttr] = attr_def(ArrayAttr[StringAttr])
+    extents: VarOperand = var_operand_def(IndexType)
+    order: StringAttr = attr_def(StringAttr) # "nested" | "none" | "stored"
+    tensors: VarOperand = var_operand_def(PtrType)
+
+
+    iter_args: VarOperand = var_operand_def(AnyAttr())
+
+    res: VarOpResult = var_result_def(AnyAttr())
+
+    body: Region = region_def("single_block")
+
+    traits = frozenset([SingleBlockImplicitTerminator(IterateYieldOp)])
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+    def __init__(
+        self,
+        dimensions: ArrayAttr[StringAttr],
+        extents: Sequence[SSAValue | IndexType],
+        order: StringAttr,
+        tensors: Sequence[SSAValue | PtrType],
+        iter_args: Sequence[SSAValue | Operation],
+        body: Region | Sequence[Operation] | Sequence[Block] | Block,
+    ):
+        if isinstance(body, Block):
+            body = [body]
+        assert order.data in ["nested", "none", "stored"]
+
+        super().__init__(
+            operands=[extents, tensors, iter_args],
+            result_types=[[SSAValue.get(a).type for a in iter_args]],
+            regions=[body],
+            attributes={"dimensions":dimensions, "order":order}
+        )
+
+    def verify_(self):
+        if (len(self.iter_args) + len(self.dimensions)) != len(self.body.block.args):
+            raise VerifyException(
+                f"Wrong number of block arguments, expected {len(self.iter_args)+len(self.dimensions)}, got "
+                f"{len(self.body.block.args)}. The body must have the induction "
+                f"variables and loop-carried variables as arguments."
+            )
+        if self.body.block.args and (iter_vars := [(i,self.body.block.args[i]) for i in range(len(self.dimensions))]):
+            if any(var_i:= i and not isinstance(var.type, IndexType) for i, var in iter_vars):
+                raise VerifyException(
+                    f"The first {len(self.dimensions)} block argument(s) of the body must be of type index, but arg "
+                    f"{var_i} is of type {self.body.block.args[var_i].type} instead of index."
+                )
+        for idx, arg in enumerate(self.iter_args):
+            if self.body.block.args[idx + len(self.dimensions)].type != arg.type:
+                raise VerifyException(
+                    f"Block arguments with wrong type, expected {arg.type}, "
+                    f"got {self.body.block.args[idx].type}. Arguments after the "
+                    f"induction variables must match the carried variables."
+                )
+        if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, IterateYieldOp):
+            yieldop = self.body.block.last_op
+            if len(yieldop.arguments) != len(self.iter_args):
+                raise VerifyException(
+                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
+                    f"The dlt.iterate must yield its carried variables."
+                )
+            for idx, arg in enumerate(yieldop.arguments):
+                if self.iter_args[idx].type != arg.type:
+                    raise VerifyException(
+                        f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
+                        f"dlt.iterate's dlt.iterateYield must match carried variables types."
+                    )
+
+    # def print(self, printer: Printer):
+    #     block = self.body.block
+    #     indices = [block.args[i] for i in range(len(self.dimensions))]
+    #     iter_args = [block.args[i] for i in range(len(self.dimensions), len(block.args))]
+    #     printer.print_string(" ")
+    #     printer.print_list(
+    #         zip(indices, self.iter_args),
+    #         lambda pair: print_assignment(printer, *pair),
+    #     )
+    #     printer.print_ssa_value(index)
+    #     printer.print_string(" = ")
+    #     printer.print_ssa_value(self.lb)
+    #     printer.print_string(" to ")
+    #     printer.print_ssa_value(self.ub)
+    #     printer.print_string(" step ")
+    #     printer.print_ssa_value(self.step)
+    #     printer.print_string(" ")
+    #     if iter_args:
+    #         printer.print_string("iter_args(")
+    #         printer.print_list(
+    #             zip(iter_args, self.iter_args),
+    #             lambda pair: print_assignment(printer, *pair),
+    #         )
+    #         printer.print_string(") -> (")
+    #         printer.print_list((a.type for a in iter_args), printer.print_attribute)
+    #         printer.print_string(") ")
+    #     printer.print_region(
+    #         self.body,
+    #         print_entry_block_args=False,
+    #         print_empty_block=False,
+    #         print_block_terminators=bool(iter_args),
+    #     )
 #TODO
 
 @irdl_op_definition
 class InitOp(IRDLOperation):
-    name = "dlt.init"
+    name = "dlt.init" # take a dlt layout as a TypeType and do the memory allocations etc to form a ptrType
+
+    layout: OperandDef = operand_def(TypeType)
+    initialValues: VarOperand = var_operand_def(PtrType)
+    res: OpResult = result_def(PtrType)
+
 #TODO
 
 @irdl_op_definition
 class AssertLayoutOp(IRDLOperation):
-    name = "dlt.assert"
+    name = "dlt.assert" # take a dlt layout as a TypeType and assert that a given memref has the layout to form a ptrType
 #TODO
 
 
@@ -529,7 +690,7 @@ class AssertLayoutOp(IRDLOperation):
 DLT = Dialect("DLT",
     [#ops
         StructOp,
-        YieldOp,
+        StructYieldOp,
         IndexingOp,
         MemberOp,
         PrimitiveOp,
@@ -539,6 +700,9 @@ DLT = Dialect("DLT",
         IndexAffineOp,
         SelectOp,
         GetOp,
+        CopyOp,
+        ClearOp,
+        IterateYieldOp,
         IterateOp,
         InitOp
     ],
@@ -549,6 +713,7 @@ DLT = Dialect("DLT",
         ElementAttr,
         TypeType,
         IndexRangeType,
-        IndexedTypeType
+        IndexedTypeType,
+        PtrType
     ]
 )

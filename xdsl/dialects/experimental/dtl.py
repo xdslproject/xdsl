@@ -34,11 +34,13 @@ import builtins
 from typing import Type
 
 from xdsl.dialects import builtin, arith, memref
+from xdsl.dialects.experimental import dlt
 from xdsl.ir import MLContext
 from xdsl.irdl import *
 from xdsl.dialects.builtin import *
 from dataclasses import dataclass
 
+from xdsl.traits import IsTerminator, HasParent
 from xdsl.utils.hints import isa
 
 IndexT = TypeVar("IndexT", bound=Attribute)
@@ -245,7 +247,7 @@ def matchTensorTupleStructures(expr_type: TensorResultType, result_type: TensorR
 class IndexOp(IRDLOperation):
     name = "dtl.indexOp"
 
-    expr: TensorExprType = operand_def(TensorExprType)
+    expr = operand_def(TensorExprType)
     indices: IndexingStruct = attr_def(IndexingStruct)
     result: TensorExprType = result_def(TensorExprType)
 
@@ -260,23 +262,27 @@ class IndexOp(IRDLOperation):
 class DeIndexOp(IRDLOperation):
     name = "dtl.deindexOp"
 
-    expr: TensorExprType = operand_def(TensorExprType)
+    expr = operand_def(TensorExprType)
     indices: DeIndexingStruct = attr_def(DeIndexingStruct)
     result: TensorExprType = result_def(TensorExprType)
 
-    def _get_indices(self, struct: DeIndexingStruct) -> [Index]:
+    @staticmethod
+    def _get_indices(struct: DeIndexingStruct) -> [Index]:
         if isinstance(struct, IndexShapeStruct):
             return [i for i in struct.shape.data if isinstance(i, Index)]
         elif isinstance(struct, IndexTupleStruct):
-            return [i for c in struct.children.data for i in self._get_indices(c)]
+            return [i for c in struct.children.data for i in DeIndexOp._get_indices(c)]
         else:
             raise ValueError()
+
+    def get_indices(self) -> set[Index]:
+        return set(DeIndexOp._get_indices(self.indices))
 
     def verify_(self):
         self.indices.verify_generic(Index | VectorSpace)
         assert isa(self.expr.type, TensorExprType)
         matchTensorTupleStructures(self.expr.type.result, self.result.type.result, self.indices, self.expr.type.args, deindexing=True)
-        indices = self._get_indices(self.indices)
+        indices = self.get_indices()
         assert len(indices) == len(set(i.id.data for i in indices))
         assert all(i in self.expr.type.args.indices() for i in indices)
         unused = [i for i in self.expr.type.args.indices() if i not in indices]
@@ -352,8 +358,8 @@ class ScalarSubOp(IRDLOperation):
 class ScalarMulOp(IRDLOperation):
     name = "dtl.scalarMulOp"
 
-    lhs: TensorExprType = operand_def(TensorExprType)
-    rhs: TensorExprType = operand_def(TensorExprType)
+    lhs = operand_def(TensorExprType)
+    rhs = operand_def(TensorExprType)
     result: TensorExprType = result_def(TensorExprType)
 
     def verify_(self):
@@ -453,18 +459,20 @@ class ConstTensorOp(IRDLOperation):
 class DenseBackedTensorOp(IRDLOperation):
     name = "dtl.denseTensorOp"
 
-    val: builtin.TensorType = operand_def(builtin.TensorType)
+    val: builtin.TensorType = operand_def(dlt.PtrType)
     result: TensorExprType = result_def(TensorExprType)
 
     def verify_(self):
         # assert isa(self.val.type, builtin.AnyFloat)
         # assert self.result.type.result == self.shape
         assert isa(self.result.type.result, IndexShapeStruct)
-        assert isa(self.val.type, TensorType)
-        for vs, ts in zip(self.result.type.result.shape.data, self.val.type.shape.data):
-            if vs.dim != ts.value:
-                raise VerifyException(
-                    f"{self.val.type.name} with shape {self.val.type.shape} does not match {self.result.type.name} with shape {self.result.type.result.shape}")
+        element: dlt.ElementAttr = self.val.type.contents_type.get_single_element()
+        assert element is not None, "PtrType must have one and only one element"
+        assert len(element.dimensions) == len(self.result.type.result.shape)
+        # for vs, ts in zip(self.result.type.result.shape.data):
+        #     if vs.dim != ts.value:
+        #         raise VerifyException(
+        #             f"{self.val.type.name} with shape {self.val.type.shape} does not match {self.result.type.name} with shape {self.result.type.result.shape}")
 
 
 @irdl_attr_definition
@@ -500,17 +508,45 @@ class ExecuteArgsOp(IRDLOperation):
         assert len(self.extents) == len(self.result.type.vectorSpaces)
 
 
+@irdl_attr_definition
+class ExecuteOutputType(ParametrizedAttribute):
+    name = "dtl.executeOutputType"
+    dimensionNames: ParameterDef[ArrayAttr[ArrayAttr[StringAttr]]]
+
+
+@irdl_op_definition
+class ExecuteOutputOp(IRDLOperation):
+    name = "dtl.executeOutputOp"
+
+    tensors: VarOperand = var_operand_def(dlt.PtrType)
+    result: ExecuteArgsType = result_def(ExecuteOutputType)
+
+    def verify_(self):
+        #we should assert that the dlt type has all and the needed output tensors as specified by the result type
+        assert len(self.extents) == len(self.result.type.vectorSpaces)
+
 
 @irdl_op_definition
 class DenseExecuteTensorOp(IRDLOperation):
     name = "dtl.denseExecuteOp"
 
-    expr: TensorExprType = operand_def(TensorExprType)
-    context: ExecuteContextOp = operand_def(ExecuteContextType)
-    args: ExecuteContextOp = operand_def(ExecuteArgsType)
-    data: memref.MemRefType = operand_def(memref.MemRefType[builtin.AnyFloat])
+    expr_region: Region = region_def("single_block")
+    # extent_names: ArrayAttr[UnknownVectorSpace] = attr_def(ArrayAttr[UnknownVectorSpace])
+    # extent_args: VarOperand = var_operand_def(IndexType)
+    # index_names: ArrayAttr[Index] = attr_def(ArrayAttr[Index])
+    # index_values: VarOperand = var_operand_def(IndexType)
+    context = operand_def(ExecuteContextType)
+    args = operand_def(ExecuteArgsType)
+    outputs: ExecuteOutputOp = operand_def(ExecuteOutputType)
 
-    # result: TensorExprType = result_def(TensorExprType) No result type needed as this effectively stores into the given memref
+    tensor_arg_indices: ArrayAttr[ArrayAttr[StringAttr]] = attr_def(ArrayAttr[ArrayAttr[StringAttr]])
+    tensor_arg_base_types: ArrayAttr[builtin.AnyFloat|builtin.IntegerType] = attr_def(ArrayAttr[builtin.AnyFloat|builtin.IntegerType])
+    tensor_args: VarOperand = var_operand_def(dlt.PtrType)
+
+    # output_indices: ArrayAttr[ArrayAttr[StringAttr]] = attr_def(ArrayAttr[ArrayAttr[StringAttr]])
+    # outputs: dlt.PtrType = operand_def(dlt.PtrType)
+
+    # result: TensorExprType = result_def(TensorExprType) No result type needed as this effectively stores into the given output op
 
     def verify_(self):
         # check context holds all the required vector spaces
@@ -518,14 +554,27 @@ class DenseExecuteTensorOp(IRDLOperation):
         # check data has correct shape given TensorExprType
         pass
 
-    @staticmethod
-    def get(value: Union[Operation, SSAValue], shape: TensorResultType) -> ConstTensorOp:
-        result_type = TensorExprType.new(
-            [IndexToVectorSpaceMap.new([ArrayAttr([])]), shape])
-        value = SSAValue.get(value)
-        return ConstTensorOp.build(operands=[value], attributes={'shape': shape}, result_types=[result_type])
+    def get_extent(self, space: UnknownVectorSpace):
+        for i, s in enumerate(self.context.type.vectorSpaces):
+            if space == s:
+                return self.context.op.extents[i]
+        return None
 
+    # @staticmethod
+    # def get(value: Union[Operation, SSAValue], shape: TensorResultType) -> ConstTensorOp:
+    #     result_type = TensorExprType.new(
+    #         [IndexToVectorSpaceMap.new([ArrayAttr([])]), shape])
+    #     value = SSAValue.get(value)
+    #     return ConstTensorOp.build(operands=[value], attributes={'shape': shape}, result_types=[result_type])
 
+@irdl_op_definition
+class ExecuteYieldOp(IRDLOperation):
+    name = "dtl.executeYield"
+    arguments: TensorExprType = operand_def(TensorExprType)
+
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(DenseExecuteTensorOp)])
+    )
 #
 #
 # @irdl_attr_definition
