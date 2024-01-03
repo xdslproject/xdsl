@@ -1486,7 +1486,7 @@ class Block(IRNode):
         block, and the rest of the operations in the original block are moved to the new
         block, including the old terminator.
         The original block is left without a terminator.
-        The newly formed Block is inserted into the parent region immediately after `self`
+        The newly formed block is inserted into the parent region immediately after `self`
         and returned.
         """
         # Use `a` for new contents of `self`, and `b` for new block.
