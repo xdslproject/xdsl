@@ -132,6 +132,41 @@ builtin.module {
   // CHECK-NEXT:    func.return
   // CHECK-NEXT:  }
 
+
+  func.func @while3() {
+    %a = "arith.constant"() {value = 1.000000e+00 : f32} : () -> f32
+    %b = "arith.constant"() {value = 32 : i32} : () -> i32
+    %2:2 = "scf.while"(%b, %a) ({
+    ^bb0(%arg0: i32, %arg1: f32):
+      %c = "arith.constant"() {value = 0 : i32} : () -> i32
+      %d = "arith.cmpi"(%arg0, %c) {predicate = 0 : i64} : (i32, i32) -> i1
+      scf.condition(%d) {"hello" = "world"} %arg0, %arg1 : i32, f32
+    }, {
+    ^bb0(%arg0: i32, %arg1: f32):
+      %c = "arith.constant"() {value = 1.000000e+00 : f32} : () -> f32
+      %d = "arith.addf"(%c, %arg1) {fastmath = #arith.fastmath<none>} : (f32, f32) -> f32
+      scf.yield %arg0, %d : i32, f32
+    }) : (i32, f32) -> (i32, f32)
+    func.return
+  }
+
+  // CHECK-NEXT:  func.func @while3() {
+  // CHECK-NEXT:    %{{.*}} = arith.constant 1.000000e+00 : f32
+  // CHECK-NEXT:    %{{.*}} = arith.constant 32 : i32
+  // CHECK-NEXT:    %{{.*}}, %{{.*}} = "scf.while"(%{{.*}}, %{{.*}}) ({
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
+  // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
+  // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      scf.condition(%{{.*}}) {"hello" = "world"} %{{.*}}, %{{.*}} : i32, f32
+  // CHECK-NEXT:    }, {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : f32):
+  // CHECK-NEXT:      %{{.*}} = arith.constant 1.000000e+00 : f32
+  // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
+  // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}} : i32, f32
+  // CHECK-NEXT:    }) : (i32, f32) -> (i32, f32)
+  // CHECK-NEXT:    func.return
+  // CHECK-NEXT:  }
+
   func.func @for() {
     %lb = arith.constant 0 : index
     %ub = arith.constant 42 : index

@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
@@ -729,25 +730,59 @@ class Printer:
         self.print(" : ")
         self.print_operation_type(op)
 
-    def print_operation_type(self, op: Operation) -> None:
+    def print_function_type(
+        self, input_types: Iterable[Attribute], output_types: Iterable[Attribute]
+    ):
+        """
+        Prints a function type like `(i32, i64) -> (f32, f64)` with the following
+        format:
+
+        The inputs are always a comma-separated list in parentheses.
+        If the output has a single element, the parentheses are dropped, except when the
+        only return type is a function type, in which case they are kept.
+
+        ```
+        () -> ()                 # no inputs, no outputs
+        (i32) -> ()              # one input, no outputs
+        (i32) -> i32             # one input, one output
+        (i32) -> (i32, i32)      # one input, two outputs
+        (i32) -> ((i32) -> i32)  # one input, one function type output
+        ```
+        """
         self.print("(")
-        self.print_list(op.operands, lambda operand: self.print_attribute(operand.type))
+        self.print_list(input_types, self.print_attribute)
         self.print(") -> ")
-        if len(op.results) == 0:
+
+        remaining_outputs_iterator = iter(output_types)
+        try:
+            first_type = next(remaining_outputs_iterator)
+        except StopIteration:
+            # No outputs
             self.print("()")
-        elif len(op.results) == 1:
-            res_type = op.results[0].type
-            # Handle ambiguous case
-            if isinstance(res_type, FunctionType):
-                self.print("(", res_type, ")")
+            return
+
+        try:
+            second_type = next(remaining_outputs_iterator)
+        except StopIteration:
+            # One output, drop parentheses unless it's a FunctionType
+            if isinstance(first_type, FunctionType):
+                self.print("(", first_type, ")")
             else:
-                self.print(res_type)
-        else:
-            self.print("(")
-            self.print_list(
-                op.results, lambda result: self.print_attribute(result.type)
-            )
-            self.print(")")
+                self.print(first_type)
+            return
+
+        # Two or more outputs, comma-separated list
+        self.print("(")
+        self.print_list(
+            chain((first_type, second_type), remaining_outputs_iterator),
+            self.print_attribute,
+        )
+        self.print(")")
+
+    def print_operation_type(self, op: Operation) -> None:
+        self.print_function_type(
+            (o.type for o in op.operands), (r.type for r in op.results)
+        )
         if self.print_debuginfo:
             self.print(" loc(unknown)")
 
