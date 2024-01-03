@@ -111,11 +111,19 @@ class While(IRDLOperation):
         )
 
         parser.parse_punctuation(":")
+        type_pos = parser.pos
         function_type = parser.parse_function_type()
 
         def resolve_argument(arg: parser.Argument, type: Attribute):
             arg.type = type
             return arg
+
+        if len(tuples) != len(function_type.inputs.data):
+            parser.raise_error(
+                f"Mismatch between block argument count ({len(tuples)}) and operand count ({len(function_type.inputs.data)})",
+                type_pos,
+                parser.pos,
+            )
 
         block_args = tuple(
             resolve_argument(block_arg, t)
