@@ -100,6 +100,36 @@ class Div(ElementwiseBinOpBase):
     name = "onnx.Div"
 
 
+
+
+@irdl_op_definition
+class Relu(IRDLOperation):
+    name = "onnx.Relu"
+    """
+    Relu takes one input data (Tensor) and produces one output data (Tensor) where the rectified linear function,
+     y = max(0, x), is applied to the tensor elementwise.
+    """
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    operand = operand_def(TensorType[T])
+    res = result_def(TensorType[T])
+    assembly_format = "`(` $operand`)` attr-dict `:` `(` type($operand) `)` `->` type($res)"
+
+    def __init__(self, operand: SSAValue):
+        super().__init__(
+            operands=[operand],
+            result_types=[operand.type],
+        )
+
+    def verify_(self) -> None:
+        if (
+                not isinstance(self.operand.type, TensorType)
+                or not isinstance(self.res.type, TensorType)
+                or self.operand.type != self.res.type
+        ):
+            assert (
+                False
+            ), "onnx elementwise operation operand and result must be of type TensorType"
+
 ONNX = Dialect(
     "onnx",
     [
@@ -107,5 +137,6 @@ ONNX = Dialect(
         Sub,
         Mul,
         Div,
+        Relu,
     ],
 )
