@@ -129,6 +129,7 @@ class Relu(IRDLOperation):
             ), "onnx elementwise operation operand and result must be of type TensorType"
             operand_type = cast(TensorType[Attribute], operand_type)
             res_type = cast(TensorType[Attribute], res_type)
+
             if operand_type != res_type:
                 raise VerifyException("Mismatch between operand type and res type")
 
