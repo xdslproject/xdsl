@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import Annotated
+from typing import Annotated, cast
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -100,8 +100,6 @@ class Div(ElementwiseBinOpBase):
     name = "onnx.Div"
 
 
-
-
 @irdl_op_definition
 class Relu(IRDLOperation):
     name = "onnx.Relu"
@@ -112,7 +110,9 @@ class Relu(IRDLOperation):
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     operand = operand_def(TensorType[T])
     res = result_def(TensorType[T])
-    assembly_format = "`(` $operand`)` attr-dict `:` `(` type($operand) `)` `->` type($res)"
+    assembly_format = (
+        "`(` $operand`)` attr-dict `:` `(` type($operand) `)` `->` type($res)"
+    )
 
     def __init__(self, operand: SSAValue):
         super().__init__(
@@ -121,18 +121,18 @@ class Relu(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if (
-                not isinstance(operand_type := self.operand.type, TensorType)
-                or not isinstance(res_type := self.res.type, TensorType)
-        ):
+        if not isinstance(
+            operand_type := self.operand.type, TensorType
+        ) or not isinstance(res_type := self.res.type, TensorType):
             assert (
                 False
             ), "onnx elementwise operation operand and result must be of type TensorType"
             operand_type = cast(TensorType[Attribute], operand_type)
             res_type = cast(TensorType[Attribute], res_type)
-            
+
             if operand_type != res_type:
-                raise VerificationException("Mismatch between operand type and res type")
+                raise VerifyException("Mismatch between operand type and res type")
+
 
 ONNX = Dialect(
     "onnx",
