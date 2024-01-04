@@ -122,13 +122,17 @@ class Relu(IRDLOperation):
 
     def verify_(self) -> None:
         if (
-                not isinstance(self.operand.type, TensorType)
-                or not isinstance(self.res.type, TensorType)
-                or self.operand.type != self.res.type
+                not isinstance(operand_type := self.operand.type, TensorType)
+                or not isinstance(res_type := self.res.type, TensorType)
         ):
             assert (
                 False
             ), "onnx elementwise operation operand and result must be of type TensorType"
+            operand_type = cast(TensorType[Attribute], operand_type)
+            res_type = cast(TensorType[Attribute], res_type)
+            
+            if operand_type != res_type:
+                raise VerificationException("Mismatch between operand type and res type")
 
 ONNX = Dialect(
     "onnx",
