@@ -186,7 +186,7 @@ class Gemm(IRDLOperation):
             result_types=[tensor_a.type],
         )
 
-    def verify(self) -> None:
+    def verify_(self) -> None:
         # store dimensions of tensor A and tensor B
         res_shape: list[int] = []
         if (
@@ -219,6 +219,7 @@ class Gemm(IRDLOperation):
             c_dims = tensor_c_type.get_num_dims()
             if c_dims > 2:
                 raise VerifyException("tensor C should be a 1D tensor or 2D tensor")
+
         if tensor_a_shape[1] != tensor_b_shape[0]:
             raise VerifyException(
                 f"operands have incompatible shapes: {tensor_a_shape} and {tensor_b_shape}"
