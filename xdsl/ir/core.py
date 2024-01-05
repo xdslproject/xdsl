@@ -1478,7 +1478,12 @@ class Block(IRNode):
 
             existing_op = op
 
-    def split_before(self, b_first: Operation) -> Block:
+    def split_before(
+        self,
+        b_first: Operation,
+        *,
+        arg_types: Iterable[Attribute] = (),
+    ) -> Block:
         """
         Split the block into two blocks before the specified operation.
 
@@ -1515,7 +1520,7 @@ class Block(IRNode):
         self._first_op = a_first
         self._last_op = a_last
 
-        b = Block()
+        b = Block(arg_types=arg_types)
         a_index = parent.get_block_index(self)
         parent.insert_block(b, a_index + 1)
 
