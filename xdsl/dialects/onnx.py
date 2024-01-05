@@ -153,11 +153,11 @@ class Gemm(IRDLOperation):
     tensor_b = operand_def(TensorType[T])
     tensor_c = operand_def(TensorType[T])
 
-    alpha = opt_attr_def(FloatAttr)
-    beta = opt_attr_def(FloatAttr)
+    alpha = opt_attr_def(FloatAttr, attr_name="alpha")
+    beta = opt_attr_def(FloatAttr, attr_name="beta")
 
-    trans_a = opt_attr_def(IntegerAttr, attrname="transA")
-    trans_b = opt_attr_def(IntegerAttr, attrname="transB")
+    trans_a = opt_attr_def(IntegerAttr, attr_name="transA")
+    trans_b = opt_attr_def(IntegerAttr, attr_name="transB")
 
     res_tensor = result_def(TensorType[T])
     assembly_format = (
@@ -231,7 +231,6 @@ class Gemm(IRDLOperation):
         # the result type is correct.
         # Iterate over the shapes in reverse order and compute the result shape.
         final_res_shape: list[int] = []
-        res_shape = tuple(res_shape)
         tensor_c_shape = tensor_c_type.get_shape()
         i = max(len(res_shape), len(tensor_c_shape))
         while i > 0:
