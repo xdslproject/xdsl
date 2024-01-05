@@ -555,6 +555,7 @@ def test_verify_inline_region_after():
 
     with pytest.raises(ValueError, match="Cannot move region into itself."):
         Rewriter.inline_region_before(region, region.block)
+
     with pytest.raises(
         ValueError, match="Cannot inline region before a block with no parent"
     ):
