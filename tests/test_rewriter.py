@@ -510,7 +510,41 @@ def test_inline_region_before():
     rewrite_and_compare(prog, expected, transformation)
 
 
-def test_verify_inline_region_before():
+def test_inline_region_after():
+    """Test the insertion of a block in a region."""
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> f32
+^1:
+  %2 = "test.op"() : () -> f64
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        region = Region(
+            (
+                Block((test.TestOp(result_types=(Float32Type(),)),)),
+                Block((test.TestOp(result_types=(Float64Type(),)),)),
+            )
+        )
+        rewriter.inline_region_after(region, module.body.blocks[0])
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_verify_inline_region_after():
     block = Block()
     region = Region(Block())
 
@@ -521,3 +555,10 @@ def test_verify_inline_region_before():
 
     with pytest.raises(ValueError, match="Cannot move region into itself."):
         Rewriter.inline_region_before(region, region.block)
+    with pytest.raises(
+        ValueError, match="Cannot inline region before a block with no parent"
+    ):
+        Rewriter.inline_region_after(region, block)
+
+    with pytest.raises(ValueError, match="Cannot move region into itself."):
+        Rewriter.inline_region_after(region, region.block)

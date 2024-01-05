@@ -212,5 +212,5 @@ class Rewriter:
         parent_region = target.parent
         if parent_region is None:
             raise ValueError("Cannot inline region before a block with no parent")
-        pos = parent_region.get_block_index(target)
+        pos = parent_region.get_block_index(target) + 1
         Rewriter._inline_region_at_pos(region, parent_region, pos)
