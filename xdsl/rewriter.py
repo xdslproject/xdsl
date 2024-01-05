@@ -186,3 +186,15 @@ class Rewriter:
             new_region.add_block(block)
         region.blocks = []
         return new_region
+
+    @staticmethod
+    def inline_region_before(region: Region, target: Block) -> None:
+        """Move the region blocks to an existing region."""
+        parent_region = target.parent
+        if parent_region is None:
+            raise ValueError("Cannot inline region before a block with no parent")
+        for block in region.blocks:
+            block.parent = None
+        pos = parent_region.get_block_index(target)
+        parent_region.insert_block(region.blocks, pos)
+        region.blocks = []

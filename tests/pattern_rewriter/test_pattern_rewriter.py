@@ -1093,6 +1093,53 @@ def test_insert_same_block():
     )
 
 
+def test_inline_region_before():
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  "test.op"() ({
+    ^1:
+    %1 = "test.op"() : () -> f32
+    ^2:
+    %2 = "test.op"() : () -> f64
+  }) {"label" = "а"} : () -> ()
+  %2 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> f32
+^1:
+  %2 = "test.op"() : () -> f64
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes.get("label") != StringAttr("а"):
+                return
+            if op.parent is None:
+                return
+
+            rewriter.inline_region_before(op.regions[0], op.parent)
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=0,
+        op_removed=1,
+    )
+
+
 def test_type_conversion():
     """Test rewriter on ops without results"""
     prog = """\

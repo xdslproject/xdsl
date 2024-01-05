@@ -471,6 +471,19 @@ class PatternRewriter(PatternRewriterListener):
             )
         return Rewriter.move_region_contents_to_new_regions(region)
 
+    def inline_region_before(self, region: Region, target: Block) -> None:
+        """Move the region blocks to an existing region."""
+        self.has_done_action = True
+        if not self._can_modify_region(region):
+            raise Exception(
+                "Cannot move regions that are not children of the matched operation"
+            )
+        if not self._can_modify_block(target):
+            raise Exception(
+                "Cannot move blocks that are not contained in the matched operation."
+            )
+        Rewriter.inline_region_before(region, target)
+
     def iter_affected_ops(self) -> Iterable[Operation]:
         """
         Iterate newly added operations, in the order that they are in the module.
