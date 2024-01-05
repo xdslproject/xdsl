@@ -799,7 +799,7 @@ class PatternRewriteWalker:
 
     def _add_operands_to_worklist(self, operands: Iterable[SSAValue]) -> None:
         """
-        Add defining operations of SSA values to the worklist, if they have only
+        Add defining operations of SSA values to the worklist if they have only
         one use. This is a heuristic based on the fact that single-use operations
         have more canonicalization opportunities.
         """
@@ -839,23 +839,23 @@ class PatternRewriteWalker:
         listener passed as configuration to the walker.
         """
         return PatternRewriterListener(
-            operation_insertion_handler=(
-                self.listener.operation_insertion_handler
-                + [self._handle_operation_insertion]
-            ),
-            operation_removal_handler=(
-                self.listener.operation_removal_handler
-                + [self._handle_operation_removal]
-            ),
-            operation_modification_handler=(
-                self.listener.operation_modification_handler
-                + [self._handle_operation_modification]
-            ),
-            operation_replacement_handler=(
-                self.listener.operation_replacement_handler
-                + [self._handle_operation_replacement]
-            ),
-            block_creation_handler=(self.listener.block_creation_handler),
+            operation_insertion_handler=[
+                *self.listener.operation_insertion_handler,
+                self._handle_operation_insertion,
+            ],
+            operation_removal_handler=[
+                *self.listener.operation_removal_handler,
+                self._handle_operation_removal,
+            ],
+            operation_modification_handler=[
+                *self.listener.operation_modification_handler,
+                self._handle_operation_modification,
+            ],
+            operation_replacement_handler=[
+                *self.listener.operation_replacement_handler,
+                self._handle_operation_replacement,
+            ],
+            block_creation_handler=self.listener.block_creation_handler,
         )
 
     def rewrite_module(self, module: ModuleOp) -> None:
