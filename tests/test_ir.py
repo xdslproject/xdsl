@@ -421,6 +421,17 @@ def test_split_block_last():
     assert c.prev_op is None
 
 
+def test_split_block_args():
+    old_block = Block((test.TestOp(), test.TestOp(), test.TestOp()))
+    region = Region(old_block)
+    _, op, _ = region.block.ops
+
+    new_block = old_block.split_before(op, arg_types=(i32, i64))
+
+    arg_types = [a.type for a in new_block.args]
+    assert arg_types == [i32, i64]
+
+
 def test_region_clone_into_circular_blocks():
     """
     Test that cloning a region with circular block dependency works.
