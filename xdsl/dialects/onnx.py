@@ -188,7 +188,7 @@ class Gemm(IRDLOperation):
 
     def verify(self) -> None:
         # store dimensions of tensor A and tensor B
-        res_matrix_shape: list[int] = []
+        res_shape: list[int] = []
         if (
             not isinstance(tensor_a_type := self.tensor_a.type, TensorType)
             or not isinstance(tensor_b_type := self.tensor_b.type, TensorType)
@@ -224,24 +224,24 @@ class Gemm(IRDLOperation):
                 f"operands have incompatible shapes: {tensor_a_shape} and {tensor_b_shape}"
             )
         else:
-            res_matrix_shape.append(tensor_a_shape[0])
-            res_matrix_shape.append(tensor_b_shape[1])
+            res_shape.append(tensor_a_shape[0])
+            res_shape.append(tensor_b_shape[1])
 
         # Now check that tensor C is unidirectional broadcastable to tensor (A * B) (using Numpy semantics) and that
         # the result type is correct.
         final_res_shape: list[int] = []
-        res_matrix_shape = tuple(res_matrix_shape)
+        tuple(res_shape)
         tensor_c_shape = tensor_c_type.get_shape()
-        i = max(len(res_matrix_shape), len(tensor_c_shape))
+        i = max(len(res_shape), len(tensor_c_shape))
         while i > 0:
             i -= 1
-            d1: int = res_matrix_shape[i] if i >= 0 else 1
+            d1: int = res_shape[i] if i >= 0 else 1
             d2: int = tensor_c_shape[i] if i >= 0 else 1
             if d1 == d2 or d2 == 1 or d1 == 1:
                 final_res_shape.append(max(d1, d2))
                 continue
             raise VerifyException(
-                f"operands have incompatible shapes: {res_matrix_shape} and {tensor_c_shape}"
+                f"operands have incompatible shapes: {res_shape} and {tensor_c_shape}"
             )
         res_tensor_type_shape = list(res_tensor_type.get_shape())
         final_res_shape.reverse()
