@@ -1140,6 +1140,149 @@ def test_inline_region_before():
     )
 
 
+def test_inline_region_after():
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+  "test.op"() ({
+    ^1:
+    %1 = "test.op"() : () -> f32
+    ^2:
+    %2 = "test.op"() : () -> f64
+  }) {"label" = "а"} : () -> ()
+^0:
+  %2 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> f32
+^1:
+  %2 = "test.op"() : () -> f64
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes.get("label") != StringAttr("а"):
+                return
+            if op.parent is None:
+                return
+
+            rewriter.inline_region_after(op.regions[0], op.parent)
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=0,
+        op_removed=1,
+    )
+
+
+def test_inline_region_at_start():
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  "test.op"() ({
+    ^1:
+    %1 = "test.op"() : () -> f32
+    ^2:
+    %2 = "test.op"() : () -> f64
+  }) {"label" = "а"} : () -> ()
+  %2 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> f32
+^0:
+  %1 = "test.op"() : () -> f64
+^1:
+  %2 = "test.op"() : () -> i32
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes.get("label") != StringAttr("а"):
+                return
+            parent_region = op.parent_region()
+            if parent_region is None:
+                return
+
+            rewriter.inline_region_at_start(op.regions[0], parent_region)
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=0,
+        op_removed=1,
+    )
+
+
+def test_inline_region_at_end():
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  "test.op"() ({
+    ^1:
+    %1 = "test.op"() : () -> f32
+    ^2:
+    %2 = "test.op"() : () -> f64
+  }) {"label" = "а"} : () -> ()
+  %2 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> i64
+^1:
+  %2 = "test.op"() : () -> f32
+^2:
+  %3 = "test.op"() : () -> f64
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes.get("label") != StringAttr("а"):
+                return
+            parent_region = op.parent_region()
+            if parent_region is None:
+                return
+
+            rewriter.inline_region_at_end(op.regions[0], parent_region)
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=0,
+        op_removed=1,
+    )
+
+
 def test_type_conversion():
     """Test rewriter on ops without results"""
     prog = """\
