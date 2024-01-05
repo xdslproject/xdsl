@@ -508,3 +508,16 @@ def test_inline_region_before():
         rewriter.inline_region_before(region, module.body.blocks[1])
 
     rewrite_and_compare(prog, expected, transformation)
+
+
+def test_verify_inline_region_before():
+    block = Block()
+    region = Region(Block())
+
+    with pytest.raises(
+        ValueError, match="Cannot inline region before a block with no parent"
+    ):
+        Rewriter.inline_region_before(region, block)
+
+    with pytest.raises(ValueError, match="Cannot move region into itself."):
+        Rewriter.inline_region_before(region, region.block)
