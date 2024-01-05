@@ -214,3 +214,13 @@ class Rewriter:
             raise ValueError("Cannot inline region before a block with no parent")
         pos = parent_region.get_block_index(target) + 1
         Rewriter._inline_region_at_pos(region, parent_region, pos)
+
+    @staticmethod
+    def inline_region_at_start(region: Region, target: Region) -> None:
+        """Move the region blocks to the start of an existing region."""
+        Rewriter._inline_region_at_pos(region, target, 0)
+
+    @staticmethod
+    def inline_region_at_end(region: Region, target: Region) -> None:
+        """Move the region blocks to the end of an existing region."""
+        Rewriter._inline_region_at_pos(region, target, len(target.blocks))
