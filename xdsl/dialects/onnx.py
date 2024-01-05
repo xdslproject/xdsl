@@ -176,12 +176,6 @@ class Gemm(IRDLOperation):
         beta: Attribute,
     ):
         super().__init__(
-            attributes={
-                "transA": trans_a,
-                "transB": trans_b,
-                "alpha": alpha,
-                "beta": beta,
-            },
             operands=[tensor_a, tensor_b, tensor_c],
             result_types=[tensor_a.type],
         )
