@@ -183,7 +183,7 @@ class Gemm(IRDLOperation):
                 "beta": beta,
             },
             operands=[tensor_a, tensor_b, tensor_c],
-            result_types=[tensor_a.type],
+            result_types=[tensor_c.type],
         )
 
     def verify_(self) -> None:
