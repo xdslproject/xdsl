@@ -146,6 +146,12 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
             self.else_arguments, lambda val: _print_type_pair(printer, val)
         )
         printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(
+                self.attributes,
+                reserved_attr_names="operandSegmentSizes",
+                print_keyword=True,
+            )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -162,7 +168,11 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
         else_args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
         )
-        return cls(rs1, rs2, then_args, else_args, then_block, else_block)
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(rs1, rs2, then_args, else_args, then_block, else_block)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
 
 
 @irdl_op_definition
@@ -306,6 +316,8 @@ class BranchOp(IRDLOperation, riscv.RISCVOp):
             self.block_arguments, lambda val: _print_type_pair(printer, val)
         )
         printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -313,7 +325,11 @@ class BranchOp(IRDLOperation, riscv.RISCVOp):
         block_arguments = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
         )
-        return cls(block_arguments, successor)
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(block_arguments, successor)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
 
     def assembly_line(self) -> str | None:
         return None
@@ -376,6 +392,8 @@ class JOp(IRDLOperation, RISCVInstruction):
             self.block_arguments, lambda val: _print_type_pair(printer, val)
         )
         printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -383,7 +401,11 @@ class JOp(IRDLOperation, RISCVInstruction):
         block_arguments = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
         )
-        return cls(block_arguments, successor)
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(block_arguments, successor)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         dest_label = self.successor.first_op
