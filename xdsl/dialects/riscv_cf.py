@@ -19,6 +19,7 @@ from xdsl.irdl import (
     VarOperand,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     successor_def,
     var_operand_def,
 )
@@ -264,6 +265,10 @@ class BranchOp(IRDLOperation, riscv.RISCVOp):
 
     block_arguments = var_operand_def(RISCVRegisterType)
     successor = successor_def()
+    comment: StringAttr | None = opt_attr_def(StringAttr)
+    """
+    An optional comment that will be printed along with the instruction.
+    """
 
     traits = frozenset([IsTerminator()])
 
@@ -332,7 +337,10 @@ class BranchOp(IRDLOperation, riscv.RISCVOp):
         return op
 
     def assembly_line(self) -> str | None:
-        return None
+        if self.comment is None:
+            return None
+
+        return f"    # {self.comment.data}"
 
 
 @irdl_op_definition
