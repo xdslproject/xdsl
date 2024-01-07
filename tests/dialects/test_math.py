@@ -57,7 +57,7 @@ class Test_float_math_binary_construction:
     a = Constant(FloatAttr(1.1, operand_type))
     b = Constant(FloatAttr(2.2, operand_type))
 
-    f32_vector_type = VectorType.from_element_type_and_shape(f32, [3])
+    f32_vector_type = VectorType(f32, [3])
 
     lhs_vector_ssa_value = TestSSAValue(f32_vector_type)
     rhs_vector_ssa_value = TestSSAValue(f32_vector_type)
@@ -136,7 +136,7 @@ class Test_float_math_unary_constructions:
     operand_type = f32
     a = Constant(FloatAttr(1, operand_type))
 
-    f32_vector_type = VectorType.from_element_type_and_shape(f32, [3])
+    f32_vector_type = VectorType(f32, [3])
 
     test_vector_ssa = TestSSAValue(f32_vector_type)
     test_vec = TestOp([test_vector_ssa], result_types=[f32_vector_type])
@@ -259,7 +259,7 @@ class Test_fpowi:
     a = Constant(FloatAttr(2.2, f32))
     b = Constant.from_int_and_width(0, 32)
 
-    f32_vector_type = VectorType.from_element_type_and_shape(f32, [3])
+    f32_vector_type = VectorType(f32, [3])
 
     a_vector_ssa_value = TestSSAValue(f32_vector_type)
     a_vector = TestOp([a_vector_ssa_value], result_types=[f32_vector_type])
@@ -295,7 +295,7 @@ class Test_fma:
     b = Constant(FloatAttr(2.2, f32))
     c = Constant(FloatAttr(3.3, f32))
 
-    f32_vector_type = VectorType.from_element_type_and_shape(f32, [3])
+    f32_vector_type = VectorType(f32, [3])
     test_vector_ssa = TestSSAValue(f32_vector_type)
     a_vec = TestOp([test_vector_ssa], result_types=[f32_vector_type])
     b_vec = TestOp([test_vector_ssa], result_types=[f32_vector_type])
@@ -334,7 +334,7 @@ class Test_int_math_unary_constructions:
     operand_type = i32
     a = Constant.from_int_and_width(0, 32)
 
-    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
+    i32_vector_type = VectorType(i32, [1])
     test_vector_ssa = TestSSAValue(i32_vector_type)
     test_vec = TestOp([test_vector_ssa], result_types=[i32_vector_type])
 
@@ -397,7 +397,7 @@ class Test_int_math_unary_constructions:
     def test_int_math_ops_tensor_init(
         self,
         OpClass: type,
-        return_type: Attribute,  # FIXME use something other than `type`
+        return_type: Attribute,
     ):
         op = OpClass(self.test_tensor)
         assert op.result.type == self.i32_tensor_type
@@ -410,7 +410,7 @@ class Test_Trunci:
     operand_type = i32
     a = Constant.from_int_and_width(0, 32)
 
-    i32_vector_type = VectorType.from_element_type_and_shape(i32, [1])
+    i32_vector_type = VectorType(i32, [1])
     test_vector_ssa = TestSSAValue(i32_vector_type)
     test_vec = TestOp([test_vector_ssa], result_types=[i32_vector_type])
 
