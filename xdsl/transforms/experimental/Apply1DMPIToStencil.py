@@ -116,11 +116,11 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         # Else set empty request handles
         zero_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_zero], [llvm.LLVMPointerType.typed(builtin.i32)]
+            [alloc_lookup_op_zero], [llvm.LLVMPointerType.opaque()]
         )
         null_req_zero = llvm.StoreOp(mpi_request_null, zero_conv)
         one_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_one], [llvm.LLVMPointerType.typed(builtin.i32)]
+            [alloc_lookup_op_one], [llvm.LLVMPointerType.opaque()]
         )
         null_req_one = llvm.StoreOp(mpi_request_null, one_conv)
 
@@ -179,11 +179,11 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         # Else set empty request handles
         two_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_two], [llvm.LLVMPointerType.typed(builtin.i32)]
+            [alloc_lookup_op_two], [llvm.LLVMPointerType.opaque()]
         )
         null_req_two = llvm.StoreOp(mpi_request_null, two_conv)
         three_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_three], [llvm.LLVMPointerType.typed(builtin.i32)]
+            [alloc_lookup_op_three], [llvm.LLVMPointerType.opaque()]
         )
         null_req_three = llvm.StoreOp(mpi_request_null, three_conv)
 

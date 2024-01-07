@@ -7,7 +7,12 @@
     height: 100%;
 }
 
-# Vertical(Button, Button, Button)
+# Button
+#remove_last_pass_button{
+    width: 1;
+}
+
+# ScrollableContainer(Button, Button, Button, Button, Button)
 #buttons{
     layout: vertical;
     width: auto;
@@ -22,15 +27,51 @@
     border-title-align: center;
 }
 
-# Vertical(TextArea, Button)
-#input_container {
+# Horizontal(Button, Button)
+#input_horizontal{
+    width: auto;
+    height: auto;
+}
+
+# DataTable
+#input_operation_count_datatable{
+    width: auto;
+    height: auto;
+}
+
+# ScrollableContainer(DataTable)
+#input_ops_container{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+    width: auto;
+}
+
+# Vertical(TextArea, Horizontal(Button, Button))
+#input_container{
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;
     border-title-style: bold;
     border-title-align: center;
 }
 
-# Vertical(TextArea, Button)
+# DataTable
+#diff_operation_count_datatable{
+    width: auto;
+    height: auto;
+}
+
+# ScrollableContainer(DataTable)
+#output_ops_container{
+    border: heavy $accent-darken-1;
+    border-title-color: $error-darken-3;
+    border-title-style: bold;
+    border-title-align: center;
+    width: auto;
+}
+
+# Vertical(TextArea, Horizontal(Button))
 #output_container {
     border: heavy $accent-darken-1;
     border-title-color: $error-darken-3;
@@ -38,12 +79,22 @@
     border-title-align: center;
 }
 
+# Horizontal(Horizontal(Vertical(TextArea, (Horizontal(Button, Button))),ScrollableContainer(DataTable)))
+#bottom_container{
+    layout: grid;
+    grid-size: 2 1;
+    grid-columns: 50% 50%;
+}
+
+# InputApp Screen
 Screen {
     layout: grid;
     grid-size: 1 2;
     grid-rows: 45% 55%;
     background: $surface;
 }
+
+# Toggle between "Uncondense" and "Condense" Mode
 
 # Button
 #uncondense_button{
@@ -56,4 +107,48 @@ Screen {
 
 .condensed #uncondense_button {
     display: block;
+}
+
+# ScrollableContainer(DataTable)
+#input_ops_container{
+    display: none;
+}
+# ScrollableContainer(DataTable)
+#output_ops_container{
+    display: none;
+}
+
+# Toggle between "Show Operations Count" and "Remove Operations Count" Mode
+
+# Button
+#show_operation_count_button{
+    width: 1;
+}
+
+# Button
+#remove_operation_count_button{
+    display: none;
+    width: 1;
+}
+
+.operation_count_shown #show_operation_count_button {
+    display: none;
+}
+
+.operation_count_shown #remove_operation_count_button {
+    display: block;
+}
+
+# ScrollableContainer(DataTable)
+.operation_count_shown #input_ops_container{
+    display: block;
+}
+# ScrollableContainer(DataTable)
+.operation_count_shown #output_ops_container{
+    display: block;
+}
+
+# All Buttons
+Button{
+    border: $warning;
 }

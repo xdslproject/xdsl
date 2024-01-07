@@ -193,7 +193,7 @@ def test_attr_dict(program: str, generic_program: str):
 
 
 ################################################################################
-# Punctuations and keywords                                                    #
+# Punctuations, keywords, and whitespaces                                      #
 ################################################################################
 
 
@@ -218,6 +218,19 @@ def test_attr_dict(program: str, generic_program: str):
         (
             "`keyword` `,` `keyword` attr-dict",
             "test.punctuation keyword, keyword",
+        ),
+        ("`keyword` ` ` `,` `keyword` attr-dict", "test.punctuation keyword , keyword"),
+        (
+            "`keyword` `\\n` `,` `keyword` attr-dict",
+            "test.punctuation keyword\n, keyword",
+        ),
+        (
+            "`keyword` `,` ` ` `keyword` attr-dict",
+            "test.punctuation keyword, keyword",
+        ),
+        (
+            "`keyword` `,` ` ` ` ` `keyword` attr-dict",
+            "test.punctuation keyword,  keyword",
         ),
     ],
 )

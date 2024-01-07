@@ -25,7 +25,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
@@ -298,8 +297,8 @@ lower_arith_addf = LowerBinaryFloatOp(arith.Addf, riscv.FAddSOp, riscv.FAddDOp)
 lower_arith_subf = LowerBinaryFloatOp(arith.Subf, riscv.FSubSOp, riscv.FSubDOp)
 lower_arith_mulf = LowerBinaryFloatOp(arith.Mulf, riscv.FMulSOp, riscv.FMulDOp)
 lower_arith_divf = LowerBinaryFloatOp(arith.Divf, riscv.FDivSOp, riscv.FDivDOp)
-lower_arith_minf = LowerBinaryFloatOp(arith.Minf, riscv.FMinSOp, riscv.FMinDOp)
-lower_arith_maxf = LowerBinaryFloatOp(arith.Maxf, riscv.FMaxSOp, riscv.FMaxDOp)
+lower_arith_minf = LowerBinaryFloatOp(arith.Minimumf, riscv.FMinSOp, riscv.FMinDOp)
+lower_arith_maxf = LowerBinaryFloatOp(arith.Maximumf, riscv.FMaxSOp, riscv.FMaxDOp)
 
 
 class LowerArithNegf(RewritePattern):
@@ -497,5 +496,3 @@ class ConvertArithToRiscvPass(ModulePass):
             apply_recursively=False,
         )
         walker.rewrite_module(op)
-
-        dce(op)

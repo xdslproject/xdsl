@@ -3532,9 +3532,14 @@ class FLdOp(RdRsImmFloatOperation):
         value = _assembly_arg_str(self.rd)
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
-            instruction_name, f"{value}, {imm}({offset})", self.comment
-        )
+        if isinstance(self.immediate, LabelAttr):
+            return _assembly_line(
+                instruction_name, f"{value}, {imm}, {offset}", self.comment
+            )
+        else:
+            return _assembly_line(
+                instruction_name, f"{value}, {imm}({offset})", self.comment
+            )
 
 
 class FSdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
@@ -3569,6 +3574,32 @@ class FSdOp(RsRsImmFloatOperation):
         return _assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
+
+
+class FMvDHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMvD
+
+        return (RemoveRedundantFMvD(),)
+
+
+@irdl_op_definition
+class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+    """
+    A pseudo instruction to copy 64 bits of one float register to another.
+
+    Equivalent to `fsgnj.d rd, rs, rs`.
+    """
+
+    name = "riscv.fmv.d"
+
+    traits = frozenset(
+        (
+            Pure(),
+            FMvDHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 
 # endregion
@@ -3757,6 +3788,7 @@ RISCV = Dialect(
         FCvtDWuOp,
         FLdOp,
         FSdOp,
+        FMvDOp,
         VFAddSOp,
         VFMulSOp,
     ],

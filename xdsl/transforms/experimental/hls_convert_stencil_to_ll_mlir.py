@@ -776,9 +776,9 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
             op_field_type = op.field.type
             assert isinstance(op_field_type, MemRefType)
             shape = op_field_type.shape
-            shape_x = Constant.from_int_and_width(shape.data[0].value.data, i32)
-            shape_y = Constant.from_int_and_width(shape.data[1].value.data, i32)
-            shape_z = Constant.from_int_and_width(shape.data[2].value.data, i32)
+            shape_x = Constant.from_int_and_width(shape.data[0].data, i32)
+            shape_y = Constant.from_int_and_width(shape.data[1].data, i32)
+            shape_z = Constant.from_int_and_width(shape.data[2].data, i32)
 
             call_write_data = Call(
                 write_data_func_name,
@@ -1132,7 +1132,7 @@ class GetRepeatedCoefficients(RewritePattern):
         cast.clone()
 
         dim = len(cast_dest_type.shape.data)
-        cast_dest_type.shape.data[0].value.data
+        cast_dest_type.shape.data[0].data
         if dim == 1:
             uses_copy = set(op.results[0].uses)
             for use in uses_copy:
@@ -1167,7 +1167,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
         ):
             original_memref_lst_dest_type = self.original_memref_lst[0].dest.type
             assert isinstance(original_memref_lst_dest_type, memref.MemRefType)
-            dim = original_memref_lst_dest_type.shape.data[0].value.data
+            dim = original_memref_lst_dest_type.shape.data[0].data
 
             lb = Constant.from_int_and_width(0, IndexType())
             ub = Constant.from_int_and_width(dim, IndexType())
@@ -1260,9 +1260,9 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         module: builtin.ModuleOp = op
-        shift_streams = []
-        out_data_streams = []
-        out_global_mem = []
+        shift_streams: list[list[HLSStream]] = []
+        out_data_streams: list[HLSStream] = []
+        out_global_mem: list[BlockArgument] = []
 
         inout_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
@@ -1322,7 +1322,7 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         write_data_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    StencilExternalStoreToHLSWriteData(module, out_data_streams),
+                    StencilExternalStoreToHLSWriteData(module, []),
                     # TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
                     TrivialStoreOpCleanup(),

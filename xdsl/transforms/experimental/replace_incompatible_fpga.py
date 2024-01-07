@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.dialects import builtin
-from xdsl.dialects.arith import Maxf
+from xdsl.dialects.arith import Maximumf
 from xdsl.dialects.builtin import f64
 from xdsl.dialects.experimental.math import AbsFOp, CopySignOp
 from xdsl.dialects.func import Call, FuncOp
@@ -35,13 +35,13 @@ class ReplaceCopySignOpByXilinxMath(RewritePattern):
 
 
 @dataclass
-class ReplaceMaxfByXilinxMath(RewritePattern):
+class ReplaceMaximumfByXilinxMath(RewritePattern):
     def __init__(self, op: builtin.ModuleOp):
         self.module = op
         self.func_def_declaration = False
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Maxf, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: Maximumf, rewriter: PatternRewriter, /):
         if not self.func_def_declaration:
             func_def = FuncOp.external("llvm.maxnum.f64", [f64, f64], [f64])
             self.module.body.block.add_op(func_def)
@@ -95,8 +95,8 @@ class ReplaceIncompatibleFPGA(ModulePass):
             [
                 # ReplaceCopySignOpByEquivalent(),
                 ReplaceCopySignOpByXilinxMath(op),
-                # ReplaceMaxfOpByEquivalent(),
-                ReplaceMaxfByXilinxMath(op),
+                # ReplaceMaximumfOpByEquivalent(),
+                ReplaceMaximumfByXilinxMath(op),
                 # ReplaceAbsOpByEquivalent(),
                 ReplaceAbsOpByXilinxMath(op),
             ]

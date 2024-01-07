@@ -68,7 +68,7 @@ class ParseError(Exception):
     span: Span
     msg: str
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return self.span.print_with_context(self.msg)
 
     def with_context(self) -> str:

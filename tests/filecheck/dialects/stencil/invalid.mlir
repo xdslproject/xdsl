@@ -149,7 +149,7 @@ builtin.module {
   }
 }
 
- // CHECK: stencil.return expected operand types to match the parent stencil.apply result element types.
+ // CHECK: stencil.return expected operand types to match the parent stencil.apply result element types. Got f64 at index 1, expected f32.
 
 
 // -----

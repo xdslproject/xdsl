@@ -1,6 +1,10 @@
 import pytest
+from conftest import assert_print_op
 
-from xdsl.builder import Builder
+from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.dialects.arith import (
+    Addf,
+)
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
@@ -8,6 +12,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerType,
+    ModuleOp,
     bf16,
     f16,
     f32,
@@ -16,6 +21,9 @@ from xdsl.dialects.builtin import (
     f128,
     i32,
     i64,
+)
+from xdsl.dialects.func import (
+    FuncOp,
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
@@ -36,7 +44,7 @@ from xdsl.dialects.stencil import (
     StoreResultOp,
     TempType,
 )
-from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -47,13 +55,15 @@ def test_stencilboundsattr_verify():
         StencilBoundsAttr.new([IndexAttr.get(1), IndexAttr.get(2, 2)])
     assert (
         str(e.value)
-        == "Incoherent stencil bounds: lower and upper bounds must have the same dimensionality."
+        == "Incoherent stencil bounds: lower and upper bounds must have the same"
+        " dimensionality."
     )
     with pytest.raises(VerifyException) as e:
         StencilBoundsAttr.new([IndexAttr.get(2, 2), IndexAttr.get(2, 2)])
     assert (
         str(e.value)
-        == "Incoherent stencil bounds: upper bound must be strictly greater than lower bound."
+        == "Incoherent stencil bounds: upper bound must be strictly greater than"
+        " lower bound."
     )
 
 
@@ -602,7 +612,7 @@ def test_store_result():
 
 
 def test_external_load():
-    memref = TestSSAValue(MemRefType.from_element_type_and_shape(f32, ([5])))
+    memref = TestSSAValue(MemRefType(f32, ([5])))
     field_type = FieldType((5), f32)
 
     external_load = ExternalLoadOp.get(memref, field_type)
@@ -614,7 +624,7 @@ def test_external_load():
 
 def test_external_store():
     field = TestSSAValue(FieldType((5), f32))
-    memref = TestSSAValue(MemRefType.from_element_type_and_shape(f32, ([5])))
+    memref = TestSSAValue(MemRefType(f32, ([5])))
 
     external_store = ExternalStoreOp.build(operands=[field, memref])
 
@@ -660,3 +670,74 @@ def test_access_patterns():
     assert t1_acc.is_diagonal
 
     assert len(tuple(t1_acc.get_diagonals())) == 2
+
+
+# TODO: Move to a notebook at some point with proper documentation
+def test_1d3pt_stencil_construct():
+    """
+    An example 1d-3pt stencil implementation from XDSL Python-land
+    using the stencil dialect
+    """
+
+    shape = (8,)
+    space_order = 2
+    r = space_order // 2
+    symbolic_shape = (0 - r, shape[0] - r)
+
+    # Domain with halo shape
+    temp0 = TempType(len(shape), f32)
+
+    # Computational domain shape
+    field0 = FieldType([symbolic_shape], f32)
+
+    @ModuleOp
+    @Builder.implicit_region
+    def module():
+        # The kernel body
+        with ImplicitBuilder(func0 := FuncOp("kernel", ([field0, field0], [])).body):
+            field_in = func0.block.args[0]
+            field_out = func0.block.args[1]
+            # Load the input field's values
+            load0 = LoadOp.get(field_in)
+
+            # The computation region
+            with ImplicitBuilder(
+                (
+                    apply := ApplyOp.get(
+                        [load0], Region(Block(arg_types=[temp0])), [temp0]
+                    )
+                ).region
+            ) as args:
+                temp_in = args[0]
+                # Stencil computation
+                stencil_acs_l = AccessOp.get(temp_in, (-1,))
+                stencil_acs_c = AccessOp.get(temp_in, (0,))
+                stencil_acs_r = AccessOp.get(temp_in, (1,))
+                stencil_comp0 = Addf(stencil_acs_l, stencil_acs_c)
+                stencil_comp1 = Addf(stencil_comp0, stencil_acs_r)
+                # Define the return operation
+                ReturnOp.get([stencil_comp1])
+
+            # Apply the computation to the loaded values
+            # Store the computed values to the output field
+            StoreOp.get(apply.results[0], field_out, IndexAttr.get(0), IndexAttr.get(6))
+
+    expected = """
+builtin.module {
+  func.func @kernel(%0 : !stencil.field<[-1,7]xf32>, %1 : !stencil.field<[-1,7]xf32>) {
+    %2 = "stencil.load"(%0) : (!stencil.field<[-1,7]xf32>) -> !stencil.temp<?xf32>
+    %3 = "stencil.apply"(%2) ({
+    ^0(%4 : !stencil.temp<?xf32>):
+      %5 = "stencil.access"(%4) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf32>) -> f32
+      %6 = "stencil.access"(%4) {"offset" = #stencil.index<0>} : (!stencil.temp<?xf32>) -> f32
+      %7 = "stencil.access"(%4) {"offset" = #stencil.index<1>} : (!stencil.temp<?xf32>) -> f32
+      %8 = arith.addf %5, %6 : f32
+      %9 = arith.addf %8, %7 : f32
+      "stencil.return"(%9) : (f32) -> ()
+    }) : (!stencil.temp<?xf32>) -> !stencil.temp<?xf32>
+    "stencil.store"(%3, %1) {"lb" = #stencil.index<0>, "ub" = #stencil.index<6>} : (!stencil.temp<?xf32>, !stencil.field<[-1,7]xf32>) -> ()
+  }
+}
+"""  # noqa
+
+    assert_print_op(module, expected, None, print_generic_format=False)
