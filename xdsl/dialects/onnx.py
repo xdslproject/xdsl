@@ -305,7 +305,6 @@ class Reshape(IRDLOperation):
 
         # At most one dimension of the new shape can be -1.
         # In this case, the value is inferred from the size of the tensor and the remaining dimensions.
-        # Calculate size of specified dimension without - 1
         count_minus_one = shape_type_list.count(-1)
         if count_minus_one == 1:
             index_of_minus_one = shape_type_list.index(-1)
