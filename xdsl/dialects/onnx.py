@@ -255,6 +255,85 @@ class Gemm(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class Reshape(IRDLOperation):
+    name = "onnx.Reshape"
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    data = operand_def(TensorType[T])
+    shape = operand_def(TensorType[IntegerType(64)])
+    reshaped = result_def(TensorType[T])
+
+    allow_zero = opt_attr_def(IntegerAttr, attr_name="allowzero")
+
+    assembly_format = "`(` $data `,` $shape `)` attr-dict `:` `(` type($data) `,` type($shape) `)` `->` type($reshaped)"
+
+    def __init__(self, data: SSAValue, shape: SSAValue, allow_zero: Attribute):
+        super().__init__(
+            attributes={"allowzero": allow_zero},
+            operands=[data, shape],
+            result_types=[data.type],
+        )
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(data_type := self.data.type, TensorType)
+            or not isinstance(shape_type := self.shape.type, TensorType)
+            or not isinstance(reshaped_type := self.reshaped.type, TensorType)
+        ):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+            data_type = cast(TensorType[Attribute], data_type)
+            reshaped_type = cast(TensorType[Attribute], reshaped_type)
+
+            if data_type != reshaped_type:
+                raise VerifyException("Mismatch between operand type and res type")
+
+        data_type = data_type.get_shape()
+        shape_type = shape_type.get_shape()
+        shape_type_list = list(shape_type)
+        reshaped_type = reshaped_type.get_shape()
+
+        if (
+            self.allow_zero
+            and shape_type_list.count(0) > 0
+            and shape_type_list.count(-1) > 0
+        ):
+            raise VerifyException(
+                "Invalid shape: Both 0 and -1 are present, making the dimension ambiguous."
+            )
+
+        # At most one dimension of the new shape can be -1.
+        # In this case, the value is inferred from the size of the tensor and the remaining dimensions.
+        # Calculate size of specified dimension without - 1
+        count_minus_one = shape_type_list.count(-1)
+        if count_minus_one == 1:
+            index_of_minus_one = shape_type_list.index(-1)
+            # Calculate total number of elements in data
+            specified_dim = len(shape_type_list)
+            total_elements = len(data_type)
+            missing_dim = total_elements // specified_dim
+            shape_type_list[index_of_minus_one] = missing_dim
+        # Handle case where dimension is zero
+        for i, dim in enumerate(shape_type_list):
+            if dim == 0:
+                if self.allow_zero:
+                    # If allow_zero is set, explicitly set the dimension to zero  (i.e. not taken from input tensor)
+                    shape_type_list[i] = 0
+                else:
+                    # dimension is 0, leave it unchanged  (i.e. taken from the input tensor).
+                    shape_type_list[i] = data_type[i]
+
+        # Shape (second input) could be an empty shape, which means converting to a scalar.
+        if not shape_type_list:
+            shape_type_list = [IntegerType(64)]
+        # The input tensor's shape and the output tensor's shape are required to have the same number of elements.
+        if len(data_type) != len(reshaped_type):
+            raise VerifyException(
+                "Input tensor's shape and output tensor's shape must have the same number of elements"
+            )
+
+
 ONNX = Dialect(
     "onnx",
     [
@@ -264,5 +343,6 @@ ONNX = Dialect(
         Div,
         Relu,
         Gemm,
+        Reshape,
     ],
 )

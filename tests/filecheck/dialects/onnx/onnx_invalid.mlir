@@ -81,6 +81,7 @@ builtin.module {
 
 builtin.module {
   %t0, %t1, %t2 = "test.op"() : () -> (tensor<5x3x3xf32>, tensor<3x2xf32>, tensor<5x2xf32>)
+
   // CHECK: Operation does not verify: tensor A should be a 2D tensor
   %res_gemm = "onnx.Gemm"(%t0, %t1, %t2) {onnx_node_name = "/Gemm"}: (tensor<5x3x3xf32>, tensor<3x2xf32>, tensor<5x2xf32>) -> tensor<5x2xf32>
 }
@@ -89,6 +90,7 @@ builtin.module {
 
 builtin.module {
   %t0, %t1, %t2 = "test.op"() : () -> (tensor<5x3xf32>, tensor<3x2x3xf32>, tensor<5x2xf32>)
+
   // CHECK: Operation does not verify: tensor B should be a 2D tensor
   %res_gemm = "onnx.Gemm"(%t0, %t1, %t2) {onnx_node_name = "/Gemm"}: (tensor<5x3xf32>, tensor<3x2x3xf32>, tensor<5x2xf32>) -> tensor<5x2xf32>
 }
@@ -97,6 +99,59 @@ builtin.module {
 
 builtin.module {
   %t0, %t1, %t2 = "test.op"() : () -> (tensor<5x3xf32>, tensor<3x2xf32>, tensor<5x2x7xf32>)
+
   // CHECK: Operation does not verify: tensor C should be a 1D tensor or 2D tensor
   %res_gemm = "onnx.Gemm"(%t0, %t1, %t2) {onnx_node_name = "/Gemm",  beta = 47.0 : f32}: (tensor<5x3xf32>, tensor<3x2xf32>, tensor<5x2x7xf32>) -> tensor<5x3xf32>
 }
+
+// -----
+
+builtin.module {
+  %t0, %t1 = "test.op"() : () -> (f32, tensor<2x4xi64>)
+
+  // CHECK: operand at position 0 does not verify!
+  // CHECK: f32 should be of base attribute tensor
+  %res_reshape =  "onnx.Reshape"(%t0, %t1) {onnx_node_name = "/Reshape"} : (f32, tensor<2x4xi64>) -> tensor<2x4xi64>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<4x3xf32>, tensor<0x?xi64>)
+
+  // CHECK: operand at position 0 does not verify!
+  // CHECK: Operation does not verify: Invalid shape: Both 0 and -1 are present, making the dimension ambiguous.
+  %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape", "allowzero" = 1 : i64} : (tensor<4x3xf32>, tensor<0x?xi64>) -> tensor<4x3xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<4x3x2xf32>, tensor<1x1x1xi64>)
+
+  // CHECK: result at position 0 does not verify!
+  // CHECK: attribute f32 expected from variable 'T', but got i32
+  %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<4x3x2xf32>, tensor<1x1x1xi64>) -> tensor<4x3x2xi32>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<6x9x5xf32>, tensor<3xi64>)
+
+  // CHECK: result at position 0 does not verify!
+  // CHECK: Operation does not verify: Input tensor's shape and output tensor's shape must have the same number of elements
+  %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<6x9x5xf32>, tensor<3xi64>) -> tensor<7x7xf32>
+}
+
+
+
+
+
+
+
+
+
+
+
+
