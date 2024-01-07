@@ -228,7 +228,7 @@ class Gemm(IRDLOperation):
             res_shape.append(tensor_a_shape[0])
             res_shape.append(tensor_b_shape[1])
 
-        # Now check that tensor C is unidirectional broadcastable to tensor (A * B) (using Numpy semantics) and that
+        # Check that tensor C is unidirectional broadcastable to tensor (A * B) (using Numpy semantics) and that
         # the result type is correct.
         # Iterate over the shapes in reverse order and compute the result shape.
         final_res_shape: list[int] = []
