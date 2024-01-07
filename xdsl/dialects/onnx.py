@@ -153,11 +153,11 @@ class Gemm(IRDLOperation):
     tensor_b = operand_def(TensorType[T])
     tensor_c = operand_def(TensorType[T])
 
-    alpha = opt_attr_def(FloatAttr, default=1.0)
-    beta = opt_attr_def(FloatAttr, default=1.0)
+    alpha = opt_attr_def(FloatAttr)
+    beta = opt_attr_def(FloatAttr)
 
-    trans_a = opt_attr_def(IntegerAttr, attr_name="transA", default=0)
-    trans_b = opt_attr_def(IntegerAttr, attr_name="transB", default=0)
+    trans_a = opt_attr_def(IntegerAttr, attr_name="transA")
+    trans_b = opt_attr_def(IntegerAttr, attr_name="transB")
 
     res_tensor = result_def(TensorType[T])
     assembly_format = (
