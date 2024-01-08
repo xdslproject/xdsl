@@ -295,12 +295,14 @@ class Reshape(IRDLOperation):
 
             data_type = cast(TensorType[Attribute], data_type)
             reshaped_type = cast(TensorType[Attribute], reshaped_type)
+            shape_type = cast(TensorType[Attribute], shape_type)
 
             if data_type != reshaped_type:
                 raise VerifyException("Mismatch between operand type and res type")
-
-        if self.shape.type.element_type != IntegerType(64):
-            raise VerifyException("Invalid shape element type must be TensorType[i64]")
+            if shape_type.element_type != IntegerType(64):
+                raise VerifyException(
+                    "Invalid shape element type must be TensorType[i64]"
+                )
 
         data_type = data_type.get_shape()
         shape_type = shape_type.get_shape()
