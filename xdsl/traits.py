@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
+    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, ModuleOp
     from xdsl.ir import Operation, Region
     from xdsl.pattern_rewriter import RewritePattern
 
@@ -66,6 +66,34 @@ class HasParent(OpTrait):
             )
         names = ", ".join(f"'{p.name}'" for p in self.parameters)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
+
+
+
+@dataclass(frozen=True)
+class HasAncestor(OpTrait):
+    """Constraint the operation to have a specific parent operation somewhere up the line"""
+
+    parameters: tuple[type[Operation], bool]
+
+    def __init__(self, ancestor_type: type[Operation], weak=False):
+        if not ancestor_type:
+            raise ValueError("ancestor_type must not be empty")
+        parameters = (ancestor_type, weak)
+        super().__init__(parameters)
+
+    def verify(self, op: Operation) -> None:
+        from xdsl.dialects.builtin import ModuleOp
+        ancestor_type, weak  = self.parameters
+        parent = op.parent_op()
+        while parent is not ModuleOp and (weak or parent is not None) :
+            if isinstance(parent, ancestor_type):
+                return
+            if weak and parent is None:
+                return
+            parent = parent.parent_op()
+        raise VerifyException(
+            f"'{op.name}' expects an ancestor op '{self.parameters[0].name}'"
+        )
 
 
 class IsTerminator(OpTrait):

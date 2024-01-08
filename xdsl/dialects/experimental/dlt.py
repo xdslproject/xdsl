@@ -13,13 +13,14 @@ from __future__ import annotations
 
 from typing import Iterable, Iterator
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, IntegerAttr, i64, IntegerType, IndexType, AnyFloat, \
     AnyFloatAttr
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import TypeAttribute, Dialect, AttributeCovT
+from xdsl.ir import TypeAttribute, Dialect, AttributeCovT, BlockArgument
 from xdsl.irdl import *
 from xdsl.parser import AttrParser
-from xdsl.traits import IsTerminator, HasParent, SingleBlockImplicitTerminator
+from xdsl.traits import IsTerminator, HasParent, SingleBlockImplicitTerminator, HasAncestor
 from xdsl.utils.hints import isa
 
 @dataclass
@@ -249,6 +250,12 @@ class ElementAttr(ParametrizedAttribute):
                 return dim
         return None
 
+    def get_dimension_names(self):
+        names = []
+        for dim in self.dimensions:
+            names.append(dim.dimensionName)
+        return names
+
     def __lt__(self, other):
         assert isinstance(other, ElementAttr)
         if self.member_specifiers.data < other.member_specifiers.data:
@@ -451,6 +458,14 @@ class SelectOp(IRDLOperation):
 
     res: OpResult = result_def(PtrType)
 
+    def verify_(self) -> None:
+        calc_type = SelectOp.calculateResultType(self.tree.type, self.members, self.dimensions)
+        if calc_type != self.res.type:
+            raise VerifyException(f"dlt.select, result type mismatch. got: {self.res.type}, expected: {calc_type}")
+        # assert not isinstance(self.tree, BlockArgument)
+        # print("verify")
+        pass
+
     @classmethod
     def parse(cls: type[SelectOp], parser: Parser) -> SelectOp:
         # dlt.select{root:e, node:x}(A:0, B:10) from %1
@@ -487,8 +502,8 @@ class SelectOp(IRDLOperation):
         selectOp = SelectOp(operands=[tree, dim_operands], attributes={"dimensions":dimensions, "members":members}, result_types=[res_type])
         return selectOp
 
-    @classmethod
-    def calculateResultType(cls, input_type: PtrType, members: Iterable[MemberAttr], dimension_names: Iterable[StringAttr]) -> PtrType:
+    @staticmethod
+    def calculateResultType(input_type: PtrType, members: Iterable[MemberAttr], dimension_names: Iterable[StringAttr]) -> PtrType:
         current_type = input_type.contents_type
         for m in members:
             current_type = current_type.selectMember(m)
@@ -531,6 +546,7 @@ class GetOp(IRDLOperation):
 class SetOp(IRDLOperation):
     name = "dlt.set" # take a PtrType that points only to primitives (no member fields or dimensions) and set the value
     tree: OperandDef = operand_def(PtrType)
+    value: OperandDef = operand_def(AcceptedTypes)
     set_type: AttributeDef = attr_def(AcceptedTypes)
     # TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
 
@@ -540,7 +556,8 @@ class CopyOp(IRDLOperation):
     name = "dlt.copy" # take src and dst Ptrtypes and copy all values of the copy_type primitive from one to the other.
     src: OperandDef = operand_def(PtrType)
     dst: OperandDef = operand_def(PtrType)
-    # dimensions: AttributeDef = attr_def(SetAttr[DimensionAttr])
+    src_dimensions: AttributeDef = attr_def(ArrayAttr[DimensionAttr])
+    dst_dimensions: AttributeDef = attr_def(ArrayAttr[DimensionAttr])
     copy_type: AttributeDef = attr_def(AcceptedTypes)
 
     # TODO Verify the tree layout types match perfectly
@@ -552,6 +569,10 @@ class ClearOp(IRDLOperation):
     tree: OperandDef = operand_def(PtrType)
     # dimensions: AttributeDef = attr_def(SetAttr[DimensionAttr])
     clear_type: AttributeDef = attr_def(AcceptedTypes)
+
+    traits = traits_def(
+        lambda: frozenset([HasAncestor(builtin.ModuleOp, True)])
+    )
 
 @irdl_op_definition
 class IterateYieldOp(AbstractYieldOperation[Attribute]):
@@ -577,7 +598,7 @@ class IterateOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([SingleBlockImplicitTerminator(IterateYieldOp)])
+    traits = frozenset([SingleBlockImplicitTerminator(IterateYieldOp), HasAncestor(builtin.ModuleOp, True)])
     irdl_options = [AttrSizedOperandSegments()]
 
 
@@ -683,6 +704,17 @@ class InitOp(IRDLOperation):
 class AssertLayoutOp(IRDLOperation):
     name = "dlt.assert" # take a dlt layout as a TypeType and assert that a given memref has the layout to form a ptrType
 #TODO
+
+
+@irdl_op_definition
+class layoutScopeOp(IRDLOperation):
+    name = "dlt.layoutScope" # Be the point that all internal dlt operations use a reference and source for layout information
+    body: Region = region_def("single_block")
+
+#TODO
+
+
+
 
 
 

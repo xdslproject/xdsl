@@ -523,7 +523,12 @@ class ExecuteOutputOp(IRDLOperation):
 
     def verify_(self):
         #we should assert that the dlt type has all and the needed output tensors as specified by the result type
-        assert len(self.extents) == len(self.result.type.vectorSpaces)
+        assert len(self.tensors) == len(self.result.type.dimensionNames)
+        for tensor, dims in zip(self.tensors, self.result.type.dimensionNames):
+            assert tensor.type.contents_type.get_single_element() is not None
+            elem = tensor.type.contents_type.get_single_element()
+            assert len(elem.dimensions) == len(dims)
+            assert len(elem.member_specifiers) == 0
 
 
 @irdl_op_definition
