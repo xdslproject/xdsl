@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Generic, cast
+from typing import Generic
 
 from typing_extensions import Self
 
@@ -179,7 +179,7 @@ def parse_func_op_like(
     # Check consistency (They should be either all named or none)
     if isa(args, list[parser.Argument]):
         entry_args = args
-        input_types = cast(list[Attribute], [a.type for a in args])
+        input_types = [a.type for a in args]
     elif isa(args, list[Attribute]):
         entry_args = None
         input_types = args
@@ -214,7 +214,9 @@ def print_assignment(printer: Printer, arg: BlockArgument, val: SSAValue):
     printer.print_ssa_value(val)
 
 
-def parse_assignment(parser: Parser) -> tuple[Parser.Argument, UnresolvedOperand]:
+def parse_assignment(
+    parser: Parser,
+) -> tuple[Parser.UnresolvedArgument, UnresolvedOperand]:
     arg = parser.parse_argument(expect_type=False)
     parser.parse_characters("=")
     val = parser.parse_unresolved_operand()

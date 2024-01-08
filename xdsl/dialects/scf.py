@@ -114,10 +114,6 @@ class While(IRDLOperation):
         type_pos = parser.pos
         function_type = parser.parse_function_type()
 
-        def resolve_argument(arg: parser.Argument, type: Attribute):
-            arg.type = type
-            return arg
-
         if len(tuples) != len(function_type.inputs.data):
             parser.raise_error(
                 f"Mismatch between block argument count ({len(tuples)}) and operand count ({len(function_type.inputs.data)})",
@@ -126,7 +122,7 @@ class While(IRDLOperation):
             )
 
         block_args = tuple(
-            resolve_argument(block_arg, t)
+            block_arg.resolve(t)
             for ((block_arg, _), t) in zip(
                 tuples, function_type.inputs.data, strict=True
             )
@@ -324,7 +320,7 @@ class For(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         # Parse bounds
-        indvar = parser.parse_argument(expect_type=False)
+        unresolved_indvar = parser.parse_argument(expect_type=False)
         parser.parse_characters("=")
         lb = parser.parse_operand()
         parser.parse_characters("to")
@@ -334,14 +330,14 @@ class For(IRDLOperation):
 
         # Parse iteration arguments
         pos = parser.pos
-        iter_args: list[Parser.Argument] = []
+        unresolved_iter_args: list[Parser.UnresolvedArgument] = []
         iter_arg_unresolved_operands: list[UnresolvedOperand] = []
         iter_arg_types: list[Attribute] = []
         if parser.parse_optional_characters("iter_args"):
             for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
             ):
-                iter_args.append(iter_arg)
+                unresolved_iter_args.append(iter_arg)
                 iter_arg_unresolved_operands.append(iter_arg_operand)
             parser.parse_characters("->")
             iter_arg_types = parser.parse_comma_separated_list(
@@ -353,13 +349,14 @@ class For(IRDLOperation):
         )
 
         # Set induction variable type
-        indvar.type = lb.type
+        indvar = unresolved_indvar.resolve(lb.type)
         if parser.parse_optional_characters(":"):
             indvar.type = parser.parse_type()
 
         # Set block argument types
-        for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
-            iter_arg.type = iter_arg_type
+        iter_args = [
+            u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
+        ]
 
         # Parse body
         body = parser.parse_region((indvar, *iter_args))
