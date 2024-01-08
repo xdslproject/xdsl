@@ -258,9 +258,18 @@ class Gemm(IRDLOperation):
 @irdl_op_definition
 class Reshape(IRDLOperation):
     name = "onnx.Reshape"
+    """
+    Reshape the input tensor similar to numpy.reshape.
+    First input is the data tensor, second input is a shape tensor which specifies the output shape. It outputs the reshaped tensor.
+    At most one dimension of the new shape can be -1. In this case, the value is
+    inferred from the size of the tensor and the remaining dimensions. A dimension
+    could also be 0, in which case the actual dimension value is unchanged (i.e. taken
+    from the input tensor). Shape (second input) could be an empty shape, which means converting to a scalar.
+    The input tensor's shape and the output tensor's shape are required to have the same number of elements.
+    """
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     data = operand_def(TensorType[T])
-    shape = operand_def(TensorType[IntegerType(64)])
+    shape = operand_def(TensorType)
     reshaped = result_def(TensorType[T])
 
     allow_zero = opt_attr_def(IntegerAttr, attr_name="allowzero")
@@ -283,11 +292,15 @@ class Reshape(IRDLOperation):
             assert (
                 False
             ), "onnx elementwise operation operands and result must be of type TensorType"
+
             data_type = cast(TensorType[Attribute], data_type)
             reshaped_type = cast(TensorType[Attribute], reshaped_type)
 
             if data_type != reshaped_type:
                 raise VerifyException("Mismatch between operand type and res type")
+
+        if self.shape.type.element_type != IntegerType(64):
+            raise VerifyException("Invalid shape element type must be TensorType[i64]")
 
         data_type = data_type.get_shape()
         shape_type = shape_type.get_shape()
