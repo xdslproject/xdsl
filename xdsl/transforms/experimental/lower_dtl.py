@@ -80,8 +80,7 @@ class DTLDenseRewriter(RewritePattern):
         exit_point = yield_op.arguments.op
 
         new_block = Block()
-        builder = Builder(new_block)
-        self.builder = builder
+        self.block = new_block
         self.rewriter = rewriter
         self.context = exe_op
         self.next_dimension_name_number = 0#
@@ -133,10 +132,10 @@ class DTLDenseRewriter(RewritePattern):
 
 
         ssa_out = self._get_expression(exit_point, {})
-        builder.block.add_ops(ssa_out.ops)
+        self.block.add_ops(ssa_out.ops)
         print("SSA OPS")
         p = printer.Printer()
-        p.print(builder.block)
+        p.print(self.block)
         print("hi")
 
     def _get_new_element_selector(self, element: TupleStruct[DeIndexElement]):
@@ -145,7 +144,7 @@ class DTLDenseRewriter(RewritePattern):
         elif isinstance(element, DeIndexElement):
             element_attr: dlt.ElementAttr = element.elem
             assert element_attr not in self.elements
-            dlt_ptr = self.builder.block.insert_arg(dlt.PtrType(dlt.TypeType([element_attr])), len(self.elements))
+            dlt_ptr = self.block.insert_arg(dlt.PtrType(dlt.TypeType([element_attr])), len(self.elements))
             self.elements[element_attr] = dlt_ptr
             return dlt_ptr
         else:
