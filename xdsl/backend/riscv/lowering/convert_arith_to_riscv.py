@@ -25,7 +25,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.dead_code_elimination import dce
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
@@ -37,12 +36,12 @@ class LowerArithConstant(RewritePattern):
     def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter) -> None:
         op_result_type = op.result.type
         if isinstance(op_result_type, IntegerType) and isinstance(
-            op.value, IntegerAttr
+            op_val := op.value, IntegerAttr
         ):
             if op_result_type.width.data <= 32:
                 rewriter.replace_matched_op(
                     [
-                        constant := riscv.LiOp(op.value.value.data),
+                        constant := riscv.LiOp(op_val.value.data),
                         UnrealizedConversionCastOp.get(
                             constant.results, (op_result_type,)
                         ),
@@ -50,12 +49,12 @@ class LowerArithConstant(RewritePattern):
                 )
             else:
                 raise NotImplementedError("Only 32 bit integers are supported for now")
-        elif isinstance(op.value, FloatAttr):
+        elif isinstance(op_val := op.value, FloatAttr):
             if isinstance(op_result_type, Float32Type):
                 rewriter.replace_matched_op(
                     [
                         lui := riscv.LiOp(
-                            convert_f32_to_u32(op.value.value.data),
+                            convert_f32_to_u32(op_val.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
                         fld := riscv.FMvWXOp(
@@ -74,7 +73,7 @@ class LowerArithConstant(RewritePattern):
                 # This lowering assumes that xlen is 32 and flen is 64
 
                 lower, upper = struct.unpack(
-                    "<ii", struct.pack("<d", op.value.value.data)
+                    "<ii", struct.pack("<d", op_val.value.data)
                 )
                 rewriter.replace_matched_op(
                     [
@@ -90,17 +89,17 @@ class LowerArithConstant(RewritePattern):
             else:
                 raise NotImplementedError("Only 32 or 64 bit floats are supported")
         elif isinstance(op_result_type, IndexType) and isinstance(
-            op.value, IntegerAttr
+            op_val := op.value, IntegerAttr
         ):
             rewriter.replace_matched_op(
                 [
-                    constant := riscv.LiOp(op.value.value.data),
+                    constant := riscv.LiOp(op_val.value.data),
                     UnrealizedConversionCastOp.get(constant.results, (op_result_type,)),
                 ],
             )
         else:
             raise NotImplementedError(
-                f"Unsupported constant type {op.value} of type {type(op.value)}"
+                f"Unsupported constant type {op_val} of type {type(op_val)}"
             )
 
 
@@ -298,8 +297,8 @@ lower_arith_addf = LowerBinaryFloatOp(arith.Addf, riscv.FAddSOp, riscv.FAddDOp)
 lower_arith_subf = LowerBinaryFloatOp(arith.Subf, riscv.FSubSOp, riscv.FSubDOp)
 lower_arith_mulf = LowerBinaryFloatOp(arith.Mulf, riscv.FMulSOp, riscv.FMulDOp)
 lower_arith_divf = LowerBinaryFloatOp(arith.Divf, riscv.FDivSOp, riscv.FDivDOp)
-lower_arith_minf = LowerBinaryFloatOp(arith.Minf, riscv.FMinSOp, riscv.FMinDOp)
-lower_arith_maxf = LowerBinaryFloatOp(arith.Maxf, riscv.FMaxSOp, riscv.FMaxDOp)
+lower_arith_minf = LowerBinaryFloatOp(arith.Minimumf, riscv.FMinSOp, riscv.FMinDOp)
+lower_arith_maxf = LowerBinaryFloatOp(arith.Maximumf, riscv.FMaxSOp, riscv.FMaxDOp)
 
 
 class LowerArithNegf(RewritePattern):
@@ -497,5 +496,3 @@ class ConvertArithToRiscvPass(ModulePass):
             apply_recursively=False,
         )
         walker.rewrite_module(op)
-
-        dce(op)

@@ -22,6 +22,7 @@ from xdsl.dialects.memref import (
     DmaWaitOp,
     ExtractAlignedPointerAsIndexOp,
     Load,
+    MemorySpaceCast,
     MemRefType,
     Store,
     Subview,
@@ -34,28 +35,21 @@ from xdsl.utils.test_value import TestSSAValue
 
 
 def test_memreftype():
-    mem1 = MemRefType.from_element_type_and_shape(i32, [1])
+    mem1 = MemRefType(i32, [1])
 
     assert mem1.get_num_dims() == 1
     assert mem1.get_shape() == (1,)
     assert mem1.element_type is i32
 
-    mem2 = MemRefType.from_element_type_and_shape(i32, [3, 3, 3])
+    mem2 = MemRefType(i32, [3, 3, 3])
 
     assert mem2.get_num_dims() == 3
     assert mem2.get_shape() == (3, 3, 3)
     assert mem2.element_type is i32
 
-    my_i32 = IntegerType(32)
-    mem3 = MemRefType.from_params(my_i32)
-
-    assert mem3.get_num_dims() == 1
-    assert mem3.get_shape() == (1,)
-    assert mem3.element_type is my_i32
-
 
 def test_memref_load_i32():
-    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
+    i32_memref_type = MemRefType(i32, [1])
     memref_ssa_value = TestSSAValue(i32_memref_type)
     load = Load.get(memref_ssa_value, [])
 
@@ -65,7 +59,7 @@ def test_memref_load_i32():
 
 
 def test_memref_load_i32_with_dimensions():
-    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [2, 3])
+    i32_memref_type = MemRefType(i32, [2, 3])
     memref_ssa_value = TestSSAValue(i32_memref_type)
     index1 = TestSSAValue(IndexType())
     index2 = TestSSAValue(IndexType())
@@ -78,7 +72,7 @@ def test_memref_load_i32_with_dimensions():
 
 
 def test_memref_store_i32():
-    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [1])
+    i32_memref_type = MemRefType(i32, [1])
     memref_ssa_value = TestSSAValue(i32_memref_type)
     i32_ssa_value = TestSSAValue(i32)
     store = Store.get(i32_ssa_value, memref_ssa_value, [])
@@ -89,7 +83,7 @@ def test_memref_store_i32():
 
 
 def test_memref_store_i32_with_dimensions():
-    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [2, 3])
+    i32_memref_type = MemRefType(i32, [2, 3])
     memref_ssa_value = TestSSAValue(i32_memref_type)
     i32_ssa_value = TestSSAValue(i32)
     index1 = TestSSAValue(IndexType())
@@ -104,8 +98,13 @@ def test_memref_store_i32_with_dimensions():
 
 def test_memref_alloc():
     my_i32 = IntegerType(32)
+    my_layout = StridedLayoutAttr(strides=(2, 4, 6), offset=8)
+    my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = Alloc.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloc.get(my_i32, 64)
+    alloc2 = Alloc.get(
+        my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace
+    )
 
     assert alloc0.dynamic_sizes == ()
     assert type(alloc0.results[0]) is OpResult
@@ -114,12 +113,42 @@ def test_memref_alloc():
     assert type(alloc1.results[0]) is OpResult
     assert type(alloc1.results[0].type) is MemRefType
     assert alloc1.results[0].type.get_shape() == (1,)
+    assert type(alloc2.results[0]) is OpResult
+    assert type(alloc2.results[0].type) is MemRefType
+    assert alloc2.results[0].type.get_shape() == (3, 1, 2)
+    assert alloc2.results[0].type.layout == my_layout
+    assert alloc2.results[0].type.memory_space == my_memspace
+
+    dynamic_sizes_1 = [TestSSAValue(builtin.IndexType()) for _ in range(1)]
+    dynamic_sizes_3 = [TestSSAValue(builtin.IndexType()) for _ in range(3)]
+
+    alloc4 = Alloc.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc5 = Alloc.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
+    alloc6 = Alloc.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
+
+    assert list(alloc4.operands) == dynamic_sizes_1
+    assert list(alloc5.operands) == dynamic_sizes_3
+    assert list(alloc6.operands) == dynamic_sizes_1
+
+    alloc4.verify()
+    alloc5.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="op dimension operand count does not equal memref dynamic dimension count",
+    ):
+        alloc6.verify()
 
 
 def test_memref_alloca():
     my_i32 = IntegerType(32)
+    my_layout = StridedLayoutAttr(strides=(2, 4, 6), offset=8)
+    my_memspace = builtin.IntegerAttr(0, i32)
     alloc0 = Alloca.get(my_i32, 64, [3, 1, 2])
     alloc1 = Alloca.get(my_i32, 64)
+    alloc2 = Alloca.get(
+        my_i32, 64, [3, 1, 2], layout=my_layout, memory_space=my_memspace
+    )
 
     assert type(alloc0.results[0]) is OpResult
     assert type(alloc0.results[0].type) is MemRefType
@@ -127,6 +156,31 @@ def test_memref_alloca():
     assert type(alloc1.results[0]) is OpResult
     assert type(alloc1.results[0].type) is MemRefType
     assert alloc1.results[0].type.get_shape() == (1,)
+    assert type(alloc2.results[0]) is OpResult
+    assert type(alloc2.results[0].type) is MemRefType
+    assert alloc2.results[0].type.get_shape() == (3, 1, 2)
+    assert alloc2.results[0].type.layout == my_layout
+    assert alloc2.results[0].type.memory_space == my_memspace
+
+    dynamic_sizes_1 = [TestSSAValue(builtin.IndexType()) for _ in range(1)]
+    dynamic_sizes_3 = [TestSSAValue(builtin.IndexType()) for _ in range(3)]
+
+    alloc4 = Alloca.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc5 = Alloca.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
+    alloc6 = Alloca.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
+
+    assert list(alloc4.operands) == dynamic_sizes_1
+    assert list(alloc5.operands) == dynamic_sizes_3
+    assert list(alloc6.operands) == dynamic_sizes_1
+
+    alloc4.verify()
+    alloc5.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="op dimension operand count does not equal memref dynamic dimension count",
+    ):
+        alloc6.verify()
 
 
 def test_memref_dealloc():
@@ -164,9 +218,7 @@ def test_memref_ExtractAlignedPointerAsIndexOp():
 
 
 def test_memref_matmul_verify():
-    memref_f64_rank2 = memref.MemRefType.from_element_type_and_shape(
-        builtin.f64, [-1, -1]
-    )
+    memref_f64_rank2 = memref.MemRefType(builtin.f64, [-1, -1])
 
     @builtin.ModuleOp
     @Builder.implicit_region
@@ -248,7 +300,7 @@ def test_memref_subview_constant_parameters():
 
 
 def test_memref_cast():
-    i32_memref_type = MemRefType.from_element_type_and_shape(i32, [10, 2])
+    i32_memref_type = MemRefType(i32, [10, 2])
     memref_ssa_value = TestSSAValue(i32_memref_type)
 
     res_type = UnrankedMemrefType.from_type(i32)
@@ -259,15 +311,50 @@ def test_memref_cast():
     assert cast.dest.type is res_type
 
 
-def test_dma_start():
-    src_type = MemRefType.from_element_type_and_shape(
-        i64, [4, 512], memory_space=IntAttr(1)
+def test_memref_memory_space_cast():
+    i32_memref_type = MemRefType(i32, [10, 2], memory_space=builtin.IntegerAttr(1, i32))
+    memref_ssa_value = TestSSAValue(i32_memref_type)
+
+    res_type = MemRefType(i32, [10, 2], memory_space=builtin.IntegerAttr(2, i32))
+    res_type_wrong_type = MemRefType(
+        i64, [10, 2], memory_space=builtin.IntegerAttr(2, i32)
     )
-    dest_type = MemRefType.from_element_type_and_shape(
-        i64, [4 * 512], memory_space=IntAttr(2)
+    res_type_wrong_shape = MemRefType(
+        i32, [10, 4], memory_space=builtin.IntegerAttr(2, i32)
     )
 
-    tag_type = MemRefType.from_element_type_and_shape(i32, [4])
+    memory_space_cast = MemorySpaceCast(memref_ssa_value, res_type)
+
+    assert memory_space_cast.source is memref_ssa_value
+    assert memory_space_cast.dest.type is res_type
+
+    with pytest.raises(
+        VerifyException,
+        match="Expected source and destination to have the same element type.",
+    ):
+        MemorySpaceCast(memref_ssa_value, res_type_wrong_type).verify()
+
+    with pytest.raises(
+        VerifyException, match="Expected source and destination to have the same shape."
+    ):
+        MemorySpaceCast(memref_ssa_value, res_type_wrong_shape).verify()
+
+    # Test helper function
+    dest_memory_space = builtin.IntegerAttr(2, i32)
+    memory_space_cast = MemorySpaceCast.from_type_and_target_space(
+        memref_ssa_value, i32_memref_type, dest_memory_space
+    )
+
+    assert memory_space_cast.source is memref_ssa_value
+    assert isinstance(memory_space_cast.dest.type, MemRefType)
+    assert memory_space_cast.dest.type.memory_space is dest_memory_space
+
+
+def test_dma_start():
+    src_type = MemRefType(i64, [4, 512], memory_space=IntAttr(1))
+    dest_type = MemRefType(i64, [4 * 512], memory_space=IntAttr(2))
+
+    tag_type = MemRefType(i32, [4])
 
     src = TestSSAValue(src_type)
     dest = TestSSAValue(dest_type)
@@ -322,7 +409,7 @@ def test_dma_start():
 
 
 def test_memref_dma_wait():
-    tag_type = MemRefType.from_element_type_and_shape(i32, [4])
+    tag_type = MemRefType(i32, [4])
     tag = TestSSAValue(tag_type)
     index = TestSSAValue(IndexType())
     num_elements = TestSSAValue(IndexType())
@@ -339,16 +426,16 @@ def test_memref_dma_wait():
 
     # check that tag element type is verified
     with pytest.raises(VerifyException, match="Expected tag to be a memref of i32"):
-        wrong_tag_type = MemRefType.from_element_type_and_shape(i64, [4])
+        wrong_tag_type = MemRefType(i64, [4])
         wrong_tag = TestSSAValue(wrong_tag_type)
 
         DmaWaitOp.get(wrong_tag, [index], num_elements).verify()
 
 
 def test_memref_copy():
-    i32type4 = MemRefType.from_element_type_and_shape(i32, [4])
-    i32type3 = MemRefType.from_element_type_and_shape(i32, [3])
-    i64type4 = MemRefType.from_element_type_and_shape(i64, [4])
+    i32type4 = MemRefType(i32, [4])
+    i32type3 = MemRefType(i32, [3])
+    i64type4 = MemRefType(i64, [4])
     source = TestSSAValue(i32type4)
     destination = TestSSAValue(i32type4)
 

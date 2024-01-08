@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Generic, TypeVar
+from enum import auto
+from typing import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     ArrayAttr,
     DenseArrayBase,
     FunctionType,
@@ -19,11 +21,14 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    EnumAttribute,
+    OpaqueSyntaxAttribute,
     Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
+    StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
@@ -66,85 +71,81 @@ class AsyncTokenType(ParametrizedAttribute, TypeAttribute):
     name = "gpu.async.token"
 
 
-@irdl_attr_definition
-class _AllReduceOperationAttr(ParametrizedAttribute):
-    name = "all_reduce_op"
+class AllReduceOpEnum(StrEnum):
+    Add = auto()
+    And = auto()
+    Max = auto()
+    Min = auto()
+    Mul = auto()
+    Or = auto()
+    Xor = auto()
 
-    param: ParameterDef[StringAttr]
+
+class DimensionEnum(StrEnum):
+    X = auto()
+    Y = auto()
+    Z = auto()
+
+
+class ProcessorEnum(StrEnum):
+    Sequential = auto()
+    Block_X = auto()
+    Block_Y = auto()
+    Block_Z = auto()
+    Thread_X = auto()
+    Thread_Y = auto()
+    Thread_Z = auto()
+
+
+@irdl_attr_definition
+class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], OpaqueSyntaxAttribute):
+    name = "gpu.all_reduce_op"
+
+
+@irdl_attr_definition
+class DimensionAttr(EnumAttribute[DimensionEnum], OpaqueSyntaxAttribute):
+    name = "gpu.dim"
+
+
+@irdl_attr_definition
+class ProcessorAttr(EnumAttribute[ProcessorEnum], OpaqueSyntaxAttribute):
+    name = "gpu.processor"
+
+
+@irdl_attr_definition
+class LoopDimMapAttr(ParametrizedAttribute):
+    name = "gpu.loop_dim_map"
+
+    processor: ParameterDef[ProcessorAttr]
+    map: ParameterDef[AffineMapAttr]
+    bound: ParameterDef[AffineMapAttr]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f"all_reduce_op {self.param.data}")
-
-
-@irdl_attr_definition
-class _DimensionAttr(ParametrizedAttribute):
-    name = "dim"
-
-    param: ParameterDef[StringAttr]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print(f"dim {self.param.data}")
-
-
-T = TypeVar("T", bound=_AllReduceOperationAttr | _DimensionAttr, covariant=True)
-
-
-@irdl_attr_definition
-class _GPUAttr(ParametrizedAttribute, Generic[T]):
-    name = "gpu"
-
-    value: ParameterDef[T]
+        with printer.in_angle_brackets():
+            printer.print("processor = ")
+            printer.print(self.processor.data)
+            printer.print(", map = ")
+            printer.print(self.map.data)
+            printer.print(", bound = ")
+            printer.print(self.bound.data)
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters(
-            "<",
-            ": gpu attributes currently have the #gpu<name value> syntax.",
-        )
-        if parser.parse_optional_keyword("dim"):
-            attrtype = _DimensionAttr
-            vtok = parser.parse_optional_identifier()
-            if vtok not in ["x", "y", "z"]:
-                parser.raise_error(
-                    f"Unexpected dim {vtok}. A gpu dim can only be x, y, or z",
-                )
+    def parse_parameters(cls, parser: AttrParser):
+        with parser.in_angle_brackets():
+            parser.parse_keyword("processor")
+            parser.parse_punctuation("=")
+            proc = ProcessorAttr.parse_parameter(parser)
+            processor = ProcessorAttr(proc)
+            parser.parse_punctuation(",")
+            parser.parse_keyword("map")
+            parser.parse_punctuation("=")
+            map = AffineMapAttr(parser.parse_affine_map())
+            parser.parse_punctuation(",")
+            parser.parse_keyword("bound")
+            parser.parse_punctuation("=")
+            bound = AffineMapAttr(parser.parse_affine_map())
+        return [processor, map, bound]
 
-        elif parser.parse_optional_keyword("all_reduce_op"):
-            attrtype = _AllReduceOperationAttr
-            vtok = parser.parse_optional_identifier()
-            if vtok not in ["add", "and", "max", "min", "mul", "or", "xor"]:
-                parser.raise_error(
-                    f"Unexpected op {vtok}. A gpu all_reduce_op can only be add, "
-                    "and, max, min, mul, or, or xor ",
-                )
-        else:
-            parser.raise_error("'dim' or 'all_reduce_op' expected")
-        parser.parse_characters(
-            ">",
-            ". gpu attributes currently have the #gpu<name value> syntax.",
-        )
-        return [attrtype([StringAttr(vtok)])]
-
-    @staticmethod
-    def from_op(value: str) -> AllReduceOperationAttr:
-        return AllReduceOperationAttr([_AllReduceOperationAttr([StringAttr(value)])])
-
-    @property
-    def data(self) -> str:
-        return self.value.param.data
-
-    @staticmethod
-    def from_dimension(value: str) -> DimensionAttr:
-        return DimensionAttr([_DimensionAttr([StringAttr(value)])])
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<")
-        self.value.print_parameters(printer)
-        printer.print_string(">")
-
-
-DimensionAttr = _GPUAttr[_DimensionAttr]
-AllReduceOperationAttr = _GPUAttr[_AllReduceOperationAttr]
 
 _Element = TypeVar("_Element", bound=Attribute, covariant=True)
 
@@ -164,9 +165,8 @@ class AllocOp(IRDLOperation):
 
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
-        assert isinstance(self.result.type, memref.MemRefType)
-        res_type: memref.MemRefType[Attribute] = self.result.type
-        ndyn_type = len([i for i in res_type.shape.data if i.value.data == -1])
+        assert isinstance(res_type := self.result.type, memref.MemRefType)
+        ndyn_type = len([i for i in res_type.get_shape() if i == -1])
         if ndyn != ndyn_type:
             raise VerifyException(
                 f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All "
@@ -201,7 +201,7 @@ class AllocOp(IRDLOperation):
 @irdl_op_definition
 class AllReduceOp(IRDLOperation):
     name = "gpu.all_reduce"
-    op: AllReduceOperationAttr | None = opt_prop_def(AllReduceOperationAttr)
+    op: AllReduceOpAttr | None = opt_prop_def(AllReduceOpAttr)
     uniform: UnitAttr | None = opt_prop_def(UnitAttr)
     operand: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
@@ -211,7 +211,7 @@ class AllReduceOp(IRDLOperation):
 
     @staticmethod
     def from_op(
-        op: AllReduceOperationAttr,
+        op: AllReduceOpAttr,
         operand: SSAValue | Operation,
         uniform: UnitAttr | None = None,
     ):
@@ -601,6 +601,9 @@ class LaunchFuncOp(IRDLOperation):
     blockSizeX: Operand = operand_def(IndexType)
     blockSizeY: Operand = operand_def(IndexType)
     blockSizeZ: Operand = operand_def(IndexType)
+    clusterSizeX: OptOperand = opt_operand_def(IndexType)
+    clusterSizeY: OptOperand = opt_operand_def(IndexType)
+    clusterSizeZ: OptOperand = opt_operand_def(IndexType)
     dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     kernelOperands: VarOperand = var_operand_def()
     asyncObject: OptOperand = opt_operand_def()
@@ -616,6 +619,7 @@ class LaunchFuncOp(IRDLOperation):
         func: SymbolRefAttr,
         gridSize: Sequence[SSAValue | Operation],
         blockSize: Sequence[SSAValue | Operation],
+        clusterSize: Sequence[SSAValue | Operation] | None = None,
         kernelOperands: Sequence[SSAValue | Operation] | None = None,
         async_launch: bool = False,
         asyncDependencies: Sequence[SSAValue | Operation] | None = None,
@@ -625,12 +629,24 @@ class LaunchFuncOp(IRDLOperation):
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+        clusterSizeOperands: Sequence[
+            SSAValue | Operation | Sequence[SSAValue | Operation]
+        ]
+        if clusterSize is None:
+            clusterSizeOperands = [[], [], []]
+        else:
+            clusterSizeOperands = clusterSize
+        if len(clusterSizeOperands) != 3:
+            raise ValueError(
+                f"LaunchFuncOp must have 3 cluterSizes if any, got {len(clusterSizeOperands)}"
+            )
 
         super().__init__(
             operands=[
                 asyncDependencies,
                 *gridSize,
                 *blockSize,
+                *clusterSizeOperands,
                 dynamicSharedMemorySize,
                 kernelOperands,
                 [],
@@ -730,10 +746,6 @@ class YieldOp(IRDLOperation):
                 )
 
 
-# _GPUAttr has to be registered instead of DimensionAttr and AllReduceOperationAttr here.
-# This is a hack to fit MLIR's syntax in xDSL's way of parsing attributes, without making GPU builtin.
-# Hopefully MLIR will parse it in a more xDSL-friendly way soon, so all that can be factored in proper xDSL
-# atrributes.
 GPU = Dialect(
     "gpu",
     [
@@ -763,5 +775,10 @@ GPU = Dialect(
         ThreadIdOp,
         YieldOp,
     ],
-    [_GPUAttr],
+    [
+        AllReduceOpAttr,
+        DimensionAttr,
+        ProcessorAttr,
+        LoopDimMapAttr,
+    ],
 )

@@ -45,10 +45,19 @@ from xdsl.irdl import (
     operand_def,
     opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     var_operand_def,
+    var_result_def,
 )
-from xdsl.traits import SymbolOpInterface
+from xdsl.pattern_rewriter import RewritePattern
+from xdsl.traits import (
+    HasCanonicalisationPatternsTrait,
+    HasParent,
+    IsTerminator,
+    SymbolOpInterface,
+)
+from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -70,20 +79,40 @@ class MemRefType(
 ):
     name = "memref"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[StridedLayoutAttr | NoneAttr]
+    layout: ParameterDef[Attribute]
     memory_space: ParameterDef[Attribute]
+
+    def __init__(
+        self: MemRefType[_MemRefTypeElement],
+        element_type: _MemRefTypeElement,
+        shape: Iterable[int | IntAttr],
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
+    ):
+        shape = ArrayAttr(
+            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+        )
+        super().__init__(
+            [
+                shape,
+                element_type,
+                layout,
+                memory_space,
+            ]
+        )
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.value.data for i in self.shape.data)
+        return tuple(i.data for i in self.shape.data)
 
     def get_element_type(self) -> _MemRefTypeElement:
         return self.element_type
 
+    @deprecated_constructor
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: _MemRefTypeElement,
@@ -91,22 +120,10 @@ class MemRefType(
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
-        return MemRefType(
-            [
-                ArrayAttr[AnyIntegerAttr](
-                    [
-                        d
-                        if isinstance(d, IntegerAttr)
-                        else IntegerAttr.from_index_int_value(d)
-                        for d in shape
-                    ]
-                ),
-                referenced_type,
-                layout,
-                memory_space,
-            ]
-        )
+        shape_int = [i if isinstance(i, int) else i.value.data for i in shape]
+        return MemRefType(referenced_type, shape_int, layout, memory_space)
 
+    @deprecated_constructor
     @staticmethod
     def from_params(
         referenced_type: _MemRefTypeElement,
@@ -116,7 +133,8 @@ class MemRefType(
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
-        return MemRefType([shape, referenced_type, layout, memory_space])
+        shape_int = [i.value.data for i in shape.data]
+        return MemRefType(referenced_type, shape_int, layout, memory_space)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -180,25 +198,26 @@ class Load(IRDLOperation):
     # which is subject to change
 
     def verify_(self):
-        if not isinstance(self.memref.type, MemRefType):
+        memref_type = self.memref.type
+        if not isinstance(memref_type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], self.memref.type)
+        memref_type = cast(MemRefType[Attribute], memref_type)
 
         if memref_type.element_type != self.res.type:
             raise Exception("expected return type to match the MemRef element type")
 
-        if self.memref.type.get_num_dims() != len(self.indices):
+        if memref_type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
 
-    @staticmethod
-    def get(ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]) -> Load:
+    @classmethod
+    def get(
+        cls, ref: SSAValue | Operation, indices: Sequence[SSAValue | Operation]
+    ) -> Self:
         ssa_value = SSAValue.get(ref)
         ssa_value_type = ssa_value.type
         ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
-        return Load.build(
-            operands=[ref, indices], result_types=[ssa_value_type.element_type]
-        )
+        return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -236,24 +255,25 @@ class Store(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
 
     def verify_(self):
-        if not isinstance(self.memref.type, MemRefType):
+        if not isinstance(memref_type := self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
-        memref_type = cast(MemRefType[Attribute], self.memref.type)
+        memref_type = cast(MemRefType[Attribute], memref_type)
 
         if memref_type.element_type != self.value.type:
             raise Exception("Expected value type to match the MemRef element type")
 
-        if self.memref.type.get_num_dims() != len(self.indices):
+        if memref_type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
 
-    @staticmethod
+    @classmethod
     def get(
+        cls,
         value: Operation | SSAValue,
         ref: Operation | SSAValue,
         indices: Sequence[Operation | SSAValue],
-    ) -> Store:
-        return Store.build(operands=[value, ref, indices])
+    ) -> Self:
+        return cls(operands=[value, ref, indices])
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -304,20 +324,65 @@ class Alloc(IRDLOperation):
     @staticmethod
     def get(
         return_type: Attribute,
-        alignment: int | None = None,
-        shape: Iterable[int | AnyIntegerAttr] | None = None,
+        alignment: int | AnyIntegerAttr | None = None,
+        shape: Iterable[int | IntAttr] | None = None,
+        dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
     ) -> Alloc:
         if shape is None:
             shape = [1]
+
+        if dynamic_sizes is None:
+            dynamic_sizes = []
+
+        if isinstance(alignment, int):
+            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+
         return Alloc.build(
-            operands=[[], []],
-            result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
-            attributes={
-                "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-                if alignment is not None
-                else None
+            operands=[dynamic_sizes, []],
+            result_types=[MemRefType(return_type, shape, layout, memory_space)],
+            properties={
+                "alignment": alignment,
             },
         )
+
+    def verify_(self) -> None:
+        memref_type = self.memref.type
+        if not isinstance(memref_type, MemRefType):
+            raise VerifyException("expected result to be a memref")
+        memref_type = cast(MemRefType[Attribute], memref_type)
+
+        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
+        if len(dyn_dims) != len(self.dynamic_sizes):
+            raise VerifyException(
+                "op dimension operand count does not equal memref dynamic dimension count."
+            )
+
+
+@irdl_op_definition
+class AllocaScopeOp(IRDLOperation):
+    name = "memref.alloca_scope"
+
+    res = var_result_def()
+
+    scope = region_def()
+
+
+@irdl_op_definition
+class AllocaScopeReturnOp(IRDLOperation):
+    name = "memref.alloca_scope.return"
+
+    ops = var_operand_def()
+
+    traits = frozenset([IsTerminator(), HasParent(AllocaScopeOp)])
+
+    def verify_(self) -> None:
+        parent = cast(AllocaScopeOp, self.parent_op())
+        if any(op.type != res.type for op, res in zip(self.ops, parent.results)):
+            raise VerifyException(
+                "Expected operand types to match parent's return types."
+            )
 
 
 @irdl_op_definition
@@ -338,8 +403,10 @@ class Alloca(IRDLOperation):
     def get(
         return_type: Attribute,
         alignment: int | AnyIntegerAttr | None = None,
-        shape: Iterable[int | AnyIntegerAttr] | None = None,
+        shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
+        layout: Attribute = NoneAttr(),
+        memory_space: Attribute = NoneAttr(),
     ) -> Alloca:
         if shape is None:
             shape = [1]
@@ -352,11 +419,23 @@ class Alloca(IRDLOperation):
 
         return Alloca.build(
             operands=[dynamic_sizes, []],
-            result_types=[MemRefType.from_element_type_and_shape(return_type, shape)],
+            result_types=[MemRefType(return_type, shape, layout, memory_space)],
             properties={
                 "alignment": alignment,
             },
         )
+
+    def verify_(self) -> None:
+        memref_type = self.memref.type
+        if not isinstance(memref_type, MemRefType):
+            raise VerifyException("expected result to be a memref")
+        memref_type = cast(MemRefType[Attribute], memref_type)
+
+        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
+        if len(dyn_dims) != len(self.dynamic_sizes):
+            raise VerifyException(
+                "op dimension operand count does not equal memref dynamic dimension count."
+            )
 
 
 @irdl_op_definition
@@ -467,6 +546,16 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
         )
 
 
+class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.memref import (
+            MemrefSubviewOfSubviewFolding,
+        )
+
+        return (MemrefSubviewOfSubviewFolding(),)
+
+
 @irdl_op_definition
 class Subview(IRDLOperation):
     name = "memref.subview"
@@ -482,6 +571,8 @@ class Subview(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
+    traits = frozenset((MemrefHasCanonicalizationPatternsTrait(),))
+
     @staticmethod
     def from_static_parameters(
         source: SSAValue | Operation,
@@ -493,7 +584,7 @@ class Subview(IRDLOperation):
     ) -> Subview:
         source = SSAValue.get(source)
 
-        source_shape = [e.value.data for e in source_type.shape.data]
+        source_shape = source_type.get_shape()
         source_offset = 0
         source_strides = [1]
         for input_size in reversed(source_shape[1:]):
@@ -527,7 +618,7 @@ class Subview(IRDLOperation):
 
         layout = StridedLayoutAttr(layout_strides, layout_offset)
 
-        return_type = MemRefType.from_element_type_and_shape(
+        return_type = MemRefType(
             source_type.element_type,
             result_sizes,
             layout,
@@ -558,6 +649,47 @@ class Cast(IRDLOperation):
         type: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
     ):
         return Cast.build(operands=[source], result_types=[type])
+
+
+@irdl_op_definition
+class MemorySpaceCast(IRDLOperation):
+    name = "memref.memory_space_cast"
+
+    source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        dest: MemRefType[Attribute] | UnrankedMemrefType[Attribute],
+    ):
+        super().__init__(operands=[source], result_types=[dest])
+
+    @staticmethod
+    def from_type_and_target_space(
+        source: SSAValue | Operation,
+        type: MemRefType[Attribute],
+        dest_memory_space: Attribute,
+    ) -> MemorySpaceCast:
+        dest = MemRefType(
+            type.get_element_type(),
+            shape=type.get_shape(),
+            layout=type.layout,
+            memory_space=dest_memory_space,
+        )
+        return MemorySpaceCast(source, dest)
+
+    def verify_(self) -> None:
+        source = cast(MemRefType[Attribute], self.source.type)
+        dest = cast(MemRefType[Attribute], self.dest.type)
+        if source.get_shape() != dest.get_shape():
+            raise VerifyException(
+                "Expected source and destination to have the same shape."
+            )
+        if source.get_element_type() != dest.get_element_type():
+            raise VerifyException(
+                "Expected source and destination to have the same element type."
+            )
 
 
 @irdl_op_definition
@@ -690,6 +822,8 @@ MemRef = Dialect(
         Store,
         Alloc,
         Alloca,
+        AllocaScopeOp,
+        AllocaScopeReturnOp,
         CopyOp,
         Dealloc,
         GetGlobal,
@@ -698,6 +832,7 @@ MemRef = Dialect(
         ExtractAlignedPointerAsIndexOp,
         Subview,
         Cast,
+        MemorySpaceCast,
         DmaStartOp,
         DmaWaitOp,
     ],

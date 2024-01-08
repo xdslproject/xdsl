@@ -52,7 +52,6 @@ def memref_shape_ops(
     The pointer is byte-indexed, and the indices are strided by element size, so the index
     into the flat memory buffer needs to be multiplied by the size of the element.
     """
-
     assert len(shape) == len(indices)
 
     # Only handle a small subset of elements
@@ -74,32 +73,33 @@ def memref_shape_ops(
                 f"Unsupported memref element type for riscv lowering: {element_type}"
             )
 
+    if not shape:
+        # Scalar memref
+        return ([], mem)
+
     ops: list[Operation] = []
 
-    match indices:
-        case [offset_in_elements]:
-            pass
-        case [idx1, idx2]:
-            ops = [
-                cols := riscv.LiOp(shape[1]),
-                row_offset := riscv.MulOp(
-                    cols, idx1, rd=riscv.IntRegisterType.unallocated()
+    head, *tail = indices
+
+    for factor, value in zip(shape[1:], tail):
+        ops.extend(
+            (
+                factor_op := riscv.LiOp(factor),
+                offset_op := riscv.MulOp(
+                    factor_op.rd, head, rd=riscv.IntRegisterType.unallocated()
                 ),
-                offset := riscv.AddOp(
-                    row_offset, idx2, rd=riscv.IntRegisterType.unallocated()
+                new_head_op := riscv.AddOp(
+                    offset_op, value, rd=riscv.IntRegisterType.unallocated()
                 ),
-            ]
-            offset_in_elements = offset.rd
-        case _:
-            raise DiagnosticException(
-                f"Unsupported memref shape {shape}, only support 1D and 2D memrefs."
             )
+        )
+        head = new_head_op.rd
 
     ops.extend(
         [
             bytes_per_element_op := riscv.LiOp(bytes_per_element),
             offset_bytes := riscv.MulOp(
-                offset_in_elements,
+                head,
                 bytes_per_element_op.rd,
                 rd=riscv.IntRegisterType.unallocated(),
                 comment="multiply by element size",
@@ -118,8 +118,8 @@ class ConvertMemrefStoreOp(RewritePattern):
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
         value, mem, *indices = cast_operands_to_regs(rewriter)
 
-        assert isinstance(op.memref.type, memref.MemRefType)
-        memref_type = cast(memref.MemRefType[Any], op.memref.type)
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        memref_type = cast(memref.MemRefType[Any], op_memref_type)
         shape = memref_type.get_shape()
 
         ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
@@ -161,8 +161,10 @@ class ConvertMemrefLoadOp(RewritePattern):
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
         mem, *indices = cast_operands_to_regs(rewriter)
 
-        assert isinstance(op.memref.type, memref.MemRefType), f"{op.memref.type}"
-        memref_type = cast(memref.MemRefType[Any], op.memref.type)
+        assert isinstance(
+            op_memref_type := op.memref.type, memref.MemRefType
+        ), f"{op.memref.type}"
+        memref_type = cast(memref.MemRefType[Any], op_memref_type)
         shape = memref_type.get_shape()
         ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
         rewriter.insert_op_before_matched_op(ops)

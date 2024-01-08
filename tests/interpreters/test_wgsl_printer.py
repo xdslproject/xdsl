@@ -14,7 +14,7 @@ rhs_op = test.TestOp(result_types=[IndexType()])
 def test_gpu_global_id():
     file = StringIO("")
 
-    global_id_x = gpu.GlobalIdOp(gpu.DimensionAttr.from_dimension("x"))
+    global_id_x = gpu.GlobalIdOp(gpu.DimensionAttr(gpu.DimensionEnum.X))
 
     printer = WGSLPrinter()
     printer.print(global_id_x, file)
@@ -25,7 +25,7 @@ def test_gpu_global_id():
 def test_gpu_thread_id():
     file = StringIO("")
 
-    thread_id_x = gpu.ThreadIdOp(gpu.DimensionAttr.from_dimension("x"))
+    thread_id_x = gpu.ThreadIdOp(gpu.DimensionAttr(gpu.DimensionEnum.X))
 
     printer = WGSLPrinter()
     printer.print(thread_id_x, file)
@@ -36,7 +36,7 @@ def test_gpu_thread_id():
 def test_gpu_block_id():
     file = StringIO("")
 
-    block_id_x = gpu.BlockIdOp(gpu.DimensionAttr.from_dimension("x"))
+    block_id_x = gpu.BlockIdOp(gpu.DimensionAttr(gpu.DimensionEnum.X))
 
     printer = WGSLPrinter()
     printer.print(block_id_x, file)
@@ -47,7 +47,7 @@ def test_gpu_block_id():
 def test_gpu_grid_dim():
     file = StringIO("")
 
-    num_workgroups = gpu.GridDimOp(gpu.DimensionAttr.from_dimension("x"))
+    num_workgroups = gpu.GridDimOp(gpu.DimensionAttr(gpu.DimensionEnum.X))
 
     printer = WGSLPrinter()
     printer.print(num_workgroups, file)
@@ -159,7 +159,7 @@ def test_arith_mulf():
 def test_memref_load():
     file = StringIO("")
 
-    memref_type = memref.MemRefType.from_element_type_and_shape(i32, [10, 10])
+    memref_type = memref.MemRefType(i32, [10, 10])
 
     memref_val = TestSSAValue(memref_type)
 
@@ -174,7 +174,7 @@ def test_memref_load():
 def test_memref_store():
     file = StringIO("")
 
-    memref_type = memref.MemRefType.from_element_type_and_shape(i32, [10, 10])
+    memref_type = memref.MemRefType(i32, [10, 10])
 
     memref_val = TestSSAValue(memref_type)
 

@@ -20,7 +20,7 @@ jobs:
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      MLIR-Version: a3f2751f782f3cdc6ba4790488ec20163a40ac37
+      MLIR-Version: 98e674c9f16d677d95c67bc130e267fae331e43c
     steps:
     - uses: actions/checkout@v3
       with:
@@ -45,7 +45,7 @@ jobs:
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        pip install -e ".[extras]"
+        pip install -r requirements.txt
 
     - name: Cache binaries
       id: cache-binary

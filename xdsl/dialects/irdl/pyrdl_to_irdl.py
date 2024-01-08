@@ -23,10 +23,10 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
 
 def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     """Convert an operation definition to an IRDL operation definition."""
-    op_def = op.irdl_definition
+    op_def = op.get_irdl_definition()
 
     block = Block()
-    builder = Builder(block)
+    builder = Builder.at_end(block)
 
     # Operands
     operand_values: list[SSAValue] = []
@@ -49,10 +49,10 @@ def attr_def_to_irdl(
     attr: type[ParametrizedAttribute],
 ) -> AttributeOp:
     """Convert an attribute definition to an IRDL attribute definition."""
-    attr_def = attr.irdl_definition
+    attr_def = attr.get_irdl_definition()
 
     block = Block()
-    builder = Builder(block)
+    builder = Builder.at_end(block)
 
     # Parameters
     param_values: list[SSAValue] = []
@@ -66,7 +66,7 @@ def attr_def_to_irdl(
 def dialect_to_irdl(dialect: Dialect, name: str) -> DialectOp:
     """Convert a dialect definition to an IRDL dialect definition."""
     block = Block()
-    builder = Builder(block)
+    builder = Builder.at_end(block)
 
     for attribute in dialect.attributes:
         if not issubclass(attribute, ParametrizedAttribute):

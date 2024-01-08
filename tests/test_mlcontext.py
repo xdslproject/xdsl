@@ -92,3 +92,21 @@ def test_get_attr_unregistered(is_type: bool):
     )
     if is_type:
         assert issubclass(attr, TypeAttribute)
+
+
+def test_clone_function():
+    ctx = MLContext()
+    ctx.load_attr(DummyAttr)
+    ctx.load_op(DummyOp)
+
+    copy = ctx.clone()
+
+    assert ctx == copy
+    copy.load_op(DummyOp2)
+    assert ctx != copy
+
+    copy = ctx.clone()
+
+    assert ctx == copy
+    copy.load_attr(DummyAttr2)
+    assert ctx != copy

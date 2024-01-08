@@ -95,7 +95,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         """
         data = val.encode() + b"\x00"
 
-        t_type = builtin.TensorType.from_type_and_list(i8, [len(data)])
+        t_type = builtin.TensorType(i8, [len(data)])
 
         return llvm.GlobalOp(
             llvm.LLVMArrayType.from_size_and_type(len(data), i8),
@@ -136,7 +136,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
             casts
             + [
                 ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType.opaque()),
-                llvm.CallOp("printf", ptr.result, *args),
+                llvm.CallOp("printf", ptr.result, *args, variadic_args=len(args)),
             ]
         )
 

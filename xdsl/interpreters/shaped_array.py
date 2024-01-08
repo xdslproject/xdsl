@@ -71,7 +71,7 @@ class ShapedArray(Generic[_T]):
         new_shape = list(self.shape)
         new_shape[dim0], new_shape[dim1] = new_shape[dim1], new_shape[dim0]
 
-        result = ShapedArray(list(self.data), new_shape)
+        result = type(self)(list(self.data), new_shape)
 
         for source_index in self.indices():
             dest_index = list(source_index)

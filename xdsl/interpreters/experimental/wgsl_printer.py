@@ -85,7 +85,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.BlockIdOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).strip('"')
+        dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -94,7 +94,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.ThreadIdOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).strip('"')
+        dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -103,7 +103,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.GridDimOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).strip('"')
+        dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -112,7 +112,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.BlockDimOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).strip('"')
+        dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""
@@ -121,7 +121,7 @@ class WGSLPrinter:
 
     @print.register
     def _(self, op: gpu.GlobalIdOp, out_stream: IO[str]):
-        dim = str(op.dimension.value.param).strip('"')
+        dim = str(op.dimension.data).strip('"')
         name_hint = self.wgsl_name(op.result)
         out_stream.write(
             f"""

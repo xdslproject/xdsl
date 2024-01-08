@@ -20,6 +20,7 @@ from xdsl.irdl.declarative_assembly_format import (
     PunctuationDirective,
     ResultTypeDirective,
     ResultVariable,
+    WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
 from xdsl.utils.lexer import Input, Lexer, Token
@@ -46,15 +47,15 @@ class FormatLexer(Lexer):
         if current_char is None:
             return self._form_token(Token.Kind.EOF, start_pos)
 
-        # We parse '`' and '$' as a BARE_IDENT.
+        # We parse '`', `\\` and '$' as a BARE_IDENT.
         # This is a hack to reuse the MLIR lexer.
-        if current_char in ("`", "$"):
+        if current_char in ("`", "$", "\\"):
             self._consume_chars()
             return self._form_token(Token.Kind.BARE_IDENT, start_pos)
         return super().lex()
 
     # Authorize `-` in bare identifier
-    _bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
+    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.\-]*")
 
 
 class ParsingContext(Enum):
@@ -224,6 +225,25 @@ class FormatParser(BaseParser):
           keyword-or-punctuation-directive ::= `\\`` (bare-ident | punctuation) `\\``
         """
         self.parse_characters("`")
+        start_token = self._current_token
+
+        # New line case
+        if self.parse_optional_keyword("\\"):
+            self.parse_keyword("n")
+            self.parse_characters("`")
+            return WhitespaceDirective("\n")
+
+        # Space case
+        if self.parse_optional_characters("`"):
+            end_token = self._current_token
+            whitespace = self.lexer.input.content[
+                start_token.span.end : end_token.span.start
+            ]
+            if whitespace != " ":
+                self.raise_error(
+                    "unexpected whitespace in directive, only ` ` whitespace is allowed"
+                )
+            return WhitespaceDirective(" ")
 
         # Punctuation case
         if self._current_token.kind.is_punctuation():

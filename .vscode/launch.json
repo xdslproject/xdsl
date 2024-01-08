@@ -11,7 +11,7 @@
             "module": "xdsl.tools.xdsl_opt",
             "justMyCode": true,
             "args": [
-                "${file}"
+                "${file}",
             ]
         },
         {
@@ -21,7 +21,24 @@
             "module": "xdsl.tools.xdsl_run",
             "justMyCode": true,
             "args": [
-                "${file}"
+                "${file}",
+            ]
+        },
+        {
+            "name": "interactive",
+            "type": "python",
+            "request": "launch",
+            "module": "xdsl.interactive.app",
+            "justMyCode": true,
+        },
+        {
+            "name": "toy",
+            "type": "python",
+            "request": "launch",
+            "module": "docs.Toy.toy",
+            "justMyCode": true,
+            "args": [
+                "${file}",
             ]
         },
     ]

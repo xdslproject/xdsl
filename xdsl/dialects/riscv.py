@@ -136,7 +136,7 @@ class IntRegisterType(RISCVRegisterType):
         return IntRegisterType.RV32I_INDEX_BY_NAME
 
     @classmethod
-    def a_register(cls, index: int) -> Self:
+    def a_register(cls, index: int) -> IntRegisterType:
         return Registers.A[index]
 
     RV32I_INDEX_BY_NAME = {
@@ -193,7 +193,7 @@ class FloatRegisterType(RISCVRegisterType):
         return FloatRegisterType.RV32F_INDEX_BY_NAME
 
     @classmethod
-    def a_register(cls, index: int) -> Self:
+    def a_register(cls, index: int) -> FloatRegisterType:
         return Registers.FA[index]
 
     RV32F_INDEX_BY_NAME = {
@@ -3358,6 +3358,36 @@ class FSwOp(RsRsImmFloatOperation):
 
 
 @irdl_op_definition
+class FMAddDOp(RdRsRsRsFloatOperation):
+    """
+    Perform double-precision fused multiply addition.
+
+    f[rd] = f[rs1]×f[rs2]+f[rs3]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmadd-d
+    """
+
+    name = "riscv.fmadd.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FMSubDOp(RdRsRsRsFloatOperation):
+    """
+    Perform double-precision fused multiply substraction.
+
+    f[rd] = f[rs1]×f[rs2]+f[rs3]
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fmsub-d
+    """
+
+    name = "riscv.fmsub.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
 class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
     """
     Perform double-precision floating-point addition.
@@ -3435,6 +3465,8 @@ class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fmin.d"
 
+    traits = frozenset((Pure(),))
+
 
 @irdl_op_definition
 class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
@@ -3447,6 +3479,38 @@ class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
     """
 
     name = "riscv.fmax.d"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FCvtDWOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+    """
+    Converts a 32-bit signed integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
+
+    x[rd] = sext(s32_{f64}(f[rs1]))
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-w
+    """
+
+    name = "riscv.fcvt.d.w"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class FCvtDWuOp(RdRsOperation[FloatRegisterType, IntRegisterType]):
+    """
+    Converts a 32-bit unsigned integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
+
+    f[rd] = f64_{u32}(x[rs1])
+
+    https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-wu
+    """
+
+    name = "riscv.fcvt.d.wu"
+
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -3468,9 +3532,14 @@ class FLdOp(RdRsImmFloatOperation):
         value = _assembly_arg_str(self.rd)
         imm = _assembly_arg_str(self.immediate)
         offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
-            instruction_name, f"{value}, {imm}({offset})", self.comment
-        )
+        if isinstance(self.immediate, LabelAttr):
+            return _assembly_line(
+                instruction_name, f"{value}, {imm}, {offset}", self.comment
+            )
+        else:
+            return _assembly_line(
+                instruction_name, f"{value}, {imm}({offset})", self.comment
+            )
 
 
 class FSdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
@@ -3505,6 +3574,32 @@ class FSdOp(RsRsImmFloatOperation):
         return _assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
+
+
+class FMvDHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantFMvD
+
+        return (RemoveRedundantFMvD(),)
+
+
+@irdl_op_definition
+class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
+    """
+    A pseudo instruction to copy 64 bits of one float register to another.
+
+    Equivalent to `fsgnj.d rd, rs, rs`.
+    """
+
+    name = "riscv.fmv.d"
+
+    traits = frozenset(
+        (
+            Pure(),
+            FMvDHasCanonicalizationPatternsTrait(),
+        )
+    )
 
 
 # endregion
@@ -3681,14 +3776,19 @@ RISCV = Dialect(
         FMvWXOp,
         FLwOp,
         FSwOp,
+        FMAddDOp,
+        FMSubDOp,
         FAddDOp,
         FSubDOp,
         FMulDOp,
         FDivDOp,
         FMinDOp,
         FMaxDOp,
+        FCvtDWOp,
+        FCvtDWuOp,
         FLdOp,
         FSdOp,
+        FMvDOp,
         VFAddSOp,
         VFMulSOp,
     ],

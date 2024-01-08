@@ -1,6 +1,7 @@
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from importlib.metadata import version
 from io import StringIO
 from typing import IO
 
@@ -15,7 +16,7 @@ from xdsl.utils.parse_pipeline import parse_pipeline
 
 
 class xDSLOptMain(CommandLineTool):
-    available_passes: dict[str, type[ModulePass]]
+    available_passes: dict[str, Callable[[], type[ModulePass]]]
     """
     A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
@@ -153,8 +154,17 @@ class xDSLOptMain(CommandLineTool):
             help="Print operations with debug info annotation, such as location.",
         )
 
-    def register_pass(self, opPass: type[ModulePass]):
-        self.available_passes[opPass.name] = opPass
+        arg_parser.add_argument(
+            "-v",
+            "--version",
+            action="version",
+            version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
+        )
+
+    def register_pass(
+        self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
+    ):
+        self.available_passes[pass_name] = pass_factory
 
     def register_all_passes(self):
         """
@@ -162,8 +172,8 @@ class xDSLOptMain(CommandLineTool):
 
         Add other/additional passes by overloading this function.
         """
-        for pass_ in get_all_passes():
-            self.register_pass(pass_)
+        for pass_name, pass_factory in get_all_passes():
+            self.register_pass(pass_name, pass_factory)
 
     def register_all_targets(self):
         """
@@ -224,7 +234,7 @@ class xDSLOptMain(CommandLineTool):
                 print("\n\n\n")
 
         self.pipeline = PipelinePass(
-            [self.available_passes[p.name].from_pass_spec(p) for p in pipeline],
+            [self.available_passes[p.name]().from_pass_spec(p) for p in pipeline],
             callback,
         )
 

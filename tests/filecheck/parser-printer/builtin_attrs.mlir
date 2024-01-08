@@ -190,6 +190,12 @@
   // CHECK: memref<2xf32>
 
   "func.func"() ({}) {function_type = () -> (),
+                      memref = memref<f32>,
+                      sym_name = "scalar_memref"} : () -> ()
+
+  // CHECK: memref<f32> 
+
+  "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2x?xf32>,
                       sym_name = "semidynamic_memref"} : () -> ()
 
@@ -235,12 +241,6 @@
   "func.func"() ({}) {function_type = () -> (),
                       type_attr = index,
                       sym_name = "index_type"} : () -> ()
-
-  // CHECK: "type_attr" = index
-
-  "func.func"() ({}) {function_type = () -> (),
-                      type_attr = !index,
-                      sym_name = "index_type_prefix"} : () -> ()
 
   // CHECK: "type_attr" = index
 

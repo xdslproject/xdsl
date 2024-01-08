@@ -52,9 +52,7 @@ class Load(IRDLOperation):
 
         return Load.build(
             operands=[ref, indices],
-            result_types=[
-                VectorType.from_element_type_and_shape(ref.type.element_type, [1])
-            ],
+            result_types=[VectorType(ref.type.element_type, [1])],
         )
 
 
@@ -104,9 +102,7 @@ class Broadcast(IRDLOperation):
     def get(source: Operation | SSAValue) -> Broadcast:
         return Broadcast.build(
             operands=[source],
-            result_types=[
-                VectorType.from_element_type_and_shape(SSAValue.get(source).type, [1])
-            ],
+            result_types=[VectorType(SSAValue.get(source).type, [1])],
         )
 
 
@@ -164,9 +160,7 @@ class FMA(IRDLOperation):
 
         return FMA.build(
             operands=[lhs, rhs, acc],
-            result_types=[
-                VectorType.from_element_type_and_shape(lhs.type.element_type, [1])
-            ],
+            result_types=[VectorType(lhs.type.element_type, [1])],
         )
 
 
@@ -218,9 +212,7 @@ class Maskedload(IRDLOperation):
 
         return Maskedload.build(
             operands=[memref, indices, mask, passthrough],
-            result_types=[
-                VectorType.from_element_type_and_shape(memref.type.element_type, [1])
-            ],
+            result_types=[VectorType(memref.type.element_type, [1])],
         )
 
 
@@ -293,7 +285,7 @@ class Createmask(IRDLOperation):
     def get(mask_operands: list[Operation | SSAValue]) -> Createmask:
         return Createmask.build(
             operands=[mask_operands],
-            result_types=[VectorType.from_element_type_and_shape(i1, [1])],
+            result_types=[VectorType(i1, [1])],
         )
 
 

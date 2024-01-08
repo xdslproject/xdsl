@@ -90,7 +90,7 @@ class IRGen:
         # We create an empty MLIR module and codegen functions one at a time and
         # add them to the module.
         self.module = ModuleOp([])
-        self.builder = Builder(self.module.body.blocks[0])
+        self.builder = Builder.at_end(self.module.body.blocks[0])
 
     def ir_gen_module(self, module_ast: ModuleAST) -> ModuleOp:
         """
@@ -131,9 +131,9 @@ class IRGen:
         "Build a tensor type from a list of shape dimensions."
         # If the shape is empty, then this type is unranked.
         if len(shape):
-            return TensorType.from_type_and_list(f64, shape)
+            return TensorType(f64, shape)
         else:
-            return UnrankedTensorTypeF64.from_type(f64)
+            return UnrankedTensorTypeF64(f64)
 
     def ir_gen_proto(self, proto_ast: PrototypeAST) -> FuncOp:
         """
@@ -161,11 +161,9 @@ class IRGen:
 
         # Create the block for the current function
         block = Block(
-            arg_types=[
-                UnrankedTensorType.from_type(f64) for _ in range(len(proto_args))
-            ]
+            arg_types=[UnrankedTensorType(f64) for _ in range(len(proto_args))]
         )
-        self.builder = Builder(block)
+        self.builder = Builder.at_end(block)
 
         # Declare all the function arguments in the symbol table.
         for name, value in zip(proto_args, block.args):
@@ -337,7 +335,7 @@ class IRGen:
         # user-defined functions are mapped to a custom call that takes the callee
         # name as an attribute.
         op = self.builder.insert(
-            GenericCallOp(callee, operands, [UnrankedTensorTypeF64.from_type(f64)])
+            GenericCallOp(callee, operands, [UnrankedTensorTypeF64(f64)])
         )
 
         return op.res[0]

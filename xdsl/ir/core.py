@@ -14,13 +14,20 @@ from typing import (
     NoReturn,
     Protocol,
     TypeVar,
+    cast,
+    final,
+    get_args,
+    get_origin,
     overload,
 )
 
 from typing_extensions import Self
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
+from xdsl.utils import lexer
+from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -63,9 +70,17 @@ class MLContext:
 
     allow_unregistered: bool = field(default=False)
 
-    _loaded_dialects: dict[str, Dialect] = field(init=False, default_factory=dict)
-    _loaded_ops: dict[str, type[Operation]] = field(init=False, default_factory=dict)
-    _loaded_attrs: dict[str, type[Attribute]] = field(init=False, default_factory=dict)
+    _loaded_dialects: dict[str, Dialect] = field(default_factory=dict)
+    _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict)
+    _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict)
+
+    def clone(self) -> MLContext:
+        return MLContext(
+            self.allow_unregistered,
+            self._loaded_dialects.copy(),
+            self._loaded_ops.copy(),
+            self._loaded_attrs.copy(),
+        )
 
     @property
     def loaded_ops(self) -> Iterable[type[Operation]]:
@@ -356,21 +371,6 @@ class ErasedSSAValue(SSAValue):
         return hash(id(self))
 
 
-@dataclass
-class TypeAttribute:
-    """
-    This class should only be inherited by classes inheriting Attribute.
-    This class is only used for printing attributes in the MLIR format,
-    inheriting this class prefix the attribute by `!` instead of `#`.
-    """
-
-    def __post_init__(self):
-        if not isinstance(self, Attribute):
-            raise TypeError(
-                "TypeAttribute should only be inherited by classes inheriting Attribute"
-            )
-
-
 A = TypeVar("A", bound="Attribute")
 
 
@@ -387,6 +387,8 @@ class Attribute(ABC):
 
     def __post_init__(self):
         self._verify()
+        if not isinstance(self, Data | ParametrizedAttribute):
+            raise TypeError("Attributes should only be Data or ParameterizedAttribute")
 
     def _verify(self):
         self.verify()
@@ -405,6 +407,26 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+
+class TypeAttribute(Attribute):
+    """
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the MLIR format,
+    inheriting this class prefix the attribute by `!` instead of `#`.
+    """
+
+    pass
+
+
+class OpaqueSyntaxAttribute(Attribute):
+    """
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the opaque form,
+    as described at https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.
+    """
+
+    pass
 
 
 DataElement = TypeVar("DataElement", covariant=True)
@@ -449,6 +471,81 @@ class Data(Generic[DataElement], Attribute, ABC):
         """Print the attribute parameter."""
 
 
+EnumType = TypeVar("EnumType", bound=StrEnum)
+
+
+class EnumAttribute(Data[EnumType]):
+    """
+    Core helper for Enum Attributes. Takes a StrEnum type parameter, and defines
+    parsing/printing automatically from its values, restricted to be parsable as
+    identifiers.
+
+    example:
+    ```python
+    class MyEnum(StrEnum):
+        First = auto()
+        Second = auto()
+
+    class MyEnumAttribute(EnumAttribute[MyEnum], OpaqueSyntaxAttribute):
+        name = "example.my_enum"
+    ```
+    To use this attribute suffices to have a textual representation
+    of `example<my_enum first>` and ``example<my_enum second>``
+
+    """
+
+    enum_type: ClassVar[type[StrEnum]]
+
+    def __init_subclass__(cls) -> None:
+        """
+        This hook first checks two constraints, enforced to keep the implementation
+        reasonable, until more complex use cases appear. It then stores the Enum type
+        used by the subclass to use in parsing/printing.
+
+        The constraints are:
+
+        - Only direct, specialized inheritance is allowed. That is, using a subclass
+        of EnumAttribute as a base class is *not supported*.
+          This simplifies type-hacking code and I don't see it being too restrictive
+          anytime soon.
+        - The StrEnum values must all be parsable as identifiers. This is to keep the
+        parsing code simple and efficient. This restriction is easier to lift, but I
+        haven't yet met an example use case where it matters, so I'm keeping it simple.
+        """
+        orig_bases = getattr(cls, "__orig_bases__")
+        enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
+        enum_type = get_args(enumattr)[0]
+        if isinstance(enum_type, TypeVar):
+            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
+
+        for v in enum_type:
+            if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
+                raise ValueError(
+                    "All StrEnum values of an EnumAttribute must be parsable as an identifer."
+                )
+
+        cls.enum_type = enum_type
+
+    @final
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(" ", self.data.value)
+
+    @final
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> EnumType:
+        enum_type = cls.enum_type
+
+        val = parser.parse_identifier()
+        if val not in enum_type.__members__.values():
+            enum_values = list(enum_type)
+            if len(enum_values) == 1:
+                parser.raise_error(f"Expected `{enum_values[0]}`.")
+            parser.raise_error(
+                f"Expected `{'`, `'.join(enum_values[:-1])}` or `{enum_values[-1]}`."
+            )
+        return cast(EnumType, enum_type(val))
+
+
 @dataclass(frozen=True)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
@@ -474,7 +571,7 @@ class ParametrizedAttribute(Attribute):
         return attr
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         """Parse the attribute parameters."""
         return parser.parse_paramattr_parameters()
 
@@ -482,17 +579,17 @@ class ParametrizedAttribute(Attribute):
         """Print the attribute parameters."""
         printer.print_paramattr_parameters(self.parameters)
 
-    def _verify(self):
-        # Verifier generated by irdl_attr_def
-        attr_def = type(self).irdl_definition
-        attr_def.verify(self)
-        super()._verify()
-
     @classmethod
-    @property
-    def irdl_definition(cls) -> ParamAttrDef:
+    def get_irdl_definition(cls) -> ParamAttrDef:
         """Get the IRDL attribute definition."""
         ...
+
+    def _verify(self):
+        # Verifier generated by irdl_attr_def
+        t: type[ParametrizedAttribute] = type(self)
+        attr_def = t.get_irdl_definition()
+        attr_def.verify(self)
+        super()._verify()
 
 
 @dataclass(init=False)
@@ -792,14 +889,23 @@ class Operation(IRNode):
         for region in self.regions:
             region.drop_all_references()
 
-    def walk(self) -> Iterator[Operation]:
+    def walk(
+        self, *, reverse: bool = False, region_first: bool = False
+    ) -> Iterator[Operation]:
         """
-        Iterate all operations contained in the operation (including this one)
+        Iterate all operations contained in the operation (including this one).
+        If region_first is set, then the operation regions are iterated before the
+        operation. If reverse is set, then the region, block, and operation lists are
+        iterated in reverse order.
         """
-        yield self
-        for region in self.regions:
-            yield from region.walk()
+        if not region_first:
+            yield self
+        for region in reversed(self.regions) if reverse else self.regions:
+            yield from region.walk(reverse=reverse, region_first=region_first)
+        if region_first:
+            yield self
 
+    @deprecated("Use walk(reverse=True, region_first=True) instead")
     def walk_reverse(self) -> Iterator[Operation]:
         """
         Iterate all operations contained in the operation (including this one) in reverse order.
@@ -1057,6 +1163,10 @@ class Operation(IRNode):
         diagnostic = Diagnostic()
         diagnostic.add_message(self, message)
         diagnostic.raise_exception(message, self, exception_type, underlying_error)
+
+    @classmethod
+    def dialect_name(cls) -> str:
+        return cls.name.split(".")[0]
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -1368,6 +1478,70 @@ class Block(IRNode):
 
             existing_op = op
 
+    def split_before(
+        self,
+        b_first: Operation,
+        *,
+        arg_types: Iterable[Attribute] = (),
+    ) -> Block:
+        """
+        Split the block into two blocks before the specified operation.
+
+        Note that all operations before the one given stay as part of the original basic
+        block, and the rest of the operations in the original block are moved to the new
+        block, including the old terminator.
+        The original block is left without a terminator.
+        The newly formed block is inserted into the parent region immediately after `self`
+        and returned.
+        """
+        # Use `a` for new contents of `self`, and `b` for new block.
+        if b_first.parent is not self:
+            raise ValueError("Cannot split block on operation outside of the block.")
+
+        parent = self.parent
+        if parent is None:
+            raise ValueError("Cannot split block with no parent.")
+
+        first_of_self = self._first_op
+        assert first_of_self is not None
+
+        last_of_self = self._last_op
+        assert last_of_self is not None
+
+        a_last = b_first.prev_op
+        b_last = last_of_self
+        if a_last is None:
+            # `before` is the first op in the Block, so all the ops move to the new block
+            a_first = None
+        else:
+            a_first = first_of_self
+
+        # Update first and last ops of self
+        self._first_op = a_first
+        self._last_op = a_last
+
+        b = Block(arg_types=arg_types)
+        a_index = parent.get_block_index(self)
+        parent.insert_block(b, a_index + 1)
+
+        b._first_op = b_first
+        b._last_op = b_last
+
+        # Update parent for moved ops
+        b_iter: Operation | None = b_first
+        while b_iter is not None:
+            b_iter.parent = b
+            b_iter = b_iter.next_op
+
+        # Update next op for self.last
+        if a_last is not None:
+            a_last._next_op = None  # pyright: ignore[reportPrivateUsage]
+
+        # Update previous op for b.first
+        b_first._prev_op = None  # pyright: ignore[reportPrivateUsage]
+
+        return b
+
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
         if op.parent is not self:
@@ -1419,11 +1593,19 @@ class Block(IRNode):
         op = self.detach_op(op)
         op.erase(safe_erase=safe_erase)
 
-    def walk(self) -> Iterable[Operation]:
-        """Call a function on all operations contained in the block."""
-        for op in self.ops:
-            yield from op.walk()
+    def walk(
+        self, *, reverse: bool = False, region_first: bool = False
+    ) -> Iterable[Operation]:
+        """
+        Call a function on all operations contained in the block.
+        If region_first is set, then the operation regions are iterated before the
+        operation. If reverse is set, then the region, block, and operation lists are
+        iterated in reverse order.
+        """
+        for op in self.ops_reverse if reverse else self.ops:
+            yield from op.walk(reverse=reverse, region_first=region_first)
 
+    @deprecated("Use walk(reverse=True) instead")
     def walk_reverse(self) -> Iterable[Operation]:
         """Call a function on all operations contained in the block in reverse order."""
         for op in self.ops_reverse:
@@ -1703,11 +1885,19 @@ class Region(IRNode):
             for op in block.ops:
                 new_block.add_op(op.clone(value_mapper, block_mapper))
 
-    def walk(self) -> Iterator[Operation]:
-        """Call a function on all operations contained in the region."""
-        for block in self.blocks:
-            yield from block.walk()
+    def walk(
+        self, *, reverse: bool = False, region_first: bool = False
+    ) -> Iterator[Operation]:
+        """
+        Call a function on all operations contained in the region.
+        If region_first is set, then the operation regions are iterated before the
+        operation. If reverse is set, then the region, block, and operation lists are
+        iterated in reverse order.
+        """
+        for block in reversed(self.blocks) if reverse else self.blocks:
+            yield from block.walk(reverse=reverse, region_first=region_first)
 
+    @deprecated("Use walk(reverse=True) instead")
     def walk_reverse(self) -> Iterator[Operation]:
         """Call a function on all operations contained in the region in reverse order."""
         for block in reversed(self.blocks):

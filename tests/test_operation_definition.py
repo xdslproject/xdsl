@@ -81,7 +81,7 @@ class OpDefTestOp(IRDLOperation):
 
 def test_get_definition():
     """Test retrieval of an IRDL definition from an operation"""
-    assert OpDefTestOp.irdl_definition == OpDef(
+    assert OpDefTestOp.get_irdl_definition() == OpDef(
         "test.op_def_test",
         operands=[("operand", OperandDef(AnyAttr()))],
         results=[("result", ResultDef(AnyAttr()))],
@@ -105,7 +105,7 @@ class PropOptionOp(IRDLOperation):
 
 def test_property_option():
     """Test retrieval of an IRDL definition from an operation"""
-    assert PropOptionOp.irdl_definition == OpDef(
+    assert PropOptionOp.get_irdl_definition() == OpDef(
         "test.prop_option_test",
         properties={"operandSegmentSizes": PropertyDef(BaseAttr(DenseArrayBase))},
         options=[AttrSizedOperandSegments(as_property=True)],
@@ -155,7 +155,7 @@ class AttrOp(IRDLOperation):
 def test_attr_verify():
     op = AttrOp.create(attributes={"attr": IntAttr(1)})
     with pytest.raises(
-        VerifyException, match="#int<1> should be of base attribute string"
+        VerifyException, match="#builtin.int<1> should be of base attribute string"
     ):
         op.verify()
 
@@ -589,3 +589,41 @@ def test_generic_op():
     )
     with pytest.raises(DiagnosticException):
         op_result_fail.verify()
+
+
+class OtherParentOp(IRDLOperation):
+    other_attr = attr_def(Attribute)
+
+
+@irdl_op_definition
+class OtherStringFooOp(GenericOp[StringAttr, FooType, FooType], OtherParentOp):
+    name = "test.string_specialized"
+
+
+def test_multiple_inheritance_op():
+    """Test generic operation."""
+    FooOperand = TestSSAValue(TestType("foo"))
+    FooResultType = TestType("foo")
+
+    op = OtherStringFooOp(
+        attributes={"attr": StringAttr("test"), "other_attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    op.verify()
+
+    op_attr_fail = OtherStringFooOp(
+        attributes={"attr": IntAttr(1), "other_attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()
+
+    op = OtherStringFooOp(
+        attributes={"attr": StringAttr("test")},
+        operands=[FooOperand],
+        result_types=[FooResultType],
+    )
+    with pytest.raises(DiagnosticException):
+        op_attr_fail.verify()

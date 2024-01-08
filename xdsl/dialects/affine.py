@@ -21,16 +21,34 @@ from xdsl.irdl import (
     IRDLOperation,
     VarOperand,
     VarOpResult,
-    attr_def,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_op_definition
+class ApplyOp(IRDLOperation):
+    name = "affine.apply"
+
+    mapOperands = var_operand_def(IndexType)
+    map = prop_def(AffineMapAttr)
+    result = result_def(IndexType)
+
+    def verify_(self) -> None:
+        if len(self.mapOperands) != self.map.data.num_dims + self.map.data.num_symbols:
+            raise VerifyException(
+                f"{self.name} expects {self.map.data.num_dims + self.map.data.num_symbols} operands, but got {len(self.mapOperands)}. The number of map operands must match the sum of the dimensions and symbols of its map."
+            )
+        if len(self.map.data.results) != 1:
+            raise VerifyException("affine.apply expects a unidimensional map.")
 
 
 @irdl_op_definition
@@ -40,9 +58,9 @@ class For(IRDLOperation):
     arguments: VarOperand = var_operand_def(AnyAttr())
     res: VarOpResult = var_result_def(AnyAttr())
 
-    lower_bound = attr_def(AffineMapAttr)
-    upper_bound = attr_def(AffineMapAttr)
-    step: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    lower_bound = prop_def(AffineMapAttr)
+    upper_bound = prop_def(AffineMapAttr)
+    step: AnyIntegerAttr = prop_def(AnyIntegerAttr)
 
     body: Region = region_def()
 
@@ -51,20 +69,31 @@ class For(IRDLOperation):
     # gh issue: https://github.com/xdslproject/xdsl/issues/1149
 
     def verify_(self) -> None:
-        if len(self.operands) != len(self.results):
-            raise Exception("Expected the same amount of operands and results")
-
-        operand_types = [SSAValue.get(op).type for op in self.operands]
-        if operand_types != [res.type for res in self.results]:
-            raise Exception(
-                "Expected all operands and result pairs to have matching types"
+        if (
+            len(self.operands)
+            != len(self.results)
+            + self.lower_bound.data.num_dims
+            + self.upper_bound.data.num_dims
+            + self.lower_bound.data.num_symbols
+            + self.upper_bound.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many operands as results, lower bound args and upper bound args."
             )
 
+        iter_types = [op.type for op in self.operands[-len(self.results) :]]
+        if iter_types != [res.type for res in self.results]:
+            raise VerifyException(
+                "Expected all operands and result pairs to have matching types"
+            )
+        if any(op.type != IndexType() for op in self.operands[: -len(self.results)]):
+            raise VerifyException("Expected all bounds arguments types to be index")
+
         entry_block: Block = self.body.blocks[0]
-        block_arg_types = [IndexType()] + operand_types
+        block_arg_types = [IndexType()] + iter_types
         arg_types = [arg.type for arg in entry_block.args]
         if block_arg_types != arg_types:
-            raise Exception(
+            raise VerifyException(
                 "Expected BlockArguments to have the same types as the operands"
             )
 
@@ -87,7 +116,7 @@ class For(IRDLOperation):
             )
         if isinstance(step, int):
             step = IntegerAttr.from_index_int_value(step)
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "lower_bound": lower_bound,
             "upper_bound": upper_bound,
             "step": step,
@@ -95,7 +124,7 @@ class For(IRDLOperation):
         return For.build(
             operands=[operands],
             result_types=[result_types],
-            attributes=attributes,
+            properties=properties,
             regions=[region],
         )
 
@@ -107,7 +136,7 @@ class If(IRDLOperation):
     args = var_operand_def(IndexType)
     res = var_result_def()
 
-    condition = attr_def(AffineSetAttr)
+    condition = prop_def(AffineSetAttr)
 
     then_region = region_def("single_block")
     else_region = region_def()
@@ -122,7 +151,7 @@ class Store(IRDLOperation):
     value = operand_def(T)
     memref = operand_def(MemRefType[T])
     indices = var_operand_def(IndexType)
-    map = opt_attr_def(AffineMapAttr)
+    map = opt_prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -134,16 +163,15 @@ class Store(IRDLOperation):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref.type, MemRefType):
+            if not isinstance(memref_type := memref.type, MemRefType):
                 raise ValueError(
                     "affine.store memref operand must be of type MemrefType"
                 )
-            memref_type = cast(MemRefType[Attribute], memref.type)
             rank = memref_type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
         super().__init__(
             operands=(value, memref, indices),
-            attributes={"map": map},
+            properties={"map": map},
         )
 
 
@@ -158,7 +186,7 @@ class Load(IRDLOperation):
 
     result = result_def(T)
 
-    map = opt_attr_def(AffineMapAttr)
+    map = opt_prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -189,9 +217,24 @@ class Load(IRDLOperation):
 
         super().__init__(
             operands=(memref, indices),
-            attributes={"map": map},
+            properties={"map": map},
             result_types=(result_type,),
         )
+
+
+@irdl_op_definition
+class MinOp(IRDLOperation):
+    name = "affine.min"
+    arguments = var_operand_def(IndexType())
+    result = result_def(IndexType())
+
+    map = prop_def(AffineMapAttr)
+
+    def verify_(self) -> None:
+        if len(self.operands) != self.map.data.num_dims + self.map.data.num_symbols:
+            raise VerifyException(
+                f"{self.name} expects {self.map.data.num_dims + self.map.data.num_symbols} operands, but got {len(self.operands)}. The number of map operands must match the sum of the dimensions and symbols of its map."
+            )
 
 
 @irdl_op_definition
@@ -209,10 +252,12 @@ class Yield(IRDLOperation):
 Affine = Dialect(
     "affine",
     [
+        ApplyOp,
         For,
         If,
         Store,
         Load,
+        MinOp,
         Yield,
     ],
     [],
