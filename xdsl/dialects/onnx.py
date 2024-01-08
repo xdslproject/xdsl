@@ -308,7 +308,6 @@ class Reshape(IRDLOperation):
         count_minus_one = shape_type_list.count(-1)
         if count_minus_one == 1:
             index_of_minus_one = shape_type_list.index(-1)
-            # Calculate total number of elements in data
             specified_dim = len(shape_type_list)
             total_elements = len(data_type)
             missing_dim = total_elements // specified_dim
