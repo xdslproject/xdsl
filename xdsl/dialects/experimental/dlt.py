@@ -11,7 +11,7 @@ space of different physical layouts to then find more optimal solutions that pro
 
 from __future__ import annotations
 
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, Type
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, IntegerAttr, i64, IntegerType, IndexType, AnyFloat, \
@@ -20,7 +20,7 @@ from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import TypeAttribute, Dialect, AttributeCovT, BlockArgument
 from xdsl.irdl import *
 from xdsl.parser import AttrParser
-from xdsl.traits import IsTerminator, HasParent, SingleBlockImplicitTerminator, HasAncestor
+from xdsl.traits import IsTerminator, HasParent, SingleBlockImplicitTerminator, HasAncestor, NoTerminator
 from xdsl.utils.hints import isa
 
 @dataclass
@@ -49,7 +49,7 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
     This implementation requires that Attributes contained within are hashable which is not necessarily true. """
     name = "dlt.set"
 
-    def __init__(self, param: Iterable[AttributeCovT]) -> None:
+    def __init__(self, param: Iterable[AttributeCovT] = tuple()) -> None:
         p = list(param)
         s = frozenset(p)
         if len(s) != len(p):
@@ -150,6 +150,36 @@ class DimensionAttr(ParametrizedAttribute):
     name = "dlt.dimension"
     dimensionName: ParameterDef[StringAttr]
     extent: ParameterDef[StringAttr | IntegerAttr]
+
+    def __init__(self, dimensionName: StringAttr| Iterable[Attribute], extent: StringAttr | IntegerAttr = None):
+        if extent is None:
+            assert isinstance(dimensionName, Iterable)
+            t = tuple(dimensionName)
+            assert isinstance(t[0], StringAttr)
+            dimensionName = t[0]
+            assert isinstance(t[1], StringAttr | IntegerAttr)
+            extent = t[1]
+            super().__init__((dimensionName, extent))
+            return
+        elif isinstance(extent, StringAttr | IntegerAttr):
+            assert isinstance(dimensionName, StringAttr)
+            super().__init__((dimensionName, extent))
+            return
+        elif isinstance(extent, str):
+            assert isinstance(dimensionName, str)
+            super().__init__((StringAttr(dimensionName), StringAttr(extent)))
+            return
+        elif isinstance(extent, int):
+            assert isinstance(dimensionName, str)
+            super().__init__((StringAttr(dimensionName), IntegerAttr(extent)))
+            return
+        else:
+            raise TypeError("Unsupported types for DimensionAttr")
+
+
+
+    def is_static(self) -> bool:
+        return isinstance(self.extent, IntegerAttr)
     # extent: ParameterDef[StringAttr|(IntegerAttr[Annotated[IntegerType, i64]])]
 
     @classmethod
@@ -328,6 +358,20 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
         else:
             return None
 
+    def get_dimension(self, name: StringAttr):
+        # for elem in self.elements:
+        #     for dim in elem.dimensions:
+        #         if name == dim.dimensionName:
+        #             return dim
+        # return None
+        select_dim = None
+        for elem in self.elements:
+            for dim in elem.dimensions:
+                if name == dim.dimensionName:
+                    assert select_dim is None or select_dim == dim # Embed this check every time we use get dim to ensure all dims of the same name have the same extent
+                    select_dim = dim
+        return select_dim
+
 
 @irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute):
@@ -336,6 +380,19 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
 
     def __init__(self, type_type: TypeType):
         super().__init__(tuple([type_type]))
+
+
+@irdl_attr_definition
+class PtrBaseType(ParametrizedAttribute, TypeAttribute):
+    name = "dlt.ptrBase"
+    ptr_type: ParameterDef[PtrType]
+
+    def __init__(self, ptr_type: PtrType):
+        super().__init__(tuple([ptr_type]))
+
+    @property
+    def contents_type(self) -> TypeType:
+        return self.ptr_type.contents_type
 
 
 @irdl_attr_definition
@@ -447,11 +504,28 @@ class IndexAffineOp(IRDLOperation):
 #TODO
 
 
+@irdl_op_definition
+class LayoutScopeOp(IRDLOperation):
+    name = "dlt.layoutScope" # Be the point that all internal dlt operations use a reference and source for layout information
+    body: Region = region_def("single_block")
+    traits = frozenset(
+        [
+            NoTerminator(),
+        ]
+    )
+    def __init__(self, ops: list[Operation] | Region):
+        if isinstance(ops, Region):
+            region = ops
+        else:
+            region = Region(Block(ops))
+        super().__init__(regions=[region])
+
+
 
 @irdl_op_definition
 class SelectOp(IRDLOperation):
     name = "dlt.select" # take a ptrType and constrain a member field or a dimension value.
-    tree: OperandDef = operand_def(PtrType)
+    tree: OperandDef = operand_def(PtrType | PtrBaseType)
     dimensions: AttributeDef = attr_def(ArrayAttr[StringAttr])
     members: AttributeDef = attr_def(SetAttr[MemberAttr])
     values: VarOperand = var_operand_def(IndexType)
@@ -571,7 +645,7 @@ class ClearOp(IRDLOperation):
     clear_type: AttributeDef = attr_def(AcceptedTypes)
 
     traits = traits_def(
-        lambda: frozenset([HasAncestor(builtin.ModuleOp, True)])
+        lambda: frozenset([HasAncestor(LayoutScopeOp)])
     )
 
 @irdl_op_definition
@@ -598,7 +672,7 @@ class IterateOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([SingleBlockImplicitTerminator(IterateYieldOp), HasAncestor(builtin.ModuleOp, True)])
+    traits = frozenset([SingleBlockImplicitTerminator(IterateYieldOp), HasAncestor(LayoutScopeOp)])
     irdl_options = [AttrSizedOperandSegments()]
 
 
@@ -691,12 +765,26 @@ class IterateOp(IRDLOperation):
 #TODO
 
 @irdl_op_definition
-class InitOp(IRDLOperation):
-    name = "dlt.init" # take a dlt layout as a TypeType and do the memory allocations etc to form a ptrType
+class AllocOp(IRDLOperation):
+    name = "dlt.alloc" # do the memory allocations etc to form a ptrType
 
-    layout: OperandDef = operand_def(TypeType)
+    # layout: OperandDef = operand_def(TypeType)
     initialValues: VarOperand = var_operand_def(PtrType)
-    res: OpResult = result_def(PtrType)
+    dynamic_sizes: VarOperand = var_operand_def(IndexType) # these do not mean unknown sizes that are static per dlt layout scope, but truely dynamic in that they can change within the layout scope.
+    dynamic_dimensions: AttributeDef = attr_def(ArrayAttr[StringAttr])
+
+    res: OpResult = result_def(PtrBaseType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+
+@irdl_op_definition
+class DeallocOp(IRDLOperation):
+    name = "dlt.dealloc" # take a dlt layout as a TypeType and do the memory allocations etc to form a ptrType
+
+    # layout: OperandDef = operand_def(TypeType)
+    tree: OperandDef = operand_def(PtrBaseType)
 
 #TODO
 
@@ -706,12 +794,6 @@ class AssertLayoutOp(IRDLOperation):
 #TODO
 
 
-@irdl_op_definition
-class layoutScopeOp(IRDLOperation):
-    name = "dlt.layoutScope" # Be the point that all internal dlt operations use a reference and source for layout information
-    body: Region = region_def("single_block")
-
-#TODO
 
 
 
@@ -736,7 +818,8 @@ DLT = Dialect("DLT",
         ClearOp,
         IterateYieldOp,
         IterateOp,
-        InitOp
+        AllocOp,
+        DeallocOp
     ],
     [#attrs
         SetAttr,

@@ -2,6 +2,7 @@ import functools
 import typing
 from typing import Union
 
+import dtl
 from xdsl import printer
 from xdsl.builder import Builder
 from xdsl.dialects.experimental import dlt, dtl
@@ -69,6 +70,12 @@ class DeIndexElement():
         self.dims: list[StringAttr] = dims
         self.indices_map: dict[dtl.Index, StringAttr] = indices_map
         assert all(dim in self.dims for dim in self.indices_map.values())
+        assert len(set(indices_map.values())) == len(indices_map.values())
+
+    def get_index_from_dim(self, dim):
+        for i,d in self.indices_map.items():
+            if dim == d: return i
+        raise ValueError(f"dimension {dim} not found in indices_map for {self}")
 
 @dataclass
 class DTLDenseRewriter(RewritePattern):
@@ -104,10 +111,7 @@ class DTLDenseRewriter(RewritePattern):
                                 ssa = SSAValue.get(exe_op.context.op.extents[i].op)
                         if ssa is None:
                             raise ValueError(f"Cannot find Extent context for {vs} in {exe_op}")
-                        dimension = None
-                        for d in block_arg.type.contents_type.get_single_element().dimensions:
-                            if d.dimensionName == dim:
-                                dimension = d
+                        dimension = block_arg.type.contents_type.get_dimension(dim)
                         if dimension is None:
                             raise ValueError(f"Cannot find Dimension for {dim} in {block_arg}")
                         new_mapping = (dimension, ssa)
@@ -118,37 +122,30 @@ class DTLDenseRewriter(RewritePattern):
                         else:
                             self.vector_space_dim_map[vs] = new_mapping
                     elif isinstance(vs, dtl.KnownVectorSpace):
-                        const = arith.Constant(vs.dim, i64)
+                        const = arith.Constant(vs.dim, IndexType())
                         self.const_ops.append(const)
-                        new_mapping = (dlt.DimensionAttr((dim, IntegerAttr(vs.dim, i64))), SSAValue.get(const))
+                        new_mapping = (dlt.DimensionAttr(dim, IntegerAttr(vs.dim, IndexType())), SSAValue.get(const))
                         if vs in self.vector_space_dim_map:
                             existing_mapping = self.vector_space_dim_map[vs]
                             if existing_mapping[0] != new_mapping[0]:
-                                raise ValueError(f"multiple Known vector space mappings with different definitions for {vs}:\n{existing_mapping},\n{new_mapping}")
+                                # raise ValueError(f"multiple Known vector space mappings with different definitions for {vs}:\n{existing_mapping},\n{new_mapping}")
+                                pass
                         else:
                             self.vector_space_dim_map[vs] = new_mapping
                     else:
                         raise NotImplementedError()
 
-
+        self.vector_space_dim_map = {}
         ssa_out = self._get_expression(exit_point, {})
-        self.block.add_ops(ssa_out.ops)
-        print("SSA OPS")
-        p = printer.Printer()
-        p.print(self.block)
+        ops = []
+        ops.extend(self.const_ops)
+        # self.block.add_ops(self.const_ops)
+        ops.extend(ssa_out.ops)
+        # self.block.add_ops(ssa_out.ops)
+        # p = printer.Printer()
+        # p.print(self.block)
         print("hi")
-
-    def _get_new_element_selector(self, element: TupleStruct[DeIndexElement]):
-        if isinstance(element, tuple):
-            return tuple([self._get_new_element_selector(e) for e in element])
-        elif isinstance(element, DeIndexElement):
-            element_attr: dlt.ElementAttr = element.elem
-            assert element_attr not in self.elements
-            dlt_ptr = self.block.insert_arg(dlt.PtrType(dlt.TypeType([element_attr])), len(self.elements))
-            self.elements[element_attr] = dlt_ptr
-            return dlt_ptr
-        else:
-            raise TypeError()
+        rewriter.replace_matched_op(ops, [])
 
 
 
@@ -228,37 +225,12 @@ class DTLDenseRewriter(RewritePattern):
         ops, results = self._match_indices_and_subexprs(expr.indices, subexpr.result, indexMap)
         return OpsAndResult(subexpr.ops + ops, results)
 
-    # def _init_tensor_for_all_tuple(self, exprs, result: dtl.ResultType, output_shape: dtl.DeindexFormatTypeHint,
-    #                                newMap: typing.Dict[dtl.Index, str]):
-    #     if isinstance(result, dtl.ShapeType):
-    #         if not isinstance(output_shape, tuple):
-    #             raise ValueError("Internal Compiler Error: mismatched result type from DeindexExpr to its child")
-    #         if not isinstance(exprs, ExpressionNode):
-    #             raise ValueError(
-    #                 "Internal Compiler Error: mismatched result type from DeindexExpr to expressionNode produced")
-    #         tvar_name = self._namer.next()
-    #         return InitTensor(tvar_name, [d.name if isinstance(d, dtl.UnknownSizeVectorSpace) else d.dim for d in
-    #                                       result.dims]), AssignTensor(tvar_name,
-    #                                                                   [newMap[o] if isinstance(o, dtl.Index) else ':'
-    #                                                                    for o in output_shape], exprs), ExprConst(
-    #             tvar_name)
-    #
-    #     elif isinstance(result, dtl.ResultTupleType):
-    #         if not isinstance(output_shape, tuple):
-    #             raise ValueError("Internal Compiler Error: mismatched result type from DeindexExpr to its child")
-    #         if not isinstance(exprs, tuple):
-    #             raise ValueError(
-    #                 "Internal Compiler Error: mismatched result type from DeindexExpr to expressionNode tuple produced")
-    #         return zip(*[self._init_tensor_for_all_tuple(e, r, s, newMap) for e, r, s in
-    #                      zip(exprs, result.results, output_shape)])
 
     def _deIndexingStruct_to_list(self, struct):
         if isinstance(struct, dtl.IndexTupleStruct):
             return [i for child in struct.children for i in self._deIndexingStruct_to_list(child)]
         elif isinstance(struct, dtl.IndexShapeStruct):
             return [i for i in struct.shape]
-
-
 
 
     def _get_dlt_deindex_typetype(self, indices, sub_results, dtl_type: dtl.TensorExprType, tempName: str, path: tuple[int, ...] = tuple()):
@@ -284,7 +256,7 @@ class DTLDenseRewriter(RewritePattern):
                     vector_space = dtl_type.args.vector_space_of(index)
                     if isinstance(vector_space, dtl.KnownVectorSpace):
                         dim_name = StringAttr(f"_{vector_space.dim.data}_{self.next_dimension_name()}_")
-                        dim = dlt.DimensionAttr((dim_name, IntegerAttr(vector_space.dim)))
+                        dim = dlt.DimensionAttr((dim_name, IntegerAttr(vector_space.dim, IndexType())))
                         dim_names.append(dim_name)
                         dims.append(dim)
                         indices_map[index] = dim_name
@@ -314,6 +286,32 @@ class DTLDenseRewriter(RewritePattern):
         else:
             raise ValueError("Malformed Tuple Struct")
 
+    def _get_new_element_selector(self, element: TupleStruct[DeIndexElement], allocOp: SSAValue) -> tuple[list[dlt.SelectOp],TupleStruct[SSAValue]]:
+
+        if isinstance(element, tuple):
+            ops = []
+            ssa = []
+            for e in element:
+                child_ops, child_elem = self._get_new_element_selector(e, allocOp)
+                ops.extend(child_ops)
+                ssa.append(child_elem)
+            return ops, tuple(ssa)
+        elif isinstance(element, DeIndexElement):
+            element_attr: dlt.ElementAttr = element.elem
+            assert element_attr not in self.elements
+            selector_type = dlt.SelectOp.calculateResultType(allocOp.type,
+                                                             element_attr.member_specifiers,
+                                                             [])
+            selector = dlt.SelectOp(operands=[allocOp, []],
+                                    attributes={"members":element_attr.member_specifiers,
+                                                "dimensions": ArrayAttr([])},
+                                    result_types=[selector_type])
+            ops = [selector]
+            self.elements[element_attr] = selector.res
+            return ops, selector.res
+        else:
+            raise TypeError()
+
     def _copy_subexpr_into_deindex_elements(self, result: TupleStruct[ExprResult], element: TupleStruct[DeIndexElement], ptr_element: TupleStruct[SSAValue], loop_index_map: dict[dtl.Index,SSAValue]):
         if isinstance(result, tuple):
             assert isinstance(element, tuple)
@@ -339,39 +337,41 @@ class DTLDenseRewriter(RewritePattern):
                     selector_operands.append(loop_index_map[idx])
                     selector_dims.append(dim)
                     dst_dims.remove(dim)
-                select_res_type = dlt.SelectOp.calculateResultType(ptr_element.type, element.members, selector_dims)
+                select_res_type = dlt.SelectOp.calculateResultType(ptr_element.type, [], selector_dims)
                 dst = dlt.SelectOp(operands=[ptr_element, selector_operands],
-                                   attributes={"members": element.members,
+                                   attributes={"members": dlt.SetAttr([]),
                                                "dimensions": ArrayAttr(selector_dims)},
                                    result_types=[select_res_type])
                 assert len(dst.res.type.contents_type.get_single_element().dimensions) == 0
                 assert len(dst.res.type.contents_type.get_single_element().member_specifiers) == 0
                 assert res_ssa.type == dst.res.type.contents_type.get_single_element().base_type
-                set_op = dlt.SetOp(operands=[dst, res_ssa],
+                set_op = (
+                    dlt.SetOp(operands=[dst, res_ssa],
                                attributes={"set_type": dst.res.type.contents_type.get_single_element().base_type},
-                               result_types=[])
+                               result_types=[]))
                 return [dst, set_op]
             elif isinstance(res_ssa.type, dlt.PtrType):
                 src = res_ssa
-                src_dims = result.dims
-                dst_dims = list(element.dims)
+                src_dims = [src.type.contents_type.get_dimension(dim) for dim in result.dims]
+                dst_dims_names = list(element.dims)
                 selector_operands = []
                 selector_dims = []
                 for idx, dim in element.indices_map.items():
                     assert idx in loop_index_map
                     selector_operands.append(loop_index_map[idx])
                     selector_dims.append(dim)
-                    dst_dims.remove(dim)
-                select_res_type = dlt.SelectOp.calculateResultType(ptr_element.type, element.members, selector_dims)
+                    dst_dims_names.remove(dim)
+                select_res_type = dlt.SelectOp.calculateResultType(ptr_element.type, [], selector_dims)
                 dst = dlt.SelectOp(operands=[ptr_element, selector_operands],
-                                   attributes={"members": element.members,
+                                   attributes={"members": dlt.SetAttr([]),
                                                "dimensions": ArrayAttr(selector_dims)},
                                    result_types=[select_res_type])
+                dst_dims = [dst.res.type.contents_type.get_dimension(dim) for dim in dst_dims_names]
                 assert len(dst.res.type.contents_type.get_single_element().dimensions) == len(dst_dims)
-                assert all(dim.dimensionName in dst_dims for dim in dst.res.type.contents_type.get_single_element().dimensions)
+                assert all(dim.dimensionName in dst_dims_names for dim in dst.res.type.contents_type.get_single_element().dimensions)
                 for src_dim, dst_dim in zip(src_dims, dst_dims):
-                    assert src.type.contents_type.get_single_element().get_dimension(src_dim).extent == dst.res.type.contents_type.get_single_element().get_dimension(dst_dim).extent
-                copy = dlt.CopyOp(operands=[src, dst], attributes={"src_dimension":ArrayAttr(src_dims),"dst_dimension":ArrayAttr(dst_dims), "copy_type":element.elem.base_type})
+                    assert src_dim.extent == dst_dim.extent
+                copy = dlt.CopyOp(operands=[src, dst], attributes={"src_dimensions":ArrayAttr(src_dims),"dst_dimensions":ArrayAttr(dst_dims), "copy_type":element.elem.base_type})
                 return [dst, copy]
 
             else:
@@ -444,9 +444,52 @@ class DTLDenseRewriter(RewritePattern):
         #     r.ssa.op.verify()
 
         elements = self._get_dlt_deindex_typetype(expr.indices, subexpr.result, expr.expr.type, self.next_dimension_name())
-        ptr_elements = self._get_new_element_selector(elements)
-        clear_ops = self._make_clear_ops(elements, ptr_elements)
-        ops.extend(clear_ops)
+
+
+        def _unknown_extents(element: TupleStruct[DeIndexElement], indices):
+            if isinstance(element, tuple):
+                assert isinstance(indices, dtl.IndexTupleStruct)
+                dim_names_extent_map = {}
+                for e, i in zip(element, indices.children):
+                    map = _unknown_extents(e, i)
+                    for name in map:
+                        if name in dim_names_extent_map:
+                            assert map[name] == dim_names_extent_map[name]
+                        else:
+                            dim_names_extent_map[name] = map[name]
+                return dim_names_extent_map
+            elif isinstance(element, DeIndexElement):
+                assert isinstance(indices, dtl.IndexShapeStruct)
+                dims = [s for s in element.elem.dimensions if not s.is_static()]
+                dim_names_extent_map = {d.dimensionName: self.context.get_extent(dtl.UnknownVectorSpace.new([d.extent])) for d in dims}
+                assert all(ssa is not None for ssa in dim_names_extent_map.values())
+                return dim_names_extent_map
+            else: raise ValueError()
+
+        unknown_extents = _unknown_extents(elements, expr.indices)
+
+        dim_names = []
+        extent_vars = []
+        for name, ssa in unknown_extents.items():
+            dim_names.append(name)
+            extent_vars.append(ssa)
+
+        def _elementAttrs(element: TupleStruct[DeIndexElement]):
+            if isinstance(element, tuple):
+                return [elem for e in element for elem in _elementAttrs(e)]
+            elif isinstance(element, DeIndexElement):
+                return [element.elem]
+            else: raise ValueError()
+        dlt_type = dlt.TypeType(_elementAttrs(elements))
+
+        alloc = dlt.AllocOp(operands=[[],extent_vars],
+                            attributes={"dynamic_dimensions":ArrayAttr(dim_names)},
+                            result_types=[dlt.PtrBaseType(dlt.PtrType(dlt_type))])
+        ops.append(alloc)
+        selector_ops, ptr_elements = self._get_new_element_selector(elements, alloc.res)
+        ops.extend(selector_ops)
+        # clear_ops = self._make_clear_ops(elements, ptr_elements)
+        # ops.extend(clear_ops)
 
         copy_ops = self._copy_subexpr_into_deindex_elements(subexpr.result, elements, ptr_elements, newMap)
 
@@ -551,10 +594,10 @@ class DTLDenseRewriter(RewritePattern):
         assert rsubexpr.is_single_result  # check that rsubexpr is a scalar (not a tuple-tensor, and no dims)
         assert len(rsubexpr.single_result.dims) == 0
 
-        ops, lf = self.get_scalar(lsubexpr.single_result)
-        ops, rf = self.get_scalar(rsubexpr.single_result)
+        l_ops, lf = self.get_scalar(lsubexpr.single_result)
+        r_ops, rf = self.get_scalar(rsubexpr.single_result)
         mul = arith.Mulf(lf, rf)
-        ops = lsubexpr.ops + rsubexpr.ops + [mul]
+        ops = lsubexpr.ops +l_ops + rsubexpr.ops + r_ops + [mul]
         ssa = SSAValue.get(mul)
 
         return OpsAndResult(ops, ExprResult(ssa, [], ssa.type))

@@ -485,7 +485,7 @@ class ExecuteContextType(ParametrizedAttribute):
 class ExecuteContextOp(IRDLOperation):
     name = "dtl.executeContextOp"
 
-    extents: VarOperand = var_operand_def(builtin.IntegerType)
+    extents: VarOperand = var_operand_def(builtin.IndexType)
     result: ExecuteContextType = result_def(ExecuteContextType)
 
     def verify_(self):
@@ -501,7 +501,7 @@ class ExecuteArgsType(ParametrizedAttribute):
 class ExecuteArgsOp(IRDLOperation):
     name = "dtl.executeArgsOp"
 
-    extents: VarOperand = var_operand_def(builtin.IntegerType)
+    extents: VarOperand = var_operand_def(builtin.IndexType)
     result: ExecuteArgsType = result_def(ExecuteArgsType)
 
     def verify_(self):
