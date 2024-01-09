@@ -4,6 +4,7 @@ from typing import Generic
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     DictionaryAttr,
     FunctionType,
     StringAttr,
@@ -13,7 +14,6 @@ from xdsl.ir import Attribute, AttributeInvT, BlockArgument, Operation, Region, 
 from xdsl.irdl import IRDLOperation, var_operand_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.hints import isa
 
 
 def print_call_op_like(
@@ -125,12 +125,21 @@ def print_func_op_like(
     body: Region,
     attributes: dict[str, Attribute],
     *,
+    arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
     printer.print(f" @{sym_name.data}")
     if body.blocks:
         printer.print("(")
-        printer.print_list(body.blocks[0].args, printer.print_block_argument)
+        if arg_attrs is not None:
+            printer.print_list(
+                zip(body.blocks[0].args, arg_attrs),
+                lambda arg_with_attrs: print_func_argument(
+                    printer, arg_with_attrs[0], arg_with_attrs[1]
+                ),
+            )
+        else:
+            printer.print_list(body.blocks[0].args, printer.print_block_argument)
         printer.print(") ")
         if function_type.outputs:
             printer.print("-> ")
@@ -158,16 +167,23 @@ def parse_func_op_like(
     Sequence[Attribute],
     Region,
     DictionaryAttr | None,
+    ArrayAttr[DictionaryAttr] | None,
 ]:
+    """
+    Returns the function name, argument types, return types, body, extra args, and arg_attrs.
+    """
     # Parse function name
     name = parser.parse_symbol_name().data
 
-    def parse_fun_input():
-        ret = parser.parse_optional_argument()
-        if ret is None:
+    def parse_fun_input() -> Attribute | tuple[parser.Argument, dict[str, Attribute]]:
+        arg = parser.parse_optional_argument()
+        if arg is None:
             ret = parser.parse_optional_type()
-        if ret is None:
-            parser.raise_error("Expected argument or type")
+            if ret is None:
+                parser.raise_error("Expected argument or type")
+        else:
+            arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
+            ret = (arg, arg_attr_dict)
         return ret
 
     # Parse function arguments
@@ -176,17 +192,30 @@ def parse_func_op_like(
         parse_fun_input,
     )
 
-    # Check consistency (They should be either all named or none)
-    if isa(args, list[parser.Argument]):
-        entry_args = args
-        input_types = [a.type for a in args]
-    elif isa(args, list[Attribute]):
-        entry_args = None
-        input_types = args
+    entry_arg_tuples: list[tuple[parser.Argument, dict[str, Attribute]]] = []
+    input_types: list[Attribute] = []
+    for arg in args:
+        if isinstance(arg, Attribute):
+            input_types.append(arg)
+        else:
+            entry_arg_tuples.append(arg)
+
+    if entry_arg_tuples:
+        # Check consistency (They should be either all named or none)
+        if input_types:
+            parser.raise_error(
+                "Expected all arguments to be named or all arguments to be unnamed."
+            )
+
+        entry_args = [arg for arg, _ in entry_arg_tuples]
+        input_types = [arg.type for arg in entry_args]
     else:
-        parser.raise_error(
-            "Expected all arguments to be named or all arguments to be unnamed."
-        )
+        entry_args = None
+
+    if any(attrs for _, attrs in entry_arg_tuples):
+        arg_attrs = ArrayAttr(DictionaryAttr(attrs) for _, attrs in entry_arg_tuples)
+    else:
+        arg_attrs = None
 
     # Parse return type
     if parser.parse_optional_punctuation("->"):
@@ -205,7 +234,15 @@ def parse_func_op_like(
     if region is None:
         region = Region()
 
-    return name, input_types, return_types, region, extra_attributes
+    return name, input_types, return_types, region, extra_attributes, arg_attrs
+
+
+def print_func_argument(
+    printer: Printer, arg: BlockArgument, attrs: DictionaryAttr | None
+):
+    printer.print_block_argument(arg)
+    if attrs is not None and attrs.data:
+        printer.print_op_attributes(attrs.data)
 
 
 def print_assignment(printer: Printer, arg: BlockArgument, val: SSAValue):
