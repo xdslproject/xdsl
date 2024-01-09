@@ -241,11 +241,6 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
 
         return convert_scf_to_riscv_scf.ConvertScfToRiscvPass
 
-    def get_lower_scf_for_to_labels():
-        from xdsl.backend.riscv import riscv_scf_to_asm
-
-        return riscv_scf_to_asm.LowerScfForToLabels
-
     def get_stencil_shape_inference():
         from xdsl.transforms.experimental import stencil_shape_inference
 
@@ -310,7 +305,6 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
         ("convert-memref-to-riscv", get_convert_memref_to_riscv),
         ("scf-parallel-loop-tiling", get_scf_parallel_loop_tiling),
         ("convert-scf-to-riscv-scf", get_convert_scf_to_riscv_scf),
-        ("lower-riscv-scf-to-labels", get_lower_scf_for_to_labels),
         ("stencil-shape-inference", get_stencil_shape_inference),
         ("stencil-storage-materialization", get_stencil_storage_materialization),
         ("reconcile-unrealized-casts", get_reconcile_unrealized_casts),
