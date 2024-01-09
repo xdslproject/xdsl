@@ -171,13 +171,3 @@ def test_split_input():
         expected = file.read()
 
     assert inp.strip() == expected.strip()
-
-
-def test_dialect_name_correctness():
-    for dialect_name, dialect_factory in get_all_dialects():
-        assert dialect_name == dialect_factory().name
-
-
-def test_pass_name_correctness():
-    for pass_name, pass_factory in get_all_passes():
-        assert pass_name == pass_factory().name

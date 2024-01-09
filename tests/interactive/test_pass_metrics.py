@@ -51,7 +51,7 @@ def test_operation_counter_with_parsing_text():
 """
 
     ctx = MLContext(True)
-    for dialect_name, dialect_factory in get_all_dialects():
+    for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
     parser = Parser(ctx, text)
     module = parser.parse_module()
@@ -80,7 +80,7 @@ def test_get_diff_operation_count():
 """
 
     ctx = MLContext(True)
-    for dialect_name, dialect_factory in get_all_dialects():
+    for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
     parser = Parser(ctx, input_text)
     input_module = parser.parse_module()

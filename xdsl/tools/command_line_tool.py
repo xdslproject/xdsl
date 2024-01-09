@@ -11,8 +11,8 @@ from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import ParseError
 
 
-def get_all_dialects() -> list[tuple[str, Callable[[], Dialect]]]:
-    """Return the list of all available dialects."""
+def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
+    """Returns all available dialects."""
 
     def get_affine():
         from xdsl.dialects.affine import Affine
@@ -199,48 +199,48 @@ def get_all_dialects() -> list[tuple[str, Callable[[], Dialect]]]:
 
         return Vector
 
-    return [
-        ("affine", get_affine),
-        ("arith", get_arith),
-        ("builtin", get_builtin),
-        ("cf", get_cf),
-        ("cmath", get_cmath),
-        ("comb", get_comb),
-        ("dmp", get_dmp),
-        ("fir", get_fir),
-        ("fsm", get_fsm),
-        ("func", get_func),
-        ("gpu", get_gpu),
-        ("hls", get_hls),
-        ("hw", get_hw),
-        ("linalg", get_linalg),
-        ("irdl", get_irdl),
-        ("llvm", get_llvm),
-        ("ltl", get_ltl),
-        ("math", get_math),
-        ("memref", get_memref),
-        ("mpi", get_mpi),
-        ("omp", get_omp),
-        ("pdl", get_pdl),
-        ("printf", get_printf),
-        ("riscv", get_riscv),
-        ("riscv_func", get_riscv_func),
-        ("riscv_scf", get_riscv_scf),
-        ("riscv_snitch", get_riscv_snitch),
-        ("scf", get_scf),
-        ("seq", get_seq),
-        ("snitch", get_snitch),
-        ("snrt", get_snitch_runtime),
-        ("snitch_stream", get_snitch_stream),
-        ("stencil", get_stencil),
-        ("stream", get_stream),
-        ("symref", get_symref),
-        ("test", get_test),
-        ("vector", get_vector),
-    ]
+    return {
+        "affine": get_affine,
+        "arith": get_arith,
+        "builtin": get_builtin,
+        "cf": get_cf,
+        "cmath": get_cmath,
+        "comb": get_comb,
+        "dmp": get_dmp,
+        "fir": get_fir,
+        "fsm": get_fsm,
+        "func": get_func,
+        "gpu": get_gpu,
+        "hls": get_hls,
+        "hw": get_hw,
+        "linalg": get_linalg,
+        "irdl": get_irdl,
+        "llvm": get_llvm,
+        "ltl": get_ltl,
+        "math": get_math,
+        "memref": get_memref,
+        "mpi": get_mpi,
+        "omp": get_omp,
+        "pdl": get_pdl,
+        "printf": get_printf,
+        "riscv": get_riscv,
+        "riscv_func": get_riscv_func,
+        "riscv_scf": get_riscv_scf,
+        "riscv_snitch": get_riscv_snitch,
+        "scf": get_scf,
+        "seq": get_seq,
+        "snitch": get_snitch,
+        "snrt": get_snitch_runtime,
+        "snitch_stream": get_snitch_stream,
+        "stencil": get_stencil,
+        "stream": get_stream,
+        "symref": get_symref,
+        "test": get_test,
+        "vector": get_vector,
+    }
 
 
-def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
+def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     """Return the list of all available passes."""
 
     def get_canonicalize():
@@ -420,43 +420,43 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
 
         return stencil_unroll.StencilUnrollPass
 
-    return [
-        ("canonicalize", get_canonicalize),
-        ("canonicalize-dmp", get_canonicalize_dmp),
-        ("convert-scf-to-openmp", get_convert_scf_to_openmp),
-        ("convert-snitch-stream-to-snitch", get_convert_snitch_stream_to_snitch),
-        ("constant-fold-interp", get_constant_fold_interp),
-        ("convert-stencil-to-ll-mlir", get_convert_stencil_to_ll_mlir),
-        ("dce", get_dce),
-        ("frontend-desymrefy", get_desymrefy),
-        ("gpu-map-parallel-loops", get_gpu_map_parallel_loops),
-        ("distribute-stencil", get_distribute_stencil),
-        ("dmp-to-mpi", get_lower_halo_to_mpi),
-        ("lower-affine", get_lower_affine),
-        ("lower-mpi", get_lower_mpi),
-        ("lower-riscv-func", get_lower_riscv_func),
-        ("lower-snitch", get_lower_snitch),
-        ("mlir-opt", get_mlir_opt),
-        ("printf-to-llvm", get_printf_to_llvm),
-        ("printf-to-putchar", get_printf_to_putchar),
-        ("riscv-reduce-register-pressure", get_reduce_register_pressure),
-        ("riscv-allocate-registers", get_riscv_register_allocation),
-        ("riscv-scf-loop-range-folding", get_riscv_scf_loop_range_folding),
-        ("snitch-allocate-registers", get_snitch_register_allocation),
-        ("convert-arith-to-riscv", get_convert_arith_to_riscv),
-        ("convert-func-to-riscv-func", get_convert_func_to_riscv_func),
-        ("convert-memref-to-riscv", get_convert_memref_to_riscv),
-        ("scf-parallel-loop-tiling", get_scf_parallel_loop_tiling),
-        ("convert-scf-to-riscv-scf", get_convert_scf_to_riscv_scf),
-        ("lower-riscv-scf-to-labels", get_lower_scf_for_to_labels),
-        ("stencil-shape-inference", get_stencil_shape_inference),
-        ("stencil-storage-materialization", get_stencil_storage_materialization),
-        ("reconcile-unrealized-casts", get_reconcile_unrealized_casts),
-        ("hls-convert-stencil-to-ll-mlir", get_hls_convert_stencil_to_ll_mlir),
-        ("lower-hls", get_lower_hls),
-        ("replace-incompatible-fpga", get_replace_incompatible_fpga),
-        ("stencil-unroll", get_stencil_unroll),
-    ]
+    return {
+        "canonicalize": get_canonicalize,
+        "canonicalize-dmp": get_canonicalize_dmp,
+        "convert-scf-to-openmp": get_convert_scf_to_openmp,
+        "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "constant-fold-interp": get_constant_fold_interp,
+        "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
+        "dce": get_dce,
+        "frontend-desymrefy": get_desymrefy,
+        "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
+        "distribute-stencil": get_distribute_stencil,
+        "dmp-to-mpi": get_lower_halo_to_mpi,
+        "lower-affine": get_lower_affine,
+        "lower-mpi": get_lower_mpi,
+        "lower-riscv-func": get_lower_riscv_func,
+        "lower-snitch": get_lower_snitch,
+        "mlir-opt": get_mlir_opt,
+        "printf-to-llvm": get_printf_to_llvm,
+        "printf-to-putchar": get_printf_to_putchar,
+        "riscv-reduce-register-pressure": get_reduce_register_pressure,
+        "riscv-allocate-registers": get_riscv_register_allocation,
+        "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
+        "snitch-allocate-registers": get_snitch_register_allocation,
+        "convert-arith-to-riscv": get_convert_arith_to_riscv,
+        "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
+        "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
+        "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
+        "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
+        "stencil-shape-inference": get_stencil_shape_inference,
+        "stencil-storage-materialization": get_stencil_storage_materialization,
+        "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
+        "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
+        "lower-hls": get_lower_hls,
+        "replace-incompatible-fpga": get_replace_incompatible_fpga,
+        "stencil-unroll": get_stencil_unroll,
+    }
 
 
 class CommandLineTool:
@@ -527,7 +527,7 @@ class CommandLineTool:
 
         Add other/additional dialects by overloading this function.
         """
-        for dialect_name, dialect_factory in get_all_dialects():
+        for dialect_name, dialect_factory in get_all_dialects().items():
             self.ctx.register_dialect(dialect_name, dialect_factory)
 
     def register_all_frontends(self):

@@ -110,7 +110,7 @@ class MLContext:
         return self._loaded_dialects.values()
 
     @property
-    def registered_dialects(self) -> Iterable[str]:
+    def registered_dialect_names(self) -> Iterable[str]:
         """
         Returns the names of all registered dialects. Not valid across mutations of this object.
         """
@@ -126,8 +126,6 @@ class MLContext:
         """
         if name in self._registered_dialects:
             raise ValueError(f"'{name}' dialect is already registered")
-        if name in self._loaded_dialects:
-            raise ValueError(f"'{name}' dialect is already loaded")
         self._registered_dialects[name] = dialect_factory
 
     def load_registered_dialect(self, name: str) -> None:
@@ -135,22 +133,6 @@ class MLContext:
         if name not in self._registered_dialects:
             raise ValueError(f"'{name}' dialect is not registered")
         dialect = self._registered_dialects[name]()
-        self._registered_dialects.pop(name)
-        self.load_dialect(dialect)
-
-    def load_dialect(self, dialect: Dialect):
-        """
-        Load a dialect. Operation and Attribute names should be unique.
-        If the dialect is already registered in the context, use
-        `load_registered_dialect` instead.
-        """
-        if dialect.name in self._loaded_dialects:
-            raise ValueError(f"'{dialect.name}' dialect is already loaded")
-        if dialect.name in self._registered_dialects:
-            raise ValueError(
-                f"'{dialect.name}' dialect is already registered, use "
-                "`load_registered_dialect` instead"
-            )
         self._loaded_dialects[dialect.name] = dialect
 
         for op in dialect.operations:
@@ -158,6 +140,19 @@ class MLContext:
 
         for attr in dialect.attributes:
             self.load_attr(attr)
+
+    def load_dialect(self, dialect: Dialect):
+        """
+        Load a dialect. Operation and Attribute names should be unique.
+        If the dialect is already registered in the context, use
+        `load_registered_dialect` instead.
+        """
+        if dialect.name in self._registered_dialects:
+            raise ValueError(
+                f"'{dialect.name}' dialect is already registered, use 'load_registered_dialect' instead"
+            )
+        self.register_dialect(dialect.name, lambda: dialect)
+        self.load_registered_dialect(dialect.name)
 
     def load_op(self, op: type[Operation]) -> None:
         """Load an operation definition. Operation names should be unique."""
@@ -184,6 +179,8 @@ class MLContext:
         # Otherwise, check if the operation dialect is registered.
         if "." in name:
             dialect_name, _ = name.split(".", 1)
+            if dialect_name in self._loaded_dialects:
+                return None
             if dialect_name in self._registered_dialects:
                 self.load_registered_dialect(dialect_name)
                 return self.get_optional_op(name)
@@ -228,6 +225,8 @@ class MLContext:
         # Otherwise, check if the attribute dialect is registered.
         dialect_name, _ = name.split(".", 1)
         if dialect_name in self._registered_dialects:
+            if dialect_name in self._loaded_dialects:
+                return None
             self.load_registered_dialect(dialect_name)
             return self.get_optional_attr(name)
 

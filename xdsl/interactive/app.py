@@ -47,7 +47,7 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
-ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes()))
+ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
 """Contains the list of xDSL passes."""
 
 
@@ -56,7 +56,7 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
 
     ctx = MLContext(True)
 
-    for dialect_name, dialect_factory in get_all_dialects():
+    for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
     selections: list[type[ModulePass]] = []
@@ -353,7 +353,7 @@ class InputApp(App[None]):
             return
         try:
             ctx = MLContext(True)
-            for dialect_name, dialect_factory in get_all_dialects():
+            for dialect_name, dialect_factory in get_all_dialects().items():
                 ctx.register_dialect(dialect_name, dialect_factory)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
