@@ -26,7 +26,7 @@ from typing_extensions import Self
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
 from xdsl.utils.deprecation import deprecated
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import VerifyException, ComplexVerifyException
 from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
@@ -1158,10 +1158,19 @@ class Operation(IRNode):
         underlying_error: Exception | None = None,
     ) -> NoReturn:
         """Emit an error with the given message."""
-        from xdsl.utils.diagnostic import Diagnostic
+        from xdsl.utils.diagnostic import Diagnostic, OperationInformation
 
         diagnostic = Diagnostic()
         diagnostic.add_message(self, message)
+        if isinstance(underlying_error, ComplexVerifyException):
+            for op, msgs in underlying_error.map.items():
+                for msg in msgs:
+                    if isinstance(msg, str):
+                        diagnostic.add_message(op, msg)
+                    elif isinstance(msg, OperationInformation):
+                        diagnostic.add_func(op, msg)
+                    else:
+                        raise TypeError("ComplexVerifyException error message type is wrong")
         diagnostic.raise_exception(message, self, exception_type, underlying_error)
 
     @classmethod

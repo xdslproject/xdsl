@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from xdsl.ir import Attribute
+    from xdsl.ir import Attribute, Operation
     from xdsl.parser import Span
     from xdsl.utils.parse_pipeline import Token
 
@@ -20,6 +20,12 @@ class DiagnosticException(Exception):
 
 class VerifyException(DiagnosticException):
     pass
+
+
+class ComplexVerifyException(VerifyException):
+    def __init__(self, message: str, map: dict[Operation, str]):
+        self.map = map
+        super().__init__(message)
 
 
 class PyRDLError(Exception):

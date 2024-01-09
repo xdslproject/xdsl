@@ -61,7 +61,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.traits import IsTerminator
-from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.diagnostic import Diagnostic, OperationInformation
 
 indentNumSpaces = 2
 
@@ -130,11 +130,11 @@ class Printer:
             self._current_column += len(lines[-1])
         print(text, end="", file=self.stream)
 
-    def _add_message_on_next_line(self, message: str, begin_pos: int, end_pos: int):
+    def _add_message_on_next_line(self, message: OperationInformation, begin_pos: int, end_pos: int):
         """Add a message that will be displayed on the next line."""
 
         def callback(indent: int = self._indent):
-            self._print_message(message, begin_pos, end_pos, indent)
+            self._print_message(message.get_info(self), begin_pos, end_pos, indent)
 
         self._next_line_callback.append(callback)
 
@@ -219,6 +219,12 @@ class Printer:
         # Multiple results
         self.print_list(op.results, self.print)
         self.print(" = ")
+
+    def get_ssa_value(self, value:SSAValue) -> str:
+        if value in self._ssa_values:
+            return f"%{self._ssa_values[value]}"
+        else:
+            return f"%?"
 
     def print_ssa_value(self, value: SSAValue) -> None:
         """

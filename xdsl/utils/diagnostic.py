@@ -1,20 +1,41 @@
 from __future__ import annotations
 
+import abc
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import NoReturn
+from typing import NoReturn, TYPE_CHECKING
 
 from xdsl.ir import Block, IRNode, Operation, Region
 from xdsl.utils.exceptions import DiagnosticException
 
+if TYPE_CHECKING:
+    from xdsl.printer import Printer
+
+
+class OperationInformation(abc.ABC):
+    @abc.abstractmethod
+    def get_info(self, printer: Printer) -> str:
+        pass
+
+
+class StringInformation(OperationInformation):
+    def __init__(self, msg: str):
+        self.msg = msg
+    def get_info(self, printer: Printer) -> str:
+        return self.msg
+
 
 @dataclass
 class Diagnostic:
-    op_messages: dict[Operation, list[str]] = field(default_factory=dict)
+    op_messages: dict[Operation, list] = field(default_factory=dict)
 
     def add_message(self, op: Operation, message: str) -> None:
         """Add a message to an operation."""
-        self.op_messages.setdefault(op, []).append(message)
+        self.op_messages.setdefault(op, []).append(StringInformation(message))
+
+    def add_func(self, op: Operation, op_information: OperationInformation) -> None:
+        """Add a message to an operation."""
+        self.op_messages.setdefault(op, []).append(op_information)
 
     def raise_exception(
         self,

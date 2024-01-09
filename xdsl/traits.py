@@ -4,7 +4,7 @@ import abc
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import VerifyException, ComplexVerifyException
 
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, ModuleOp
@@ -86,9 +86,9 @@ class HasAncestor(OpTrait):
         ancestor_type, weak  = self.parameters
         parent = op.parent_op()
         while parent is not ModuleOp and (weak or parent is not None) :
-            if isinstance(parent, ancestor_type):
-                return
             if weak and parent is None:
+                return
+            if isinstance(parent, ancestor_type):
                 return
             parent = parent.parent_op()
         raise VerifyException(
@@ -210,6 +210,7 @@ class IsolatedFromAbove(OpTrait):
         # Start by checking all the passed operation's regions
         regions: list[Region] = op.regions.copy()
 
+        violations = {}
         # While regions are left to check
         while regions:
             # Pop the first one
@@ -219,18 +220,33 @@ class IsolatedFromAbove(OpTrait):
                 # Check every operation of the block
                 for child_op in block.ops:
                     # Check every operand of the operation
-                    for operand in child_op.operands:
+                    for i, operand in enumerate(child_op.operands):
                         # The operand must not be defined out of the IsolatedFromAbove op.
                         if not op.is_ancestor(operand.owner):
-                            raise VerifyException(
-                                "Operation using value defined out of its "
-                                "IsolatedFromAbove parent!"
-                            )
+                            from xdsl.utils.diagnostic import OperationInformation
+                            class ViolationInformation(OperationInformation):
+                                from xdsl.printer import Printer
+                                def __init__(self, i, oper):
+                                    self.i = i
+                                    self.operand = oper
+                                    print(operand)
+                                    print(oper)
+                                def get_info(self, p: Printer) -> str:
+                                    print(operand)
+                                    return f"This operation uses operand[{i}]: {p.get_ssa_value(self.operand)}  ({self.operand}) from outside its IsolatedFromAbove parent!"
+
+                            violations.setdefault(child_op, []).append(ViolationInformation(i, operand))
                     # Check nested regions too; unless the operation is IsolatedFromAbove
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
                         regions += child_op.regions
 
+        if violations:
+            raise ComplexVerifyException(
+                "Operation using value defined out of its "
+                "IsolatedFromAbove parent!",
+                map=violations
+            )
 
 class SymbolTable(OpTrait):
     """
