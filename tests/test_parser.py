@@ -200,7 +200,11 @@ def test_parse_argument(
     if expected is not None:
         assert res is not None
         assert res.name.text[1:] == expected[0]
-        assert res.type == expected[1]
+        if expected[1] is not None:
+            assert isinstance(res, Parser.Argument)
+            assert res.type == expected[1]
+        else:
+            assert isinstance(res, parser.UnresolvedArgument)
     else:
         assert res is None
 
@@ -210,7 +214,11 @@ def test_parse_argument(
         res = parser.parse_argument(expect_type=expect_type)
         assert res is not None
         assert res.name.text[1:] == expected[0]
-        assert res.type == expected[1]
+        if expected[1] is not None:
+            assert isinstance(res, Parser.Argument)
+            assert res.type == expected[1]
+        else:
+            assert isinstance(res, parser.UnresolvedArgument)
     else:
         with pytest.raises(ParseError):
             parser.parse_argument(expect_type=expect_type)

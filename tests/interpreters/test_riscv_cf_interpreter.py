@@ -30,6 +30,27 @@ def test_j_op():
     assert res.terminator_value.args == (1, 2)
 
 
+def test_branch_op():
+    interpreter = Interpreter(module_op)
+    riscv_cf_functions = RiscvCfFunctions()
+    interpreter.register_implementations(riscv_cf_functions)
+
+    a = TestSSAValue(register)
+    b = TestSSAValue(register)
+
+    successor = Block(arg_types=(register, register))
+
+    branch_op = riscv_cf.BranchOp((a, b), successor)
+
+    res = riscv_cf_functions.run_branch(interpreter, branch_op, (1, 2))
+
+    assert res.values == ()
+    assert res.terminator_value is not None
+    assert isinstance(res.terminator_value, Successor)
+    assert res.terminator_value.block is successor
+    assert res.terminator_value.args == (1, 2)
+
+
 def test_beq_op():
     interpreter = Interpreter(module_op)
     riscv_cf_functions = RiscvCfFunctions()

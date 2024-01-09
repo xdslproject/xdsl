@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, overload
 
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
@@ -382,6 +382,19 @@ class Parser(AttrParser):
                 val.name_hint = name
 
     @dataclass
+    class UnresolvedArgument:
+        """
+        A block argument parsed from the assembly.
+        Arguments should be parsed by `parse_argument` or `parse_optional_argument`.
+        """
+
+        name: Span
+        """The name as displayed in the assembly."""
+
+        def resolve(self, type: Attribute) -> Parser.Argument:
+            return Parser.Argument(self.name, type)
+
+    @dataclass
     class Argument:
         """
         A block argument parsed from the assembly.
@@ -391,10 +404,30 @@ class Parser(AttrParser):
         name: Span
         """The name as displayed in the assembly."""
 
-        type: Attribute | None
+        type: Attribute
         """The type of the argument, if any."""
 
-    def parse_optional_argument(self, expect_type: bool = True) -> Argument | None:
+    @overload
+    def parse_optional_argument(
+        self, expect_type: Literal[True] = True
+    ) -> Argument | None:
+        ...
+
+    @overload
+    def parse_optional_argument(
+        self, expect_type: Literal[False]
+    ) -> UnresolvedArgument | None:
+        ...
+
+    @overload
+    def parse_optional_argument(
+        self, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument | None:
+        ...
+
+    def parse_optional_argument(
+        self, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument | None:
         """
         Parse a block argument, if present, with format:
           arg ::= percent-id `:` type
@@ -407,13 +440,30 @@ class Parser(AttrParser):
             return None
 
         # The argument type
-        type = None
         if expect_type:
             self.parse_punctuation(":", " after block argument name!")
             type = self.parse_type()
-        return self.Argument(name_token.span, type)
+            return self.Argument(name_token.span, type)
+        else:
+            return self.UnresolvedArgument(name_token.span)
 
-    def parse_argument(self, *, expect_type: bool = True) -> Argument:
+    @overload
+    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument:
+        ...
+
+    @overload
+    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument:
+        ...
+
+    @overload
+    def parse_argument(
+        self, *, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument:
+        ...
+
+    def parse_argument(
+        self, *, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument:
         """
         Parse a block argument with format:
           arg ::= percent-id `:` type
@@ -455,9 +505,7 @@ class Parser(AttrParser):
         # Since the entry block cannot be jumped to, this is fine.
         if arguments is not None:
             # Check that the provided arguments have types.
-            if any(arg.type is None for arg in arguments):
-                raise ValueError("provided entry block arguments must have a type")
-            arg_types = cast(list[Attribute], [arg.type for arg in arguments])
+            arg_types = [arg.type for arg in arguments]
 
             # Check that the entry block has no label.
             # Since a multi-block region block must have a terminator, there isn't a
