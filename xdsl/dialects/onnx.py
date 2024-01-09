@@ -139,7 +139,6 @@ class Relu(IRDLOperation):
 
 @irdl_op_definition
 class Gemm(IRDLOperation):
-    name = "onnx.Gemm"
     """
     General Matrix multiplication: https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3
     A' = transpose(A) if transA else A
@@ -148,6 +147,8 @@ class Gemm(IRDLOperation):
     where input tensor A has shape (M, K) or (K, M), input tensor B has shape (K, N) or (N, K),
     input tensor C is broadcastable to shape (M, N), and output tensor Y has shape (M, N).
     """
+
+    name = "onnx.Gemm"
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     tensor_a = operand_def(TensorType[T])
     tensor_b = operand_def(TensorType[T])
