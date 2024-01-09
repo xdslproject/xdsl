@@ -119,6 +119,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return OMP
 
+    def get_onnx():
+        from xdsl.dialects.onnx import ONNX
+
+        return ONNX
+
     def get_pdl():
         from xdsl.dialects.pdl import PDL
 
@@ -143,6 +148,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.riscv_scf import RISCV_Scf
 
         return RISCV_Scf
+
+    def get_riscv_cf():
+        from xdsl.dialects.riscv_cf import RISCV_Cf
+
+        return RISCV_Cf
 
     def get_riscv_snitch():
         from xdsl.dialects.riscv_snitch import RISCV_Snitch
@@ -221,11 +231,13 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "memref": get_memref,
         "mpi": get_mpi,
         "omp": get_omp,
+        "onnx": get_onnx,
         "pdl": get_pdl,
         "printf": get_printf,
         "riscv": get_riscv,
         "riscv_func": get_riscv_func,
         "riscv_scf": get_riscv_scf,
+        "riscv_cf": get_riscv_cf,
         "riscv_snitch": get_riscv_snitch,
         "scf": get_scf,
         "seq": get_seq,
