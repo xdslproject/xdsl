@@ -2,8 +2,9 @@ import ctypes
 import hashlib
 import os
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, TypeVar, cast
+from typing import TypeVar, cast
 
 from xdsl.dialects import func, memref
 from xdsl.dialects.builtin import Float32Type, Float64Type, IntegerType, ModuleOp
