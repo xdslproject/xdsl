@@ -451,11 +451,7 @@ class Printer:
             return
 
         if isinstance(attribute, DictionaryAttr):
-            self.print_string("{")
-            self.print_dictionary(
-                attribute.data, self.print_string_literal, self.print_attribute
-            )
-            self.print_string("}")
+            self.print_attr_dict(attribute.data)
             return
 
         if isinstance(attribute, FunctionType):
@@ -684,13 +680,18 @@ class Printer:
             self.print(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
+    def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
+        self.print_string("{")
+        self.print_list(attr_dict.items(), self._print_attr_string)
+        self.print_string("}")
+
     def _print_op_properties(self, properties: dict[str, Attribute]) -> None:
         if not properties:
             return
 
-        self.print(" <{")
-        self.print_list(properties.items(), self._print_attr_string)
-        self.print("}>")
+        self.print_string(" ")
+        with self.in_angle_brackets():
+            self.print_attr_dict(properties)
 
     def print_op_attributes(
         self,
@@ -715,11 +716,8 @@ class Printer:
         if print_keyword:
             self.print(" attributes")
 
-        self.print(" {")
-
-        self.print_list(attributes.items(), self._print_attr_string)
-
-        self.print("}")
+        self.print(" ")
+        self.print_attr_dict(attributes)
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
