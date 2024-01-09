@@ -257,7 +257,6 @@ class Gemm(IRDLOperation):
 
 @irdl_op_definition
 class Reshape(IRDLOperation):
-    name = "onnx.Reshape"
     """
     Reshape the input tensor similar to numpy.reshape.
     First input is the data tensor, second input is a shape tensor which specifies the output shape. It outputs the reshaped tensor.
@@ -267,6 +266,8 @@ class Reshape(IRDLOperation):
     from the input tensor). Shape (second input) could be an empty shape, which means converting to a scalar.
     The input tensor's shape and the output tensor's shape are required to have the same number of elements.
     """
+
+    name = "onnx.Reshape"
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     data = operand_def(TensorType[T])
     shape = operand_def(TensorType)
@@ -317,7 +318,6 @@ class Reshape(IRDLOperation):
             raise VerifyException(
                 "Invalid shape: Both 0 and -1 are present, making the dimension ambiguous."
             )
-
         # At most one dimension of the new shape can be -1.
         # In this case, the value is inferred from the size of the tensor and the remaining dimensions.
         count_minus_one = shape_type_list.count(-1)
