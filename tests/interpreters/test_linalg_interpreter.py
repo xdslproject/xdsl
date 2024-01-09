@@ -91,3 +91,49 @@ def test_linalg_generic():
     interpreter.run_op(op, (a, b, c))
 
     assert c.data == [1, 4, 9, 16, 25, 36]
+
+
+def test_linalg_generic_scalar():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    interpreter.register_implementations(ArithFunctions())
+
+    op = linalg.Generic(
+        (
+            TestSSAValue(MemRefType(i32, [2, 3])),
+            TestSSAValue(i32),
+        ),
+        (TestSSAValue(MemRefType(i32, [1, 6])),),
+        Region(Block(arg_types=(i32, i32))),
+        (
+            AffineMapAttr(AffineMap.identity(2)),
+            AffineMapAttr(AffineMap.from_callable(lambda i, j: ())),
+            AffineMapAttr(
+                AffineMap(
+                    2,
+                    0,
+                    (
+                        AffineExpr.constant(0),
+                        AffineExpr.dimension(0) * 3 + AffineExpr.dimension(1),
+                    ),
+                )
+            ),
+        ),
+        (
+            linalg.IteratorTypeAttr.parallel(),
+            linalg.IteratorTypeAttr.parallel(),
+            linalg.IteratorTypeAttr.parallel(),
+        ),
+    )
+
+    with ImplicitBuilder(op.body) as (a, b):
+        c = arith.Muli(a, b).result
+        linalg.YieldOp(c)
+
+    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
+    b = 2
+    c = ShapedArray([-1, -1, -1, -1, -1, -1], [1, 6])
+
+    interpreter.run_op(op, (a, b, c))
+
+    assert c.data == [2, 4, 6, 8, 10, 12]

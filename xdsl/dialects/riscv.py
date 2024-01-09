@@ -3597,7 +3597,7 @@ class FMvDOp(RdRsOperation[FloatRegisterType, FloatRegisterType]):
     traits = frozenset(
         (
             Pure(),
-            FMVHasCanonicalizationPatternsTrait(),
+            FMvDHasCanonicalizationPatternsTrait(),
         )
     )
 
