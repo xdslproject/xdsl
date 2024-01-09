@@ -129,6 +129,13 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
 
         return convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass
 
+    def get_convert_riscv_scf_to_riscv_cf():
+        from xdsl.backend.riscv.lowering import (
+            convert_riscv_scf_to_riscv_cf,
+        )
+
+        return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
+
     def get_dce():
         from xdsl.transforms import dead_code_elimination
 
@@ -279,6 +286,7 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
         ("canonicalize-dmp", get_canonicalize_dmp),
         ("convert-scf-to-openmp", get_convert_scf_to_openmp),
         ("convert-snitch-stream-to-snitch", get_convert_snitch_stream_to_snitch),
+        ("convert-riscv-scf-to-riscv-cf", get_convert_riscv_scf_to_riscv_cf),
         ("constant-fold-interp", get_constant_fold_interp),
         ("convert-stencil-to-ll-mlir", get_convert_stencil_to_ll_mlir),
         ("dce", get_dce),
