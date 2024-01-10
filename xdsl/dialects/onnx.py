@@ -348,7 +348,6 @@ class Reshape(IRDLOperation):
             )
 
 
-
 ONNX = Dialect(
     "onnx",
     [
