@@ -303,7 +303,7 @@ class Reshape(IRDLOperation):
                 raise VerifyException("Mismatch between operand type and res type")
             if shape_type.element_type != IntegerType(64):
                 raise VerifyException(
-                    "Invalid shape element type must be TensorType[i64]"
+                    "shape element type has to be a 64-bit signless integer"
                 )
 
         data_type = data_type.get_shape()
