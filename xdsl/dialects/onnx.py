@@ -266,6 +266,12 @@ class Reshape(IRDLOperation):
     could also be 0, in which case the actual dimension value is unchanged (i.e. taken
     from the input tensor). Shape (second input) could be an empty shape, which means converting to a scalar.
     The input tensor's shape and the output tensor's shape are required to have the same number of elements.
+
+     Attributes:
+        - allowzero  int (default is 0):  By default, when any value in the 'shape' input is equal to zero
+     the corresponding dimension value is copied from the input tensor dynamically. allowzero=1 indicates that if any
+     value in the 'shape' input is set to zero, the zero value is honored, similar to NumPy.
+
     """
 
     name = "onnx.Reshape"
@@ -295,30 +301,30 @@ class Reshape(IRDLOperation):
                 False
             ), "onnx elementwise operation operands and result must be of type TensorType"
 
-            data_type = cast(TensorType[Attribute], data_type)
-            reshaped_type = cast(TensorType[Attribute], reshaped_type)
-            shape_type = cast(TensorType[Attribute], shape_type)
+        data_type = cast(TensorType[Attribute], data_type)
+        reshaped_type = cast(TensorType[Attribute], reshaped_type)
+        shape_type = cast(TensorType[Attribute], shape_type)
 
-            if data_type != reshaped_type:
-                raise VerifyException("Mismatch between operand type and res type")
-            if shape_type.element_type != IntegerType(64):
-                raise VerifyException(
-                    "shape element type has to be a 64-bit signless integer"
-                )
+        if shape_type.element_type != IntegerType(64):
+            raise VerifyException(
+                "shape element type has to be a 64-bit signless integer"
+            )
 
         data_type = data_type.get_shape()
         shape_type = shape_type.get_shape()
         shape_type_list = list(shape_type)
         reshaped_type = reshaped_type.get_shape()
 
-        if (
-            self.allow_zero
-            and shape_type_list.count(0) > 0
-            and shape_type_list.count(-1) > 0
-        ):
+        # The input tensor's shape and the output tensor's shape are required to have the same number of elements.
+        if len(data_type) != len(reshaped_type):
             raise VerifyException(
-                "Invalid shape: Both 0 and -1 are present, making the dimension ambiguous."
+                "Input tensor's shape and output tensor's shape must have the same number of elements"
             )
+
+        # There is currently only support for rank one shape tensors in onnx-mlir
+        if len(shape_type_list) != 1:
+            raise VerifyException("Shape tensor must be 1D")
+
         # At most one dimension of the new shape can be -1.
         # In this case, the value is inferred from the size of the tensor and the remaining dimensions.
         count_minus_one = shape_type_list.count(-1)
@@ -337,15 +343,9 @@ class Reshape(IRDLOperation):
                 else:
                     # dimension is 0, leave it unchanged  (i.e. taken from the input tensor).
                     shape_type_list[i] = data_type[i]
-
         # Shape (second input) could be an empty shape, which means converting to a scalar.
         if not shape_type_list:
             shape_type_list = [IntegerType(64)]
-        # The input tensor's shape and the output tensor's shape are required to have the same number of elements.
-        if len(data_type) != len(reshaped_type):
-            raise VerifyException(
-                "Input tensor's shape and output tensor's shape must have the same number of elements"
-            )
 
 
 ONNX = Dialect(
