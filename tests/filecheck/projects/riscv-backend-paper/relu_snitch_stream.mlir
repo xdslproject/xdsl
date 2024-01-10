@@ -21,9 +21,9 @@ builtin.module {
       %zero_2 = riscv.li 0 : () -> !riscv.reg<>
       riscv.sw %zero, %zero_2, -8 : (!riscv.reg<sp>, !riscv.reg<>) -> ()
       %zero_3 = riscv.fld %zero, -8 : (!riscv.reg<sp>) -> !riscv.freg<>
-      %stride_pattern = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<2>, #builtin.int<3>], "strides" = [#builtin.int<24>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type
-      %a_stream = "snitch_stream.strided_read"(%A, %stride_pattern) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<ft0>>
-      %b_stream = "snitch_stream.strided_write"(%B, %stride_pattern) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.writable<!riscv.freg<ft1>>
+      %stride_pattern = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<2>, #builtin.int<3>], "strides" = [#builtin.int<24>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type<2>
+      %a_stream = "snitch_stream.strided_read"(%A, %stride_pattern) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<ft0>>
+      %b_stream = "snitch_stream.strided_write"(%B, %stride_pattern) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.writable<!riscv.freg<ft1>>
       %c6 = riscv.li 6 : () -> !riscv.reg<>
       "snitch_stream.generic"(%c6, %a_stream, %b_stream) <{"operandSegmentSizes" = array<i32: 1, 1, 1>}> ({
       ^0(%a : !riscv.freg<ft0>):
