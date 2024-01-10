@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --allow-unregistered-dialect | xdsl-opt --allow-unregistered-dialect  | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt  | filecheck %s
 
 "builtin.module"() ({
 
