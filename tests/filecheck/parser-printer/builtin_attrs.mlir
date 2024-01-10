@@ -163,7 +163,7 @@
                       value = {"one"=1, "two"=2, "three"="three"},
                       sym_name = "dict_attr"} : () -> ()
 
-  // CHECK: "one"=1 : i64, "two"=2 : i64, "three"="three"
+  // CHECK: "one" = 1 : i64, "two" = 2 : i64, "three" = "three"
 
   "func.func"() ({}) {function_type = () -> (),
                       symbol = @some_symbol,
@@ -193,7 +193,7 @@
                       memref = memref<f32>,
                       sym_name = "scalar_memref"} : () -> ()
 
-  // CHECK: memref<f32> 
+  // CHECK: memref<f32>
 
   "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2x?xf32>,

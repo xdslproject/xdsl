@@ -699,7 +699,7 @@ def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : i64}} : () -> ()
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"arg_attrs" = {"key_one" = "value_one", "key_two" = "value_two", "key_three" = 72 : i64, "unit_attr"}} : () -> ()
     """
 
     ctx = MLContext()
