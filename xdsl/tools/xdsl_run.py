@@ -45,6 +45,12 @@ class xDSLRunMain(CommandLineTool):
             action="store_true",
             help="Print resulting Python values.",
         )
+        arg_parser.add_argument(
+            "--symbol",
+            default="main",
+            type=str,
+            help="Name of function to call.",
+        )
         return super().register_all_arguments(arg_parser)
 
     def register_implementations(self, interpreter: Interpreter):
@@ -58,7 +64,9 @@ class xDSLRunMain(CommandLineTool):
                 module.verify()
                 interpreter = Interpreter(module)
                 self.register_implementations(interpreter)
-                result = interpreter.call_op("main", ())
+                symbol = self.args.symbol
+                assert isinstance(symbol, str)
+                result = interpreter.call_op(symbol, ())
                 if self.args.verbose:
                     print(f"result: {result}")
         finally:

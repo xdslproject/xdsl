@@ -63,4 +63,13 @@ builtin.module {
   // CHECK-NEXT:   func.return %{{.*}}, %{{.*}} : i32, i32
   // CHECK-NEXT: }
 
+  func.func public @arg_attrs(%X: tensor<8x8xf64> {"llvm.noalias"},
+                              %Y: tensor<8x8xf64> {"llvm.noalias"},
+                              %Z: tensor<8x8xf64> {"llvm.noalias"}) -> (tensor<8x8xf64>) {
+      func.return %X : tensor<8x8xf64>
+  }
+
+  // CHECK:       func.func public @arg_attrs(%{{.*}}: tensor<8x8xf64> {"llvm.noalias"}, %{{.*}}: tensor<8x8xf64> {"llvm.noalias"}, %{{.*}}: tensor<8x8xf64> {"llvm.noalias"}) -> tensor<8x8xf64> {
+  // CHECK-NEXT:      func.return %{{.*}} : tensor<8x8xf64>
+  // CHECK-NEXT:  }
 }

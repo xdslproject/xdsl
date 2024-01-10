@@ -90,7 +90,6 @@ builtin.module {
 
 builtin.module {
   %t0, %t1, %t2 = "test.op"() : () -> (tensor<5x3xf32>, tensor<3x2x3xf32>, tensor<5x2xf32>)
-
   // CHECK: Operation does not verify: tensor B should be a 2D tensor
   %res_gemm = "onnx.Gemm"(%t0, %t1, %t2) {onnx_node_name = "/Gemm"}: (tensor<5x3xf32>, tensor<3x2x3xf32>, tensor<5x2xf32>) -> tensor<5x2xf32>
 }
@@ -143,17 +142,4 @@ builtin.module {
   // CHECK: Operation does not verify: Input tensor's shape and output tensor's shape must have the same number of elements
   %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<6x9x5xf32>, tensor<3xi64>) -> tensor<7x7xf32>
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 

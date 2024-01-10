@@ -5,8 +5,8 @@ from conftest import assert_print_op
 
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
-from xdsl.dialects.builtin import Builtin, ModuleOp, i32, i64
-from xdsl.ir import Block, MLContext
+from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
+from xdsl.ir import Block, MLContext, Region
 from xdsl.parser import Parser
 from xdsl.rewriter import Rewriter
 
@@ -474,3 +474,166 @@ def test_erase_op():
 
     with pytest.raises(Exception):
         rewrite_and_compare(prog, expected, transformation_safe)
+
+
+def test_inline_region_before():
+    """Test the insertion of a block in a region."""
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> f32
+^1:
+  %2 = "test.op"() : () -> f64
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        region = Region(
+            (
+                Block((test.TestOp(result_types=(Float32Type(),)),)),
+                Block((test.TestOp(result_types=(Float64Type(),)),)),
+            )
+        )
+        rewriter.inline_region_before(region, module.body.blocks[1])
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_inline_region_after():
+    """Test the insertion of a block in a region."""
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> f32
+^1:
+  %2 = "test.op"() : () -> f64
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        region = Region(
+            (
+                Block((test.TestOp(result_types=(Float32Type(),)),)),
+                Block((test.TestOp(result_types=(Float64Type(),)),)),
+            )
+        )
+        rewriter.inline_region_after(region, module.body.blocks[0])
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_inline_region_at_start():
+    """Test the insertion of a block in a region."""
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> f32
+^0:
+  %1 = "test.op"() : () -> f64
+^1:
+  %2 = "test.op"() : () -> i32
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        region = Region(
+            (
+                Block((test.TestOp(result_types=(Float32Type(),)),)),
+                Block((test.TestOp(result_types=(Float64Type(),)),)),
+            )
+        )
+        rewriter.inline_region_at_start(region, module.body)
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_inline_region_at_end():
+    """Test the insertion of a block in a region."""
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> i64
+^1:
+  %2 = "test.op"() : () -> f32
+^2:
+  %3 = "test.op"() : () -> f64
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        region = Region(
+            (
+                Block((test.TestOp(result_types=(Float32Type(),)),)),
+                Block((test.TestOp(result_types=(Float64Type(),)),)),
+            )
+        )
+        rewriter.inline_region_at_end(region, module.body)
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_verify_inline_region():
+    block = Block()
+    region = Region(Block())
+
+    with pytest.raises(
+        ValueError, match="Cannot inline region before a block with no parent"
+    ):
+        Rewriter.inline_region_before(region, block)
+
+    with pytest.raises(ValueError, match="Cannot move region into itself."):
+        Rewriter.inline_region_before(region, region.block)
+
+    with pytest.raises(
+        ValueError, match="Cannot inline region before a block with no parent"
+    ):
+        Rewriter.inline_region_after(region, block)
+
+    with pytest.raises(ValueError, match="Cannot move region into itself."):
+        Rewriter.inline_region_after(region, region.block)
+
+    with pytest.raises(ValueError, match="Cannot move region into itself."):
+        Rewriter.inline_region_at_start(region, region)
+
+    with pytest.raises(ValueError, match="Cannot move region into itself."):
+        Rewriter.inline_region_at_end(region, region)
