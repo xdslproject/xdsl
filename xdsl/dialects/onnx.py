@@ -100,6 +100,9 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
             assert (
                 False
             ), "onnx elementwise binary operation operands and result must be of type TensorType"
+        lhs_type = cast(TensorType[Attribute], lhs_type)
+        rhs_type = cast(TensorType[Attribute], rhs_type)
+        res_type = cast(TensorType[Attribute], res_type)
         ShapeBroadcastVerifier.verify_shapes(lhs_type, rhs_type, res_type)
 
 
@@ -250,6 +253,8 @@ class Gemm(IRDLOperation):
             res_shape.append(tensor_a_shape[0])
             res_shape.append(tensor_b_shape[1])
 
+        tensor_c_type = cast(TensorType[Attribute], tensor_c_type)
+        res_tensor_type = cast(TensorType[Attribute], res_tensor_type)
         ShapeBroadcastVerifier.verify_shapes(res_shape, tensor_c_type, res_tensor_type)
 
 
