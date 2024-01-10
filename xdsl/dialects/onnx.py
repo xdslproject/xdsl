@@ -26,37 +26,25 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 
-class ElementwiseBinOpBase(IRDLOperation, ABC):
-    """Base class for element-wise binary operations on tensors with Numpy-style broadcasting."""
+class ShapeBroadcastVerifier:
+    """
+    https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
+    """
 
-    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
-    lhs = operand_def(TensorType[T])
-    rhs = operand_def(TensorType[T])
-    res = result_def(TensorType[T])
-    assembly_format = "`(` $lhs `,` $rhs `)` attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($res)"
-
-    def __init__(self, lhs: SSAValue, rhs: SSAValue, res_type: Attribute):
-        super().__init__(
-            operands=[lhs, rhs],
-            result_types=[res_type],
-        )
-
-    def verify_(self) -> None:
+    @staticmethod
+    def verify_shapes(lhs_type, rhs_type, res_type):
         # Check that the arguments are broadcastable (using Numpy semantics) and that the result type is correct.
         res_shape: list[int] = []
+        if isinstance(lhs_type, TensorType):
+            lhs_shape = lhs_type.get_shape()
+        else:
+            lhs_shape = lhs_type
 
-        if (
-            not isinstance(lhs_type := self.lhs.type, TensorType)
-            or not isinstance(rhs_type := self.rhs.type, TensorType)
-            or not isinstance(res_type := self.res.type, TensorType)
-        ):
-            assert (
-                False
-            ), "onnx elementwise binary operation operands and result must be of type TensorType"
-
+        if isinstance(rhs_type, TensorType):
+            rhs_shape = rhs_type.get_shape()
+        else:
+            rhs_shape = rhs_type
         # Iterate over the shapes in reverse order and compute the result shape.
-        lhs_shape = lhs_type.get_shape()
-        rhs_shape = rhs_type.get_shape()
         i = max(len(lhs_shape), len(rhs_shape))
         while i > 0:
             i -= 1
@@ -74,13 +62,41 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
             raise VerifyException(
                 f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
             )
+
         # Reverse the result shape and check that it matches the result type.
         res_type_shape = list(res_type.get_shape())
         res_shape.reverse()
         if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
             raise VerifyException(
-                f"result shape {res_shape} does not match result type {self.res.type}"
+                f"result shape {res_shape} does not match result type {res_type}"
             )
+
+
+class ElementwiseBinOpBase(IRDLOperation, ABC):
+    """Base class for element-wise binary operations on tensors with Numpy-style broadcasting."""
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    lhs = operand_def(TensorType[T])
+    rhs = operand_def(TensorType[T])
+    res = result_def(TensorType[T])
+    assembly_format = "`(` $lhs `,` $rhs `)` attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($res)"
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, res_type: Attribute):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[res_type],
+        )
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(lhs_type := self.lhs.type, TensorType)
+            or not isinstance(rhs_type := self.rhs.type, TensorType)
+            or not isinstance(res_type := self.res.type, TensorType)
+        ):
+            assert (
+                False
+            ), "onnx elementwise binary operation operands and result must be of type TensorType"
+        ShapeBroadcastVerifier.verify_shapes(lhs_type, rhs_type, res_type)
 
 
 @irdl_op_definition
@@ -105,11 +121,12 @@ class Div(ElementwiseBinOpBase):
 
 @irdl_op_definition
 class Relu(IRDLOperation):
-    name = "onnx.Relu"
     """
     Relu takes one input data (Tensor) and produces one output data (Tensor) where the rectified linear function,
      y = max(0, x), is applied to the tensor elementwise.
     """
+
+    name = "onnx.Relu"
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     operand = operand_def(TensorType[T])
     res = result_def(TensorType[T])
@@ -130,11 +147,11 @@ class Relu(IRDLOperation):
             assert (
                 False
             ), "onnx elementwise operation operand and result must be of type TensorType"
-            operand_type = cast(TensorType[Attribute], operand_type)
-            res_type = cast(TensorType[Attribute], res_type)
+        operand_type = cast(TensorType[Attribute], operand_type)
+        res_type = cast(TensorType[Attribute], res_type)
 
-            if operand_type != res_type:
-                raise VerifyException("Mismatch between operand type and res type")
+        if operand_type != res_type:
+            raise VerifyException("Mismatch between operand type and res type")
 
 
 @irdl_op_definition
@@ -229,31 +246,7 @@ class Gemm(IRDLOperation):
             res_shape.append(tensor_a_shape[0])
             res_shape.append(tensor_b_shape[1])
 
-        # Check that tensor C is unidirectional broadcastable to tensor (A * B) (using Numpy semantics) and that
-        # the result type is correct.
-        # Iterate over the shapes in reverse order and compute the result shape.
-        final_res_shape: list[int] = []
-        tensor_c_shape = tensor_c_type.get_shape()
-        i = max(len(res_shape), len(tensor_c_shape))
-        while i > 0:
-            i -= 1
-            d1: int = res_shape[i] if i >= 0 else 1
-            d2: int = tensor_c_shape[i] if i >= 0 else 1
-            if d1 == d2 or d2 == 1 or d1 == 1:
-                final_res_shape.append(max(d1, d2))
-                continue
-            raise VerifyException(
-                f"operands have incompatible shapes: {res_shape} and {tensor_c_shape}"
-            )
-        res_tensor_type_shape = list(res_tensor_type.get_shape())
-        final_res_shape.reverse()
-        if (
-            len(final_res_shape) != len(res_tensor_type_shape)
-            or final_res_shape != res_tensor_type_shape
-        ):
-            raise VerifyException(
-                f"result shape {final_res_shape} does not match result type {self.res_tensor.type}"
-            )
+        ShapeBroadcastVerifier.verify_shapes(res_shape, tensor_c_type, res_tensor_type)
 
 
 @irdl_op_definition
@@ -352,11 +345,11 @@ ONNX = Dialect(
     "onnx",
     [
         Add,
-        Sub,
-        Mul,
         Div,
-        Relu,
         Gemm,
+        Mul,
+        Relu,
         Reshape,
+        Sub,
     ],
 )
