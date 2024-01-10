@@ -22,9 +22,8 @@ def main():
     args = arg_parser.parse_args()
 
     ctx = MLContext()
-    dialects = get_all_dialects()
-    for dialect in dialects:
-        ctx.load_dialect(dialect)
+    for dialect_factory in get_all_dialects().values():
+        ctx.load_dialect(dialect_factory())
 
     # Parse the input file
     f = open(args.input_file)
