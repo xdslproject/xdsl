@@ -33,9 +33,9 @@ class ShapeBroadcastVerifier:
 
     @staticmethod
     def verify_shapes(
-        lhs_type: TensorType | list[int],
-        rhs_type: TensorType | list[int],
-        res_type: TensorType,
+        lhs_type: TensorType[Attribute] | list[int],
+        rhs_type: TensorType[Attribute] | list[int],
+        res_type: TensorType[Attribute],
     ) -> None:
         # Check that the arguments are broadcastable (using Numpy semantics) and that the result type is correct.
         res_shape: list[int] = []
