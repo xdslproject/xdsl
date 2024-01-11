@@ -258,10 +258,10 @@ ONNX = Dialect(
     "onnx",
     [
         Add,
-        Sub,
-        Mul,
         Div,
-        Relu,
         Gemm,
+        Mul,
+        Relu,
+        Sub,
     ],
 )
