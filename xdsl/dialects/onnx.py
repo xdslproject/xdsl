@@ -229,7 +229,7 @@ class Gemm(IRDLOperation):
 
         # Check that tensor C is unidirectional broadcastable to tensor (A * B) (using Numpy semantics) and that
         # the result type is correct.
-        # Iterate over the shapes in reverse order and compute the result shape.
+        # Iterate over the shapes in reverse order and compute the result shape
         final_res_shape: list[int] = []
         tensor_c_shape = tensor_c_type.get_shape()
         i = max(len(res_shape), len(tensor_c_shape))
