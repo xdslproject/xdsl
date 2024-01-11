@@ -5,8 +5,8 @@ from typing import Annotated, cast
 
 from xdsl.dialects.builtin import (
     AnyFloat,
+    AnyIntegerAttr,
     FloatAttr,
-    IntegerAttr,
     IntegerType,
     SSAValue,
     TensorType,
@@ -148,17 +148,15 @@ class Relu(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(
-            operand_type := self.operand.type, TensorType
-        ) or not isinstance(res_type := self.res.type, TensorType):
-            assert (
-                False
-            ), "onnx elementwise operation operand and result must be of type TensorType"
+        assert isinstance(operand_type := self.operand.type, TensorType)
+        assert isinstance(res_type := self.res.type, TensorType)
         operand_type = cast(TensorType[Attribute], operand_type)
         res_type = cast(TensorType[Attribute], res_type)
 
         if operand_type != res_type:
-            raise VerifyException("Mismatch between operand type and res type")
+            raise VerifyException(
+                "Mismatch between operand type and res type of onnx.Relu"
+            )
 
 
 @irdl_op_definition
@@ -178,11 +176,11 @@ class Gemm(IRDLOperation):
     tensor_b = operand_def(TensorType[T])
     tensor_c = operand_def(TensorType[T])
 
-    alpha = opt_attr_def(FloatAttr)
-    beta = opt_attr_def(FloatAttr)
+    alpha = opt_attr_def(FloatAttr[AnyFloat])
+    beta = opt_attr_def(FloatAttr[AnyFloat])
 
-    trans_a = opt_attr_def(IntegerAttr, attr_name="transA")
-    trans_b = opt_attr_def(IntegerAttr, attr_name="transB")
+    trans_a = opt_attr_def(AnyIntegerAttr, attr_name="transA")
+    trans_b = opt_attr_def(AnyIntegerAttr, attr_name="transB")
 
     res_tensor = result_def(TensorType[T])
     assembly_format = (
@@ -282,7 +280,7 @@ class Reshape(IRDLOperation):
     shape = operand_def(TensorType)
     reshaped = result_def(TensorType[T])
 
-    allow_zero = opt_attr_def(IntegerAttr, attr_name="allowzero")
+    allow_zero = opt_attr_def(AnyIntegerAttr, attr_name="allowzero")
 
     assembly_format = "`(` $data `,` $shape `)` attr-dict `:` `(` type($data) `,` type($shape) `)` `->` type($reshaped)"
 

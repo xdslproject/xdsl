@@ -36,4 +36,3 @@
 
 %res_reshape_2 = "onnx.Reshape"(%t17, %t18) {onnx_node_name = "/Reshape"}: (tensor<0x1x2x3x4x5xf32>, tensor<?xi64>) -> tensor<0x1x2x3x4x5xf32>
 //CHECK: %res_reshape_2 = onnx.Reshape(%t17, %t18) {"onnx_node_name" = "/Reshape"}: (tensor<0x1x2x3x4x5xf32>, tensor<?xi64>) -> tensor<0x1x2x3x4x5xf32>
-
