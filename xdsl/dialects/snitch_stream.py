@@ -37,6 +37,7 @@ from xdsl.traits import NoTerminator
 @irdl_attr_definition
 class StridePatternType(Data[int], TypeAttribute):
     name = "snitch_stream.stride_pattern_type"
+    name = "snitch_stream.stride_pattern_type"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
@@ -183,7 +184,7 @@ class StridedWriteOp(IRDLOperation):
 
 
 SnitchStream = Dialect(
-    "snitch-stream",
+    "snitch_stream",
     [
         StreamingRegionOp,
         StridedReadOp,

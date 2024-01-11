@@ -172,7 +172,7 @@ class xDSLOptMain(CommandLineTool):
 
         Add other/additional passes by overloading this function.
         """
-        for pass_name, pass_factory in get_all_passes():
+        for pass_name, pass_factory in get_all_passes().items():
             self.register_pass(pass_name, pass_factory)
 
     def register_all_targets(self):
