@@ -596,11 +596,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("{")
-        printer.print_dictionary(
-            self.data, printer.print_string_literal, printer.print_attribute
-        )
-        printer.print_string("}")
+        printer.print_attr_dict(self.data)
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
