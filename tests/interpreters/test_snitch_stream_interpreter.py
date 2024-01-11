@@ -48,7 +48,7 @@ def test_offset_map_constructor():
 
 def test_snitch_stream_interpreter():
     register = riscv.IntRegisterType.unallocated()
-    pattern_type = snitch_stream.StridePatternType()
+    pattern_type = snitch_stream.StridePatternType(2)
 
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(RiscvFunctions())

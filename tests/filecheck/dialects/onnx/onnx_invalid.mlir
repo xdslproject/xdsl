@@ -41,6 +41,16 @@ builtin.module {
 // -----
 
 builtin.module {
+  %t0 = "test.op"() : () -> (tensor<2x4xf32>)
+
+  // CHECK: operand at position 1 does not verify!
+  // CHECK: Operation does not verify: Mismatch between operand type and res type of onnx.Relu
+  %res_relu =  "onnx.Relu"(%t0) {onnx_node_name = "/Relu"} : (tensor<2x4xf32>) -> tensor<3x4xf32>
+}
+
+// -----
+
+builtin.module {
   %t0, %t1, %t2 = "test.op"() : () -> (tensor<2x4xf32>, tensor<3x2xf32>, tensor<3x2xf32>)
 
   // CHECK: Operation does not verify: operands have incompatible shapes: (2, 4) and (3, 2)
