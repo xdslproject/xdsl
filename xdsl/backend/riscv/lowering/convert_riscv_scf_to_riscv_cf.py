@@ -68,7 +68,11 @@ class LowerRiscvScfForPattern(RewritePattern):
     ```
     """
 
-    for_idx = -1
+    for_idx: int
+
+    def __init__(self):
+        super().__init__()
+        self.for_idx = -1
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter, /):
