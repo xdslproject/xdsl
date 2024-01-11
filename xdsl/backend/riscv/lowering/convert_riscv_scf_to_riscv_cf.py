@@ -11,26 +11,16 @@ from xdsl.pattern_rewriter import (
 
 class LowerRiscvScfForPattern(RewritePattern):
     """
-    Create a CFG subgraph for the loop around its body blocks (if the body
-    contained other loops, they have been already lowered to a flow of blocks).
-    Maintain the invariants that a CFG subgraph created for any loop has a single
-    entry and a single exit, and that the entry/exit blocks are respectively
-    first/last blocks in the parent region.  The original loop operation is
-    replaced by the initialization operations that set up the initial value of
-    the loop induction variable (%iv) and computes the loop bounds that are loop-
-    invariant for affine loops.  The operations following the original scf.for
-    are split out into a separate continuation (exit) block. A condition block is
-    created before the continuation block. It checks the exit condition of the
-    loop and branches either to the continuation block, or to the first block of
-    the body. The condition block takes as arguments the values of the induction
-    variable followed by loop-carried values. Since it dominates both the body
-    blocks and the continuation block, loop-carried values are visible in all of
-    those blocks. Induction variable modification is appended to the last block
-    of the body (which is the exit block from the body subgraph thanks to the
-    invariant we maintain) along with a branch that loops back to the condition
-    block. Loop-carried values are the loop terminator operands, which are
-    forwarded to the branch.
-
+    Inline the for loop body into its parent region, using `Block`s to represent control
+    flow. The `Block` containing the `ForOp` is split into two, and the blocks in the
+    `body` of the for loop are spliced between them. Additional operations are inserted
+    into the block before, and the block after to handle the initialization of the
+    iteration argument, and loop-carried variables, as well as control flow. If the for
+    loop contained other `riscv_scf` ops, they will have been rewritten by the time this
+    rewrite is called. Two comparison operations are inserted, one just before the loop
+    blocks, skipping the loop entirely if the condition is not met, and one at the end of
+    the loop body, to exit or continue the loop. A canonicalization step may be able to
+    eliminate the first check if the bounds are known at compile time.
     ```
 
          +--------------------------------------------------------------+
