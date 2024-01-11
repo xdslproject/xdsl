@@ -727,10 +727,10 @@ class StoreResultOp(IRDLOperation):
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
     """
-    The return operation terminates the stencil apply and writes
+    The return operation terminates the stencil.apply and writes
     the results of the stencil operator to the temporary values returned
-    by the stencil apply operation. The types and the number of operands
-    must match the results of the stencil apply operation.
+    by the stencil.apply operation. The types and the number of operands
+    must match the results of the stencil.apply operation.
 
     The optional unroll attribute enables the implementation of loop
     unrolling at the stencil dialect level.
@@ -783,7 +783,7 @@ class ReturnOp(IRDLOperation):
 @dataclass(frozen=True)
 class AccessPattern:
     """
-    Represents access patterns of a stencil apply operation.
+    Represents access patterns of a stencil.apply operation.
 
     Contains helpers to get common information about accesses such as diagonals.
     """

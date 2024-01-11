@@ -5,6 +5,8 @@ from typing import Annotated, cast
 
 from xdsl.dialects.builtin import (
     AnyFloat,
+    FloatAttr,
+    IntegerAttr,
     IntegerType,
     SSAValue,
     TensorType,
@@ -18,6 +20,7 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     result_def,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -134,6 +137,125 @@ class Relu(IRDLOperation):
                 raise VerifyException("Mismatch between operand type and res type")
 
 
+@irdl_op_definition
+class Gemm(IRDLOperation):
+    """
+    General Matrix multiplication: https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms#Level_3
+    A' = transpose(A) if transA else A
+    B' = transpose(B) if transB else B
+    Compute Y = alpha * A' * B' + beta * C,
+    where input tensor A has shape (M, K) or (K, M), input tensor B has shape (K, N) or (N, K),
+    input tensor C is broadcastable to shape (M, N), and output tensor Y has shape (M, N).
+    """
+
+    name = "onnx.Gemm"
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    tensor_a = operand_def(TensorType[T])
+    tensor_b = operand_def(TensorType[T])
+    tensor_c = operand_def(TensorType[T])
+
+    alpha = opt_attr_def(FloatAttr)
+    beta = opt_attr_def(FloatAttr)
+
+    trans_a = opt_attr_def(IntegerAttr, attr_name="transA")
+    trans_b = opt_attr_def(IntegerAttr, attr_name="transB")
+
+    res_tensor = result_def(TensorType[T])
+    assembly_format = (
+        "`(` $tensor_a `,` $tensor_b `,`$tensor_c`)` attr-dict `:` `(` type($tensor_a) `,"
+        "` type($tensor_b) `,`type($tensor_c)`)` `->` type($res_tensor) "
+    )
+
+    def __init__(
+        self,
+        tensor_a: SSAValue,
+        tensor_b: SSAValue,
+        tensor_c: SSAValue,
+        alpha: Attribute,
+        trans_a: Attribute,
+        trans_b: Attribute,
+        beta: Attribute,
+    ):
+        super().__init__(
+            attributes={
+                "transA": trans_a,
+                "transB": trans_b,
+                "alpha": alpha,
+                "beta": beta,
+            },
+            operands=[tensor_a, tensor_b, tensor_c],
+            result_types=[tensor_c.type],
+        )
+
+    def verify_(self) -> None:
+        # store dimensions of tensor A and tensor B
+        res_shape: list[int] = []
+        if (
+            not isinstance(tensor_a_type := self.tensor_a.type, TensorType)
+            or not isinstance(tensor_b_type := self.tensor_b.type, TensorType)
+            or not isinstance(tensor_c_type := self.tensor_c.type, TensorType)
+            or not isinstance(res_tensor_type := self.res_tensor.type, TensorType)
+        ):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        # check shape compatibility
+        tensor_a_shape = tensor_a_type.get_shape()
+        tensor_b_shape = tensor_b_type.get_shape()
+
+        if tensor_a_type.get_num_dims() != 2:
+            raise VerifyException("tensor A should be a 2D tensor")
+
+        if tensor_b_type.get_num_dims() != 2:
+            raise VerifyException("tensor B should be a 2D tensor")
+
+        if self.trans_a is not None:
+            list(tensor_a_shape).reverse()
+
+        if self.trans_b is not None:
+            list(tensor_b_shape).reverse()
+
+        if self.beta is not None:
+            c_dims = tensor_c_type.get_num_dims()
+            if c_dims > 2:
+                raise VerifyException("tensor C should be a 1D tensor or 2D tensor")
+
+        if tensor_a_shape[1] != tensor_b_shape[0]:
+            raise VerifyException(
+                f"operands have incompatible shapes: {tensor_a_shape} and {tensor_b_shape}"
+            )
+        else:
+            res_shape.append(tensor_a_shape[0])
+            res_shape.append(tensor_b_shape[1])
+
+        # Check that tensor C is unidirectional broadcastable to tensor (A * B) (using Numpy semantics) and that
+        # the result type is correct.
+        # Iterate over the shapes in reverse order and compute the result shape.
+        final_res_shape: list[int] = []
+        tensor_c_shape = tensor_c_type.get_shape()
+        i = max(len(res_shape), len(tensor_c_shape))
+        while i > 0:
+            i -= 1
+            d1: int = res_shape[i] if i >= 0 else 1
+            d2: int = tensor_c_shape[i] if i >= 0 else 1
+            if d1 == d2 or d2 == 1 or d1 == 1:
+                final_res_shape.append(max(d1, d2))
+                continue
+            raise VerifyException(
+                f"operands have incompatible shapes: {res_shape} and {tensor_c_shape}"
+            )
+        res_tensor_type_shape = list(res_tensor_type.get_shape())
+        final_res_shape.reverse()
+        if (
+            len(final_res_shape) != len(res_tensor_type_shape)
+            or final_res_shape != res_tensor_type_shape
+        ):
+            raise VerifyException(
+                f"result shape {final_res_shape} does not match result type {self.res_tensor.type}"
+            )
+
+
 ONNX = Dialect(
     "onnx",
     [
@@ -142,5 +264,6 @@ ONNX = Dialect(
         Mul,
         Div,
         Relu,
+        Gemm,
     ],
 )
