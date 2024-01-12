@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
 from typing import Annotated, cast
 
 from xdsl.dialects.builtin import (
@@ -29,16 +28,14 @@ from xdsl.utils.exceptions import VerifyException
 
 def extract_shape_from_type(
     shape_type: list[int],
-) -> list[int] | None:
-    if shape_type is None:
-        return None
-    elif isinstance(shape_type, TensorType):
+) -> list[int]:
+    if isinstance(shape_type, TensorType):
         return list(shape_type.get_shape())
     else:
         return list(shape_type)
 
 
-def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int] | None:
+def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int]:
     """
     In ONNX, tensor B is unidirectional broadcastable to tensor A if one of the following is true:
 
@@ -85,9 +82,7 @@ def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int] 
     return res_shape
 
 
-def multidirectional_broadcast_shape(
-    lhs: Sequence[int], rhs: Sequence[int]
-) -> list[int] | None:
+def multidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int]:
     """
     In ONNX, a set of tensors are multidirectional broadcastable to the same shape if one of the following is true:
 
