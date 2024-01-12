@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -349,7 +348,19 @@ class Printer:
         self.print(">")
 
     def print_string_literal(self, string: str):
-        self.print(json.dumps(string))
+        hexdigits = "0123456789ABCDEF"
+        self.print('"')
+        for char in string:
+            o = ord(char)
+            if char == "\\":
+                self.print("\\\\")
+            elif 0x20 <= o <= 0x7E and char != '"':
+                self.print(char)
+            else:
+                self.print("\\")
+                self.print(hexdigits[o >> 4])
+                self.print(hexdigits[o & 0x0F])
+        self.print('"')
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):

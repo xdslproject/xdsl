@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -173,8 +172,41 @@ class StringLiteral(Span):
 
     @property
     def string_contents(self):
-        # TODO: is this a hack-job?
-        return ast.literal_eval(self.text)
+        if "\\" not in self.text:
+            return self.text[1:-1]
+        res = list[str]()
+        text = self.text[1:-1]
+        i = 0
+        while i < len(text):
+            c = text[i]
+            i += 1
+            if c != "\\":
+                res.append(c)
+                continue
+            if i >= len(text):
+                raise ValueError(self, "invalid string literal")
+            c1 = text[i]
+            i += 1
+            match c1:
+                case "n":
+                    res.append("\n")
+                case "t":
+                    res.append("\t")
+                case "\\":
+                    res.append("\\")
+                case '"':
+                    res.append('"')
+                case _ if c1 in hexdigits:
+                    if i >= len(text):
+                        raise ValueError(self, "invalid string literal")
+                    c2 = text[i]
+                    i += 1
+                    if c2 not in hexdigits:
+                        raise ValueError(self, "invalid string literal")
+                    res.append(chr(int(c1 + c2, 16)))
+                case _:
+                    raise ValueError(self, "invalid string literal")
+        return "".join(res)
 
 
 @dataclass
