@@ -26,15 +26,6 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 
-def extract_shape_from_type(
-    shape_type: list[int],
-) -> list[int]:
-    if isinstance(shape_type, TensorType):
-        return list(shape_type.get_shape())
-    else:
-        return shape_type
-
-
 def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int]:
     """
     In ONNX, tensor B is unidirectional broadcastable to tensor A if one of the following is true:
@@ -52,32 +43,30 @@ def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int]:
     https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
     """
     # Check if Tensor A and B both have exactly the same shape
-    lhs_shape = extract_shape_from_type(lhs)
-    rhs_shape = extract_shape_from_type(rhs)
-    if lhs_shape == rhs_shape:
-        return lhs_shape
+    if lhs == rhs:
+        return lhs
 
     # Check if Tensor A and B have the same number of dimensions and the length of each dimensions is either a common
     # length or B's length is 1.
     res_shape: list[int] = []
-    if len(lhs_shape) == len(rhs_shape):
-        for d1, d2 in zip(lhs_shape, rhs_shape):
+    if len(lhs) == len(rhs):
+        for d1, d2 in zip(lhs, rhs):
             if d1 == d2 or d2 == 1:
                 res_shape.append(max(d1, d2))
 
     # If Tensor B has too few dimensions, and B can have its shapes prepended with a dimension of length 1 to satisfy
     # property 2.
-    if len(rhs_shape) < len(lhs_shape):
+    if len(rhs) < len(lhs):
         # Store difference in dimension of shapes
-        shape_dimension_diffs = len(lhs_shape) - len(rhs_shape)
+        shape_dimension_diffs = len(lhs) - len(rhs)
         prepend = [1] * shape_dimension_diffs
-        prepend_b_shape = prepend + rhs_shape
-        for d1, d2 in zip(lhs_shape, prepend_b_shape):
+        prepend_b_shape = prepend + rhs
+        for d1, d2 in zip(lhs, prepend_b_shape):
             if d1 == d2 or d2 == 1:
                 res_shape.append(max(d1, d2))
             else:
                 raise VerifyException(
-                    f"operands have incompatible shapes: {tuple(lhs_shape)} and {tuple(rhs_shape)}"
+                    f"operands have incompatible shapes: {tuple(lhs)} and {tuple(rhs)}"
                 )
     return res_shape
 
@@ -92,15 +81,14 @@ def multidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int
 
     https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
     """
-    lhs_shape = extract_shape_from_type(lhs)
-    rhs_shape = extract_shape_from_type(rhs)
-    if len(lhs_shape) > len(rhs_shape):
-        longer_shape, shorter_shape = lhs_shape, rhs_shape
+
+    if len(lhs) > len(rhs):
+        longer_shape, shorter_shape = lhs, rhs
     else:
-        longer_shape, shorter_shape = rhs_shape, lhs_shape
+        longer_shape, shorter_shape = rhs, lhs
     # Store difference in dimension of shapes
     shape_dimension_diffs = len(longer_shape) - len(shorter_shape)
-    if len(lhs_shape) != len(rhs_shape):
+    if len(lhs) != len(rhs):
         shorter_shape = [1] * shape_dimension_diffs + list(shorter_shape)
     res_shape: list[int] = []
     # Checking shape broadcasting compatibility
