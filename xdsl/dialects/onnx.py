@@ -28,7 +28,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def extract_shape_from_type(
-    shape_type: Sequence[int],
+    shape_type: list[int],
 ) -> list[int] | None:
     if shape_type is None:
         return None
@@ -38,9 +38,7 @@ def extract_shape_from_type(
         return list(shape_type)
 
 
-def unidirectional_broadcast_shape(
-    lhs: Sequence[int], rhs: Sequence[int]
-) -> list[int] | None:
+def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int] | None:
     """
     In ONNX, tensor B is unidirectional broadcastable to tensor A if one of the following is true:
 
