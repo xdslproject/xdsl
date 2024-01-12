@@ -301,7 +301,7 @@ class X86Instruction(X86Op):
 
 class RsRdOperation(Generic[RS1InvT, RDInvT], IRDLOperation, X86Instruction, ABC):
     """
-    A base class for x86 operations that take two registers as operands.
+    A base class for x86 operations which has a source register and a destination register.
     """
 
     rs: Operand = operand_def(RS1InvT)
@@ -329,15 +329,98 @@ class RsRdOperation(Generic[RS1InvT, RDInvT], IRDLOperation, X86Instruction, ABC
         return self.rs, self.rd
 
 
+class RsOperation(Generic[RS1InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one source register.
+    """
+
+    rs: Operand = operand_def(RS1InvT)
+
+    def __init__(
+        self,
+        rs: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rs],
+            attributes={
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.rs,)
+
+
+class RdOperation(Generic[RDInvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one destination register.
+    """
+
+    rd: OpResult = result_def(RDInvT)
+
+    def __init__(
+        self,
+        *,
+        rd: RDInvT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "comment": comment,
+            },
+            result_types=[rd],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return (self.rd,)
+
+
 @irdl_op_definition
 class AddOp(RsRdOperation[GeneralRegisterType, GeneralRegisterType]):
     """
-    Adds the registers rs1 and rs2 and stores the result in rs1.
+    Adds the registers rs and rd and stores the result in rd.
 
     x[rd] = x[rs] + x[rd]
     """
 
     name = "x86.add"
+
+
+@irdl_op_definition
+class MovOp(RsRdOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Copies the value of rs into rd.
+
+    x[rd] = x[rs]
+    """
+
+    name = "x86.mov"
+
+
+@irdl_op_definition
+class PushOp(RsOperation[GeneralRegisterType]):
+    """
+    Decreases %rsp and places src at the new memory location pointed to by %rsp.
+    """
+
+    name = "x86.push"
+
+
+@irdl_op_definition
+class PopOp(RdOperation[GeneralRegisterType]):
+    """
+    Copies the value at the top of the stack into rd and increases %rsp.
+    """
+
+    name = "x86.pop"
 
 
 # region Assembly printing
