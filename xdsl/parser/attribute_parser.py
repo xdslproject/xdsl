@@ -718,11 +718,32 @@ class AttrParser(BaseParser):
             self.raise_error(
                 "Expected at least one element in the " "dense literal, but got None"
             )
+        # When hex attribute is used:
         if shape is None and hex_string is not None:
             if not isa(type.element_type, IntegerType | Float32Type | Float64Type):
                 self.raise_error(
                     "Hex strings for dense literals are only supported for int, f32 and f64 types"
                 )
+            hex_unit = None
+            if isa(type.element_type, IntegerType):
+                if type.element_type.width.data % 8 != 0:
+                    self.raise_error(
+                        "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
+                    )
+                hex_unit = type.element_type.width.data // 4
+            elif isa(type.element_type, Float32Type):
+                hex_unit = 8  # 8 * 4 bits = 32 bits
+            elif isa(type.element_type, Float64Type):
+                hex_unit = 16  # 16 * 4 bits = 64 bits
+            hex_values = (len(hex_string) - 2) // hex_unit
+            # For splat tensors (hex_values == 1) any type shape is okay
+            if hex_values != 1:
+                if hex_values != num_values:
+                    self.raise_error(
+                        f"Shape mismatch in dense literal. Expected {num_values} elements "
+                        f"from the type, but got {hex_values} elements from the hex string literal"
+                    )
+
         if shape is not None and shape != [] and type_shape != shape:
             self.raise_error(
                 f"Shape mismatch in dense literal. Expected {type_shape} "
