@@ -28,7 +28,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def extract_shape_from_type(
-    shape_type: Sequence[int] | TensorType[Attribute],
+    shape_type: Sequence[int],
 ) -> list[int] | None:
     if shape_type is None:
         return None
@@ -57,8 +57,8 @@ def unidirectional_broadcast_shape(
     https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
     """
     # Check if Tensor A and B both have exactly the same shape
-    lhs_shape = list(extract_shape_from_type(lhs))
-    rhs_shape = list(extract_shape_from_type(rhs))
+    lhs_shape = extract_shape_from_type(lhs)
+    rhs_shape = extract_shape_from_type(rhs)
     if lhs_shape == rhs_shape:
         return lhs_shape
 
@@ -99,8 +99,8 @@ def multidirectional_broadcast_shape(
 
     https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
     """
-    lhs_shape = list(extract_shape_from_type(lhs))
-    rhs_shape = list(extract_shape_from_type(rhs))
+    lhs_shape = extract_shape_from_type(lhs)
+    rhs_shape = extract_shape_from_type(rhs)
     if len(lhs_shape) > len(rhs_shape):
         longer_shape, shorter_shape = lhs_shape, rhs_shape
     else:
@@ -146,7 +146,8 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
             assert (
                 False
             ), "onnx elementwise binary operation operands and result must be of type TensorType"
-
+        lhs_type = cast(TensorType[Attribute], lhs_type)
+        rhs_type = cast(TensorType[Attribute], rhs_type)
         res_shape = multidirectional_broadcast_shape(lhs_type, rhs_type)
         res_type_shape = list(res_type.get_shape())
         if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
@@ -298,6 +299,8 @@ class Gemm(IRDLOperation):
         else:
             res_shape.append(tensor_a_shape[0])
             res_shape.append(tensor_b_shape[1])
+
+        tensor_c_type = cast(TensorType[Attribute], tensor_c_type)
         final_res_shape = unidirectional_broadcast_shape(res_shape, tensor_c_type)
         res_type_shape = list(res_tensor_type.get_shape())
         if (
