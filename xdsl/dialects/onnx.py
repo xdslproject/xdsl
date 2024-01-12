@@ -28,12 +28,12 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def extract_shape_from_type(
-    shape_type: [Sequence[int] | TensorType],
+    shape_type: Sequence[int] | TensorType[Attribute],
 ) -> list[int] | None:
     if shape_type is None:
         return None
     elif isinstance(shape_type, TensorType):
-        return shape_type.get_shape()
+        return list(shape_type.get_shape())
     else:
         return shape_type
 
