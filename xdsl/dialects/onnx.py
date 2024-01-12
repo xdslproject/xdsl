@@ -139,7 +139,10 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
             assert (
                 False
             ), "onnx elementwise binary operation operands and result must be of type TensorType"
-        res_shape = multidirectional_broadcast_shape(lhs_type, rhs_type)
+        lhs_shape = list(lhs_type.get_shape())
+        rhs_shape = list(rhs_type.get_shape())
+
+        res_shape = multidirectional_broadcast_shape(lhs_shape, rhs_shape)
         res_type_shape = list(res_type.get_shape())
         if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
             raise VerifyException(
@@ -265,6 +268,7 @@ class Gemm(IRDLOperation):
         # check shape compatibility
         tensor_a_shape = tensor_a_type.get_shape()
         tensor_b_shape = tensor_b_type.get_shape()
+        tensor_c_shape = list(tensor_c_type.get_shape())
 
         if tensor_a_type.get_num_dims() != 2:
             raise VerifyException("tensor A should be a 2D tensor")
@@ -290,8 +294,7 @@ class Gemm(IRDLOperation):
         else:
             res_shape.append(tensor_a_shape[0])
             res_shape.append(tensor_b_shape[1])
-
-        final_res_shape = unidirectional_broadcast_shape(res_shape, tensor_c_type)
+        final_res_shape = unidirectional_broadcast_shape(res_shape, tensor_c_shape)
         res_type_shape = list(res_tensor_type.get_shape())
         if (
             len(final_res_shape) != len(res_type_shape)
