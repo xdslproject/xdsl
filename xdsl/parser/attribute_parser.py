@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+import struct
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from sys import byteorder
@@ -718,9 +719,9 @@ class AttrParser(BaseParser):
                 "Expected at least one element in the " "dense literal, but got None"
             )
         if shape is None and hex_string is not None:
-            if not isa(type.element_type, IntegerType):
+            if not isa(type.element_type, IntegerType | Float32Type | Float64Type):
                 self.raise_error(
-                    "Only hex strings for integers " "are supported in dense literal"
+                    "Hex strings for dense literals are only supported for int, f32 and f64 types"
                 )
         if shape is not None and shape != [] and type_shape != shape:
             self.raise_error(
@@ -742,17 +743,34 @@ class AttrParser(BaseParser):
         if shape is None and hex_string is not None:
             # Strip of "0x" of hex string
             stripped_string = hex_string[2:]
-            chunk_size = element_type.width.data // 8
-            # Two hex is one byte
             byte_list = bytes.fromhex(stripped_string)
-            num_chunks = len(byte_list) // chunk_size
-            for i in range(num_chunks):
-                parsed_int = int.from_bytes(
-                    byte_list[i * chunk_size : (i + 1) * chunk_size],
-                    byteorder,
-                    signed=True,
-                )
-                data_values.append(parsed_int)
+            # Use struct builtin package for unpacking f32, f64
+            # @ in format string implies native endianess
+            if isa(element_type, Float32Type | Float64Type):
+                chunk_size = 4
+                format_str = "@f"
+                if isa(element_type, Float64Type):
+                    chunk_size = 8
+                    format_str = "@d"
+                num_chunks = len(byte_list) // chunk_size
+                for i in range(num_chunks):
+                    parsed_float = struct.unpack(
+                        format_str, byte_list[i * chunk_size : (i + 1) * chunk_size]
+                    )
+                    data_values.append(*parsed_float)
+            # Use int for unpacking IntegerType
+            else:
+                chunk_size = element_type.width.data // 8
+                # Two hex is one byte
+                num_chunks = len(byte_list) // chunk_size
+                for i in range(num_chunks):
+                    parsed_int = int.from_bytes(
+                        byte_list[i * chunk_size : (i + 1) * chunk_size],
+                        byteorder,
+                        signed=True,
+                    )
+                    data_values.append(parsed_int)
+
         elif shape != []:
             data_values = [value.to_type(self, element_type) for value in values]
         else:
