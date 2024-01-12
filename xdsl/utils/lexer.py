@@ -172,6 +172,7 @@ class StringLiteral(Span):
 
     @property
     def string_contents(self):
+        # Common case, so we optimize for it
         if "\\" not in self.text:
             return self.text[1:-1]
         res = list[str]()

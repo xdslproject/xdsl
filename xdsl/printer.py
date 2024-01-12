@@ -348,6 +348,12 @@ class Printer:
         self.print(">")
 
     def print_string_literal(self, string: str):
+        # Common case, this makes a huge difference because we print one time instead
+        # of once per character.
+        # This makes a huge difference on programs with a lot of generic syntax.
+        if all((0x20 <= char <= 0x7E) and char not in ('"', "\\") for char in string):
+            self.print(f'"{string}"')
+            return
         hexdigits = "0123456789ABCDEF"
         self.print('"')
         for char in string:
