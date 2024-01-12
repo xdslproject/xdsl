@@ -35,7 +35,7 @@ def extract_shape_from_type(
     elif isinstance(shape_type, TensorType):
         return list(shape_type.get_shape())
     else:
-        return shape_type
+        return list(shape_type)
 
 
 def unidirectional_broadcast_shape(
