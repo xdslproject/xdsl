@@ -680,10 +680,17 @@ class AttrParser(BaseParser):
         # If it is `[]`, then this is a splat attribute, meaning it has the same
         # value everywhere.
         shape: list[int] | None
+        hex_string: str | None = None
         if self._current_token.text == ">":
             values, shape = [], None
         else:
-            values, shape = self._parse_tensor_literal()
+            # Parse hex string e.g. dense<"0x82F5AB00">
+            hex_string = self.parse_optional_str_literal()
+            if hex_string is not None:
+                values, shape = [], None
+            else:
+                # Expect a tensor literal instead
+                values, shape = self._parse_tensor_literal()
         self.parse_punctuation(">", " in dense attribute")
 
         # Parse the dense type.
@@ -705,10 +712,15 @@ class AttrParser(BaseParser):
         type_shape = list(type.get_shape())
         num_values = math.prod(type_shape)
 
-        if shape is None and num_values != 0:
+        if shape is None and hex_string is None and num_values != 0:
             self.raise_error(
                 "Expected at least one element in the " "dense literal, but got None"
             )
+        if shape is None and hex_string is not None:
+            if not isa(type.element_type, IntegerType):
+                self.raise_error(
+                    "Only hex strings for integers " "are supported in dense literal"
+                )
         if shape is not None and shape != [] and type_shape != shape:
             self.raise_error(
                 f"Shape mismatch in dense literal. Expected {type_shape} "
@@ -717,14 +729,31 @@ class AttrParser(BaseParser):
         if any(dim == -1 for dim in type_shape):
             self.raise_error("Dense literal attribute should have a static shape.")
 
+        if shape is None and hex_string is not None:
+            try:
+                int(hex_string, 16)
+            except ValueError:
+                self.raise_error("Hex string in denseAttr is invalid")
+
         element_type = type.element_type
+        data_values: list[int] | list[float] = []
         # Convert list of elements to a list of values.
-        if shape != []:
+        if shape is None and hex_string is not None:
+            # Strip of "0X" of hex string
+            stripped_string = hex_string[2:]
+            # One hex is half a byte
+            chunk_size = element_type.width.data // 4
+            num_chunks = len(stripped_string) // chunk_size
+            for i in range(num_chunks):
+                parsed_int = int(
+                    stripped_string[i * chunk_size : (i + 1) * chunk_size], 16
+                )
+                data_values.append(parsed_int)
+        elif shape != []:
             data_values = [value.to_type(self, element_type) for value in values]
         else:
             assert len(values) == 1, "Fatal error in parser"
             data_values = [values[0].to_type(self, element_type)] * num_values
-
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_opaque_attr(self, _name: Span):
