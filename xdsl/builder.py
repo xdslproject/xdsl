@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import contextlib
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from types import TracebackType
 from typing import ClassVar, TypeAlias, overload
 
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
+from xdsl.rewriter import Rewriter
 
 
-@dataclass
+@dataclass(frozen=True)
 class InsertPoint:
     """
     An insert point.
@@ -23,50 +24,78 @@ class InsertPoint:
     block: Block
     """The block where the insertion point is in."""
 
-    op_before: Operation | None = field(default=None)
+    insert_before: Operation | None = field(default=None)
     """
-    The operation right before the insertion point.
-    None if the insertion point is at the end of the block.
+    The insertion point is right before this operation.
+    If the operation is None, the insertion point is at the end of the block.
     """
 
-    @overload
-    def __init__(self, op_before_or_block: Operation) -> None:
-        ...
-
-    @overload
-    def __init__(self, op_before_or_block: Block) -> None:
-        ...
-
-    @overload
-    def __init__(self, op_before_or_block: Block, op_before: Operation | None) -> None:
-        ...
-
-    def __init__(
-        self, op_before_or_block: Block | Operation, op_before: Operation | None = None
-    ) -> None:
-        if isinstance(op_before_or_block, Operation):
-            block = op_before_or_block.parent_block()
-            if block is None:
-                raise ValueError("Operation insertion point must have a parent block")
-            self.block = block
-            self.op_before = op_before_or_block
-        else:
-            self.block = op_before_or_block
-            self.op_before = op_before
-
-    def verify(self) -> None:
-        """
-        Check that the insertion point is valid.
-        An insertion point can only be invalid if `op_before` is an `Operation`, and its
-        parent is not `block`.
-        """
-        if self.op_before is not None:
-            if self.op_before.parent is not self.block:
+    def __post_init__(self) -> None:
+        # Check that the insertion point is valid.
+        # An insertion point can only be invalid if `insert_before` is an `Operation`,
+        # and its parent is not `block`.
+        if self.insert_before is not None:
+            if self.insert_before.parent is not self.block:
                 raise ValueError("Insertion point must be in the builder's `block`")
+
+    @staticmethod
+    def before(op: Operation) -> InsertPoint:
+        """Gets the insertion point before an operation."""
+        if (block := op.parent_block()) is None:
+            raise ValueError("Operation insertion point must have a parent block")
+        return InsertPoint(block, op)
+
+    @staticmethod
+    def after(op: Operation) -> InsertPoint:
+        """Gets the insertion point after an operation."""
+        block = op.parent_block()
+        if block is None:
+            raise ValueError("Operation insertion point must have a parent block")
+        return InsertPoint(block, op.next_op)
+
+    @staticmethod
+    def at_start(block: Block) -> InsertPoint:
+        """Gets the insertion point at the start of a block."""
+        return InsertPoint(block, block.ops.first)
+
+    @staticmethod
+    def at_end(block: Block) -> InsertPoint:
+        """Gets the insertion point at the end of a block."""
+        return InsertPoint(block)
+
+
+@dataclass(eq=False)
+class BuilderListener:
+    """A listener for builder events."""
+
+    operation_insertion_handler: list[Callable[[Operation], None]] = field(
+        default_factory=list, kw_only=True
+    )
+    """Callbacks that are called when an operation is inserted by the builder."""
+
+    block_creation_handler: list[Callable[[Block], None]] = field(
+        default_factory=list, kw_only=True
+    )
+    """Callback that are called when a block is created by the builder."""
+
+    def handle_operation_insertion(self, op: Operation) -> None:
+        """Pass the operation that was just inserted to callbacks."""
+        for callback in self.operation_insertion_handler:
+            callback(op)
+
+    def handle_block_creation(self, block: Block) -> None:
+        """Pass the block that was just created to callbacks."""
+        for callback in self.block_creation_handler:
+            callback(block)
+
+    def extend_from_listener(self, listener: BuilderListener) -> None:
+        """Forward all callbacks from `listener` to this listener."""
+        self.operation_insertion_handler.extend(listener.operation_insertion_handler)
+        self.block_creation_handler.extend(listener.block_creation_handler)
 
 
 @dataclass
-class Builder:
+class Builder(BuilderListener):
     """
     A helper class to construct IRs, by keeping track of where to insert an
     operation. It mimics the OpBuilder class from MLIR.
@@ -74,27 +103,28 @@ class Builder:
     https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder.html
     """
 
-    _insertion_point: InsertPoint
-    """
-    Operations will be inserted before this operation, or at the end of the block if None.
-    """
+    insertion_point: InsertPoint
+    """Operations will be inserted at this location."""
 
-    def __init__(self, insert_point: InsertPoint | Block | Operation) -> None:
-        if isinstance(insert_point, Block | Operation):
-            insert_point = InsertPoint(insert_point)
-        self.insertion_point = insert_point
+    @staticmethod
+    def before(op: Operation) -> Builder:
+        """Creates a builder with the insertion point before an operation."""
+        return Builder(InsertPoint.before(op))
 
-    def __post_init__(self):
-        self._insertion_point.verify()
+    @staticmethod
+    def after(op: Operation) -> Builder:
+        """Creates a builder with the insertion point after an operation."""
+        return Builder(InsertPoint.after(op))
 
-    @property
-    def insertion_point(self) -> InsertPoint:
-        return self._insertion_point
+    @staticmethod
+    def at_start(block: Block) -> Builder:
+        """Creates a builder with the insertion point at the start of a block."""
+        return Builder(InsertPoint.at_start(block))
 
-    @insertion_point.setter
-    def insertion_point(self, insertion_point: InsertPoint):
-        self._insertion_point = insertion_point
-        self._insertion_point.verify()
+    @staticmethod
+    def at_end(block: Block) -> Builder:
+        """Creates a builder with the insertion point at the end of a block."""
+        return Builder(InsertPoint.at_end(block))
 
     def insert(self, op: OperationInvT) -> OperationInvT:
         """Inserts `op` at the current insertion point."""
@@ -107,13 +137,75 @@ class Builder:
             )
 
         block = self.insertion_point.block
-        op_before = self.insertion_point.op_before
-        if op_before is not None:
-            block.insert_op_before(op, op_before)
+        insert_before = self.insertion_point.insert_before
+        if insert_before is not None:
+            block.insert_op_before(op, insert_before)
         else:
             block.add_op(op)
+        self.handle_operation_insertion(op)
 
         return op
+
+    def create_block_before(
+        self, insert_before: Block, arg_types: Iterable[Attribute] = ()
+    ) -> Block:
+        """
+        Create a block before `insert_before`, and set
+        the insertion point at the end of the inserted block.
+        """
+        block = Block(arg_types=arg_types)
+        Rewriter.insert_block_before(block, insert_before)
+        self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+
+        return block
+
+    def create_block_after(
+        self, insert_after: Block, arg_types: Iterable[Attribute] = ()
+    ) -> Block:
+        """
+        Create a block after `insert_after`, and set
+        the insertion point at the end of the inserted block.
+        """
+
+        block = Block(arg_types=arg_types)
+        Rewriter.insert_block_after(block, insert_after)
+        self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+
+        return block
+
+    def create_block_at_start(
+        self, region: Region, arg_types: Iterable[Attribute] = ()
+    ) -> Block:
+        """
+        Create a block at the start of `region`, and set
+        the insertion point at the end of the inserted block.
+        """
+        block = Block(arg_types=arg_types)
+        region.insert_block(block, 0)
+        self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+
+        return block
+
+    def create_block_at_end(
+        self, region: Region, arg_types: Iterable[Attribute] = ()
+    ) -> Block:
+        """
+        Create a block at the end of `region`, and set
+        the insertion point at the end of the inserted block.
+        """
+        block = Block(arg_types=arg_types)
+        region.add_block(block)
+        self.insertion_point = InsertPoint.at_end(block)
+
+        self.handle_block_creation(block)
+
+        return block
 
     @staticmethod
     def _region_no_args(func: Callable[[Builder], None]) -> Region:
@@ -121,7 +213,7 @@ class Builder:
         Generates a single-block region.
         """
         block = Block()
-        builder = Builder(InsertPoint(block))
+        builder = Builder.at_end(block)
         func(builder)
         return Region(block)
 
@@ -139,7 +231,7 @@ class Builder:
 
         def wrapper(func: _CallableRegionFuncType) -> Region:
             block = Block(arg_types=input_types)
-            builder = Builder(block)
+            builder = Builder.at_start(block)
 
             func(builder, block.args)
 
@@ -193,7 +285,7 @@ class Builder:
         Generates a single-block region.
         """
         block = Block()
-        builder = Builder(block)
+        builder = Builder(InsertPoint.at_end(block))
 
         with ImplicitBuilder(builder):
             func()
@@ -214,7 +306,7 @@ class Builder:
 
         def wrapper(func: _CallableImplicitRegionFuncType) -> Region:
             block = Block(arg_types=input_types)
-            builder = Builder(block)
+            builder = Builder(InsertPoint.at_end(block))
 
             with ImplicitBuilder(builder):
                 func(block.args)
@@ -334,7 +426,7 @@ class ImplicitBuilder(contextlib.AbstractContextManager[tuple[BlockArgument, ...
         if isinstance(arg, Region):
             arg = arg.block
         if isinstance(arg, Block):
-            arg = Builder(arg)
+            arg = Builder.at_end(arg)
         self._builder = arg
 
     def __enter__(self) -> tuple[BlockArgument, ...]:

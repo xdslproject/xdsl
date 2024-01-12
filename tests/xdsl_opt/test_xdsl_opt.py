@@ -120,7 +120,7 @@ def test_operation_deletion():
                     if op.ops.first is not None:
                         op.ops.first.detach()
 
-            self.register_pass(RemoveConstantPass)
+            self.register_pass("remove-constant", lambda: RemoveConstantPass)
 
     opt = xDSLOptMainPass(args=[filename_in, "-p", "remove-constant"])
 

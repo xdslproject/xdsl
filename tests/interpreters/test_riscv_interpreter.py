@@ -71,6 +71,15 @@ def test_riscv_interpreter():
     ) == (3,)
 
     assert interpreter.run_op(
+        riscv.AddiOp(
+            TestSSAValue(register),
+            2,
+            rd=riscv.IntRegisterType.unallocated(),
+        ),
+        (1,),
+    ) == (3,)
+
+    assert interpreter.run_op(
         riscv.MulOp(
             TestSSAValue(register),
             TestSSAValue(register),
@@ -223,6 +232,13 @@ def test_riscv_interpreter():
     ) == (struct.unpack("<d", struct.pack("<ff", 3.0, 4.0))[0],)
 
     assert buffer == test_buffer
+
+    assert interpreter.run_op(
+        riscv.FCvtDWOp(
+            TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()
+        ),
+        (42,),
+    ) == (42.0,)
 
     assert (
         interpreter.run_op(

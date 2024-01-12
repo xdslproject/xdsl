@@ -7,7 +7,14 @@ from conftest import assert_print_op
 
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
-from xdsl.dialects.builtin import Builtin, IntAttr, IntegerType, UnitAttr, i32
+from xdsl.dialects.builtin import (
+    Builtin,
+    FunctionType,
+    IntAttr,
+    IntegerType,
+    UnitAttr,
+    i32,
+)
 from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
@@ -692,7 +699,7 @@ def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : i64}} : () -> ()
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"arg_attrs" = {"key_one" = "value_one", "key_two" = "value_two", "key_three" = 72 : i64, "unit_attr"}} : () -> ()
     """
 
     ctx = MLContext()
@@ -703,3 +710,35 @@ def test_dictionary_attr():
     parsed = parser.parse_op()
 
     assert_print_op(parsed, prog, None)
+
+
+def test_print_function_type():
+    io = StringIO()
+    printer = Printer(stream=io)
+    printer.print_function_type((), ())
+
+    assert io.getvalue() == "() -> ()"
+
+    io = StringIO()
+    printer.stream = io
+    printer.print_function_type((i32,), ())
+
+    assert io.getvalue() == "(i32) -> ()"
+
+    io = StringIO()
+    printer.stream = io
+    printer.print_function_type((i32,), (i32,))
+
+    assert io.getvalue() == "(i32) -> i32"
+
+    io = StringIO()
+    printer.stream = io
+    printer.print_function_type((i32,), (i32, i32))
+
+    assert io.getvalue() == "(i32) -> (i32, i32)"
+
+    io = StringIO()
+    printer.stream = io
+    printer.print_function_type((i32,), (FunctionType.from_lists((i32,), (i32,)),))
+
+    assert io.getvalue() == "(i32) -> ((i32) -> i32)"

@@ -1,9 +1,9 @@
 // RUN: xdsl-opt -p snitch-allocate-registers %s | filecheck %s
 
-%stride_pattern, %ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!snitch_stream.stride_pattern_type, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
-%s0 = "snitch_stream.strided_read"(%ptr0, %stride_pattern) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<>>
-%s1 = "snitch_stream.strided_read"(%ptr1, %stride_pattern) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<>>
-%s2 = "snitch_stream.strided_write"(%ptr2, %stride_pattern) {"dm" = #builtin.int<2>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.writable<!riscv.freg<>>
+%stride_pattern, %ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!snitch_stream.stride_pattern_type<2>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
+%s0 = "snitch_stream.strided_read"(%ptr0, %stride_pattern) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<>>
+%s1 = "snitch_stream.strided_read"(%ptr1, %stride_pattern) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<>>
+%s2 = "snitch_stream.strided_write"(%ptr2, %stride_pattern) {"dm" = #builtin.int<2>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.writable<!riscv.freg<>>
 %c128 = riscv.li 128 : () -> !riscv.reg<>
 
 "snitch_stream.generic"(%c128, %s0, %s1, %s2) <{"operandSegmentSizes" = array<i32: 1, 2, 1>}> ({
@@ -20,10 +20,10 @@
 
 // CHECK: builtin.module {
 
-// CHECK-NEXT:  %stride_pattern, %ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!snitch_stream.stride_pattern_type, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
-// CHECK-NEXT:  %s0 = "snitch_stream.strided_read"(%ptr0, %stride_pattern) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<ft0>>
-// CHECK-NEXT:  %s1 = "snitch_stream.strided_read"(%ptr1, %stride_pattern) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<ft1>>
-// CHECK-NEXT:  %s2 = "snitch_stream.strided_write"(%ptr2, %stride_pattern) {"dm" = #builtin.int<2>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.writable<!riscv.freg<ft2>>
+// CHECK-NEXT:  %stride_pattern, %ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!snitch_stream.stride_pattern_type<2>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
+// CHECK-NEXT:  %s0 = "snitch_stream.strided_read"(%ptr0, %stride_pattern) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<ft0>>
+// CHECK-NEXT:  %s1 = "snitch_stream.strided_read"(%ptr1, %stride_pattern) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<ft1>>
+// CHECK-NEXT:  %s2 = "snitch_stream.strided_write"(%ptr2, %stride_pattern) {"dm" = #builtin.int<2>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.writable<!riscv.freg<ft2>>
 // CHECK-NEXT:  %c128 = riscv.li 128 : () -> !riscv.reg<>
 // CHECK-NEXT:  "snitch_stream.generic"(%c128, %s0, %s1, %s2) <{"operandSegmentSizes" = array<i32: 1, 2, 1>}> ({
 // CHECK-NEXT:  ^0(%{{.*}} : !riscv.freg<ft0>, %{{.*}} : !riscv.freg<ft1>):

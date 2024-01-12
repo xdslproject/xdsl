@@ -108,7 +108,7 @@ def build_affine_for(
         step,
     )
     builder.insert(op)
-    body_builder_fn(Builder(block), induction_var, rest)
+    body_builder_fn(Builder.at_end(block), induction_var, rest)
     return op
 
 
@@ -298,7 +298,7 @@ def lower_op_to_loops(
         store_op = affine.Store(value_to_store, alloc.memref, ivs)
         nested_builder.insert(store_op)
 
-    builder = Builder(op)
+    builder = Builder.before(op)
     build_affine_loop_nest_const(
         builder, lower_bounds, tensor_type.get_shape(), steps, impl_loop
     )
