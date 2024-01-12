@@ -70,10 +70,10 @@ builtin.module {
 // -----
 
 builtin.module {
-    %t0, %t1, %t2 = "test.op"(): () -> (tensor<5x2xf32>, tensor<2x1xf32>, tensor<5x4xf32>)
+    %t0, %t1, %t2 = "test.op"(): () -> (tensor<5x2xf32>, tensor<2x1xf32>, tensor<1x1xf32>)
 
-    //CHECK:  Operation does not verify: result shape [5, 4] does not match result type tensor<5x2xf32>
-    %res_gemm = "onnx.Gemm"(%t0, %t1, %t2) : (tensor<5x2xf32>, tensor<2x1xf32>, tensor<5x4xf32>) -> tensor<5x2xf32>
+    //CHECK:  Operation does not verify: result shape [5, 1] does not match final result type tensor<5x4xf32>
+    %res_gemm = "onnx.Gemm"(%t0, %t1, %t2) : (tensor<5x2xf32>, tensor<2x1xf32>, tensor<1x1xf32>) -> tensor<5x4xf32>
 }
 
 // -----
