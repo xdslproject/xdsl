@@ -15,9 +15,9 @@ from xdsl.dialects.stream import (
 )
 from xdsl.dialects.utils import parse_return_op_like, print_return_op_like
 from xdsl.ir import (
+    Data,
     Dialect,
     Operation,
-    ParametrizedAttribute,
     Region,
     SSAValue,
     TypeAttribute,
@@ -34,14 +34,24 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 
 
 @irdl_attr_definition
-class StridePatternType(ParametrizedAttribute, TypeAttribute):
+class StridePatternType(Data[int], TypeAttribute):
     name = "snitch_stream.stride_pattern_type"
+    name = "snitch_stream.stride_pattern_type"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> int:
+        with parser.in_angle_brackets():
+            return parser.parse_integer()
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
 
 
 @irdl_op_definition
@@ -118,7 +128,7 @@ class StridePatternOp(IRDLOperation):
 
     name = "snitch_stream.stride_pattern"
 
-    stream = result_def(StridePatternType)
+    pattern = result_def(StridePatternType)
     ub = attr_def(ArrayAttr[IntAttr])
     strides = attr_def(ArrayAttr[IntAttr])
     dm = attr_def(IntAttr)
@@ -129,8 +139,10 @@ class StridePatternOp(IRDLOperation):
         strides: ArrayAttr[IntAttr],
         dm: IntAttr,
     ):
+        rank = len(ub.data)
+        assert rank == len(strides.data)
         super().__init__(
-            result_types=[StridePatternType()],
+            result_types=[StridePatternType(rank)],
             attributes={
                 "ub": ub,
                 "strides": strides,
@@ -204,7 +216,7 @@ class StridedWriteOp(IRDLOperation):
 
 
 SnitchStream = Dialect(
-    "snitch-stream",
+    "snitch_stream",
     [
         GenericOp,
         YieldOp,
