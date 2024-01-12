@@ -4,6 +4,7 @@ import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from sys import byteorder
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
@@ -739,14 +740,17 @@ class AttrParser(BaseParser):
         data_values: list[int] | list[float] = []
         # Convert list of elements to a list of values.
         if shape is None and hex_string is not None:
-            # Strip of "0X" of hex string
+            # Strip of "0x" of hex string
             stripped_string = hex_string[2:]
-            # One hex is half a byte
-            chunk_size = element_type.width.data // 4
-            num_chunks = len(stripped_string) // chunk_size
+            chunk_size = element_type.width.data // 8
+            # Two hex is one byte
+            byte_list = bytes.fromhex(stripped_string)
+            num_chunks = len(byte_list) // chunk_size
             for i in range(num_chunks):
-                parsed_int = int(
-                    stripped_string[i * chunk_size : (i + 1) * chunk_size], 16
+                parsed_int = int.from_bytes(
+                    byte_list[i * chunk_size : (i + 1) * chunk_size],
+                    byteorder,
+                    signed=True,
                 )
                 data_values.append(parsed_int)
         elif shape != []:
