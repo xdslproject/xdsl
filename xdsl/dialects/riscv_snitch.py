@@ -5,10 +5,8 @@ from typing import Annotated, cast
 
 from typing_extensions import Self
 
-from xdsl.dialects import builtin, riscv, stream
-from xdsl.dialects.builtin import (
-    IntAttr,
-)
+from xdsl.dialects import riscv, stream
+from xdsl.dialects.builtin import IntAttr, UnrealizedConversionCastOp
 from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
     IntRegisterType,
@@ -289,8 +287,7 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
             raise VerifyException("Non-zero stagger mask currently unsupported")
         for instruction in self.body.ops:
             if not instruction.has_trait(Pure) and not isinstance(
-                instruction,
-                FrepYieldOp | ReadOp | WriteOp | builtin.UnrealizedConversionCastOp,
+                instruction, FrepYieldOp | ReadOp | WriteOp | UnrealizedConversionCastOp
             ):
                 raise VerifyException(
                     "Frep operation body may not contain instructions "
