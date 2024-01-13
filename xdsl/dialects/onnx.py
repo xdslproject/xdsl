@@ -26,7 +26,7 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 
-def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int]:
+def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int] | None:
     """
     In ONNX, tensor B is unidirectional broadcastable to tensor A if one of the following is true:
 
@@ -46,32 +46,24 @@ def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int]:
     if lhs == rhs:
         return lhs
 
-    # Check if Tensor A and B have the same number of dimensions and the length of each dimensions is either a common
-    # length or B's length is 1.
-    res_shape: list[int] = []
-    if len(lhs) == len(rhs):
-        for d1, d2 in zip(lhs, rhs):
-            if d1 == d2 or d2 == 1:
-                res_shape.append(max(d1, d2))
-
-    # If Tensor B has too few dimensions, and B can have its shapes prepended with a dimension of length 1 to satisfy
-    # property 2.
-    if len(rhs) < len(lhs):
-        # Store difference in dimension of shapes
-        shape_dimension_diffs = len(lhs) - len(rhs)
-        prepend = [1] * shape_dimension_diffs
-        prepend_b_shape = prepend + rhs
-        for d1, d2 in zip(lhs, prepend_b_shape):
-            if d1 == d2 or d2 == 1:
-                res_shape.append(max(d1, d2))
-            else:
-                raise VerifyException(
-                    f"operands have incompatible shapes: {tuple(lhs)} and {tuple(rhs)}"
-                )
+    lhs_len = len(lhs)
+    rhs_len = len(rhs)
+    prefix_len = lhs_len - rhs_len
+    if prefix_len < 0:
+        # lhs must not be shorter than rhs
+        return None
+    res_shape = lhs[:prefix_len]
+    for dl, dr in zip(lhs[prefix_len:], rhs):
+        if dl == dr or dr == 1 or dl == 1:
+            res_shape.append(max(dl, dr))
+        else:
+            return None
     return res_shape
 
 
-def multidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int]:
+def multidirectional_broadcast_shape(
+    lhs: list[int], rhs: list[int]
+) -> list[int] | None:
     """
     In ONNX, a set of tensors are multidirectional broadcastable to the same shape if one of the following is true:
 
@@ -83,23 +75,9 @@ def multidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int
     """
 
     if len(lhs) > len(rhs):
-        longer_shape, shorter_shape = lhs, rhs
+        return unidirectional_broadcast_shape(rhs, lhs)
     else:
-        longer_shape, shorter_shape = rhs, lhs
-    # Store difference in dimension of shapes
-    shape_dimension_diffs = len(longer_shape) - len(shorter_shape)
-    if len(lhs) != len(rhs):
-        shorter_shape = [1] * shape_dimension_diffs + list(shorter_shape)
-    res_shape: list[int] = []
-    # Checking shape broadcasting compatibility
-    for d1, d2 in zip(longer_shape, shorter_shape):
-        if d1 == d2 or d1 == 1 or d2 == 1:
-            res_shape.append(max(d1, d2))
-        else:
-            raise VerifyException(
-                f"operands have incompatible shapes: {tuple(shorter_shape)} and {tuple(longer_shape)}"
-            )
-    return res_shape
+        return unidirectional_broadcast_shape(lhs, rhs)
 
 
 class ElementwiseBinOpBase(IRDLOperation, ABC):
@@ -131,6 +109,10 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
         rhs_shape = list(rhs_type.get_shape())
 
         res_shape = multidirectional_broadcast_shape(lhs_shape, rhs_shape)
+        if res_shape is None:
+            raise VerifyException(
+                f"operands have incompatible shapes: {tuple(lhs_shape)} and {tuple(rhs_shape)}"
+            )
         res_type_shape = list(res_type.get_shape())
         if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
             raise VerifyException(
@@ -160,11 +142,12 @@ class Div(ElementwiseBinOpBase):
 
 @irdl_op_definition
 class Relu(IRDLOperation):
-    name = "onnx.Relu"
     """
     Relu takes one input data (Tensor) and produces one output data (Tensor) where the rectified linear function,
      y = max(0, x), is applied to the tensor elementwise.
     """
+
+    name = "onnx.Relu"
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     operand = operand_def(TensorType[T])
     res = result_def(TensorType[T])
@@ -283,6 +266,10 @@ class Gemm(IRDLOperation):
             res_shape.append(tensor_a_shape[0])
             res_shape.append(tensor_b_shape[1])
         final_res_shape = unidirectional_broadcast_shape(res_shape, tensor_c_shape)
+        if final_res_shape is None:
+            raise VerifyException(
+                f"operands have incompatible shapes: {tuple(res_shape)} and {tuple(tensor_c_shape)}"
+            )
         res_type_shape = list(res_tensor_type.get_shape())
         if (
             len(final_res_shape) != len(res_type_shape)
