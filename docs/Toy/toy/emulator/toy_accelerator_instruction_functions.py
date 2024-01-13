@@ -1,9 +1,12 @@
+from typing import Any
+
 from xdsl.dialects import riscv
-from xdsl.interpreter import Interpreter, PythonValues
+from xdsl.interpreter import Interpreter, PythonValues, impl, register_impls
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
+@register_impls
 class ToyAcceleratorInstructionFunctions(RiscvFunctions):
     def __init__(self):
         super().__init__(
@@ -15,6 +18,16 @@ class ToyAcceleratorInstructionFunctions(RiscvFunctions):
                 "print": print_,
             },
         )
+
+    @impl(riscv.EcallOp)
+    def run_ecall(
+        self,
+        interpreter: Interpreter,
+        op: riscv.EcallOp,
+        args: tuple[Any, ...],
+    ):
+        # In Toy, ecall is always exit
+        return ()
 
 
 def print_(
