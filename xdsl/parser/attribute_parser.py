@@ -790,7 +790,21 @@ class AttrParser(BaseParser):
             self.raise_error(
                 "Expected at least one element in the " "dense literal, but got None"
             )
-        if shape is not None and shape != [] and type_shape != shape:
+
+        # perform check on just the flattened shapes for hex attribute
+        if hex_string is not None and shape != []:
+            assert shape is not None
+            if num_values != shape[0]:
+                self.raise_error(
+                    f"Shape mismatch in dense literal. Expected {num_values} "
+                    f"elements from the type, but got {shape[0]} elements."
+                )
+        if (
+            shape is not None
+            and shape != []
+            and type_shape != shape
+            and hex_string is None
+        ):
             self.raise_error(
                 f"Shape mismatch in dense literal. Expected {type_shape} "
                 f"shape from the type, but got {shape} shape."
