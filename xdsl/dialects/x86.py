@@ -559,7 +559,7 @@ def x86_code(module: ModuleOp) -> str:
 
 
 X86 = Dialect(
-    "riscv",
+    "x86",
     [
         AddOp,
         SubOp,
