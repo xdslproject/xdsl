@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Data,
+    Dialect,
     Operation,
     OpResult,
     SSAValue,
@@ -557,4 +558,24 @@ def x86_code(module: ModuleOp) -> str:
     return stream.getvalue()
 
 
+X86 = Dialect(
+    "riscv",
+    [
+        AddOp,
+        SubOp,
+        ImulOp,
+        IdivOp,
+        NotOp,
+        AndOp,
+        OrOp,
+        XorOp,
+        MovOp,
+        PushOp,
+        PopOp,
+    ],
+    [
+        GeneralRegisterType,
+        LabelAttr,
+    ],
+)
 # endregion
