@@ -7,7 +7,7 @@ builtin.module {
     }) : () -> ()
     func.return
   }
-  "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
+  "memref.global"() {"alignment" = 64 : i64, "sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
   func.func private @memref_test() {
     %0 = "memref.get_global"() {"name" = @g} : () -> memref<1xindex>
     %1 = arith.constant 0 : index
@@ -45,7 +45,7 @@ builtin.module {
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:   "memref.global"() <{"sym_name" = "g", "sym_visibility" = "public", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ()
+// CHECK-NEXT:   "memref.global"() <{"sym_name" = "g", "sym_visibility" = "public", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "alignment" = 64 : i64}> : () -> ()
 // CHECK-NEXT:   func.func private @memref_test() {
 // CHECK-NEXT:     %{{.*}} = "memref.get_global"() <{"name" = @g}> : () -> memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = arith.constant 0 : index

@@ -472,6 +472,7 @@ class Global(IRDLOperation):
     sym_visibility: StringAttr = prop_def(StringAttr)
     type: Attribute = prop_def(Attribute)
     initial_value: Attribute = prop_def(Attribute)
+    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -491,13 +492,17 @@ class Global(IRDLOperation):
         sym_type: Attribute,
         initial_value: Attribute,
         sym_visibility: StringAttr = StringAttr("private"),
+        alignment: int | AnyIntegerAttr | None = None,
     ) -> Global:
+        if isinstance(alignment, int):
+            alignment = IntegerAttr.from_int_and_width(alignment, 64)
         return Global.build(
             properties={
                 "sym_name": sym_name,
                 "type": sym_type,
                 "initial_value": initial_value,
                 "sym_visibility": sym_visibility,
+                "alignment": alignment,
             }
         )
 
