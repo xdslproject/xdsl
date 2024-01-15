@@ -127,6 +127,11 @@
   // CHECK: "value1" = dense<[-1, 0]> : tensor<2xi8>, "value2" = dense<16711935> : tensor<1xi32>, "value3" = dense<-1095041334> : tensor<2xi32>
 
   "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<"0xFF00CAFE"> : tensor<2x2xi8>,
+                      sym_name = "dense_tensor_attr_hex_long"} : () -> ()
+  // CHECK: "value1" = dense<[[-1, 0], [-54, -2]]> : tensor<2x2xi8>
+
+  "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<"0xCAFEBABE"> : tensor<2xf32>,
                       value2 = dense<"0xCAFEBABEB00BAABE"> : tensor<1xf64>,
                       sym_name = "dense_tensor_attr_hex_float"} : () -> ()
