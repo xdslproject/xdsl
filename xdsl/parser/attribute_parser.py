@@ -724,11 +724,7 @@ class AttrParser(BaseParser):
         data_values: list[int] | list[float] = []
 
         if isa(element_type, Float32Type | Float64Type):
-            for i in range(num_chunks):
-                parsed_float = struct.unpack(
-                    format_str, byte_list[i * chunk_size : (i + 1) * chunk_size]
-                )
-                data_values.append(*parsed_float)
+            data_values = [i[0] for i in struct.iter_unpack(format_str, byte_list)]
         # Use int for unpacking IntegerType
         else:
             for i in range(num_chunks):
