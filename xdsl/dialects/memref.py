@@ -485,6 +485,14 @@ class Global(IRDLOperation):
                 "Global initial value is expected to be a "
                 "dense type or an unit attribute"
             )
+        if self.alignment is not None:
+            assert isa(self.alignment, IntegerAttr)
+            test = self.alignment.value.data
+            # test if is power of 2 with binary magic
+            if not ((test & (test - 1) == 0) and test != 0):
+                raise VerifyException(
+                    f"Alignment attribute {self.alignment.value.data} is not a power of 2"
+                )
 
     @staticmethod
     def get(
@@ -496,6 +504,7 @@ class Global(IRDLOperation):
     ) -> Global:
         if isinstance(alignment, int):
             alignment = IntegerAttr.from_int_and_width(alignment, 64)
+
         return Global.build(
             properties={
                 "sym_name": sym_name,
