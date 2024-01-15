@@ -26,6 +26,50 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 
+def tensor_unidirectional_broadcast_shape(
+    lhs: TensorType[Attribute], rhs: TensorType[Attribute], res: TensorType[Attribute]
+) -> TensorType[Attribute]:
+    """
+    Returns the tensor format of an unidirectional broadcastable shape
+    """
+    lhs_shape = lhs.get_shape()
+    rhs_shape = rhs.get_shape()
+    res_shape = unidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
+    res_shape_tensor = cast(TensorType[Attribute], res_shape)
+    if not res_shape:
+        raise VerifyException(
+            f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
+        )
+    res_type_shape = list(res.get_shape())
+    if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
+        raise VerifyException(
+            f"result shape {res_shape} does not match result type {res}"
+        )
+    return res_shape_tensor
+
+
+def tensor_multidirectional_broadcast_shape(
+    lhs: TensorType[Attribute], rhs: TensorType[Attribute], res: TensorType[Attribute]
+) -> TensorType[Attribute]:
+    """
+    Returns the tensor format of a multidirectional broadcastable shape
+    """
+    lhs_shape = lhs.get_shape()
+    rhs_shape = rhs.get_shape()
+    res_shape = multidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
+    res_shape_tensor = cast(TensorType[Attribute], res_shape)
+    if not res_shape:
+        raise VerifyException(
+            f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
+        )
+    res_type_shape = list(res.get_shape())
+    if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
+        raise VerifyException(
+            f"result shape {res_shape} does not match result type {res}"
+        )
+    return res_shape_tensor
+
+
 def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int] | None:
     """
     In ONNX, tensor B is unidirectional broadcastable to tensor A if one of the following is true:
@@ -105,19 +149,10 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
             assert (
                 False
             ), "onnx elementwise binary operation operands and result must be of type TensorType"
-        lhs_shape = list(lhs_type.get_shape())
-        rhs_shape = list(rhs_type.get_shape())
-
-        res_shape = multidirectional_broadcast_shape(lhs_shape, rhs_shape)
-        if res_shape is None:
-            raise VerifyException(
-                f"operands have incompatible shapes: {tuple(lhs_shape)} and {tuple(rhs_shape)}"
-            )
-        res_type_shape = list(res_type.get_shape())
-        if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
-            raise VerifyException(
-                f"result shape {res_shape} does not match result type {res_type}"
-            )
+        lhs_type = cast(TensorType[Attribute], lhs_type)
+        rhs_type = cast(TensorType[Attribute], rhs_type)
+        res_type = cast(TensorType[Attribute], res_type)
+        tensor_multidirectional_broadcast_shape(lhs_type, rhs_type, res_type)
 
 
 @irdl_op_definition
@@ -224,8 +259,6 @@ class Gemm(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        # store dimensions of tensor A and tensor B
-        res_shape: list[int] = []
         if (
             not isinstance(tensor_a_type := self.tensor_a.type, TensorType)
             or not isinstance(tensor_b_type := self.tensor_b.type, TensorType)
@@ -236,10 +269,15 @@ class Gemm(IRDLOperation):
                 False
             ), "onnx elementwise operation operands and result must be of type TensorType"
 
-        # check shape compatibility
+        tensor_a_type = cast(TensorType[Attribute], tensor_a_type)
+        tensor_b_type = cast(TensorType[Attribute], tensor_b_type)
+        tensor_c_type = cast(TensorType[Attribute], tensor_c_type)
+        res_tensor_type = cast(TensorType[Attribute], res_tensor_type)
+
+        # store dimensions of tensor A and tensor B
+        res_shape: list[int] = []
         tensor_a_shape = tensor_a_type.get_shape()
         tensor_b_shape = tensor_b_type.get_shape()
-        tensor_c_shape = list(tensor_c_type.get_shape())
 
         if tensor_a_type.get_num_dims() != 2:
             raise VerifyException("tensor A should be a 2D tensor")
@@ -265,19 +303,12 @@ class Gemm(IRDLOperation):
         else:
             res_shape.append(tensor_a_shape[0])
             res_shape.append(tensor_b_shape[1])
-        final_res_shape = unidirectional_broadcast_shape(res_shape, tensor_c_shape)
-        if final_res_shape is None:
-            raise VerifyException(
-                f"operands have incompatible shapes: {tuple(res_shape)} and {tuple(tensor_c_shape)}"
-            )
-        res_type_shape = list(res_tensor_type.get_shape())
-        if (
-            len(final_res_shape) != len(res_type_shape)
-            or final_res_shape != res_type_shape
-        ):
-            raise VerifyException(
-                f"result shape {final_res_shape} does not match final result type {res_tensor_type}"
-            )
+
+        # Build tensor of tensor (A * B) computation
+        tensors_res = TensorType(IntegerType(32), res_shape)
+        tensor_unidirectional_broadcast_shape(
+            tensors_res, tensor_c_type, res_tensor_type
+        )
 
 
 ONNX = Dialect(
