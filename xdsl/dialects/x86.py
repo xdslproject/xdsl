@@ -426,6 +426,50 @@ class IdivOp(RsOperation[GeneralRegisterType]):
 
 
 @irdl_op_definition
+class NotOp(RdOperation[GeneralRegisterType]):
+    """
+    bitwise not of rd, stored in rd
+
+    x[rd] = ~x[rd]
+    """
+
+    name = "x86.not"
+
+
+@irdl_op_definition
+class AndOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise and of rs and rd, stored in rd
+
+    x[rd] = x[rd] & x[rs]
+    """
+
+    name = "x86.and"
+
+
+@irdl_op_definition
+class OrOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise or of rs and rd, stored in rd
+
+    x[rd] = x[rd] | x[rs]
+    """
+
+    name = "x86.or"
+
+
+@irdl_op_definition
+class XorOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise xor of rs and rd, stored in rd
+
+    x[rd] = x[rd] ^ x[rs]
+    """
+
+    name = "x86.xor"
+
+
+@irdl_op_definition
 class MovOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value of rs into rd.
