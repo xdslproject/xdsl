@@ -358,16 +358,18 @@ class Printer:
             return
         hexdigits = "0123456789ABCDEF"
         self.print('"')
-        for o in string.encode():
-            char = chr(o)
+        for char in string:
+            o = ord(char)
             if char == "\\":
                 self.print("\\\\")
             elif 0x20 <= o <= 0x7E and char != '"':
                 self.print(char)
             else:
-                self.print("\\")
-                self.print(hexdigits[o >> 4])
-                self.print(hexdigits[o & 0x0F])
+                if o > 0xFF:
+                    for o in char.encode():
+                        self.print(f"\\{hexdigits[(o >> 4) & 0xF]}{hexdigits[o & 0xF]}")
+                else:
+                    self.print(f"\\{hexdigits[(o >> 4) & 0xF]}{hexdigits[o & 0xF]}")
         self.print('"')
 
     def print_attribute(self, attribute: Attribute) -> None:
