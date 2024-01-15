@@ -26,46 +26,44 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 
-def tensor_unidirectional_broadcast_shape(
+def verify_unidirectional_broadcast_shape(
     lhs: TensorType[Attribute], rhs: TensorType[Attribute], res: TensorType[Attribute]
-) -> list[int] | None:
+) -> None:
     """
     Returns a unidirectional broadcastable shape
     """
     lhs_shape = lhs.get_shape()
     rhs_shape = rhs.get_shape()
-    res_shape = unidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
-    if not res_shape:
+    expected_shape = unidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
+    if not expected_shape:
         raise VerifyException(
             f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
         )
     res_type_shape = list(res.get_shape())
-    if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
+    if len(expected_shape) != len(res_type_shape) or expected_shape != res_type_shape:
         raise VerifyException(
-            f"result shape {res_shape} does not match result type {res}"
+            f"result shape {expected_shape} does not match result type {res}"
         )
-    return res_shape
 
 
-def tensor_multidirectional_broadcast_shape(
+def verify_multidirectional_broadcast_shape(
     lhs: TensorType[Attribute], rhs: TensorType[Attribute], res: TensorType[Attribute]
-) -> list[int] | None:
+) -> None:
     """
     Returns a multidirectional broadcastable shape
     """
     lhs_shape = lhs.get_shape()
     rhs_shape = rhs.get_shape()
-    res_shape = multidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
-    if not res_shape:
+    expected_shape = multidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
+    if not expected_shape:
         raise VerifyException(
             f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
         )
     res_type_shape = list(res.get_shape())
-    if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
+    if len(expected_shape) != len(res_type_shape) or expected_shape != res_type_shape:
         raise VerifyException(
-            f"result shape {res_shape} does not match result type {res}"
+            f"result shape {expected_shape} does not match result type {res}"
         )
-    return res_shape
 
 
 def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int] | None:
@@ -150,7 +148,7 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
         lhs_type = cast(TensorType[Attribute], lhs_type)
         rhs_type = cast(TensorType[Attribute], rhs_type)
         res_type = cast(TensorType[Attribute], res_type)
-        tensor_multidirectional_broadcast_shape(lhs_type, rhs_type, res_type)
+        verify_multidirectional_broadcast_shape(lhs_type, rhs_type, res_type)
 
 
 @irdl_op_definition
@@ -304,7 +302,7 @@ class Gemm(IRDLOperation):
 
         # Build tensor of tensor (A * B) computation
         tensors_res = TensorType(IntegerType(32), res_shape)
-        tensor_unidirectional_broadcast_shape(
+        verify_unidirectional_broadcast_shape(
             tensors_res, tensor_c_type, res_tensor_type
         )
 
