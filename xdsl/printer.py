@@ -358,8 +358,8 @@ class Printer:
             return
         hexdigits = "0123456789ABCDEF"
         self.print('"')
-        for char in string:
-            o = ord(char)
+        for o in string.encode():
+            char = chr(o)
             if char == "\\":
                 self.print("\\\\")
             elif 0x20 <= o <= 0x7E and char != '"':
