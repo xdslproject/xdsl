@@ -351,11 +351,12 @@ class Printer:
         # Common case, this makes a huge difference because we print one time instead
         # of once per character.
         # This makes a huge difference on programs with a lot of generic syntax.
-        if all(
-            (0x20 <= ord(char) <= 0x7E) and char not in ('"', "\\") for char in string
-        ):
-            self.print(f'"{string}"')
-            return
+
+        # if all(
+        #     (0x20 <= ord(char) <= 0x7E) and char not in ('"', "\\") for char in string
+        # ):
+        #     self.print(f'"{string}"')
+        #     return
         hexdigits = "0123456789ABCDEF"
         self.print('"')
         for char in string:
@@ -365,11 +366,16 @@ class Printer:
             elif 0x20 <= o <= 0x7E and char != '"':
                 self.print(char)
             else:
-                if o > 0xFF:
-                    for o in char.encode():
-                        self.print(f"\\{hexdigits[(o >> 4) & 0xF]}{hexdigits[o & 0xF]}")
+                if o <= 0xFF:
+                    for byte in char.encode("unicode_escape"):
+                        self.print(
+                            f"\\{hexdigits[(byte >> 4) & 0xF]}{hexdigits[byte & 0xF]}"
+                        )
                 else:
-                    self.print(f"\\{hexdigits[(o >> 4) & 0xF]}{hexdigits[o & 0xF]}")
+                    for byte in char.encode("utf-8"):
+                        self.print(
+                            f"\\{hexdigits[(byte >> 4) & 0xF]}{hexdigits[byte & 0xF]}"
+                        )
         self.print('"')
 
     def print_attribute(self, attribute: Attribute) -> None:

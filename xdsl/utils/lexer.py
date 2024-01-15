@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import codecs
 import re
 from dataclasses import dataclass, field
 from enum import Enum
@@ -175,39 +176,44 @@ class StringLiteral(Span):
         # Common case, so we optimize for it
         if "\\" not in self.text:
             return self.text[1:-1]
-        res = list[str]()
+        res = list[int]()
         text = self.text[1:-1]
+        encoded = text.encode("utf-8")
         i = 0
-        while i < len(text):
-            c = text[i]
+        while i < len(encoded):
+            c = encoded[i]
             i += 1
-            if c != "\\":
+            if c != ord("\\"):
                 res.append(c)
                 continue
-            if i >= len(text):
+            if i >= len(encoded):
                 raise ValueError(self, "invalid string literal")
-            c1 = text[i]
+            c1 = encoded[i]
             i += 1
             match c1:
-                case "n":
-                    res.append("\n")
-                case "t":
-                    res.append("\t")
-                case "\\":
-                    res.append("\\")
-                case '"':
-                    res.append('"')
-                case _ if c1 in hexdigits:
-                    if i >= len(text):
+                case 9 | 10 | 92 | 32:  # \n, \t, \\, \"
+                    res.append(c1)
+                case _ if chr(c1) in hexdigits:
+                    if i >= len(encoded):
                         raise ValueError(self, "invalid string literal")
-                    c2 = text[i]
+                    c2 = encoded[i]
                     i += 1
-                    if c2 not in hexdigits:
+                    if chr(c2) not in hexdigits:
                         raise ValueError(self, "invalid string literal")
-                    res.append(chr(int(c1 + c2, 16)))
+                    res.append(int(chr(c1) + chr(c2), 16))
                 case _:
                     raise ValueError(self, "invalid string literal")
-        return "".join(res)
+
+        return bytes(res).decode("utf-8", errors="wtf")
+
+
+def wtf(err):
+    thebyte = err.object[err.start : err.end]
+    a = thebyte.decode("unicode_escape")
+    return (a, err.end)
+
+
+codecs.register_error("wtf", wtf)
 
 
 @dataclass
