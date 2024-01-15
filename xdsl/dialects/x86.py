@@ -299,13 +299,13 @@ class X86Instruction(X86Op):
         return _assembly_line(instruction_name, arg_str, self.comment)
 
 
-class RsRdOperation(Generic[RS1InvT, RDInvT], IRDLOperation, X86Instruction, ABC):
+class RdRsOperation(Generic[RDInvT, RS1InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations which has a source register and a destination register.
     """
 
-    rs: Operand = operand_def(RS1InvT)
     rd: OpResult = result_def(RDInvT)
+    rs: Operand = operand_def(RS1InvT)
 
     def __init__(
         self,
@@ -326,7 +326,7 @@ class RsRdOperation(Generic[RS1InvT, RDInvT], IRDLOperation, X86Instruction, ABC
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rs, self.rd
+        return self.rd, self.rs
 
 
 class RsOperation(Generic[RS1InvT], IRDLOperation, X86Instruction, ABC):
@@ -384,18 +384,49 @@ class RdOperation(Generic[RDInvT], IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class AddOp(RsRdOperation[GeneralRegisterType, GeneralRegisterType]):
+class AddOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the registers rs and rd and stores the result in rd.
 
-    x[rd] = x[rs] + x[rd]
+    x[rd] = x[rd] + x[rs]
     """
 
     name = "x86.add"
 
 
 @irdl_op_definition
-class MovOp(RsRdOperation[GeneralRegisterType, GeneralRegisterType]):
+class SubOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    subtracts rs from rd and stores the result in rd.
+
+    x[rd] = x[rd] - x[rs]
+    """
+
+    name = "x86.sub"
+
+
+@irdl_op_definition
+class ImulOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the registers rs and rd and stores the result in rd.
+
+    x[rd] = x[rd] * x[rs]
+    """
+
+    name = "x86.imul"
+
+
+@irdl_op_definition
+class IdivOp(RsOperation[GeneralRegisterType]):
+    """
+    Divide rdx:rax by x[rs]. Store quotient in rax and store remainder in rdx.
+    """
+
+    name = "x86.idiv"
+
+
+@irdl_op_definition
+class MovOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value of rs into rd.
 
