@@ -3,9 +3,9 @@ from __future__ import annotations
 import math
 import re
 import struct
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from sys import byteorder
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
@@ -672,11 +672,82 @@ class AttrParser(BaseParser):
         self._consume_token(Token.Kind.BARE_IDENT)
         return parsers[name.text](name)
 
+    def _parse_builtin_dense_attr_hex(
+        self,
+        hex_string: str,
+        type: RankedVectorOrTensorOf[IntegerType]
+        | RankedVectorOrTensorOf[IndexType]
+        | RankedVectorOrTensorOf[AnyFloat],
+    ) -> tuple[list[int] | list[float], list[int]]:
+        """
+        Parse a hex string literal e.g. dense<"0x82F5AB00">, and returns its flattened data
+        and it's flattened shape, based on the parsed type.
+        Parse a hex string tensor literal, and returns its flatten data and its shape.
+
+        For instance, a dense<"0x82F5AB0182F5AB00"> attribute will return [28046722, 11269506]
+        for a tensor<2xi32> type.
+
+        only supports integer types that are multiple of 8, f32 and f64
+        """
+        element_type = type.element_type
+
+        # Strip off "0x" of hex string
+        stripped_string = hex_string[2:]
+
+        # Convert incoming hex to list of bytes
+        try:
+            byte_list = bytes.fromhex(stripped_string)
+        except ValueError:
+            self.raise_error("Hex string in denseAttr is invalid")
+
+        # Use struct builtin package for unpacking f32, f64
+        format_str: str = ""
+        match element_type:
+            case Float32Type():
+                chunk_size = 4
+                format_str = "@f"  # @ in format string implies native endianess
+            case Float64Type():
+                chunk_size = 8
+                format_str = "@d"
+            case IntegerType():
+                if element_type.width.data % 8 != 0:
+                    self.raise_error(
+                        "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
+                    )
+                chunk_size = element_type.width.data // 8
+            case _:
+                self.raise_error(
+                    "Hex strings for dense literals are only supported for int, f32 and f64 types"
+                )
+        num_chunks = len(byte_list) // chunk_size
+
+        data_values: list[int] | list[float] = []
+
+        if isa(element_type, Float32Type | Float64Type):
+            for i in range(num_chunks):
+                parsed_float = struct.unpack(
+                    format_str, byte_list[i * chunk_size : (i + 1) * chunk_size]
+                )
+                data_values.append(*parsed_float)
+        # Use int for unpacking IntegerType
+        else:
+            for i in range(num_chunks):
+                parsed_int = int.from_bytes(
+                    byte_list[i * chunk_size : (i + 1) * chunk_size],
+                    sys.byteorder,
+                    signed=True,
+                )
+                data_values.append(parsed_int)
+        # Splat attribute case, same value everywhere
+        if chunk_size == len(byte_list) and type.get_shape() != (1,):
+            return data_values, []
+        return data_values, [num_chunks]
+
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
         self.parse_punctuation("<", " in dense attribute")
 
         # The flatten list of elements
-        values: list[AttrParser._TensorLiteralElement]
+        values: list[AttrParser._TensorLiteralElement] | list[int] | list[float]
         # The dense shape.
         # If it is `None`, then there is no values.
         # If it is `[]`, then this is a splat attribute, meaning it has the same
@@ -686,9 +757,9 @@ class AttrParser(BaseParser):
         if self._current_token.text == ">":
             values, shape = [], None
         else:
-            # Parse hex string e.g. dense<"0x82F5AB00">
             hex_string = self.parse_optional_str_literal()
             if hex_string is not None:
+                # Can not determine values without type yet
                 values, shape = [], None
             else:
                 # Expect a tensor literal instead
@@ -710,6 +781,10 @@ class AttrParser(BaseParser):
                 "Expected vector or tensor type of " "integer, index, or float type"
             )
 
+        # Get values and shape in case of hex_string (requires parsed type)
+        if hex_string is not None:
+            values, shape = self._parse_builtin_dense_attr_hex(hex_string, type)
+
         # Check that the shape matches the data when given a shaped data.
         type_shape = list(type.get_shape())
         num_values = math.prod(type_shape)
@@ -718,32 +793,6 @@ class AttrParser(BaseParser):
             self.raise_error(
                 "Expected at least one element in the " "dense literal, but got None"
             )
-        # When hex attribute is used:
-        if shape is None and hex_string is not None:
-            if not isa(type.element_type, IntegerType | Float32Type | Float64Type):
-                self.raise_error(
-                    "Hex strings for dense literals are only supported for int, f32 and f64 types"
-                )
-            hex_unit = None
-            if isa(type.element_type, IntegerType):
-                if type.element_type.width.data % 8 != 0:
-                    self.raise_error(
-                        "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
-                    )
-                hex_unit = type.element_type.width.data // 4
-            elif isa(type.element_type, Float32Type):
-                hex_unit = 8  # 8 * 4 bits = 32 bits
-            elif isa(type.element_type, Float64Type):
-                hex_unit = 16  # 16 * 4 bits = 64 bits
-            hex_values = (len(hex_string) - 2) // hex_unit
-            # For splat tensors (hex_values == 1) any type shape is okay
-            if hex_values != 1:
-                if hex_values != num_values:
-                    self.raise_error(
-                        f"Shape mismatch in dense literal. Expected {num_values} elements "
-                        f"from the type, but got {hex_values} elements from the hex string literal"
-                    )
-
         if shape is not None and shape != [] and type_shape != shape:
             self.raise_error(
                 f"Shape mismatch in dense literal. Expected {type_shape} "
@@ -752,51 +801,22 @@ class AttrParser(BaseParser):
         if any(dim == -1 for dim in type_shape):
             self.raise_error("Dense literal attribute should have a static shape.")
 
-        if shape is None and hex_string is not None:
-            try:
-                int(hex_string, 16)
-            except ValueError:
-                self.raise_error("Hex string in denseAttr is invalid")
-
         element_type = type.element_type
         data_values: list[int] | list[float] = []
         # Convert list of elements to a list of values.
-        if shape is None and hex_string is not None:
-            # Strip of "0x" of hex string
-            stripped_string = hex_string[2:]
-            byte_list = bytes.fromhex(stripped_string)
-            # Use struct builtin package for unpacking f32, f64
-            # @ in format string implies native endianess
-            if isa(element_type, Float32Type | Float64Type):
-                chunk_size = 4
-                format_str = "@f"
-                if isa(element_type, Float64Type):
-                    chunk_size = 8
-                    format_str = "@d"
-                num_chunks = len(byte_list) // chunk_size
-                for i in range(num_chunks):
-                    parsed_float = struct.unpack(
-                        format_str, byte_list[i * chunk_size : (i + 1) * chunk_size]
-                    )
-                    data_values.append(*parsed_float)
-            # Use int for unpacking IntegerType
-            else:
-                chunk_size = element_type.width.data // 8
-                # Two hex is one byte
-                num_chunks = len(byte_list) // chunk_size
-                for i in range(num_chunks):
-                    parsed_int = int.from_bytes(
-                        byte_list[i * chunk_size : (i + 1) * chunk_size],
-                        byteorder,
-                        signed=True,
-                    )
-                    data_values.append(parsed_int)
-
-        elif shape != []:
-            data_values = [value.to_type(self, element_type) for value in values]
+        # For hex string, the data values are already constructed
+        if hex_string is not None:
+            assert isa(values, list[int] | list[float])
+            if shape == []:
+                values = [values[0]] * num_values
+            data_values = values
         else:
-            assert len(values) == 1, "Fatal error in parser"
-            data_values = [values[0].to_type(self, element_type)] * num_values
+            assert isa(values, list[AttrParser._TensorLiteralElement])
+            if shape != []:
+                data_values = [value.to_type(self, element_type) for value in values]
+            else:
+                assert len(values) == 1, "Fatal error in parser"
+                data_values = [values[0].to_type(self, element_type)] * num_values
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_opaque_attr(self, _name: Span):

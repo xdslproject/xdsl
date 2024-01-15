@@ -19,4 +19,4 @@
 // -----
 
 "func.func"() ({}) {function_type = () -> (), value1 = dense<"0x00BADBAD00BADBAD00BADBAD"> : tensor<2xi32>, sym_name = "invalid_hex_size"} : () -> ()
-// CHECK: Shape mismatch in dense literal. Expected 2 elements from the type, but got 3 elements from the hex string
+// CHECK: Shape mismatch in dense literal. Expected [2] shape from the type, but got [3] shape
