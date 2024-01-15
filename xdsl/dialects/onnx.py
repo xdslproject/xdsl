@@ -35,7 +35,7 @@ def verify_unidirectional_broadcast_shape(
     lhs_shape = lhs.get_shape()
     rhs_shape = rhs.get_shape()
     expected_shape = unidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
-    if not expected_shape:
+    if expected_shape is None:
         raise VerifyException(
             f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
         )
@@ -55,7 +55,7 @@ def verify_multidirectional_broadcast_shape(
     lhs_shape = lhs.get_shape()
     rhs_shape = rhs.get_shape()
     expected_shape = multidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
-    if not expected_shape:
+    if expected_shape is None:
         raise VerifyException(
             f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
         )
