@@ -153,11 +153,19 @@ def test_memref_global():
         sym_visibility=StringAttr("public"),
         alignment=builtin.IntegerAttr(alignment, 64),
     )
+    global2 = memref.Global.get(
+        StringAttr("my_valid_global"),
+        memref_type,
+        DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 2, 3, 4]),
+        sym_visibility=StringAttr("public"),
+        alignment=64,
+    )
     with pytest.raises(
         VerifyException,
         match=f"Alignment attribute {alignment} is not a power of 2",
     ):
         global1.verify()
+    global2.verify()
 
 
 def test_memref_alloca():
