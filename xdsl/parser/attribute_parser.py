@@ -254,6 +254,8 @@ class AttrParser(BaseParser):
         identifier parsed is the dialect name), this function will parse the opaque
         attribute with the following format:
             opaque-attr-contents ::= `<` bare-ident dialect-attr-contents+ `>`
+        otherwise, it will parse them with the pretty or alias syntax, with format:
+            pretty-or-alias-attr-contents ::= `<` dialect-attr-contents+ `>`
         """
         is_pretty_name = "." in attr_or_dialect_name
         starting_opaque_pos = None
