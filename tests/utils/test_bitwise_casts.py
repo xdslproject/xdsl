@@ -23,6 +23,7 @@ def test_float_bitwise_casts(i: int, f: float):
     assert convert_f32_to_u32(f) == i
     assert struct.pack(">f", convert_u32_to_f32(i)) == struct.pack(">f", f)
 
+
 @pytest.mark.parametrize(
     "i, p",
     [
