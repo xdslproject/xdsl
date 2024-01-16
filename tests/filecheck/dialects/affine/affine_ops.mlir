@@ -78,15 +78,15 @@
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : index):
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "affine.if"() <{"condition" = affine_set<() : (0 == 0)>}> ({
+// CHECK-NEXT:      "affine.if"() ({
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      "affine.if"() <{"condition" = affine_set<() : (0 == 0)>}> ({
+// CHECK-NEXT:      }) {"condition" = affine_set<() : (0 == 0)>} : () -> ()
+// CHECK-NEXT:      "affine.if"() ({
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:        "affine.yield"() : () -> ()
-// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      }) {"condition" = affine_set<() : (0 == 0)>} : () -> ()
 
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
@@ -101,11 +101,11 @@
   }
 // CHECK:    func.func @affine_if() -> f32 {
 // CHECK-NEXT:      %{{.*}} = arith.constant 0.000000e+00 : f32
-// CHECK-NEXT:      %{{.*}} = "affine.if"() <{"condition" = affine_set<() : (0 == 0)>}> ({
+// CHECK-NEXT:      %{{.*}} = "affine.if"() ({
 // CHECK-NEXT:        "affine.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:        "affine.yield"(%{{.*}}) : (f32) -> ()
-// CHECK-NEXT:      }) : () -> f32
+// CHECK-NEXT:      }) {"condition" = affine_set<() : (0 == 0)>} : () -> f32
 // CHECK-NEXT:      func.return %{{.*}} : f32
 // CHECK-NEXT:    }
 

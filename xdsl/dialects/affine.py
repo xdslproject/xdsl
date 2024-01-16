@@ -89,14 +89,11 @@ class For(IRDLOperation):
             raise VerifyException(
                 "Expected as many upper bound operands as upper bound dimensions and symbols."
             )
-        iter_types = [op.type for op in self.operands[-len(self.results) :]]
+        iter_types = [op.type for op in self.inits]
         if iter_types != [res.type for res in self.results]:
             raise VerifyException(
                 "Expected all operands and result pairs to have matching types"
             )
-        if any(op.type != IndexType() for op in self.operands[: -len(self.results)]):
-            raise VerifyException("Expected all bounds arguments types to be index")
-
         entry_block: Block = self.body.blocks[0]
         block_arg_types = [IndexType()] + iter_types
         arg_types = [arg.type for arg in entry_block.args]
@@ -107,7 +104,9 @@ class For(IRDLOperation):
 
     @staticmethod
     def from_region(
-        operands: Sequence[Operation | SSAValue],
+        lowerBoundOperands: Sequence[Operation | SSAValue],
+        upperBoundOperands: Sequence[Operation | SSAValue],
+        inits: Sequence[Operation | SSAValue],
         result_types: Sequence[Attribute],
         lower_bound: int | AffineMapAttr,
         upper_bound: int | AffineMapAttr,
@@ -125,12 +124,12 @@ class For(IRDLOperation):
         if isinstance(step, int):
             step = IntegerAttr.from_index_int_value(step)
         properties: dict[str, Attribute] = {
-            "lower_bound": lower_bound,
-            "upper_bound": upper_bound,
+            "lowerBoundMap": lower_bound,
+            "upperBoundMap": upper_bound,
             "step": step,
         }
         return For.build(
-            operands=[operands],
+            operands=[lowerBoundOperands, upperBoundOperands, inits],
             result_types=[result_types],
             properties=properties,
             regions=[region],

@@ -118,7 +118,7 @@ class LowerAffineFor(RewritePattern):
                 lb_val,
                 ub_val,
                 step_op.result,
-                op.arguments,
+                op.inits,
                 rewriter.move_region_contents_to_new_regions(op.body),
             )
         )
