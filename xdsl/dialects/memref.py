@@ -473,7 +473,7 @@ class Global(IRDLOperation):
     sym_visibility: StringAttr = prop_def(StringAttr)
     type: Attribute = prop_def(Attribute)
     initial_value: Attribute = prop_def(Attribute)
-    alignment = opt_prop_def(Annotated[IntegerAttr[IntegerType], i64])
+    alignment = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
 
     traits = frozenset([SymbolOpInterface()])
 
