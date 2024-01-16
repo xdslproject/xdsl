@@ -30,6 +30,10 @@
       %next_value = "test.op"() : () -> !test.type<"int">
       "affine.yield"(%next_value) : (!test.type<"int">) -> ()
     }) : (index, index, !test.type<"int">) -> (!test.type<"int">)
+    "affine.parallel"(%N) <{"lowerBoundsMap" = affine_map<() -> (0)>, "lowerBoundsGroups" = dense<1> : vector<1xi32>, "upperBoundsMap" = affine_map<()[s0] -> (s0)>, "upperBoundsGroups" = dense<1> : vector<1xi32>, "steps" = [1 : i64], "reductions" = []}> ({
+    ^1(%i : index):
+      "affine.yield"() : () -> ()
+    }) : (index) -> ()
 
     // CHECK:      %res = "affine.for"(%{{.*}}) <{"lowerBoundMap" = affine_map<() -> (-10)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 1>}> ({
     // CHECK-NEXT: ^1(%{{.*}} : index, %{{.*}} : !test.type<"int">):

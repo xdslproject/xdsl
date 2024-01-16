@@ -164,11 +164,28 @@ class ParallelOp(IRDLOperation):
     lowerBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
     upperBoundsMap = prop_def(AffineMapAttr)
     upperBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
-    steps = prop_def(ArrayAttr[IntegerType])
+    steps = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
 
     res = var_result_def()
 
     body = region_def("single_block")
+
+    def verify_(self) -> None:
+        if (
+            len(self.operands)
+            != len(self.results)
+            + self.lowerBoundsMap.data.num_dims
+            + self.upperBoundsMap.data.num_dims
+            + self.lowerBoundsMap.data.num_symbols
+            + self.upperBoundsMap.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many operands as results, lower bound args and upper bound args."
+            )
+        if len(self.lowerBoundsGroups.data) != len(self.lowerBoundsMap.data.results):
+            raise VerifyException("Expected a lower bound group for each lower bound")
+        if len(self.upperBoundsGroups.data) != len(self.upperBoundsMap.data.results):
+            raise VerifyException("Expected an upper bound group for each upper bound")
 
 
 @irdl_op_definition
