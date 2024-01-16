@@ -130,22 +130,22 @@ class PatternRewriter(PatternRewriterListener):
             return True
         return self._can_modify_op(region.parent)
 
-    def _assert_can_modify_op(self, op: Operation):
+    def _assert_can_modify_op(self, op: Operation) -> None:
         """Asssert the operation and its children can be modified by this rewriter."""
         if not self._can_modify_op(op):
             raise Exception("Cannot modify the operation or its children")
 
-    def _assert_can_modify_block(self, block: Block):
+    def _assert_can_modify_block(self, block: Block) -> None:
         """Assert the block can be modified by this rewriter."""
         if not self._can_modify_block(block):
             raise Exception("Cannot modify the block")
 
-    def _assert_can_modify_op_in_block(self, block: Block):
+    def _assert_can_modify_op_in_block(self, block: Block) -> None:
         """Assert the block and its children can be modified by this rewriter."""
         if not self._can_modify_op_in_block(block):
             raise Exception("Cannot modify the block or its children")
 
-    def _assert_can_modify_region(self, region: Region):
+    def _assert_can_modify_region(self, region: Region) -> None:
         """Assert the region and its children can be modified by this rewriter."""
         if not self._can_modify_region(region):
             raise Exception("Cannot modify the region or its children")
