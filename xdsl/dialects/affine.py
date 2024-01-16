@@ -7,10 +7,14 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyIntegerAttr,
+    ArrayAttr,
     ContainerType,
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     ShapedType,
+    StringAttr,
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
@@ -138,6 +142,10 @@ class For(IRDLOperation):
 
 @irdl_op_definition
 class If(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
+    """
+
     name = "affine.if"
 
     args = var_operand_def(IndexType)
@@ -147,6 +155,45 @@ class If(IRDLOperation):
 
     then_region = region_def("single_block")
     else_region = region_def()
+
+
+@irdl_op_definition
+class ParallelOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop
+    """
+
+    name = "affine.parallel"
+
+    map_operands = var_operand_def(IndexType)
+
+    reductions = prop_def(ArrayAttr[StringAttr])
+    lowerBoundsMap = prop_def(AffineMapAttr)
+    lowerBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    upperBoundsMap = prop_def(AffineMapAttr)
+    upperBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    steps = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
+
+    res = var_result_def()
+
+    body = region_def("single_block")
+
+    def verify_(self) -> None:
+        if (
+            len(self.operands)
+            != len(self.results)
+            + self.lowerBoundsMap.data.num_dims
+            + self.upperBoundsMap.data.num_dims
+            + self.lowerBoundsMap.data.num_symbols
+            + self.upperBoundsMap.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many operands as results, lower bound args and upper bound args."
+            )
+        if len(self.lowerBoundsGroups.data) != len(self.lowerBoundsMap.data.results):
+            raise VerifyException("Expected a lower bound group for each lower bound")
+        if len(self.upperBoundsGroups.data) != len(self.upperBoundsMap.data.results):
+            raise VerifyException("Expected an upper bound group for each upper bound")
 
 
 @irdl_op_definition
@@ -261,6 +308,7 @@ Affine = Dialect(
     [
         ApplyOp,
         For,
+        ParallelOp,
         If,
         Store,
         Load,

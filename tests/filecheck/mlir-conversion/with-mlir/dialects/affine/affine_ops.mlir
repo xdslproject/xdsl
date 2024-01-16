@@ -30,12 +30,20 @@
       %next_value = "test.op"() : () -> i32
       "affine.yield"(%next_value) : (i32) -> ()
     }) : (index, index, i32) -> (i32)
+    "affine.parallel"(%N) <{"lowerBoundsMap" = affine_map<() -> (0)>, "lowerBoundsGroups" = dense<1> : vector<1xi32>, "upperBoundsMap" = affine_map<()[s0] -> (s0)>, "upperBoundsGroups" = dense<1> : vector<1xi32>, "steps" = [1 : i64], "reductions" = []}> ({
+    ^1(%i : index):
+      "affine.yield"() : () -> ()
+    }) : (index) -> ()
 
     // CHECK:      %{{.*}} = "affine.for"(%{{.*}}) <{"lowerBoundMap" = affine_map<() -> (-10)>, "operandSegmentSizes" = array<i32: 0, 0, 1>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (10)>}> ({
     // CHECK-NEXT: ^1(%{{.*}} : index, %{{.*}} : i32):
     // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
     // CHECK-NEXT:   "affine.yield"(%{{.*}}) : (i32) -> ()
     // CHECK-NEXT: }) : (i32) -> i32
+    // CHECK:      "affine.parallel"(%{{.*}}) <{"lowerBoundsGroups" = dense<1> : vector<1xi32>, "lowerBoundsMap" = affine_map<() -> (0)>, "reductions" = [], "steps" = [1 : i64], "upperBoundsGroups" = dense<1> : vector<1xi32>, "upperBoundsMap" = affine_map<()[s0] -> (s0)>}> ({
+    // CHECK-NEXT: ^{{.*}}(%{{.*}} : index):
+    // CHECK-NEXT:   "affine.yield"() : () -> ()
+    // CHECK-NEXT: }) : (index) -> ()
 
 
     %memref = "test.op"() : () -> memref<2x3xf64>
