@@ -767,11 +767,6 @@ class AttrParser(BaseParser):
 
         def _check_list_dense_attr():
             # Check that the shape matches the data when given a shaped data.
-            if shape is None and num_values != 0:
-                self.raise_error(
-                    "Expected at least one element in the "
-                    "dense literal, but got None"
-                )
             if shape is not None and shape != [] and type_shape != shape:
                 self.raise_error(
                     f"Shape mismatch in dense literal. Expected {type_shape} "
@@ -790,9 +785,16 @@ class AttrParser(BaseParser):
                     f"elements from the type, but got {shape[0]} elements."
                 )
 
+        def _check_empty_dense_attr():
+            if num_values != 0:
+                self.raise_error(
+                    "Expected at least one element in the "
+                    "dense literal, but got None"
+                )
+
         self.parse_punctuation("<", " in dense attribute")
-        # The flatten list of elements
-        values: list[AttrParser._TensorLiteralElement] | list[int] | list[float]
+        # The flattened list of elements
+        values: list[AttrParser._TensorLiteralElement]
         # The dense shape.
         # If it is `None`, then there is no values.
         # If it is `[]`, then this is a splat attribute, meaning it has the same
@@ -816,11 +818,13 @@ class AttrParser(BaseParser):
         type_shape = list(type.get_shape())
         num_values = math.prod(type_shape)
 
-        if hex_string is not None:
+        if hex_string is None and shape is None:
+            _check_empty_dense_attr()
+            data_values = []
+        elif hex_string is not None:
             # Get values and shape in case of hex_string (requires parsed type)
-            values, shape = self._parse_builtin_dense_attr_hex(hex_string, type)
+            data_values, shape = self._parse_builtin_dense_attr_hex(hex_string, type)
             _check_hex_dense_attr()
-            data_values = values
         else:
             _check_list_dense_attr()
             element_type = type.element_type
