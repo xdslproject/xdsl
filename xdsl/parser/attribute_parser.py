@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import re
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
@@ -76,11 +76,19 @@ class AttrParser(BaseParser):
 
     ctx: MLContext
 
+    attribute_aliases: dict[str, Attribute] = field(default_factory=dict)
+    """
+    A dictionary of aliases for attributes.
+    The key is the alias name, including the `!` or `#` prefix.
+    """
+
     def parse_optional_type(self) -> Attribute | None:
         """
         Parse an xDSL type, if present.
         An xDSL type is either a builtin type, which can have various format,
         or a dialect type, with the following format:
+            type          ::= builtin-type | dialect-type | alias-type
+            alias-type    ::= `!` type-name
             dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
             type-name     ::= bare-id
             dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
@@ -92,14 +100,16 @@ class AttrParser(BaseParser):
         if (
             token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
         ) is not None:
-            return self._parse_dialect_type_or_attribute(token.text[1:], True)
+            return self._parse_extended_type_or_attribute(token.text[1:], True)
         return self._parse_optional_builtin_type()
 
     def parse_type(self) -> Attribute:
         """
         Parse an xDSL type.
         An xDSL type is either a builtin type, which can have various format,
-        or a dialect type, with the following format:
+        or a dialect or alias type, with the following format:
+            type          ::= builtin-type | dialect-type | alias-type
+            alias-type    ::= `!` type-name
             dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
             type-name     ::= bare-id
             dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
@@ -114,7 +124,9 @@ class AttrParser(BaseParser):
         """
         Parse an xDSL attribute, if present.
         An attribute is either a builtin attribute, which can have various format,
-        or a dialect attribute, with the following format:
+        or a dialect or alias attribute, with the following format:
+            attr          ::= builtin-attr | dialect-attr | alias-attr
+            alias-attr    ::= `!` attr-name
             dialect-attr  ::= `#` attr-name (`<` dialect-attr-contents+ `>`)?
             attr-name     ::= bare-id
             dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
@@ -124,7 +136,7 @@ class AttrParser(BaseParser):
                             | [^[]<>(){}\0]+
         """
         if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
-            return self._parse_dialect_type_or_attribute(token.text[1:], False)
+            return self._parse_extended_type_or_attribute(token.text[1:], False)
         return self._parse_optional_builtin_attr()
 
     def parse_attribute(self) -> Attribute:
@@ -132,6 +144,8 @@ class AttrParser(BaseParser):
         Parse an xDSL attribute.
         An attribute is either a builtin attribute, which can have various format,
         or a dialect attribute, with the following format:
+            attr          ::= builtin-attr | dialect-attr | alias-attr
+            alias-attr    ::= `!` attr-name
             dialect-attr  ::= `#` attr-name (`<` dialect-attr-contents+ `>`)?
             attr-name     ::= bare-id
             dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
@@ -223,11 +237,11 @@ class AttrParser(BaseParser):
         else:
             raise TypeError("Attributes are either ParametrizedAttribute or Data.")
 
-    def _parse_dialect_type_or_attribute(
+    def _parse_extended_type_or_attribute(
         self, attr_or_dialect_name: str, is_type: bool = True
     ) -> Attribute:
         """
-        Parse the contents of a dialect type or attribute, with format:
+        Parse the contents of a dialect or alias type or attribute, with format:
             dialect-attr-contents ::= `<` dialect-attr-contents+ `>`
                                     | `(` dialect-attr-contents+ `)`
                                     | `[` dialect-attr-contents+ `]`
@@ -240,23 +254,36 @@ class AttrParser(BaseParser):
         identifier parsed is the dialect name), this function will parse the opaque
         attribute with the following format:
             opaque-attr-contents ::= `<` bare-ident dialect-attr-contents+ `>`
+        otherwise, it will parse them with the pretty or alias syntax, with format:
+            pretty-or-alias-attr-contents ::= `<` dialect-attr-contents+ `>`
         """
-        is_opaque = "." not in attr_or_dialect_name
+        is_pretty_name = "." in attr_or_dialect_name
         starting_opaque_pos = None
-        if is_opaque:
-            self.parse_punctuation("<")
-            attr_name_token = self._parse_token(
-                Token.Kind.BARE_IDENT, "Expected attribute name."
-            )
-            starting_opaque_pos = attr_name_token.span.end
 
-            attr_or_dialect_name += "." + attr_name_token.text
+        if not is_pretty_name:
+            # An attribute or type alias
+            if self.parse_optional_punctuation("<") is None:
+                alias_name = ("!" if is_type else "#") + attr_or_dialect_name
+                if alias_name not in self.attribute_aliases:
+                    self.raise_error(f"undefined symbol alias '{alias_name}'")
+                return self.attribute_aliases[alias_name]
+
+            # An opaque dialect attribute or type
+            # Compared to MLIR, we still go through the symbol parser, instead of the
+            # dialect parser.
+            if not is_pretty_name:
+                attr_name_token = self._parse_token(
+                    Token.Kind.BARE_IDENT, "Expected attribute name."
+                )
+                starting_opaque_pos = attr_name_token.span.end
+
+                attr_or_dialect_name += "." + attr_name_token.text
 
         attr = self._parse_dialect_type_or_attribute_body(
-            attr_or_dialect_name, is_type, is_opaque, starting_opaque_pos
+            attr_or_dialect_name, is_type, not is_pretty_name, starting_opaque_pos
         )
 
-        if is_opaque:
+        if not is_pretty_name:
             self.parse_punctuation(">")
 
         return attr
