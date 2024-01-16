@@ -741,8 +741,6 @@ class AttrParser(BaseParser):
         return data_values, [num_chunks]
 
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
-        self.parse_punctuation("<", " in dense attribute")
-
         def _parse_dense_type():
             # Parse the dense type and check for correctness
             self.parse_punctuation(":", " in dense attribute")
@@ -759,8 +757,39 @@ class AttrParser(BaseParser):
                 self.raise_error(
                     "Expected vector or tensor type of " "integer, index, or float type"
                 )
+
+            # Check for static shapes in type
+            if any(dim == -1 for dim in list(type.get_shape())):
+                self.raise_error("Dense literal attribute should have a static shape.")
+
             return type
 
+        def _check_list_dense_attr():
+            # Check that the shape matches the data when given a shaped data.
+            if shape is None and num_values != 0:
+                self.raise_error(
+                    "Expected at least one element in the "
+                    "dense literal, but got None"
+                )
+            if shape is not None and shape != [] and type_shape != shape:
+                self.raise_error(
+                    f"Shape mismatch in dense literal. Expected {type_shape} "
+                    f"shape from the type, but got {shape} shape."
+                )
+
+        def _check_hex_dense_attr():
+            # perform check on just the flattened shapes for hex attribute
+            assert shape is not None
+            # For splat attributes any shape is fine
+            if shape == []:
+                return
+            if num_values != shape[0]:
+                self.raise_error(
+                    f"Shape mismatch in dense literal. Expected {num_values} "
+                    f"elements from the type, but got {shape[0]} elements."
+                )
+
+        self.parse_punctuation("<", " in dense attribute")
         # The flatten list of elements
         values: list[AttrParser._TensorLiteralElement] | list[int] | list[float]
         # The dense shape.
@@ -769,6 +798,7 @@ class AttrParser(BaseParser):
         # value everywhere.
         shape: list[int] | None
         hex_string: str | None = None
+
         if self._current_token.text == ">":
             values, shape = [], None
         else:
@@ -780,53 +810,24 @@ class AttrParser(BaseParser):
                 # Expect a tensor literal instead
                 values, shape = self._parse_tensor_literal()
         self.parse_punctuation(">", " in dense attribute")
+
         type = _parse_dense_type()
-
-        # Get values and shape in case of hex_string (requires parsed type)
-        if hex_string is not None:
-            values, shape = self._parse_builtin_dense_attr_hex(hex_string, type)
-
-        # Check that the shape matches the data when given a shaped data.
         type_shape = list(type.get_shape())
         num_values = math.prod(type_shape)
 
-        if shape is None and hex_string is None and num_values != 0:
-            self.raise_error(
-                "Expected at least one element in the " "dense literal, but got None"
-            )
-
-        # perform check on just the flattened shapes for hex attribute
-        if hex_string is not None and shape != []:
-            assert shape is not None
-            if num_values != shape[0]:
-                self.raise_error(
-                    f"Shape mismatch in dense literal. Expected {num_values} "
-                    f"elements from the type, but got {shape[0]} elements."
-                )
-        if (
-            shape is not None
-            and shape != []
-            and type_shape != shape
-            and hex_string is None
-        ):
-            self.raise_error(
-                f"Shape mismatch in dense literal. Expected {type_shape} "
-                f"shape from the type, but got {shape} shape."
-            )
-        if any(dim == -1 for dim in type_shape):
-            self.raise_error("Dense literal attribute should have a static shape.")
-
         element_type = type.element_type
-        data_values: list[int] | list[float] = []
-        # Convert list of elements to a list of values.
-        # For hex string, the data values are already constructed
+
         if hex_string is not None:
-            assert isa(values, list[int] | list[float])
+            # Get values and shape in case of hex_string (requires parsed type)
+            values, shape = self._parse_builtin_dense_attr_hex(hex_string, type)
+            _check_hex_dense_attr()
+            # for splat attributes, repeat shape
             if shape == []:
                 values = [values[0]] * num_values
             data_values = values
         else:
-            assert isa(values, list[AttrParser._TensorLiteralElement])
+            _check_list_dense_attr()
+            # Convert list of elements to a list of values.
             if shape != []:
                 data_values = [value.to_type(self, element_type) for value in values]
             else:
