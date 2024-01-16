@@ -1,4 +1,4 @@
-// RUN: XDSL_ROUNDTRIP
+// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
 
 "builtin.module"() ({
 
@@ -17,25 +17,25 @@
 
     // For with values being passed during iterations
 
-    %init_value = "test.op"() : () -> !test.type<"int">
+    %init_value = "test.op"() : () -> i32
     %res = "affine.for"(%init_value) <{"lowerBoundMap" = affine_map<() -> (-10)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 1>}> ({
-    ^1(%i : index, %step_value : !test.type<"int">):
-      %next_value = "test.op"() : () -> !test.type<"int">
-      "affine.yield"(%next_value) : (!test.type<"int">) -> ()
-    }) : (!test.type<"int">) -> (!test.type<"int">)
+    ^1(%i : index, %step_value : i32):
+      %next_value = "test.op"() : () -> i32
+      "affine.yield"(%next_value) : (i32) -> ()
+    }) : (i32) -> (i32)
     %00 = "test.op"() : () -> index
     %N = "test.op"() : () -> index
     %res2 = "affine.for"(%00, %N, %init_value) <{"lowerBoundMap" = affine_map<(d0) -> (d0)>, "upperBoundMap" = affine_map<()[s0] -> (s0)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 1, 1, 1>}> ({
-    ^1(%i : index, %step_value : !test.type<"int">):
-      %next_value = "test.op"() : () -> !test.type<"int">
-      "affine.yield"(%next_value) : (!test.type<"int">) -> ()
-    }) : (index, index, !test.type<"int">) -> (!test.type<"int">)
+    ^1(%i : index, %step_value : i32):
+      %next_value = "test.op"() : () -> i32
+      "affine.yield"(%next_value) : (i32) -> ()
+    }) : (index, index, i32) -> (i32)
 
     // CHECK:      %res = "affine.for"(%{{.*}}) <{"lowerBoundMap" = affine_map<() -> (-10)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 1>}> ({
-    // CHECK-NEXT: ^1(%{{.*}} : index, %{{.*}} : !test.type<"int">):
-    // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> !test.type<"int">
-    // CHECK-NEXT:   "affine.yield"(%{{.*}}) : (!test.type<"int">) -> ()
-    // CHECK-NEXT: }) : (!test.type<"int">) -> !test.type<"int">
+    // CHECK-NEXT: ^1(%{{.*}} : index, %{{.*}} : i32):
+    // CHECK-NEXT:   %{{.*}} = "test.op"() : () -> i32
+    // CHECK-NEXT:   "affine.yield"(%{{.*}}) : (i32) -> ()
+    // CHECK-NEXT: }) : (i32) -> i32
 
 
     %memref = "test.op"() : () -> memref<2x3xf64>
