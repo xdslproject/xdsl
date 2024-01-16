@@ -743,6 +743,24 @@ class AttrParser(BaseParser):
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
         self.parse_punctuation("<", " in dense attribute")
 
+        def _parse_dense_type():
+            # Parse the dense type and check for correctness
+            self.parse_punctuation(":", " in dense attribute")
+            type = self.expect(
+                self.parse_optional_type, "Dense attribute must be typed!"
+            )
+            # Check that the type is correct.
+            if not isa(
+                type,
+                RankedVectorOrTensorOf[IntegerType]
+                | RankedVectorOrTensorOf[IndexType]
+                | RankedVectorOrTensorOf[AnyFloat],
+            ):
+                self.raise_error(
+                    "Expected vector or tensor type of " "integer, index, or float type"
+                )
+            return type
+
         # The flatten list of elements
         values: list[AttrParser._TensorLiteralElement] | list[int] | list[float]
         # The dense shape.
@@ -762,21 +780,7 @@ class AttrParser(BaseParser):
                 # Expect a tensor literal instead
                 values, shape = self._parse_tensor_literal()
         self.parse_punctuation(">", " in dense attribute")
-
-        # Parse the dense type.
-        self.parse_punctuation(":", " in dense attribute")
-        type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
-
-        # Check that the type is correct.
-        if not isa(
-            type,
-            RankedVectorOrTensorOf[IntegerType]
-            | RankedVectorOrTensorOf[IndexType]
-            | RankedVectorOrTensorOf[AnyFloat],
-        ):
-            self.raise_error(
-                "Expected vector or tensor type of " "integer, index, or float type"
-            )
+        type = _parse_dense_type()
 
         # Get values and shape in case of hex_string (requires parsed type)
         if hex_string is not None:
