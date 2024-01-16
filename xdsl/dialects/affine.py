@@ -159,12 +159,12 @@ class ParallelOp(IRDLOperation):
 
     map_operands = var_operand_def(IndexType)
 
-    reductions = attr_def(ArrayAttr[StringAttr])
-    lowerBoundsMap = attr_def(AffineMapAttr)
-    lowerBoundsGroups = attr_def(DenseIntOrFPElementsAttr)
-    upperBoundsMap = attr_def(AffineMapAttr)
-    upperBoundsGroups = attr_def(DenseIntOrFPElementsAttr)
-    steps = attr_def(ArrayAttr[IntegerType])
+    reductions = prop_def(ArrayAttr[StringAttr])
+    lowerBoundsMap = prop_def(AffineMapAttr)
+    lowerBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    upperBoundsMap = prop_def(AffineMapAttr)
+    upperBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    steps = prop_def(ArrayAttr[IntegerType])
 
     res = var_result_def()
 
@@ -283,6 +283,7 @@ Affine = Dialect(
     [
         ApplyOp,
         For,
+        ParallelOp,
         If,
         Store,
         Load,
