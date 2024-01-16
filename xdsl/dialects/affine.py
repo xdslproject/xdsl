@@ -142,6 +142,10 @@ class For(IRDLOperation):
 
 @irdl_op_definition
 class If(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
+    """
+
     name = "affine.if"
 
     args = var_operand_def(IndexType)
@@ -155,6 +159,10 @@ class If(IRDLOperation):
 
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop
+    """
+
     name = "affine.parallel"
 
     map_operands = var_operand_def(IndexType)
