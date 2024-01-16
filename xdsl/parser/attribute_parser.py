@@ -765,28 +765,31 @@ class AttrParser(BaseParser):
 
             return type
 
-        def _check_list_dense_attr():
+        def _check_list_dense_attr(type_shape: list[int], shape: list[int] | None):
             # Check that the shape matches the data when given a shaped data.
-            if shape is not None and shape != [] and type_shape != shape:
+            # For splat attributes any shape is fine
+            if shape == []:
+                return
+            if shape is not None and type_shape != shape:
                 self.raise_error(
                     f"Shape mismatch in dense literal. Expected {type_shape} "
                     f"shape from the type, but got {shape} shape."
                 )
 
-        def _check_hex_dense_attr():
+        def _check_hex_dense_attr(type_num_values: int, shape: list[int]):
             # perform check on just the flattened shapes for hex attribute
             assert shape is not None
             # For splat attributes any shape is fine
             if shape == []:
                 return
-            if num_values != shape[0]:
+            if type_num_values != shape[0]:
                 self.raise_error(
-                    f"Shape mismatch in dense literal. Expected {num_values} "
+                    f"Shape mismatch in dense literal. Expected {type_num_values} "
                     f"elements from the type, but got {shape[0]} elements."
                 )
 
-        def _check_empty_dense_attr():
-            if num_values != 0:
+        def _check_empty_dense_attr(type_num_values: int):
+            if type_num_values != 0:
                 self.raise_error(
                     "Expected at least one element in the "
                     "dense literal, but got None"
@@ -796,10 +799,13 @@ class AttrParser(BaseParser):
         # The flattened list of elements
         values: list[AttrParser._TensorLiteralElement]
         # The dense shape.
-        # If it is `None`, then there is no values.
-        # If it is `[]`, then this is a splat attribute, meaning it has the same
-        # value everywhere.
+        #   If it is `None`, then there is no values.
+        #   If it is `[]`, then this is a splat attribute, meaning it has the
+        #   same value everywhere.
         shape: list[int] | None
+        # A hex_string:
+        #   If a hex_string is present it is a string.
+        #   Otherwise it is None
         hex_string: str | None = None
 
         if self._current_token.text == ">":
@@ -816,24 +822,24 @@ class AttrParser(BaseParser):
 
         type = _parse_dense_type()
         type_shape = list(type.get_shape())
-        num_values = math.prod(type_shape)
+        type_num_values = math.prod(type_shape)
 
         if hex_string is None and shape is None:
-            _check_empty_dense_attr()
+            _check_empty_dense_attr(type_num_values)
             data_values = []
         elif hex_string is not None:
             # Get values and shape in case of hex_string (requires parsed type)
             data_values, shape = self._parse_builtin_dense_attr_hex(hex_string, type)
-            _check_hex_dense_attr()
+            _check_hex_dense_attr(type_num_values, shape)
         else:
-            _check_list_dense_attr()
+            _check_list_dense_attr(type_shape, shape)
             element_type = type.element_type
             # Elements from _parse_tensor_literal need to be converted to values.
             if shape != []:
                 data_values = [value.to_type(self, element_type) for value in values]
             else:
                 assert len(values) == 1, "Fatal error in parser"
-                data_values = [values[0].to_type(self, element_type)] * num_values
+                data_values = [values[0].to_type(self, element_type)] * type_num_values
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_opaque_attr(self, _name: Span):
