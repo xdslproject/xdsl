@@ -736,7 +736,7 @@ class AttrParser(BaseParser):
                 )
                 data_values.append(parsed_int)
         # Splat attribute case, same value everywhere
-        if chunk_size == len(byte_list) and type.get_shape() != (1,):
+        if len(data_values) == 1:
             return data_values, []
         return data_values, [num_chunks]
 
