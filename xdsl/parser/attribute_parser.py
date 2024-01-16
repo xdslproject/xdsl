@@ -735,9 +735,10 @@ class AttrParser(BaseParser):
                     signed=True,
                 )
                 data_values.append(parsed_int)
-        # Splat attribute case, same value everywhere
         if len(data_values) == 1:
-            return data_values, []
+            # Splat attribute case, same value everywhere,
+            # Emit values repeatedly and emit empty shape
+            return [data_values[0]] * math.prod(type.get_shape()), []
         return data_values, [num_chunks]
 
     def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
@@ -815,19 +816,15 @@ class AttrParser(BaseParser):
         type_shape = list(type.get_shape())
         num_values = math.prod(type_shape)
 
-        element_type = type.element_type
-
         if hex_string is not None:
             # Get values and shape in case of hex_string (requires parsed type)
             values, shape = self._parse_builtin_dense_attr_hex(hex_string, type)
             _check_hex_dense_attr()
-            # for splat attributes, repeat shape
-            if shape == []:
-                values = [values[0]] * num_values
             data_values = values
         else:
             _check_list_dense_attr()
-            # Convert list of elements to a list of values.
+            element_type = type.element_type
+            # Elements from _parse_tensor_literal need to be converted to values.
             if shape != []:
                 data_values = [value.to_type(self, element_type) for value in values]
             else:
