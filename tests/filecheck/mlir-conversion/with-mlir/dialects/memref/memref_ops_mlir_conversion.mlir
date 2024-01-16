@@ -3,6 +3,7 @@
 "builtin.module"() ({
   "memref.global"() {"alignment" = 64 : i64, "sym_name" = "g_with_alignment", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
   "memref.global"() {"sym_name" = "g", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
+  "memref.global"() {"sym_name" = "g_constant", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public", "constant"} : () -> ()
   "func.func"() ({
     %0 = "memref.get_global"() {"name" = @g} : () -> memref<1xindex>
     %1 = "arith.constant"() {"value" = 0 : index} : () -> index
@@ -40,6 +41,7 @@
 // CHECK: "builtin.module"() ({
 // CHECK-NEXT: "memref.global"() <{"alignment" = 64 : i64, "initial_value" = dense<0> : tensor<1xindex>, "sym_name" = "g_with_alignment", "sym_visibility" = "public", "type" = memref<1xindex>}> : () -> ()
 // CHECK-NEXT: "memref.global"() <{"initial_value" = dense<0> : tensor<1xindex>, "sym_name" = "g", "sym_visibility" = "public", "type" = memref<1xindex>}> : () -> ()
+// CHECK-NEXT: "memref.global"() <{constant, initial_value = dense<0> : tensor<1xindex>, sym_name = "g_constant", sym_visibility = "public", type = memref<1xindex>}> : () -> ()
 // CHECK-NEXT: "func.func"() <{"function_type" = () -> (), "sym_name" = "memref_test", "sym_visibility" = "private"}> ({
 // CHECK-NEXT: %0 = "memref.get_global"() <{"name" = @g}> : () -> memref<1xindex>
 // CHECK-NEXT: %1 = "arith.constant"() <{"value" = 0 : index}> : () -> index
