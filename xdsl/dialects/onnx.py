@@ -39,8 +39,11 @@ def verify_unidirectional_broadcast_shape(
         raise VerifyException(
             f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
         )
-    res_type_shape = list(res.get_shape())
-    if len(expected_shape) != len(res_type_shape) or expected_shape != res_type_shape:
+    res_type_shape = res.get_shape()
+    if (
+        len(expected_shape) != len(res_type_shape)
+        or tuple(expected_shape) != res_type_shape
+    ):
         raise VerifyException(
             f"result shape {expected_shape} does not match result type {res}"
         )
@@ -59,8 +62,11 @@ def verify_multidirectional_broadcast_shape(
         raise VerifyException(
             f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
         )
-    res_type_shape = list(res.get_shape())
-    if len(expected_shape) != len(res_type_shape) or expected_shape != res_type_shape:
+    res_type_shape = res.get_shape()
+    if (
+        len(expected_shape) != len(res_type_shape)
+        or tuple(expected_shape) != res_type_shape
+    ):
         raise VerifyException(
             f"result shape {expected_shape} does not match result type {res}"
         )
