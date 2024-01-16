@@ -22,3 +22,11 @@ def convert_u32_to_f32(value: int) -> float:
     raw_int = ctypes.c_uint32(value)
     raw_float = ctypes.c_float.from_address(ctypes.addressof(raw_int)).value
     return raw_float
+
+
+def is_power_of_two(value: int) -> bool:
+    """
+    Return True if an integer is a power of two.
+    Powers of two have only one bit set to one
+    """
+    return (value.bit_count() - 1 == 0) and value != 0
