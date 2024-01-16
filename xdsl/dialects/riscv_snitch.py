@@ -143,9 +143,13 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
         self,
         max_rep: SSAValue | Operation,
         body: Sequence[Operation] | Sequence[Block] | Region,
-        stagger_mask: IntAttr,
-        stagger_count: IntAttr,
+        stagger_mask: IntAttr | None = None,
+        stagger_count: IntAttr | None = None,
     ):
+        if stagger_mask is None:
+            stagger_mask = IntAttr(0)
+        if stagger_count is None:
+            stagger_count = IntAttr(0)
         super().__init__(
             operands=(max_rep,),
             regions=(body,),

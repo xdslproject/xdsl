@@ -114,14 +114,15 @@ class LowerStridedReadOp(RewritePattern):
         stream_type = cast(
             stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
+        pattern_type = cast(snitch_stream.StridePatternType, op.pattern.type)
 
         rewriter.replace_matched_op(
-            [
+            (
                 snitch.SsrSetDimensionSourceOp(
-                    op.pointer, op.dm, builtin.IntAttr(op.rank.data - 1)
+                    op.pointer, op.dm, builtin.IntAttr(pattern_type.data - 1)
                 ),
-                riscv.GetFloatRegisterOp(stream_type.element_type),
-            ]
+                riscv_snitch.GetStreamOp(stream_type),
+            )
         )
 
 
@@ -134,15 +135,18 @@ class LowerStridedWriteOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_stream.StridedWriteOp, rewriter: PatternRewriter, /
     ):
-        rewriter.insert_op_before_matched_op(
-            [
-                snitch.SsrSetDimensionDestinationOp(
-                    op.pointer, op.dm, builtin.IntAttr(op.rank.data - 1)
-                ),
-            ]
-        )
+        pattern_type = cast(snitch_stream.StridePatternType, op.pattern.type)
 
-        rewriter.erase_matched_op()
+        rewriter.replace_matched_op(
+            (
+                snitch.SsrSetDimensionDestinationOp(
+                    op.pointer,
+                    op.dm,
+                    builtin.IntAttr(pattern_type.data - 1),
+                ),
+                riscv_snitch.GetStreamOp(op.stream.type),
+            )
+        )
 
 
 class LowerGenericOp(RewritePattern):
@@ -153,9 +157,13 @@ class LowerGenericOp(RewritePattern):
         rewriter.insert_op_before_matched_op(snitch.SsrEnable())
 
         block = op.body.block
-
-        for i, arg in zip(op.inputs, block.args):
-            arg.replace_by(i)
+        # Convert input values to stream reads
+        for input_stream, operand in zip(reversed(op.inputs), reversed(block.args)):
+            rewriter.insert_op_at_start(
+                (read_op := riscv_snitch.ReadOp(input_stream),),
+                block,
+            )
+            operand.replace_by(read_op.results[0])
 
         for arg in reversed(block.args):
             rewriter.erase_block_argument(arg)
@@ -167,8 +175,6 @@ class LowerGenericOp(RewritePattern):
                 riscv_snitch.FrepOuter(
                     loop_count,
                     rewriter.move_region_contents_to_new_regions(op.body),
-                    builtin.IntAttr(0),
-                    builtin.IntAttr(0),
                 ),
                 snitch.SsrDisable(),
             ]
@@ -180,36 +186,45 @@ class LowerYieldOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_stream.YieldOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_matched_op(riscv_snitch.FrepYieldOp(*op.operands))
+        loop_block = op.parent_block()
+
+        if loop_block is None:
+            return
+
+        generic_op = loop_block.parent_op()
+
+        assert isinstance(generic_op, snitch_stream.GenericOp)
+
+        output_streams = generic_op.outputs
+
+        new_ops = list[Operation]()
+
+        # Convert yielded values to stream writes
+        for output_stream, operand in zip(output_streams, op.operands, strict=True):
+            new_ops.append(riscv_snitch.WriteOp(operand, output_stream))
+
+        new_ops.append(riscv_snitch.FrepYieldOp())
+
+        rewriter.replace_matched_op(new_ops)
 
 
 class ConvertSnitchStreamToSnitch(ModulePass):
     name = "convert-snitch-stream-to-snitch"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        # StridedWrite and StridePattern ops are rewritten to remove their results, so we
-        # have to first lower the ops that use the results in `stream`, and then the ops
-        # themselves.
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    LowerGenericOp(),
-                ]
-            )
-        ).rewrite_module(op)
+        # YieldOp is rewritten to srite to a stream that is a parameter to the GenericOp,
+        # so it has to be rewritten before Generic.
+        PatternRewriteWalker(LowerYieldOp()).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     LowerStridedReadOp(),
                     LowerStridedWriteOp(),
+                    LowerGenericOp(),
                 ]
             )
         ).rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    LowerStridePatternOp(),
-                    LowerYieldOp(),
-                ]
-            )
-        ).rewrite_module(op)
+        # StridePatternOp returns the stride pattern, which is not used after the
+        # strided reads and writes are lowered. This value must be erased only after the
+        # uses have been erased.
+        PatternRewriteWalker(LowerStridePatternOp()).rewrite_module(op)
