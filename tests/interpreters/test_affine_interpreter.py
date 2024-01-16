@@ -42,11 +42,11 @@ def module_op():
                 affine.Store(sum_op.result, alloc_op_0.memref, (row, col))
                 affine.Yield.get()
 
-            affine.For.from_region((), (), 0, 3, init_cols_region)
+            affine.For.from_region((), (), (), (), 0, 3, init_cols_region)
 
             affine.Yield.get()
 
-        affine.For.from_region((), (), 0, 2, init_rows_region)
+        affine.For.from_region((), (), (), (), 0, 2, init_rows_region)
 
         @Builder.implicit_region((index,))
         def transpose_rows_region(args: tuple[Any, ...]):
@@ -59,11 +59,11 @@ def module_op():
                 affine.Store(res, alloc_op_1.memref, (col, row))
                 affine.Yield.get()
 
-            affine.For.from_region((), (), 0, 3, transpose_cols_region)
+            affine.For.from_region((), (), (), (), 0, 3, transpose_cols_region)
 
             affine.Yield.get()
 
-        affine.For.from_region((), (), 0, 2, transpose_rows_region)
+        affine.For.from_region((), (), (), (), 0, 2, transpose_rows_region)
         func.Return(alloc_op_0.memref, alloc_op_1.memref)
 
 
