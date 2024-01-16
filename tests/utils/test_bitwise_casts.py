@@ -23,8 +23,18 @@ def test_float_bitwise_casts(i: int, f: float):
     assert convert_f32_to_u32(f) == i
     assert struct.pack(">f", convert_u32_to_f32(i)) == struct.pack(">f", f)
 
-
-def test_is_power_of_two():
-    powers = [is_power_of_two(i) for i in range(-2, 6)]
-    # [-2, -1, 0, 1, 2, 3, 4, 5]
-    assert powers == [False, False, False, True, True, False, True, False]
+@pytest.mark.parametrize(
+    "i, p",
+    [
+        (-2, False),
+        (-1, False),
+        (0, False),
+        (1, True),
+        (2, True),
+        (3, False),
+        (4, True),
+        (5, False),
+    ],
+)
+def test_is_power_of_two(i: int, p: bool):
+    assert is_power_of_two(i) == p
