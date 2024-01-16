@@ -516,7 +516,7 @@ class Global(IRDLOperation):
         }
         if constant is not None and constant:
             props["constant"] = UnitAttr()
-        return Global.build(*props)
+        return Global.build(properties=props)
 
 
 @irdl_op_definition
