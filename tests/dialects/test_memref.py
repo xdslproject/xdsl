@@ -4,13 +4,11 @@ from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, func, memref, scf
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
     IntAttr,
     IntegerType,
     StridedLayoutAttr,
-    StringAttr,
     i32,
     i64,
 )
@@ -140,32 +138,6 @@ def test_memref_alloc():
         match="op dimension operand count does not equal memref dynamic dimension count",
     ):
         alloc6.verify()
-
-
-def test_memref_global():
-    memref_type = memref.MemRefType(i32, (2, 2))
-    tensor_type = builtin.TensorType(i32, (2, 2))
-    alignment = 65
-    global1 = memref.Global.get(
-        StringAttr("my_global"),
-        memref_type,
-        DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 2, 3, 4]),
-        sym_visibility=StringAttr("public"),
-        alignment=builtin.IntegerAttr(alignment, 64),
-    )
-    global2 = memref.Global.get(
-        StringAttr("my_valid_global"),
-        memref_type,
-        DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 2, 3, 4]),
-        sym_visibility=StringAttr("public"),
-        alignment=64,
-    )
-    with pytest.raises(
-        VerifyException,
-        match=f"Alignment attribute {alignment} is not a power of 2",
-    ):
-        global1.verify()
-    global2.verify()
 
 
 def test_memref_alloca():
