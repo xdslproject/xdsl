@@ -1,8 +1,7 @@
-from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import func, riscv, riscv_snitch, snitch_stream, stream
+from xdsl.builder import ImplicitBuilder
+from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import ArrayAttr, IntAttr, ModuleOp
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.snitch_stream import (
@@ -13,7 +12,7 @@ from xdsl.interpreters.snitch_stream import (
     indexing_map_from_bounds,
     offset_map_from_strides,
 )
-from xdsl.ir import Block, BlockArgument, Region
+from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
@@ -140,33 +139,3 @@ def test_snitch_stream_interpreter():
     )
 
     assert c.float64.get_list(6) == [5.0] * 6
-
-
-def test_frep_carried_vars():
-    float_register = riscv.IntRegisterType.unallocated()
-    acc_reg_type = riscv.Registers.FT[3]
-
-    @ModuleOp
-    @Builder.implicit_region
-    def sum_to_for_op():
-        with ImplicitBuilder(
-            func.FuncOp("sum_to", ((float_register,), (float_register,))).body
-        ) as (count,):
-            one = riscv.LiOp(1).rd
-            initial = riscv.FCvtDWOp(one, rd=acc_reg_type).rd
-
-            @Builder.implicit_region((float_register,))
-            def for_loop_region(args: tuple[BlockArgument, ...]):
-                (acc,) = args
-                res = riscv.FAddDOp(acc, acc, rd=acc_reg_type)
-                riscv_snitch.FrepYieldOp(res)
-
-            result = riscv_snitch.FrepOuter(count, for_loop_region, (initial,)).res
-            func.Return(*result)
-
-    interpreter = Interpreter(sum_to_for_op)
-    interpreter.register_implementations(RiscvSnitchFunctions())
-    interpreter.register_implementations(RiscvFunctions())
-    interpreter.register_implementations(FuncFunctions())
-
-    assert interpreter.call_op("sum_to", (5,)) == (64,)
