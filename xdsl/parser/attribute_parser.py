@@ -807,38 +807,47 @@ class AttrParser(BaseParser):
         #   Otherwise it is None
         hex_string: str | None = None
 
+        # Empty dense attribute case
         if self._current_token.text == ">":
             values, shape = [], None
+            self.parse_punctuation(">", " in dense attribute")
+            type = _parse_dense_type()
+            type_shape = list(type.get_shape())
+            type_num_values = math.prod(type_shape)
+            _check_empty_dense_attr(type_num_values)
+            data_values = []
+        # Hex string or tensor Literal case
         else:
             hex_string = self.parse_optional_str_literal()
             if hex_string is not None:
-                # Can not determine values without type yet
-                values, shape = [], None
+                # Get values and shape in case of hex_string (requires parsing type first)
+                self.parse_punctuation(">", " in dense attribute")
+                type = _parse_dense_type()
+                type_shape = list(type.get_shape())
+                type_num_values = math.prod(type_shape)
+                data_values, shape = self._parse_builtin_dense_attr_hex(
+                    hex_string, type
+                )
+                _check_hex_dense_attr(type_num_values, shape)
             else:
+                self.parse_punctuation(">", " in dense attribute")
                 # Expect a tensor literal instead
+                type = _parse_dense_type()
+                type_shape = list(type.get_shape())
+                type_num_values = math.prod(type_shape)
                 values, shape = self._parse_tensor_literal()
-        self.parse_punctuation(">", " in dense attribute")
-
-        type = _parse_dense_type()
-        type_shape = list(type.get_shape())
-        type_num_values = math.prod(type_shape)
-
-        if hex_string is None and shape is None:
-            _check_empty_dense_attr(type_num_values)
-            data_values = []
-        elif hex_string is not None:
-            # Get values and shape in case of hex_string (requires parsed type)
-            data_values, shape = self._parse_builtin_dense_attr_hex(hex_string, type)
-            _check_hex_dense_attr(type_num_values, shape)
-        else:
-            _check_list_dense_attr(type_shape, shape)
-            element_type = type.element_type
-            # Elements from _parse_tensor_literal need to be converted to values.
-            if shape != []:
-                data_values = [value.to_type(self, element_type) for value in values]
-            else:
-                assert len(values) == 1, "Fatal error in parser"
-                data_values = [values[0].to_type(self, element_type)] * type_num_values
+                _check_list_dense_attr(type_shape, shape)
+                element_type = type.element_type
+                # Elements from _parse_tensor_literal need to be converted to values.
+                if shape != []:
+                    data_values = [
+                        value.to_type(self, element_type) for value in values
+                    ]
+                else:
+                    assert len(values) == 1, "Fatal error in parser"
+                    data_values = [
+                        values[0].to_type(self, element_type)
+                    ] * type_num_values
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
     def _parse_builtin_opaque_attr(self, _name: Span):
