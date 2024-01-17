@@ -40,6 +40,18 @@ riscv_func.func @main() {
   // CHECK-NEXT:    riscv_snitch.write %val1 to %writable : !riscv.freg<ft1>
   // CHECK-NEXT:  }
 
+  %init = "test.op"() : () -> (!riscv.freg<ft3>)
+  %z = riscv_snitch.frep_outer %0 iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
+    %res = riscv.fadd.d %acc, %acc : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
+    riscv_snitch.frep_yield %res : !riscv.freg<ft3>
+  }
+
+  // CHECK-NEXT:  %init = "test.op"() : () -> !riscv.freg<ft3>
+  // CHECK-NEXT:    %z = riscv_snitch.frep_outer %0 iter_args(%acc = %init) -> (!riscv.freg<ft3>) {
+  // CHECK-NEXT:      %res = riscv.fadd.d %acc, %acc : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
+  // CHECK-NEXT:      riscv_snitch.frep_yield %res : !riscv.freg<ft3>
+  // CHECK-NEXT:    }
+
   // Terminate block
   riscv_func.return
 }
@@ -66,6 +78,12 @@ riscv_func.func @main() {
 // CHECK-GENERIC-NEXT:          "riscv_snitch.write"(%val1, %writable) : (!riscv.freg<ft1>, !stream.writable<!riscv.freg<ft1>>) -> ()
 // CHECK-GENERIC-NEXT:          "riscv_snitch.frep_yield"() : () -> ()
 // CHECK-GENERIC-NEXT:        }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:    %init = "test.op"() : () -> !riscv.freg<ft3>
+// CHECK-GENERIC-NEXT:    %z = "riscv_snitch.frep_outer"(%0, %init) ({
+// CHECK-GENERIC-NEXT:    ^0(%acc : !riscv.freg<ft3>):
+// CHECK-GENERIC-NEXT:      %res = "riscv.fadd.d"(%acc, %acc) : (!riscv.freg<ft3>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
+// CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"(%res) : (!riscv.freg<ft3>) -> ()
+// CHECK-GENERIC-NEXT:    }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
