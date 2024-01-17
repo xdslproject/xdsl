@@ -271,9 +271,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return convert_scf_to_openmp.ConvertScfToOpenMPPass
 
     def get_convert_snitch_stream_to_snitch():
-        from xdsl.backend.riscv.lowering import (
-            convert_snitch_stream_to_snitch,
-        )
+        from xdsl.backend.riscv.lowering import convert_snitch_stream_to_snitch
 
         return convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch
 
