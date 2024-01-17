@@ -29,8 +29,6 @@ riscv_func.func @main() {
 // CHECK-SNITCH-UNRESERVED-NEXT:    }
 // CHECK-SNITCH-UNRESERVED-NEXT:  }
 
-
-
 // -----
 
 riscv_func.func @main() {
