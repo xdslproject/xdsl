@@ -473,7 +473,7 @@ class Global(IRDLOperation):
     sym_visibility: StringAttr = prop_def(StringAttr)
     type: Attribute = prop_def(Attribute)
     initial_value: Attribute = prop_def(Attribute)
-    constant: Attribute | None = opt_prop_def(UnitAttr)
+    constant = opt_prop_def(UnitAttr)
     alignment = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
 
     traits = frozenset([SymbolOpInterface()])
@@ -502,21 +502,22 @@ class Global(IRDLOperation):
         sym_type: Attribute,
         initial_value: Attribute,
         sym_visibility: StringAttr = StringAttr("private"),
-        constant: bool | None = None,
+        constant: UnitAttr | None = None,
         alignment: int | IntegerAttr[IntegerType] | None = None,
     ) -> Global:
         if isinstance(alignment, int):
             alignment = IntegerAttr.from_int_and_width(alignment, 64)
-        props: dict[str, Attribute | None] = {
-            "sym_name": sym_name,
-            "type": sym_type,
-            "initial_value": initial_value,
-            "sym_visibility": sym_visibility,
-            "alignment": alignment,
-        }
-        if constant is not None and constant:
-            props["constant"] = UnitAttr()
-        return Global.build(properties=props)
+
+        return Global.build(
+            properties={
+                "sym_name": sym_name,
+                "type": sym_type,
+                "initial_value": initial_value,
+                "sym_visibility": sym_visibility,
+                "constant": constant,
+                "alignment": alignment,
+            }
+        )
 
 
 @irdl_op_definition
