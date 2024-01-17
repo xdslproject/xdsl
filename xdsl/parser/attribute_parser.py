@@ -827,10 +827,10 @@ class AttrParser(BaseParser):
                 )
                 _check_hex_dense_attr(type_num_values, shape)
             else:
-                self.parse_punctuation(">", " in dense attribute")
                 # Expect a tensor literal instead
-                type, type_shape, type_num_values = _parse_dense_type()
                 values, shape = self._parse_tensor_literal()
+                self.parse_punctuation(">", " in dense attribute")
+                type, type_shape, type_num_values = _parse_dense_type()
                 _check_list_dense_attr(type_shape, shape)
                 element_type = type.element_type
                 # Elements from _parse_tensor_literal need to be converted to values.
