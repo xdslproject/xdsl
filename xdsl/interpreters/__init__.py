@@ -16,9 +16,8 @@ from xdsl.interpreters import (
     snitch_stream,
     stream,
 )
+from xdsl.interpreters.experimental import pdl
 from xdsl.ir import MLContext
-
-from .experimental import pdl
 
 
 def register_implementations(
