@@ -682,7 +682,6 @@ class AttrParser(BaseParser):
         """
         Parse a hex string literal e.g. dense<"0x82F5AB00">, and returns its flattened data
         and its flattened shape, based on the parsed type.
-        Parse a hex string tensor literal, and return its flattened data and its shape.
 
         For instance, a dense<"0x82F5AB0182F5AB00"> attribute will return [28046722, 11269506]
         for a tensor<2xi32> type.
