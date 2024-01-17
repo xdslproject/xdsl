@@ -224,21 +224,10 @@ class ConvertSnitchStreamToSnitch(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     LowerStreamingRegionOp(),
-                ]
-            )
-        ).rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
                     LowerStridedReadOp(),
                     LowerStridedWriteOp(),
-                ]
-            )
-        ).rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
                     LowerStridePatternOp(),
                 ]
-            )
+            ),
+            walk_reverse=True,
         ).rewrite_module(op)
