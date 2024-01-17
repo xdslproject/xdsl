@@ -314,7 +314,7 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
             if len(yieldop.arguments) != len(self.iter_args):
                 raise VerifyException(
                     f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The riscv_scf.for must yield its carried variables."
+                    f"The riscv_scf.frep must yield its carried variables."
                 )
             for iter_arg, yield_arg in zip(self.iter_args, yieldop.arguments):
                 if iter_arg.type != yield_arg.type:

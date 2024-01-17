@@ -28,7 +28,7 @@ def test_raises_exception_on_op_with_no_regions():
 
 def test_raises_exception_on_op_with_no_blocks():
     inserter = OpInserter(Block())
-    op_with_no_region = For.from_region([], [], 0, 10, Region())
+    op_with_no_region = For.from_region([], [], [], [], 0, 10, Region())
     with pytest.raises(FrontendProgramException) as err:
         inserter.set_insertion_point_from_op(op_with_no_region)
     assert err.value.msg == (

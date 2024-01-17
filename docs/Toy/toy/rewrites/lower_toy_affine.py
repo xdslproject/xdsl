@@ -100,7 +100,9 @@ def build_affine_for(
     region = Region(block)
 
     op = affine.For.from_region(
-        (*lb_operands, *ub_operands, *iter_args),
+        lb_operands,
+        ub_operands,
+        iter_args,
         tuple(iter_arg.type for iter_arg in iter_args),
         affine.AffineMapAttr(lb_map),
         affine.AffineMapAttr(ub_map),
