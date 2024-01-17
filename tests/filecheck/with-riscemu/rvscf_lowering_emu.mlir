@@ -1,4 +1,5 @@
 // RUN: xdsl-opt -p lower-riscv-scf-to-labels -t riscemu %s
+// RUN: xdsl-opt -p convert-riscv-scf-to-riscv-cf -t riscemu %s
 
 builtin.module {
   riscv_func.func @main() {

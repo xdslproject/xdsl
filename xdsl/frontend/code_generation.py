@@ -449,7 +449,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             assert isinstance(start, int)
             assert isinstance(end, int)
             assert isinstance(step, int)
-            op = affine.For.from_region([], [], start, end, body, step)
+            op = affine.For.from_region([], [], [], [], start, end, body, step)
         else:
             self.inserter.insert_op(scf.Yield())
             assert isinstance(start, SSAValue)

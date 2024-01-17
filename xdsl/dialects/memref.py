@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
+from typing import TYPE_CHECKING, Annotated, Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -57,6 +57,7 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
+from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -472,6 +473,7 @@ class Global(IRDLOperation):
     sym_visibility: StringAttr = prop_def(StringAttr)
     type: Attribute = prop_def(Attribute)
     initial_value: Attribute = prop_def(Attribute)
+    alignment = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -484,6 +486,14 @@ class Global(IRDLOperation):
                 "Global initial value is expected to be a "
                 "dense type or an unit attribute"
             )
+        if self.alignment is not None:
+            assert isinstance(self.alignment, IntegerAttr)
+            alignment_value = self.alignment.value.data
+            # Alignment has to be a power of two
+            if not (is_power_of_two(alignment_value)):
+                raise VerifyException(
+                    f"Alignment attribute {alignment_value} is not a power of 2"
+                )
 
     @staticmethod
     def get(
@@ -491,13 +501,18 @@ class Global(IRDLOperation):
         sym_type: Attribute,
         initial_value: Attribute,
         sym_visibility: StringAttr = StringAttr("private"),
+        alignment: int | IntegerAttr[IntegerType] | None = None,
     ) -> Global:
+        if isinstance(alignment, int):
+            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+
         return Global.build(
             properties={
                 "sym_name": sym_name,
                 "type": sym_type,
                 "initial_value": initial_value,
                 "sym_visibility": sym_visibility,
+                "alignment": alignment,
             }
         )
 
