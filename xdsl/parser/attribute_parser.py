@@ -762,7 +762,9 @@ class AttrParser(BaseParser):
             if any(dim == -1 for dim in list(type.get_shape())):
                 self.raise_error("Dense literal attribute should have a static shape.")
 
-            return type
+            type_shape = list(type.get_shape())
+            type_num_values = math.prod(type_shape)
+            return type, type_shape, type_num_values
 
         def _check_list_dense_attr(type_shape: list[int], shape: list[int] | None):
             # Check that the shape matches the data when given a shaped data.
@@ -809,11 +811,8 @@ class AttrParser(BaseParser):
 
         # Empty dense attribute case
         if self._current_token.text == ">":
-            values, shape = [], None
             self.parse_punctuation(">", " in dense attribute")
-            type = _parse_dense_type()
-            type_shape = list(type.get_shape())
-            type_num_values = math.prod(type_shape)
+            type, _, type_num_values = _parse_dense_type()
             _check_empty_dense_attr(type_num_values)
             data_values = []
         # Hex string or tensor Literal case
@@ -822,9 +821,7 @@ class AttrParser(BaseParser):
             if hex_string is not None:
                 # Get values and shape in case of hex_string (requires parsing type first)
                 self.parse_punctuation(">", " in dense attribute")
-                type = _parse_dense_type()
-                type_shape = list(type.get_shape())
-                type_num_values = math.prod(type_shape)
+                type, _, type_num_values = _parse_dense_type()
                 data_values, shape = self._parse_builtin_dense_attr_hex(
                     hex_string, type
                 )
@@ -832,9 +829,7 @@ class AttrParser(BaseParser):
             else:
                 self.parse_punctuation(">", " in dense attribute")
                 # Expect a tensor literal instead
-                type = _parse_dense_type()
-                type_shape = list(type.get_shape())
-                type_num_values = math.prod(type_shape)
+                type, type_shape, type_num_values = _parse_dense_type()
                 values, shape = self._parse_tensor_literal()
                 _check_list_dense_attr(type_shape, shape)
                 element_type = type.element_type
