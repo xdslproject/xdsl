@@ -26,6 +26,106 @@ from xdsl.irdl import (
 from xdsl.utils.exceptions import VerifyException
 
 
+def verify_unidirectional_broadcast_shape(
+    lhs: TensorType[Attribute], rhs: TensorType[Attribute], res: TensorType[Attribute]
+) -> None:
+    """
+    Returns a unidirectional broadcastable shape
+    """
+    lhs_shape = lhs.get_shape()
+    rhs_shape = rhs.get_shape()
+    expected_shape = unidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
+    if expected_shape is None:
+        raise VerifyException(
+            f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
+        )
+    res_type_shape = res.get_shape()
+    if (
+        len(expected_shape) != len(res_type_shape)
+        or tuple(expected_shape) != res_type_shape
+    ):
+        raise VerifyException(
+            f"result shape {expected_shape} does not match result type {res}"
+        )
+
+
+def verify_multidirectional_broadcast_shape(
+    lhs: TensorType[Attribute], rhs: TensorType[Attribute], res: TensorType[Attribute]
+) -> None:
+    """
+    Returns a multidirectional broadcastable shape
+    """
+    lhs_shape = lhs.get_shape()
+    rhs_shape = rhs.get_shape()
+    expected_shape = multidirectional_broadcast_shape(list(lhs_shape), list(rhs_shape))
+    if expected_shape is None:
+        raise VerifyException(
+            f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
+        )
+    res_type_shape = res.get_shape()
+    if (
+        len(expected_shape) != len(res_type_shape)
+        or tuple(expected_shape) != res_type_shape
+    ):
+        raise VerifyException(
+            f"result shape {expected_shape} does not match result type {res}"
+        )
+
+
+def unidirectional_broadcast_shape(lhs: list[int], rhs: list[int]) -> list[int] | None:
+    """
+    In ONNX, tensor B is unidirectional broadcastable to tensor A if one of the following is true:
+
+    1. Tensor A and B both have exactly the same shape.
+    2. Tensor A and B all have the same number of dimensions and
+    the length of each dimensions is either a common length or B's length is 1.
+
+    3.Tensor B has too few dimensions, and B can have its shapes prepended with a dimension of length 1 to satisfy
+    property 2.
+
+    When unidirectional broadcasting happens, the output's shape is the same as the shape of A (i.e.,
+    the larger shape of two input tensors)
+
+    https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
+    """
+    # Check if Tensor A and B both have exactly the same shape
+    if lhs == rhs:
+        return lhs
+
+    lhs_len = len(lhs)
+    rhs_len = len(rhs)
+    prefix_len = lhs_len - rhs_len
+    if prefix_len < 0:
+        # lhs must not be shorter than rhs
+        return None
+    res_shape = lhs[:prefix_len]
+    for dl, dr in zip(lhs[prefix_len:], rhs):
+        if dl == dr or dr == 1 or dl == 1:
+            res_shape.append(max(dl, dr))
+        else:
+            return None
+    return res_shape
+
+
+def multidirectional_broadcast_shape(
+    lhs: list[int], rhs: list[int]
+) -> list[int] | None:
+    """
+    In ONNX, a set of tensors are multidirectional broadcastable to the same shape if one of the following is true:
+
+    1.The tensors all have exactly the same shape.
+    2.The tensors all have the same number of dimensions and the length of each dimensions is either a common length or 1.
+    3.The tensors that have too few dimensions can have their shapes prepended with a dimension of length 1 to satisfy property 2.
+
+    https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
+    """
+
+    if len(lhs) > len(rhs):
+        return unidirectional_broadcast_shape(rhs, lhs)
+    else:
+        return unidirectional_broadcast_shape(lhs, rhs)
+
+
 class ElementwiseBinOpBase(IRDLOperation, ABC):
     """Base class for element-wise binary operations on tensors with Numpy-style broadcasting."""
 
@@ -43,8 +143,6 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
 
     def verify_(self) -> None:
         # Check that the arguments are broadcastable (using Numpy semantics) and that the result type is correct.
-        res_shape: list[int] = []
-
         if (
             not isinstance(lhs_type := self.lhs.type, TensorType)
             or not isinstance(rhs_type := self.rhs.type, TensorType)
@@ -53,34 +151,10 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
             assert (
                 False
             ), "onnx elementwise binary operation operands and result must be of type TensorType"
-
-        # Iterate over the shapes in reverse order and compute the result shape.
-        lhs_shape = lhs_type.get_shape()
-        rhs_shape = rhs_type.get_shape()
-        i = max(len(lhs_shape), len(rhs_shape))
-        while i > 0:
-            i -= 1
-            d1: int = lhs_shape[i] if i >= 0 else 1
-            d2: int = rhs_shape[i] if i >= 0 else 1
-            if d1 == d2:
-                res_shape.append(d1)
-                continue
-            if d1 == 1:
-                res_shape.append(d2)
-                continue
-            if d2 == 1:
-                res_shape.append(d1)
-                continue
-            raise VerifyException(
-                f"operands have incompatible shapes: {lhs_shape} and {rhs_shape}"
-            )
-        # Reverse the result shape and check that it matches the result type.
-        res_type_shape = list(res_type.get_shape())
-        res_shape.reverse()
-        if len(res_shape) != len(res_type_shape) or res_shape != res_type_shape:
-            raise VerifyException(
-                f"result shape {res_shape} does not match result type {self.res.type}"
-            )
+        lhs_type = cast(TensorType[Attribute], lhs_type)
+        rhs_type = cast(TensorType[Attribute], rhs_type)
+        res_type = cast(TensorType[Attribute], res_type)
+        verify_multidirectional_broadcast_shape(lhs_type, rhs_type, res_type)
 
 
 @irdl_op_definition
@@ -105,11 +179,12 @@ class Div(ElementwiseBinOpBase):
 
 @irdl_op_definition
 class Relu(IRDLOperation):
-    name = "onnx.Relu"
     """
     Relu takes one input data (Tensor) and produces one output data (Tensor) where the rectified linear function,
      y = max(0, x), is applied to the tensor elementwise.
     """
+
+    name = "onnx.Relu"
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     operand = operand_def(TensorType[T])
     res = result_def(TensorType[T])
@@ -186,8 +261,6 @@ class Gemm(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        # store dimensions of tensor A and tensor B
-        res_shape: list[int] = []
         if (
             not isinstance(tensor_a_type := self.tensor_a.type, TensorType)
             or not isinstance(tensor_b_type := self.tensor_b.type, TensorType)
@@ -198,7 +271,13 @@ class Gemm(IRDLOperation):
                 False
             ), "onnx elementwise operation operands and result must be of type TensorType"
 
-        # check shape compatibility
+        tensor_a_type = cast(TensorType[Attribute], tensor_a_type)
+        tensor_b_type = cast(TensorType[Attribute], tensor_b_type)
+        tensor_c_type = cast(TensorType[Attribute], tensor_c_type)
+        res_tensor_type = cast(TensorType[Attribute], res_tensor_type)
+
+        # store dimensions of tensor A and tensor B
+        res_shape: list[int] = []
         tensor_a_shape = tensor_a_type.get_shape()
         tensor_b_shape = tensor_b_type.get_shape()
 
@@ -227,31 +306,11 @@ class Gemm(IRDLOperation):
             res_shape.append(tensor_a_shape[0])
             res_shape.append(tensor_b_shape[1])
 
-        # Check that tensor C is unidirectional broadcastable to tensor (A * B) (using Numpy semantics) and that
-        # the result type is correct.
-        # Iterate over the shapes in reverse order and compute the result shape
-        final_res_shape: list[int] = []
-        tensor_c_shape = tensor_c_type.get_shape()
-        i = max(len(res_shape), len(tensor_c_shape))
-        while i > 0:
-            i -= 1
-            d1: int = res_shape[i] if i >= 0 else 1
-            d2: int = tensor_c_shape[i] if i >= 0 else 1
-            if d1 == d2 or d2 == 1 or d1 == 1:
-                final_res_shape.append(max(d1, d2))
-                continue
-            raise VerifyException(
-                f"operands have incompatible shapes: {res_shape} and {tensor_c_shape}"
-            )
-        res_tensor_type_shape = list(res_tensor_type.get_shape())
-        final_res_shape.reverse()
-        if (
-            len(final_res_shape) != len(res_tensor_type_shape)
-            or final_res_shape != res_tensor_type_shape
-        ):
-            raise VerifyException(
-                f"result shape {final_res_shape} does not match result type {self.res_tensor.type}"
-            )
+        # Build tensor of tensor (A * B) computation
+        tensors_res = TensorType(IntegerType(32), res_shape)
+        verify_unidirectional_broadcast_shape(
+            tensors_res, tensor_c_type, res_tensor_type
+        )
 
 
 ONNX = Dialect(
