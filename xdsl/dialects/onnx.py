@@ -275,7 +275,7 @@ class Reshape(IRDLOperation):
     name = "onnx.Reshape"
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     data = operand_def(TensorType[T])
-    shape = operand_def(TensorType)
+    shape = operand_def(TensorType[IntegerType])
     reshaped = result_def(TensorType[T])
 
     allow_zero = opt_attr_def(AnyIntegerAttr, attr_name="allowzero")
