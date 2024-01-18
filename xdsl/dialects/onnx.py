@@ -337,7 +337,7 @@ class Reshape(IRDLOperation):
             missing_dim = total_elements // specified_dim
             new_shape[index_of_minus_one] = missing_dim
 
-        # Handle case where dimension is zero
+        # Handle case where dimension is zero (TODO)
         shape_type_list = list(shape_type)
         for i, dim in enumerate(shape_type_list):
             if dim == 0:
