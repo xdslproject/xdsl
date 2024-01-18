@@ -73,7 +73,7 @@ class AllocateRiscvSnitchWriteRegisters(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_snitch.WriteOp, rewriter: PatternRewriter, /):
         stream_type = cast(
-            stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
+            stream.WritableStreamType[riscv.FloatRegisterType], op.stream.type
         )
         op.value.type = stream_type.element_type
 
