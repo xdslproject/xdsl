@@ -164,16 +164,14 @@ def __(Add, FuncOp, ImplicitBuilder, ModuleOp, Return, tt):
 
 @app.cell
 def __():
-    from xdsl.builder import Builder
     from xdsl.ir import Attribute, SSAValue
-    return Attribute, Builder, SSAValue
+    return Attribute, SSAValue
 
 
 @app.cell
 def __(
     Add,
     Attribute,
-    Builder,
     FuncOp,
     GraphProto,
     ImplicitBuilder,
@@ -183,7 +181,6 @@ def __(
     SSAValue,
     Sequence,
     TensorType,
-    ValueInfoProto,
     f32,
     model_def,
     onnx,
@@ -221,7 +218,7 @@ def __(
         tt = get_tensor_type(t.tensor_type)
         return tt
 
-    def _visit_value_info(i: ValueInfoProto, ctx: Ctx) -> Attribute:
+    def _visit_value_info(i: onnx.ValueInfoProto, ctx: Ctx) -> Attribute:
         name = i.name
         t = _get_type(i.type)
         ctx.type_by_name[name] = t
@@ -242,7 +239,7 @@ def __(
 
         return op.build(operands=operands, result_types=result_types).results
 
-    def _visit_graph(b: Builder, g: GraphProto, ctx: Ctx) -> None:
+    def visit_graph(g: GraphProto, ctx: Ctx) -> None:
         name = g.name
 
         input_types = tuple(_visit_value_info(input, ctx) for input in g.input)
@@ -262,16 +259,14 @@ def __(
             returned_values = tuple(ctx.value_by_name[output.name] for output in g.output)
             Return(*returned_values)
             
-        b.insert(func)
 
 
     def build_module(g: GraphProto) -> ModuleOp:
         module = ModuleOp([])
-        b = Builder.at_start(module.body.block)
+        
         ctx = Ctx()
-        _visit_graph(b, g, ctx)
-
-        print([(k, str(v)) for k, v in ctx.type_by_name.items()])
+        with ImplicitBuilder(module.body):
+            visit_graph(g, ctx)
 
         return module
 
@@ -289,6 +284,7 @@ def __(
         get_shape,
         get_tensor_type,
         module,
+        visit_graph,
         visit_node,
     )
 
