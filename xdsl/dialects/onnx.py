@@ -312,11 +312,12 @@ class Reshape(IRDLOperation):
         shape_type = shape_type.get_shape()
         reshaped_type = reshaped_type.get_shape()
 
-        # Shape tensor rank can't be -1 and it must have a constant shape
+        # Shape tensor rank can't be -1
         if shape_type[0] == -1:
             raise VerifyException("Shape tensor rank must not be equal to -1")
 
         # There is currently only support for rank one shape tensors in onnx-mlir
+        # Shape tensor must have a constant shape
         if len(shape_type) != 1:
             raise VerifyException("Shape tensor must have a rank one")
 
@@ -346,6 +347,7 @@ class Reshape(IRDLOperation):
                 else:
                     # dimension is 0, leave it unchanged  (i.e. taken from the input tensor).
                     new_shape[i] = data_type[i]
+
         # Shape (second input) could be an empty shape, which means converting to a scalar.
         if len(shape_type) == 0:
             shape_type = IntegerType(64)
