@@ -337,19 +337,18 @@ class Reshape(IRDLOperation):
             missing_dim = total_elements // specified_dim
             new_shape[index_of_minus_one] = missing_dim
 
-        # Handle case where dimension is zero (TODO)
-        shape_type_list = list(shape_type)
-        for i, dim in enumerate(shape_type_list):
+        # Handle case where dimension is zero
+        for i, dim in enumerate(new_shape):
             if dim == 0:
                 if self.allow_zero:
                     # If allow_zero is set, explicitly set the dimension to zero  (i.e. not taken from input tensor)
-                    shape_type_list[i] = 0
+                    new_shape[i] = 0
                 else:
                     # dimension is 0, leave it unchanged  (i.e. taken from the input tensor).
-                    shape_type_list[i] = data_type[i]
-        # # Shape (second input) could be an empty shape, which means converting to a scalar.
-        if not shape_type_list:
-            shape_type_list = [IntegerType(64)]
+                    new_shape[i] = data_type[i]
+        # Shape (second input) could be an empty shape, which means converting to a scalar.
+        if len(shape_type) == 0:
+            shape_type = IntegerType(64)
 
 
 ONNX = Dialect(
