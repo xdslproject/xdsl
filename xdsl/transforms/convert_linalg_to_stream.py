@@ -10,7 +10,7 @@ from functools import reduce
 from itertools import accumulate
 from math import prod
 
-from xdsl.dialects import arith, linalg, stream
+from xdsl.dialects import arith, linalg, memref_stream
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IndexType,
@@ -152,11 +152,11 @@ class LowerGenericOp(RewritePattern):
             )
             dm_all = IntAttr(31)
             stride_pattern_ops = [
-                stream.StridePatternOp(ub_attr, first_strides, dm_all)
+                memref_stream.StridePatternOp(ub_attr, first_strides, dm_all)
             ]
         else:
             stride_pattern_ops = [
-                stream.StridePatternOp(
+                memref_stream.StridePatternOp(
                     ub_attr,
                     ArrayAttr(
                         [
@@ -175,7 +175,7 @@ class LowerGenericOp(RewritePattern):
             [
                 *stride_pattern_ops,
                 repeat_count := arith.Constant(IntegerAttr(repeat_count, IndexType())),
-                stream.GenericOp(
+                memref_stream.GenericOp(
                     repeat_count.result,
                     op.inputs,
                     op.outputs,
@@ -189,11 +189,11 @@ class LowerGenericOp(RewritePattern):
 class LowerYieldOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.YieldOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(stream.YieldOp(*op.operands))
+        rewriter.replace_matched_op(memref_stream.YieldOp(*op.operands))
 
 
-class ConvertLinalgToStreamPass(ModulePass):
-    name = "convert-linalg-to-stream"
+class ConvertLinalgToMemrefStreamPass(ModulePass):
+    name = "convert-linalg-to-memref-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(

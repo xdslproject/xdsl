@@ -109,6 +109,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return MemRef
 
+    def get_memref_stream():
+        from xdsl.dialects.memref_stream import MemrefStream
+
+        return MemrefStream
+
     def get_mpi():
         from xdsl.dialects.mpi import MPI
 
@@ -229,6 +234,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "ltl": get_ltl,
         "math": get_math,
         "memref": get_memref,
+        "memref_stream": get_memref_stream,
         "mpi": get_mpi,
         "omp": get_omp,
         "onnx": get_onnx,
@@ -268,7 +274,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_convert_linalg_to_stream():
         from xdsl.transforms import convert_linalg_to_stream
 
-        return convert_linalg_to_stream.ConvertLinalgToStreamPass
+        return convert_linalg_to_stream.ConvertLinalgToMemrefStreamPass
 
     def get_convert_scf_to_openmp():
         from xdsl.transforms import convert_scf_to_openmp
@@ -280,10 +286,12 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch
 
-    def get_convert_stream_to_snitch_stream():
-        from xdsl.backend.riscv.lowering import convert_stream_to_snitch_stream
+    def get_convert_memref_stream_to_snitch_stream():
+        from xdsl.backend.riscv.lowering import convert_memref_stream_to_snitch_stream
 
-        return convert_stream_to_snitch_stream.ConvertStreamToSnitchStreamPass
+        return (
+            convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitchStreamPass
+        )
 
     def get_constant_fold_interp():
         from xdsl.transforms import constant_fold_interp
@@ -453,14 +461,14 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "constant-fold-interp": get_constant_fold_interp,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
-        "convert-linalg-to-stream": get_convert_linalg_to_stream,
+        "convert-linalg-to-memref-stream": get_convert_linalg_to_stream,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "convert-memref-stream-to-snitch-stream": get_convert_memref_stream_to_snitch_stream,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
-        "convert-stream-to-snitch-stream": get_convert_stream_to_snitch_stream,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,

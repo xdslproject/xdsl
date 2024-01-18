@@ -7,6 +7,7 @@ from xdsl.interpreters import (
     func,
     linalg,
     memref,
+    memref_stream,
     printf,
     riscv,
     riscv_func,
@@ -35,6 +36,7 @@ def register_implementations(
     interpreter.register_implementations(affine.AffineFunctions())
     interpreter.register_implementations(linalg.LinalgFunctions())
     interpreter.register_implementations(memref.MemrefFunctions())
+    interpreter.register_implementations(memref_stream.MemrefStreamFunctions())
     if include_wgpu:
         from xdsl.interpreters.experimental import wgpu
 

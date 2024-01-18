@@ -4,7 +4,14 @@ from xdsl.backend.riscv.lowering.utils import (
     register_type_for_type,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import builtin, riscv, riscv_snitch, snitch_stream, stream
+from xdsl.dialects import (
+    builtin,
+    memref_stream,
+    riscv,
+    riscv_snitch,
+    snitch_stream,
+    stream,
+)
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
@@ -28,7 +35,7 @@ class LowerGenericOp(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stream.GenericOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: memref_stream.GenericOp, rewriter: PatternRewriter):
         # Cast inputs to RISC-V registers
         rep_count_cast_ops, new_rep_counts = cast_ops_for_values((op.repeat_count,))
         (new_rep_count,) = new_rep_counts
@@ -80,7 +87,7 @@ class LowerYieldOp(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stream.YieldOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: memref_stream.YieldOp, rewriter: PatternRewriter):
         loop_block = op.parent_block()
 
         if loop_block is None:
@@ -140,7 +147,9 @@ class LowerYieldOp(RewritePattern):
 
 class LowerStridePatternOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stream.StridePatternOp, rewriter: PatternRewriter):
+    def match_and_rewrite(
+        self, op: memref_stream.StridePatternOp, rewriter: PatternRewriter
+    ):
         rewriter.replace_matched_op(
             snitch_stream.StridePatternOp(
                 op.ub,
@@ -150,8 +159,8 @@ class LowerStridePatternOp(RewritePattern):
         )
 
 
-class ConvertStreamToSnitchStreamPass(ModulePass):
-    name = "convert-stream-to-snitch-stream"
+class ConvertMemrefStreamToSnitchStreamPass(ModulePass):
+    name = "convert-memref-stream-to-snitch-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(

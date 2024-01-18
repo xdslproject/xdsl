@@ -10,9 +10,7 @@ from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
-    ReturnedValues,
     impl,
-    impl_terminator,
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
@@ -86,54 +84,6 @@ class StridedMemrefOutputStream(Generic[TCon], WritableStream[TCon]):
 
 @register_impls
 class StreamFunctions(InterpreterFunctions):
-    @impl(stream.GenericOp)
-    def run_generic(
-        self, interpreter: Interpreter, op: stream.GenericOp, args: tuple[Any, ...]
-    ) -> PythonValues:
-        input_count = len(op.inputs)
-        output_count = len(op.outputs)
-        total_count = input_count + output_count
-
-        repeat_count = args[0]
-        input_shaped_arrays: tuple[ShapedArray[Any], ...] = args[1 : input_count + 1]
-        output_shaped_arrays: tuple[ShapedArray[Any], ...] = args[input_count + 1 :]
-
-        stride_patterns: tuple[StridePattern, ...] = args[total_count + 1 :]
-
-        if len(stride_patterns) == 1:
-            stride_patterns = stride_patterns * total_count
-
-        input_stride_patterns = stride_patterns[:input_count]
-        output_stride_patterns = stride_patterns[input_count:]
-
-        input_streams = tuple(
-            StridedMemrefInputStream(
-                strided_pointer_offset_iter(pat.strides, pat.ub), shaped_array
-            )
-            for pat, shaped_array in zip(input_stride_patterns, input_shaped_arrays)
-        )
-
-        output_streams = tuple(
-            StridedMemrefOutputStream(
-                strided_pointer_offset_iter(pat.strides, pat.ub), shaped_array
-            )
-            for pat, shaped_array in zip(output_stride_patterns, output_shaped_arrays)
-        )
-
-        for _ in range(repeat_count):
-            loop_args = tuple(i.read() for i in input_streams)
-            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
-            for o, r in zip(output_streams, loop_results):
-                o.write(r)
-
-        return ()
-
-    @impl(stream.StridePatternOp)
-    def run_stride_pattern(
-        self, interpreter: Interpreter, op: stream.StridePatternOp, args: PythonValues
-    ) -> PythonValues:
-        return (StridePattern([b.data for b in op.ub], [s.data for s in op.strides]),)
-
     @impl(stream.ReadOp)
     def run_read(
         self, interpreter: Interpreter, op: stream.ReadOp, args: tuple[Any, ...]
@@ -150,9 +100,3 @@ class StreamFunctions(InterpreterFunctions):
         stream: WritableStream[Any] = stream
         stream.write(value)
         return ()
-
-    @impl_terminator(stream.YieldOp)
-    def run_br(
-        self, interpreter: Interpreter, op: stream.YieldOp, args: tuple[Any, ...]
-    ):
-        return ReturnedValues(args), ()
