@@ -1,10 +1,10 @@
 import pytest
-from xdsl.builder import Builder
 
 import xdsl.dialects.pdl as pdl
+from xdsl.builder import Builder
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
 from xdsl.ir import Block
-from xdsl.irdl.irdl import IRDLOperation, irdl_op_definition
+from xdsl.irdl import IRDLOperation, irdl_op_definition
 from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
