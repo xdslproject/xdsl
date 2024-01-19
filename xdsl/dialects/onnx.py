@@ -371,7 +371,7 @@ class Reshape(IRDLOperation):
         shape_type = shape_type.get_shape()
         reshaped_type = reshaped_type.get_shape()
 
-        # Shape tensor rank can't be -1
+        # Shape tensor rank can't be -1.
         if shape_type[0] == -1:
             raise VerifyException("Shape tensor rank must not be equal to -1")
 
