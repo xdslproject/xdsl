@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from typing import Any
 
 from xdsl.builder import ImplicitBuilder
