@@ -7,16 +7,21 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyIntegerAttr,
+    ArrayAttr,
     ContainerType,
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     ShapedType,
+    StringAttr,
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
+    AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
     VarOperand,
@@ -24,7 +29,7 @@ from xdsl.irdl import (
     attr_def,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -56,40 +61,43 @@ class ApplyOp(IRDLOperation):
 class For(IRDLOperation):
     name = "affine.for"
 
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    lowerBoundOperands: VarOperand = var_operand_def(IndexType)
+    upperBoundOperands: VarOperand = var_operand_def(IndexType)
+    inits: VarOperand = var_operand_def()
     res: VarOpResult = var_result_def(AnyAttr())
 
-    lower_bound = attr_def(AffineMapAttr)
-    upper_bound = attr_def(AffineMapAttr)
-    step: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    lowerBoundMap = prop_def(AffineMapAttr)
+    upperBoundMap = prop_def(AffineMapAttr)
+    step: AnyIntegerAttr = prop_def(AnyIntegerAttr)
 
     body: Region = region_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     # TODO this requires the ImplicitAffineTerminator trait instead of
     # NoTerminator
     # gh issue: https://github.com/xdslproject/xdsl/issues/1149
 
     def verify_(self) -> None:
-        if (
-            len(self.operands)
-            != len(self.results)
-            + self.lower_bound.data.num_dims
-            + self.upper_bound.data.num_dims
-            + self.lower_bound.data.num_symbols
-            + self.upper_bound.data.num_symbols
+        if len(self.inits) != len(self.results):
+            raise VerifyException("Expected as many init operands as results.")
+        if len(self.lowerBoundOperands) != (
+            self.lowerBoundMap.data.num_dims + self.lowerBoundMap.data.num_symbols
         ):
             raise VerifyException(
-                "Expected as many operands as results, lower bound args and upper bound args."
+                "Expected as many lower bound operands as lower bound dimensions and symbols."
             )
-
-        iter_types = [op.type for op in self.operands[-len(self.results) :]]
+        if len(self.upperBoundOperands) != (
+            self.upperBoundMap.data.num_dims + self.upperBoundMap.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many upper bound operands as upper bound dimensions and symbols."
+            )
+        iter_types = [op.type for op in self.inits]
         if iter_types != [res.type for res in self.results]:
             raise VerifyException(
                 "Expected all operands and result pairs to have matching types"
             )
-        if any(op.type != IndexType() for op in self.operands[: -len(self.results)]):
-            raise VerifyException("Expected all bounds arguments types to be index")
-
         entry_block: Block = self.body.blocks[0]
         block_arg_types = [IndexType()] + iter_types
         arg_types = [arg.type for arg in entry_block.args]
@@ -100,7 +108,9 @@ class For(IRDLOperation):
 
     @staticmethod
     def from_region(
-        operands: Sequence[Operation | SSAValue],
+        lowerBoundOperands: Sequence[Operation | SSAValue],
+        upperBoundOperands: Sequence[Operation | SSAValue],
+        inits: Sequence[Operation | SSAValue],
         result_types: Sequence[Attribute],
         lower_bound: int | AffineMapAttr,
         upper_bound: int | AffineMapAttr,
@@ -117,21 +127,25 @@ class For(IRDLOperation):
             )
         if isinstance(step, int):
             step = IntegerAttr.from_index_int_value(step)
-        attributes: dict[str, Attribute] = {
-            "lower_bound": lower_bound,
-            "upper_bound": upper_bound,
+        properties: dict[str, Attribute] = {
+            "lowerBoundMap": lower_bound,
+            "upperBoundMap": upper_bound,
             "step": step,
         }
         return For.build(
-            operands=[operands],
+            operands=[lowerBoundOperands, upperBoundOperands, inits],
             result_types=[result_types],
-            attributes=attributes,
+            properties=properties,
             regions=[region],
         )
 
 
 @irdl_op_definition
 class If(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
+    """
+
     name = "affine.if"
 
     args = var_operand_def(IndexType)
@@ -144,6 +158,45 @@ class If(IRDLOperation):
 
 
 @irdl_op_definition
+class ParallelOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop
+    """
+
+    name = "affine.parallel"
+
+    map_operands = var_operand_def(IndexType)
+
+    reductions = prop_def(ArrayAttr[StringAttr])
+    lowerBoundsMap = prop_def(AffineMapAttr)
+    lowerBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    upperBoundsMap = prop_def(AffineMapAttr)
+    upperBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    steps = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
+
+    res = var_result_def()
+
+    body = region_def("single_block")
+
+    def verify_(self) -> None:
+        if (
+            len(self.operands)
+            != len(self.results)
+            + self.lowerBoundsMap.data.num_dims
+            + self.upperBoundsMap.data.num_dims
+            + self.lowerBoundsMap.data.num_symbols
+            + self.upperBoundsMap.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many operands as results, lower bound args and upper bound args."
+            )
+        if len(self.lowerBoundsGroups.data) != len(self.lowerBoundsMap.data.results):
+            raise VerifyException("Expected a lower bound group for each lower bound")
+        if len(self.upperBoundsGroups.data) != len(self.upperBoundsMap.data.results):
+            raise VerifyException("Expected an upper bound group for each upper bound")
+
+
+@irdl_op_definition
 class Store(IRDLOperation):
     name = "affine.store"
 
@@ -152,7 +205,7 @@ class Store(IRDLOperation):
     value = operand_def(T)
     memref = operand_def(MemRefType[T])
     indices = var_operand_def(IndexType)
-    map = opt_attr_def(AffineMapAttr)
+    map = opt_prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -172,7 +225,7 @@ class Store(IRDLOperation):
             map = AffineMapAttr(AffineMap.identity(rank))
         super().__init__(
             operands=(value, memref, indices),
-            attributes={"map": map},
+            properties={"map": map},
         )
 
 
@@ -187,7 +240,7 @@ class Load(IRDLOperation):
 
     result = result_def(T)
 
-    map = opt_attr_def(AffineMapAttr)
+    map = opt_prop_def(AffineMapAttr)
 
     def __init__(
         self,
@@ -218,9 +271,24 @@ class Load(IRDLOperation):
 
         super().__init__(
             operands=(memref, indices),
-            attributes={"map": map},
+            properties={"map": map},
             result_types=(result_type,),
         )
+
+
+@irdl_op_definition
+class MinOp(IRDLOperation):
+    name = "affine.min"
+    arguments = var_operand_def(IndexType())
+    result = result_def(IndexType())
+
+    map = prop_def(AffineMapAttr)
+
+    def verify_(self) -> None:
+        if len(self.operands) != self.map.data.num_dims + self.map.data.num_symbols:
+            raise VerifyException(
+                f"{self.name} expects {self.map.data.num_dims + self.map.data.num_symbols} operands, but got {len(self.operands)}. The number of map operands must match the sum of the dimensions and symbols of its map."
+            )
 
 
 @irdl_op_definition
@@ -240,9 +308,11 @@ Affine = Dialect(
     [
         ApplyOp,
         For,
+        ParallelOp,
         If,
         Store,
         Load,
+        MinOp,
         Yield,
     ],
     [],

@@ -10,12 +10,10 @@ from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
-    ReturnedValues,
     impl,
-    impl_terminator,
     register_impls,
 )
-from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
+from xdsl.interpreters.riscv import RawPtr
 from xdsl.interpreters.stream import (
     ReadableStream,
     WritableStream,
@@ -136,29 +134,43 @@ class StridedPointerOutputStream(WritableStream[float]):
 
 @register_impls
 class SnitchStreamFunctions(InterpreterFunctions):
-    @impl(snitch_stream.GenericOp)
-    def run_generic(
+    @impl(snitch_stream.StreamingRegionOp)
+    def run_streaming_region(
         self,
         interpreter: Interpreter,
-        op: snitch_stream.GenericOp,
+        op: snitch_stream.StreamingRegionOp,
         args: tuple[Any, ...],
     ) -> PythonValues:
-        repeat_count = args[0]
         input_stream_count = len(op.inputs)
-
-        input_streams: tuple[ReadableStream[Any], ...] = args[
-            1 : 1 + input_stream_count
+        output_stream_count = len(op.outputs)
+        input_pointers: tuple[RawPtr, ...] = args[:input_stream_count]
+        output_pointers: tuple[RawPtr, ...] = args[
+            input_stream_count : input_stream_count + output_stream_count
         ]
-        output_streams: tuple[WritableStream[Any], ...] = args[1 + input_stream_count :]
+        stride_patterns: tuple[StridePattern, ...] = args[
+            input_stream_count + output_stream_count :
+        ]
+        if len(stride_patterns) == 1:
+            pattern = stride_patterns[0]
+            input_stride_patterns = (pattern,) * input_stream_count
+            output_stride_patterns = (pattern,) * output_stream_count
+        else:
+            input_stride_patterns = stride_patterns[:input_stream_count]
+            output_stride_patterns = stride_patterns[input_stream_count:]
 
-        for _ in range(repeat_count):
-            loop_args = tuple(i.read() for i in input_streams)
-            loop_args = RiscvFunctions.set_reg_values(
-                interpreter, op.body.block.args, loop_args
-            )
-            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
-            for o, r in zip(output_streams, loop_results):
-                o.write(r)
+        input_streams = tuple(
+            StridedPointerInputStream(pat.offset_expr, ptr)
+            for pat, ptr in zip(input_stride_patterns, input_pointers, strict=True)
+        )
+
+        output_streams = tuple(
+            StridedPointerOutputStream(pat.offset_expr, ptr)
+            for pat, ptr in zip(output_stride_patterns, output_pointers, strict=True)
+        )
+
+        interpreter.run_ssacfg_region(
+            op.body, (*input_streams, *output_streams), "steraming_region"
+        )
 
         return ()
 
@@ -204,9 +216,3 @@ class SnitchStreamFunctions(InterpreterFunctions):
             memref,
         )
         return (output_stream_factory,)
-
-    @impl_terminator(snitch_stream.YieldOp)
-    def run_br(
-        self, interpreter: Interpreter, op: snitch_stream.YieldOp, args: tuple[Any, ...]
-    ):
-        return ReturnedValues(args), ()

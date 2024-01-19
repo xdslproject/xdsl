@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Literal, TypeVar
+from itertools import product
+from typing import Literal, TypeVar, cast
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, gpu, memref, scf
@@ -14,6 +15,7 @@ from xdsl.dialects.stencil import (
     ExternalLoadOp,
     ExternalStoreOp,
     FieldType,
+    IndexAttr,
     IndexOp,
     LoadOp,
     ReturnOp,
@@ -53,9 +55,7 @@ _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 def StencilToMemRefType(
     input_type: StencilType[_TypeElement],
 ) -> MemRefType[_TypeElement]:
-    return MemRefType.from_element_type_and_shape(
-        input_type.element_type, input_type.get_shape()
-    )
+    return MemRefType(input_type.element_type, input_type.get_shape())
 
 
 @dataclass
@@ -117,29 +117,43 @@ class ReturnOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
-        store_list: list[memref.Store] = []
+        unroll_factor = op.unroll_factor
+        n_res = len(op.arg) // unroll_factor
 
-        parallel = op.parent_op()
-        assert isinstance(parallel, scf.ParallelOp | gpu.LaunchOp | scf.For)
-
-        for j in range(len(op.arg)):
+        store_list: list[Operation] = []
+        for j in range(n_res):
             target = self.return_target[op][j]
-
             if target is None:
-                break
-
+                continue
             assert isinstance(target.type, builtin.ShapedType)
-
-            assert (block := op.parent_block()) is not None
-
             dims = target.type.get_num_dims()
 
-            args = collectBlockArguments(dims, block)
+            unroll = op.unroll
+            if unroll is None:
+                unroll = IndexAttr.get(*([1] * dims))
 
-            if self.target == "gpu":
-                args = list(reversed(args))
+            for k, offset in enumerate(product(*(range(u) for u in unroll))):
+                assert (block := op.parent_block()) is not None
+                if self.target == "gpu":
+                    offset = tuple(reversed(offset))
+                args = cast(list[SSAValue], collectBlockArguments(dims, block))
 
-            store_list.append(memref.Store.get(op.arg[j], target, args))
+                for i in range(dims):
+                    if offset[i] != 0:
+                        constant_op = arith.Constant.from_int_and_width(
+                            offset[i], builtin.IndexType()
+                        )
+                        add_op = arith.Addi(args[i], constant_op)
+                        args[i] = add_op.results[0]
+                        store_list.append(constant_op)
+                        store_list.append(add_op)
+
+                if self.target == "gpu":
+                    args = list(reversed(args))
+
+                store_list.append(
+                    memref.Store.get(op.arg[j * unroll_factor + k], target, args)
+                )
 
         rewriter.replace_matched_op([*store_list])
 
@@ -246,10 +260,15 @@ class ApplyOpToParallel(RewritePattern):
         # Get this apply's ReturnOp
         body_block = op.region.blocks[0]
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
+        unroll = return_op.unroll
 
         body = prepare_apply_body(op, rewriter)
         body.block.add_op(scf.Yield())
         dim = res_type.get_num_dims()
+        if unroll is None:
+            unroll = [1] * dim
+        else:
+            unroll = [i for i in unroll]
 
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
@@ -260,6 +279,12 @@ class ApplyOpToParallel(RewritePattern):
                 )
             ),
             one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
+            *(
+                steps := list[arith.Constant | BlockArgument | None](
+                    arith.Constant.from_int_and_width(x, builtin.IndexType())
+                    for x in unroll
+                )
+            ),
             *(
                 upperBounds := list[arith.Constant | arith.Select](
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
@@ -273,7 +298,7 @@ class ApplyOpToParallel(RewritePattern):
         # kernel itself is not slowed down by the OpenMP runtime.
         match self.target:
             case "cpu":
-                steps = [one] * dim
+                tiled_steps = steps
                 total_upper_bounds = upperBounds.copy()
                 cst_tile_sizes: list[arith.Constant] = []
                 if self.tile_sizes:
@@ -282,7 +307,7 @@ class ApplyOpToParallel(RewritePattern):
                         cst_tile_size = arith.Constant.from_int_and_width(
                             self.tile_sizes[i], builtin.IndexType()
                         )
-                        steps.insert(i, cst_tile_size)
+                        tiled_steps.insert(i, cst_tile_size)
                         boilerplate_ops.insert(-1, cst_tile_size)
                         lowerBounds.insert(tiled_dim + i, None)
                         upperBounds.insert(tiled_dim + i, cst_tile_size)
@@ -290,10 +315,11 @@ class ApplyOpToParallel(RewritePattern):
                     dim += tiled_dim
 
                 assert lowerBounds[0] is not None
+                assert tiled_steps[0] is not None
                 p = scf.ParallelOp(
                     lower_bounds=[lowerBounds[0]],
                     upper_bounds=[upperBounds[0]],
-                    steps=[steps[0]],
+                    steps=[tiled_steps[0]],
                     body=Region(Block([scf.Yield()], arg_types=[builtin.IndexType()])),
                 )
                 loops: list[scf.ParallelOp | scf.For] = [p]
@@ -315,10 +341,11 @@ class ApplyOpToParallel(RewritePattern):
                         block.insert_ops_before([add, cmpi, minop], last)
                         tiled_index += 1
                     assert (lb := lowerBounds[i]) is not None
+                    assert (st := tiled_steps[i]) is not None
                     loop = scf.For(
                         lb=lb,
                         ub=upperBounds[i],
-                        step=steps[i],
+                        step=st,
                         iter_args=[],
                         body=Region(
                             Block([scf.Yield()], arg_types=[builtin.IndexType()])
@@ -338,12 +365,14 @@ class ApplyOpToParallel(RewritePattern):
                     1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
                 )
                 assert isa(lowerBounds, list[arith.Constant])
+                assert isa(steps, list[arith.Constant])
+
                 p = scf.ParallelOp(
                     lower_bounds=list(reversed(lowerBounds))
                     + [zero] * (3 - stencil_rank),
                     upper_bounds=list(reversed(upperBounds))
                     + [one] * (3 - stencil_rank),
-                    steps=[one] * 3,
+                    steps=list(reversed(steps)) + [one] * (3 - stencil_rank),
                     body=body,
                 )
                 for _ in range(3 - 1):

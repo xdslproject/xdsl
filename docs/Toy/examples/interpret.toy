@@ -6,6 +6,7 @@
 # RUN: python -m toy %s --emit=scf | filecheck %s
 # RUN: python -m toy %s --emit=riscv | filecheck %s
 # RUN: python -m toy %s --emit=riscv-regalloc | filecheck %s
+# RUN: python -m toy %s --emit=riscv-lowered | filecheck %s
 # RUN: python -m toy %s --emit=riscv-asm | filecheck %s
 
 # User defined generic function that operates on unknown shaped arguments

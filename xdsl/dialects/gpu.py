@@ -6,6 +6,7 @@ from typing import TypeVar
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     ArrayAttr,
     DenseArrayBase,
     FunctionType,
@@ -36,6 +37,7 @@ from xdsl.irdl import (
     Operand,
     OptOperand,
     OptOpResult,
+    ParameterDef,
     VarOperand,
     attr_def,
     irdl_attr_definition,
@@ -51,6 +53,8 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
@@ -83,12 +87,64 @@ class DimensionEnum(StrEnum):
     Z = auto()
 
 
+class ProcessorEnum(StrEnum):
+    Sequential = auto()
+    Block_X = auto()
+    Block_Y = auto()
+    Block_Z = auto()
+    Thread_X = auto()
+    Thread_Y = auto()
+    Thread_Z = auto()
+
+
+@irdl_attr_definition
 class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], OpaqueSyntaxAttribute):
     name = "gpu.all_reduce_op"
 
 
+@irdl_attr_definition
 class DimensionAttr(EnumAttribute[DimensionEnum], OpaqueSyntaxAttribute):
     name = "gpu.dim"
+
+
+@irdl_attr_definition
+class ProcessorAttr(EnumAttribute[ProcessorEnum], OpaqueSyntaxAttribute):
+    name = "gpu.processor"
+
+
+@irdl_attr_definition
+class LoopDimMapAttr(ParametrizedAttribute):
+    name = "gpu.loop_dim_map"
+
+    processor: ParameterDef[ProcessorAttr]
+    map: ParameterDef[AffineMapAttr]
+    bound: ParameterDef[AffineMapAttr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print("processor = ")
+            printer.print(self.processor.data)
+            printer.print(", map = ")
+            printer.print(self.map.data)
+            printer.print(", bound = ")
+            printer.print(self.bound.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser):
+        with parser.in_angle_brackets():
+            parser.parse_keyword("processor")
+            parser.parse_punctuation("=")
+            proc = ProcessorAttr.parse_parameter(parser)
+            processor = ProcessorAttr(proc)
+            parser.parse_punctuation(",")
+            parser.parse_keyword("map")
+            parser.parse_punctuation("=")
+            map = AffineMapAttr(parser.parse_affine_map())
+            parser.parse_punctuation(",")
+            parser.parse_keyword("bound")
+            parser.parse_punctuation("=")
+            bound = AffineMapAttr(parser.parse_affine_map())
+        return [processor, map, bound]
 
 
 _Element = TypeVar("_Element", bound=Attribute, covariant=True)
@@ -110,7 +166,7 @@ class AllocOp(IRDLOperation):
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
         assert isinstance(res_type := self.result.type, memref.MemRefType)
-        ndyn_type = len([i for i in res_type.shape.data if i.value.data == -1])
+        ndyn_type = len([i for i in res_type.get_shape() if i == -1])
         if ndyn != ndyn_type:
             raise VerifyException(
                 f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All "
@@ -545,6 +601,9 @@ class LaunchFuncOp(IRDLOperation):
     blockSizeX: Operand = operand_def(IndexType)
     blockSizeY: Operand = operand_def(IndexType)
     blockSizeZ: Operand = operand_def(IndexType)
+    clusterSizeX: OptOperand = opt_operand_def(IndexType)
+    clusterSizeY: OptOperand = opt_operand_def(IndexType)
+    clusterSizeZ: OptOperand = opt_operand_def(IndexType)
     dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     kernelOperands: VarOperand = var_operand_def()
     asyncObject: OptOperand = opt_operand_def()
@@ -560,6 +619,7 @@ class LaunchFuncOp(IRDLOperation):
         func: SymbolRefAttr,
         gridSize: Sequence[SSAValue | Operation],
         blockSize: Sequence[SSAValue | Operation],
+        clusterSize: Sequence[SSAValue | Operation] | None = None,
         kernelOperands: Sequence[SSAValue | Operation] | None = None,
         async_launch: bool = False,
         asyncDependencies: Sequence[SSAValue | Operation] | None = None,
@@ -569,12 +629,24 @@ class LaunchFuncOp(IRDLOperation):
             raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+        clusterSizeOperands: Sequence[
+            SSAValue | Operation | Sequence[SSAValue | Operation]
+        ]
+        if clusterSize is None:
+            clusterSizeOperands = [[], [], []]
+        else:
+            clusterSizeOperands = clusterSize
+        if len(clusterSizeOperands) != 3:
+            raise ValueError(
+                f"LaunchFuncOp must have 3 cluterSizes if any, got {len(clusterSizeOperands)}"
+            )
 
         super().__init__(
             operands=[
                 asyncDependencies,
                 *gridSize,
                 *blockSize,
+                *clusterSizeOperands,
                 dynamicSharedMemorySize,
                 kernelOperands,
                 [],
@@ -703,5 +775,10 @@ GPU = Dialect(
         ThreadIdOp,
         YieldOp,
     ],
-    [AllReduceOpAttr, DimensionAttr],
+    [
+        AllReduceOpAttr,
+        DimensionAttr,
+        ProcessorAttr,
+        LoopDimMapAttr,
+    ],
 )

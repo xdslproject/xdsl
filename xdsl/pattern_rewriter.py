@@ -14,6 +14,7 @@ from typing import (
     get_origin,
 )
 
+from xdsl.builder import BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -29,7 +30,57 @@ from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False)
-class PatternRewriter:
+class PatternRewriterListener(BuilderListener):
+    """A listener for pattern rewriter events."""
+
+    operation_removal_handler: list[Callable[[Operation], None]] = field(
+        default_factory=list, kw_only=True
+    )
+    """Callbacks that are called when an operation is removed."""
+
+    operation_modification_handler: list[Callable[[Operation], None]] = field(
+        default_factory=list,
+        kw_only=True,
+    )
+    """Callbacks that are called when an operation is modified."""
+
+    operation_replacement_handler: list[
+        Callable[[Operation, Sequence[SSAValue | None]], None]
+    ] = field(default_factory=list, kw_only=True)
+    """Callbacks that are called when an operation is replaced."""
+
+    def handle_operation_removal(self, op: Operation) -> None:
+        """Pass the operation that will be removed to the registered callbacks."""
+        for handler in self.operation_removal_handler:
+            handler(op)
+
+    def handle_operation_modification(self, op: Operation) -> None:
+        """Pass the operation that was just modified to the registered callbacks."""
+        for handler in self.operation_modification_handler:
+            handler(op)
+
+    def handle_operation_replacement(
+        self, op: Operation, new_results: Sequence[SSAValue | None]
+    ) -> None:
+        """Pass the operation that will be replaced to the registered callbacks."""
+        for handler in self.operation_replacement_handler:
+            handler(op, new_results)
+
+    def extend_from_listener(self, listener: BuilderListener | PatternRewriterListener):
+        """Forward all callbacks from `listener` to this listener."""
+        super().extend_from_listener(listener)
+        if isinstance(listener, PatternRewriterListener):
+            self.operation_removal_handler.extend(listener.operation_removal_handler)
+            self.operation_modification_handler.extend(
+                listener.operation_modification_handler
+            )
+            self.operation_replacement_handler.extend(
+                listener.operation_replacement_handler
+            )
+
+
+@dataclass(eq=False)
+class PatternRewriter(PatternRewriterListener):
     """
     A rewriter used during pattern matching.
     Once an operation is matched, this rewriter is used to apply
@@ -75,7 +126,29 @@ class PatternRewriter:
         """Check if the region and its children can be modified by this rewriter."""
         if region.parent is None:
             return True  # Toplevel operation of current_operation is always a ModuleOp
+        if region is self.current_operation.parent_region():
+            return True
         return self._can_modify_op(region.parent)
+
+    def _assert_can_modify_op(self, op: Operation) -> None:
+        """Asssert the operation and its children can be modified by this rewriter."""
+        if not self._can_modify_op(op):
+            raise Exception("Cannot modify the operation or its children")
+
+    def _assert_can_modify_block(self, block: Block) -> None:
+        """Assert the block can be modified by this rewriter."""
+        if not self._can_modify_block(block):
+            raise Exception("Cannot modify the block")
+
+    def _assert_can_modify_op_in_block(self, block: Block) -> None:
+        """Assert the block and its children can be modified by this rewriter."""
+        if not self._can_modify_op_in_block(block):
+            raise Exception("Cannot modify the block or its children")
+
+    def _assert_can_modify_region(self, region: Region) -> None:
+        """Assert the region and its children can be modified by this rewriter."""
+        if not self._can_modify_region(region):
+            raise Exception("Cannot modify the region or its children")
 
     def insert_op_before_matched_op(self, op: (Operation | Sequence[Operation])):
         """Insert operations before the matched operation."""
@@ -88,6 +161,8 @@ class PatternRewriter:
             return
         block.insert_ops_before(op, self.current_operation)
         self.added_operations_before.extend(op)
+        for op_ in op:
+            self.handle_operation_insertion(op_)
 
     def insert_op_after_matched_op(self, op: (Operation | Sequence[Operation])):
         """Insert operations after the matched operation."""
@@ -100,21 +175,23 @@ class PatternRewriter:
             return
         block.insert_ops_after(op, self.current_operation)
         self.added_operations_after.extend(op)
+        for op_ in op:
+            self.handle_operation_insertion(op_)
 
     def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations in a block contained in the matched operation."""
-        if not self._can_modify_block(block):
-            raise Exception("Cannot insert operations in block.")
+        self._assert_can_modify_block(block)
         self.has_done_action = True
         op = [op] if isinstance(op, Operation) else op
         if len(op) == 0:
             return
         block.add_ops(op)
+        for op_ in op:
+            self.handle_operation_insertion(op_)
 
     def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations in a block contained in the matched operation."""
-        if not self._can_modify_block(block):
-            raise Exception("Cannot insert operations in block.")
+        self._assert_can_modify_block(block)
         first_op = block.first_op
         if first_op is None:
             self.insert_op_at_end(op, block)
@@ -128,13 +205,16 @@ class PatternRewriter:
         if target_op.parent is None:
             raise Exception("Cannot insert operations before toplevel operation.")
         target_block = target_op.parent
-        if not self._can_modify_block(target_block):
-            raise Exception("Cannot insert operations in this block.")
+        self._assert_can_modify_block(target_block)
         self.has_done_action = True
         op = [op] if isinstance(op, Operation) else op
         if len(op) == 0:
             return
         target_block.insert_ops_before(op, target_op)
+        for op_ in op:
+            self.handle_operation_insertion(op_)
+        if target_op is self.current_operation:
+            self.added_operations_before.extend(op)
 
     def insert_op_after(
         self, op: Operation | Sequence[Operation], target_op: Operation
@@ -143,13 +223,16 @@ class PatternRewriter:
         if target_op.parent is None:
             raise Exception("Cannot insert operations after toplevel operation.")
         target_block = target_op.parent
-        if not self._can_modify_block(target_block):
-            raise Exception("Cannot insert operations in this block.")
+        self._assert_can_modify_block(target_block)
         self.has_done_action = True
         ops = [op] if isinstance(op, Operation) else op
         if len(ops) == 0:
             return
         target_block.insert_ops_after(ops, target_op)
+        for op_ in ops:
+            self.handle_operation_insertion(op_)
+        if target_op is self.current_operation:
+            self.added_operations_after.extend(ops)
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -159,6 +242,7 @@ class PatternRewriter:
         """
         self.has_done_action = True
         self.has_erased_matched_operation = True
+        self.handle_operation_removal(self.current_operation)
         Rewriter.erase_op(self.current_operation, safe_erase=safe_erase)
 
     def erase_op(self, op: Operation, safe_erase: bool = True):
@@ -170,12 +254,20 @@ class PatternRewriter:
         self.has_done_action = True
         if op == self.current_operation:
             return self.erase_matched_op(safe_erase)
-        if not self._can_modify_op(op):
-            raise Exception(
-                "PatternRewriter can only erase operations that are the matched operation"
-                ", or that are contained in the matched operation."
-            )
+        self._assert_can_modify_op(op)
+        self.handle_operation_removal(op)
         Rewriter.erase_op(op, safe_erase=safe_erase)
+
+    def _replace_all_uses_with(
+        self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
+    ):
+        """Replace all uses of an SSA value with another SSA value."""
+        for use in from_.uses:
+            self.handle_operation_modification(use.operation)
+        if to is None:
+            from_.erase(safe_erase=safe_erase)
+        else:
+            from_.replace_by(to)
 
     def replace_matched_op(
         self,
@@ -189,14 +281,9 @@ class PatternRewriter:
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
-        self.has_done_action = True
-        if isinstance(new_ops, Operation):
-            new_ops = [new_ops]
-        self.has_erased_matched_operation = True
-        Rewriter.replace_op(
+        self.replace_op(
             self.current_operation, new_ops, new_results, safe_erase=safe_erase
         )
-        self.added_operations_before.extend(new_ops)
 
     def replace_op(
         self,
@@ -213,26 +300,47 @@ class PatternRewriter:
         Otherwise, replace its uses with ErasedSSAValue.
         """
         self.has_done_action = True
-        if op == self.current_operation:
-            return self.replace_matched_op(new_ops, new_results, safe_erase)
-        if not self._can_modify_op(op):
-            raise Exception(
-                "PatternRewriter can only replace operations that are the matched "
-                "operation, or that are contained in the matched operation."
+        self._assert_can_modify_op(op)
+        if isinstance(new_ops, Operation):
+            new_ops = [new_ops]
+
+        # First, insert the new operations before the matched operation
+        self.insert_op_before(new_ops, op)
+
+        if isinstance(new_ops, Operation):
+            new_ops = [new_ops]
+        if new_results is None:
+            new_results = [] if len(new_ops) == 0 else new_ops[-1].results
+
+        if len(op.results) != len(new_results):
+            raise ValueError(
+                f"Expected {len(op.results)} new results, but got {len(new_results)}"
             )
-        Rewriter.replace_op(op, new_ops, new_results, safe_erase=safe_erase)
+
+        # Then, replace the results with new ones
+        self.handle_operation_replacement(op, new_results)
+        for old_result, new_result in zip(op.results, new_results):
+            self._replace_all_uses_with(old_result, new_result)
+
+        if op.results:
+            for new_op in new_ops:
+                for res in new_op.results:
+                    res.name_hint = op.results[0].name_hint
+
+        # Then, erase the original operation
+        self.erase_op(op, safe_erase=safe_erase)
 
     def modify_block_argument_type(self, arg: BlockArgument, new_type: Attribute):
         """
         Modify the type of a block argument.
         The block should be contained in the matched operation.
         """
-        if not self._can_modify_block(arg.block):
-            raise Exception(
-                "Cannot modify blocks that are not contained in the matched operation"
-            )
+        self._assert_can_modify_block(arg.block)
         self.has_done_action = True
         arg.type = new_type
+
+        for use in arg.uses:
+            self.handle_operation_modification(use.operation)
 
     def insert_block_argument(
         self, block: Block, index: int, arg_type: Attribute
@@ -241,10 +349,7 @@ class PatternRewriter:
         Insert a new block argument.
         The block should be contained in the matched operation.
         """
-        if not self._can_modify_block(block):
-            raise Exception(
-                "Cannot modify blocks that are not contained in the matched operation"
-            )
+        self._assert_can_modify_block(block)
         self.has_done_action = True
         return block.insert_arg(arg_type, index)
 
@@ -255,12 +360,10 @@ class PatternRewriter:
         If safe_erase is true, then raise an exception if the block argument has still
         uses, otherwise, replace it with an ErasedSSAValue.
         """
-        if not self._can_modify_block(arg.block):
-            raise Exception(
-                "Cannot modify blocks that are not contained in the matched operation"
-            )
+        self._assert_can_modify_block(arg.block)
         self.has_done_action = True
-        arg.block.erase_arg(arg, safe_erase=safe_erase)
+        self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
+        arg.block.erase_arg(arg, safe_erase)
 
     def inline_block_at_end(self, block: Block, target_block: Block):
         """
@@ -268,12 +371,8 @@ class PatternRewriter:
         This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
-        if not self._can_modify_block(target_block) or not self._can_modify_block(
-            block
-        ):
-            raise Exception(
-                "Cannot modify blocks that are not contained in the matched operation."
-            )
+        self._assert_can_modify_block(target_block)
+        self._assert_can_modify_block(block)
         Rewriter.inline_block_at_end(block, target_block)
 
     def inline_block_at_start(self, block: Block, target_block: Block):
@@ -282,12 +381,8 @@ class PatternRewriter:
         This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
-        if not self._can_modify_block(target_block) or not self._can_modify_block(
-            block
-        ):
-            raise Exception(
-                "Cannot modify blocks that are not contained in the matched operation."
-            )
+        self._assert_can_modify_block(target_block)
+        self._assert_can_modify_block(block)
         Rewriter.inline_block_at_start(block, target_block)
 
     def inline_block_before_matched_op(self, block: Block):
@@ -297,10 +392,7 @@ class PatternRewriter:
         matched operation.
         """
         self.has_done_action = True
-        if not self._can_modify_block(block):
-            raise Exception(
-                "Cannot move blocks that are not contained in the matched operation."
-            )
+        self._assert_can_modify_block(block)
         self.added_operations_before.extend(block.ops)
         Rewriter.inline_block_before(block, self.current_operation)
 
@@ -314,15 +406,8 @@ class PatternRewriter:
         self.has_done_action = True
         if op is self.current_operation:
             return self.inline_block_before_matched_op(block)
-        if not self._can_modify_block(block):
-            raise Exception(
-                "Cannot move blocks that are not contained in the matched operation."
-            )
-        if not self._can_modify_op(op):
-            raise Exception(
-                "Cannot move block elsewhere than before the matched operation,"
-                " or before an operation child"
-            )
+        self._assert_can_modify_block(block)
+        self._assert_can_modify_op(op)
         Rewriter.inline_block_before(block, op)
 
     def inline_block_after_matched_op(self, block: Block):
@@ -332,10 +417,7 @@ class PatternRewriter:
         matched operation.
         """
         self.has_done_action = True
-        if not self._can_modify_block(block):
-            raise Exception(
-                "Cannot move blocks that are not contained in the matched operation."
-            )
+        self._assert_can_modify_block(block)
         self.added_operations_after.extend(block.ops)
         Rewriter.inline_block_after(block, self.current_operation)
 
@@ -349,12 +431,9 @@ class PatternRewriter:
         self.has_done_action = True
         if op is self.current_operation:
             return self.inline_block_after_matched_op(block)
-        if not self._can_modify_block(block) or (
-            op.parent is not None and not self._can_modify_block(op.parent)
-        ):
-            raise Exception(
-                "Cannot move blocks that are not contained in the matched operation."
-            )
+        self._assert_can_modify_block(block)
+        if op.parent is not None:
+            self._assert_can_modify_block(op.parent)
         Rewriter.inline_block_after(block, op)
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
@@ -363,11 +442,36 @@ class PatternRewriter:
         The region should be a child of the matched operation.
         """
         self.has_done_action = True
-        if not self._can_modify_region(region):
-            raise Exception(
-                "Cannot move regions that are not children of the matched operation"
-            )
+        self._assert_can_modify_region(region)
         return Rewriter.move_region_contents_to_new_regions(region)
+
+    def inline_region_before(self, region: Region, target: Block) -> None:
+        """Move the region blocks to an existing region."""
+        self.has_done_action = True
+        self._assert_can_modify_region(region)
+        self._assert_can_modify_block(target)
+        Rewriter.inline_region_before(region, target)
+
+    def inline_region_after(self, region: Region, target: Block) -> None:
+        """Move the region blocks to an existing region."""
+        self.has_done_action = True
+        self._assert_can_modify_region(region)
+        self._assert_can_modify_block(target)
+        Rewriter.inline_region_after(region, target)
+
+    def inline_region_at_start(self, region: Region, target: Region) -> None:
+        """Move the region blocks to an existing region."""
+        self.has_done_action = True
+        self._assert_can_modify_region(region)
+        self._assert_can_modify_region(target)
+        Rewriter.inline_region_at_start(region, target)
+
+    def inline_region_at_end(self, region: Region, target: Region) -> None:
+        """Move the region blocks to an existing region."""
+        self.has_done_action = True
+        self._assert_can_modify_region(region)
+        self._assert_can_modify_region(target)
+        Rewriter.inline_region_at_end(region, target)
 
     def iter_affected_ops(self) -> Iterable[Operation]:
         """
@@ -609,6 +713,58 @@ class GreedyRewritePatternApplier(RewritePattern):
         return
 
 
+@dataclass(eq=False)
+class Worklist:
+    _op_stack: list[Operation | None] = field(default_factory=list, init=False)
+    """
+    The list of operations to iterate over, used as a last-in-first-out stack.
+    Operations are added and removed at the end of the list.
+    Operation that are `None` are meant to be discarded, and are used to
+    keep removal of operations O(1).
+    """
+
+    _map: dict[Operation, int] = field(default_factory=dict, init=False)
+    """
+    The map of operations to their index in the stack.
+    It is used to check if an operation is already in the stack, and to
+    remove it in O(1).
+    """
+
+    def is_empty(self) -> bool:
+        """Check if the worklist is empty."""
+        while self._op_stack and self._op_stack[-1] is None:
+            self._op_stack.pop()
+        return not bool(self._op_stack)
+
+    def push(self, op: Operation):
+        """
+        Push an operation to the end of the worklist, if it is not already in it.
+        """
+        if op not in self._map:
+            self._map[op] = len(self._op_stack)
+            self._op_stack.append(op)
+
+    def pop(self) -> Operation | None:
+        """Pop the operation at the end of the worklist."""
+        # All `None` operations at the end of the stack are discarded,
+        # as they were removed previously.
+        # We either return `None` if the stack is empty, or the last operation
+        # that is not `None`.
+        while self._op_stack:
+            op = self._op_stack.pop()
+            if op is not None:
+                del self._map[op]
+                return op
+        return None
+
+    def remove(self, op: Operation):
+        """Remove an operation from the worklist."""
+        if op in self._map:
+            index = self._map[op]
+            self._op_stack[index] = None
+            del self._map[op]
+
+
 @dataclass(eq=False, repr=False)
 class PatternRewriteWalker:
     """
@@ -636,6 +792,9 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
+    listener: PatternRewriterListener = field(default_factory=PatternRewriterListener)
+    """The listener that will be called when an operation or block is modified."""
+
     def rewrite_module(self, op: ModuleOp):
         """Rewrite an entire module operation."""
         self._rewrite_op(op)
@@ -654,6 +813,7 @@ class PatternRewriteWalker:
 
         # We then match for a pattern in the current operation
         rewriter = PatternRewriter(op)
+        rewriter.extend_from_listener(self.listener)
         self.pattern.match_and_rewrite(op, rewriter)
 
         if rewriter.has_done_action:

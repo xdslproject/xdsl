@@ -6,12 +6,12 @@ from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
     ConvertFuncToRiscvFuncPass,
 )
 from xdsl.backend.riscv.lowering.convert_memref_to_riscv import ConvertMemrefToRiscvPass
+from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
+    ConvertRiscvScfToRiscvCfPass,
+)
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
 from xdsl.backend.riscv.lowering.reduce_register_pressure import (
     RiscvReduceRegisterPressurePass,
-)
-from xdsl.backend.riscv.riscv_scf_to_asm import (
-    LowerScfForToLabels,
 )
 from xdsl.dialects import (
     affine,
@@ -145,7 +145,7 @@ def transform(
         return
 
     LowerRISCVFunc(insert_exit_syscall=True).apply(ctx, module_op)
-    LowerScfForToLabels().apply(ctx, module_op)
+    ConvertRiscvScfToRiscvCfPass().apply(ctx, module_op)
 
     if target == "riscv-lowered":
         return

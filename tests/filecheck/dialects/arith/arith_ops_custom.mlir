@@ -93,17 +93,25 @@
   // CHECK-NEXT: %cmpi = arith.cmpi slt, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %cmpi_index = arith.cmpi slt, %lhsindex, %rhsindex : index
 
-  %maxf = arith.maxf %lhsf32, %rhsf32 : f32
-  %maxf_vector = arith.maxf %lhsvec, %rhsvec : vector<4xf32>
+  %maxif = arith.maximumf %lhsf32, %rhsf32 : f32
+  %maxif_vector = arith.maximumf %lhsvec, %rhsvec : vector<4xf32>
+  %maxf = arith.maxnumf %lhsf32, %rhsf32 : f32
+  %maxf_vector = arith.maxnumf %lhsvec, %rhsvec : vector<4xf32>
 
-  // CHECK-NEXT: %maxf = arith.maxf %lhsf32, %rhsf32 : f32
-  // CHECK-NEXT: %maxf_vector = arith.maxf %lhsvec, %rhsvec : vector<4xf32>
+  // CHECK-NEXT: %maxif = arith.maximumf %lhsf32, %rhsf32 : f32
+  // CHECK-NEXT: %maxif_vector = arith.maximumf %lhsvec, %rhsvec : vector<4xf32>
+  // CHECK-NEXT: %maxf = arith.maxnumf %lhsf32, %rhsf32 : f32
+  // CHECK-NEXT: %maxf_vector = arith.maxnumf %lhsvec, %rhsvec : vector<4xf32>
 
-  %minf = arith.minf %lhsf32, %rhsf32 : f32
-  %minf_vector = arith.minf %lhsvec, %rhsvec : vector<4xf32>
+  %minif = arith.minimumf %lhsf32, %rhsf32 : f32
+  %minif_vector = arith.minimumf %lhsvec, %rhsvec : vector<4xf32>
+  %minf = arith.minnumf %lhsf32, %rhsf32 : f32
+  %minf_vector = arith.minnumf %lhsvec, %rhsvec : vector<4xf32>
 
-  // CHECK-NEXT: %minf = arith.minf %lhsf32, %rhsf32 : f32
-  // CHECK-NEXT: %minf_vector = arith.minf %lhsvec, %rhsvec : vector<4xf32>
+  // CHECK-NEXT: %minif = arith.minimumf %lhsf32, %rhsf32 : f32
+  // CHECK-NEXT: %minif_vector = arith.minimumf %lhsvec, %rhsvec : vector<4xf32>
+  // CHECK-NEXT: %minf = arith.minnumf %lhsf32, %rhsf32 : f32
+  // CHECK-NEXT: %minf_vector = arith.minnumf %lhsvec, %rhsvec : vector<4xf32>
 
   %addf = arith.addf %lhsf32, %rhsf32 : f32
   %addf_vector = arith.addf %lhsvec, %rhsvec : vector<4xf32>
@@ -158,4 +166,10 @@
 
   // CHECK-NEXT: %selecti = arith.select %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %selectf = arith.select %lhsi1, %lhsf32, %rhsf32 : f32
+
+  %sum, %carry = arith.addui_extended %lhsi32, %rhsi32 : i32, i1
+  %sum_index, %carry_index = arith.addui_extended %lhsi64, %rhsi64 : i64, i1
+
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i32, i1
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i64, i1
 }) : () -> ()

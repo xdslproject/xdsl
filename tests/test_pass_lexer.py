@@ -3,7 +3,6 @@ import pytest
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import (
     PipelineLexer,
-    PipelinePassSpec,
     Token,
     parse_pipeline,
 )
@@ -47,35 +46,6 @@ def test_pass_lex_errors():
 
     with pytest.raises(PassPipelineParseError, match="Unknown token"):
         list(generator("pass-1{thing$=1}"))
-
-
-def test_pass_parser():
-    passes = list(
-        parse_pipeline(
-            'pass-1,pass-2{arg1=1 arg2=test,test2,3 arg3="test-str,2,3" '
-            "arg-4=-34.4e-12 no-val-arg},pass-3{thing=2d-grid}"
-        )
-    )
-
-    assert passes == [
-        PipelinePassSpec("pass-1", {}),
-        PipelinePassSpec(
-            "pass-2",
-            {
-                "arg1": [1],
-                "arg2": ["test", "test2", 3],
-                "arg3": ["test-str,2,3"],
-                "arg-4": [-3.44e-11],
-                "no-val-arg": [],
-            },
-        ),
-        PipelinePassSpec(
-            "pass-3",
-            {
-                "thing": ["2d-grid"],
-            },
-        ),
-    ]
 
 
 @pytest.mark.parametrize(

@@ -5,6 +5,7 @@ import pytest
 from xdsl.dialects.arith import (
     Addf,
     Addi,
+    AddUIExtended,
     AndI,
     BinaryOperation,
     CeilDivSI,
@@ -23,10 +24,10 @@ from xdsl.dialects.arith import (
     FloorDivSI,
     FPToSIOp,
     IndexCastOp,
-    Maxf,
+    Maximumf,
     MaxSI,
     MaxUI,
-    Minf,
+    Minimumf,
     MinSI,
     MinUI,
     Mulf,
@@ -45,9 +46,24 @@ from xdsl.dialects.arith import (
     TruncIOp,
     XOrI,
 )
-from xdsl.dialects.builtin import FloatAttr, IndexType, IntegerType, f32, f64, i32, i64
+from xdsl.dialects.builtin import (
+    AnyTensorType,
+    AnyVectorType,
+    FloatAttr,
+    IndexType,
+    IntegerType,
+    TensorType,
+    VectorType,
+    f32,
+    f64,
+    i1,
+    i32,
+    i64,
+)
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
+from xdsl.utils.test_value import TestSSAValue
 
 _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
@@ -105,13 +121,64 @@ class Test_integer_arith_construction:
         _ = Cmpi(self.a, self.b, input)
 
 
+@pytest.mark.parametrize(
+    "lhs_type, rhs_type, sum_type, is_correct",
+    [
+        (i32, i32, None, True),
+        (i32, i32, i32, True),
+        (i32, i32, i64, False),
+        (i32, i64, None, False),
+        (VectorType(i32, [4]), VectorType(i32, [4]), None, True),
+        (VectorType(i32, [4]), VectorType(i32, [5]), None, False),
+        (VectorType(i32, [4]), VectorType(i64, [5]), None, False),
+        (VectorType(i32, [4]), VectorType(i32, [4]), VectorType(i32, [4]), True),
+        (VectorType(i32, [4]), VectorType(i32, [4]), VectorType(i64, [4]), False),
+        (TensorType(i32, [4]), TensorType(i32, [4]), None, True),
+        (TensorType(i32, [4]), TensorType(i32, [5]), None, False),
+        (TensorType(i32, [4]), TensorType(i64, [5]), None, False),
+        (TensorType(i32, [4]), TensorType(i32, [4]), TensorType(i32, [4]), True),
+        (TensorType(i32, [4]), TensorType(i32, [4]), TensorType(i1, [4]), False),
+        (VectorType(i32, [4]), TensorType(i32, [4]), None, False),
+        (VectorType(i32, [4]), TensorType(i32, [4]), TensorType(i32, [4]), False),
+    ],
+)
+def test_addui_extend(
+    lhs_type: Attribute,
+    rhs_type: Attribute,
+    sum_type: Attribute | None,
+    is_correct: bool,
+):
+    lhs = TestSSAValue(lhs_type)
+    rhs = TestSSAValue(rhs_type)
+
+    attributes = {"foo": i32}
+
+    if is_correct:
+        op = AddUIExtended(lhs, rhs, attributes, sum_type)
+        op.verify()
+        assert op.lhs == lhs
+        assert op.rhs == rhs
+        assert op.attributes == attributes
+        if sum_type:
+            assert op.sum.type == sum_type
+        assert op.overflow.type == AddUIExtended.infer_overflow_type(lhs_type)
+        if isa(container_type := op.overflow.type, AnyVectorType | AnyTensorType):
+            assert container_type.element_type == i1
+        else:
+            assert op.overflow.type == i1
+    else:
+        with pytest.raises((VerifyException, ValueError)):
+            op = AddUIExtended(lhs, rhs, attributes, sum_type)
+            op.verify()
+
+
 class Test_float_arith_construction:
     a = Constant(FloatAttr(1.1, f32))
     b = Constant(FloatAttr(2.2, f32))
 
     @pytest.mark.parametrize(
         "func",
-        [Addf, Subf, Mulf, Divf, Maxf, Minf],
+        [Addf, Subf, Mulf, Divf, Maximumf, Minimumf],
     )
     @pytest.mark.parametrize(
         "flags", [FastMathFlagsAttr("none"), FastMathFlagsAttr("fast"), None]

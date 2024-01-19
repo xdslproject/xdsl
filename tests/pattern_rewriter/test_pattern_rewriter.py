@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from conftest import assert_print_op
 
 from xdsl.dialects import test
@@ -12,11 +14,12 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Block, MLContext, Operation, SSAValue
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
+    PatternRewriterListener,
     PatternRewriteWalker,
     RewritePattern,
     TypeConversionPattern,
@@ -26,18 +29,68 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.hints import isa
 
 
-def rewrite_and_compare(prog: str, expected_prog: str, walker: PatternRewriteWalker):
+def rewrite_and_compare(
+    prog: str,
+    expected_prog: str,
+    walker: PatternRewriteWalker,
+    *,
+    op_inserted: int = 0,
+    op_removed: int = 0,
+    op_modified: int = 0,
+    op_replaced: int = 0,
+    block_created: int = 0,
+):
     ctx = MLContext(allow_unregistered=True)
     ctx.load_dialect(Builtin)
     ctx.load_dialect(Arith)
     ctx.load_dialect(test.Test)
 
+    num_op_inserted = 0
+    num_op_removed = 0
+    num_op_modified = 0
+    num_op_replaced = 0
+    num_block_created = 0
+
+    def op_inserted_handler(op: Operation):
+        nonlocal num_op_inserted
+        num_op_inserted += 1
+
+    def op_removed_handler(op: Operation):
+        nonlocal num_op_removed
+        num_op_removed += 1
+
+    def op_modified_handler(op: Operation):
+        nonlocal num_op_modified
+        num_op_modified += 1
+
+    def op_replaced_handler(op: Operation, values: Sequence[SSAValue | None]):
+        nonlocal num_op_replaced
+        num_op_replaced += 1
+
+    def block_created_handler(block: Block):
+        nonlocal num_block_created
+        num_block_created += 1
+
+    listener = PatternRewriterListener()
+    listener.operation_insertion_handler = [op_inserted_handler]
+    listener.operation_removal_handler = [op_removed_handler]
+    listener.operation_modification_handler = [op_modified_handler]
+    listener.operation_replacement_handler = [op_replaced_handler]
+    listener.block_creation_handler = [block_created_handler]
+
     parser = Parser(ctx, prog)
     module = parser.parse_module()
 
+    walker.listener = listener
     walker.rewrite_module(module)
 
     assert_print_op(module, expected_prog, None)
+
+    assert num_op_inserted == op_inserted
+    assert num_op_removed == op_removed
+    assert num_op_modified == op_modified
+    assert num_op_replaced == op_replaced
+    assert num_block_created == block_created
 
 
 def test_non_recursive_rewrite():
@@ -60,7 +113,13 @@ def test_non_recursive_rewrite():
                 rewriter.replace_matched_op([new_constant])
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(RewriteConst(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(RewriteConst(), apply_recursively=False),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+        op_modified=2,
     )
 
 
@@ -89,6 +148,10 @@ def test_non_recursive_rewrite_reversed():
         PatternRewriteWalker(
             RewriteConst(), apply_recursively=False, walk_reverse=True
         ),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+        op_modified=2,
     )
 
 
@@ -111,7 +174,13 @@ def test_op_type_rewrite_pattern_method_decorator():
             rewriter.replace_matched_op(Constant.from_int_and_width(43, i32))
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(RewriteConst(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(RewriteConst(), apply_recursively=False),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+        op_modified=2,
     )
 
 
@@ -136,7 +205,13 @@ def test_op_type_rewrite_pattern_union_type():
             rewriter.replace_matched_op(Constant.from_int_and_width(42, i32))
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=2,
+        op_removed=2,
+        op_replaced=2,
+        op_modified=4,
     )
 
 
@@ -173,7 +248,13 @@ def test_recursive_rewriter():
             rewriter.replace_matched_op([constant_op, constant_one, add_op])
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=True)
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_inserted=12,
+        op_removed=4,
+        op_replaced=4,
+        op_modified=3,
     )
 
 
@@ -213,6 +294,10 @@ def test_recursive_rewriter_reversed():
         prog,
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=True, walk_reverse=True),
+        op_inserted=12,
+        op_removed=4,
+        op_replaced=4,
+        op_modified=3,
     )
 
 
@@ -246,6 +331,10 @@ def test_greedy_rewrite_pattern_applier():
             GreedyRewritePatternApplier([ConstantRewrite(), AddiRewrite()]),
             apply_recursively=False,
         ),
+        op_inserted=2,
+        op_removed=2,
+        op_replaced=2,
+        op_modified=2,
     )
 
 
@@ -269,7 +358,10 @@ def test_insert_op_before_matched_op():
             rewriter.insert_op_before_matched_op(new_cst)
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=1,
     )
 
 
@@ -293,28 +385,11 @@ def test_insert_op_at_start():
             rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=1,
     )
-
-
-def test_insert_op_at_end():
-    """
-    Test rewrites where operations are inserted with a negative position.
-    """
-
-    prog = ModuleOp([Constant.from_int_and_width(5, 32)])
-
-    to_be_inserted = Constant.from_int_and_width(42, 32)
-
-    class Rewrite(RewritePattern):
-        @op_type_rewrite_pattern
-        def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
-            rewriter.insert_op_at_end(to_be_inserted, mod.regions[0].blocks[0])
-
-    PatternRewriteWalker(Rewrite(), apply_recursively=False).rewrite_module(prog)
-
-    assert to_be_inserted in prog.ops
-    assert prog.body.block.get_operation_index(to_be_inserted) == 1
 
 
 def test_insert_op_before():
@@ -339,7 +414,10 @@ def test_insert_op_before():
             rewriter.insert_op_before(new_cst, first_op)
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=1,
     )
 
 
@@ -365,7 +443,10 @@ def test_insert_op_after():
             rewriter.insert_op_after(new_cst, first_op)
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=1,
     )
 
 
@@ -389,7 +470,10 @@ def test_insert_op_after_matched_op():
             rewriter.insert_op_after_matched_op(new_cst)
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=1,
     )
 
 
@@ -416,6 +500,7 @@ def test_insert_op_after_matched_op_reversed():
         prog,
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False, walk_reverse=True),
+        op_inserted=1,
     )
 
 
@@ -435,7 +520,7 @@ def test_operation_deletion():
         def match_and_rewrite(self, __op__: Constant, rewriter: PatternRewriter):
             rewriter.erase_matched_op()
 
-    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()))
+    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()), op_removed=1)
 
 
 def test_operation_deletion_reversed():
@@ -462,6 +547,7 @@ def test_operation_deletion_reversed():
         prog,
         expected,
         PatternRewriteWalker(EraseAll(), walk_reverse=True),
+        op_removed=2,
     )
 
 
@@ -513,7 +599,7 @@ def test_delete_inner_op():
             assert first_op is not None
             rewriter.erase_op(first_op)
 
-    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()))
+    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()), op_removed=1)
 
 
 def test_replace_inner_op():
@@ -535,7 +621,14 @@ def test_replace_inner_op():
             assert first_op is not None
             rewriter.replace_op(first_op, [Constant.from_int_and_width(42, i32)])
 
-    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()))
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite()),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+    )
 
 
 def test_block_argument_type_change():
@@ -568,7 +661,9 @@ def test_block_argument_type_change():
                 )
 
     rewrite_and_compare(
-        prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
     )
 
 
@@ -922,6 +1017,7 @@ def test_move_region_contents_to_new_regions():
         prog,
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=1,
     )
 
 
@@ -991,6 +1087,199 @@ def test_insert_same_block():
         prog,
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=3,
+        op_removed=1,
+        op_replaced=1,
+    )
+
+
+def test_inline_region_before():
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  "test.op"() ({
+    ^1:
+    %1 = "test.op"() : () -> f32
+    ^2:
+    %2 = "test.op"() : () -> f64
+  }) {"label" = "а"} : () -> ()
+  %2 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> f32
+^1:
+  %2 = "test.op"() : () -> f64
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes.get("label") != StringAttr("а"):
+                return
+            if op.parent is None:
+                return
+
+            rewriter.inline_region_before(op.regions[0], op.parent)
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=0,
+        op_removed=1,
+    )
+
+
+def test_inline_region_after():
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+  "test.op"() ({
+    ^1:
+    %1 = "test.op"() : () -> f32
+    ^2:
+    %2 = "test.op"() : () -> f64
+  }) {"label" = "а"} : () -> ()
+^0:
+  %2 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> f32
+^1:
+  %2 = "test.op"() : () -> f64
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes.get("label") != StringAttr("а"):
+                return
+            if op.parent is None:
+                return
+
+            rewriter.inline_region_after(op.regions[0], op.parent)
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=0,
+        op_removed=1,
+    )
+
+
+def test_inline_region_at_start():
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  "test.op"() ({
+    ^1:
+    %1 = "test.op"() : () -> f32
+    ^2:
+    %2 = "test.op"() : () -> f64
+  }) {"label" = "а"} : () -> ()
+  %2 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> f32
+^0:
+  %1 = "test.op"() : () -> f64
+^1:
+  %2 = "test.op"() : () -> i32
+^2:
+  %3 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes.get("label") != StringAttr("а"):
+                return
+            parent_region = op.parent_region()
+            if parent_region is None:
+                return
+
+            rewriter.inline_region_at_start(op.regions[0], parent_region)
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=0,
+        op_removed=1,
+    )
+
+
+def test_inline_region_at_end():
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  "test.op"() ({
+    ^1:
+    %1 = "test.op"() : () -> f32
+    ^2:
+    %2 = "test.op"() : () -> f64
+  }) {"label" = "а"} : () -> ()
+  %2 = "test.op"() : () -> i64
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> i32
+^0:
+  %1 = "test.op"() : () -> i64
+^1:
+  %2 = "test.op"() : () -> f32
+^2:
+  %3 = "test.op"() : () -> f64
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.attributes.get("label") != StringAttr("а"):
+                return
+            parent_region = op.parent_region()
+            if parent_region is None:
+                return
+
+            rewriter.inline_region_at_end(op.regions[0], parent_region)
+            rewriter.erase_matched_op()
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=0,
+        op_removed=1,
     )
 
 
@@ -1033,11 +1322,19 @@ def test_type_conversion():
         prog,
         expected,
         PatternRewriteWalker(Rewrite(recursive=True), apply_recursively=False),
+        op_inserted=5,
+        op_removed=5,
+        op_replaced=5,
+        op_modified=4,
     )
     rewrite_and_compare(
         prog,
         expected,
         PatternRewriteWalker(Rewrite(recursive=True), apply_recursively=True),
+        op_inserted=5,
+        op_removed=5,
+        op_replaced=5,
+        op_modified=4,
     )
     rewrite_and_compare(
         prog,
@@ -1045,6 +1342,10 @@ def test_type_conversion():
         PatternRewriteWalker(
             Rewrite(recursive=True), apply_recursively=False, walk_reverse=True
         ),
+        op_inserted=5,
+        op_removed=5,
+        op_replaced=5,
+        op_modified=4,
     )
 
     non_rec_expected = """\
@@ -1065,16 +1366,28 @@ def test_type_conversion():
         prog,
         non_rec_expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_inserted=2,
+        op_removed=2,
+        op_replaced=2,
+        op_modified=3,
     )
     rewrite_and_compare(
         prog,
         non_rec_expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_inserted=2,
+        op_removed=2,
+        op_replaced=2,
+        op_modified=3,
     )
     rewrite_and_compare(
         prog,
         non_rec_expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False, walk_reverse=True),
+        op_inserted=2,
+        op_removed=2,
+        op_replaced=2,
+        op_modified=3,
     )
 
     expected = """\
@@ -1097,6 +1410,10 @@ def test_type_conversion():
         PatternRewriteWalker(
             Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=False
         ),
+        op_inserted=4,
+        op_removed=4,
+        op_replaced=4,
+        op_modified=4,
     )
     rewrite_and_compare(
         prog,
@@ -1104,6 +1421,10 @@ def test_type_conversion():
         PatternRewriteWalker(
             Rewrite(ops=(test.TestOp,), recursive=True), apply_recursively=True
         ),
+        op_inserted=4,
+        op_removed=4,
+        op_replaced=4,
+        op_modified=4,
     )
     rewrite_and_compare(
         prog,
@@ -1113,4 +1434,8 @@ def test_type_conversion():
             apply_recursively=False,
             walk_reverse=True,
         ),
+        op_inserted=4,
+        op_removed=4,
+        op_replaced=4,
+        op_modified=4,
     )

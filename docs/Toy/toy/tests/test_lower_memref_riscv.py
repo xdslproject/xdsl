@@ -1,19 +1,16 @@
-import pytest
-
 from xdsl.backend.riscv.lowering.convert_memref_to_riscv import memref_shape_ops
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp, f32
 from xdsl.ir import MLContext
 from xdsl.pattern_rewriter import PatternRewriter
-from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.test_value import TestSSAValue
 
 from ..rewrites.lower_memref_riscv import LowerMemrefToRiscv
 
-MEMREF_TYPE_2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2]))
-MEMREF_TYPE_2X2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2, 2]))
-MEMREF_TYPE_2X2X2XF32 = memref.MemRefType.from_element_type_and_shape(f32, ([2, 2, 2]))
+MEMREF_TYPE_2XF32 = memref.MemRefType(f32, ([2]))
+MEMREF_TYPE_2X2XF32 = memref.MemRefType(f32, ([2, 2]))
+MEMREF_TYPE_2X2X2XF32 = memref.MemRefType(f32, ([2, 2, 2]))
 
 INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
@@ -132,7 +129,7 @@ def test_insert_shape_ops_2d():
     assert f"{input_2d}" == f"{expected_2d}"
 
 
-def test_insert_shape_ops_invalid_dim():
+def test_insert_shape_ops_3d():
     mem = TestSSAValue(MEMREF_TYPE_2X2X2XF32)
     indices = [
         TestSSAValue(INT_REGISTER_TYPE),
@@ -142,14 +139,35 @@ def test_insert_shape_ops_invalid_dim():
 
     @ModuleOp
     @Builder.implicit_region
-    def input_2d():
+    def input_3d():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
+    @ModuleOp
+    @Builder.implicit_region
+    def expected_3d():
+        with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
+            v1 = riscv.LiOp(2)
+            v2 = riscv.MulOp(v1, indices[0], rd=riscv.IntRegisterType.unallocated())
+            v3 = riscv.AddOp(v2, indices[1], rd=riscv.IntRegisterType.unallocated())
+            v4 = riscv.LiOp(2)
+            v4 = riscv.MulOp(v4, v3, rd=riscv.IntRegisterType.unallocated())
+            v5 = riscv.AddOp(v4, indices[2], rd=riscv.IntRegisterType.unallocated())
+            v6 = riscv.LiOp(4).rd
+            v7 = riscv.MulOp(
+                v5,
+                v6,
+                rd=riscv.IntRegisterType.unallocated(),
+                comment="multiply by element size",
+            ).rd
+            _ = riscv.AddOp(mem, v7, rd=riscv.IntRegisterType.unallocated())
+            riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
+
     shape = [2, 2, 2]
-    dummy_op = list(input_2d.walk())[-1]
+    dummy_op = list(input_3d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
 
-    with pytest.raises(DiagnosticException):
-        ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
-        rewriter.insert_op_before_matched_op(ops)
+    ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
+    rewriter.insert_op_before_matched_op(ops)
+
+    assert f"{input_3d}" == f"{expected_3d}"

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import overload
 
@@ -25,8 +26,11 @@ class RegisterQueue:
     _idx: int = 0
     """Next `j` register index."""
 
-    reserved_registers: set[IntRegisterType | FloatRegisterType] = field(
-        default_factory=lambda: set(RegisterQueue.DEFAULT_RESERVED_REGISTERS)
+    reserved_registers: defaultdict[IntRegisterType | FloatRegisterType, int] = field(
+        default_factory=lambda: defaultdict[IntRegisterType | FloatRegisterType, int](
+            lambda: 0
+        )
+        | {r: 1 for r in RegisterQueue.DEFAULT_RESERVED_REGISTERS}
     )
     "Registers unavailable to be used by the register allocator."
 
@@ -44,7 +48,7 @@ class RegisterQueue:
         """
         Return a register to be made available for allocation.
         """
-        if reg in self.reserved_registers:
+        if self.reserved_registers[reg]:
             return
         if not reg.is_allocated:
             raise ValueError("Cannot push an unallocated register")
@@ -78,6 +82,24 @@ class RegisterQueue:
             reg = reg_type(f"j{self._idx}")
             self._idx += 1
         return reg
+
+    def reserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
+        """
+        Increase the reservation count for a register.
+        """
+        self.reserved_registers[reg] += 1
+
+    def unreserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
+        """
+        Decrease the reservation count for a register. If the reservation count is 0, make
+        the register available for allocation.
+        """
+        if reg not in self.reserved_registers:
+            raise ValueError("Cannot unreserve an unreserved register")
+        self.reserved_registers[reg] -= 1
+        if not self.reserved_registers[reg]:
+            del self.reserved_registers[reg]
+            self.push(reg)
 
     def limit_registers(self, limit: int) -> None:
         """

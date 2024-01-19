@@ -16,16 +16,17 @@ builtin.module {
       %A = riscv.li "a" : () -> !riscv.reg<>
       %B = riscv.li "b" : () -> !riscv.reg<>
       %C = riscv.li "c" : () -> !riscv.reg<>
-      %0 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<2>, #builtin.int<3>], "strides" = [#builtin.int<24>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type
-      %1 = "snitch_stream.strided_read"(%A, %0) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<ft0>>
-      %2 = "snitch_stream.strided_read"(%B, %0) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.readable<!riscv.freg<ft1>>
-      %3 = "snitch_stream.strided_write"(%C, %0) {"dm" = #builtin.int<2>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type) -> !stream.writable<!riscv.freg<ft2>>
-      %4 = riscv.li 6 : () -> !riscv.reg<>
-      "snitch_stream.generic"(%4, %1, %2, %3) <{"operandSegmentSizes" = array<i32: 1, 2, 1>}> ({
-      ^0(%a : !riscv.freg<ft0>, %b : !riscv.freg<ft1>):
-        %sum = riscv.fadd.d %a, %b : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
-        snitch_stream.yield %sum : !riscv.freg<ft2>
-      }) : (!riscv.reg<>, !stream.readable<!riscv.freg<ft0>>, !stream.readable<!riscv.freg<ft1>>, !stream.writable<!riscv.freg<ft2>>) -> ()
+      %pattern = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<2>, #builtin.int<3>], "strides" = [#builtin.int<24>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type<2>
+      "snitch_stream.streaming_region"(%A, %B, %C, %pattern) <{"operandSegmentSizes" = array<i32: 2, 1, 1>}> ({
+      ^0(%a_stream : !stream.readable<!riscv.freg<ft0>>, %b_stream : !stream.readable<!riscv.freg<ft1>>, %c_stream : !stream.writable<!riscv.freg<ft2>>):
+          %c5 = riscv.li 5 : () -> !riscv.reg<>
+          riscv_snitch.frep_outer %c5 {
+              %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>
+              %b = riscv_snitch.read from %b_stream : !riscv.freg<ft1>
+              %c = riscv.fadd.d %a, %b : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+              riscv_snitch.write %c to %c_stream : !riscv.freg<ft2>
+          }
+      }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> ()
       %5 = riscv.mv %C : (!riscv.reg<>) -> !riscv.reg<>
       %v0 = riscv.fld %5, 0 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
       %v0_1 = builtin.unrealized_conversion_cast %v0 : !riscv.freg<> to f64

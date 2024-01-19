@@ -59,7 +59,9 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
+from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -437,15 +439,17 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
         return min_value, max_value
 
     def verify(self) -> None:
-        if isinstance(int_type := self.type, IntegerType):
-            min_value, max_value = self._get_value_range(int_type)
+        if isinstance(int_type := self.type, IndexType):
+            return
 
-            if not (min_value <= self.value.data <= max_value):
-                raise VerifyException(
-                    f"Integer value {self.value.data} is out of range for "
-                    f"type {self.type} which supports values in the "
-                    f"range [{min_value}, {max_value}]"
-                )
+        min_value, max_value = self._get_value_range(int_type)
+
+        if not (min_value <= self.value.data <= max_value):
+            raise VerifyException(
+                f"Integer value {self.value.data} is out of range for "
+                f"type {self.type} which supports values in the "
+                f"range [{min_value}, {max_value}]"
+            )
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -592,11 +596,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("{")
-        printer.print_dictionary(
-            self.data, printer.print_string_literal, printer.print_attribute
-        )
-        printer.print_string("}")
+        printer.print_attr_dict(self.data)
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
@@ -628,9 +628,22 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[AttributeCovT]
     num_scalable_dims: ParameterDef[IntAttr]
+
+    def __init__(
+        self: VectorType[AttributeCovT],
+        element_type: AttributeCovT,
+        shape: Iterable[int | IntAttr],
+        num_scalable_dims: int | IntAttr = 0,
+    ) -> None:
+        shape = ArrayAttr(
+            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+        )
+        if isinstance(num_scalable_dims, int):
+            num_scalable_dims = IntAttr(num_scalable_dims)
+        super().__init__([shape, element_type, num_scalable_dims])
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -639,7 +652,7 @@ class VectorType(
         return self.num_scalable_dims.data
 
     def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.value.data for i in self.shape.data)
+        return tuple(i.data for i in self.shape)
 
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
@@ -657,6 +670,7 @@ class VectorType(
                 f" {self.get_num_dims()}"
             )
 
+    @deprecated_constructor
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
@@ -665,21 +679,12 @@ class VectorType(
     ) -> VectorType[AttributeInvT]:
         if isinstance(num_scalable_dims, int):
             num_scalable_dims = IntAttr(num_scalable_dims)
-        return VectorType(
-            [
-                ArrayAttr(
-                    [
-                        IntegerAttr[IntegerType].from_index_int_value(d)
-                        if isinstance(d, int)
-                        else d
-                        for d in shape
-                    ]
-                ),
-                referenced_type,
-                num_scalable_dims,
-            ]
-        )
+        shape_int = [
+            IntAttr(dim) if isinstance(dim, int) else dim.value.data for dim in shape
+        ]
+        return VectorType(referenced_type, shape_int, num_scalable_dims)
 
+    @deprecated_constructor
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
@@ -688,7 +693,8 @@ class VectorType(
         ),
         num_scalable_dims: IntAttr = IntAttr(0),
     ) -> VectorType[AttributeInvT]:
-        return VectorType([shape, referenced_type, num_scalable_dims])
+        shape_int = [dim.value.data for dim in shape.data]
+        return VectorType(referenced_type, shape_int, num_scalable_dims)
 
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
@@ -704,19 +710,31 @@ class TensorType(
 ):
     name = "tensor"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[AttributeCovT]
     encoding: ParameterDef[Attribute]
+
+    def __init__(
+        self: TensorType[AttributeCovT],
+        element_type: AttributeCovT,
+        shape: Iterable[int | IntAttr],
+        encoding: Attribute = NoneAttr(),
+    ):
+        shape = ArrayAttr(
+            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+        )
+        super().__init__([shape, element_type, encoding])
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.value.data for i in self.shape.data)
+        return tuple(i.data for i in self.shape.data)
 
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
+    @deprecated_constructor
     @staticmethod
     def from_type_and_list(
         referenced_type: AttributeInvT,
@@ -725,28 +743,22 @@ class TensorType(
     ) -> TensorType[AttributeInvT]:
         if shape is None:
             shape = [1]
-        return TensorType(
-            [
-                ArrayAttr(
-                    [
-                        IntegerAttr[IntegerType].from_index_int_value(d)
-                        if isinstance(d, int)
-                        else d
-                        for d in shape
-                    ]
-                ),
-                referenced_type,
-                encoding,
-            ]
-        )
+        shape_int = [
+            IntAttr(dim) if isinstance(dim, int) else dim.value.data for dim in shape
+        ]
+        return TensorType(referenced_type, shape_int, encoding)
 
+    @deprecated_constructor
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
         shape: AnyArrayAttr = AnyArrayAttr([IntegerAttr.from_int_and_width(1, 64)]),
         encoding: Attribute = NoneAttr(),
     ) -> TensorType[AttributeInvT]:
-        return TensorType([shape, referenced_type, encoding])
+        if not isa(shape, ArrayAttr[AnyIntegerAttr]):
+            raise TypeError(f"Unsupported shape type {type(shape)}")
+        shape_int = [dim.value.data for dim in shape.data]
+        return TensorType(referenced_type, shape_int, encoding)
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
@@ -758,9 +770,10 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
 
     element_type: ParameterDef[AttributeCovT]
 
-    @staticmethod
-    def from_type(referenced_type: AttributeInvT) -> UnrankedTensorType[AttributeInvT]:
-        return UnrankedTensorType([referenced_type])
+    def __init__(
+        self: UnrankedTensorType[AttributeCovT], element_type: AttributeCovT
+    ) -> None:
+        super().__init__([element_type])
 
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
@@ -981,7 +994,7 @@ class DenseIntOrFPElementsAttr(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
     ) -> DenseIntOrFPElementsAttr:
-        t = VectorType.from_element_type_and_shape(data_type, [len(data)])
+        t = VectorType(data_type, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
@@ -994,7 +1007,7 @@ class DenseIntOrFPElementsAttr(
         data_type: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(data_type, shape)
+        t = TensorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 

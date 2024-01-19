@@ -140,7 +140,7 @@ class WGPUFunctions(InterpreterFunctions):
                 raise NotImplementedError(
                     f"copy for element type {dst_type.element_type} not yet implemented."
                 )
-        memview = memview.cast(format, [i.value.data for i in dst_type.shape])
+        memview = memview.cast(format, dst_type.get_shape())
         for index in dst.indices():
             dst.store(index, memview.__getitem__(index))  # pyright: ignore
         return ()

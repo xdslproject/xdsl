@@ -6,21 +6,8 @@ from collections.abc import Sequence
 
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (
-    affine,
-    arith,
-    builtin,
-    cf,
-    func,
-    linalg,
-    memref,
-    printf,
-    riscv,
-    riscv_func,
-    riscv_libc,
-    scf,
-    snitch_stream,
+    register_implementations,
 )
-from xdsl.interpreters.experimental import pdl
 from xdsl.ir import MLContext
 from xdsl.tools.command_line_tool import CommandLineTool
 
@@ -58,27 +45,16 @@ class xDSLRunMain(CommandLineTool):
             action="store_true",
             help="Print resulting Python values.",
         )
+        arg_parser.add_argument(
+            "--symbol",
+            default="main",
+            type=str,
+            help="Name of function to call.",
+        )
         return super().register_all_arguments(arg_parser)
 
     def register_implementations(self, interpreter: Interpreter):
-        interpreter.register_implementations(func.FuncFunctions())
-        interpreter.register_implementations(cf.CfFunctions())
-        interpreter.register_implementations(riscv.RiscvFunctions())
-        interpreter.register_implementations(riscv_func.RiscvFuncFunctions())
-        interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
-        interpreter.register_implementations(pdl.PDLRewriteFunctions(self.ctx))
-        interpreter.register_implementations(affine.AffineFunctions())
-        interpreter.register_implementations(linalg.LinalgFunctions())
-        interpreter.register_implementations(memref.MemrefFunctions())
-        if self.args.wgpu:
-            from xdsl.interpreters.experimental import wgpu
-
-            interpreter.register_implementations(wgpu.WGPUFunctions())
-        interpreter.register_implementations(builtin.BuiltinFunctions())
-        interpreter.register_implementations(arith.ArithFunctions())
-        interpreter.register_implementations(printf.PrintfFunctions())
-        interpreter.register_implementations(scf.ScfFunctions())
-        interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
+        register_implementations(interpreter, self.ctx, self.args.wgpu)
 
     def run(self):
         input, file_extension = self.get_input_stream()
@@ -88,7 +64,9 @@ class xDSLRunMain(CommandLineTool):
                 module.verify()
                 interpreter = Interpreter(module)
                 self.register_implementations(interpreter)
-                result = interpreter.call_op("main", ())
+                symbol = self.args.symbol
+                assert isinstance(symbol, str)
+                result = interpreter.call_op(symbol, ())
                 if self.args.verbose:
                     print(f"result: {result}")
         finally:
