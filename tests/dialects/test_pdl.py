@@ -114,7 +114,9 @@ def test_build_pattern():
         name = "dummy.terminator"
         traits = frozenset([HasParent(pdl.PatternOp), IsTerminator()])
 
-    with pytest.raises(VerifyException) as verify_exception:
+    with pytest.raises(
+        VerifyException, match="expected body to terminate with a `pdl.rewrite`"
+    ):
 
         @Builder.implicit_region
         def body() -> None:
@@ -122,11 +124,10 @@ def test_build_pattern():
 
         pattern = pdl.PatternOp(1, "pattern", body)
         pattern.verify()
-    assert "expected body to terminate with a `pdl.rewrite`" in str(
-        verify_exception.value
-    )
 
-    with pytest.raises(VerifyException) as verify_exception:
+    with pytest.raises(
+        VerifyException, match="the pattern must contain at least one `pdl.operation`"
+    ):
         root = pdl.OperationOp("test.op")
 
         @Builder.implicit_region
@@ -135,9 +136,6 @@ def test_build_pattern():
 
         pattern = pdl.PatternOp(1, "pattern", body)
         pattern.verify()
-    assert "the pattern must contain at least one `pdl.operation`" in str(
-        verify_exception.value
-    )
 
 
 def test_build_result():
