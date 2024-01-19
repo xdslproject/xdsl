@@ -1,8 +1,26 @@
+"""
+A dialect that represents at the highest level of abstraction the capabilities of the
+[Snitch](https://github.com/pulp-platform/snitch_cluster) accelerator core, as used in
+[Occamy](https://github.com/pulp-platform/occamy) and others.
+
+The core aims to optimise for performance per watt, by replacing caches and branch
+prediction logic with streaming registers and fixed-repetition loops. This dialect models
+the streaming functionality of the Snitch core.
+
+`snitch_stream.stride_pattern_type` represents a specification of the order in which
+elements of a streamed region of memory will be read from or written to.
+
+`snitch_stream.stride_pattern` creates a value storing the above specification.
+
+`snitch_stream.streaming_region` encapsulates a region of code where the streams are
+valid. According to the Snitch ABI, within this region, the registers `ft0` to `ftn`,
+where `n` is the number of streaming registers, have a restricted functionality. If the
+register is configured as a readable stream register, then it cannot be written to, and
+if the register is configured as a writable stream register, then it cannot be read from.
+"""
 from __future__ import annotations
 
 from collections.abc import Sequence
-
-from typing_extensions import Self
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
@@ -13,11 +31,9 @@ from xdsl.dialects.stream import (
     ReadableStreamType,
     WritableStreamType,
 )
-from xdsl.dialects.utils import parse_return_op_like, print_return_op_like
 from xdsl.ir import (
     Data,
     Dialect,
-    Operation,
     Region,
     SSAValue,
     TypeAttribute,
@@ -25,7 +41,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -34,14 +49,13 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import NoTerminator
 
 
 @irdl_attr_definition
 class StridePatternType(Data[int], TypeAttribute):
-    name = "snitch_stream.stride_pattern_type"
     name = "snitch_stream.stride_pattern_type"
 
     @classmethod
@@ -55,56 +69,53 @@ class StridePatternType(Data[int], TypeAttribute):
 
 
 @irdl_op_definition
-class GenericOp(IRDLOperation):
+class StreamingRegionOp(IRDLOperation):
     """
-    An operation that repeatedly reads from the input streams, performs the calculation in
-    the `body`, and writes the results to the output streams. The number of times that
-    this operation repeats is specified by `repeat_count`.
+    An operation that creates streams from access patterns, which are only available to
+    read from and write to within the body of the operation.
+
+    According to the Snitch ABI, within this region, the registers `ft0` to `ftn`,
+    where `n` is the number of streaming registers, have a restricted functionality. If the
+    register is configured as a readable stream register, then it cannot be written to, and
+    if the register is configured as a writable stream register, then it cannot be read from.
     """
 
-    name = "snitch_stream.generic"
+    name = "snitch_stream.streaming_region"
 
-    repeat_count = operand_def(riscv.IntRegisterType)
-    inputs = var_operand_def(ReadableStreamType)
-    outputs = var_operand_def(WritableStreamType)
+    inputs = var_operand_def(riscv.IntRegisterType)
+    """
+    Pointers to memory buffers that will be streamed. The corresponding stride pattern
+    defines the order in which the elements of the input buffers will be read.
+    """
+    outputs = var_operand_def(riscv.IntRegisterType)
+    """
+    Pointers to memory buffers that will be streamed. The corresponding stride pattern
+    defines the order in which the elements of the input buffers will be written to.
+    """
+    stride_patterns = var_operand_def(StridePatternType)
+    """
+    Stride patterns that define the order of the input and output streams. If there is
+    one stride pattern, and more inputs and outputs, the stride pattern is applied to all
+    the streams.
+    """
 
     body = region_def("single_block")
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
+    traits = frozenset((NoTerminator(),))
+
     def __init__(
         self,
-        repeat_count: SSAValue,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
+        stride_patterns: Sequence[SSAValue],
         body: Region,
     ) -> None:
         super().__init__(
-            operands=[repeat_count, inputs, outputs],
+            operands=[inputs, outputs, stride_patterns],
             regions=[body],
         )
-
-
-@irdl_op_definition
-class YieldOp(IRDLOperation):
-    name = "snitch_stream.yield"
-
-    values: VarOperand = var_operand_def()
-
-    traits = frozenset([IsTerminator()])
-
-    def __init__(self, *operands: SSAValue | Operation) -> None:
-        super().__init__(operands=[operands])
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.values)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs, args = parse_return_op_like(parser)
-        op = cls(*args)
-        op.attributes.update(attrs)
-        return op
 
 
 @irdl_op_definition
@@ -163,7 +174,6 @@ class StridedReadOp(IRDLOperation):
     pattern = operand_def(StridePatternType)
     stream = result_def(ReadableStreamType[riscv.FloatRegisterType])
     dm = attr_def(IntAttr)
-    rank = attr_def(IntAttr)
 
     def __init__(
         self,
@@ -171,14 +181,12 @@ class StridedReadOp(IRDLOperation):
         pattern: SSAValue,
         register: riscv.FloatRegisterType,
         dm: IntAttr,
-        rank: IntAttr,
     ):
         super().__init__(
             operands=[pointer, pattern],
             result_types=[ReadableStreamType(register)],
             attributes={
                 "dm": dm,
-                "rank": rank,
             },
         )
 
@@ -195,7 +203,6 @@ class StridedWriteOp(IRDLOperation):
     pattern = operand_def(StridePatternType)
     stream = result_def(WritableStreamType[riscv.FloatRegisterType])
     dm = attr_def(IntAttr)
-    rank = attr_def(IntAttr)
 
     def __init__(
         self,
@@ -203,14 +210,12 @@ class StridedWriteOp(IRDLOperation):
         pattern: SSAValue,
         register: riscv.FloatRegisterType,
         dm: IntAttr,
-        rank: IntAttr,
     ):
         super().__init__(
             operands=[pointer, pattern],
             result_types=[WritableStreamType(register)],
             attributes={
                 "dm": dm,
-                "rank": rank,
             },
         )
 
@@ -218,8 +223,7 @@ class StridedWriteOp(IRDLOperation):
 SnitchStream = Dialect(
     "snitch_stream",
     [
-        GenericOp,
-        YieldOp,
+        StreamingRegionOp,
         StridedReadOp,
         StridedWriteOp,
         StridePatternOp,

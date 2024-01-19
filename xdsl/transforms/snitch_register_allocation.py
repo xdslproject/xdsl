@@ -1,11 +1,12 @@
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import cast
 
-from xdsl.dialects import riscv, snitch_stream, stream
+from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -26,52 +27,55 @@ def get_snitch_reserved() -> set[riscv.FloatRegisterType]:
     return {riscv.Registers.FT[i] for i in range(0, num_reserved)}
 
 
-class AllocateSnitchStridedStreamRegisters(RewritePattern):
+class AllocateSnitchStreamingRegionRegisters(RewritePattern):
     """
-    Allocates the register used by the stream as the one specified by the `dm`
-    (data mover) attribute. Must be called before allocating the registers in the
-    `snitch_stream.generic` body.
-    """
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self,
-        op: snitch_stream.StridedReadOp | snitch_stream.StridedWriteOp,
-        rewriter: PatternRewriter,
-        /,
-    ):
-        stream_type = op.stream.type
-        assert isinstance(
-            stream_type, stream.ReadableStreamType | stream.WritableStreamType
-        )
-        stream_type = cast(stream.StreamType[Any], stream_type)
-        op.stream.type = type(stream_type)(riscv.Registers.FT[op.dm.data])
-
-
-class AllocateSnitchGenericRegisters(RewritePattern):
-    """
-    Allocates the registers in the body of a `snitch_stream.generic` operation by assigning
-    them to the ones specified by the streams.
+    Allocates the registers in the body of a `snitch_stream.streaming_region` operation by
+    assigning them to the ones specified by the streams.
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_stream.GenericOp, rewriter: PatternRewriter, /
+        self, op: snitch_stream.StreamingRegionOp, rewriter: PatternRewriter, /
     ):
         block = op.body.block
 
-        for arg, input in zip(block.args, op.inputs):
-            assert isinstance(input_type := input.type, stream.ReadableStreamType)
-            rs_input_type: stream.ReadableStreamType[Any] = input_type
-            arg.type = rs_input_type.element_type
+        for index, input_stream in enumerate(block.args):
+            input_stream.type = stream.ReadableStreamType(riscv.Registers.FT[index])
 
-        yield_op = block.last_op
-        assert isinstance(yield_op, snitch_stream.YieldOp)
+        input_count = len(op.inputs)
 
-        for arg, output in zip(yield_op.values, op.outputs):
-            assert isinstance(output_type := output.type, stream.WritableStreamType)
-            rs_output_type: stream.WritableStreamType[Any] = output_type
-            arg.type = rs_output_type.element_type
+        for index, output_stream in enumerate(block.args[input_count:]):
+            output_stream.type = stream.WritableStreamType(
+                riscv.Registers.FT[index + input_count]
+            )
+
+
+class AllocateRiscvSnitchReadRegisters(RewritePattern):
+    """
+    Propagates the register allocation done at the stream level to the values read from
+    the streams.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv_snitch.ReadOp, rewriter: PatternRewriter, /):
+        stream_type = cast(
+            stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
+        )
+        op.res.type = stream_type.element_type
+
+
+class AllocateRiscvSnitchWriteRegisters(RewritePattern):
+    """
+    Propagates the register allocation done at the stream level to the values written to
+    the streams.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv_snitch.WriteOp, rewriter: PatternRewriter, /):
+        stream_type = cast(
+            stream.WritableStreamType[riscv.FloatRegisterType], op.stream.type
+        )
+        op.value.type = stream_type.element_type
 
 
 @dataclass
@@ -84,10 +88,15 @@ class SnitchRegisterAllocation(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            AllocateSnitchStridedStreamRegisters(),
+            AllocateSnitchStreamingRegionRegisters(),
             apply_recursively=False,
         ).rewrite_module(op)
         PatternRewriteWalker(
-            AllocateSnitchGenericRegisters(),
+            GreedyRewritePatternApplier(
+                [
+                    AllocateRiscvSnitchReadRegisters(),
+                    AllocateRiscvSnitchWriteRegisters(),
+                ]
+            ),
             apply_recursively=False,
         ).rewrite_module(op)

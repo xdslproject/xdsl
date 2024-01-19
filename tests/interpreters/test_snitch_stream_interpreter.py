@@ -1,8 +1,9 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import riscv, snitch_stream
+from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import ArrayAttr, IntAttr, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
+from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.snitch_stream import (
     SnitchStreamFunctions,
     StridedPointerInputStream,
@@ -53,6 +54,7 @@ def test_snitch_stream_interpreter():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(RiscvFunctions())
     interpreter.register_implementations(SnitchStreamFunctions())
+    interpreter.register_implementations(RiscvSnitchFunctions())
 
     stride_pattern_op = snitch_stream.StridePatternOp(
         ArrayAttr((IntAttr(2), IntAttr(3))),
@@ -72,7 +74,6 @@ def test_snitch_stream_interpreter():
         TestSSAValue(pattern_type),
         riscv.Registers.FT0,
         IntAttr(0),
-        IntAttr(2),
     )
 
     assert interpreter.run_op(a_stream_op, (a, stride_pattern)) == (
@@ -84,7 +85,6 @@ def test_snitch_stream_interpreter():
         TestSSAValue(pattern_type),
         riscv.Registers.FT1,
         IntAttr(1),
-        IntAttr(2),
     )
 
     assert interpreter.run_op(b_stream_op, (b, stride_pattern)) == (
@@ -96,33 +96,44 @@ def test_snitch_stream_interpreter():
         TestSSAValue(pattern_type),
         riscv.Registers.FT2,
         IntAttr(2),
-        IntAttr(2),
     )
 
     assert interpreter.run_op(c_stream_op, (c, stride_pattern)) == (
         StridedPointerOutputStream(stride_pattern.offset_expr, c),
     )
 
-    body = Region(Block(arg_types=(riscv.Registers.FT0, riscv.Registers.FT1)))
+    streaming_region_body = Region(
+        Block(
+            arg_types=(
+                stream.ReadableStreamType(riscv.Registers.FT0),
+                stream.ReadableStreamType(riscv.Registers.FT1),
+                stream.WritableStreamType(riscv.Registers.FT2),
+            )
+        )
+    )
 
-    with ImplicitBuilder(body) as (a_reg, b_reg):
-        c_reg = riscv.FAddDOp(a_reg, b_reg, rd=riscv.Registers.FT2).rd
-        snitch_stream.YieldOp(c_reg)
+    with ImplicitBuilder(streaming_region_body) as (a_stream, b_stream, c_stream):
+        count_reg = riscv.LiOp(6).rd
+
+        frep_body = Region(Block())
+
+        with ImplicitBuilder(frep_body):
+            a_reg = riscv_snitch.ReadOp(a_stream).res
+            b_reg = riscv_snitch.ReadOp(b_stream).res
+            c_reg = riscv.FAddDOp(a_reg, b_reg, rd=riscv.Registers.FT2).rd
+            riscv_snitch.WriteOp(c_reg, c_stream)
+
+        riscv_snitch.FrepOuter(count_reg, frep_body)
 
     assert (
         interpreter.run_op(
-            snitch_stream.GenericOp(
-                TestSSAValue(register),
-                (a_stream_op.stream, b_stream_op.stream),
-                (c_stream_op.stream,),
-                body,
+            snitch_stream.StreamingRegionOp(
+                (TestSSAValue(register), TestSSAValue(register)),
+                (TestSSAValue(register),),
+                (stride_pattern_op.pattern,),
+                streaming_region_body,
             ),
-            (
-                6,
-                StridedPointerInputStream(stride_pattern.offset_expr, a),
-                StridedPointerInputStream(stride_pattern.offset_expr, b),
-                StridedPointerOutputStream(stride_pattern.offset_expr, c),
-            ),
+            (a, b, c, stride_pattern),
         )
         == ()
     )

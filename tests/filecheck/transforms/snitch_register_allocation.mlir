@@ -1,39 +1,30 @@
 // RUN: xdsl-opt -p snitch-allocate-registers %s | filecheck %s
 
-%stride_pattern, %ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!snitch_stream.stride_pattern_type<2>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
-%s0 = "snitch_stream.strided_read"(%ptr0, %stride_pattern) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<>>
-%s1 = "snitch_stream.strided_read"(%ptr1, %stride_pattern) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<>>
-%s2 = "snitch_stream.strided_write"(%ptr2, %stride_pattern) {"dm" = #builtin.int<2>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.writable<!riscv.freg<>>
-%c128 = riscv.li 128 : () -> !riscv.reg<>
+%ptr0, %ptr1, %ptr2, %stride_pattern = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>)
 
-"snitch_stream.generic"(%c128, %s0, %s1, %s2) <{"operandSegmentSizes" = array<i32: 1, 2, 1>}> ({
-^0(%x : !riscv.freg<>, %y : !riscv.freg<>):
-    %r0 = riscv.fadd.d %x, %y : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-    snitch_stream.yield %r0 : !riscv.freg<>
-}) : (!riscv.reg<>, !stream.readable<!riscv.freg<>>, !stream.readable<!riscv.freg<>>, !stream.writable<!riscv.freg<>>) -> ()
-
-"snitch_stream.generic"(%c128, %s1, %s0, %s2) <{"operandSegmentSizes" = array<i32: 1, 2, 1>}> ({
-^0(%x : !riscv.freg<>, %y : !riscv.freg<>):
-    %r0 = riscv.fadd.d %x, %y : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-    snitch_stream.yield %r0 : !riscv.freg<>
-}) : (!riscv.reg<>, !stream.readable<!riscv.freg<>>, !stream.readable<!riscv.freg<>>, !stream.writable<!riscv.freg<>>) -> ()
+"snitch_stream.streaming_region"(%ptr0, %ptr1, %ptr2, %stride_pattern) <{"operandSegmentSizes" = array<i32: 2, 1, 1>}> ({
+^0(%s0 : !stream.readable<!riscv.freg<>>, %s1 : !stream.readable<!riscv.freg<>>, %s2 : !stream.writable<!riscv.freg<>>):
+    %c5 = riscv.li 5 : () -> !riscv.reg<>
+    riscv_snitch.frep_outer %c5 {
+        %x = riscv_snitch.read from %s0 : !riscv.freg<>
+        %y = riscv_snitch.read from %s1 : !riscv.freg<>
+        %r = riscv.fadd.d %x, %y : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        riscv_snitch.write %r to %s2 : !riscv.freg<>
+    }
+}) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> ()
 
 // CHECK: builtin.module {
 
-// CHECK-NEXT:  %stride_pattern, %ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!snitch_stream.stride_pattern_type<2>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
-// CHECK-NEXT:  %s0 = "snitch_stream.strided_read"(%ptr0, %stride_pattern) {"dm" = #builtin.int<0>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<ft0>>
-// CHECK-NEXT:  %s1 = "snitch_stream.strided_read"(%ptr1, %stride_pattern) {"dm" = #builtin.int<1>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.readable<!riscv.freg<ft1>>
-// CHECK-NEXT:  %s2 = "snitch_stream.strided_write"(%ptr2, %stride_pattern) {"dm" = #builtin.int<2>, "rank" = #builtin.int<2>} : (!riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> !stream.writable<!riscv.freg<ft2>>
-// CHECK-NEXT:  %c128 = riscv.li 128 : () -> !riscv.reg<>
-// CHECK-NEXT:  "snitch_stream.generic"(%c128, %s0, %s1, %s2) <{"operandSegmentSizes" = array<i32: 1, 2, 1>}> ({
-// CHECK-NEXT:  ^0(%{{.*}} : !riscv.freg<ft0>, %{{.*}} : !riscv.freg<ft1>):
-// CHECK-NEXT:    %{{.*}} = riscv.fadd.d %{{.*}}, %{{.*}} : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
-// CHECK-NEXT:    snitch_stream.yield %{{.*}} : !riscv.freg<ft2>
-// CHECK-NEXT:  }) : (!riscv.reg<>, !stream.readable<!riscv.freg<ft0>>, !stream.readable<!riscv.freg<ft1>>, !stream.writable<!riscv.freg<ft2>>) -> ()
-// CHECK-NEXT:  "snitch_stream.generic"(%c128, %s1, %s0, %s2) <{"operandSegmentSizes" = array<i32: 1, 2, 1>}> ({
-// CHECK-NEXT:  ^1(%{{.*}} : !riscv.freg<ft1>, %{{.*}} : !riscv.freg<ft0>):
-// CHECK-NEXT:    %{{.*}} = riscv.fadd.d %{{.*}}, %{{.*}} : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft2>
-// CHECK-NEXT:    snitch_stream.yield %{{.*}} : !riscv.freg<ft2>
-// CHECK-NEXT:  }) : (!riscv.reg<>, !stream.readable<!riscv.freg<ft1>>, !stream.readable<!riscv.freg<ft0>>, !stream.writable<!riscv.freg<ft2>>) -> ()
+// CHECK-NEXT:    %ptr0, %ptr1, %ptr2, %stride_pattern = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>)
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%ptr0, %ptr1, %ptr2, %stride_pattern) <{"operandSegmentSizes" = array<i32: 2, 1, 1>}> ({
+// CHECK-NEXT:    ^0(%s0 : !stream.readable<!riscv.freg<ft0>>, %s1 : !stream.readable<!riscv.freg<ft1>>, %s2 : !stream.writable<!riscv.freg<ft2>>):
+// CHECK-NEXT:      %c5 = riscv.li 5 : () -> !riscv.reg<>
+// CHECK-NEXT:      riscv_snitch.frep_outer %c5 {
+// CHECK-NEXT:        %x = riscv_snitch.read from %s0 : !riscv.freg<ft0>
+// CHECK-NEXT:        %y = riscv_snitch.read from %s1 : !riscv.freg<ft1>
+// CHECK-NEXT:        %r = riscv.fadd.d %x, %y : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+// CHECK-NEXT:        riscv_snitch.write %r to %s2 : !riscv.freg<ft2>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> ()
 
 // CHECK-NEXT: }
