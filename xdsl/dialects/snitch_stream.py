@@ -1,3 +1,23 @@
+"""
+A dialect that represents at the highest level of abstraction the capabilities of the
+[Snitch](https://github.com/pulp-platform/snitch_cluster) accelerator core, as used in
+[Occamy](https://github.com/pulp-platform/occamy) and others.
+
+The core aims to optimise for performance per watt, by replacing caches and branch
+prediction logic with streaming registers and fixed-repetition loops. This dialect models
+the streaming functionality of the Snitch core.
+
+`snitch_stream.stride_pattern_type` represents a specification of the order in which
+elements of a streamed region of memory will be read from or written to.
+
+`snitch_stream.stride_pattern` creates a value storing the above specification.
+
+`snitch_stream.streaming_region` encapsulates a region of code where the streams are
+valid. According to the Snitch ABI, within this region, the registers `ft0` to `ftn`,
+where `n` is the number of streaming registers, have a restricted functionality. If the
+register is configured as a readable stream register, then it cannot be written to, and
+if the register is configured as a writable stream register, then it cannot be read from.
+"""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -37,7 +57,6 @@ from xdsl.traits import NoTerminator
 @irdl_attr_definition
 class StridePatternType(Data[int], TypeAttribute):
     name = "snitch_stream.stride_pattern_type"
-    name = "snitch_stream.stride_pattern_type"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
@@ -54,13 +73,31 @@ class StreamingRegionOp(IRDLOperation):
     """
     An operation that creates streams from access patterns, which are only available to
     read from and write to within the body of the operation.
+
+    According to the Snitch ABI, within this region, the registers `ft0` to `ftn`,
+    where `n` is the number of streaming registers, have a restricted functionality. If the
+    register is configured as a readable stream register, then it cannot be written to, and
+    if the register is configured as a writable stream register, then it cannot be read from.
     """
 
     name = "snitch_stream.streaming_region"
 
     inputs = var_operand_def(riscv.IntRegisterType)
+    """
+    Pointers to memory buffers that will be streamed. The corresponding stride pattern
+    defines the order in which the elements of the input buffers will be read.
+    """
     outputs = var_operand_def(riscv.IntRegisterType)
+    """
+    Pointers to memory buffers that will be streamed. The corresponding stride pattern
+    defines the order in which the elements of the input buffers will be written to.
+    """
     stride_patterns = var_operand_def(StridePatternType)
+    """
+    Stride patterns that define the order of the input and output streams. If there is
+    one stride pattern, and more inputs and outputs, the stride pattern is applied to all
+    the streams.
+    """
 
     body = region_def("single_block")
 
