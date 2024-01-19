@@ -386,31 +386,6 @@ class Reshape(IRDLOperation):
                 "Input tensor's shape and output tensor's shape must have the same number of elements"
             )
 
-        # At most one dimension of the new shape can be -1.
-        # In this case, the value is inferred from the size of the tensor and the remaining dimensions.
-        new_shape = list(reshaped_type)
-        count_minus_one = new_shape.count(-1)
-        if count_minus_one == 1:
-            index_of_minus_one = new_shape.index(-1)
-            specified_dim = len(new_shape)
-            total_elements = len(data_type)
-            missing_dim = total_elements // specified_dim
-            new_shape[index_of_minus_one] = missing_dim
-
-        # Handle case where dimension is zero
-        for i, dim in enumerate(new_shape):
-            if dim == 0:
-                if self.allow_zero:
-                    # If allow_zero is set, explicitly set the dimension to zero  (i.e. not taken from input tensor)
-                    new_shape[i] = 0
-                else:
-                    # dimension is 0, leave it unchanged  (i.e. taken from the input tensor).
-                    new_shape[i] = data_type[i]
-
-        # Shape (second input) could be an empty shape, which means converting to a scalar.
-        if len(shape_type) == 0:
-            shape_type = IntegerType(64)
-
 
 ONNX = Dialect(
     "onnx",
