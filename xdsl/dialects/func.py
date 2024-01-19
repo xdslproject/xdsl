@@ -67,6 +67,7 @@ class FuncOp(IRDLOperation):
     function_type: FunctionType = prop_def(FunctionType)
     sym_visibility: StringAttr | None = opt_prop_def(StringAttr)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
     traits = frozenset(
         [IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()]
@@ -80,6 +81,7 @@ class FuncOp(IRDLOperation):
         visibility: StringAttr | str | None = None,
         *,
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     ):
         if isinstance(visibility, str):
             visibility = StringAttr(visibility)
@@ -93,6 +95,7 @@ class FuncOp(IRDLOperation):
             "function_type": function_type,
             "sym_visibility": visibility,
             "arg_attrs": arg_attrs,
+            "res_attrs": res_attrs,
         }
         super().__init__(properties=properties, regions=[region])
 
