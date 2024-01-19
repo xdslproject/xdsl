@@ -103,8 +103,8 @@ class LowerAffineLoad(RewritePattern):
 class LowerAffineFor(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.For, rewriter: PatternRewriter):
-        lb_map = op.lower_bound.data
-        ub_map = op.upper_bound.data
+        lb_map = op.lowerBoundMap.data
+        ub_map = op.upperBoundMap.data
         assert len(lb_map.results) == 1, "Affine for lower_bound must have one result"
         assert len(ub_map.results) == 1, "Affine for upper_bound must have one result"
         lb_ops, lb_val = affine_expr_ops(lb_map.results[0], [], [])
@@ -118,7 +118,7 @@ class LowerAffineFor(RewritePattern):
                 lb_val,
                 ub_val,
                 step_op.result,
-                op.arguments,
+                op.inits,
                 rewriter.move_region_contents_to_new_regions(op.body),
             )
         )

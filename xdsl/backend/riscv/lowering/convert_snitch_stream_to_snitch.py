@@ -114,14 +114,15 @@ class LowerStridedReadOp(RewritePattern):
         stream_type = cast(
             stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
+        pattern_type = cast(snitch_stream.StridePatternType, op.pattern.type)
 
         rewriter.replace_matched_op(
-            [
+            (
                 snitch.SsrSetDimensionSourceOp(
-                    op.pointer, op.dm, builtin.IntAttr(op.rank.data - 1)
+                    op.pointer, op.dm, builtin.IntAttr(pattern_type.data - 1)
                 ),
-                riscv.GetFloatRegisterOp(stream_type.element_type),
-            ]
+                riscv_snitch.GetStreamOp(stream_type),
+            )
         )
 
 
@@ -134,53 +135,82 @@ class LowerStridedWriteOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_stream.StridedWriteOp, rewriter: PatternRewriter, /
     ):
-        rewriter.insert_op_before_matched_op(
-            [
+        pattern_type = cast(snitch_stream.StridePatternType, op.pattern.type)
+
+        rewriter.replace_matched_op(
+            (
                 snitch.SsrSetDimensionDestinationOp(
-                    op.pointer, op.dm, builtin.IntAttr(op.rank.data - 1)
+                    op.pointer,
+                    op.dm,
+                    builtin.IntAttr(pattern_type.data - 1),
                 ),
-            ]
+                riscv_snitch.GetStreamOp(op.stream.type),
+            )
         )
 
-        rewriter.erase_matched_op()
 
-
-class LowerGenericOp(RewritePattern):
+class LowerStreamingRegionOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: snitch_stream.GenericOp, rewriter: PatternRewriter, /
+        self, op: snitch_stream.StreamingRegionOp, rewriter: PatternRewriter, /
     ):
+        # Create strided reads and writes
+        # Insert stream begin
+        # Inline body
+        # Insert stream end
+        input_count = len(op.inputs)
+        output_count = len(op.outputs)
+        stream_count = input_count + output_count
+
+        # If there is a single pattern specified, then it should be set for all streams
+        if len(op.stride_patterns) == 1:
+            pattern = op.stride_patterns[0]
+            patterns = (pattern,) * stream_count
+        else:
+            patterns = op.stride_patterns
+
+        dms = tuple(range(stream_count))
+
+        strided_read_ops = tuple(
+            snitch_stream.StridedReadOp(
+                input,
+                pattern,
+                riscv.Registers.FT[index],
+                dm=builtin.IntAttr(dm),
+            )
+            for index, (input, pattern, dm) in enumerate(
+                zip(op.inputs, patterns[:input_count], dms[:input_count], strict=True)
+            )
+        )
+
+        rewriter.insert_op_before_matched_op(strided_read_ops)
+
+        strided_write_ops = tuple(
+            snitch_stream.StridedWriteOp(
+                output,
+                pattern,
+                riscv.Registers.FT[index + input_count],
+                dm=builtin.IntAttr(dm),
+            )
+            for index, (output, pattern, dm) in enumerate(
+                zip(op.outputs, patterns[input_count:], dms[input_count:], strict=True)
+            )
+        )
+        rewriter.insert_op_before_matched_op(strided_write_ops)
+
         rewriter.insert_op_before_matched_op(snitch.SsrEnable())
 
         block = op.body.block
 
-        for i, arg in zip(op.inputs, block.args):
-            arg.replace_by(i)
+        for i, arg in zip(strided_read_ops + strided_write_ops, block.args):
+            arg.replace_by(i.stream)
 
         for arg in reversed(block.args):
             rewriter.erase_block_argument(arg)
 
-        loop_count = riscv.AddiOp(op.repeat_count, -1)
-        rewriter.insert_op_before_matched_op(loop_count)
-        rewriter.replace_matched_op(
-            [
-                riscv_snitch.FrepOuter(
-                    loop_count,
-                    rewriter.move_region_contents_to_new_regions(op.body),
-                    builtin.IntAttr(0),
-                    builtin.IntAttr(0),
-                ),
-                snitch.SsrDisable(),
-            ]
-        )
+        rewriter.inline_block_before_matched_op(block)
 
-
-class LowerYieldOp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_stream.YieldOp, rewriter: PatternRewriter, /
-    ):
-        rewriter.replace_matched_op(riscv_snitch.FrepYieldOp(*op.operands))
+        rewriter.replace_matched_op(snitch.SsrDisable())
 
 
 class ConvertSnitchStreamToSnitch(ModulePass):
@@ -193,23 +223,11 @@ class ConvertSnitchStreamToSnitch(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    LowerGenericOp(),
-                ]
-            )
-        ).rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
+                    LowerStreamingRegionOp(),
                     LowerStridedReadOp(),
                     LowerStridedWriteOp(),
-                ]
-            )
-        ).rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
                     LowerStridePatternOp(),
-                    LowerYieldOp(),
                 ]
-            )
+            ),
+            walk_reverse=True,
         ).rewrite_module(op)

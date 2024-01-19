@@ -52,8 +52,8 @@ class AffineFunctions(InterpreterFunctions):
         assert not args, "Arguments not supported yet"
         assert not op.results, "Results not supported yet"
 
-        lower_bound = op.lower_bound.data.eval([], [])
-        upper_bound = op.upper_bound.data.eval([], [])
+        lower_bound = op.lowerBoundMap.data.eval([], [])
+        upper_bound = op.upperBoundMap.data.eval([], [])
         assert len(lower_bound) == 1
         assert len(upper_bound) == 1
 
