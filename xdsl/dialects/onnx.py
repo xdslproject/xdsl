@@ -376,7 +376,7 @@ class Reshape(IRDLOperation):
             raise VerifyException("Shape tensor rank must not be equal to -1")
 
         # There is currently only support for rank one shape tensors in onnx-mlir
-        # Shape tensor must have a constant shape
+        # Shape tensor must have a constant shape.
         if len(shape_type) != 1:
             raise VerifyException("Shape tensor must have a rank one")
 
