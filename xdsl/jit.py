@@ -56,11 +56,25 @@ def _compile_module(module_str: str, directory: Path, filename: str):
 
     # Lower to LLVM dialect
 
-    os.system(
+    cmd = (
         f"mlir-opt {input_name} "
-        + '--pass-pipeline="builtin.module(finalize-memref-to-llvm, convert-scf-to-cf, convert-func-to-llvm{use-bare-ptr-memref-call-conv}, reconcile-unrealized-casts)"'
+        # + "--test-lower-to-llvm"
+        + "--convert-scf-to-cf "
+        + "--canonicalize "
+        + "--cse "
+        + "--convert-arith-to-llvm "
+        + "--finalize-memref-to-llvm='use-generic-functions' "
+        + "--convert-func-to-llvm='use-bare-ptr-memref-call-conv' "
+        + "--convert-index-to-llvm "
+        + "--convert-cf-to-llvm "
+        + "--convert-arith-to-llvm "
+        + "--reconcile-unrealized-casts "
         + f" > {output_name}"
     )
+
+    # print(cmd)
+
+    os.system(cmd)
 
     # Translate MLIR IR to LLVM IR
 
@@ -88,6 +102,8 @@ def _compile_module(module_str: str, directory: Path, filename: str):
     mlir_translate_cmd = subprocess.run(
         [
             "clang",
+            "-ffast-math",
+            "-O3",
             "-x",
             "ir",
             "-w",
