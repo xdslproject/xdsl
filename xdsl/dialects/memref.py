@@ -56,6 +56,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     SymbolOpInterface,
+    TypesMatchWith,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.deprecation import deprecated_constructor
@@ -194,6 +195,14 @@ class Load(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType)
     res: OpResult = result_def(AnyAttr())
 
+    traits = frozenset(
+        (
+            TypesMatchWith[MemRefType[Attribute], Attribute](
+                "memref", "res", lambda x: x.get_element_type()
+            ),
+        )
+    )
+
     # TODO varargs for indexing, which must match the memref dimensions
     # Problem: memref dimensions require variadic type parameters,
     # which is subject to change
@@ -204,9 +213,6 @@ class Load(IRDLOperation):
             raise VerifyException("expected a memreftype")
 
         memref_type = cast(MemRefType[Attribute], memref_type)
-
-        if memref_type.element_type != self.res.type:
-            raise Exception("expected return type to match the MemRef element type")
 
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
@@ -255,14 +261,19 @@ class Store(IRDLOperation):
     memref: Operand = operand_def(MemRefType[Attribute])
     indices: VarOperand = var_operand_def(IndexType)
 
+    traits = frozenset(
+        (
+            TypesMatchWith[MemRefType[Attribute], Attribute](
+                "memref", "value", lambda x: x.get_element_type()
+            ),
+        )
+    )
+
     def verify_(self):
         if not isinstance(memref_type := self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
         memref_type = cast(MemRefType[Attribute], memref_type)
-
-        if memref_type.element_type != self.value.type:
-            raise Exception("Expected value type to match the MemRef element type")
 
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")

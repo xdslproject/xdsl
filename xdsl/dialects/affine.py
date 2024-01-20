@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated, Any, cast
+from typing import Annotated, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -262,11 +262,11 @@ class Load(IRDLOperation):
         if result_type is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
+            memref_type = cast(ContainerType[Attribute], memref.type)
             if not isinstance(memref.type, ContainerType):
                 raise ValueError(
                     "affine.store memref operand must be of type ContainerType"
                 )
-            memref_type = cast(ContainerType[Any], memref.type)
             result_type = memref_type.get_element_type()
 
         super().__init__(

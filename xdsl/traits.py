@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
-    from xdsl.ir import Operation, Region
+    from xdsl.ir import Attribute, Operation, Region
     from xdsl.pattern_rewriter import RewritePattern
 
 
@@ -398,3 +399,47 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
+
+
+_LhsType = TypeVar("_LhsType", bound="Attribute")
+_RhsType = TypeVar("_RhsType", bound="Attribute")
+
+
+@dataclass(frozen=True)
+class TypesMatchWith(OpTrait, Generic[_LhsType, _RhsType]):
+    parameters: tuple[
+        str, str, Callable[[_LhsType], Attribute], Callable[[Attribute, _RhsType], bool]
+    ]
+
+    @property
+    def lhsArg(self) -> str:
+        return self.parameters[0]
+
+    @property
+    def rhsArg(self) -> str:
+        return self.parameters[1]
+
+    @property
+    def transform(self) -> Callable[[_LhsType], Attribute]:
+        return self.parameters[2]
+
+    @property
+    def comparator(self) -> Callable[[Attribute, _RhsType], bool]:
+        return self.parameters[3]
+
+    def __init__(
+        self,
+        lhsArg: str,
+        rhsArg: str,
+        transform: Callable[[_LhsType], Attribute] = lambda x: x,
+        comparator: Callable[[Attribute, _RhsType], bool] = lambda x, y: x == y,
+    ):
+        super().__init__((lhsArg, rhsArg, transform, comparator))
+
+    def verify(self, op: Operation) -> None:
+        lhs = getattr(op, self.lhsArg).type
+        rhs = getattr(op, self.rhsArg).type
+        if not self.comparator(self.transform(lhs), rhs):
+            raise VerifyException(
+                f"Types of {self.lhsArg} and {self.rhsArg} do not match"
+            )

@@ -92,10 +92,10 @@ _ContainerElementTypeT = TypeVar(
 )
 
 
-class ContainerType(Generic[_ContainerElementTypeT], ABC):
+class ContainerType(Attribute, Generic[_ContainerElementTypeT], ABC):
     @abstractmethod
     def get_element_type(self) -> _ContainerElementTypeT:
-        pass
+        ...
 
 
 @irdl_attr_definition
