@@ -9,8 +9,9 @@ from itertools import product
 from typing import TypeAlias, TypeVar, cast
 
 from xdsl.builder import Builder, InsertPoint
-from xdsl.dialects import affine, arith, func, memref
+from xdsl.dialects import affine, arith, func, memref, printf
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     Float64Type,
     FloatAttr,
     IndexType,
@@ -18,8 +19,8 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     f64,
 )
-from xdsl.dialects.printf import PrintFormatOp
 from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -411,7 +412,27 @@ class FuncOpLowering(RewritePattern):
 class PrintOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.PrintOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(PrintFormatOp("{}", op.input))
+        tensor_type = cast(toy.TensorTypeF64, op.input.type)
+        shape = tensor_type.get_shape()
+
+        format_str = "{}"
+
+        for dim in reversed(shape):
+            format_str = str([format_str] * dim).replace("'", "")
+
+        new_vals: list[SSAValue] = []
+
+        for indices in product(*(range(dim) for dim in shape)):
+            rewriter.insert_op_before_matched_op(
+                load := affine.Load(
+                    op.input,
+                    (),
+                    AffineMapAttr(AffineMap.from_callable(lambda: indices)),
+                )
+            )
+            new_vals.append(load.result)
+
+        rewriter.replace_matched_op(printf.PrintFormatOp(format_str, *new_vals))
 
 
 class ReturnOpLowering(RewritePattern):
