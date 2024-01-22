@@ -23,7 +23,7 @@ class PrintfOp(IRDLOperation, riscv.RISCVInstruction):
     s1 = riscv.GetRegisterOp(Registers.s1).res
     op = PrintfOp("s0: {}, s1: {}", (s0, s1))
 
-    op.assembly_line()   # "printf "s0: {}, s1: {}", s0, s1"
+    op.assembly_line()   # 'printf "s0: {}, s1: {}", s0, s1'
     ```
     """
 
