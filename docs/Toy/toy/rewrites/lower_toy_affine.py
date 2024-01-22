@@ -412,7 +412,7 @@ class FuncOpLowering(RewritePattern):
 class PrintOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.PrintOp, rewriter: PatternRewriter):
-        tensor_type = cast(toy.TensorTypeF64, op.input.type)
+        assert isinstance(tensor_type := op.input.type, toy.TensorType)
         shape = tensor_type.get_shape()
 
         format_str = "{}"
