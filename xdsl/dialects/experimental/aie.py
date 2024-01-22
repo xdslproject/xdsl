@@ -234,7 +234,6 @@ class ConnectOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        print(self.sourceChannel.value.data)
         if self.sourceChannel.type != i32:
             raise VerifyException("sourceChannel has to be a 32-bit signless integer")
         if self.sourceChannel.value.data < 0:
@@ -361,7 +360,6 @@ class DMABDPACKETOp(IRDLOperation):
         )
 
 
-# TODO: add successor basic blocks
 @irdl_op_definition
 class DMAStartOp(IRDLOperation):
     name = "AIE.dmaStart"
@@ -898,7 +896,7 @@ class PacketSourceOp(IRDLOperation):
 
 
 @irdl_op_definition
-class putCascade(IRDLOperation):
+class PutCascade(IRDLOperation):
     name = "AIE.putCascade"
 
     cascadeValue = operand_def(IntegerType(CASCADE_SIZE))
@@ -908,7 +906,7 @@ class putCascade(IRDLOperation):
 
 
 @irdl_op_definition
-class putStream(IRDLOperation):
+class PutStream(IRDLOperation):
     name = "AIE.putStream"
 
     channel = operand_def(i32)
@@ -1115,8 +1113,8 @@ AIE = Dialect(
         PacketRuleOp,
         PacketRulesOp,
         PacketSourceOp,
-        putCascade,
-        putStream,
+        PutCascade,
+        PutStream,
         ShimDMAOp,
         ShimMuxOp,
         ShimSwitchBoxOp,
@@ -1125,5 +1123,9 @@ AIE = Dialect(
         WireOp,
         EndOp,
     ],
-    [WireBundleAttr, ObjectFIFO, ObjectFIFOSubview],
+    [
+        WireBundleAttr,
+        ObjectFIFO,
+        ObjectFIFOSubview,
+    ],
 )
