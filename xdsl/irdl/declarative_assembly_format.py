@@ -7,11 +7,18 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal
 
 from xdsl.ir import Attribute
-from xdsl.irdl import IRDLOperation, IRDLOperationInvT, OpDef, VariadicDef
+from xdsl.irdl import (
+    IRDLOperation,
+    IRDLOperationInvT,
+    OpDef,
+    VariadicDef,
+    VarIRConstruct,
+)
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
@@ -77,6 +84,12 @@ class FormatProgram:
     stmts: list[FormatDirective]
     """The list of statements composing the program. They are executed in order."""
 
+    type_resolutions: dict[
+        tuple[VarIRConstruct, int],
+        tuple[Callable[[Attribute], Attribute], tuple[VarIRConstruct, int]],
+    ]
+    """A mapping describing how to resolve unparsed operand and result types."""
+
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
         """
@@ -104,10 +117,45 @@ class FormatProgram:
         # Ensure that all operands and operand types are parsed
         unresolved_operands = state.operands
         assert isa(unresolved_operands, list[UnresolvedOperand])
+
+        # Resolve unparsed operand types
+        for i, operand_type in enumerate(state.operand_types):
+            if operand_type is None:
+                assert (VarIRConstruct.OPERAND, i) in self.type_resolutions
+                resolve, (construct, idx) = self.type_resolutions[
+                    VarIRConstruct.OPERAND, i
+                ]
+                match construct:
+                    case VarIRConstruct.OPERAND:
+                        input_type = state.operand_types[idx]
+                    case VarIRConstruct.RESULT:
+                        input_type = state.result_types[idx]
+                    case _:
+                        raise ValueError()
+                assert input_type is not None
+                state.operand_types[i] = resolve(input_type)
+
+        # Resolve unparsed result types
+        for i, result_type in enumerate(state.result_types):
+            if result_type is None:
+                assert (VarIRConstruct.RESULT, i) in self.type_resolutions
+                resolve, (construct, idx) = self.type_resolutions[
+                    VarIRConstruct.RESULT, i
+                ]
+                match construct:
+                    case VarIRConstruct.OPERAND:
+                        input_type = state.operand_types[idx]
+                    case VarIRConstruct.RESULT:
+                        input_type = state.result_types[idx]
+                    case _:
+                        raise ValueError()
+                assert input_type is not None
+                state.result_types[i] = resolve(input_type)
+
         operand_types = state.operand_types
         assert isa(operand_types, list[Attribute])
 
-        # Ensure that all result types are parsed
+        # Ensure that all result types are parsed or resolved
         result_types = state.result_types
         assert isa(state.result_types, list[Attribute])
 

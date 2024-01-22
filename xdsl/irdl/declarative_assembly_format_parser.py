@@ -6,10 +6,12 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
 
-from xdsl.irdl import OpDef
+from xdsl.ir import Attribute
+from xdsl.irdl import OpDef, VarConstraint, VarIRConstruct
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     FormatDirective,
@@ -86,6 +88,11 @@ class FormatParser(BaseParser):
     """True if the attribute dictionary has already been parsed."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
     """Indicates if the parser is nested in a particular directive."""
+    type_resolutions: dict[
+        tuple[VarIRConstruct, int],
+        tuple[Callable[[Attribute], Attribute], tuple[VarIRConstruct, int]],
+    ]
+    """Map a variable to a way to infer its type"""
 
     def __init__(self, input: str, op_def: OpDef):
         super().__init__(ParserState(FormatLexer(Input(input, "<input>"))))
@@ -93,6 +100,7 @@ class FormatParser(BaseParser):
         self.seen_operands = [False] * len(op_def.operands)
         self.seen_operand_types = [False] * len(op_def.operands)
         self.seen_result_types = [False] * len(op_def.results)
+        self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
         """
@@ -105,17 +113,63 @@ class FormatParser(BaseParser):
         while self._current_token.kind != Token.Kind.EOF:
             elements.append(self.parse_directive())
 
+        self.resolve_types()
         self.verify_attr_dict()
         self.verify_operands()
         self.verify_results()
-        return FormatProgram(elements)
+        return FormatProgram(elements, self.type_resolutions)
+
+    def resolve_types(self):
+        """
+        Find out which types can be resolved through ConstraintVat propagation.
+        """
+        resolved_variables: dict[str, tuple[VarIRConstruct, int]] = {}
+        # If a result or operand type is a variable, that variable can be resolved from it
+        for i, (_, operand_def) in enumerate(self.op_def.operands):
+            if self.seen_operand_types[i]:
+                if isinstance(operand_def.constr, VarConstraint):
+                    resolved_variables[operand_def.constr.name] = (
+                        VarIRConstruct.OPERAND,
+                        i,
+                    )
+        for i, (_, result_def) in enumerate(self.op_def.results):
+            if self.seen_result_types[i]:
+                if isinstance(result_def.constr, VarConstraint):
+                    resolved_variables[result_def.constr.name] = (
+                        VarIRConstruct.RESULT,
+                        i,
+                    )
+        # For each unseed result or operand type that is a variable, check if that
+        # variable can be resolved.
+        for i, (_, operand_def) in enumerate(self.op_def.operands):
+            if not self.seen_operand_types[i]:
+                if (
+                    isinstance(operand_def.constr, VarConstraint)
+                    and operand_def.constr.name in resolved_variables.keys()
+                ):
+                    # Create the resolution method
+                    self.type_resolutions[VarIRConstruct.OPERAND, i] = (
+                        lambda x: x,
+                        resolved_variables[operand_def.constr.name],
+                    )
+        for i, (_, result_def) in enumerate(self.op_def.results):
+            if not self.seen_result_types[i]:
+                if (
+                    isinstance(result_def.constr, VarConstraint)
+                    and result_def.constr.name in resolved_variables.keys()
+                ):
+                    self.type_resolutions[VarIRConstruct.RESULT, i] = (
+                        lambda x: x,
+                        resolved_variables[result_def.constr.name],
+                    )
 
     def verify_operands(self):
         """
-        Check that all operands and operand types are refered at least once.
+        Check that all operands and operand types are refered at least once, or inferred
+        from another construct.
         """
-        for operand, operand_type, (operand_name, _) in zip(
-            self.seen_operands, self.seen_operand_types, self.op_def.operands
+        for i, (operand, operand_type, (operand_name, _)) in enumerate(
+            zip(self.seen_operands, self.seen_operand_types, self.op_def.operands)
         ):
             if not operand:
                 self.raise_error(
@@ -124,24 +178,31 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format"
                 )
             if not operand_type:
-                self.raise_error(
-                    f"type of operand '{operand_name}' not found, consider "
-                    f"adding a 'type(${operand_name})' directive to the custom "
-                    "assembly format"
-                )
+                if (VarIRConstruct.OPERAND, i) in self.type_resolutions.keys():
+                    pass
+                else:
+                    self.raise_error(
+                        f"type of operand '{operand_name}' not found, consider "
+                        f"adding a 'type(${operand_name})' directive to the custom "
+                        "assembly format"
+                    )
 
     def verify_results(self):
-        """Check that all result types are refered at least once."""
+        """Check that all result types are refered at least once, or inferred
+        from another construct."""
 
-        for result_type, (result_name, _) in zip(
-            self.seen_result_types, self.op_def.results
+        for i, (result_type, (result_name, _)) in enumerate(
+            zip(self.seen_result_types, self.op_def.results)
         ):
             if not result_type:
-                self.raise_error(
-                    f"type of result '{result_name}' not found, consider "
-                    f"adding a 'type(${result_name})' directive to the custom "
-                    "assembly format"
-                )
+                if (VarIRConstruct.RESULT, i) in self.type_resolutions.keys():
+                    pass
+                else:
+                    self.raise_error(
+                        f"type of result '{result_name}' not found, consider "
+                        f"adding a 'type(${result_name})' directive to the custom "
+                        "assembly format"
+                    )
 
     def verify_attr_dict(self):
         """
