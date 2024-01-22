@@ -106,6 +106,25 @@ PassArgElementType = str | int | bool | float
 PassArgListType = list[PassArgElementType]
 
 
+def _pass_arg_element_type_str(arg: PassArgElementType) -> str:
+    match arg:
+        case bool():
+            return str(arg).lower()
+        case str():
+            return f'"{arg}"'
+        case int():
+            return str(arg)
+        case float():
+            return str(arg)
+
+
+def _pass_arg_list_type_str(name: str, arg: PassArgListType) -> str:
+    if arg:
+        return f'{name}={",".join(_pass_arg_element_type_str(val) for val in arg)}'
+    else:
+        return name
+
+
 @dataclass(eq=True, frozen=True)
 class PipelinePassSpec:
     """
@@ -115,13 +134,28 @@ class PipelinePassSpec:
     name: str
     args: dict[str, PassArgListType]
 
-    def normalize_arg_names(self):
+    def normalize_arg_names(self) -> PipelinePassSpec:
         """
         This normalized all arg names by replacing `-` with `_`
         """
-        for k, v in list(self.args.items()):
-            del self.args[k]
-            self.args[k.replace("-", "_")] = v
+        new_args: dict[str, PassArgListType] = dict()
+        for k, v in self.args.items():
+            new_args[k.replace("-", "_")] = v
+        return PipelinePassSpec(name=self.name, args=new_args)
+
+    def __str__(self) -> str:
+        """
+        This function returns a string containing the PipelineSpec name, its arguments and
+        respective values for use on the commandline.
+        """
+        query = f"{self.name}"
+        arguments_pipeline = " ".join(
+            _pass_arg_list_type_str(arg_name, arg_val)
+            for arg_name, arg_val in self.args.items()
+        )
+        query += f"{{{arguments_pipeline}}}" if self.args else ""
+
+        return query
 
 
 def parse_pipeline(

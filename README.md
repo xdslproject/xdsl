@@ -25,7 +25,7 @@ Additionally, xDSL can leverage MLIR's code generation and low-level
 optimization capabilities.
 
 - [Installation](#installation)
-- [Using xDSL](#using-xdsl)
+- [Getting Started](#getting-started)
 - [xDSL Developer Setup](#xdsl-developer-setup)
   - [Developer Installation](#developer-installation)
   - [Testing](#testing)
@@ -42,7 +42,7 @@ pip install xdsl
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions may result in problems. The supported
-MLIR version is commit `a3f2751f782f3cdc6ba4790488ec20163a40ac37`.
+MLIR version is commit `98e674c9f16d677d95c67bc130e267fae331e43c`.
 
 ## Getting Started
 

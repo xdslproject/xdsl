@@ -5,8 +5,7 @@ from warnings import warn
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
-from xdsl.ir.core import Use
+from xdsl.ir import MLContext, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter
 

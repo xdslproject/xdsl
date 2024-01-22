@@ -4,7 +4,7 @@ from itertools import chain
 from ordered_set import OrderedSet
 
 from xdsl.backend.riscv.register_queue import RegisterQueue
-from xdsl.dialects import riscv_func, riscv_scf
+from xdsl.dialects import riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
@@ -12,6 +12,7 @@ from xdsl.dialects.riscv import (
     RISCVRegisterType,
 )
 from xdsl.ir import Block, Operation, SSAValue
+from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 
 
 def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
@@ -29,6 +30,14 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
                     allocated.add(param.type)
 
     return allocated
+
+
+def _uses_snitch_stream(func: riscv_func.FuncOp) -> bool:
+    """Utility method to detect use of read/write ops of the `snitch_stream` dialect."""
+
+    return any(
+        isinstance(op, riscv_snitch.ReadOp | riscv_snitch.WriteOp) for op in func.walk()
+    )
 
 
 class RegisterAllocator(abc.ABC):
@@ -73,6 +82,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     live_ins_per_block: dict[Block, OrderedSet[SSAValue]]
 
     exclude_preallocated: bool = True
+    exclude_snitch_reserved: bool = True
 
     def __init__(self) -> None:
         self.available_registers = RegisterQueue()
@@ -105,6 +115,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         match op:
             case riscv_scf.ForOp():
                 self.allocate_for_loop(op)
+            case riscv_snitch.FRepOperation():
+                self.allocate_frep_loop(op)
             case RISCVOp():
                 self.process_riscv_op(op)
             case _:
@@ -175,8 +187,76 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         for operand in loop.operands:
             self.allocate(operand)
 
+        # Reserve the loop carried variables for allocation within the body
+        for iter_arg in loop.iter_args:
+            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
+            self.available_registers.reserve_register(iter_arg.type)
+
         for op in loop.body.block.ops_reverse:
             self.process_operation(op)
+
+        # Unreserve the loop carried variables for allocation outside of the body
+        for iter_arg in loop.iter_args:
+            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
+            self.available_registers.unreserve_register(iter_arg.type)
+
+    def allocate_frep_loop(self, loop: riscv_snitch.FRepOperation) -> None:
+        """
+        Allocate registers for riscv_snitch frep_outer or frep_inner loop, recursively
+        calling process_operation for operations in the loop.
+        """
+        # Allocate values used inside the body but defined outside.
+        # Their scope lasts for the whole body execution scope
+        live_ins = self.live_ins_per_block[loop.body.block]
+        for live_in in live_ins:
+            self.allocate(live_in)
+
+        yield_op = loop.body.block.last_op
+        assert yield_op is not None, (
+            "last op of riscv_snitch.frep_outer and riscv_snitch.frep_inner is guaranteed"
+            " to be riscv_scf.Yield"
+        )
+        block_args = loop.body.block.args
+
+        # The loop-carried variables are trickier
+        # The for op operand, block arg, and yield operand must have the same type
+        for block_arg, operand, yield_operand, op_result in zip(
+            block_args, loop.iter_args, yield_op.operands, loop.results
+        ):
+            # If some allocated then assign all to that type, otherwise get new reg
+            assert isinstance(block_arg.type, RISCVRegisterType)
+            assert isinstance(operand.type, RISCVRegisterType)
+            assert isinstance(yield_operand.type, RISCVRegisterType)
+            assert isinstance(op_result.type, RISCVRegisterType)
+
+            # Because we are walking backwards, the result of the operation may have been
+            # allocated already. If it isn't it's because it's not used below.
+            if not op_result.type.is_allocated:
+                # We only need to check one of the four since they're constrained to be
+                # the same
+                self.allocate(op_result)
+
+            shared_type = op_result.type
+            block_arg.type = shared_type
+            yield_operand.type = shared_type
+            operand.type = shared_type
+
+        # Operands
+        for operand in loop.operands:
+            self.allocate(operand)
+
+        # Reserve the loop carried variables for allocation within the body
+        for iter_arg in loop.iter_args:
+            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
+            self.available_registers.reserve_register(iter_arg.type)
+
+        for op in loop.body.block.ops_reverse:
+            self.process_operation(op)
+
+        # Unreserve the loop carried variables for allocation outside of the body
+        for iter_arg in loop.iter_args:
+            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
+            self.available_registers.unreserve_register(iter_arg.type)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         if not func.body.blocks:
@@ -188,17 +268,22 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
 
+        preallocated: set[RISCVRegisterType] = set()
+
         if self.exclude_preallocated:
-            preallocated = gather_allocated(func)
+            preallocated |= gather_allocated(func)
 
-            for pa_reg in preallocated:
-                if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
-                    self.available_registers.reserved_registers.add(pa_reg)
+        if self.exclude_snitch_reserved and _uses_snitch_stream(func):
+            preallocated |= get_snitch_reserved()
 
-                if pa_reg in self.available_registers.available_int_registers:
-                    self.available_registers.available_int_registers.remove(pa_reg)
-                if pa_reg in self.available_registers.available_float_registers:
-                    self.available_registers.available_float_registers.remove(pa_reg)
+        for pa_reg in preallocated:
+            if isinstance(pa_reg, IntRegisterType | FloatRegisterType):
+                self.available_registers.reserve_register(pa_reg)
+
+            if pa_reg in self.available_registers.available_int_registers:
+                self.available_registers.available_int_registers.remove(pa_reg)
+            if pa_reg in self.available_registers.available_float_registers:
+                self.available_registers.available_float_registers.remove(pa_reg)
 
         block = func.body.block
 

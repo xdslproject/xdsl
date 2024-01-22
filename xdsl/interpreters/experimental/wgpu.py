@@ -11,7 +11,7 @@ from xdsl.dialects.memref import MemRefType
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.experimental.wgsl_printer import WGSLPrinter
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.ir.core import Attribute, SSAValue
+from xdsl.ir import Attribute, SSAValue
 from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
 
@@ -140,7 +140,7 @@ class WGPUFunctions(InterpreterFunctions):
                 raise NotImplementedError(
                     f"copy for element type {dst_type.element_type} not yet implemented."
                 )
-        memview = memview.cast(format, [i.value.data for i in dst_type.shape])
+        memview = memview.cast(format, dst_type.get_shape())
         for index in dst.indices():
             dst.store(index, memview.__getitem__(index))  # pyright: ignore
         return ()

@@ -1,13 +1,15 @@
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from contextlib import redirect_stdout
+from importlib.metadata import version
 from io import StringIO
 from typing import IO
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.riscv import print_assembly, riscv_code
 from xdsl.ir import MLContext
-from xdsl.passes import ModulePass
+from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes
 from xdsl.utils.exceptions import DiagnosticException
@@ -15,7 +17,7 @@ from xdsl.utils.parse_pipeline import parse_pipeline
 
 
 class xDSLOptMain(CommandLineTool):
-    available_passes: dict[str, type[ModulePass]]
+    available_passes: dict[str, Callable[[], type[ModulePass]]]
     """
     A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
@@ -26,7 +28,7 @@ class xDSLOptMain(CommandLineTool):
     stream.
     """
 
-    pipeline: list[ModulePass]
+    pipeline: PipelinePass
     """ The pass-pipeline to be applied. """
 
     def __init__(
@@ -153,8 +155,17 @@ class xDSLOptMain(CommandLineTool):
             help="Print operations with debug info annotation, such as location.",
         )
 
-    def register_pass(self, opPass: type[ModulePass]):
-        self.available_passes[opPass.name] = opPass
+        arg_parser.add_argument(
+            "-v",
+            "--version",
+            action="version",
+            version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
+        )
+
+    def register_pass(
+        self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
+    ):
+        self.available_passes[pass_name] = pass_factory
 
     def register_all_passes(self):
         """
@@ -162,8 +173,8 @@ class xDSLOptMain(CommandLineTool):
 
         Add other/additional passes by overloading this function.
         """
-        for pass_ in get_all_passes():
-            self.register_pass(pass_)
+        for pass_name, pass_factory in get_all_passes().items():
+            self.register_pass(pass_name, pass_factory)
 
     def register_all_targets(self):
         """
@@ -187,14 +198,14 @@ class xDSLOptMain(CommandLineTool):
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
             try:
-                from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
+                from xdsl.interpreters.riscv_emulator import run_riscv
             except ImportError:
                 print("Please install optional dependencies to run riscv emulation")
                 return
 
             code = riscv_code(prog)
-            RV_Debug.stream = output
-            run_riscv(code, unlimited_regs=True, verbosity=0)
+            with redirect_stdout(output):
+                run_riscv(code, unlimited_regs=True, verbosity=0)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
@@ -212,9 +223,21 @@ class xDSLOptMain(CommandLineTool):
             if p.name not in self.available_passes:
                 raise Exception(f"Unrecognized pass: {p.name}")
 
-        self.pipeline = [
-            self.available_passes[p.name].from_pass_spec(p) for p in pipeline
-        ]
+        def callback(
+            previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
+        ) -> None:
+            if not self.args.disable_verify:
+                module.verify()
+            if self.args.print_between_passes:
+                print(f"IR after {previous_pass.name}:")
+                printer = Printer(stream=sys.stdout)
+                printer.print_op(module)
+                print("\n\n\n")
+
+        self.pipeline = PipelinePass(
+            [self.available_passes[p.name]().from_pass_spec(p) for p in pipeline],
+            callback,
+        )
 
     def prepare_input(self) -> tuple[list[IO[str]], str]:
         """
@@ -253,16 +276,9 @@ class xDSLOptMain(CommandLineTool):
             assert isinstance(prog, ModuleOp)
             if not self.args.disable_verify:
                 prog.verify()
-            for p in self.pipeline:
-                p.apply(self.ctx, prog)
-                assert isinstance(prog, ModuleOp)
-                if not self.args.disable_verify:
-                    prog.verify()
-                if self.args.print_between_passes:
-                    print(f"IR after {p.name}:")
-                    printer = Printer(stream=sys.stdout)
-                    printer.print_op(prog)
-                    print("\n\n\n")
+            self.pipeline.apply(self.ctx, prog)
+            if not self.args.disable_verify:
+                prog.verify()
         except DiagnosticException as e:
             if self.args.verify_diagnostics:
                 print(e)

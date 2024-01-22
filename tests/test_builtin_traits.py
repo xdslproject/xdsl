@@ -17,6 +17,7 @@ from xdsl.irdl import (
     opt_region_def,
     opt_successor_def,
     region_def,
+    traits_def,
 )
 from xdsl.traits import (
     HasParent,
@@ -272,10 +273,11 @@ class IsSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.is_single_block_implicit_terminator"
 
-    # TODO fix circular reference
-    # traits = frozenset([HasParent(HasSingleBlockImplicitTerminatorOp), IsTerminator()])
-    # this is tracked by gh issue: https://github.com/xdslproject/xdsl/issues/1218
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(
+        lambda: frozenset(
+            [IsTerminator(), HasParent(HasSingleBlockImplicitTerminatorOp)]
+        )
+    )
 
 
 @irdl_op_definition

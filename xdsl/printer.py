@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterable, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
+from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
     AnyUnrankedTensorType,
@@ -50,12 +53,14 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Data,
+    OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
     Region,
     SSAValue,
     TypeAttribute,
 )
+from xdsl.traits import IsTerminator
 from xdsl.utils.diagnostic import Diagnostic
 
 indentNumSpaces = 2
@@ -82,6 +87,14 @@ class Printer:
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list, init=False
     )
+
+    @contextmanager
+    def in_angle_brackets(self):
+        self.print_string("<")
+        try:
+            yield
+        finally:
+            self.print_string(">")
 
     def print(self, *argv: Any) -> None:
         for arg in argv:
@@ -237,10 +250,16 @@ class Printer:
             self._block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[block])
 
-    def print_block(self, block: Block, print_block_args: bool = True) -> None:
+    def print_block(
+        self,
+        block: Block,
+        print_block_args: bool = True,
+        print_block_terminator: bool = True,
+    ) -> None:
         """
         Print a block with syntax `(<caret-ident>`(` <block-args> `)`)? ops* )`
         * If `print_block_args` is False, the label and arguments are not printed.
+        * If `print_block_terminator` is False, the block terminator is not printed.
         """
 
         if print_block_args:
@@ -254,6 +273,8 @@ class Printer:
 
         self._indent += 1
         for op in block.ops:
+            if not print_block_terminator and op.has_trait(IsTerminator):
+                continue
             self._print_new_line()
             self.print_op(op)
         self._indent -= 1
@@ -274,12 +295,14 @@ class Printer:
         region: Region,
         print_entry_block_args: bool = True,
         print_empty_block: bool = True,
+        print_block_terminators: bool = True,
     ) -> None:
         """
         Print a region with syntax `{ <block>* }`
         * If `print_entry_block_args` is False, the arguments of the entry block
           are not printed.
         * If `print_empty_block` is False, empty entry blocks are not printed.
+        * If `print_block_terminators` is False, the block terminators are not printed.
         """
 
         # Empty region
@@ -293,9 +316,13 @@ class Printer:
         print_entry_block_args = (
             bool(entry_block.args) and print_entry_block_args
         ) or (not entry_block.ops and print_empty_block)
-        self.print_block(entry_block, print_block_args=print_entry_block_args)
+        self.print_block(
+            entry_block,
+            print_block_args=print_entry_block_args,
+            print_block_terminator=print_block_terminators,
+        )
         for block in region.blocks[1:]:
-            self.print_block(block)
+            self.print_block(block, print_block_terminator=print_block_terminators)
         self._print_new_line()
         self.print("}")
 
@@ -424,11 +451,7 @@ class Printer:
             return
 
         if isinstance(attribute, DictionaryAttr):
-            self.print_string("{")
-            self.print_dictionary(
-                attribute.data, self.print_string_literal, self.print_attribute
-            )
-            self.print_string("}")
+            self.print_attr_dict(attribute.data)
             return
 
         if isinstance(attribute, FunctionType):
@@ -499,9 +522,7 @@ class Printer:
             self.print("tensor<")
             self.print_list(
                 attribute.shape.data,
-                lambda x: self.print(x.value.data)
-                if x.value.data != -1
-                else self.print("?"),
+                lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
                 "x",
             )
             if len(attribute.shape.data) != 0:
@@ -566,14 +587,14 @@ class Printer:
         if isinstance(attribute, MemRefType):
             attribute = cast(MemRefType[Attribute], attribute)
             self.print("memref<")
-            self.print_list(
-                attribute.shape.data,
-                lambda x: self.print(x.value.data)
-                if x.value.data != -1
-                else self.print("?"),
-                "x",
-            )
-            self.print("x", attribute.element_type)
+            if attribute.shape.data:
+                self.print_list(
+                    attribute.shape.data,
+                    lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
+                    "x",
+                )
+                self.print("x")
+            self.print(attribute.element_type)
             if not isinstance(attribute.layout, NoneAttr):
                 self.print(", ", attribute.layout)
             if not isinstance(attribute.memory_space, NoneAttr):
@@ -606,26 +627,43 @@ class Printer:
             self.print(">")
             return
 
+        if isinstance(attribute, AffineSetAttr):
+            self.print("affine_set<")
+            self.print(attribute.data)
+            self.print(">")
+            return
+
         if isinstance(attribute, UnregisteredAttr):
             # Do not print `!` or `#` for unregistered builtin attributes
-            if attribute.attr_name.data not in ["affine_set"]:
-                self.print("!" if attribute.is_type.data else "#")
-            self.print(attribute.attr_name.data, attribute.value.data)
+            self.print("!" if attribute.is_type.data else "#")
+            if attribute.is_opaque.data:
+                self.print(attribute.attr_name.data.replace(".", "<", 1))
+                self.print(attribute.value.data)
+                self.print(">")
+            else:
+                self.print(attribute.attr_name.data)
+                if attribute.value.data:
+                    self.print("<")
+                    self.print(attribute.value.data)
+                    self.print(">")
             return
 
         # Print dialect attributes
         self.print("!" if isinstance(attribute, TypeAttribute) else "#")
-        self.print(attribute.name)
+
+        if isinstance(attribute, OpaqueSyntaxAttribute):
+            self.print(attribute.name.replace(".", "<", 1))
+        else:
+            self.print(attribute.name)
 
         if isinstance(attribute, Data):
-            self.print("<")
             attribute.print_parameter(self)
+
+        elif isinstance(attribute, ParametrizedAttribute):
+            attribute.print_parameters(self)
+
+        if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
-            return
-
-        assert isinstance(attribute, ParametrizedAttribute)
-
-        attribute.print_parameters(self)
         return
 
     def print_successors(self, successors: list[Block]):
@@ -642,13 +680,18 @@ class Printer:
             self.print(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
+    def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
+        self.print_string("{")
+        self.print_list(attr_dict.items(), self._print_attr_string)
+        self.print_string("}")
+
     def _print_op_properties(self, properties: dict[str, Attribute]) -> None:
         if not properties:
             return
 
-        self.print(" <{")
-        self.print_list(properties.items(), self._print_attr_string)
-        self.print("}>")
+        self.print_string(" ")
+        with self.in_angle_brackets():
+            self.print_attr_dict(properties)
 
     def print_op_attributes(
         self,
@@ -673,11 +716,8 @@ class Printer:
         if print_keyword:
             self.print(" attributes")
 
-        self.print(" {")
-
-        self.print_list(attributes.items(), self._print_attr_string)
-
-        self.print("}")
+        self.print(" ")
+        self.print_attr_dict(attributes)
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
@@ -688,25 +728,59 @@ class Printer:
         self.print(" : ")
         self.print_operation_type(op)
 
-    def print_operation_type(self, op: Operation) -> None:
+    def print_function_type(
+        self, input_types: Iterable[Attribute], output_types: Iterable[Attribute]
+    ):
+        """
+        Prints a function type like `(i32, i64) -> (f32, f64)` with the following
+        format:
+
+        The inputs are always a comma-separated list in parentheses.
+        If the output has a single element, the parentheses are dropped, except when the
+        only return type is a function type, in which case they are kept.
+
+        ```
+        () -> ()                 # no inputs, no outputs
+        (i32) -> ()              # one input, no outputs
+        (i32) -> i32             # one input, one output
+        (i32) -> (i32, i32)      # one input, two outputs
+        (i32) -> ((i32) -> i32)  # one input, one function type output
+        ```
+        """
         self.print("(")
-        self.print_list(op.operands, lambda operand: self.print_attribute(operand.type))
+        self.print_list(input_types, self.print_attribute)
         self.print(") -> ")
-        if len(op.results) == 0:
+
+        remaining_outputs_iterator = iter(output_types)
+        try:
+            first_type = next(remaining_outputs_iterator)
+        except StopIteration:
+            # No outputs
             self.print("()")
-        elif len(op.results) == 1:
-            res_type = op.results[0].type
-            # Handle ambiguous case
-            if isinstance(res_type, FunctionType):
-                self.print("(", res_type, ")")
+            return
+
+        try:
+            second_type = next(remaining_outputs_iterator)
+        except StopIteration:
+            # One output, drop parentheses unless it's a FunctionType
+            if isinstance(first_type, FunctionType):
+                self.print("(", first_type, ")")
             else:
-                self.print(res_type)
-        else:
-            self.print("(")
-            self.print_list(
-                op.results, lambda result: self.print_attribute(result.type)
-            )
-            self.print(")")
+                self.print(first_type)
+            return
+
+        # Two or more outputs, comma-separated list
+        self.print("(")
+        self.print_list(
+            chain((first_type, second_type), remaining_outputs_iterator),
+            self.print_attribute,
+        )
+        self.print(")")
+
+    def print_operation_type(self, op: Operation) -> None:
+        self.print_function_type(
+            (o.type for o in op.operands), (r.type for r in op.results)
+        )
         if self.print_debuginfo:
             self.print(" loc(unknown)")
 

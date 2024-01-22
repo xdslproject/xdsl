@@ -383,6 +383,7 @@ class AllOfOp(IRDLOperation):
 
 
 IRDL = Dialect(
+    "irdl",
     [
         DialectOp,
         TypeOp,

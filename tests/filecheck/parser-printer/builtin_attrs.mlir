@@ -120,6 +120,24 @@
   // CHECK: "value1" = dense<[[2, 3]]> : tensor<1x2xi32>, "value2" = dense<[0.000000e+00, 1.000000e+00]> : tensor<2xf64>
 
   "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<"0xFF00"> : tensor<2xi8>,
+                      value2 = dense<"0xFF00FF00"> : tensor<1xi32>,
+                      value3 = dense<"0xCAFEBABE"> : tensor<2xi32>,
+                      sym_name = "dense_tensor_attr_hex"} : () -> ()
+  // CHECK: "value1" = dense<[-1, 0]> : tensor<2xi8>, "value2" = dense<16711935> : tensor<1xi32>, "value3" = dense<-1095041334> : tensor<2xi32>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<"0xFF00CAFE"> : tensor<2x2xi8>,
+                      sym_name = "dense_tensor_attr_hex_long"} : () -> ()
+  // CHECK: "value1" = dense<[[-1, 0], [-54, -2]]> : tensor<2x2xi8>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<"0xCAFEBABE"> : tensor<2xf32>,
+                      value2 = dense<"0xCAFEBABEB00BAABE"> : tensor<1xf64>,
+                      sym_name = "dense_tensor_attr_hex_float"} : () -> ()
+  // CHECK: "value1" = dense<-3.652251e-01> : tensor<2xf32>, "value2" = dense<-7.762213e-07> : tensor<1xf64>
+
+  "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<[0]> : vector<1xi32>,
                       value2 = dense<[0.0, 1.0]> : vector<2xf64>,
                       sym_name = "dense_vector_attr"} : () -> ()
@@ -132,6 +150,13 @@
                       sym_name = "dense_corner_attr"} : () -> ()
 
   // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[0.000000e+00], [1.000000e+00]]> : tensor<2x1xf64>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      value1 = dense<> : tensor<1x23x0x4xi32>,
+                      value2 = dense<[[-0.0], [-1.0]]> : tensor<2x1xf64>,
+                      sym_name = "dense_negative_attr"} : () -> ()
+
+  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[-0.000000e+00], [-1.000000e+00]]> : tensor<2x1xf64>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<12> : tensor<2x3xi32>,
@@ -156,7 +181,7 @@
                       value = {"one"=1, "two"=2, "three"="three"},
                       sym_name = "dict_attr"} : () -> ()
 
-  // CHECK: "one"=1 : i64, "two"=2 : i64, "three"="three"
+  // CHECK: "one" = 1 : i64, "two" = 2 : i64, "three" = "three"
 
   "func.func"() ({}) {function_type = () -> (),
                       symbol = @some_symbol,
@@ -181,6 +206,12 @@
                       sym_name = "fixed_memref"} : () -> ()
 
   // CHECK: memref<2xf32>
+
+  "func.func"() ({}) {function_type = () -> (),
+                      memref = memref<f32>,
+                      sym_name = "scalar_memref"} : () -> ()
+
+  // CHECK: memref<f32>
 
   "func.func"() ({}) {function_type = () -> (),
                       memref = memref<2x?xf32>,
@@ -228,12 +259,6 @@
   "func.func"() ({}) {function_type = () -> (),
                       type_attr = index,
                       sym_name = "index_type"} : () -> ()
-
-  // CHECK: "type_attr" = index
-
-  "func.func"() ({}) {function_type = () -> (),
-                      type_attr = !index,
-                      sym_name = "index_type_prefix"} : () -> ()
 
   // CHECK: "type_attr" = index
 

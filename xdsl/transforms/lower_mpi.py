@@ -15,6 +15,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
 
 
@@ -182,7 +183,6 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
                     res := llvm.AllocaOp(
                         lit1,
                         builtin.IntegerType(8 * self.info.MPI_Status_size),
-                        as_untyped_ptr=True,
                     ),
                 ],
                 [res.res],
@@ -199,14 +199,14 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         It then returns a list of operations calculating that size, and
         an OpResult containing the calculated value.
         """
-        assert isinstance(ssa_val.type, memref.MemRefType)
+        assert isinstance(ssa_val_type := ssa_val.type, memref.MemRefType)
 
         # Note: we only allow MemRef, not UnrankedMemref!
         # TODO: handle -1 in sizes
-        if not all(dim.value.data >= 0 for dim in ssa_val.type.shape.data):
+        if not all(dim >= 0 for dim in ssa_val_type.get_shape()):
             raise RuntimeError("MPI lowering does not support unknown-size memrefs!")
 
-        size = prod(dim.value.data for dim in ssa_val.type.shape.data)
+        size = prod(ssa_val_type.get_shape())
 
         literal = arith.Constant.from_int_and_width(size, i32)
         return [literal], literal.result
@@ -622,7 +622,7 @@ class LowerMpiUnwrapMemrefOp(_MPIToLLVMRewriteBase):
         return [
             *extract_ptr_ops,
             *count_ops,
-            dtype := mpi.GetDtypeOp.get(elem_type),
+            dtype := mpi.GetDtypeOp(elem_type),
         ], [ptr.results[0], count_ssa_val, dtype.result]
 
 
@@ -681,7 +681,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
             idx_cast2 := arith.IndexCastOp(idx_cast1, i64),
             mul := arith.Muli(lit1, idx_cast2),
             add := arith.Addi(mul, ptr_int),
-            out_ptr := llvm.IntToPtrOp(add, op.vect.type.type),
+            out_ptr := llvm.IntToPtrOp(add),
         ], [out_ptr.results[0]]
 
 
@@ -703,7 +703,7 @@ class LowerMpiCommRank(_MPIToLLVMRewriteBase):
             lit1 := arith.Constant.from_int_and_width(1, 64),
             int_ptr := llvm.AllocaOp(lit1, i32),
             func.Call(self._mpi_name(op), [comm_global, int_ptr], [i32]),
-            rank := llvm.LoadOp(int_ptr),
+            rank := llvm.LoadOp(int_ptr, IntegerType(32)),
         ], [rank.dereferenced_value]
 
 
@@ -725,7 +725,7 @@ class LowerMpiCommSize(_MPIToLLVMRewriteBase):
             lit1 := arith.Constant.from_int_and_width(1, 64),
             int_ptr := llvm.AllocaOp(lit1, i32),
             func.Call(self._mpi_name(op), [comm_global, int_ptr], [i32]),
-            rank := llvm.LoadOp(int_ptr),
+            rank := llvm.LoadOp(int_ptr, IntegerType(32)),
         ], [rank.dereferenced_value]
 
 
@@ -759,10 +759,7 @@ class MpiAddExternalFuncDefs(RewritePattern):
 
         # for each func found, add a FuncOp to the top of the module.
         for name, types in funcs_to_emit.items():
-            arg, res = types
-            rewriter.insert_op_at_end(
-                func.FuncOp.external(name, arg, res), module.body.block
-            )
+            SymbolTable.insert_or_update(module, func.FuncOp.external(name, *types))
 
 
 class LowerNullRequestOp(_MPIToLLVMRewriteBase):

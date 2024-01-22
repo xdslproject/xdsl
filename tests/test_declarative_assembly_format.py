@@ -7,7 +7,7 @@ import pytest
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import Test
 from xdsl.ir import MLContext, Operation
-from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def
+from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLOpDefinitionError
@@ -185,15 +185,15 @@ class AttrDictWithKeywordOp(IRDLOperation):
 def test_attr_dict(program: str, generic_program: str):
     """Test the 'attr-dict' and 'attr-dict-with-keyword' directives."""
     ctx = MLContext()
-    ctx.register_op(AttrDictOp)
-    ctx.register_op(AttrDictWithKeywordOp)
+    ctx.load_op(AttrDictOp)
+    ctx.load_op(AttrDictWithKeywordOp)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
 
 
 ################################################################################
-# Punctuations and keywords                                                    #
+# Punctuations, keywords, and whitespaces                                      #
 ################################################################################
 
 
@@ -219,6 +219,19 @@ def test_attr_dict(program: str, generic_program: str):
             "`keyword` `,` `keyword` attr-dict",
             "test.punctuation keyword, keyword",
         ),
+        ("`keyword` ` ` `,` `keyword` attr-dict", "test.punctuation keyword , keyword"),
+        (
+            "`keyword` `\\n` `,` `keyword` attr-dict",
+            "test.punctuation keyword\n, keyword",
+        ),
+        (
+            "`keyword` `,` ` ` `keyword` attr-dict",
+            "test.punctuation keyword, keyword",
+        ),
+        (
+            "`keyword` `,` ` ` ` ` `keyword` attr-dict",
+            "test.punctuation keyword,  keyword",
+        ),
     ],
 )
 def test_punctuations_and_keywords(format: str, program: str):
@@ -230,7 +243,7 @@ def test_punctuations_and_keywords(format: str, program: str):
         assembly_format = format
 
     ctx = MLContext()
-    ctx.register_op(PunctuationOp)
+    ctx.load_op(PunctuationOp)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
@@ -289,7 +302,7 @@ def test_operands_missing_type():
 def test_operands_duplicated_type():
     """Test that operands should not have their type parsed twice"""
     with pytest.raises(
-        PyRDLOpDefinitionError, match="'type' of 'operand' is already bound"
+        PyRDLOpDefinitionError, match="type of 'operand' is already bound"
     ):
 
         @irdl_op_definition
@@ -340,8 +353,8 @@ def test_operands(format: str, program: str, generic_program: str):
         assembly_format = format
 
     ctx = MLContext()
-    ctx.register_op(TwoOperandsOp)
-    ctx.register_dialect(Test)
+    ctx.load_op(TwoOperandsOp)
+    ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
@@ -369,7 +382,79 @@ def test_operands_graph_region(format: str, program: str):
         assembly_format = format
 
     ctx = MLContext()
-    ctx.register_op(TwoOperandsOp)
-    ctx.register_dialect(Test)
+    ctx.load_op(TwoOperandsOp)
+    ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
+
+
+################################################################################
+# Results                                                                      #
+################################################################################
+
+
+def test_missing_result_type():
+    """Test that results should have their type parsed."""
+    with pytest.raises(PyRDLOpDefinitionError, match="result 'result' not found"):
+
+        @irdl_op_definition
+        class NoResultTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.no_result_type_op"
+            result = result_def()
+
+            assembly_format = "attr-dict"
+
+
+def test_results_duplicated_type():
+    """Test that results should not have their type parsed twice"""
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="type of 'result' is already bound"
+    ):
+
+        @irdl_op_definition
+        class DuplicatedresultTypeOp(  # pyright: ignore[reportUnusedClass]
+            IRDLOperation
+        ):
+            name = "test.duplicated_result_type_op"
+            result = result_def()
+
+            assembly_format = "type($result) type($result) attr-dict"
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "type($lhs) type($rhs) attr-dict",
+            "%0, %1 = test.two_results i32 i64",
+            '%0, %1 = "test.two_results"() : () -> (i32, i64)',
+        ),
+        (
+            "type($rhs) type($lhs) attr-dict",
+            "%0, %1 = test.two_results i32 i64",
+            '%0, %1 = "test.two_results"() : () -> (i64, i32)',
+        ),
+        (
+            "`:` type($lhs) `,` type($rhs) attr-dict",
+            "%0, %1 = test.two_results : i32, i64",
+            '%0, %1 = "test.two_results"() : () -> (i32, i64)',
+        ),
+    ],
+)
+def test_results(format: str, program: str, generic_program: str):
+    """Test the parsing of results"""
+
+    @irdl_op_definition
+    class TwoResultOp(IRDLOperation):
+        name = "test.two_results"
+        lhs = result_def()
+        rhs = result_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(TwoResultOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)

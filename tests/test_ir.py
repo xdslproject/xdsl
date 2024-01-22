@@ -268,6 +268,170 @@ def test_empty_block_with_single_block_parent_region_requires_terminator():
         op0.verify()
 
 
+def test_split_block_first():
+    old_block = Block((test.TestOp(), test.TestOp(), test.TestOp()))
+    region = Region(old_block)
+    a, b, c = old_block.ops
+
+    # Check preconditions
+
+    assert old_block.parent is region
+    assert region.blocks == [old_block]
+
+    assert old_block.first_op is a
+    assert old_block.last_op is c
+
+    assert a.parent is old_block
+    assert b.parent is old_block
+    assert c.parent is old_block
+
+    assert a.next_op is b
+    assert b.next_op is c
+    assert c.next_op is None
+
+    assert a.prev_op is None
+    assert b.prev_op is a
+    assert c.prev_op is b
+
+    new_block = old_block.split_before(a)
+
+    # Check postconditions
+
+    assert old_block.parent is region
+    assert new_block.parent is region
+    assert region.blocks == [old_block, new_block]
+
+    assert old_block.first_op is None
+    assert old_block.last_op is None
+    assert new_block.first_op is a
+    assert new_block.last_op is c
+
+    assert a.parent is new_block
+    assert b.parent is new_block
+    assert c.parent is new_block
+
+    assert a.next_op is b
+    assert b.next_op is c
+    assert c.next_op is None
+
+    assert a.prev_op is None
+    assert b.prev_op is a
+    assert c.prev_op is b
+
+
+def test_split_block_middle():
+    old_block = Block((test.TestOp(), test.TestOp(), test.TestOp()))
+    region = Region(old_block)
+    a, b, c = old_block.ops
+
+    # Check preconditions
+
+    assert old_block.parent is region
+    assert region.blocks == [old_block]
+
+    assert old_block.first_op is a
+    assert old_block.last_op is c
+
+    assert a.parent is old_block
+    assert b.parent is old_block
+    assert c.parent is old_block
+
+    assert a.next_op is b
+    assert b.next_op is c
+    assert c.next_op is None
+
+    assert a.prev_op is None
+    assert b.prev_op is a
+    assert c.prev_op is b
+
+    new_block = old_block.split_before(b)
+
+    # Check postconditions
+
+    assert old_block.parent is region
+    assert new_block.parent is region
+    assert region.blocks == [old_block, new_block]
+
+    assert old_block.first_op is a
+    assert old_block.last_op is a
+    assert new_block.first_op is b
+    assert new_block.last_op is c
+
+    assert a.parent is old_block
+    assert b.parent is new_block
+    assert c.parent is new_block
+
+    assert a.next_op is None
+    assert b.next_op is c
+    assert c.next_op is None
+
+    assert a.prev_op is None
+    assert b.prev_op is None
+    assert c.prev_op is b
+
+
+def test_split_block_last():
+    old_block = Block((test.TestOp(), test.TestOp(), test.TestOp()))
+    region = Region(old_block)
+    a, b, c = old_block.ops
+
+    # Check preconditions
+
+    assert old_block.parent is region
+    assert region.blocks == [old_block]
+
+    assert old_block.first_op is a
+    assert old_block.last_op is c
+
+    assert a.parent is old_block
+    assert b.parent is old_block
+    assert c.parent is old_block
+
+    assert a.next_op is b
+    assert b.next_op is c
+    assert c.next_op is None
+
+    assert a.prev_op is None
+    assert b.prev_op is a
+    assert c.prev_op is b
+
+    new_block = old_block.split_before(c)
+
+    # Check postconditions
+
+    assert old_block.parent is region
+    assert new_block.parent is region
+    assert region.blocks == [old_block, new_block]
+
+    assert old_block.first_op is a
+    assert old_block.last_op is b
+    assert new_block.first_op is c
+    assert new_block.last_op is c
+
+    assert a.parent is old_block
+    assert b.parent is old_block
+    assert c.parent is new_block
+
+    assert a.next_op is b
+    assert b.next_op is None
+    assert c.next_op is None
+
+    assert a.prev_op is None
+    assert b.prev_op is a
+    assert c.prev_op is None
+
+
+def test_split_block_args():
+    old_block = Block((test.TestOp(), test.TestOp(), test.TestOp()))
+    region = Region(old_block)
+    _, op, _ = region.block.ops
+
+    new_block = old_block.split_before(op, arg_types=(i32, i64))
+
+    arg_types = [a.type for a in new_block.args]
+    assert arg_types == [i32, i64]
+
+
 def test_region_clone_into_circular_blocks():
     """
     Test that cloning a region with circular block dependency works.
@@ -495,10 +659,10 @@ program_successors = """
 )
 def test_is_structurally_equivalent(args: list[str], expected_result: bool):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Cf)
 
     parser = Parser(ctx, args[0])
     lhs: Operation = parser.parse_op()
@@ -547,10 +711,10 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
 }) : () -> ()
 """
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(Cf)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Cf)
 
     parser = Parser(ctx, program_func)
     program = parser.parse_operation()
@@ -702,7 +866,7 @@ def test_block_walk():
     block = Block(ops)
 
     assert list(block.walk()) == [a, b, c]
-    assert list(block.walk_reverse()) == [c, b, a]
+    assert list(block.walk(reverse=True)) == [c, b, a]
 
 
 def test_region_walk():
@@ -715,7 +879,7 @@ def test_region_walk():
     region = Region([block_a, block_b])
 
     assert list(region.walk()) == [a, b]
-    assert list(region.walk_reverse()) == [b, a]
+    assert list(region.walk(reverse=True)) == [b, a]
 
 
 def test_op_walk():
@@ -731,7 +895,13 @@ def test_op_walk():
     op_multi_region = test.TestOp.create(regions=[region_a, region_b])
 
     assert list(op_multi_region.walk()) == [op_multi_region, a, b]
-    assert list(op_multi_region.walk_reverse()) == [b, a, op_multi_region]
+    assert list(op_multi_region.walk(reverse=True)) == [op_multi_region, b, a]
+    assert list(op_multi_region.walk(region_first=True)) == [a, b, op_multi_region]
+    assert list(op_multi_region.walk(region_first=True, reverse=True)) == [
+        b,
+        a,
+        op_multi_region,
+    ]
 
 
 def test_region_clone():
@@ -751,3 +921,10 @@ def test_get_attr_or_prop():
     assert a.get_attr_or_prop("prop") == StringAttr("prop")
     assert a.get_attr_or_prop("attr_and_prop") == StringAttr("prop")
     assert a.get_attr_or_prop("none") is None
+
+
+def test_dialect_name():
+    class MyOperation(Operation):
+        name = "dialect.op"
+
+    assert MyOperation.dialect_name() == "dialect"

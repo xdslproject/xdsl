@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from enum import Enum
+from typing import cast
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -11,7 +14,10 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
 )
-from xdsl.ir import Attribute, Data, Dialect, Operation, Region, SSAValue
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+)
+from xdsl.ir import Attribute, Data, Dialect, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -26,7 +32,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser.attribute_parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 
@@ -44,24 +50,38 @@ class IteratorTypeAttr(Data[IteratorType]):
     name = "linalg.iterator_type"
 
     @classmethod
+    def parallel(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.PARALLEL)
+
+    @classmethod
+    def reduction(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.REDUCTION)
+
+    @classmethod
+    def window(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.WINDOW)
+
+    @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
-        if parser.parse_optional_keyword("parallel") is not None:
-            return IteratorType.PARALLEL
-        if parser.parse_optional_keyword("reduction") is not None:
-            return IteratorType.REDUCTION
-        if parser.parse_optional_keyword("window") is not None:
-            return IteratorType.WINDOW
-        parser.raise_error("`parallel`, `reduction` or `window` expected")
+        with parser.in_angle_brackets():
+            if parser.parse_optional_keyword("parallel") is not None:
+                return IteratorType.PARALLEL
+            if parser.parse_optional_keyword("reduction") is not None:
+                return IteratorType.REDUCTION
+            if parser.parse_optional_keyword("window") is not None:
+                return IteratorType.WINDOW
+            parser.raise_error("`parallel`, `reduction` or `window` expected")
 
     def print_parameter(self, printer: Printer) -> None:
-        data = self.data
-        match data:
-            case IteratorType.PARALLEL:
-                printer.print_string("parallel")
-            case IteratorType.REDUCTION:
-                printer.print_string("reduction")
-            case IteratorType.WINDOW:
-                printer.print_string("window")
+        with printer.in_angle_brackets():
+            data = self.data
+            match data:
+                case IteratorType.PARALLEL:
+                    printer.print_string("parallel")
+                case IteratorType.REDUCTION:
+                    printer.print_string("reduction")
+                case IteratorType.WINDOW:
+                    printer.print_string("window")
 
 
 @irdl_op_definition
@@ -88,8 +108,8 @@ class Generic(IRDLOperation):
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
         body: Region,
-        indexing_maps: Sequence[AffineMapAttr],
-        iterator_types: Sequence[Attribute],
+        indexing_maps: Sequence[AffineMapAttr] | ArrayAttr[AffineMapAttr],
+        iterator_types: Sequence[Attribute] | ArrayAttr[Attribute],
         doc: StringAttr | None = None,
         library_call: StringAttr | None = None,
     ) -> None:
@@ -172,17 +192,150 @@ class Generic(IRDLOperation):
         shapes_to_loops = self.get_shapes_to_loops_map()
         return shapes_to_loops.eval(self.get_static_shapes(), [])
 
+    def print(self, printer: Printer):
+        printer.print_string(" {indexing_maps = ")
+        printer.print_attribute(self.indexing_maps)
+        printer.print_string(", iterator_types = [")
+        printer.print_list(
+            self.iterator_types,
+            lambda iterator_type: printer.print_string_literal(
+                iterator_type.data.value
+            ),
+        )
+        printer.print_string("]}")
+
+        if self.inputs:
+            printer.print_string(" ins(")
+            printer.print_list(self.inputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_string(")")
+
+        if self.outputs:
+            printer.print_string(" outs(")
+            printer.print_list(self.outputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_string(")")
+
+        extra_attrs = self.attributes.copy()
+        if "indexing_maps" in extra_attrs:
+            del extra_attrs["indexing_maps"]
+        if "iterator_types" in extra_attrs:
+            del extra_attrs["iterator_types"]
+        if "doc" in extra_attrs:
+            del extra_attrs["doc"]
+        if "library_call" in extra_attrs:
+            del extra_attrs["library_call"]
+
+        if extra_attrs:
+            printer.print(" attrs = ")
+            printer.print_op_attributes(extra_attrs)
+
+        printer.print_string(" ")
+        printer.print_region(self.body)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        attrs_start_pos = parser.pos
+        attrs = parser.parse_optional_attr_dict()
+        attrs_end_pos = parser.pos
+
+        if "indexing_maps" in attrs:
+            indexing_maps = attrs["indexing_maps"]
+            assert isinstance(indexing_maps, ArrayAttr)
+            indexing_maps = cast(ArrayAttr[AffineMapAttr], indexing_maps)
+            del attrs["indexing_maps"]
+        else:
+            parser.raise_error(
+                "Expected indexing_maps for linalg.generic",
+                attrs_start_pos,
+                attrs_end_pos,
+            )
+
+        if "iterator_types" in attrs:
+            # Get iterator types and make sure they're an ArrayAttr
+            parsed_iterator_types = attrs["iterator_types"]
+            assert isinstance(parsed_iterator_types, ArrayAttr)
+            parsed_iterator_types = cast(ArrayAttr[Attribute], parsed_iterator_types)
+            del attrs["iterator_types"]
+
+            # Make sure they're iterator types
+            iterator_types: list[IteratorTypeAttr] = []
+            for iterator_type in parsed_iterator_types:
+                match iterator_type:
+                    case IteratorTypeAttr():
+                        iterator_types.append(iterator_type)
+                    case StringAttr():
+                        iterator_type = IteratorTypeAttr(
+                            IteratorType(iterator_type.data)
+                        )
+                        iterator_types.append(iterator_type)
+                    case _:
+                        parser.raise_error(
+                            f"Unknown iterator type {iterator_type}",
+                            attrs_start_pos,
+                            attrs_end_pos,
+                        )
+        else:
+            parser.raise_error(
+                "Expected iterator_types for linalg.generic",
+                attrs_start_pos,
+                attrs_end_pos,
+            )
+
+        pos = parser.pos
+        if parser.parse_optional_characters("ins"):
+            parser.parse_punctuation("(")
+            unresolved_ins = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            ins_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
+        else:
+            ins = ()
+
+        pos = parser.pos
+        if parser.parse_optional_characters("outs"):
+            parser.parse_punctuation("(")
+            unresolved_outs = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            outs_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
+        else:
+            outs = ()
+
+        if parser.parse_optional_keyword("attrs"):
+            parser.parse_punctuation("=")
+            extra_attrs = parser.expect(
+                parser.parse_optional_attr_dict, "expect extra attributes"
+            )
+        else:
+            extra_attrs = {}
+
+        body = parser.parse_region()
+
+        generic = cls(ins, outs, body, indexing_maps, iterator_types)
+        generic.attributes |= attrs
+        generic.attributes |= extra_attrs
+
+        return generic
+
 
 @irdl_op_definition
-class Yield(IRDLOperation):
+class YieldOp(AbstractYieldOperation[Attribute]):
     name = "linalg.yield"
-
-    values: VarOperand = var_operand_def()
 
     traits = frozenset([IsTerminator()])
 
-    def __init__(self, *operands: SSAValue | Operation) -> None:
-        super().__init__(operands=[SSAValue.get(operand) for operand in operands])
 
-
-Linalg = Dialect([Generic, Yield], [IteratorTypeAttr])
+Linalg = Dialect("linalg", [Generic, YieldOp], [IteratorTypeAttr])

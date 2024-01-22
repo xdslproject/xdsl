@@ -9,10 +9,9 @@ from typing_extensions import Self
 
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
+    AbstractYieldOperation,
     parse_assignment,
-    parse_return_op_like,
     print_assignment,
-    print_return_op_like,
 )
 from xdsl.ir import Attribute, Dialect
 from xdsl.irdl import (
@@ -27,6 +26,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -37,28 +37,10 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
-class YieldOp(IRDLOperation):
+class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    arguments: VarOperand = var_operand_def(RISCVRegisterType)
-
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
-
-    def __init__(self, *operands: SSAValue | Operation):
-        super().__init__(operands=[[SSAValue.get(operand) for operand in operands]])
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.arguments)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs, args = parse_return_op_like(parser)
-        op = cls(*args)
-        op.attributes.update(attrs)
-        return op
+    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ForOp, WhileOp)]))
 
 
 @irdl_op_definition
@@ -162,7 +144,7 @@ class ForOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         # Parse bounds
-        index = parser.parse_argument(expect_type=False)
+        unresolved_index = parser.parse_argument(expect_type=False)
         parser.parse_characters(":")
         index_arg_type = parser.parse_type()
         parser.parse_characters("=")
@@ -174,14 +156,14 @@ class ForOp(IRDLOperation):
 
         # Parse iteration arguments
         pos = parser.pos
-        iter_args: list[Parser.Argument] = []
+        unresolved_iter_args: list[Parser.UnresolvedArgument] = []
         iter_arg_unresolved_operands: list[UnresolvedOperand] = []
         iter_arg_types: list[Attribute] = []
         if parser.parse_optional_characters("iter_args"):
             for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
             ):
-                iter_args.append(iter_arg)
+                unresolved_iter_args.append(iter_arg)
                 iter_arg_unresolved_operands.append(iter_arg_operand)
             parser.parse_characters("->")
             iter_arg_types = parser.parse_comma_separated_list(
@@ -193,9 +175,10 @@ class ForOp(IRDLOperation):
         )
 
         # Set block argument types
-        index.type = index_arg_type
-        for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
-            iter_arg.type = iter_arg_type
+        index = unresolved_index.resolve(index_arg_type)
+        iter_args = [
+            u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
+        ]
 
         # Parse body
         body = parser.parse_region((index, *iter_args))
@@ -218,7 +201,7 @@ class WhileOp(IRDLOperation):
     def __init__(
         self,
         arguments: Sequence[SSAValue | Operation],
-        result_types: Sequence[RISCVRegisterType],
+        result_types: Sequence[Attribute],
         before_region: Region | Sequence[Operation] | Sequence[Block],
         after_region: Region | Sequence[Operation] | Sequence[Block],
     ):
@@ -258,6 +241,71 @@ class WhileOp(IRDLOperation):
                     f" got {block_arg.type}"
                 )
 
+    def print(self, printer: Printer):
+        printer.print_string(" (")
+        block_args = self.before_region.block.args
+        printer.print_list(
+            zip(block_args, self.arguments, strict=True),
+            lambda pair: printer.print(pair[0], " = ", pair[1]),
+        )
+        printer.print_string(") : ")
+        printer.print_operation_type(self)
+        printer.print_string(" ")
+        printer.print_region(self.before_region, print_entry_block_args=False)
+        printer.print(" do ")
+        printer.print_region(self.after_region)
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        def parse_assignment():
+            arg = parser.parse_argument(expect_type=False)
+            parser.parse_punctuation("=")
+            operand = parser.parse_unresolved_operand()
+            return arg, operand
+
+        tuples = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN,
+            parse_assignment,
+        )
+
+        parser.parse_punctuation(":")
+        type_pos = parser.pos
+        function_type = parser.parse_function_type()
+
+        if len(tuples) != len(function_type.inputs.data):
+            parser.raise_error(
+                f"Mismatch between block argument count ({len(tuples)}) and operand count ({len(function_type.inputs.data)})",
+                type_pos,
+                parser.pos,
+            )
+
+        block_args = tuple(
+            block_arg.resolve(t)
+            for ((block_arg, _), t) in zip(
+                tuples, function_type.inputs.data, strict=True
+            )
+        )
+
+        arguments = tuple(
+            parser.resolve_operand(operand, t)
+            for ((_, operand), t) in zip(tuples, function_type.inputs.data, strict=True)
+        )
+
+        before_region = parser.parse_region(block_args)
+        parser.parse_characters("do")
+        after_region = parser.parse_region()
+
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+
+        op = cls(arguments, function_type.outputs.data, before_region, after_region)
+
+        if attrs is not None:
+            op.attributes = attrs.data
+
+        return op
+
 
 @irdl_op_definition
 class ConditionOp(IRDLOperation):
@@ -270,8 +318,50 @@ class ConditionOp(IRDLOperation):
     def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
         super().__init__(operands=[cond, output_ops])
 
+    def print(self, printer: Printer):
+        printer.print("(", self.cond, " : ", self.cond.type, ") ")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes)
+        if self.arguments:
+            printer.print(" ")
+            printer.print_list(self.arguments, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list(
+                self.arguments, lambda val: printer.print_attribute(val.type)
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_punctuation("(")
+        unresolved_cond = parser.parse_unresolved_operand("cond expected")
+        parser.parse_punctuation(":")
+        cond_type = parser.parse_type()
+        parser.parse_punctuation(")")
+        cond = parser.resolve_operand(unresolved_cond, cond_type)
+        attrs = parser.parse_optional_attr_dict()
+
+        # scf.condition is a terminator, so the list of arguments cannot be confused with
+        # the results of a hypothetical operation on the next line.
+        pos = parser.pos
+        unresolved_arguments = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
+        )
+        if unresolved_arguments is not None:
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type
+            )
+            arguments = parser.resolve_operands(unresolved_arguments, types, pos)
+        else:
+            arguments: Sequence[SSAValue] = ()
+
+        op = cls(cond, *arguments)
+        op.attributes = attrs
+        return op
+
 
 RISCV_Scf = Dialect(
+    "riscv_scf",
     [
         YieldOp,
         ForOp,

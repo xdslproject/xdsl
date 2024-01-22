@@ -1,7 +1,7 @@
 from io import StringIO
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import arith, func, pdl
+from xdsl.dialects import arith, func, pdl, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntegerAttr,
@@ -12,8 +12,12 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.experimental.pdl import PDLRewriteFunctions, PDLRewritePattern
-from xdsl.ir import MLContext, OpResult
+from xdsl.interpreters.experimental.pdl import (
+    PDLMatcher,
+    PDLRewriteFunctions,
+    PDLRewritePattern,
+)
+from xdsl.ir import Attribute, MLContext, OpResult
 from xdsl.irdl import IRDLOperation, irdl_op_definition, prop_def
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -58,7 +62,7 @@ def test_rewrite_swap_inputs_pdl():
     stream = StringIO()
 
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    ctx.load_dialect(arith.Arith)
 
     PatternRewriteWalker(
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
@@ -139,9 +143,9 @@ class AddZero(RewritePattern):
         if not isinstance(op.rhs.op, arith.Constant):
             return
         rhs = op.rhs.op
-        if not isinstance(rhs.value, IntegerAttr):
+        if not isinstance(rhs_value := rhs.value, IntegerAttr):
             return
-        if rhs.value.value.data != 0:
+        if rhs_value.value.data != 0:
             return
         rewriter.replace_matched_op([], new_results=[op.lhs])
 
@@ -172,7 +176,7 @@ def test_rewrite_add_zero_pdl():
     stream = StringIO()
 
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    ctx.load_dialect(arith.Arith)
 
     PatternRewriteWalker(
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
@@ -322,7 +326,7 @@ def test_interpreter_attribute_rewrite():
     stream = StringIO()
 
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
+    ctx.load_dialect(arith.Arith)
 
     PatternRewriteWalker(
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
@@ -386,8 +390,8 @@ def test_property_rewrite():
     stream = StringIO()
 
     ctx = MLContext()
-    ctx.register_dialect(arith.Arith)
-    ctx.register_op(OnePropOp)
+    ctx.load_dialect(arith.Arith)
+    ctx.load_op(OnePropOp)
 
     PatternRewriteWalker(
         PDLRewritePattern(pdl_rewrite_op, ctx, file=stream),
@@ -395,3 +399,135 @@ def test_property_rewrite():
     ).rewrite_module(input_module)
     assert str(expected_module) == str(input_module)
     assert expected_module.is_structurally_equivalent(input_module)
+
+
+def test_erase_op():
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module():
+        test.TestOp.create()
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(42, None).body):
+            op = pdl.OperationOp(
+                op_name=test.TestOp.name,
+            ).op
+            with ImplicitBuilder(pdl.RewriteOp(op).body):
+                pdl.EraseOp(op)
+
+    pdl_rewrite_op = next(
+        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    ctx = MLContext()
+    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+
+    pattern_walker.rewrite_module(input_module)
+
+    assert input_module.is_structurally_equivalent(ModuleOp([]))
+
+
+def test_native_constraint():
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module_true():
+        test.TestOp.create(properties={"attr": StringAttr("foo")})
+
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module_false():
+        test.TestOp.create(properties={"attr": StringAttr("baar")})
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(42, None).body):
+            attr = pdl.AttributeOp().output
+            pdl.ApplyNativeConstraintOp("even_length_string", [attr])
+            op = pdl.OperationOp(
+                op_name=None,
+                attribute_value_names=ArrayAttr([StringAttr("attr")]),
+                attribute_values=[attr],
+            ).op
+            with ImplicitBuilder(pdl.RewriteOp(op).body):
+                pdl.EraseOp(op)
+
+    pdl_rewrite_op = next(
+        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    def even_length_string(attr: Attribute) -> bool:
+        return isinstance(attr, StringAttr) and len(attr.data) == 4
+
+    ctx = MLContext()
+    PDLMatcher.native_constraints["even_length_string"] = even_length_string
+
+    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+
+    new_input_module_true = input_module_true.clone()
+    pattern_walker.rewrite_module(new_input_module_true)
+
+    new_input_module_false = input_module_false.clone()
+    pattern_walker.rewrite_module(new_input_module_false)
+
+    assert new_input_module_false.is_structurally_equivalent(ModuleOp([]))
+    assert new_input_module_true.is_structurally_equivalent(input_module_true)
+
+
+def test_native_constraint_constant_parameter():
+    """
+    Check that `pdl.apply_native_constraint` can take constant attribute parameters
+    that are not otherwise matched.
+    """
+
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module_true():
+        test.TestOp.create(properties={"attr": StringAttr("foo")})
+
+    @ModuleOp
+    @Builder.implicit_region
+    def input_module_false():
+        test.TestOp.create(properties={"attr": StringAttr("baar")})
+
+    @ModuleOp
+    @Builder.implicit_region
+    def pdl_module():
+        with ImplicitBuilder(pdl.PatternOp(42, None).body):
+            attr = pdl.AttributeOp().output
+            four = pdl.AttributeOp(IntegerAttr(4, i32)).output
+            pdl.ApplyNativeConstraintOp("length_string", [attr, four])
+            op = pdl.OperationOp(
+                op_name=None,
+                attribute_value_names=ArrayAttr([StringAttr("attr")]),
+                attribute_values=[attr],
+            ).op
+            with ImplicitBuilder(pdl.RewriteOp(op).body):
+                pdl.EraseOp(op)
+
+    pdl_rewrite_op = next(
+        op for op in pdl_module.walk() if isinstance(op, pdl.RewriteOp)
+    )
+
+    def length_string(attr: Attribute, size: Attribute) -> bool:
+        return (
+            isinstance(attr, StringAttr)
+            and isinstance(size, IntegerAttr)
+            and len(attr.data) == size.value.data
+        )
+
+    ctx = MLContext()
+    PDLMatcher.native_constraints["length_string"] = length_string
+
+    pattern_walker = PatternRewriteWalker(PDLRewritePattern(pdl_rewrite_op, ctx))
+
+    new_input_module_true = input_module_true.clone()
+    pattern_walker.rewrite_module(new_input_module_true)
+
+    new_input_module_false = input_module_false.clone()
+    pattern_walker.rewrite_module(new_input_module_false)
+
+    assert new_input_module_false.is_structurally_equivalent(ModuleOp([]))
+    assert new_input_module_true.is_structurally_equivalent(input_module_true)

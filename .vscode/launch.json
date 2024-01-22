@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "xdsl-opt",
+            "type": "python",
+            "request": "launch",
+            "module": "xdsl.tools.xdsl_opt",
+            "justMyCode": true,
+            "args": [
+                "${file}",
+            ]
+        },
+        {
+            "name": "xdsl-run",
+            "type": "python",
+            "request": "launch",
+            "module": "xdsl.tools.xdsl_run",
+            "justMyCode": true,
+            "args": [
+                "${file}",
+            ]
+        },
+        {
+            "name": "interactive",
+            "type": "python",
+            "request": "launch",
+            "module": "xdsl.interactive.app",
+            "justMyCode": true,
+        },
+        {
+            "name": "toy",
+            "type": "python",
+            "request": "launch",
+            "module": "docs.Toy.toy",
+            "justMyCode": true,
+            "args": [
+                "${file}",
+            ]
+        },
+    ]
+}

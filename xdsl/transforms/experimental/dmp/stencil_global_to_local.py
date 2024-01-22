@@ -1,9 +1,11 @@
 from abc import ABC
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from math import prod
 from typing import ClassVar, TypeVar, cast
 
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
+from xdsl.dialects.builtin import ContainerType
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, Block, MLContext, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
@@ -18,7 +20,7 @@ from xdsl.rewriter import Rewriter
 from xdsl.transforms.experimental.dmp.decompositions import (
     DomainDecompositionStrategy,
     GridSlice2d,
-    HorizontalSlices2D,
+    GridSlice3d,
 )
 from xdsl.transforms.experimental.stencil_shape_inference import (
     StencilShapeInferencePass,
@@ -56,8 +58,8 @@ class AddHaloExchangeOps(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
-        swap_op = dmp.HaloSwapOp.get(op.res)
-        swap_op.nodes = self.strategy.comm_layout()
+        swap_op = dmp.SwapOp.get(op.res)
+        swap_op.topo = self.strategy.comm_layout()
         rewriter.insert_op_after_matched_op(swap_op)
 
 
@@ -67,20 +69,20 @@ class LowerHaloExchangeToMpi(RewritePattern):
     debug_prints: bool = False
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: dmp.HaloSwapOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         assert op.swaps is not None
-        assert op.nodes is not None
+        assert op.topo is not None
         exchanges = list(op.swaps)
 
-        assert isa(op.input_stencil.type, memref.MemRefType[Attribute])
+        input_type = cast(ContainerType[Attribute], op.input_stencil.type)
 
         rewriter.replace_matched_op(
             list(
                 generate_mpi_calls_for(
                     op.input_stencil,
                     exchanges,
-                    op.input_stencil.type.element_type,
-                    op.nodes,
+                    input_type.get_element_type(),
+                    op.topo,
                     emit_init=self.init,
                     emit_debug=self.debug_prints,
                 )
@@ -141,7 +143,7 @@ def _generate_single_axis_calc_and_check(
 
 
 def _grid_coords_from_rank(
-    my_rank: SSAValue, grid: dmp.NodeGrid
+    my_rank: SSAValue, grid: dmp.RankTopoAttr
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Takes a rank and a dmp.grid, and returns operations to calculate
@@ -152,20 +154,25 @@ def _grid_coords_from_rank(
     # the nodes coordinates in grid-space
     node_pos_nd: list[SSAValue] = []
 
-    # first we translate the mpi rank into grid coordinates
-    # (reversing the row major mapping)
-    divide_by = 1
-    for size in grid.as_tuple():
-        ret_ops.extend(_div_mod(my_rank, divide_by, size))
-        divide_by *= size
-        node_pos_nd.append(ret_ops[-1].results[0])
+    shape = grid.as_tuple()
+    divisors = [prod(shape[i + 1 :]) for i in range(len(shape))]
+
+    carry = my_rank
+    for div in divisors:
+        imm = arith.Constant.from_int_and_width(div, builtin.i32)
+        coord_i = arith.DivUI(carry, imm)
+        carry = arith.RemUI(carry, imm)
+
+        ret_ops.extend([imm, coord_i, carry])
+        node_pos_nd.append(coord_i.result)
+
     return ret_ops, node_pos_nd
 
 
 def _generate_dest_rank_computation(
     my_rank: SSAValue,
     offsets: tuple[int, ...],
-    grid: dmp.NodeGrid,
+    grid: dmp.RankTopoAttr,
 ) -> tuple[list[Operation], SSAValue, SSAValue]:
     """
     Takes the current rank, a tuple of offsets in grid coords, and a dmp.grid
@@ -203,48 +210,26 @@ def _generate_dest_rank_computation(
 
     # calculate rank of destination node from grid coords
 
-    multiply_by = grid.as_tuple()[0]
-    carry: SSAValue = dest_pos_nd[0]
+    carry: SSAValue = dest_pos_nd[-1]
 
-    # dest rank: x * 1 + y * size[x] + z * size[x] * size[y] ...
-    for pos, size in zip(dest_pos_nd[1:], grid.as_tuple()[1:]):
-        fac = arith.Constant.from_int_and_width(multiply_by, _rank_dtype)
-        val = arith.Muli(pos, fac)
-        new_carry = arith.Addi(carry, val)
-        carry = new_carry.result
-        multiply_by *= size
-        ret_ops.extend([fac, val, new_carry])
+    shape = grid.as_tuple()
+    multiples = [prod(shape[i + 1 :]) for i in range(len(shape))]
+
+    for pos, mul in zip(dest_pos_nd[:-1], multiples[:-1]):
+        val = arith.Constant.from_int_and_width(mul, builtin.i32)
+        intermediate = arith.Muli(val, pos)
+        carry_op = arith.Addi(carry, intermediate)
+        carry = carry_op.result
+        ret_ops.extend([val, intermediate, carry_op])
 
     return ret_ops, carry, accumulated_cond_val
 
 
-def _div_mod(i: SSAValue, div: int, mod: int) -> list[Operation]:
-    """
-    Given (i, div, mod), generate ops that calculate (i / div) % mod
-
-    The last returned operation has the final value as it's single result.
-    """
-    # these asserts should never trigger, but I'd rather have the compiler yell at me
-    # when something goes wrong than see a spectacular runtime crash :D
-    assert div > 0, "cannot work with negatives here!"
-    assert mod > 0, "cannot work with negatives here!"
-    # make sure we operate on an integer
-    assert isinstance(i.type, builtin.IntegerType | builtin.IndexType)
-    # we can use unsigned arithmetic here, because all we do is divide by positive
-    # numbers and modulo positive numbers
-    return [
-        div_v := arith.Constant.from_int_and_width(div, i.type),
-        div_res := arith.DivUI(i, div_v),
-        mod_v := arith.Constant.from_int_and_width(mod, i.type),
-        arith.RemUI(div_res, mod_v),
-    ]
-
-
 def generate_mpi_calls_for(
     source: SSAValue,
-    exchanges: list[dmp.HaloExchangeDecl],
+    exchanges: list[dmp.ExchangeDeclarationAttr],
     dtype: Attribute,
-    grid: dmp.NodeGrid,
+    grid: dmp.RankTopoAttr,
     emit_init: bool = True,
     emit_debug: bool = False,
 ) -> Iterable[Operation]:
@@ -255,16 +240,15 @@ def generate_mpi_calls_for(
     # we need two request objects per exchange
     # one for the send, one for the recv
     req_cnt = arith.Constant.from_int_and_width(len(exchanges) * 2, builtin.i32)
-    reqs = mpi.AllocateTypeOp.get(mpi.RequestType, req_cnt)
+    reqs = mpi.AllocateTypeOp(mpi.RequestType, req_cnt)
     # get comm rank
-    rank = mpi.CommRank.get()
+    rank = mpi.CommRank()
     # define static tag of 0
-    # TODO: what is tag?
     tag = arith.Constant.from_int_and_width(0, builtin.i32)
 
     yield from (req_cnt, reqs, rank, tag)
 
-    recv_buffers: list[tuple[dmp.HaloExchangeDecl, memref.Alloc, SSAValue]] = []
+    recv_buffers: list[tuple[dmp.ExchangeDeclarationAttr, memref.Alloc, SSAValue]] = []
 
     for i, ex in enumerate(exchanges):
         # generate a temp buffer to store the data in
@@ -288,15 +272,15 @@ def generate_mpi_calls_for(
         cst_in = arith.Constant.from_int_and_width(i + len(exchanges), builtin.i32)
         yield from (cst_i, cst_in)
         # from these indices, get request objects
-        req_send = mpi.VectorGetOp.get(reqs, cst_i)
-        req_recv = mpi.VectorGetOp.get(reqs, cst_in)
+        req_send = mpi.VectorGetOp(reqs, cst_i)
+        req_recv = mpi.VectorGetOp(reqs, cst_in)
         yield from (req_send, req_recv)
 
         def then() -> Iterable[Operation]:
             # copy source area to outbound buffer
             yield from generate_memcpy(source, ex.source_area(), alloc_outbound.memref)
             # get ptr, count, dtype
-            unwrap_out = mpi.UnwrapMemrefOp.get(alloc_outbound)
+            unwrap_out = mpi.UnwrapMemrefOp(alloc_outbound)
             unwrap_out.ptr.name_hint = f"send_buff_ex{i}_ptr"
             yield unwrap_out
 
@@ -306,7 +290,7 @@ def generate_mpi_calls_for(
                 )
 
             # isend call
-            yield mpi.Isend.get(
+            yield mpi.Isend(
                 unwrap_out.ptr,
                 unwrap_out.len,
                 unwrap_out.type,
@@ -316,11 +300,11 @@ def generate_mpi_calls_for(
             )
 
             # get ptr for receive buffer
-            unwrap_in = mpi.UnwrapMemrefOp.get(alloc_inbound)
+            unwrap_in = mpi.UnwrapMemrefOp(alloc_inbound)
             unwrap_in.ptr.name_hint = f"recv_buff_ex{i}_ptr"
             yield unwrap_in
             # Irecv call
-            yield mpi.Irecv.get(
+            yield mpi.Irecv(
                 unwrap_in.ptr,
                 unwrap_in.len,
                 unwrap_in.type,
@@ -333,8 +317,8 @@ def generate_mpi_calls_for(
         def else_() -> Iterable[Operation]:
             # set the request object to MPI_REQUEST_NULL s.t. they are ignored
             # in the waitall call
-            yield mpi.NullRequestOp.get(req_send)
-            yield mpi.NullRequestOp.get(req_recv)
+            yield mpi.NullRequestOp(req_send)
+            yield mpi.NullRequestOp(req_recv)
             yield scf.Yield()
 
         yield scf.If(
@@ -379,7 +363,10 @@ def generate_mpi_calls_for(
 
 
 def generate_memcpy(
-    field: SSAValue, ex: dmp.HaloExchangeDecl, buffer: SSAValue, receive: bool = False
+    field: SSAValue,
+    ex: dmp.ExchangeDeclarationAttr,
+    buffer: SSAValue,
+    receive: bool = False,
 ) -> list[Operation]:
     """
     This function generates a memcpy routine to copy over the parts
@@ -389,10 +376,10 @@ def generate_memcpy(
     `field` as specified by `ex`
 
     """
-    assert isa(field.type, memref.MemRefType[Attribute])
+    field_type = cast(memref.MemRefType[Attribute], field.type)
 
     subview = memref.Subview.from_static_parameters(
-        field, field.type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
+        field, field_type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
     )
     if receive:
         copy = memref.CopyOp(buffer, subview)
@@ -585,7 +572,7 @@ class DmpSwapShapeInference:
     strategy: DomainDecompositionStrategy
     rewriter: Rewriter = field(default_factory=Rewriter)
 
-    def match_and_rewrite(self, op: dmp.HaloSwapOp):
+    def match_and_rewrite(self, op: dmp.SwapOp):
         core_lb: stencil.IndexAttr | None = None
         core_ub: stencil.IndexAttr | None = None
 
@@ -613,20 +600,23 @@ class DmpSwapShapeInference:
         assert buff_lb is not None
         assert buff_ub is not None
 
+        # drop 0 element exchanges
         op.swaps = builtin.ArrayAttr(
-            self.strategy.halo_exchange_defs(
-                dmp.HaloShapeInformation.from_index_attrs(
+            exchange
+            for exchange in self.strategy.halo_exchange_defs(
+                dmp.ShapeAttr.from_index_attrs(
                     buff_lb=buff_lb,
                     core_lb=core_lb,
                     buff_ub=buff_ub,
                     core_ub=core_ub,
                 )
             )
+            if exchange.elem_count > 0
         )
 
     def apply(self, module: builtin.ModuleOp):
         for op in module.walk():
-            if isinstance(op, dmp.HaloSwapOp):
+            if isinstance(op, dmp.SwapOp):
                 self.match_and_rewrite(op)
 
 
@@ -636,39 +626,42 @@ class DmpDecompositionPass(ModulePass, ABC):
     Represents a pass that takes a strategy as input
     """
 
-    STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
-        "2d-horizontal": HorizontalSlices2D,
-        "2d-grid": GridSlice2d,
-    }
 
-    strategy: str
+@dataclass
+class DistributeStencilPass(DmpDecompositionPass):
+    """
+    Decompose a stencil to apply to a local domain.
+
+    This pass applies stencil shape inference!
+    """
+
+    name = "distribute-stencil"
+
+    STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
+        "2d-grid": GridSlice2d,
+        "3d-grid": GridSlice3d,
+    }
 
     slices: list[int]
     """
     Number of slices to decompose the input into
     """
 
-    def get_strategy(self) -> DomainDecompositionStrategy:
-        if self.strategy not in self.STRATEGIES:
-            raise ValueError(f"Unknown strategy: {self.strategy}")
-        return self.STRATEGIES[self.strategy](self.slices)
-
-
-@dataclass
-class GlobalStencilToLocalStencil2DHorizontal(DmpDecompositionPass):
+    strategy: str
     """
-    Decompose a stencil to apply to a local domain.
-
-    This pass *replaces* stencil shape inference in a
-    pass pipeline!
+    Name of the decomposition strategy to use, see STRATEGIES property for options
     """
-
-    name = "dmp-decompose-2d"
 
     restrict_domain: bool = True
+    """
+    Apply the domain restriction (i.e. change the stencil.apply to operate on the
+    local domain. If false, it assumes that the generated code is already local)
+    """
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        strategy = self.get_strategy()
+        if self.strategy not in self.STRATEGIES:
+            raise ValueError(f"Unknown strategy: {self.strategy}")
+        strategy = self.STRATEGIES[self.strategy](self.slices)
 
         rewrites: list[RewritePattern] = [
             AddHaloExchangeOps(strategy),

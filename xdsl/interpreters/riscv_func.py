@@ -11,6 +11,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
+from xdsl.interpreters.riscv import RiscvFunctions
 
 
 @register_impls
@@ -25,4 +26,6 @@ class RiscvFuncFunctions(InterpreterFunctions):
     def run_call(
         self, interpreter: Interpreter, op: riscv_func.CallOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        return interpreter.call_op(op.callee.string_value(), args)
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = interpreter.call_op(op.callee.string_value(), args)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)

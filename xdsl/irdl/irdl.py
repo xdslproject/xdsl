@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from inspect import isclass
@@ -26,6 +26,7 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
+    AttributeInvT,
     Block,
     Data,
     Operation,
@@ -35,7 +36,6 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.core import AttributeInvT
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
     ParseError,
@@ -118,7 +118,7 @@ class VarConstraint(AttrConstraint):
             constraint_vars[self.name] = attr
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConstraintVar:
     """
     Annotation used in PyRDL to define a constraint variable.
@@ -368,6 +368,8 @@ def irdl_to_attr_constraint(
         args = get_args(irdl)
         if len(args) != 1:
             raise Exception(f"GenericData args must have length 1, got {args}")
+        origin = cast(type[GenericData[Any]], origin)
+        args = cast(tuple[Attribute], args)
         return AllOf([BaseAttr(origin), origin.generic_constraint_coercion(args)])
 
     # Generic ParametrizedAttributes case
@@ -486,7 +488,7 @@ class IRDLOperation(Operation):
             regions = []
         irdl_op_init(
             self,
-            self.irdl_definition,
+            type(self).get_irdl_definition(),
             operands=operands,
             result_types=result_types,
             properties=properties,
@@ -528,8 +530,7 @@ class IRDLOperation(Operation):
         return op
 
     @classmethod
-    @property
-    def irdl_definition(cls) -> OpDef:
+    def get_irdl_definition(cls) -> OpDef:
         """Get the IRDL operation definition."""
         ...
 
@@ -856,6 +857,11 @@ class _SuccessorFieldDef(_OpDefField[SuccessorDef]):
     pass
 
 
+@dataclass
+class _TraitsFieldDef:
+    value: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]]
+
+
 def result_def(
     constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
@@ -1066,6 +1072,20 @@ def opt_successor_def(
     return cast(OptSuccessor, _SuccessorFieldDef(OptSuccessorDef))
 
 
+def traits_def(
+    traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]],
+    *,
+    default: None = None,
+    resolver: None = None,
+    init: Literal[False] = False,
+) -> frozenset[OpTrait]:
+    """
+    Defines the traits of an operation.
+    This should only be assigned on the `traits` field of an operation definition.
+    """
+    return cast(frozenset[OpTrait], _TraitsFieldDef(traits))
+
+
 # Exclude `object`
 _OPERATION_DICT_KEYS = {key for cls in Operation.mro()[:-1] for key in cls.__dict__}
 
@@ -1082,7 +1102,9 @@ class OpDef:
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
-    traits: frozenset[OpTrait] = field(default_factory=frozenset)
+    _traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]] = field(
+        default_factory=frozenset
+    )
 
     accessor_names: dict[str, tuple[str, Literal["attribute", "property"]]] = field(
         default_factory=dict
@@ -1093,6 +1115,18 @@ class OpDef:
     or is already used by the operation, so we need to use a different name.
     """
     assembly_format: str | None = field(default=None)
+
+    @property
+    def traits(self) -> frozenset[OpTrait]:
+        if callable(self._traits):
+            self._traits = self._traits()
+        return self._traits
+
+    @traits.setter
+    def traits(
+        self, traits: frozenset[OpTrait] | Callable[[], frozenset[OpTrait]]
+    ) -> None:
+        self._traits = traits
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
@@ -1192,15 +1226,17 @@ class OpDef:
 
                 if field_name == "traits":
                     traits = value
-                    if not isinstance(traits, frozenset):
-                        raise Exception(
+                    field_names.add("traits")
+                    if isinstance(traits, frozenset):
+                        op_def.traits = traits
+                        continue
+                    if not isinstance(traits, _TraitsFieldDef):
+                        raise PyRDLOpDefinitionError(
                             f"pyrdl operation definition '{pyrdl_def.__name__}' "
-                            f"has a 'traits' field of type {type(traits)}, but "
-                            "it should be of type frozenset."
+                            "traits field should either be a frozenset of "
+                            f"'{OpTrait.__name__}', or a 'traits_def' definition."
                         )
-                    op_def.traits = traits
-                    # Only register subclass traits
-                    field_names.add(field_name)
+                    op_def.traits = traits.value
                     continue
 
                 # Dunder fields are allowed (i.e. __orig_bases__, __annotations__, ...)
@@ -1911,10 +1947,7 @@ def irdl_op_arg_definition(
         )
 
 
-TypeIRDLOperationInvT = TypeVar("TypeIRDLOperationInvT", bound=type[IRDLOperation])
-
-
-def irdl_op_definition(cls: TypeIRDLOperationInvT) -> TypeIRDLOperationInvT:
+def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     """Decorator used on classes to define a new operation definition."""
 
     assert issubclass(
@@ -1995,14 +2028,18 @@ def irdl_op_definition(cls: TypeIRDLOperationInvT) -> TypeIRDLOperationInvT:
             else:
                 new_attrs[accessor_name] = property_field(attribute_name)
 
-    new_attrs["traits"] = op_def.traits
-
     @classmethod
     @property
-    def irdl_definition(cls: type[IRDLOperationInvT]):
+    def get_traits(cls: type[IRDLOperationInvT]):
+        return op_def.traits
+
+    new_attrs["traits"] = get_traits
+
+    @classmethod
+    def get_irdl_definition(cls: type[IRDLOperationInvT]):
         return op_def
 
-    new_attrs["irdl_definition"] = irdl_definition
+    new_attrs["get_irdl_definition"] = get_irdl_definition
 
     custom_verify = getattr(cls, "verify_")
 
@@ -2196,11 +2233,10 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
         new_fields[param_name] = param_name_field(idx)
 
     @classmethod
-    @property
-    def irdl_definition(cls: type[_PAttrT]):
+    def get_irdl_definition(cls: type[_PAttrT]):
         return attr_def
 
-    new_fields["irdl_definition"] = irdl_definition
+    new_fields["get_irdl_definition"] = get_irdl_definition
 
     return dataclass(frozen=True, init=False)(
         type.__new__(type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields})
@@ -2221,7 +2257,7 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
                 dict(cls.__dict__),
             )
         )
-    raise Exception(
+    raise TypeError(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
         "'ParametrizedAttribute'"
     )

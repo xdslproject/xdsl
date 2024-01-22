@@ -1,20 +1,25 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Annotated
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import IndexType, IntegerType
+from xdsl.dialects.builtin import (
+    AnySignlessIntegerOrIndexType,
+    IndexType,
+    IntegerType,
+)
 from xdsl.dialects.utils import (
+    AbstractYieldOperation,
     parse_assignment,
-    parse_return_op_like,
     print_assignment,
-    print_return_op_like,
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     VarOperand,
@@ -22,12 +27,18 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
+)
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
@@ -70,34 +81,79 @@ class While(IRDLOperation):
                     f"got {self.after_region.block.args[idx].type}"
                 )
 
-
-@irdl_op_definition
-class Yield(IRDLOperation):
-    name = "scf.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
-
-    # TODO circular dependency disallows this set of traits
-    # tracked by gh issues https://github.com/xdslproject/xdsl/issues/1218
-    # traits = frozenset([HasParent((For, If, ParallelOp, While)), IsTerminator()])
-    traits = frozenset([IsTerminator()])
-
-    def __init__(self, *operands: SSAValue | Operation):
-        super().__init__(operands=[operands])
-
-    @staticmethod
-    @deprecated("use Yield() instead!")
-    def get(*operands: SSAValue | Operation) -> Yield:
-        return Yield(*operands)
-
     def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.arguments)
+        printer.print_string(" (")
+        block_args = self.before_region.block.args
+        printer.print_list(
+            zip(block_args, self.arguments, strict=True),
+            lambda pair: printer.print(pair[0], " = ", pair[1]),
+        )
+        printer.print_string(") : ")
+        printer.print_operation_type(self)
+        printer.print_string(" ")
+        printer.print_region(self.before_region, print_entry_block_args=False)
+        printer.print(" do ")
+        printer.print_region(self.after_region)
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        attrs, args = parse_return_op_like(parser)
-        op = Yield(*args)
-        op.attributes.update(attrs)
+        def parse_assignment():
+            arg = parser.parse_argument(expect_type=False)
+            parser.parse_punctuation("=")
+            operand = parser.parse_unresolved_operand()
+            return arg, operand
+
+        tuples = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN,
+            parse_assignment,
+        )
+
+        parser.parse_punctuation(":")
+        type_pos = parser.pos
+        function_type = parser.parse_function_type()
+
+        if len(tuples) != len(function_type.inputs.data):
+            parser.raise_error(
+                f"Mismatch between block argument count ({len(tuples)}) and operand count ({len(function_type.inputs.data)})",
+                type_pos,
+                parser.pos,
+            )
+
+        block_args = tuple(
+            block_arg.resolve(t)
+            for ((block_arg, _), t) in zip(
+                tuples, function_type.inputs.data, strict=True
+            )
+        )
+
+        arguments = tuple(
+            parser.resolve_operand(operand, t)
+            for ((_, operand), t) in zip(tuples, function_type.inputs.data, strict=True)
+        )
+
+        before_region = parser.parse_region(block_args)
+        parser.parse_characters("do")
+        after_region = parser.parse_region()
+
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+
+        op = cls(arguments, function_type.outputs.data, before_region, after_region)
+
+        if attrs is not None:
+            op.attributes = attrs.data
+
         return op
+
+
+@irdl_op_definition
+class Yield(AbstractYieldOperation[Attribute]):
+    name = "scf.yield"
+
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While)])
+    )
 
 
 @irdl_op_definition
@@ -143,9 +199,11 @@ class If(IRDLOperation):
 class For(IRDLOperation):
     name = "scf.for"
 
-    lb: Operand = operand_def(IndexType)
-    ub: Operand = operand_def(IndexType)
-    step: Operand = operand_def(IndexType)
+    T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
+
+    lb: Operand = operand_def(T)
+    ub: Operand = operand_def(T)
+    step: Operand = operand_def(T)
 
     iter_args: VarOperand = var_operand_def(AnyAttr())
 
@@ -184,44 +242,54 @@ class For(IRDLOperation):
         return For(lb, ub, step, iter_args, body)
 
     def verify_(self):
-        if (len(self.iter_args) + 1) != len(self.body.block.args):
+        # body block verification
+        if not self.body.block.args:
             raise VerifyException(
-                f"Wrong number of block arguments, expected {len(self.iter_args)+1}, got "
-                f"{len(self.body.block.args)}. The body must have the induction "
-                f"variable and loop-carried variables as arguments."
+                "Body block must have induction var as first block arg"
             )
-        if self.body.block.args and (iter_var := self.body.block.args[0]):
-            if not isinstance(iter_var.type, IndexType):
+
+        indvar, *block_iter_args = self.body.block.args
+        block_iter_args_num = len(block_iter_args)
+        iter_args = self.iter_args
+        iter_args_num = len(self.iter_args)
+
+        for opnd in (self.lb, self.ub, self.step):
+            if opnd.type != indvar.type:
                 raise VerifyException(
-                    f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of index"
+                    "Expected induction var to be same type as bounds and step"
                 )
-        for idx, arg in enumerate(self.iter_args):
-            if self.body.block.args[idx + 1].type != arg.type:
+        if iter_args_num + 1 != block_iter_args_num + 1:
+            raise VerifyException(
+                f"Expected {iter_args_num + 1} args, but got {block_iter_args_num + 1}. "
+                "Body block must have induction and loop-carried variables as args."
+            )
+        for i, arg in enumerate(iter_args):
+            if block_iter_args[i].type != arg.type:
                 raise VerifyException(
-                    f"Block arguments with wrong type, expected {arg.type}, "
-                    f"got {self.body.block.args[idx].type}. Arguments after the "
-                    f"induction variable must match the carried variables."
+                    f"Block arg #{i + 1} expected to be {arg.type}, but got {block_iter_args[i].type}. "
+                    "Block args after the induction variable must match the loop-carried variables."
                 )
-        if len(self.body.ops) > 0 and isinstance(self.body.block.last_op, Yield):
-            yieldop = self.body.block.last_op
-            if len(yieldop.arguments) != len(self.iter_args):
+        if (last_op := self.body.block.last_op) is not None and isinstance(
+            last_op, Yield
+        ):
+            yieldop = last_op
+            if len(yieldop.arguments) != iter_args_num:
                 raise VerifyException(
-                    f"Expected {len(self.iter_args)} args, got {len(yieldop.arguments)}. "
-                    f"The scf.for must yield its carried variables."
+                    f"{yieldop.name} expected {iter_args_num} args, but got {len(yieldop.arguments)}. "
+                    f"The {self.name} must yield its loop-carried variables."
                 )
-            for idx, arg in enumerate(yieldop.arguments):
-                if self.iter_args[idx].type != arg.type:
+            for i, arg in enumerate(yieldop.arguments):
+                if iter_args[i].type != arg.type:
                     raise VerifyException(
-                        f"Expected {self.iter_args[idx].type}, got {arg.type}. The "
-                        f"scf.for's scf.yield must match carried variables types."
+                        f"Expected yield arg #{i} to be {iter_args[i].type}, but got {arg.type}. "
+                        f"{yieldop.name} of {self.name} must match loop-carried variable types."
                     )
 
     def print(self, printer: Printer):
         block = self.body.block
-        index, *iter_args = block.args
+        indvar, *iter_args = block.args
         printer.print_string(" ")
-        printer.print_ssa_value(index)
+        printer.print_ssa_value(indvar)
         printer.print_string(" = ")
         printer.print_ssa_value(self.lb)
         printer.print_string(" to ")
@@ -238,14 +306,21 @@ class For(IRDLOperation):
             printer.print_string(") -> (")
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
+        if not isinstance(indvar.type, IndexType):
+            printer.print_string(": ")
+            printer.print_attribute(indvar.type)
+            printer.print_string(" ")
         printer.print_region(
-            self.body, print_entry_block_args=False, print_empty_block=False
+            self.body,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=bool(iter_args),
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         # Parse bounds
-        index = parser.parse_argument(expect_type=False)
+        unresolved_indvar = parser.parse_argument(expect_type=False)
         parser.parse_characters("=")
         lb = parser.parse_operand()
         parser.parse_characters("to")
@@ -255,14 +330,14 @@ class For(IRDLOperation):
 
         # Parse iteration arguments
         pos = parser.pos
-        iter_args: list[Parser.Argument] = []
+        unresolved_iter_args: list[Parser.UnresolvedArgument] = []
         iter_arg_unresolved_operands: list[UnresolvedOperand] = []
         iter_arg_types: list[Attribute] = []
         if parser.parse_optional_characters("iter_args"):
             for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
             ):
-                iter_args.append(iter_arg)
+                unresolved_iter_args.append(iter_arg)
                 iter_arg_unresolved_operands.append(iter_arg_operand)
             parser.parse_characters("->")
             iter_arg_types = parser.parse_comma_separated_list(
@@ -273,18 +348,26 @@ class For(IRDLOperation):
             iter_arg_unresolved_operands, iter_arg_types, pos
         )
 
+        # Set induction variable type
+        indvar = unresolved_indvar.resolve(lb.type)
+        if parser.parse_optional_characters(":"):
+            indvar.type = parser.parse_type()
+
         # Set block argument types
-        index.type = lb.type
-        for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
-            iter_arg.type = iter_arg_type
+        iter_args = [
+            u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
+        ]
 
         # Parse body
-        body = parser.parse_region((index, *iter_args))
-        if not body.block.ops:
-            assert not iter_args, "Cannot create implicit yield with arguments"
-            body.block.add_op(Yield())
+        body = parser.parse_region((indvar, *iter_args))
 
-        return For(lb, ub, step, iter_arg_operands, body)
+        for_op = cls(lb, ub, step, iter_arg_operands, body)
+
+        if not iter_args:
+            for trait in for_op.get_traits_of_type(SingleBlockImplicitTerminator):
+                ensure_terminator(for_op, trait)
+
+        return for_op
 
 
 @irdl_op_definition
@@ -519,8 +602,48 @@ class Condition(IRDLOperation):
     def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
         return Condition(cond, *output_ops)
 
+    def print(self, printer: Printer):
+        printer.print("(", self.cond, ")")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes)
+        if self.arguments:
+            printer.print(" ")
+            printer.print_list(self.arguments, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list(
+                self.arguments, lambda val: printer.print_attribute(val.type)
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_punctuation("(")
+        unresolved_cond = parser.parse_unresolved_operand("cond expected")
+        parser.parse_punctuation(")")
+        cond = parser.resolve_operand(unresolved_cond, IntegerType(1))
+        attrs = parser.parse_optional_attr_dict()
+
+        # scf.condition is a terminator, so the list of arguments cannot be confused with
+        # the results of a hypothetical operation on the next line.
+        pos = parser.pos
+        unresolved_arguments = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
+        )
+        if unresolved_arguments is not None:
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type
+            )
+            arguments = parser.resolve_operands(unresolved_arguments, types, pos)
+        else:
+            arguments: Sequence[SSAValue] = ()
+
+        op = cls(cond, *arguments)
+        op.attributes = attrs
+        return op
+
 
 Scf = Dialect(
+    "scf",
     [
         If,
         For,

@@ -8,18 +8,20 @@ from collections.abc import Callable, Sequence
 from itertools import product
 from typing import TypeAlias, TypeVar, cast
 
-from xdsl.builder import Builder
-from xdsl.dialects import affine, arith, func, memref
+from xdsl.builder import Builder, InsertPoint
+from xdsl.dialects import affine, arith, func, memref, printf
 from xdsl.dialects.builtin import (
-    Float32Type,
+    AffineMapAttr,
+    Float64Type,
     FloatAttr,
     IndexType,
     IntegerAttr,
     ModuleOp,
-    f32,
+    ShapedType,
+    f64,
 )
-from xdsl.dialects.printf import PrintFormatOp
 from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -33,18 +35,18 @@ from ..dialects import toy
 
 # region Helpers
 
-MemrefTypeF32: TypeAlias = memref.MemRefType[Float32Type]
+MemrefTypeF64: TypeAlias = memref.MemRefType[Float64Type]
 
 
-def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF32:
+def convert_tensor_to_memref(type: toy.TensorTypeF64) -> MemrefTypeF64:
     """
     Convert the given RankedTensorType into the corresponding MemRefType.
     """
-    return memref.MemRefType.from_element_type_and_shape(f32, type.shape)
+    return memref.MemRefType(f64, type.shape)
 
 
 def insert_alloc_and_dealloc(
-    type: MemrefTypeF32, op: Operation, rewriter: PatternRewriter
+    type: MemrefTypeF64, op: Operation, rewriter: PatternRewriter
 ) -> memref.Alloc:
     """
     Insert an allocation and deallocation for the given MemRefType.
@@ -100,7 +102,9 @@ def build_affine_for(
     region = Region(block)
 
     op = affine.For.from_region(
-        (*lb_operands, *ub_operands, *iter_args),
+        lb_operands,
+        ub_operands,
+        iter_args,
         tuple(iter_arg.type for iter_arg in iter_args),
         affine.AffineMapAttr(lb_map),
         affine.AffineMapAttr(ub_map),
@@ -108,7 +112,7 @@ def build_affine_for(
         step,
     )
     builder.insert(op)
-    body_builder_fn(Builder(block), induction_var, rest)
+    body_builder_fn(Builder.at_end(block), induction_var, rest)
     return op
 
 
@@ -193,7 +197,7 @@ def build_affine_loop_nest_impl(
         # between constant- and variable-bound loops.
 
         loop = loop_creator_fn(builder, lbs[i], ubs[i], steps[i], body)
-        builder = Builder(loop.body.block, loop.body.block.first_op)
+        builder = Builder(InsertPoint(loop.body.block, loop.body.block.first_op))
 
 
 def build_affine_loop_from_constants(
@@ -224,12 +228,12 @@ def build_affine_loop_from_values(
 
     if (
         isinstance(lb_const, arith.Constant)
-        and isinstance(lb_const.value, IntegerAttr)
+        and isinstance(lb_const_value := lb_const.value, IntegerAttr)
         and isinstance(ub_const, arith.Constant)
-        and isinstance(ub_const.value, IntegerAttr)
+        and isinstance(ub_const_value := ub_const.value, IntegerAttr)
     ):
-        lb_val = lb_const.value.value.data
-        ub_val = ub_const.value.value.data
+        lb_val = lb_const_value.value.data
+        ub_val = ub_const_value.value.data
         return build_affine_loop_from_constants(
             builder, lb_val, ub_val, step, body_builder_fn
         )
@@ -298,9 +302,7 @@ def lower_op_to_loops(
         store_op = affine.Store(value_to_store, alloc.memref, ivs)
         nested_builder.insert(store_op)
 
-    parent_block = op.parent
-    assert parent_block is not None
-    builder = Builder(parent_block, op)
+    builder = Builder.before(op)
     build_affine_loop_nest_const(
         builder, lower_bounds, tensor_type.get_shape(), steps, impl_loop
     )
@@ -361,7 +363,7 @@ class ConstantOpLowering(RewritePattern):
 
         # Scalar constant values for elements of the tensor
         constants: list[arith.Constant] = [
-            arith.Constant(FloatAttr(i.value.data, f32)) for i in constant_value.data
+            arith.Constant(FloatAttr(i.value.data, f64)) for i in constant_value.data
         ]
 
         # n-d indices of elements
@@ -411,7 +413,27 @@ class FuncOpLowering(RewritePattern):
 class PrintOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.PrintOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(PrintFormatOp("{}", op.input))
+        assert isinstance(shaped_type := op.input.type, ShapedType)
+        shape = shaped_type.get_shape()
+
+        format_str = "{}"
+
+        for dim in reversed(shape):
+            format_str = "[" + ", ".join([format_str] * dim) + "]"
+
+        new_vals: list[SSAValue] = []
+
+        for indices in product(*(range(dim) for dim in shape)):
+            rewriter.insert_op_before_matched_op(
+                load := affine.Load(
+                    op.input,
+                    (),
+                    AffineMapAttr(AffineMap.from_callable(lambda: indices)),
+                )
+            )
+            new_vals.append(load.result)
+
+        rewriter.replace_matched_op(printf.PrintFormatOp(format_str, *new_vals))
 
 
 class ReturnOpLowering(RewritePattern):

@@ -3,13 +3,15 @@ from xdsl.dialects import arith, builtin, memref
 from xdsl.dialects.gpu import (
     AllocOp,
     AllReduceOp,
-    AllReduceOperationAttr,
+    AllReduceOpAttr,
+    AllReduceOpEnum,
     AsyncTokenType,
     BarrierOp,
     BlockDimOp,
     BlockIdOp,
     DeallocOp,
     DimensionAttr,
+    DimensionEnum,
     FuncOp,
     GlobalIdOp,
     GridDimOp,
@@ -34,15 +36,13 @@ from xdsl.ir import Block, Operation, Region, SSAValue
 
 
 def test_dimension():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
-    assert dim.data == "x"
+    assert dim.data == DimensionEnum.X
 
 
 def test_alloc():
-    memref_type = memref.MemRefType.from_element_type_and_shape(
-        builtin.Float32Type(), [10, 10, 10]
-    )
+    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert isinstance(alloc, AllocOp)
@@ -53,9 +53,7 @@ def test_alloc():
     assert isinstance(alloc.asyncToken.type, AsyncTokenType)
     assert alloc.hostShared is None
 
-    dyn_type = memref.MemRefType.from_element_type_and_shape(
-        builtin.Float32Type(), [-1, -1, -1]
-    )
+    dyn_type = memref.MemRefType(builtin.Float32Type(), [-1, -1, -1])
     ten = arith.Constant.from_int_and_width(10, builtin.IndexType())
     dynamic_sizes = [ten, ten, ten]
     token = alloc.asyncToken
@@ -79,13 +77,13 @@ def test_alloc():
 
 
 def test_all_reduce_operation():
-    op = AllReduceOperationAttr.from_op("add")
+    op = AllReduceOpAttr(AllReduceOpEnum.Add)
 
-    assert op.data == "add"
+    assert op.data == AllReduceOpEnum.Add
 
 
 def test_all_reduce():
-    op = AllReduceOperationAttr.from_op("add")
+    op = AllReduceOpAttr(AllReduceOpEnum.Add)
 
     init = arith.Constant.from_int_and_width(0, builtin.IndexType())
 
@@ -120,7 +118,7 @@ def test_barrier():
 
 
 def test_block_dim():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     block_dim = BlockDimOp(dim)
 
@@ -129,7 +127,7 @@ def test_block_dim():
 
 
 def test_block_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     block_id = BlockIdOp(dim)
 
@@ -138,9 +136,7 @@ def test_block_id():
 
 
 def test_dealloc():
-    memref_type = memref.MemRefType.from_element_type_and_shape(
-        builtin.Float32Type(), [10, 10, 10]
-    )
+    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
     assert alloc.asyncToken is not None  # For pyright
@@ -181,7 +177,7 @@ def test_gpu_module_end():
 
 
 def test_global_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     global_id = GlobalIdOp(dim)
 
@@ -190,7 +186,7 @@ def test_global_id():
 
 
 def test_grid_dim():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     grid_dim = GridDimOp(dim)
 
@@ -199,7 +195,7 @@ def test_grid_dim():
 
 
 def test_host_register():
-    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
+    memref_type = memref.MemRefType(builtin.i32, [-1])
     unranked = memref.Alloca.get(memref_type, 0)
 
     register = HostRegisterOp(unranked)
@@ -209,7 +205,7 @@ def test_host_register():
 
 
 def test_host_unregister():
-    memref_type = memref.MemRefType.from_element_type_and_shape(builtin.i32, [-1])
+    memref_type = memref.MemRefType(builtin.i32, [-1])
     unranked = memref.Alloca.get(memref_type, 0)
 
     unregister = HostUnregisterOp(unranked)
@@ -268,11 +264,9 @@ def test_launch():
     assert launch.asyncDependencies == tuple()
     assert launch.dynamicSharedMemorySize is None
 
-    asyncDependencies = []
-
     body2 = Region()
 
-    nd_launch = LaunchOp(body2, gridSize, blockSize, True, asyncDependencies, ten)
+    nd_launch = LaunchOp(body2, gridSize, blockSize, True, [], ten)
 
     assert isinstance(launch, LaunchOp)
     assert nd_launch.body is body2
@@ -309,17 +303,16 @@ def test_launchfunc():
     assert launch.dynamicSharedMemorySize is None
     assert launch.kernelOperands == ()
 
-    asyncDependencies = []
-
     kernel = builtin.SymbolRefAttr("root", ["gpu", "kernel"])
 
     launch = LaunchFuncOp(
         kernel,
         gridSize,
         blockSize,
+        None,
         args,
         True,
-        asyncDependencies,
+        [],
         ten,
     )
 
@@ -339,9 +332,7 @@ def test_launchfunc():
 
 
 def test_memcpy():
-    memref_type = memref.MemRefType.from_element_type_and_shape(
-        builtin.Float32Type(), [10, 10, 10]
-    )
+    memref_type = memref.MemRefType(builtin.Float32Type(), [10, 10, 10])
     host_alloc = memref.Alloc.get(builtin.Float32Type(), 0, [10, 10, 10])
     alloc = AllocOp(memref_type, is_async=True)
 
@@ -395,7 +386,7 @@ def test_subgroup_size():
 
 
 def test_thread_id():
-    dim = DimensionAttr.from_dimension("x")
+    dim = DimensionAttr(DimensionEnum.X)
 
     thread_id = ThreadIdOp(dim)
 

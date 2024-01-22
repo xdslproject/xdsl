@@ -34,7 +34,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser.core import Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
@@ -203,9 +203,12 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
             return_types,
             region,
             extra_attrs,
+            arg_attrs,
         ) = parse_func_op_like(
             parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
+        if arg_attrs:
+            raise NotImplementedError("arg_attrs not implemented in riscv_func")
         func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
@@ -277,6 +280,7 @@ class ReturnOp(IRDLOperation, riscv.RISCVInstruction):
 
 
 RISCV_Func = Dialect(
+    "riscv_func",
     [
         SyscallOp,
         CallOp,

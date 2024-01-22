@@ -1,4 +1,8 @@
-from xdsl.ir.affine import AffineExpr, AffineMap
+import re
+
+import pytest
+
+from xdsl.ir.affine import AffineBinaryOpExpr, AffineBinaryOpKind, AffineExpr, AffineMap
 
 
 def test_simple_map():
@@ -99,6 +103,34 @@ def test_composition():
     assert map3.eval([5, 6], []) == [-3, -28]
 
 
+def test_compose_expr():
+    d = [AffineExpr.dimension(i) for i in range(3)]
+    s = [AffineExpr.symbol(i) for i in range(2)]
+
+    expr = d[0] + d[2]
+    map = AffineMap.from_callable(
+        lambda d0, d1, d2, s0, s1: (d0 + s1, d1 + s0, d0 + d1 + d2),
+        dim_symbol_split=(3, 2),
+    )
+    expected = (d[0] + s[1]) + (d[0] + d[1] + d[2])
+    assert expr.compose(map) == expected
+
+
+def test_compose_map():
+    map1 = AffineMap.from_callable(
+        lambda d0, d1, s0, s1: (d0 + 1 + s1, d1 - 1 - s0), dim_symbol_split=(2, 2)
+    )
+    map2 = AffineMap.from_callable(
+        lambda d0, s0: (d0 + s0, d0 - s0), dim_symbol_split=(1, 1)
+    )
+    map3 = AffineMap.from_callable(
+        lambda d0, s0, s1, s2: ((d0 + s2) + 1 + s1, (d0 - s2) - 1 - s0),
+        dim_symbol_split=(1, 3),
+    )
+
+    assert map1.compose(map2) == map3
+
+
 def test_helpers():
     m0 = AffineMap.constant_map(0)
     assert m0 == AffineMap(0, 0, (AffineExpr.constant(0),))
@@ -106,5 +138,40 @@ def test_helpers():
     assert m1 == AffineMap(0, 0, (AffineExpr.constant(0), AffineExpr.constant(1)))
     m2 = AffineMap.identity(2)
     assert m2 == AffineMap(2, 0, (AffineExpr.dimension(0), AffineExpr.dimension(1)))
+    m2 = AffineMap.transpose_map()
+    assert m2 == AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
     m3 = AffineMap.empty()
     assert m3 == AffineMap(0, 0, ())
+
+
+def test_from_callable():
+    assert AffineMap.from_callable(lambda: (1,)) == AffineMap.constant_map(1)
+    assert AffineMap.from_callable(lambda: (0, 1)) == AffineMap.point_map(0, 1)
+    assert AffineMap.from_callable(lambda i, j: (i, j)) == AffineMap.identity(2)
+    assert AffineMap.from_callable(lambda i, j: (j, i)) == AffineMap.transpose_map()
+    assert AffineMap.from_callable(lambda: ()) == AffineMap.empty()
+
+    assert AffineMap.from_callable(
+        lambda i, j, p, q: (p + i, q + j), dim_symbol_split=(2, 2)
+    ) == AffineMap(
+        2,
+        2,
+        (
+            AffineBinaryOpExpr(
+                AffineBinaryOpKind.Add, AffineExpr.symbol(0), AffineExpr.dimension(0)
+            ),
+            AffineBinaryOpExpr(
+                AffineBinaryOpKind.Add, AffineExpr.symbol(1), AffineExpr.dimension(1)
+            ),
+        ),
+    )
+
+
+def test_from_callable_fail():
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Argument count mismatch in AffineMap.from_callable: 1 != 1 + 1"
+        ),
+    ):
+        AffineMap.from_callable(lambda i: (i,), dim_symbol_split=(1, 1))

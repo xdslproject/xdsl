@@ -43,10 +43,12 @@ class IntData(Data[int]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
-        return parser.parse_integer()
+        with parser.in_angle_brackets():
+            return parser.parse_integer()
 
     def print_parameter(self, printer: Printer):
-        printer.print_string(str(self.data))
+        with printer.in_angle_brackets():
+            printer.print_string(str(self.data))
 
 
 @irdl_attr_definition
@@ -274,11 +276,11 @@ def test_constraint_vars_success():
 
     constraint = VarConstraint("T", AnyOf([BoolData(False), IntData(0)]))
 
-    constraint_vars = {}
+    constraint_vars: dict[str, Attribute] = {}
     constraint.verify(BoolData(False), constraint_vars)
     constraint.verify(BoolData(False), constraint_vars)
 
-    constraint_vars = {}
+    constraint_vars: dict[str, Attribute] = {}
     constraint.verify(IntData(0), constraint_vars)
     constraint.verify(IntData(0), constraint_vars)
 
@@ -288,7 +290,7 @@ def test_constraint_vars_fail_different():
 
     constraint = VarConstraint("T", AnyOf([BoolData(False), IntData(0)]))
 
-    constraint_vars = {}
+    constraint_vars: dict[str, Attribute] = {}
     constraint.verify(IntData(0), constraint_vars)
 
     with pytest.raises(VerifyException):

@@ -5,22 +5,19 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Literal, overload
 
-from xdsl.dialects.builtin import DictionaryAttr, ModuleOp, UnregisteredAttr
+from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
-    Data,
     MLContext,
     Operation,
-    ParametrizedAttribute,
     Region,
     SSAValue,
 )
 from xdsl.irdl import IRDLOperation
-from xdsl.parser.attribute_parser import AttrParser
-from xdsl.parser.base_parser import ParserState, Position
+from xdsl.parser import AttrParser, ParserState, Position
 from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 
@@ -127,9 +124,16 @@ class Parser(AttrParser):
             parsed_ops: list[Operation] = []
 
             while self._current_token.kind != Token.Kind.EOF:
-                if (parsed_op := self.parse_optional_operation()) is None:
-                    self.raise_error("Could not parse entire input!")
-                parsed_ops.append(parsed_op)
+                if self._current_token.kind in (
+                    Token.Kind.HASH_IDENT,
+                    Token.Kind.EXCLAMATION_IDENT,
+                ):
+                    self._parse_alias_def()
+                    continue
+                if (parsed_op := self.parse_optional_operation()) is not None:
+                    parsed_ops.append(parsed_op)
+                    continue
+                self.raise_error("Could not parse entire input!")
 
             if len(parsed_ops) == 0:
                 self.raise_error("Could not parse entire input!")
@@ -150,6 +154,28 @@ class Parser(AttrParser):
                 self.raise_error(f"value {value_names} was used but not defined")
 
         return module_op
+
+    def _parse_alias_def(self):
+        """
+        Parse an attribute or type alias definition with format:
+            alias-def           ::= type-alias-def | attribute-alias-def
+            type-alias-def      ::= `!` bare-id `=` type
+            attribute-alias-def ::= `#` `alias` bare-id `=` attribute
+        """
+        if (
+            token := self._parse_optional_token_in(
+                [Token.Kind.EXCLAMATION_IDENT, Token.Kind.HASH_IDENT]
+            )
+        ) is None:
+            self.raise_error("expected attribute name")
+
+        type_or_attr_name = token.text
+        if type_or_attr_name in self.attribute_aliases:
+            self.raise_error(f"re-declaration of alias '{type_or_attr_name}'")
+
+        self.parse_punctuation("=", "after attribute alias name")
+        value = self.parse_attribute()
+        self.attribute_aliases[type_or_attr_name] = value
 
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
@@ -331,106 +357,6 @@ class Parser(AttrParser):
         """Parse an operand with format `%<value-id>`."""
         return self.expect(self.parse_optional_operand, msg)
 
-    def parse_type(self) -> Attribute:
-        """
-        Parse an xDSL type.
-        An xDSL type is either a builtin type, which can have various format,
-        or a dialect type, with the following format:
-            dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
-            type-name     ::= bare-id
-            dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
-                            | `(` dialect-attribute-contents+ `)`
-                            | `[` dialect-attribute-contents+ `]`
-                            | `{` dialect-attribute-contents+ `}`
-                            | [^[]<>(){}\0]+
-        """
-        return self.expect(self.parse_optional_type, "type expected")
-
-    def parse_optional_type(self) -> Attribute | None:
-        """
-        Parse an xDSL type, if present.
-        An xDSL type is either a builtin type, which can have various format,
-        or a dialect type, with the following format:
-            dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
-            type-name     ::= bare-id
-            dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
-                            | `(` dialect-attribute-contents+ `)`
-                            | `[` dialect-attribute-contents+ `]`
-                            | `{` dialect-attribute-contents+ `}`
-                            | [^[]<>(){}\0]+
-        """
-        if (
-            token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
-        ) is not None:
-            return self._parse_dialect_type_or_attribute_inner(token.text[1:], True)
-        return self._parse_optional_builtin_type()
-
-    def parse_attribute(self) -> Attribute:
-        """
-        Parse an xDSL attribute.
-        An attribute is either a builtin attribute, which can have various format,
-        or a dialect attribute, with the following format:
-            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
-            attr-name     ::= bare-id
-            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
-                            | `(` dialect-attribute-contents+ `)`
-                            | `[` dialect-attribute-contents+ `]`
-                            | `{` dialect-attribute-contents+ `}`
-                            | [^[]<>(){}\0]+
-        """
-        return self.expect(self.parse_optional_attribute, "attribute expected")
-
-    def parse_optional_attribute(self) -> Attribute | None:
-        """
-        Parse an xDSL attribute, if present.
-        An attribute is either a builtin attribute, which can have various format,
-        or a dialect attribute, with the following format:
-            dialect-attr  ::= `!` attr-name (`<` dialect-attr-contents+ `>`)?
-            attr-name     ::= bare-id
-            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
-                            | `(` dialect-attribute-contents+ `)`
-                            | `[` dialect-attribute-contents+ `]`
-                            | `{` dialect-attribute-contents+ `}`
-                            | [^[]<>(){}\0]+
-        """
-        if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
-            return self._parse_dialect_type_or_attribute_inner(token.text[1:], False)
-        return self._parse_optional_builtin_attr()
-
-    def _parse_dialect_type_or_attribute_inner(
-        self, attr_name: str, is_type: bool = True
-    ) -> Attribute:
-        """
-        Parse the contents of a dialect type or attribute, with format:
-            dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
-                                    | `(` dialect-attribute-contents+ `)`
-                                    | `[` dialect-attribute-contents+ `]`
-                                    | `{` dialect-attribute-contents+ `}`
-                                    | [^[]<>(){}\0]+
-        The contents will be parsed by a user-defined parser, or by a generic parser
-        if the dialect attribute/type is not registered.
-        """
-        attr_def = self.ctx.get_optional_attr(
-            attr_name,
-            create_unregistered_as_type=is_type,
-        )
-        if attr_def is None:
-            self.raise_error(f"'{attr_name}' is not registered")
-
-        # Pass the task of parsing parameters on to the attribute/type definition
-        if issubclass(attr_def, UnregisteredAttr):
-            body = self._parse_unregistered_attr_body()
-            return attr_def(attr_name, is_type, body)
-        if issubclass(attr_def, ParametrizedAttribute):
-            param_list = attr_def.parse_parameters(self)
-            return attr_def.new(param_list)
-        if issubclass(attr_def, Data):
-            self.parse_punctuation("<")
-            param: Any = attr_def.parse_parameter(self)
-            self.parse_punctuation(">")
-            return cast(Data[Any], attr_def(param))
-        assert False, "Attributes are either ParametrizedAttribute or Data."
-
     def _register_ssa_definition(
         self, name: str, values: Sequence[SSAValue], span: Span
     ) -> None:
@@ -485,6 +411,19 @@ class Parser(AttrParser):
                 val.name_hint = name
 
     @dataclass
+    class UnresolvedArgument:
+        """
+        A block argument parsed from the assembly.
+        Arguments should be parsed by `parse_argument` or `parse_optional_argument`.
+        """
+
+        name: Span
+        """The name as displayed in the assembly."""
+
+        def resolve(self, type: Attribute) -> Parser.Argument:
+            return Parser.Argument(self.name, type)
+
+    @dataclass
     class Argument:
         """
         A block argument parsed from the assembly.
@@ -494,10 +433,30 @@ class Parser(AttrParser):
         name: Span
         """The name as displayed in the assembly."""
 
-        type: Attribute | None
+        type: Attribute
         """The type of the argument, if any."""
 
-    def parse_optional_argument(self, expect_type: bool = True) -> Argument | None:
+    @overload
+    def parse_optional_argument(
+        self, expect_type: Literal[True] = True
+    ) -> Argument | None:
+        ...
+
+    @overload
+    def parse_optional_argument(
+        self, expect_type: Literal[False]
+    ) -> UnresolvedArgument | None:
+        ...
+
+    @overload
+    def parse_optional_argument(
+        self, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument | None:
+        ...
+
+    def parse_optional_argument(
+        self, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument | None:
         """
         Parse a block argument, if present, with format:
           arg ::= percent-id `:` type
@@ -510,13 +469,30 @@ class Parser(AttrParser):
             return None
 
         # The argument type
-        type = None
         if expect_type:
             self.parse_punctuation(":", " after block argument name!")
             type = self.parse_type()
-        return self.Argument(name_token.span, type)
+            return self.Argument(name_token.span, type)
+        else:
+            return self.UnresolvedArgument(name_token.span)
 
-    def parse_argument(self, *, expect_type: bool = True) -> Argument:
+    @overload
+    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument:
+        ...
+
+    @overload
+    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument:
+        ...
+
+    @overload
+    def parse_argument(
+        self, *, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument:
+        ...
+
+    def parse_argument(
+        self, *, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument:
         """
         Parse a block argument with format:
           arg ::= percent-id `:` type
@@ -558,9 +534,7 @@ class Parser(AttrParser):
         # Since the entry block cannot be jumped to, this is fine.
         if arguments is not None:
             # Check that the provided arguments have types.
-            if any(arg.type is None for arg in arguments):
-                raise ValueError("provided entry block arguments must have a type")
-            arg_types = cast(list[Attribute], [arg.type for arg in arguments])
+            arg_types = [arg.type for arg in arguments]
 
             # Check that the entry block has no label.
             # Since a multi-block region block must have a terminator, there isn't a
@@ -735,14 +709,20 @@ class Parser(AttrParser):
         if (op_name := self._parse_optional_token(Token.Kind.BARE_IDENT)) is not None:
             # Custom operation format
             op_type = self._get_op_by_name(op_name.text)
+            dialect_name = op_type.dialect_name()
+            self._parser_state.dialect_stack.append(dialect_name)
             op = op_type.parse(self)
+            self._parser_state.dialect_stack.pop()
         else:
             # Generic operation format
             op_name = self.expect(
                 self.parse_optional_str_literal, "operation name expected"
             )
             op_type = self._get_op_by_name(op_name)
+            dialect_name = op_type.dialect_name()
+            self._parser_state.dialect_stack.append(dialect_name)
             op = self._parse_generic_operation(op_type)
+            self._parser_state.dialect_stack.pop()
 
         n_bound_results = sum(r[1] for r in bound_results)
         if (n_bound_results != 0) and (len(op.results) != n_bound_results):
@@ -772,6 +752,11 @@ class Parser(AttrParser):
         op_type = self.ctx.get_optional_op(name)
         if op_type is not None:
             return op_type
+
+        for dialect_name in reversed(self._parser_state.dialect_stack):
+            op_type = self.ctx.get_optional_op(f"{dialect_name}.{name}")
+            if op_type is not None:
+                return op_type
 
         self.raise_error(f"unregistered operation {name}!")
 
@@ -900,7 +885,7 @@ class Parser(AttrParser):
         # Properties retrocompatibility : if no properties dictionary was present at all,
         # We extract them from the attribute dictionary by name.
         if issubclass(op_type, IRDLOperation) and not properties:
-            for property_name in op_type.irdl_definition.properties.keys():
+            for property_name in op_type.get_irdl_definition().properties.keys():
                 if property_name in attrs:
                     properties[property_name] = attrs.pop(property_name)
 

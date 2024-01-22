@@ -1,9 +1,10 @@
 import operator
 from collections.abc import Callable
+from math import copysign, isnan
 
 import pytest
 
-from xdsl.dialects import test
+from xdsl.dialects import arith, test
 from xdsl.dialects.arith import Addf, Addi, Cmpi, Constant, Mulf, Muli, Subf, Subi
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness
 from xdsl.interpreter import Interpreter
@@ -100,6 +101,48 @@ def test_mulf(lhs_value: int, rhs_value: int):
 
     assert len(ret) == 1
     assert ret[0] == lhs_value * rhs_value
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_minf(lhs_value: float, rhs_value: float):
+    minf = arith.Minimumf(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(minf, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == min(lhs_value, rhs_value)
+
+
+@pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])
+@pytest.mark.parametrize("rhs_value", [1, 0, -1, 127])
+def test_maximumf(lhs_value: int, rhs_value: int):
+    maxf = arith.Maximumf(lhs_op, rhs_op)
+
+    ret = interpreter.run_op(maxf, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == max(lhs_value, rhs_value)
+
+
+def test_minmax_corner():
+    maxf = arith.Maximumf(lhs_op, rhs_op)
+
+    assert copysign(1.0, interpreter.run_op(maxf, (0.0, 0.0))[0]) == 1.0
+    assert copysign(1.0, interpreter.run_op(maxf, (-0.0, 0.0))[0]) == 1.0
+    assert copysign(1.0, interpreter.run_op(maxf, (0.0, -0.0))[0]) == 1.0
+    assert copysign(1.0, interpreter.run_op(maxf, (-0.0, -0.0))[0]) == -1.0
+    assert isnan(interpreter.run_op(maxf, (float("NaN"), 0.0))[0])
+    assert isnan(interpreter.run_op(maxf, (0.0, float("NaN")))[0])
+
+    minf = arith.Minimumf(lhs_op, rhs_op)
+
+    assert copysign(1.0, interpreter.run_op(minf, (0.0, 0.0))[0]) == 1.0
+    assert copysign(1.0, interpreter.run_op(minf, (-0.0, 0.0))[0]) == -1.0
+    assert copysign(1.0, interpreter.run_op(minf, (0.0, -0.0))[0]) == -1.0
+    assert copysign(1.0, interpreter.run_op(minf, (-0.0, -0.0))[0]) == -1.0
+    assert isnan(interpreter.run_op(minf, (float("NaN"), 0.0))[0])
+    assert isnan(interpreter.run_op(minf, (0.0, float("NaN")))[0])
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])

@@ -43,8 +43,16 @@ from xdsl.dialects.stencil import (
     StencilBoundsAttr,
     TempType,
 )
-from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue
-from xdsl.ir.core import Block, BlockArgument, Region
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    MLContext,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -158,8 +166,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         LLVMStructType.from_type_list([func_arg_elem_type])
         LLVMStructType.from_type_list([stencil_type])
 
-        assert isinstance(field.type, MemRefType)
-        shape = field.type.get_shape()
+        field_type = field.type
+        assert isinstance(field_type, MemRefType)
+        shape = field_type.get_shape()
 
         if len(shape) < 3:
             return
@@ -254,7 +263,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         duplicateStream_dataflow = PragmaDataflow(duplicateStream_region)
 
-        ndims = len(field.type.get_shape())
+        ndims = len(field_type.get_shape())
         if inout is IN and ndims == 3:
             rewriter.insert_op_before_matched_op(
                 [
@@ -528,9 +537,10 @@ class ApplyOpToHLS(RewritePattern):
 
             for i in range(len(apply_clone.operands)):
                 operand: OpResult = typing.cast(OpResult, apply_clone.operands[i])
-                assert isinstance(operand.type, TempType)
-                assert isinstance(operand.type.bounds, StencilBoundsAttr)
-                n_dims = len(operand.type.bounds.lb)
+                operand_type = operand.type
+                assert isinstance(operand_type, TempType)
+                assert isinstance(operand_type.bounds, StencilBoundsAttr)
+                n_dims = len(operand_type.bounds.lb)
 
                 if n_dims == 3:
                     stream = self.shift_streams[current_stream][k]
@@ -763,11 +773,12 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
                 assert isinstance(new_op.owner, Operation)
                 func_arg = new_op.owner.operands[-1]
 
-            assert isinstance(op.field.type, MemRefType)
-            shape = op.field.type.shape
-            shape_x = Constant.from_int_and_width(shape.data[0].value.data, i32)
-            shape_y = Constant.from_int_and_width(shape.data[1].value.data, i32)
-            shape_z = Constant.from_int_and_width(shape.data[2].value.data, i32)
+            op_field_type = op.field.type
+            assert isinstance(op_field_type, MemRefType)
+            shape = op_field_type.shape
+            shape_x = Constant.from_int_and_width(shape.data[0].data, i32)
+            shape_y = Constant.from_int_and_width(shape.data[1].data, i32)
+            shape_z = Constant.from_int_and_width(shape.data[2].data, i32)
 
             call_write_data = Call(
                 write_data_func_name,
@@ -902,8 +913,9 @@ def get_number_input_stencils(op: FuncOp):
     # ndims = len(field.typ.get_shape())
     def dim(o: ExternalLoadOp):
         assert isinstance(o.field, OpResult)
-        assert isinstance(o.field.type, memref.MemRefType)
-        return len(o.field.type.get_shape())
+        op_field_type = o.field.type
+        assert isinstance(op_field_type, memref.MemRefType)
+        return len(op_field_type.get_shape())
 
     external_load_lst = [
         o
@@ -1024,8 +1036,9 @@ class PackData(RewritePattern):
             func_arg = new_op.owner.operands[-1]
             new_op = new_op.owner.operands[0]
 
-        assert isinstance(field.type, memref.MemRefType)
-        shape = field.type.get_shape()
+        field_type = field.type
+        assert isinstance(field_type, memref.MemRefType)
+        shape = field_type.get_shape()
         ndims = len(shape)
 
         arg_idx = func_arg.index
@@ -1114,17 +1127,18 @@ class GetRepeatedCoefficients(RewritePattern):
         assert isinstance(op.source, OpResult)
         assert isinstance(op.source.op, memref.Cast)
         cast = op.source.op  # original memref
-        assert isinstance(cast.dest.type, memref.MemRefType)
+        cast_dest_type = cast.dest.type
+        assert isinstance(cast_dest_type, memref.MemRefType)
         cast.clone()
 
-        dim = len(cast.dest.type.shape.data)
-        cast.dest.type.shape.data[0].value.data
+        dim = len(cast_dest_type.shape.data)
+        cast_dest_type.shape.data[0].data
         if dim == 1:
             uses_copy = set(op.results[0].uses)
             for use in uses_copy:
                 if isinstance(use.operation, memref.Load):
                     memref_copy = memref.Alloca.get(
-                        return_type=f64, shape=cast.dest.type.shape
+                        return_type=f64, shape=cast_dest_type.shape
                     )
                     use.operation.operands[0] = memref_copy.results[0]
                     rewriter.insert_op_before_matched_op(memref_copy)
@@ -1151,8 +1165,9 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
             and not self.inserted_already
             and len(self.original_memref_lst) > 0
         ):
-            assert isinstance(self.original_memref_lst[0].dest.type, memref.MemRefType)
-            dim = self.original_memref_lst[0].dest.type.shape.data[0].value.data
+            original_memref_lst_dest_type = self.original_memref_lst[0].dest.type
+            assert isinstance(original_memref_lst_dest_type, memref.MemRefType)
+            dim = original_memref_lst_dest_type.shape.data[0].data
 
             lb = Constant.from_int_and_width(0, IndexType())
             ub = Constant.from_int_and_width(dim, IndexType())
@@ -1245,9 +1260,9 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         module: builtin.ModuleOp = op
-        shift_streams = []
-        out_data_streams = []
-        out_global_mem = []
+        shift_streams: list[list[HLSStream]] = []
+        out_data_streams: list[HLSStream] = []
+        out_global_mem: list[BlockArgument] = []
 
         inout_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
@@ -1307,7 +1322,7 @@ class HLSConvertStencilToLLMLIRPass(ModulePass):
         write_data_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    StencilExternalStoreToHLSWriteData(module, out_data_streams),
+                    StencilExternalStoreToHLSWriteData(module, []),
                     # TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
                     TrivialStoreOpCleanup(),

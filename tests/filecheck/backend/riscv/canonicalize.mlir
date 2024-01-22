@@ -5,11 +5,16 @@ builtin.module {
   %o0 = riscv.mv %i0 : (!riscv.reg<a0>) -> !riscv.reg<a0>
   %o1 = riscv.mv %i1 : (!riscv.reg<a1>) -> !riscv.reg<a2>
   %o2 = riscv.mv %i2 : (!riscv.reg<>) -> !riscv.reg<>
+  "test.op"(%o0, %o1, %o2) : (!riscv.reg<a0>, !riscv.reg<a2>, !riscv.reg<>) -> ()
 
   %f0, %f1, %f2 = "test.op"() : () -> (!riscv.freg<fa0>, !riscv.freg<fa1>, !riscv.freg<>)
   %fo0 = riscv.fmv.s %f0 : (!riscv.freg<fa0>) -> !riscv.freg<fa0>
   %fo1 = riscv.fmv.s %f1 : (!riscv.freg<fa1>) -> !riscv.freg<fa2>
   %fo2 = riscv.fmv.s %f2 : (!riscv.freg<>) -> !riscv.freg<>
+  %fo3 = riscv.fmv.d %f0 : (!riscv.freg<fa0>) -> !riscv.freg<fa0>
+  %fo4 = riscv.fmv.d %f1 : (!riscv.freg<fa1>) -> !riscv.freg<fa2>
+  %fo5 = riscv.fmv.d %f2 : (!riscv.freg<>) -> !riscv.freg<>
+  "test.op"(%fo0, %fo1, %fo2, %fo3, %fo4, %fo5) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>, !riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>) -> ()
 
   %0 = riscv.li 0 : () -> !riscv.reg<>
   %1 = riscv.li 1 : () -> !riscv.reg<>
@@ -43,6 +48,9 @@ builtin.module {
   %add_immediate_zero = riscv.addi %2, 0 : (!riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%add_immediate_zero) : (!riscv.reg<a0>) -> ()
 
+  %add_immediate_constant = riscv.addi %2, 1 : (!riscv.reg<>) -> !riscv.reg<a0>
+  "test.op"(%add_immediate_constant) : (!riscv.reg<a0>) -> ()
+
   // Unchanged
   %sub_lhs_immediate = riscv.sub %2, %i2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%sub_lhs_immediate) : (!riscv.reg<a0>) -> ()
@@ -69,20 +77,41 @@ builtin.module {
   %load_float_known_offset = riscv.flw %load_float_ptr, 4 : (!riscv.reg<>) -> !riscv.freg<fa0>
   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()
 
+  %load_double_ptr = riscv.addi %i2, 8 : (!riscv.reg<>) -> !riscv.reg<>
+  %load_double_known_offset = riscv.fld %load_double_ptr, 4 : (!riscv.reg<>) -> !riscv.freg<fa0>
+  "test.op"(%load_double_known_offset) : (!riscv.freg<fa0>) -> ()
+
   %store_float_ptr = riscv.addi %i2, 8 : (!riscv.reg<>) -> !riscv.reg<>
   riscv.fsw %store_float_ptr, %f2, 4 : (!riscv.reg<>, !riscv.freg<>) -> ()
 
+  %store_double_ptr = riscv.addi %i2, 8 : (!riscv.reg<>) -> !riscv.reg<>
+  riscv.fsd %store_double_ptr, %f2, 4 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
   %add_lhs_rhs = riscv.add %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%add_lhs_rhs) : (!riscv.reg<a0>) -> ()
+
+  %and_bitwise_zero_l0 = riscv.and %1, %0 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
+  "test.op"(%and_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
+
+  %and_bitwise_zero_r0 = riscv.and %0, %1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
+  "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
+  // scfgw immediates
+  %scfgw = riscv_snitch.scfgw %i1, %1 : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<zero>
+  "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
 }
 
 // CHECK: builtin.module {
 // CHECK-NEXT:   %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<>)
 // CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<a1>) -> !riscv.reg<a2>
 // CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:   "test.op"(%i0, %o1, %o2) : (!riscv.reg<a0>, !riscv.reg<a2>, !riscv.reg<>) -> ()
 // CHECK-NEXT:   %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (!riscv.freg<fa0>, !riscv.freg<fa1>, !riscv.freg<>)
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<fa1>) -> !riscv.freg<fa2>
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
+// CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<fa1>) -> !riscv.freg<fa2>
+// CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
+// CHECK-NEXT:   "test.op"(%f0, %fo1, %fo2, %f0, %fo4, %fo5) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>, !riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>) -> ()
 
 // CHECK-NEXT:   %0 = riscv.li 0 : () -> !riscv.reg<>
 // CHECK-NEXT:   %1 = riscv.li 1 : () -> !riscv.reg<>
@@ -114,6 +143,9 @@ builtin.module {
 // CHECK-NEXT:   %add_immediate_zero = riscv.mv %2 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_immediate_zero) : (!riscv.reg<a0>) -> ()
 
+// CHECK-NEXT:   %add_immediate_constant = riscv.li 3 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%add_immediate_constant) : (!riscv.reg<a0>) -> ()
+
   // Unchanged
 // CHECK-NEXT:   %sub_lhs_immediate = riscv.sub %2, %i2 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%sub_lhs_immediate) : (!riscv.reg<a0>) -> ()
@@ -139,11 +171,24 @@ builtin.module {
 // CHECK-NEXT:   %load_float_known_offset = riscv.flw %i2, 12 : (!riscv.reg<>) -> !riscv.freg<fa0>
 // CHECK-NEXT:   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()
 
+// CHECK-NEXT:   %load_double_known_offset = riscv.fld %i2, 12 : (!riscv.reg<>) -> !riscv.freg<fa0>
+// CHECK-NEXT:   "test.op"(%load_double_known_offset) : (!riscv.freg<fa0>) -> ()
+
 // CHECK-NEXT:   riscv.fsw %i2, %f2, 12 : (!riscv.reg<>, !riscv.freg<>) -> ()
+
+// CHECK-NEXT:   riscv.fsd %i2, %f2, 12 : (!riscv.reg<>, !riscv.freg<>) -> ()
 
 // CHECK-NEXT:   %add_lhs_rhs = riscv.li 2 : () -> !riscv.reg<>
 // CHECK-NEXT:   %add_lhs_rhs_1 = riscv.mul %i1, %add_lhs_rhs : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_lhs_rhs_1) : (!riscv.reg<a0>) -> ()
 
+// CHECK-NEXT:   %and_bitwise_zero_l0 = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%and_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %and_bitwise_zero_r0 = riscv.mv %0 : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %scfgw = riscv_snitch.scfgwi %i1, 1 : (!riscv.reg<a1>) -> !riscv.reg<zero>
+// CHECK-NEXT:   "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
 
 // CHECK-NEXT: }

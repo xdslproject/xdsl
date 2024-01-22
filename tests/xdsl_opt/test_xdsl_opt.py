@@ -120,7 +120,7 @@ def test_operation_deletion():
                     if op.ops.first is not None:
                         op.ops.first.detach()
 
-            self.register_pass(RemoveConstantPass)
+            self.register_pass("remove-constant", lambda: RemoveConstantPass)
 
     opt = xDSLOptMainPass(args=[filename_in, "-p", "remove-constant"])
 
@@ -146,9 +146,7 @@ def test_print_between_passes():
         opt.run()
 
     output = f.getvalue()
-    assert (
-        len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes) + 1
-    )
+    assert len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes)
 
 
 def test_diagnostic_exception():

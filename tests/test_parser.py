@@ -51,7 +51,7 @@ def test_dictionary_attr(data: dict[str, Attribute]):
         text = io.getvalue()
 
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Builtin)
 
     attr1 = Parser(ctx, text).parse_attribute()
     attr2 = Parser(ctx, "attributes " + text).parse_optional_attr_dict_with_keyword()
@@ -65,7 +65,7 @@ def test_dictionary_attr(data: dict[str, Attribute]):
 @pytest.mark.parametrize("text", ["{}", "{a = 1}", "attr {}"])
 def test_dictionary_attr_with_keyword_missing(text: str):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Builtin)
 
     assert Parser(ctx, text).parse_optional_attr_dict_with_keyword() is None
 
@@ -76,7 +76,7 @@ def test_dictionary_attr_with_keyword_missing(text: str):
 )
 def test_dictionary_attr_with_keyword_reserved(text: str, reserved_names: list[str]):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Builtin)
 
     with pytest.raises(ParseError):
         Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
@@ -90,7 +90,7 @@ def test_dictionary_attr_with_keyword_reserved(text: str, reserved_names: list[s
 )
 def test_dictionary_attr_with_keyword_not_reserved(text: str, expected: list[str]):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Builtin)
 
     res = Parser(ctx, "attributes" + text).parse_optional_attr_dict_with_keyword(
         expected
@@ -109,7 +109,7 @@ def test_parsing():
     parse attribute arguments without the delimiters.
     """
     ctx = MLContext()
-    ctx.register_attr(DummyAttr)
+    ctx.load_attr(DummyAttr)
 
     prog = '#dummy.attr "foo"'
     parser = Parser(ctx, prog)
@@ -134,7 +134,7 @@ def test_parsing():
 )
 def test_symbol_name(text: str, expected: StringAttr | None):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, text)
     assert parser.parse_optional_symbol_name() == expected
@@ -162,7 +162,7 @@ def test_symref(ref: str, expected: Attribute | None):
     Test that symbol references are correctly parsed.
     """
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Builtin)
 
     parser = Parser(ctx, ref)
     parsed_ref = parser.parse_attribute()
@@ -192,7 +192,7 @@ def test_parse_argument(
     arg ::= percent-id ':' type     if expect_type is True
     """
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Builtin)
 
     # parse_optional_argument
     parser = Parser(ctx, text)
@@ -200,7 +200,11 @@ def test_parse_argument(
     if expected is not None:
         assert res is not None
         assert res.name.text[1:] == expected[0]
-        assert res.type == expected[1]
+        if expected[1] is not None:
+            assert isinstance(res, Parser.Argument)
+            assert res.type == expected[1]
+        else:
+            assert isinstance(res, parser.UnresolvedArgument)
     else:
         assert res is None
 
@@ -210,7 +214,11 @@ def test_parse_argument(
         res = parser.parse_argument(expect_type=expect_type)
         assert res is not None
         assert res.name.text[1:] == expected[0]
-        assert res.type == expected[1]
+        if expected[1] is not None:
+            assert isinstance(res, Parser.Argument)
+            assert res.type == expected[1]
+        else:
+            assert isinstance(res, parser.UnresolvedArgument)
     else:
         with pytest.raises(ParseError):
             parser.parse_argument(expect_type=expect_type)
@@ -227,7 +235,7 @@ def test_parse_argument(
 )
 def test_parse_argument_fail(text: str, expect_type: bool):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
+    ctx.load_dialect(Builtin)
 
     # parse_optional_argument
     parser = Parser(ctx, text)
@@ -289,8 +297,8 @@ def test_parse_region_no_args(
     text: str, num_ops_and_args: list[tuple[int, int]] | None
 ):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Test)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
 
     parser = Parser(ctx, text)
     if num_ops_and_args is None:
@@ -322,8 +330,8 @@ def test_parse_region_no_args(
 )
 def test_parse_region_fail(text: str):
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Test)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
 
     parser = Parser(ctx, text)
     with pytest.raises(ParseError):
@@ -344,8 +352,8 @@ def test_parse_region_fail(text: str):
 def test_parse_region_with_args(text: str):
     """Parse a region with args already provided."""
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Test)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
 
     parser = Parser(ctx, text)
     arg = parser.parse_argument()
@@ -370,8 +378,8 @@ def test_parse_region_with_args(text: str):
 def test_parse_region_with_args_fail(text: str):
     """Parse a region with args already provided."""
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Test)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Test)
 
     parser = Parser(ctx, text)
     arg = parser.parse_argument()
@@ -393,7 +401,7 @@ class MultiRegionOp(IRDLOperation):
 
 def test_parse_multi_region_mlir():
     ctx = MLContext()
-    ctx.register_op(MultiRegionOp)
+    ctx.load_op(MultiRegionOp)
 
     op_str = """
     "test.multi_region" () ({
@@ -812,7 +820,7 @@ class PropertyOp(IRDLOperation):
 def test_properties_retrocompatibility():
     # Straightforward case
     ctx = MLContext()
-    ctx.register_op(PropertyOp)
+    ctx.load_op(PropertyOp)
     parser = Parser(ctx, '"test.prop_op"() <{first = "str", second = 42}> : () -> ()')
 
     op = parser.parse_op()

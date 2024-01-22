@@ -19,7 +19,7 @@ from xdsl.dialects.scf import (
     Yield,
 )
 from xdsl.dialects.test import TestTermOp
-from xdsl.ir.core import Block, BlockArgument, Region
+from xdsl.ir import Block, BlockArgument, Region
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 

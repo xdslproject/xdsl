@@ -11,26 +11,18 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from math import prod
+from typing import Literal
 
 from xdsl.dialects import builtin, memref, stencil
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
     ParameterDef,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
-    region_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -43,7 +35,7 @@ DIM_Z = 2
 
 
 @irdl_attr_definition
-class HaloExchangeDecl(ParametrizedAttribute):
+class ExchangeDeclarationAttr(ParametrizedAttribute):
     """
     This declares a region to be "halo-exchanged".
     The semantics define that the region specified by offset and size
@@ -75,7 +67,7 @@ class HaloExchangeDecl(ParametrizedAttribute):
     This data will be exchanged with the node of rank (my_rank -1)
     """
 
-    name = "dmp.exchange_decl"
+    name = "dmp.exchange"
 
     offset_: ParameterDef[builtin.DenseArrayBase]
     size_: ParameterDef[builtin.DenseArrayBase]
@@ -97,6 +89,30 @@ class HaloExchangeDecl(ParametrizedAttribute):
                 builtin.DenseArrayBase.from_list(data_type, source_offset),
                 builtin.DenseArrayBase.from_list(data_type, neighbor),
             ]
+        )
+
+    @classmethod
+    def from_points(
+        cls,
+        points: Sequence[tuple[int, int]],
+        dim: int,
+        dir_sign: Literal[1, -1],
+        neighbor_offset: int = 1,
+    ):
+        sizes = tuple(e - s for s, e, in points)
+        return cls(
+            # get starting points
+            tuple(s for s, _ in points),
+            # calculated sizes
+            sizes,
+            # source_offset (opposite of exchange direction)
+            tuple(
+                0 if d != dim else -1 * dir_sign * sizes[dim] for d in range(len(sizes))
+            ),
+            # direction
+            tuple(
+                0 if d != dim else dir_sign * neighbor_offset for d in range(len(sizes))
+            ),
         )
 
     @property
@@ -128,17 +144,20 @@ class HaloExchangeDecl(ParametrizedAttribute):
         return prod(self.size)
 
     @property
-    def dim(self) -> int:
+    def dims(self) -> int:
+        """
+        number of dimensions of the grid
+        """
         return len(self.size)
 
-    def source_area(self) -> HaloExchangeDecl:
+    def source_area(self) -> ExchangeDeclarationAttr:
         """
         Since a HaloExchangeDef by default specifies the area to receive into,
         this method returns the area that should be read from.
         """
         # we set source_offset to all zero, so that repeated calls to source_area never
         # return the dest area
-        return HaloExchangeDecl(
+        return ExchangeDeclarationAttr(
             offset=tuple(
                 val + offs for val, offs in zip(self.offset, self.source_offset)
             ),
@@ -185,7 +204,7 @@ class HaloExchangeDecl(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class HaloShapeInformation(ParametrizedAttribute):
+class ShapeAttr(ParametrizedAttribute):
     """
     This represents shape information that is attached to halo operations.
 
@@ -196,17 +215,17 @@ class HaloShapeInformation(ParametrizedAttribute):
     create the following pattern, higher dimensional examples can
     be derived from this:
 
-    a0 b0          c0 d0
-    +--+-----------+--+ a1
+    a1 b1          c1 d1
+    +--+-----------+--+ a0
     |  |           |  |
-    +--+-----------+--+ b1
-    |  |           |  |
-    |  |           |  |
+    +--+-----------+--+ b0
     |  |           |  |
     |  |           |  |
-    +--+-----------+--+ c1
     |  |           |  |
-    +--+-----------+--+ d1
+    |  |           |  |
+    +--+-----------+--+ c0
+    |  |           |  |
+    +--+-----------+--+ d0
 
     We can now name these points:
 
@@ -265,13 +284,13 @@ class HaloShapeInformation(ParametrizedAttribute):
 
     @staticmethod
     def from_index_attrs(
-        buff_lb: stencil.IndexAttr,
-        core_lb: stencil.IndexAttr,
-        core_ub: stencil.IndexAttr,
-        buff_ub: stencil.IndexAttr,
+        buff_lb: stencil.IndexAttr | Sequence[int],
+        core_lb: stencil.IndexAttr | Sequence[int],
+        core_ub: stencil.IndexAttr | Sequence[int],
+        buff_ub: stencil.IndexAttr | Sequence[int],
     ):
         data_type = builtin.i64
-        return HaloShapeInformation(
+        return ShapeAttr(
             [
                 builtin.DenseArrayBase.from_list(data_type, tuple(data))
                 for data in (buff_lb, buff_ub, core_lb, core_ub)
@@ -357,17 +376,17 @@ class HaloShapeInformation(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class NodeGrid(ParametrizedAttribute):
+class RankTopoAttr(ParametrizedAttribute):
     """
     This attribute specifies the node layout used to distribute the computation.
 
-    dmp.grid<3x3> means nine nodes organized in a 3x3 grid.
+    dmp.grid<3x3> means nine ranks organized in a 3x3 grid.
 
     This allows for higher-dimensional grids as well, e.g. dmp.grid<3x3x3> for
     3-dimensional data.
     """
 
-    name = "dmp.grid"
+    name = "dmp.topo"
 
     shape: ParameterDef[builtin.DenseArrayBase]
 
@@ -406,7 +425,7 @@ class NodeGrid(ParametrizedAttribute):
 
 
 @irdl_op_definition
-class HaloSwapOp(IRDLOperation):
+class SwapOp(IRDLOperation):
     """
     Declarative swap of memref regions.
     """
@@ -417,110 +436,25 @@ class HaloSwapOp(IRDLOperation):
         stencil.TempType[Attribute] | memref.MemRefType[Attribute]
     )
 
-    # shape: HaloShapeInformation| None = opt_attr_def(HaloShapeInformation)
-    swaps: builtin.ArrayAttr[HaloExchangeDecl] | None = opt_attr_def(
-        builtin.ArrayAttr[HaloExchangeDecl]
+    swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] | None = opt_attr_def(
+        builtin.ArrayAttr[ExchangeDeclarationAttr]
     )
-    nodes: NodeGrid | None = opt_attr_def(NodeGrid)
+
+    topo: RankTopoAttr | None = opt_attr_def(RankTopoAttr)
 
     @staticmethod
     def get(input_stencil: SSAValue | Operation):
-        return HaloSwapOp.build(operands=[input_stencil])
-
-
-@irdl_op_definition
-class GatherOp(IRDLOperation):
-    """
-    Gather a scattered array back to one node
-    """
-
-    name = "dmp.gather"
-
-    local_field: Operand = operand_def(memref.MemRefType)
-
-    my_rank: Operand = operand_def(builtin.IndexType)
-
-    root_rank: builtin.IntegerAttr[builtin.IntegerType] = attr_def(
-        builtin.IntegerAttr[builtin.IntegerType]
-    )
-
-    global_shape: HaloShapeInformation = attr_def(HaloShapeInformation)
-
-    when_root_block: Region = region_def("single_block")
-    """
-    Contains code to be executed as root rank
-    """
-
-    retain_order: builtin.UnitAttr | None = opt_attr_def(builtin.UnitAttr)
-    """
-    A normal mpi.gather() will result in a reordering of the data, where each
-    nodes data will be placed sequentially into the buffer, without any
-    knowledge of the node layout.
-
-    Given a decomposition like this (number on the grid cell is the node id):
-
-    1 1 2 2 3 3
-    1 1 2 2 3 3
-    4 4 5 5 6 6
-    4 4 5 5 6 6
-
-    The mpi.gather will result in the following layout in the buffer:
-
-    1 1 1 1 2 2
-    2 2 3 3 3 3
-    4 4 4 4 5 5
-    5 5 6 6 6 6
-
-    If retain_order is set, the gather op will make sure that the data in the
-    output memred retains the same order as it is "logically":
-
-    1 1 2 2 3 3
-    1 1 2 2 3 3
-    4 4 5 5 6 6
-    4 4 5 5 6 6
-    """
-
-    # TODO: implement
-
-    # TODO: fix __init__
-    def __init__(
-        self,
-        local_field: SSAValue | Operation,
-        root_rank: int = 0,
-        retain_order: bool = True,
-    ):
-        attrs: dict[str, Attribute] = {
-            "root_rank": builtin.IntAttr(root_rank),
-        }
-        if retain_order:
-            attrs["retain_order"] = builtin.UnitAttr()
-
-        super().__init__(operands=[local_field], attributes=attrs)
-
-
-@irdl_op_definition
-class ScatterOp(IRDLOperation):
-    name = "dmp.scatter"
-
-    global_field: Operand = operand_def(memref.MemRefType)
-
-    my_rank: Operand = operand_def(builtin.IndexType)
-
-    global_shape: HaloShapeInformation = attr_def(HaloShapeInformation)
-
-    def __init__(self, ref: SSAValue | Operand, shape: HaloShapeInformation):
-        super().__init__(operands=[ref], attributes={"global_shape": shape})
+        return SwapOp.build(operands=[input_stencil])
 
 
 DMP = Dialect(
+    "dmp",
     [
-        HaloSwapOp,
-        GatherOp,
-        ScatterOp,
+        SwapOp,
     ],
     [
-        HaloExchangeDecl,
-        HaloShapeInformation,
-        NodeGrid,
+        ExchangeDeclarationAttr,
+        ShapeAttr,
+        RankTopoAttr,
     ],
 )

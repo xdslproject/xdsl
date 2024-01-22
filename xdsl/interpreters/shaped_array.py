@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import operator
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from itertools import accumulate, product
 from math import prod
-from typing import Generic, TypeAlias, TypeVar
+from typing import Generic, TypeVar
 
 from typing_extensions import Self
 
 _T = TypeVar("_T")
-
-Index: TypeAlias = tuple[int, ...]
 
 
 @dataclass(init=False)
@@ -34,7 +32,7 @@ class ShapedArray(Generic[_T]):
     def __post__init__(self):
         assert prod(self.shape) == len(self.data)
 
-    def offset(self, index: Index) -> int:
+    def offset(self, index: Sequence[int]) -> int:
         """
         Returns the index of the element in `self.data` for a given tuple of indices
         """
@@ -48,13 +46,13 @@ class ShapedArray(Generic[_T]):
         offset = sum(offsets)
         return offset
 
-    def load(self, index: tuple[int, ...]) -> _T:
+    def load(self, index: Sequence[int]) -> _T:
         """
         Returns the element for a given tuple of indices
         """
         return self.data[self.offset(index)]
 
-    def store(self, index: tuple[int, ...], value: _T) -> None:
+    def store(self, index: Sequence[int], value: _T) -> None:
         """
         Returns the element for a given tuple of indices
         """
@@ -73,7 +71,7 @@ class ShapedArray(Generic[_T]):
         new_shape = list(self.shape)
         new_shape[dim0], new_shape[dim1] = new_shape[dim1], new_shape[dim0]
 
-        result = ShapedArray(list(self.data), new_shape)
+        result = type(self)(list(self.data), new_shape)
 
         for source_index in self.indices():
             dest_index = list(source_index)

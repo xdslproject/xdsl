@@ -16,7 +16,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from xdsl.ir import (
     Attribute,
@@ -32,10 +32,11 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyOf,
     AttrConstraint,
     GenericData,
     IRDLOperation,
@@ -58,7 +59,9 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
+from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -130,12 +133,13 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> tuple[AttributeCovT, ...]:
-        data = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_attribute
-        )
-        # the type system can't ensure that the elements are of type _ArrayAttrT
-        result = cast(tuple[AttributeCovT, ...], tuple(data))
-        return result
+        with parser.in_angle_brackets():
+            data = parser.parse_comma_separated_list(
+                parser.Delimiter.SQUARE, parser.parse_attribute
+            )
+            # the type system can't ensure that the elements are of type _ArrayAttrT
+            result = cast(tuple[AttributeCovT, ...], tuple(data))
+            return result
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
@@ -177,7 +181,8 @@ class StringAttr(Data[str]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
+        with parser.in_angle_brackets():
+            return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f'"{self.data}"')
@@ -264,15 +269,17 @@ FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
 
 @irdl_attr_definition
 class IntAttr(Data[int]):
-    name = "int"
+    name = "builtin.int"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> int:
-        data = parser.parse_integer()
-        return data
+        with parser.in_angle_brackets():
+            data = parser.parse_integer()
+            return data
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
+        with printer.in_angle_brackets():
+            printer.print_string(f"{self.data}")
 
 
 class Signedness(Enum):
@@ -287,28 +294,30 @@ class Signedness(Enum):
 
 @irdl_attr_definition
 class SignednessAttr(Data[Signedness]):
-    name = "signedness"
+    name = "builtin.signedness"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Signedness:
-        if parser.parse_optional_keyword("signless") is not None:
-            return Signedness.SIGNLESS
-        if parser.parse_optional_keyword("signed") is not None:
-            return Signedness.SIGNED
-        if parser.parse_optional_keyword("unsigned") is not None:
-            return Signedness.UNSIGNED
-        parser.raise_error("`signless`, `signed`, or `unsigned` expected")
+        with parser.in_angle_brackets():
+            if parser.parse_optional_keyword("signless") is not None:
+                return Signedness.SIGNLESS
+            if parser.parse_optional_keyword("signed") is not None:
+                return Signedness.SIGNED
+            if parser.parse_optional_keyword("unsigned") is not None:
+                return Signedness.UNSIGNED
+            parser.raise_error("`signless`, `signed`, or `unsigned` expected")
 
     def print_parameter(self, printer: Printer) -> None:
-        data = self.data
-        if data == Signedness.SIGNLESS:
-            printer.print_string("signless")
-        elif data == Signedness.SIGNED:
-            printer.print_string("signed")
-        elif data == Signedness.UNSIGNED:
-            printer.print_string("unsigned")
-        else:
-            raise ValueError(f"Invalid signedness {data}")
+        with printer.in_angle_brackets():
+            data = self.data
+            if data == Signedness.SIGNLESS:
+                printer.print_string("signless")
+            elif data == Signedness.SIGNED:
+                printer.print_string("signed")
+            elif data == Signedness.UNSIGNED:
+                printer.print_string("unsigned")
+            else:
+                raise ValueError(f"Invalid signedness {data}")
 
 
 @irdl_attr_definition
@@ -334,6 +343,15 @@ i32 = IntegerType(32)
 i1 = IntegerType(1)
 
 
+SignlessIntegerConstraint = ParamAttrConstraint(
+    IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
+)
+"""Type constraint for signless IntegerType."""
+
+AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstraint]
+"""Type alias constrained to signless IntegerType."""
+
+
 @irdl_attr_definition
 class UnitAttr(ParametrizedAttribute):
     name = "unit"
@@ -357,7 +375,11 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
-_IntegerAttrTypeInv = TypeVar("_IntegerAttrTypeInv", bound=IntegerType | IndexType)
+
+AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
+    Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
+]
+"""Type alias constrained to IndexType or signless IntegerType."""
 
 
 @irdl_attr_definition
@@ -397,60 +419,101 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
 
-    def verify(self) -> None:
-        if isinstance(self.type, IntegerType):
-            match self.type.signedness.data:
-                case Signedness.SIGNLESS:
-                    min_value = -(1 << self.type.width.data)
-                    max_value = 1 << self.type.width.data
-                case Signedness.SIGNED:
-                    min_value = -(1 << (self.type.width.data - 1))
-                    max_value = (1 << (self.type.width.data - 1)) - 1
-                case Signedness.UNSIGNED:
-                    min_value = 0
-                    max_value = (1 << self.type.width.data) - 1
-                case _:
-                    assert False, "unreachable"
+    @staticmethod
+    def _get_value_range(int_type: IntegerType) -> tuple[int, int]:
+        signedness = int_type.signedness.data
+        width = int_type.width.data
 
-            if not (min_value <= self.value.data <= max_value):
-                raise VerifyException(
-                    f"Integer value {self.value.data} is out of range for "
-                    f"type {self.type} which supports values in the "
-                    f"range [{min_value}, {max_value}]"
-                )
+        if signedness == Signedness.SIGNLESS:
+            min_value = -(1 << width)
+            max_value = 1 << width
+        elif signedness == Signedness.SIGNED:
+            min_value = -(1 << (width - 1))
+            max_value = (1 << (width - 1)) - 1
+        elif signedness == Signedness.UNSIGNED:
+            min_value = 0
+            max_value = (1 << width) - 1
+        else:
+            assert_never(signedness)
+
+        return min_value, max_value
+
+    def verify(self) -> None:
+        if isinstance(int_type := self.type, IndexType):
+            return
+
+        min_value, max_value = self._get_value_range(int_type)
+
+        if not (min_value <= self.value.data <= max_value):
+            raise VerifyException(
+                f"Integer value {self.value.data} is out of range for "
+                f"type {self.type} which supports values in the "
+                f"range [{min_value}, {max_value}]"
+            )
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 
 
+class _FloatType(ABC):
+    @property
+    @abstractmethod
+    def get_bitwidth(self) -> int:
+        raise NotImplementedError()
+
+
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, TypeAttribute):
+class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "bf16"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
+
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, TypeAttribute):
+class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f16"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 16
+
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, TypeAttribute):
+class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f32"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 32
+
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, TypeAttribute):
+class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f64"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 64
+
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, TypeAttribute):
+class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f80"
 
+    @property
+    def get_bitwidth(self) -> int:
+        return 80
+
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, TypeAttribute):
+class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
     name = "f128"
+
+    @property
+    def get_bitwidth(self) -> int:
+        return 128
 
 
 AnyFloat: TypeAlias = (
@@ -464,15 +527,14 @@ class FloatData(Data[float]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> float:
-        return float(parser.parse_number())
+        with parser.in_angle_brackets():
+            return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
 
 
 _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
-
-_FloatAttrTypeInv = TypeVar("_FloatAttrTypeInv", bound=AnyFloat)
 
 
 @irdl_attr_definition
@@ -493,8 +555,10 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
     def __init__(
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
     ) -> None:
-        if isinstance(data, float):
-            data = FloatData(data)
+        if isinstance(data, FloatData):
+            data_attr = data
+        else:
+            data_attr = FloatData(data)
         if isinstance(type, int):
             if type == 16:
                 type = Float16Type()
@@ -508,7 +572,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
                 type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
-        super().__init__([data, type])
+        super().__init__([data_attr, type])
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -532,11 +596,7 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("{")
-        printer.print_dictionary(
-            self.data, printer.print_string_literal, printer.print_attribute
-        )
-        printer.print_string("}")
+        printer.print_attr_dict(self.data)
 
     @staticmethod
     def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
@@ -568,9 +628,22 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[AttributeCovT]
     num_scalable_dims: ParameterDef[IntAttr]
+
+    def __init__(
+        self: VectorType[AttributeCovT],
+        element_type: AttributeCovT,
+        shape: Iterable[int | IntAttr],
+        num_scalable_dims: int | IntAttr = 0,
+    ) -> None:
+        shape = ArrayAttr(
+            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+        )
+        if isinstance(num_scalable_dims, int):
+            num_scalable_dims = IntAttr(num_scalable_dims)
+        super().__init__([shape, element_type, num_scalable_dims])
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -579,7 +652,7 @@ class VectorType(
         return self.num_scalable_dims.data
 
     def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.value.data for i in self.shape.data)
+        return tuple(i.data for i in self.shape)
 
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
@@ -597,6 +670,7 @@ class VectorType(
                 f" {self.get_num_dims()}"
             )
 
+    @deprecated_constructor
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
@@ -605,21 +679,12 @@ class VectorType(
     ) -> VectorType[AttributeInvT]:
         if isinstance(num_scalable_dims, int):
             num_scalable_dims = IntAttr(num_scalable_dims)
-        return VectorType(
-            [
-                ArrayAttr(
-                    [
-                        IntegerAttr[IntegerType].from_index_int_value(d)
-                        if isinstance(d, int)
-                        else d
-                        for d in shape
-                    ]
-                ),
-                referenced_type,
-                num_scalable_dims,
-            ]
-        )
+        shape_int = [
+            IntAttr(dim) if isinstance(dim, int) else dim.value.data for dim in shape
+        ]
+        return VectorType(referenced_type, shape_int, num_scalable_dims)
 
+    @deprecated_constructor
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
@@ -628,7 +693,8 @@ class VectorType(
         ),
         num_scalable_dims: IntAttr = IntAttr(0),
     ) -> VectorType[AttributeInvT]:
-        return VectorType([shape, referenced_type, num_scalable_dims])
+        shape_int = [dim.value.data for dim in shape.data]
+        return VectorType(referenced_type, shape_int, num_scalable_dims)
 
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
@@ -644,19 +710,31 @@ class TensorType(
 ):
     name = "tensor"
 
-    shape: ParameterDef[ArrayAttr[AnyIntegerAttr]]
+    shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[AttributeCovT]
     encoding: ParameterDef[Attribute]
+
+    def __init__(
+        self: TensorType[AttributeCovT],
+        element_type: AttributeCovT,
+        shape: Iterable[int | IntAttr],
+        encoding: Attribute = NoneAttr(),
+    ):
+        shape = ArrayAttr(
+            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+        )
+        super().__init__([shape, element_type, encoding])
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
 
     def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.value.data for i in self.shape.data)
+        return tuple(i.data for i in self.shape.data)
 
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
+    @deprecated_constructor
     @staticmethod
     def from_type_and_list(
         referenced_type: AttributeInvT,
@@ -665,28 +743,22 @@ class TensorType(
     ) -> TensorType[AttributeInvT]:
         if shape is None:
             shape = [1]
-        return TensorType(
-            [
-                ArrayAttr(
-                    [
-                        IntegerAttr[IntegerType].from_index_int_value(d)
-                        if isinstance(d, int)
-                        else d
-                        for d in shape
-                    ]
-                ),
-                referenced_type,
-                encoding,
-            ]
-        )
+        shape_int = [
+            IntAttr(dim) if isinstance(dim, int) else dim.value.data for dim in shape
+        ]
+        return TensorType(referenced_type, shape_int, encoding)
 
+    @deprecated_constructor
     @staticmethod
     def from_params(
         referenced_type: AttributeInvT,
         shape: AnyArrayAttr = AnyArrayAttr([IntegerAttr.from_int_and_width(1, 64)]),
         encoding: Attribute = NoneAttr(),
     ) -> TensorType[AttributeInvT]:
-        return TensorType([shape, referenced_type, encoding])
+        if not isa(shape, ArrayAttr[AnyIntegerAttr]):
+            raise TypeError(f"Unsupported shape type {type(shape)}")
+        shape_int = [dim.value.data for dim in shape.data]
+        return TensorType(referenced_type, shape_int, encoding)
 
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
@@ -698,9 +770,10 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
 
     element_type: ParameterDef[AttributeCovT]
 
-    @staticmethod
-    def from_type(referenced_type: AttributeInvT) -> UnrankedTensorType[AttributeInvT]:
-        return UnrankedTensorType([referenced_type])
+    def __init__(
+        self: UnrankedTensorType[AttributeCovT], element_type: AttributeCovT
+    ) -> None:
+        super().__init__([element_type])
 
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
@@ -921,7 +994,7 @@ class DenseIntOrFPElementsAttr(
         data: Sequence[int] | Sequence[float],
         data_type: IntegerType | IndexType | AnyFloat,
     ) -> DenseIntOrFPElementsAttr:
-        t = VectorType.from_element_type_and_shape(data_type, [len(data)])
+        t = VectorType(data_type, [len(data)])
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
     @staticmethod
@@ -934,7 +1007,7 @@ class DenseIntOrFPElementsAttr(
         data_type: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
-        t = AnyTensorType.from_type_and_list(data_type, shape)
+        t = TensorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
 
@@ -1124,8 +1197,9 @@ class AffineMapAttr(Data[AffineMap]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> AffineMap:
-        data = parser.parse_affine_map()
-        return data
+        with parser.in_angle_brackets():
+            data = parser.parse_affine_map()
+            return data
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string(f"{self.data}")
@@ -1133,6 +1207,20 @@ class AffineMapAttr(Data[AffineMap]):
     @staticmethod
     def constant_map(value: int) -> AffineMapAttr:
         return AffineMapAttr(AffineMap.constant_map(value))
+
+
+@irdl_attr_definition
+class AffineSetAttr(Data[AffineSet]):
+    """An attribute containing an AffineSet object."""
+
+    name = "affine_set"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> AffineSet:
+        return parser.parse_affine_set()
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f"{self.data}")
 
 
 @irdl_op_definition
@@ -1170,7 +1258,7 @@ class UnrealizedConversionCastOp(IRDLOperation):
             parser.parse_type,
         )
         attributes = parser.parse_optional_attr_dict()
-        return UnrealizedConversionCastOp(
+        return cls(
             operands=[inputs], result_types=[output_types], attributes=attributes
         )
 
@@ -1263,6 +1351,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
     attr_name: ParameterDef[StringAttr]
     is_type: ParameterDef[IntAttr]
+    is_opaque: ParameterDef[IntAttr]
     value: ParameterDef[StringAttr]
     """
     This parameter is non-null is the attribute is a type, and null otherwise.
@@ -1272,15 +1361,18 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
         self,
         attr_name: str | StringAttr,
         is_type: bool | IntAttr,
+        is_opaque: bool | IntAttr,
         value: str | StringAttr,
     ):
         if isinstance(attr_name, str):
             attr_name = StringAttr(attr_name)
         if isinstance(is_type, bool):
             is_type = IntAttr(int(is_type))
+        if isinstance(is_opaque, bool):
+            is_opaque = IntAttr(int(is_opaque))
         if isinstance(value, str):
             value = StringAttr(value)
-        super().__init__([attr_name, is_type, value])
+        super().__init__([attr_name, is_type, is_opaque, value])
 
     @classmethod
     def with_name_and_type(cls, name: str, is_type: bool) -> type[UnregisteredAttr]:
@@ -1381,6 +1473,7 @@ f128 = Float64Type()
 
 
 Builtin = Dialect(
+    "builtin",
     [
         ModuleOp,
         UnregisteredOp,
@@ -1421,5 +1514,6 @@ Builtin = Dialect(
         TensorType,
         UnrankedTensorType,
         AffineMapAttr,
+        AffineSetAttr,
     ],
 )

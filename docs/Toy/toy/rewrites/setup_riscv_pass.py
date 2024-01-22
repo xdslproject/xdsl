@@ -1,6 +1,6 @@
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir.core import Block, MLContext, Region
+from xdsl.ir import Block, MLContext, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -34,4 +34,4 @@ class SetupRiscvPass(ModulePass):
     name = "setup-lowering-to-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        PatternRewriteWalker(AddSections()).rewrite_module(op)
+        PatternRewriteWalker(AddSections(), apply_recursively=False).rewrite_module(op)

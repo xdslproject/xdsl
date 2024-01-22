@@ -5,7 +5,7 @@ from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
-from xdsl.ir.core import BlockArgument
+from xdsl.ir import BlockArgument
 
 index = IndexType()
 

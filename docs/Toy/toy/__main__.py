@@ -8,6 +8,8 @@ from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
+from xdsl.interpreters.riscv_cf import RiscvCfFunctions
+from xdsl.interpreters.riscv_debug import RiscvDebugFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_libc import RiscvLibcFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
@@ -95,12 +97,6 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         printer.print(module_op)
         return
 
-    if emit == "riscv-lowered":
-        print("Interpretation of lowered riscv code currently unsupported")
-        # The reason is that we lower functions before register allocation, and lose
-        # the mechanism of function calls in the interpreter.
-        return
-
     interpreter = Interpreter(module_op)
     if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
         interpreter.register_implementations(ToyFunctions())
@@ -114,14 +110,21 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
     if emit == "scf":
         interpreter.register_implementations(ScfFunctions())
         interpreter.register_implementations(BuiltinFunctions())
-
-    if emit in ("riscv", "riscv-opt", "riscv-regalloc", "riscv-regalloc-opt"):
-        interpreter.register_implementations(
-            ToyAcceleratorInstructionFunctions(module_op)
-        )
+    if emit in (
+        "riscv",
+        "riscv-opt",
+        "riscv-regalloc",
+        "riscv-regalloc-opt",
+        "riscv-lowered",
+    ):
         interpreter.register_implementations(RiscvLibcFunctions())
+        interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
+        interpreter.register_implementations(RiscvDebugFunctions())
+    if emit in ("riscv", "riscv-opt", "riscv-regalloc", "riscv-regalloc-opt"):
         interpreter.register_implementations(RiscvScfFunctions())
+    if emit in ("riscv-lowered",):
+        interpreter.register_implementations(RiscvCfFunctions())
 
     interpreter.call_op("main", ())
 

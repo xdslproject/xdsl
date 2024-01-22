@@ -1,4 +1,5 @@
 from xdsl.backend.riscv.lowering.utils import (
+    a_regs,
     cast_block_args_to_regs,
     cast_matched_op_results,
     cast_operands_to_regs,
@@ -8,6 +9,7 @@ from xdsl.builder import Builder
 from xdsl.dialects import builtin, memref, riscv, test
 from xdsl.ir import BlockArgument
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.utils.test_value import TestSSAValue
 
 INDEX_TYPE = builtin.IndexType()
 REGISTER_TYPE = riscv.IntRegisterType.unallocated()
@@ -16,15 +18,11 @@ REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 def test_register_type_for_type():
     assert register_type_for_type(builtin.i32) == riscv.IntRegisterType
     assert (
-        register_type_for_type(
-            memref.MemRefType.from_element_type_and_shape(builtin.f32, [1, 2, 3])
-        )
+        register_type_for_type(memref.MemRefType(builtin.f32, [1, 2, 3]))
         == riscv.IntRegisterType
     )
     assert (
-        register_type_for_type(
-            memref.MemRefType.from_element_type_and_shape(builtin.i32, [1, 2, 3])
-        )
+        register_type_for_type(memref.MemRefType(builtin.i32, [1, 2, 3]))
         == riscv.IntRegisterType
     )
 
@@ -153,3 +151,16 @@ def test_block_cast_utils():
     cast_block_args_to_regs(target_block, rewriter)
     input.verify()
     assert f"{input}" == f"{expected}"
+
+
+def test_a_regs():
+    assert list(a_regs([])) == []
+    assert list(
+        a_regs(
+            (
+                TestSSAValue(riscv.Registers.FT0),
+                TestSSAValue(riscv.Registers.FT0),
+                TestSSAValue(riscv.Registers.T0),
+            )
+        )
+    ) == [riscv.Registers.FA0, riscv.Registers.FA1, riscv.Registers.A0]

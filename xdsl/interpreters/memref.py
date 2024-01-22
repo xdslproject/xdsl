@@ -11,7 +11,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute
 from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import InterpretationError
 

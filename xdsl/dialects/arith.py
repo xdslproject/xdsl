@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Annotated, Generic, TypeVar, cast, overload
 
@@ -15,10 +16,12 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    TensorType,
+    UnrankedTensorType,
+    VectorType,
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
-from xdsl.ir import Dialect, Operation, OpResult, SSAValue
-from xdsl.ir.core import Attribute
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AnyOf,
     ConstraintVar,
@@ -37,6 +40,7 @@ from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
+boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
@@ -134,9 +138,13 @@ class Constant(IRDLOperation):
     def from_float_and_width(
         value: float | FloatAttr[_FloatTypeT], value_type: _FloatTypeT
     ) -> Constant:
-        if isinstance(value, float):
-            value = FloatAttr(value, value_type)
-        return Constant.create(result_types=[value_type], properties={"value": value})
+        if isinstance(value, FloatAttr):
+            value_attr = value
+        else:
+            value_attr = FloatAttr(value, value_type)
+        return Constant.create(
+            result_types=[value_type], properties={"value": value_attr}
+        )
 
     def print(self, printer: Printer):
         printer.print_op_attributes(self.attributes)
@@ -211,6 +219,42 @@ SignlessIntegerBinaryOp = BinaryOperation[Annotated[Attribute, signlessIntegerLi
 class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
     fastmath = opt_prop_def(FastMathFlagsAttr)
 
+    traits = frozenset((Pure(),))
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        flags: FastMathFlagsAttr | None = None,
+        result_type: Attribute | None = None,
+    ):
+        super().__init__(operand1, operand2, result_type)
+        self.fastmath = flags
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        rhs = parser.parse_unresolved_operand()
+        flags = FastMathFlagsAttr("none")
+        if parser.parse_optional_keyword("fastmath") is not None:
+            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
+        return cls(lhs, rhs, flags, result_type)
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print(", ")
+        printer.print_ssa_value(self.rhs)
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
+        printer.print(" : ")
+        printer.print_attribute(self.result.type)
+
 
 FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
     Annotated[Attribute, floatingPointLike]
@@ -224,6 +268,89 @@ class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
     traits = frozenset([Pure()])
+
+
+@irdl_op_definition
+class AddUIExtended(IRDLOperation):
+    """
+    An add operation on an unsigned representation of integers that returns a flag
+    indicating if the result overflowed.
+    """
+
+    name = "arith.addui_extended"
+
+    traits = frozenset([Pure()])
+
+    T = Annotated[Attribute, signlessIntegerLike, ConstraintVar("T")]
+
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+
+    sum: OpResult = result_def(T)
+    overflow: OpResult = result_def(Annotated[Attribute, boolLike])
+
+    def __init__(
+        self,
+        operand1: Operation | SSAValue,
+        operand2: Operation | SSAValue,
+        attributes: Mapping[str, Attribute] | None = None,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        overflow_type = AddUIExtended.infer_overflow_type(result_type)
+        super().__init__(
+            operands=[operand1, operand2],
+            result_types=[result_type, overflow_type],
+            attributes=attributes,
+        )
+
+    def verify_(self):
+        expected_overflow_type = AddUIExtended.infer_overflow_type(self.lhs.type)
+        if self.overflow.type != expected_overflow_type:
+            raise VerifyException(
+                f"overflow type {self.overflow.type} does not "
+                f"match input types {self.lhs.type}. Expected {expected_overflow_type}"
+            )
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print(" : ", self.lhs.type, ", ", self.overflow.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> AddUIExtended:
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        sum_type = parser.parse_type()
+        parser.parse_punctuation(",")
+        overflow_type = parser.parse_type()
+        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [sum_type], parser.pos)
+
+        return AddUIExtended.create(
+            operands=[lhs, rhs],
+            attributes=attributes,
+            result_types=[sum_type, overflow_type],
+        )
+
+    @staticmethod
+    def infer_overflow_type(input_type: Attribute) -> Attribute:
+        if isinstance(input_type, IntegerType):
+            return IntegerType(1)
+        if isinstance(input_type, VectorType):
+            return VectorType(
+                IntegerType(1), input_type.shape, input_type.num_scalable_dims
+            )
+        if isinstance(input_type, UnrankedTensorType):
+            return UnrankedTensorType(IntegerType(1))
+        if isinstance(input_type, TensorType):
+            return TensorType(IntegerType(1), input_type.shape, input_type.encoding)
+        raise ValueError(
+            f"Unsupported input type for {AddUIExtended.name}: {input_type}"
+        )
 
 
 @irdl_op_definition
@@ -695,13 +822,44 @@ class Negf(IRDLOperation):
 
 
 @irdl_op_definition
-class Maxf(FloatingPointLikeBinaryOp):
-    name = "arith.maxf"
+class Maximumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the maximum of the two arguments, treating -0.0 as less than +0.0.
+    If one of the arguments is NaN, then the result is also NaN.
+    """
+
+    name = "arith.maximumf"
 
 
 @irdl_op_definition
-class Minf(FloatingPointLikeBinaryOp):
-    name = "arith.minf"
+class Maxnumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the maximum of the two arguments.
+    If the arguments are -0.0 and +0.0, then the result is either of them.
+    If one of the arguments is NaN, then the result is the other argument.
+    """
+
+    name = "arith.maxnumf"
+
+
+@irdl_op_definition
+class Minimumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the minimum of the two arguments, treating -0.0 as less than +0.0.
+    If one of the arguments is NaN, then the result is also NaN.
+    """
+
+    name = "arith.minimumf"
+
+
+@irdl_op_definition
+class Minnumf(FloatingPointLikeBinaryOp):
+    """
+    Returns the minimum of the two arguments. If the arguments are -0.0 and +0.0, then the result is either of them.
+    If one of the arguments is NaN, then the result is the other argument.
+    """
+
+    name = "arith.minnumf"
 
 
 @irdl_op_definition
@@ -748,24 +906,7 @@ class ExtFOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        input = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        input_type = parser.parse_type()
-        parser.parse_keyword("to")
-        result_type = parser.parse_type()
-        [input] = parser.resolve_operands([input], [input_type], parser.pos)
-        result_float_type = cast(AnyFloat, result_type)
-        return cls(input, result_float_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.input)
-        printer.print(" : ")
-        printer.print_attribute(self.input.type)
-        printer.print(" to ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
 
 @irdl_op_definition
@@ -778,24 +919,7 @@ class TruncFOp(IRDLOperation):
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        input = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        input_type = parser.parse_type()
-        parser.parse_keyword("to")
-        result_type = parser.parse_type()
-        [input] = parser.resolve_operands([input], [input_type], parser.pos)
-        result_float_type = cast(AnyFloat, result_type)
-        return cls(input, result_float_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.input)
-        printer.print(" : ")
-        printer.print_attribute(self.input.type)
-        printer.print(" to ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
 
 @irdl_op_definition
@@ -816,24 +940,7 @@ class TruncIOp(IRDLOperation):
                 "Destination bit-width must be smaller than the input bit-width"
             )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        input = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        input_type = parser.parse_type()
-        parser.parse_keyword("to")
-        result_type = parser.parse_type()
-        [input] = parser.resolve_operands([input], [input_type], parser.pos)
-        result_int_type = cast(IntegerType, result_type)
-        return cls(input, result_int_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.input)
-        printer.print(" : ")
-        printer.print_attribute(self.input.type)
-        printer.print(" to ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
 
 @irdl_op_definition
@@ -854,24 +961,7 @@ class ExtSIOp(IRDLOperation):
                 "Destination bit-width must be larger than the input bit-width"
             )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        input = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        input_type = parser.parse_type()
-        parser.parse_keyword("to")
-        result_type = parser.parse_type()
-        [input] = parser.resolve_operands([input], [input_type], parser.pos)
-        result_int_type = cast(IntegerType, result_type)
-        return cls(input, result_int_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.input)
-        printer.print(" : ")
-        printer.print_attribute(self.input.type)
-        printer.print(" to ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
 
 @irdl_op_definition
@@ -892,31 +982,16 @@ class ExtUIOp(IRDLOperation):
                 "Destination bit-width must be larger than the input bit-width"
             )
 
-    @classmethod
-    def parse(cls, parser: Parser):
-        input = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        input_type = parser.parse_type()
-        parser.parse_keyword("to")
-        result_type = parser.parse_type()
-        [input] = parser.resolve_operands([input], [input_type], parser.pos)
-        result_int_type = cast(IntegerType, result_type)
-        return cls(input, result_int_type)
-
-    def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_operand(self.input)
-        printer.print(" : ")
-        printer.print_attribute(self.input.type)
-        printer.print(" to ")
-        printer.print_attribute(self.result.type)
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
 
 Arith = Dialect(
+    "arith",
     [
         Constant,
         # Integer-like
         Addi,
+        AddUIExtended,
         Subi,
         Muli,
         DivUI,
@@ -949,8 +1024,10 @@ Arith = Dialect(
         ShRUI,
         ShRSI,
         # Min/Max
-        Minf,
-        Maxf,
+        Minimumf,
+        Minnumf,
+        Maximumf,
+        Maxnumf,
         # Casts
         IndexCastOp,
         FPToSIOp,
