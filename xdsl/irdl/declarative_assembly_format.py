@@ -137,34 +137,28 @@ class FormatProgram:
     def resolve_operand_types(self, state: ParsingState) -> None:
         for i, operand_type in enumerate(state.operand_types):
             if operand_type is None:
-                resolve, (construct, idx) = self.type_resolutions[
-                    VarIRConstruct.OPERAND, i
-                ]
-                match construct:
-                    case VarIRConstruct.OPERAND:
-                        input_type = state.operand_types[idx]
-                    case VarIRConstruct.RESULT:
-                        input_type = state.result_types[idx]
-                    case _:
-                        raise ValueError()
-                assert input_type is not None
-                state.operand_types[i] = resolve(input_type)
+                state.operand_types[i] = self._resolve_type(
+                    state, VarIRConstruct.OPERAND, i
+                )
 
     def resolve_result_types(self, state: ParsingState) -> None:
         for i, result_type in enumerate(state.result_types):
             if result_type is None:
-                resolve, (construct, idx) = self.type_resolutions[
-                    VarIRConstruct.RESULT, i
-                ]
-                match construct:
-                    case VarIRConstruct.OPERAND:
-                        input_type = state.operand_types[idx]
-                    case VarIRConstruct.RESULT:
-                        input_type = state.result_types[idx]
-                    case _:
-                        raise ValueError()
-                assert input_type is not None
-                state.result_types[i] = resolve(input_type)
+                state.result_types[i] = self._resolve_type(
+                    state, VarIRConstruct.RESULT, i
+                )
+
+    def _resolve_type(self, state: ParsingState, construct: VarIRConstruct, index: int):
+        resolve, (construct, idx) = self.type_resolutions[construct, index]
+        match construct:
+            case VarIRConstruct.OPERAND:
+                input_type = state.operand_types[idx]
+            case VarIRConstruct.RESULT:
+                input_type = state.result_types[idx]
+            case _:
+                raise ValueError()
+        assert input_type is not None
+        return resolve(input_type)
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """
