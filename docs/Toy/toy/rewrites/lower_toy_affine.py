@@ -418,7 +418,7 @@ class PrintOpLowering(RewritePattern):
         format_str = "{}"
 
         for dim in reversed(shape):
-            format_str = str([format_str] * dim).replace("'", "")
+            format_str = "[" + ", ".join([format_str] * dim) + "]"
 
         new_vals: list[SSAValue] = []
 
