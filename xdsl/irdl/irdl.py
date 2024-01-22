@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import partial
 from inspect import isclass
 from types import FunctionType, GenericAlias, UnionType
 from typing import (
@@ -90,6 +91,11 @@ class AttrConstraint(ABC):
         """
         ...
 
+    def get_variable_resolutions(
+        self: AttrConstraint,
+    ) -> dict[str, Callable[[Attribute], Attribute]]:
+        return dict()
+
 
 @dataclass
 class VarConstraint(AttrConstraint):
@@ -116,6 +122,9 @@ class VarConstraint(AttrConstraint):
         else:
             self.constraint.verify(attr, constraint_vars)
             constraint_vars[self.name] = attr
+
+    def get_variable_resolutions(self) -> dict[str, Callable[[Attribute], Attribute]]:
+        return {self.name: lambda x: x}
 
 
 @dataclass(frozen=True)
@@ -246,6 +255,18 @@ class ParamAttrConstraint(AttrConstraint):
 
     param_constrs: list[AttrConstraint]
     """The attribute parameter constraints"""
+
+    def get_variable_resolutions(self) -> dict[str, Callable[[Attribute], Attribute]]:
+        resolves: dict[str, Callable[[Attribute], Attribute]] = {}
+        for i, p in enumerate(self.param_constrs):
+            for name, p_resolve in p.get_variable_resolutions().items():
+
+                def resolve(i: int, x: Attribute) -> Attribute:
+                    assert isinstance(x, ParametrizedAttribute)
+                    return p_resolve(x.parameters[i])
+
+                resolves[name] = partial(resolve, i)
+        return resolves
 
     def __init__(
         self,

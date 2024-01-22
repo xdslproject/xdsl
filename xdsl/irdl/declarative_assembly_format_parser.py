@@ -9,13 +9,10 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from functools import partial
 
-from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.ir import Attribute
 from xdsl.irdl import (
-    AttrConstraint,
     OpDef,
-    ParamAttrConstraint,
     VarConstraint,
     VarIRConstruct,
 )
@@ -127,37 +124,20 @@ class FormatParser(BaseParser):
         self.verify_results()
         return FormatProgram(elements, self.type_resolutions)
 
-    def get_variable_resolutions(
-        self, constr: AttrConstraint
-    ) -> dict[str, Callable[[Attribute], Attribute]]:
-        match constr:
-            case VarConstraint(name):
-                return {name: lambda x: x}
-            case ParamAttrConstraint(_, param_constrs):
-                resolves: dict[str, Callable[[Attribute], Attribute]] = {}
-                for i, p in enumerate(param_constrs):
-                    for name, p_resolve in self.get_variable_resolutions(p).items():
-
-                        def resolve(i: int, x: Attribute) -> Attribute:
-                            assert isinstance(x, ParametrizedAttribute)
-                            return p_resolve(x.parameters[i])
-
-                        resolves[name] = partial(resolve, i)
-                return resolves
-            case _:
-                return dict()
-
     def resolve_types(self):
         """
         Find out which types can be resolved through ConstraintVat propagation.
         """
-        resolved_variables: dict[str, tuple[Callable[[Attribute], Attribute], OperandOrResult, int]] = {}
+        resolved_variables: dict[
+            str, tuple[Callable[[Attribute], Attribute], OperandOrResult, int]
+        ] = {}
         # If a result or operand type is a variable, that variable can be resolved from it
         for i, (_, operand_def) in enumerate(self.op_def.operands):
             if self.seen_operand_types[i]:
-                for name, resolve in self.get_variable_resolutions(
-                    operand_def.constr
-                ).items():
+                for (
+                    name,
+                    resolve,
+                ) in operand_def.constr.get_variable_resolutions().items():
                     resolved_variables[name] = (
                         resolve,
                         VarIRConstruct.OPERAND,
@@ -165,9 +145,10 @@ class FormatParser(BaseParser):
                     )
         for i, (_, result_def) in enumerate(self.op_def.results):
             if self.seen_result_types[i]:
-                for name, resolve in self.get_variable_resolutions(
-                    result_def.constr
-                ).items():
+                for (
+                    name,
+                    resolve,
+                ) in result_def.constr.get_variable_resolutions().items():
                     resolved_variables[name] = (
                         resolve,
                         VarIRConstruct.RESULT,
@@ -182,14 +163,18 @@ class FormatParser(BaseParser):
                     and operand_def.constr.name in resolved_variables.keys()
                 ):
                     # Create the resolution method
-                    self.type_resolutions[VarIRConstruct.OPERAND, i] = resolved_variables[operand_def.constr.name]
+                    self.type_resolutions[
+                        VarIRConstruct.OPERAND, i
+                    ] = resolved_variables[operand_def.constr.name]
         for i, (_, result_def) in enumerate(self.op_def.results):
             if not self.seen_result_types[i]:
                 if (
                     isinstance(result_def.constr, VarConstraint)
                     and result_def.constr.name in resolved_variables.keys()
                 ):
-                    self.type_resolutions[VarIRConstruct.RESULT, i] = resolved_variables[result_def.constr.name]
+                    self.type_resolutions[
+                        VarIRConstruct.RESULT, i
+                    ] = resolved_variables[result_def.constr.name]
 
     def verify_operands(self):
         """
