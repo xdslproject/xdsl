@@ -2,16 +2,27 @@ from __future__ import annotations
 
 import textwrap
 from io import StringIO
-from typing import Annotated
+from typing import Annotated, Generic, TypeVar
 
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, MLContext, Operation
+from xdsl.ir import (
+    Attribute,
+    MLContext,
+    Operation,
+    ParametrizedAttribute,
+    TypeAttribute,
+)
 from xdsl.irdl import (
+    AllOf,
+    AnyAttr,
     ConstraintVar,
+    EqAttrConstraint,
     IRDLOperation,
+    ParameterDef,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -19,7 +30,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import PyRDLOpDefinitionError
+from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError
 
 ################################################################################
 # Utils for this test file                                                     #
@@ -321,7 +332,7 @@ def test_missing_operand():
 def test_operands_missing_type():
     """Test that operands should have their type parsed"""
     with pytest.raises(
-        PyRDLOpDefinitionError, match="type of operand 'operand' not found"
+        PyRDLOpDefinitionError, match="type of operand 'operand' cannot be inferred"
     ):
 
         @irdl_op_definition
@@ -421,37 +432,6 @@ def test_operands_graph_region(format: str, program: str):
     check_roundtrip(program, ctx)
 
 
-@pytest.mark.parametrize(
-    "format",
-    [
-        "$lhs $rhs attr-dict `:` type($lhs)",
-        "$lhs $rhs attr-dict `:` type($rhs)",
-        "$lhs $rhs attr-dict `:` type($res)",
-    ],
-)
-def test_vasic_inference(format: str):
-    @irdl_op_definition
-    class TwoOperandsOneResultWithVarOp(IRDLOperation):
-        T = Annotated[Attribute, ConstraintVar("T")]
-
-        name = "test.two_operands_one_result_with_var"
-        res = result_def(T)
-        lhs = operand_def(T)
-        rhs = operand_def(T)
-
-        assembly_format = format
-
-    ctx = MLContext()
-    ctx.load_op(TwoOperandsOneResultWithVarOp)
-    ctx.load_dialect(Test)
-    program = textwrap.dedent(
-        """\
-    %0, %1 = "test.op"() : () -> (i32, i32)
-    %2 = test.two_operands_one_result_with_var %0 %1 : i32"""
-    )
-    check_roundtrip(program, ctx)
-
-
 ################################################################################
 # Results                                                                      #
 ################################################################################
@@ -459,7 +439,9 @@ def test_vasic_inference(format: str):
 
 def test_missing_result_type():
     """Test that results should have their type parsed."""
-    with pytest.raises(PyRDLOpDefinitionError, match="result 'result' not found"):
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="result 'result' cannot be inferred"
+    ):
 
         @irdl_op_definition
         class NoResultTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
@@ -522,3 +504,159 @@ def test_results(format: str, program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+################################################################################
+# Inferrence                                                                   #
+################################################################################
+
+_T = TypeVar("_T", bound=Attribute)
+
+
+@pytest.mark.parametrize(
+    "format",
+    [
+        "$lhs $rhs attr-dict `:` type($lhs)",
+        "$lhs $rhs attr-dict `:` type($rhs)",
+        "$lhs $rhs attr-dict `:` type($res)",
+    ],
+)
+def test_basic_inference(format: str):
+    @irdl_op_definition
+    class TwoOperandsOneResultWithVarOp(IRDLOperation):
+        T = Annotated[Attribute, ConstraintVar("T")]
+
+        name = "test.two_operands_one_result_with_var"
+        res = result_def(T)
+        lhs = operand_def(T)
+        rhs = operand_def(T)
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandsOneResultWithVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0, %1 = "test.op"() : () -> (i32, i32)
+    %2 = test.two_operands_one_result_with_var %0 %1 : i32
+    "test.op"(%2) : (i32) -> ()"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_eq_attr_inference():
+    @irdl_attr_definition
+    class UnitAttr(ParametrizedAttribute, TypeAttribute):
+        name = "test.unit"
+
+    @irdl_op_definition
+    class OneOperandEqType(IRDLOperation):
+        name = "test.one_operand_eq_type"
+        index = operand_def(UnitAttr())
+
+        assembly_format = "attr-dict $index"
+
+    ctx = MLContext()
+    ctx.load_attr(UnitAttr)
+    ctx.load_op(OneOperandEqType)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> !test.unit
+    test.one_operand_eq_type %0"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_all_of_attr_inference():
+    @irdl_attr_definition
+    class UnitAttr(ParametrizedAttribute, TypeAttribute):
+        name = "test.unit"
+
+    @irdl_op_definition
+    class OneOperandEqTypeAllOfNested(IRDLOperation):
+        name = "test.one_operand_eq_type_all_of_nested"
+        index = operand_def(AllOf([AnyAttr(), EqAttrConstraint(UnitAttr())]))
+
+        assembly_format = "attr-dict $index"
+
+    ctx = MLContext()
+    ctx.load_attr(UnitAttr)
+    ctx.load_op(OneOperandEqTypeAllOfNested)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> !test.unit
+    test.one_operand_eq_type_all_of_nested %0"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_nested_inference():
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
+        name = "test.param_one"
+
+        n: ParameterDef[Attribute]
+        p: ParameterDef[_T]
+        q: ParameterDef[Attribute]
+
+    @irdl_op_definition
+    class TwoOperandsNestedVarOp(IRDLOperation):
+        T = Annotated[Attribute, ConstraintVar("T")]
+
+        name = "test.two_operands_one_result_with_var"
+        res = result_def(T)
+        lhs = operand_def(ParamOne[T])
+        rhs = operand_def(T)
+
+        assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandsNestedVarOp)
+    ctx.load_attr(ParamOne)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0, %1 = "test.op"() : () -> (!test.param_one<f16, i32, i1>, i32)
+    %2 = test.two_operands_one_result_with_var %0 %1 : !test.param_one<f16, i32, i1>"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_non_verifying_inference():
+    """
+    Check that non-verifying operands/results will
+    trigger a ParseError when inference is required.
+    """
+
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
+        name = "test.param_one"
+        p: ParameterDef[_T]
+
+    @irdl_op_definition
+    class OneOperandOneResultNestedOp(IRDLOperation):
+        T = Annotated[Attribute, ConstraintVar("T")]
+
+        name = "test.one_operand_one_result_nested"
+        res = result_def(T)
+        lhs = operand_def(ParamOne[T])
+
+        assembly_format = "$lhs attr-dict `:` type($lhs)"
+
+    ctx = MLContext()
+    ctx.load_op(OneOperandOneResultNestedOp)
+    ctx.load_attr(ParamOne)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> i32
+    %1 = test.one_operand_one_result_nested %0 : i32"""
+    )
+    with pytest.raises(
+        ParseError,
+        match="Verification error while inferring operation type: ",
+    ):
+        check_roundtrip(program, ctx)
