@@ -32,14 +32,19 @@ builtin.module {
         }
       }) : (!riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>, !snitch_stream.stride_pattern_type<2>) -> ()
       %v0 = riscv.fld %B, 0 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v0_1 = builtin.unrealized_conversion_cast %v0 : !riscv.freg<> to f64
       %v1 = riscv.fld %B, 8 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v1_1 = builtin.unrealized_conversion_cast %v1 : !riscv.freg<> to f64
       %v2 = riscv.fld %B, 16 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v2_1 = builtin.unrealized_conversion_cast %v2 : !riscv.freg<> to f64
       %v3 = riscv.fld %B, 24 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v3_1 = builtin.unrealized_conversion_cast %v3 : !riscv.freg<> to f64
       %v4 = riscv.fld %B, 32 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
+      %v4_1 = builtin.unrealized_conversion_cast %v4 : !riscv.freg<> to f64
       %v5 = riscv.fld %B, 40 {"comment" = "load double from memref of shape (2, 3)"} : (!riscv.reg<>) -> !riscv.freg<>
-      riscv_debug.printf %v0, %v1, %v2, %v3, %v4, %v5 "[[{}, {}, {}], [{}, {}, {}]]" : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>, !riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> ()
+      %v5_1 = builtin.unrealized_conversion_cast %v5 : !riscv.freg<> to f64
+      printf.print_format "[[{}, {}, {}], [{}, {}, {}]]", %v0_1 : f64, %v1_1 : f64, %v2_1 : f64, %v3_1 : f64, %v4_1 : f64, %v5_1 : f64
       riscv_func.return
-
     }
   }
 }
