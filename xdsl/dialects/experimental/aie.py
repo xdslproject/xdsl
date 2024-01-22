@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
     Float32Type,
     IndexType,
+    IntAttr,
     IntegerAttr,
     IntegerType,
     NoneAttr,
@@ -95,16 +96,12 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute):
     @staticmethod
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
-        shape: Iterable[int | AnyIntegerAttr],
+        shape: Iterable[int | IntAttr],
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> ObjectFIFO[AttributeInvT]:
         return ObjectFIFO(
-            [
-                memref.MemRefType.from_element_type_and_shape(
-                    referenced_type, shape, layout, memory_space
-                )
-            ]
+            [memref.MemRefType(referenced_type, shape, layout, memory_space)]
         )
 
 
@@ -117,12 +114,12 @@ class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute):
     @staticmethod
     def from_element_type_and_shape(
         object_fifo: ObjectFIFO[AttributeInvT],
-        shape: Iterable[int | AnyIntegerAttr],
+        shape: Iterable[int | IntAttr],
     ) -> ObjectFIFOSubview[AttributeInvT]:
         assert isa(object_fifo.buffer, memref.MemRefType[Attribute])
         return ObjectFIFOSubview(
             [
-                memref.MemRefType.from_element_type_and_shape(
+                memref.MemRefType(
                     object_fifo.buffer.element_type,
                     shape,
                     object_fifo.buffer.layout,
@@ -616,8 +613,11 @@ class ObjectFifoAcquireOp(IRDLOperation):
         lookup = SymbolTable.lookup_symbol(device, object_fifo)
         assert isinstance(lookup, createObjectFifo)
         assert isa(lookup.object_fifo, ObjectFIFO[memref.MemRefType[Attribute]])
+        subview_shape = [
+            shape_elem.data for shape_elem in lookup.object_fifo.buffer.shape.data
+        ]
         result_subview = ObjectFIFOSubview.from_element_type_and_shape(
-            lookup.object_fifo, lookup.object_fifo.buffer.shape
+            lookup.object_fifo, subview_shape
         )
         super().__init__(
             attributes={"port": port, "size": size, "object_fifo": object_fifo},
@@ -625,16 +625,14 @@ class ObjectFifoAcquireOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        port = "Produce" if self.port.value.data == PRODUCE_PORT else "Consume"
+        port = "Produce" if self.port == PRODUCE_PORT else "Consume"
         op = self.parent_op()
         while not isinstance(op, DeviceOp):
             assert isinstance(op, Operation)
             op = op.parent_op()
 
         assert isinstance(self.object_fifo, StringAttr)
-        printer.print(
-            f" @{self.object_fifo.data} (", port, ", ", self.size.value.data, ") : "
-        )
+        printer.print(f" @{self.object_fifo.data} (", port, ", ", self.size, ") : ")
         lookup = SymbolTable.lookup_symbol(op, self.object_fifo)
         assert isinstance(lookup, createObjectFifo)
         assert isa(lookup.object_fifo, ObjectFIFO[memref.MemRefType[Attribute]])
@@ -687,7 +685,7 @@ class ObjectFIFOSubviewAccessOp(IRDLOperation):
         assert isinstance(subview, ObjectFifoAcquireOp)
         assert isa(subview.result.type, ObjectFIFOSubview[memref.MemRefType[Attribute]])
         subview.result.type.buffer
-        result_type = memref.MemRefType.from_element_type_and_shape(
+        result_type = memref.MemRefType(
             subview.result.type.buffer.element_type, subview.result.type.buffer.shape
         )
         super().__init__(
@@ -725,7 +723,7 @@ class createObjectFifo(IRDLOperation):
         producerTile: Operation | SSAValue,
         consumerTile: Operation | SSAValue,
         referenced_type: Attribute,
-        shape: Iterable[int | AnyIntegerAttr],
+        shape: Iterable[int | IntAttr],
         name: str,
     ):
         object_fifo = ObjectFIFO.from_element_type_and_shape(referenced_type, shape)
