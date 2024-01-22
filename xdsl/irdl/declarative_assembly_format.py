@@ -137,6 +137,10 @@ class FormatProgram:
         )
 
     def resolve_operand_types(self, state: ParsingState) -> None:
+        """
+        Use the inferred type resolutions to fill missing operand types from other parsed
+        types.
+        """
         for i, operand_type in enumerate(state.operand_types):
             if operand_type is None:
                 state.operand_types[i] = self._resolve_type(
@@ -144,6 +148,10 @@ class FormatProgram:
                 )
 
     def resolve_result_types(self, state: ParsingState) -> None:
+        """
+        Use the inferred type resolutions to fill missing result types from other parsed
+        types.
+        """
         for i, result_type in enumerate(state.result_types):
             if result_type is None:
                 state.result_types[i] = self._resolve_type(
@@ -153,6 +161,10 @@ class FormatProgram:
     def _resolve_type(
         self, state: ParsingState, construct: OperandOrResult, index: int
     ):
+        """
+        Helper function resolving a specific operand or result type from the inferred
+        resolution map.
+        """
         resolve, construct, idx = self.type_resolutions[construct, index]
         match construct:
             case VarIRConstruct.OPERAND:
