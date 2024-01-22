@@ -87,8 +87,13 @@ class FormatProgram:
     """The list of statements composing the program. They are executed in order."""
 
     type_resolutions: dict[
+<<<<<<< HEAD
         tuple[OperandOrResult, int],
         tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
+=======
+        tuple[VarIRConstruct, int],
+        tuple[Callable[[Attribute], Attribute], tuple[VarIRConstruct, int]],
+>>>>>>> 2292143c6 (Implement and test basic ConstraintVar type resolution for the declarative assembly format.)
     ]
     """A mapping describing how to resolve unparsed operand and result types."""
 
