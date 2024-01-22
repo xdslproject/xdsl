@@ -2,16 +2,24 @@ from __future__ import annotations
 
 import textwrap
 from io import StringIO
-from typing import Annotated
+from typing import Annotated, Generic, TypeVar
 
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, MLContext, Operation
+from xdsl.ir import (
+    Attribute,
+    MLContext,
+    Operation,
+    ParametrizedAttribute,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    ParameterDef,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
@@ -404,7 +412,7 @@ def test_operands_graph_region(format: str, program: str):
         "$lhs $rhs attr-dict `:` type($res)",
     ],
 )
-def test_vasic_inference(format: str):
+def test_basic_inference(format: str):
     @irdl_op_definition
     class TwoOperandsOneResultWithVarOp(IRDLOperation):
         T = Annotated[Attribute, ConstraintVar("T")]
@@ -423,6 +431,47 @@ def test_vasic_inference(format: str):
         """\
     %0, %1 = "test.op"() : () -> (i32, i32)
     %2 = test.two_operands_one_result_with_var %0 %1 : i32"""
+    )
+    check_roundtrip(program, ctx)
+
+
+_T = TypeVar("_T", bound=Attribute)
+
+
+@pytest.mark.parametrize(
+    "format",
+    [
+        "$lhs $rhs attr-dict `:` type($lhs)",
+    ],
+)
+def test_nested_inference(format: str):
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
+        name = "test.param_one"
+
+        n: ParameterDef[Attribute]
+        p: ParameterDef[_T]
+        q: ParameterDef[Attribute]
+
+    @irdl_op_definition
+    class TwoOperandsNestedVarOp(IRDLOperation):
+        T = Annotated[Attribute, ConstraintVar("T")]
+
+        name = "test.two_operands_one_result_with_var"
+        res = result_def(T)
+        lhs = operand_def(ParamOne[T])
+        rhs = operand_def(T)
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandsNestedVarOp)
+    ctx.load_attr(ParamOne)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0, %1 = "test.op"() : () -> (!test.param_one<f16, i32, i1>, i32)
+    %2 = test.two_operands_one_result_with_var %0 %1 : !test.param_one<f16, i32, i1>"""
     )
     check_roundtrip(program, ctx)
 
