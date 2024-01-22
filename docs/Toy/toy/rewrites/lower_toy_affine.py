@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     ModuleOp,
+    ShapedType,
     f64,
 )
 from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
@@ -412,8 +413,8 @@ class FuncOpLowering(RewritePattern):
 class PrintOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.PrintOp, rewriter: PatternRewriter):
-        assert isinstance(tensor_type := op.input.type, toy.TensorType)
-        shape = tensor_type.get_shape()
+        assert isinstance(shaped_type := op.input.type, ShapedType)
+        shape = shaped_type.get_shape()
 
         format_str = "{}"
 
