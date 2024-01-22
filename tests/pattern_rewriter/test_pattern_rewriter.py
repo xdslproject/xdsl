@@ -599,7 +599,12 @@ def test_delete_inner_op():
             assert first_op is not None
             rewriter.erase_op(first_op)
 
-    rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()), op_removed=1)
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_removed=1,
+    )
 
 
 def test_replace_inner_op():
@@ -624,7 +629,7 @@ def test_replace_inner_op():
     rewrite_and_compare(
         prog,
         expected,
-        PatternRewriteWalker(Rewrite()),
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
         op_inserted=1,
         op_removed=1,
         op_replaced=1,
