@@ -117,11 +117,26 @@ class FormatProgram:
         # Ensure that all operands and operand types are parsed
         unresolved_operands = state.operands
         assert isa(unresolved_operands, list[UnresolvedOperand])
+        self.resolve_operand_types(state)
+        operand_types = state.operand_types
+        assert isa(operand_types, list[Attribute])
 
-        # Resolve unparsed operand types
+        # Ensure that all result types are parsed or resolved
+        self.resolve_result_types(state)
+        result_types = state.result_types
+        assert isa(state.result_types, list[Attribute])
+
+        # Resolve all operands
+        operands = parser.resolve_operands(
+            unresolved_operands, operand_types, parser.pos
+        )
+        return op_type.build(
+            result_types=result_types, operands=operands, attributes=state.attributes
+        )
+
+    def resolve_operand_types(self, state: ParsingState) -> None:
         for i, operand_type in enumerate(state.operand_types):
             if operand_type is None:
-                assert (VarIRConstruct.OPERAND, i) in self.type_resolutions
                 resolve, (construct, idx) = self.type_resolutions[
                     VarIRConstruct.OPERAND, i
                 ]
@@ -135,10 +150,9 @@ class FormatProgram:
                 assert input_type is not None
                 state.operand_types[i] = resolve(input_type)
 
-        # Resolve unparsed result types
+    def resolve_result_types(self, state: ParsingState) -> None:
         for i, result_type in enumerate(state.result_types):
             if result_type is None:
-                assert (VarIRConstruct.RESULT, i) in self.type_resolutions
                 resolve, (construct, idx) = self.type_resolutions[
                     VarIRConstruct.RESULT, i
                 ]
@@ -151,21 +165,6 @@ class FormatProgram:
                         raise ValueError()
                 assert input_type is not None
                 state.result_types[i] = resolve(input_type)
-
-        operand_types = state.operand_types
-        assert isa(operand_types, list[Attribute])
-
-        # Ensure that all result types are parsed or resolved
-        result_types = state.result_types
-        assert isa(state.result_types, list[Attribute])
-
-        # Resolve all operands
-        operands = parser.resolve_operands(
-            unresolved_operands, operand_types, parser.pos
-        )
-        return op_type.build(
-            result_types=result_types, operands=operands, attributes=state.attributes
-        )
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """
