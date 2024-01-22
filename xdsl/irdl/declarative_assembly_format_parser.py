@@ -17,6 +17,7 @@ from xdsl.irdl.declarative_assembly_format import (
     FormatDirective,
     FormatProgram,
     KeywordDirective,
+    OperandOrResult,
     OperandTypeDirective,
     OperandVariable,
     PunctuationDirective,
@@ -89,8 +90,8 @@ class FormatParser(BaseParser):
     context: ParsingContext = field(default=ParsingContext.TopLevel)
     """Indicates if the parser is nested in a particular directive."""
     type_resolutions: dict[
-        tuple[VarIRConstruct, int],
-        tuple[Callable[[Attribute], Attribute], tuple[VarIRConstruct, int]],
+        tuple[OperandOrResult, int],
+        tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
     ]
     """Map a variable to a way to infer its type"""
 
@@ -123,7 +124,7 @@ class FormatParser(BaseParser):
         """
         Find out which types can be resolved through ConstraintVat propagation.
         """
-        resolved_variables: dict[str, tuple[VarIRConstruct, int]] = {}
+        resolved_variables: dict[str, tuple[OperandOrResult, int]] = {}
         # If a result or operand type is a variable, that variable can be resolved from it
         for i, (_, operand_def) in enumerate(self.op_def.operands):
             if self.seen_operand_types[i]:
@@ -150,7 +151,7 @@ class FormatParser(BaseParser):
                     # Create the resolution method
                     self.type_resolutions[VarIRConstruct.OPERAND, i] = (
                         lambda x: x,
-                        resolved_variables[operand_def.constr.name],
+                        *resolved_variables[operand_def.constr.name],
                     )
         for i, (_, result_def) in enumerate(self.op_def.results):
             if not self.seen_result_types[i]:
@@ -160,7 +161,7 @@ class FormatParser(BaseParser):
                 ):
                     self.type_resolutions[VarIRConstruct.RESULT, i] = (
                         lambda x: x,
-                        resolved_variables[result_def.constr.name],
+                        *resolved_variables[result_def.constr.name],
                     )
 
     def verify_operands(self):

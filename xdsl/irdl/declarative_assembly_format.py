@@ -24,6 +24,8 @@ from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Token
 
+OperandOrResult = Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT]
+
 
 @dataclass
 class ParsingState:
@@ -85,8 +87,8 @@ class FormatProgram:
     """The list of statements composing the program. They are executed in order."""
 
     type_resolutions: dict[
-        tuple[VarIRConstruct, int],
-        tuple[Callable[[Attribute], Attribute], tuple[VarIRConstruct, int]],
+        tuple[OperandOrResult, int],
+        tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
     ]
     """A mapping describing how to resolve unparsed operand and result types."""
 
@@ -148,15 +150,15 @@ class FormatProgram:
                     state, VarIRConstruct.RESULT, i
                 )
 
-    def _resolve_type(self, state: ParsingState, construct: VarIRConstruct, index: int):
-        resolve, (construct, idx) = self.type_resolutions[construct, index]
+    def _resolve_type(
+        self, state: ParsingState, construct: OperandOrResult, index: int
+    ):
+        resolve, construct, idx = self.type_resolutions[construct, index]
         match construct:
             case VarIRConstruct.OPERAND:
                 input_type = state.operand_types[idx]
             case VarIRConstruct.RESULT:
                 input_type = state.result_types[idx]
-            case _:
-                raise ValueError()
         assert input_type is not None
         return resolve(input_type)
 
