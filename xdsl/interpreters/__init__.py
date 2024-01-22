@@ -9,6 +9,7 @@ from xdsl.interpreters import (
     memref,
     printf,
     riscv,
+    riscv_debug,
     riscv_func,
     riscv_libc,
     riscv_snitch,
@@ -27,6 +28,7 @@ def register_implementations(
     interpreter.register_implementations(func.FuncFunctions())
     interpreter.register_implementations(cf.CfFunctions())
     interpreter.register_implementations(riscv.RiscvFunctions())
+    interpreter.register_implementations(riscv_debug.RiscvDebugFunctions())
     interpreter.register_implementations(riscv_func.RiscvFuncFunctions())
     interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
     interpreter.register_implementations(riscv_snitch.RiscvSnitchFunctions())
