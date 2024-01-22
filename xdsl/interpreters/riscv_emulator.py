@@ -2,37 +2,18 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from io import StringIO
-from typing import IO, ClassVar
 
 from riscemu.config import RunConfig
-from riscemu.core import Instruction
-from riscemu.instructions import RV32D, RV32F, RV32I, RV32M, InstructionSet, Zicsr
-from riscemu.instructions import RV_Debug as riscemu_RV_Debug
+from riscemu.instructions import (
+    RV32D,
+    RV32F,
+    RV32I,
+    RV32M,
+    InstructionSet,
+    RV_Debug,
+    Zicsr,
+)
 from riscemu.riscemu_main import RiscemuMain, RiscemuSource
-
-
-class RV_Debug(InstructionSet):
-    stream: ClassVar[IO[str] | None] = None
-
-    # riscemu matches `instruction_` prefixes, so this will be called by `print reg`
-
-    def instruction_print(self, ins: Instruction):
-        reg = ins.get_reg(0)
-        value = self.regs.get(reg)
-        print(value, file=type(self).stream)
-
-    def instruction_print_float(self, ins: Instruction):
-        reg = ins.get_reg(0)
-        value = self.regs.get_f(reg).value
-        print(value, file=type(self).stream)
-
-    def __eq__(self, __value: object) -> bool:
-        if not isinstance(__value, RV_Debug):
-            return False
-        return self.stream is __value.stream
-
-    def __hash__(self) -> int:
-        return hash(id(self.stream))
 
 
 def run_riscv(
@@ -57,7 +38,6 @@ def run_riscv(
         RV32F,
         RV32D,
         Zicsr,
-        riscemu_RV_Debug,
         RV_Debug,
         *extensions,
     ]

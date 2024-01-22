@@ -9,6 +9,7 @@ from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.interpreters.riscv_cf import RiscvCfFunctions
+from xdsl.interpreters.riscv_debug import RiscvDebugFunctions
 from xdsl.interpreters.riscv_func import RiscvFuncFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.scf import ScfFunctions
@@ -117,6 +118,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
     ):
         interpreter.register_implementations(ToyAcceleratorInstructionFunctions())
         interpreter.register_implementations(RiscvFuncFunctions())
+        interpreter.register_implementations(RiscvDebugFunctions())
     if emit in ("riscv", "riscv-opt", "riscv-regalloc", "riscv-regalloc-opt"):
         interpreter.register_implementations(RiscvScfFunctions())
     if emit in ("riscv-lowered",):

@@ -36,4 +36,4 @@ def test_riscv_interpreter():
         == ()
     )
 
-    assert file.getvalue() == "1 -1 2.0 -2.0\n"
+    assert file.getvalue() == "1 -1 2.0 -2.0"
