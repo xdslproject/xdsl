@@ -134,6 +134,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Printf
 
+    def get_riscv_debug():
+        from xdsl.dialects.riscv_debug import RISCV_Debug
+
+        return RISCV_Debug
+
     def get_riscv():
         from xdsl.dialects.riscv import RISCV
 
@@ -235,6 +240,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "pdl": get_pdl,
         "printf": get_printf,
         "riscv": get_riscv,
+        "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,
         "riscv_scf": get_riscv_scf,
         "riscv_cf": get_riscv_cf,
@@ -387,6 +393,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_memref_to_riscv.ConvertMemrefToRiscvPass
 
+    def get_convert_print_format_to_riscv_debug():
+        from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
+
+        return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
+
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
 
@@ -444,6 +455,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
