@@ -18,6 +18,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AttrSizedOperandSegments,
     ConstraintVar,
     EqAttrConstraint,
     IRDLOperation,
@@ -446,6 +447,52 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(VariadicOperandOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\n'
+            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
+        ),
+        (
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.variadic_operands(%0, %1 : i32, i64) [%1, %0 : i64, i32]",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.variadic_operands"(%0, %1, %1, %0) {operandSegmentSizes = array<i32:2,2>} : (i32, i64, i64, i32) -> ()',
+        ),
+        (
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            "test.variadic_operands(%0, %1, %2 : i32, i64, i128) [%2, %1, %0 : i128, i64, i32]",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            '"test.variadic_operands"(%0, %1, %2, %2, %1, %0) {operandSegmentSizes = array<i32:3,3>} : (i32, i64, i128, i128, i64, i32) -> ()',
+        ),
+    ],
+)
+def test_multiple_variadic_operands(program: str, generic_program: str):
+    """Test the parsing of variadic operands"""
+
+    @irdl_op_definition
+    class VariadicOperandsOp(IRDLOperation):
+        name = "test.variadic_operands"
+        args1 = var_operand_def()
+        args2 = var_operand_def()
+
+        irdl_options = [AttrSizedOperandSegments()]
+
+        assembly_format = (
+            "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
+        )
+
+    ctx = MLContext()
+    ctx.load_op(VariadicOperandsOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)

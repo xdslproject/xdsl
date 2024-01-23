@@ -43,7 +43,10 @@ class ParsingState:
     constraint_variables: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):
-        if op_def.regions or op_def.successors:
+        attributes = bool(op_def.attributes) and list(op_def.attributes.keys()) != [
+            "operandSegmentSizes"
+        ]
+        if attributes or op_def.regions or op_def.successors:
             raise NotImplementedError(
                 "Operation definitions with attributes, regions, "
                 "or successors are not yet supported"
@@ -283,7 +286,7 @@ class AttrDictDirective(FormatDirective):
                 "Cannot print attributes and properties with the same name"
                 "in a signle dictionary"
             )
-        printer.print_op_attributes(op.attributes | op.properties)
+        printer.print_op_attributes(op.attributes | op.properties, reserved_attr_names=["operandSegmentSizes"])
         state.last_was_punctuation = False
         state.should_emit_space = False
 
