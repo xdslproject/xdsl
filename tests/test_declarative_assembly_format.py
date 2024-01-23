@@ -551,19 +551,19 @@ def test_eq_attr_inference():
     """Check that operands/results with a fixed type can be inferred."""
 
     @irdl_attr_definition
-    class UnitAttr(ParametrizedAttribute, TypeAttribute):
+    class UnitType(ParametrizedAttribute, TypeAttribute):
         name = "test.unit"
 
     @irdl_op_definition
     class OneOperandEqType(IRDLOperation):
         name = "test.one_operand_eq_type"
-        index = operand_def(UnitAttr())
-        res = result_def(UnitAttr())
+        index = operand_def(UnitType())
+        res = result_def(UnitType())
 
         assembly_format = "attr-dict $index"
 
     ctx = MLContext()
-    ctx.load_attr(UnitAttr)
+    ctx.load_attr(UnitType)
     ctx.load_op(OneOperandEqType)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
@@ -579,18 +579,18 @@ def test_all_of_attr_inference():
     """Check that AllOf still allows for inference."""
 
     @irdl_attr_definition
-    class UnitAttr(ParametrizedAttribute, TypeAttribute):
+    class UnitType(ParametrizedAttribute, TypeAttribute):
         name = "test.unit"
 
     @irdl_op_definition
     class OneOperandEqTypeAllOfNested(IRDLOperation):
         name = "test.one_operand_eq_type_all_of_nested"
-        index = operand_def(AllOf([AnyAttr(), EqAttrConstraint(UnitAttr())]))
+        index = operand_def(AllOf([AnyAttr(), EqAttrConstraint(UnitType())]))
 
         assembly_format = "attr-dict $index"
 
     ctx = MLContext()
-    ctx.load_attr(UnitAttr)
+    ctx.load_attr(UnitType)
     ctx.load_op(OneOperandEqTypeAllOfNested)
     ctx.load_dialect(Test)
     program = textwrap.dedent(
