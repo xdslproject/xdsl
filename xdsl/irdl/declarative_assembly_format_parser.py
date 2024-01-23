@@ -117,6 +117,21 @@ class FormatParser(BaseParser):
         elements: list[FormatDirective] = []
         while self._current_token.kind != Token.Kind.EOF:
             elements.append(self.parse_directive())
+            last = elements[-1]
+            if (
+                len(elements) >= 2
+                and isinstance(last, PunctuationDirective)
+                and last.punctuation == ","
+                and isinstance(
+                    elements[-2],
+                    VariadicOperandTypeDirective
+                    | VariadicResultTypeDirective
+                    | VariadicOperandVariable,
+                )
+            ):
+                self.raise_error(
+                    "A variadic directive cannot be followed by a comma litteral."
+                )
 
         seen_variables = self.resolve_types()
         self.verify_attr_dict()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import textwrap
+from collections.abc import Callable
 from io import StringIO
 from typing import Annotated, Generic, TypeVar
 
@@ -23,6 +24,8 @@ from xdsl.irdl import (
     EqAttrConstraint,
     IRDLOperation,
     ParameterDef,
+    VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -297,6 +300,30 @@ def test_punctuations_and_keywords(format: str, program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
+
+
+@pytest.mark.parametrize(
+    "variadic_def, format",
+    [
+        (var_operand_def, "$variadic `,` attr-dict"),
+        (var_operand_def, "type($variadic) `,` attr-dict"),
+        (var_result_def, "type($variadic) `,` attr-dict"),
+    ],
+)
+def test_variadic_comma_safeguard(
+    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic directive cannot be followed by a comma litteral.",
+    ):
+
+        @irdl_op_definition
+        class CommaSafeguardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.comma_safeguard"
+
+            variadic = variadic_def()
+            assembly_format = format
 
 
 ################################################################################
