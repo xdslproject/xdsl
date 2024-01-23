@@ -28,6 +28,7 @@ from xdsl.irdl import (
     opt_prop_def,
     result_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -434,7 +435,7 @@ def test_operands(format: str, program: str, generic_program: str):
     ],
 )
 def test_variadic_operand(format: str, program: str, generic_program: str):
-    """Test the parsing of operands"""
+    """Test the parsing of variadic operands"""
 
     @irdl_op_definition
     class VariadicOperandOp(IRDLOperation):
@@ -547,6 +548,44 @@ def test_results(format: str, program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(TwoResultOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "`:` type($res) attr-dict",
+            "%0 = test.variadic_result : i32",
+            '%0 = "test.variadic_result"() : () -> i32',
+        ),
+        (
+            "`:` type($res) attr-dict",
+            "%0, %1 = test.variadic_result : i32, i64",
+            '%0, %1 = "test.variadic_result"() : () -> (i32, i64)',
+        ),
+        (
+            "`:` type($res) attr-dict",
+            "%0, %1, %2 = test.variadic_result : i32, i64, i128",
+            '%0, %1, %2 = "test.variadic_result"() : () -> (i32, i64, i128)',
+        ),
+    ],
+)
+def test_variadic_result(format: str, program: str, generic_program: str):
+    """Test the parsing of variadic results"""
+
+    @irdl_op_definition
+    class VariadicResultOp(IRDLOperation):
+        name = "test.variadic_result"
+        res = var_result_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(VariadicResultOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)

@@ -124,7 +124,7 @@ class FormatProgram:
         # Infer result types that should be inferred
         self.resolve_result_types(state, op_def)
         result_types = state.result_types
-        assert isa(result_types, list[Attribute])
+        assert isa(result_types, list[Attribute | list[Attribute]])
 
         # Resolve all operands
         operands: Sequence[SSAValue | Sequence[SSAValue]] = []
@@ -213,9 +213,17 @@ class FormatProgram:
             zip(state.result_types, op_def.results, strict=True)
         ):
             if result_type is None:
+                result_type = result_def.constr.infer(state.constraint_variables)
                 state.result_types[i] = result_def.constr.infer(
                     state.constraint_variables
                 )
+                result_type = state.result_types[i]
+                if isinstance(result_type, Attribute):
+                    state.result_types[i] = result_type
+                elif isinstance(result_type, list):
+                    state.result_types[i] = cast(
+                        list[Attribute | None], [result_type]
+                    ) * len(result_type)
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """
@@ -308,8 +316,8 @@ class OperandVariable(FormatDirective):
 @dataclass(frozen=True)
 class VariadicOperandVariable(OperandVariable):
     """
-    An operand variable, with the following format:
-      operand-directive ::= percent-ident
+    A variadic operand variable, with the following format:
+      operand-directive ::= ( percent-ident ( `,` percent-id )* )?
     The directive will request a space to be printed after.
     """
 
@@ -355,8 +363,8 @@ class OperandTypeDirective(FormatDirective):
 @dataclass(frozen=True)
 class VariadicOperandTypeDirective(OperandTypeDirective):
     """
-    An operand variable, with the following format:
-      operand-directive ::= percent-ident
+    A variadic operand variable, with the following format:
+      operand-directive ::= ( percent-ident ( `,` percent-id )* )?
     The directive will request a space to be printed after.
     """
 
@@ -404,6 +412,28 @@ class ResultVariable(FormatDirective):
 
 
 @dataclass(frozen=True)
+class VariadicResultVariable(ResultVariable):
+    """
+    A variadic result variable, with the following format:
+      result-directive ::= percent-ident (( `,` percent-id )* )?
+    This directive can not be used for parsing and printing directly, as result
+    parsing is not handled by the custom operation parser.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        assert (
+            "Result variables cannot be used directly to parse/print in "
+            "declarative formats."
+        )
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        assert (
+            "Result variables cannot be used directly to parse/print in "
+            "declarative formats."
+        )
+
+
+@dataclass(frozen=True)
 class ResultTypeDirective(FormatDirective):
     """
     A result variable type directive, with the following format:
@@ -424,6 +454,30 @@ class ResultTypeDirective(FormatDirective):
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
         printer.print_attribute(op.results[self.index].type)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class VariadicResultTypeDirective(ResultTypeDirective):
+    """
+    A variadic result variable type directive, with the following format:
+      variadic-result-type-directive ::= ( percent-ident ( `,` percent-id )* )?
+    The directive will request a space to be printed after.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        result_types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_type
+        )
+        state.result_types[self.index] = cast(list[Attribute | None], result_types)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_list(
+            (r.type for r in getattr(op, self.name)), printer.print_attribute
+        )
         state.last_was_punctuation = False
         state.should_emit_space = True
 

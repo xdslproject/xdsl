@@ -25,6 +25,8 @@ from xdsl.irdl.declarative_assembly_format import (
     ResultVariable,
     VariadicOperandTypeDirective,
     VariadicOperandVariable,
+    VariadicResultTypeDirective,
+    VariadicResultVariable,
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -199,20 +201,20 @@ class FormatParser(BaseParser):
         variable_name = self.parse_identifier(" after '$'")
 
         # Check if the variable is an operand
-        for idx, (operand_name, op_def) in enumerate(self.op_def.operands):
+        for idx, (operand_name, operand_def) in enumerate(self.op_def.operands):
             if variable_name != operand_name:
                 continue
             if self.context == ParsingContext.TopLevel:
                 if self.seen_operands[idx]:
                     self.raise_error(f"operand '{variable_name}' is already bound")
                 self.seen_operands[idx] = True
-            if isinstance(op_def, VariadicDef):
+            if isinstance(operand_def, VariadicDef):
                 return VariadicOperandVariable(variable_name, idx)
             else:
                 return OperandVariable(variable_name, idx)
 
         # Check if the variable is a result
-        for idx, (result_name, _) in enumerate(self.op_def.results):
+        for idx, (result_name, result_def) in enumerate(self.op_def.results):
             if variable_name != result_name:
                 continue
             if self.context == ParsingContext.TopLevel:
@@ -220,7 +222,10 @@ class FormatParser(BaseParser):
                     "result variable cannot be in a toplevel directive. "
                     f"Consider using 'type({variable_name})' instead."
                 )
-            return ResultVariable(variable_name, idx)
+            if isinstance(result_def, VariadicDef):
+                return VariadicResultVariable(variable_name, idx)
+            else:
+                return ResultVariable(variable_name, idx)
 
         self.raise_error(
             "expected variable to refer to an operand, "
@@ -253,6 +258,11 @@ class FormatParser(BaseParser):
                     self.raise_error(f"type of '{name}' is already bound")
                 self.seen_operand_types[index] = True
                 res = OperandTypeDirective(name, index)
+            case VariadicResultVariable(name, index):
+                if self.seen_result_types[index]:
+                    self.raise_error(f"types of '{name}' is already bound")
+                self.seen_result_types[index] = True
+                res = VariadicResultTypeDirective(name, index)
             case ResultVariable(name, index):
                 if self.seen_result_types[index]:
                     self.raise_error(f"type of '{name}' is already bound")
