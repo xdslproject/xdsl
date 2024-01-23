@@ -116,6 +116,39 @@ class FormatProgram:
             stmt.parse(parser, state)
 
         # Get constraint variables from the parsed operand and result types
+        self.assign_constraint_variables(parser, state, op_def)
+
+        # Infer operand types that should be inferred
+        unresolved_operands = state.operands
+        assert isa(unresolved_operands, list[UnresolvedOperand])
+        self.resolve_operand_types(state, op_def)
+        operand_types = state.operand_types
+        assert isa(operand_types, list[Attribute])
+
+        # Infer result types that should be inferred
+        self.resolve_result_types(state, op_def)
+        result_types = state.result_types
+        assert isa(result_types, list[Attribute])
+
+        # Resolve all operands
+        operands = parser.resolve_operands(
+            unresolved_operands, operand_types, parser.pos
+        )
+        properties = op_def.split_properties(state.attributes)
+        return op_type.build(
+            result_types=result_types,
+            operands=operands,
+            attributes=state.attributes,
+            properties=properties,
+        )
+
+    def assign_constraint_variables(
+        self, parser: Parser, state: ParsingState, op_def: OpDef
+    ):
+        """
+        Assign constraint variables with values got from the
+        parsed operand and result types.
+        """
         if any(type is None for type in (*state.operand_types, *state.result_types)):
             try:
                 for (_, operand_def), operand_type in zip(
@@ -136,30 +169,6 @@ class FormatProgram:
                 parser.raise_error(
                     "Verification error while inferring operation type: " + str(e)
                 )
-
-        # Ensure that all operands and operand types are parsed
-        unresolved_operands = state.operands
-        assert isa(unresolved_operands, list[UnresolvedOperand])
-        self.resolve_operand_types(state, op_def)
-        operand_types = state.operand_types
-        assert isa(operand_types, list[Attribute])
-
-        # Ensure that all result types are parsed or resolved
-        self.resolve_result_types(state, op_def)
-        result_types = state.result_types
-        assert isa(state.result_types, list[Attribute])
-
-        # Resolve all operands
-        operands = parser.resolve_operands(
-            unresolved_operands, operand_types, parser.pos
-        )
-        properties = op_def.split_properties(state.attributes)
-        return op_type.build(
-            result_types=result_types,
-            operands=operands,
-            attributes=state.attributes,
-            properties=properties,
-        )
 
     def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """

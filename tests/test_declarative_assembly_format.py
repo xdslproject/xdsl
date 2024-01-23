@@ -507,7 +507,7 @@ def test_results(format: str, program: str, generic_program: str):
 
 
 ################################################################################
-# Inferrence                                                                   #
+# Inference                                                                   #
 ################################################################################
 
 _T = TypeVar("_T", bound=Attribute)
@@ -522,6 +522,8 @@ _T = TypeVar("_T", bound=Attribute)
     ],
 )
 def test_basic_inference(format: str):
+    """Check that we can infer the type of an operand when ConstraintVar are used."""
+
     @irdl_op_definition
     class TwoOperandsOneResultWithVarOp(IRDLOperation):
         T = Annotated[Attribute, ConstraintVar("T")]
@@ -546,6 +548,8 @@ def test_basic_inference(format: str):
 
 
 def test_eq_attr_inference():
+    """Check that operands/results with a fixed type can be inferred."""
+
     @irdl_attr_definition
     class UnitAttr(ParametrizedAttribute, TypeAttribute):
         name = "test.unit"
@@ -554,6 +558,7 @@ def test_eq_attr_inference():
     class OneOperandEqType(IRDLOperation):
         name = "test.one_operand_eq_type"
         index = operand_def(UnitAttr())
+        res = result_def(UnitAttr())
 
         assembly_format = "attr-dict $index"
 
@@ -564,12 +569,15 @@ def test_eq_attr_inference():
     program = textwrap.dedent(
         """\
     %0 = "test.op"() : () -> !test.unit
-    test.one_operand_eq_type %0"""
+    %1 = test.one_operand_eq_type %0
+    "test.op"(%1) : (!test.unit) -> ()"""
     )
     check_roundtrip(program, ctx)
 
 
 def test_all_of_attr_inference():
+    """Check that AllOf still allows for inference."""
+
     @irdl_attr_definition
     class UnitAttr(ParametrizedAttribute, TypeAttribute):
         name = "test.unit"
@@ -594,6 +602,8 @@ def test_all_of_attr_inference():
 
 
 def test_nested_inference():
+    """Check that Param<T> infers correctly T."""
+
     @irdl_attr_definition
     class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
         name = "test.param_one"
