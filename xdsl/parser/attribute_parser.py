@@ -1125,7 +1125,7 @@ class AttrParser(BaseParser):
             return IntegerAttr(1 if value else 0, IntegerType(1))
         return None
 
-    def try_parse_builtin_none_type(self) -> NoneType | None:
+    def _parse_optional_none_type(self) -> NoneType | None:
         """
         Parse a none type, if present
         none-type ::= `none`
@@ -1275,7 +1275,7 @@ class AttrParser(BaseParser):
 
     def _parse_optional_builtin_type(self) -> Attribute | None:
         """
-        parse a builtin-type, like i32, index, vector<i32>, if present.
+        parse a builtin-type, like i32, index, vector<i32>, none, if present.
         """
 
         # Check for a function type
@@ -1285,6 +1285,10 @@ class AttrParser(BaseParser):
         # Check for an integer or float type
         if (number_type := self._parse_optional_integer_or_float_type()) is not None:
             return number_type
+
+        # check for a none type
+        if (none_type := self._parse_optional_none_type()) is not None:
+            return none_type
 
         return self._parse_optional_builtin_parametrized_type()
 
