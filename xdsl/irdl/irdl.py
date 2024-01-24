@@ -334,7 +334,7 @@ class ParamAttrConstraint(AttrConstraint):
             param_constr.verify(attr.parameters[idx], constraint_vars)
 
     def get_resolved_variables(self) -> set[str]:
-        if len(self.param_constrs) == 0:
+        if not self.param_constrs:
             return set()
         return set[str].union(
             *[constr.get_resolved_variables() for constr in self.param_constrs]
