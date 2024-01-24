@@ -667,7 +667,7 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
-        # add none-type to printer
+
         if isinstance(attribute, NoneType):
             self.print("none")
             return
