@@ -289,6 +289,8 @@ class AddUIExtended(IRDLOperation):
     sum: OpResult = result_def(T)
     overflow: OpResult = result_def(Annotated[Attribute, boolLike])
 
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($sum) `,` type($overflow)"
+
     def __init__(
         self,
         operand1: Operation | SSAValue,
@@ -312,29 +314,6 @@ class AddUIExtended(IRDLOperation):
                 f"overflow type {self.overflow.type} does not "
                 f"match input types {self.lhs.type}. Expected {expected_overflow_type}"
             )
-
-    def print(self, printer: Printer):
-        printer.print(" ", self.lhs, ", ", self.rhs)
-        printer.print_op_attributes(self.attributes)
-        printer.print(" : ", self.lhs.type, ", ", self.overflow.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> AddUIExtended:
-        lhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        rhs = parser.parse_unresolved_operand()
-        attributes = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        sum_type = parser.parse_type()
-        parser.parse_punctuation(",")
-        overflow_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [sum_type], parser.pos)
-
-        return AddUIExtended.create(
-            operands=[lhs, rhs],
-            attributes=attributes,
-            result_types=[sum_type, overflow_type],
-        )
 
     @staticmethod
     def infer_overflow_type(input_type: Attribute) -> Attribute:

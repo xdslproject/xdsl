@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import textwrap
 from io import StringIO
+from typing import Annotated
 
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import Test
-from xdsl.ir import MLContext, Operation
-from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
+from xdsl.ir import Attribute, MLContext, Operation
+from xdsl.irdl import (
+    ConstraintVar,
+    IRDLOperation,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLOpDefinitionError
@@ -385,6 +393,37 @@ def test_operands_graph_region(format: str, program: str):
     ctx.load_op(TwoOperandsOp)
     ctx.load_dialect(Test)
 
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format",
+    [
+        "$lhs $rhs attr-dict `:` type($lhs)",
+        "$lhs $rhs attr-dict `:` type($rhs)",
+        "$lhs $rhs attr-dict `:` type($res)",
+    ],
+)
+def test_vasic_inference(format: str):
+    @irdl_op_definition
+    class TwoOperandsOneResultWithVarOp(IRDLOperation):
+        T = Annotated[Attribute, ConstraintVar("T")]
+
+        name = "test.two_operands_one_result_with_var"
+        res = result_def(T)
+        lhs = operand_def(T)
+        rhs = operand_def(T)
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandsOneResultWithVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0, %1 = "test.op"() : () -> (i32, i32)
+    %2 = test.two_operands_one_result_with_var %0 %1 : i32"""
+    )
     check_roundtrip(program, ctx)
 
 
