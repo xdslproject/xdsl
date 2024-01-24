@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Literal
 
 from xdsl.dialects import arith, builtin, llvm
 from xdsl.ir import Operation
@@ -28,6 +29,8 @@ def _get_flag_list(flags: list[str], enum_type: type[llvm.FastMathFlag]):
 
 @dataclass
 class AddArithFastMathFlags(RewritePattern):
+    """Adds fastmath flags to FP binary operations from arith dialect."""
+
     arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
     fastmath_op_attr: arith.FastMathFlagsAttr
 
@@ -40,22 +43,26 @@ class AddArithFastMathFlags(RewritePattern):
 
 @dataclass
 class AddArithFastMathFlagsPass(ModulePass):
+    """Module pass that adds fastmath flags to FP binary operations from arith dialect.
+    It currently does not preserve any existing fastmath flags that may already be part
+    of the operation.
+    By default (no arguments) it adds the "fast" flag.
+
+    Arguments (all optional):
+
+    - flags: {"fast", "none"} | list[str]: Set specific fastmath flags. Using "fast" or
+      "none" enables or disables all flags, respectively.
+    """
+
     name = "arith-add-fastmath"
 
-    flags: list[str] = field(default_factory=lambda: ["fast"])
+    flags: Literal["fast", "none"] | list[str] = "fast"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         fm_flags = arith.FastMathFlagsAttr("fast")
 
-        if len(self.flags) == 1:
-            if "none" in self.flags:
-                fm_flags = arith.FastMathFlagsAttr("none")
-            elif "fast" in self.flags:
-                fm_flags = arith.FastMathFlagsAttr("fast")
-            else:
-                fm_flags = arith.FastMathFlagsAttr(
-                    _get_flag_list(self.flags, llvm.FastMathFlag)
-                )
+        if isinstance(self.flags, str):
+            fm_flags = arith.FastMathFlagsAttr(self.flags)
         else:
             if "none" in self.flags or "fast" in self.flags:
                 raise ValueError(
