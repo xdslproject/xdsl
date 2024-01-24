@@ -342,7 +342,6 @@ i64 = IntegerType(64)
 i32 = IntegerType(32)
 i1 = IntegerType(1)
 
-
 SignlessIntegerConstraint = ParamAttrConstraint(
     IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
 )
@@ -616,6 +615,11 @@ class TupleType(ParametrizedAttribute):
         if isinstance(types, list):
             types = ArrayAttr(types)
         super().__init__([types])
+
+
+@irdl_attr_definition
+class NoneType(ParametrizedAttribute, TypeAttribute):
+    name = "none_type"
 
 
 @irdl_attr_definition
@@ -1471,7 +1475,6 @@ f64 = Float64Type()
 f80 = Float64Type()
 f128 = Float64Type()
 
-
 Builtin = Dialect(
     "builtin",
     [
@@ -1510,6 +1513,7 @@ Builtin = Dialect(
         TupleType,
         IntegerType,
         IndexType,
+        NoneType,
         VectorType,
         TensorType,
         UnrankedTensorType,
