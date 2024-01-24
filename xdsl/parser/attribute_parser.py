@@ -1130,8 +1130,10 @@ class AttrParser(BaseParser):
         Parse a none type, if present
         none-type ::= `none`
         """
-        if (value := self.parse_optional_type()) is not None:
-            return NoneType(value)
+        name = self._current_token.text
+        if name == "none":
+            self._consume_token()
+            return NoneType()
         return None
 
     def _parse_optional_string_attr(self) -> StringAttr | None:
