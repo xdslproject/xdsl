@@ -43,10 +43,10 @@ class ParsingState:
     constraint_variables: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):
-        attributes = bool(op_def.attributes) and list(op_def.attributes.keys()) != [
+        has_attributes = bool(op_def.attributes) and list(op_def.attributes.keys()) != [
             "operandSegmentSizes"
         ]
-        if attributes or op_def.regions or op_def.successors:
+        if has_attributes or op_def.regions or op_def.successors:
             raise NotImplementedError(
                 "Operation definitions with attributes, regions, "
                 "or successors are not yet supported"
@@ -131,7 +131,7 @@ class FormatProgram:
 
         # Resolve all operands
         operands: Sequence[SSAValue | Sequence[SSAValue]] = []
-        for uo, ot in zip(unresolved_operands, operand_types):
+        for uo, ot in zip(unresolved_operands, operand_types, strict=True):
             if isinstance(uo, list):
                 assert isinstance(
                     ot, list
