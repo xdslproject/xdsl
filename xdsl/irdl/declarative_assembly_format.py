@@ -152,14 +152,14 @@ class FormatProgram:
         if any(type is None for type in (*state.operand_types, *state.result_types)):
             try:
                 for (_, operand_def), operand_type in zip(
-                    op_def.operands, state.operand_types
+                    op_def.operands, state.operand_types, strict=True
                 ):
                     if operand_type is not None:
                         operand_def.constr.verify(
                             operand_type, state.constraint_variables
                         )
                 for (_, result_def), result_type in zip(
-                    op_def.results, state.result_types
+                    op_def.results, state.result_types, strict=True
                 ):
                     if result_type is not None:
                         result_def.constr.verify(
@@ -176,7 +176,7 @@ class FormatProgram:
         types.
         """
         for i, (operand_type, (_, operand_def)) in enumerate(
-            zip(state.operand_types, op_def.operands)
+            zip(state.operand_types, op_def.operands, strict=True)
         ):
             if operand_type is None:
                 state.operand_types[i] = operand_def.constr.infer(
@@ -189,7 +189,7 @@ class FormatProgram:
         types.
         """
         for i, (result_type, (_, result_def)) in enumerate(
-            zip(state.result_types, op_def.results)
+            zip(state.result_types, op_def.results, strict=True)
         ):
             if result_type is None:
                 state.result_types[i] = result_def.constr.infer(
