@@ -336,9 +336,11 @@ class ParamAttrConstraint(AttrConstraint):
     def get_resolved_variables(self) -> set[str]:
         if not self.param_constrs:
             return set()
-        return set[str].union(
-            *[constr.get_resolved_variables() for constr in self.param_constrs]
-        )
+        return {
+            var
+            for constr in self.param_constrs
+            for var in constr.get_resolved_variables()
+        }
 
 
 def _irdl_list_to_attr_constraint(
