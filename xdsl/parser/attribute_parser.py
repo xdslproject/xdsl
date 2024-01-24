@@ -38,6 +38,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     LocationAttr,
     NoneAttr,
+    NoneType,
     OpaqueAttr,
     RankedVectorOrTensorOf,
     Signedness,
@@ -1122,6 +1123,16 @@ class AttrParser(BaseParser):
     ) -> IntegerAttr[IntegerType | IndexType] | None:
         if (value := self.parse_optional_boolean()) is not None:
             return IntegerAttr(1 if value else 0, IntegerType(1))
+        return None
+
+    def try_parse_builtin_none_type(self) -> NoneType | None:
+        """
+        Parse a none type
+        none-type ::= `none`
+
+        """
+        if (value := self.parse_optional_type()) is not None:
+            return NoneType(value)
         return None
 
     def _parse_optional_string_attr(self) -> StringAttr | None:
