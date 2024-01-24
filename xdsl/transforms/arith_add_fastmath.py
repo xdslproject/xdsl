@@ -1,3 +1,5 @@
+"""Passes to manipulate fastmath flags in FP arith operations."""
+
 from dataclasses import dataclass
 from typing import Literal
 
