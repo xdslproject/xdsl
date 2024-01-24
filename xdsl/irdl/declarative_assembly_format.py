@@ -234,6 +234,11 @@ class AttrDictDirective(FormatDirective):
             return
         if self.with_keyword:
             printer.print(" attributes")
+        if any(name in op.attributes for name in op.properties):
+            raise ValueError(
+                "Cannot print attributes and properties with the same name"
+                "in a signle dictionary"
+            )
         printer.print_op_attributes(op.attributes | op.properties)
         state.last_was_punctuation = False
         state.should_emit_space = False
