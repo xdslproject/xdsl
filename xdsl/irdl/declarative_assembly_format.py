@@ -230,7 +230,6 @@ class AttrDictDirective(FormatDirective):
         state.attributes = res
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        # assert False, (op.attributes | op.properties, op)
         if not op.attributes and not op.properties:
             return
         if self.with_keyword:
