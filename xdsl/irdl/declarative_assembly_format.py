@@ -7,15 +7,24 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal
 
 from xdsl.ir import Attribute
-from xdsl.irdl import IRDLOperation, IRDLOperationInvT, OpDef, VariadicDef
+from xdsl.irdl import (
+    IRDLOperation,
+    IRDLOperationInvT,
+    OpDef,
+    VariadicDef,
+    VarIRConstruct,
+)
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Token
+
+OperandOrResult = Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT]
 
 
 @dataclass
@@ -77,6 +86,12 @@ class FormatProgram:
     stmts: list[FormatDirective]
     """The list of statements composing the program. They are executed in order."""
 
+    type_resolutions: dict[
+        tuple[OperandOrResult, int],
+        tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
+    ]
+    """A mapping describing how to resolve unparsed operand and result types."""
+
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
         """
@@ -104,10 +119,12 @@ class FormatProgram:
         # Ensure that all operands and operand types are parsed
         unresolved_operands = state.operands
         assert isa(unresolved_operands, list[UnresolvedOperand])
+        self.resolve_operand_types(state)
         operand_types = state.operand_types
         assert isa(operand_types, list[Attribute])
 
-        # Ensure that all result types are parsed
+        # Ensure that all result types are parsed or resolved
+        self.resolve_result_types(state)
         result_types = state.result_types
         assert isa(state.result_types, list[Attribute])
 
@@ -118,6 +135,44 @@ class FormatProgram:
         return op_type.build(
             result_types=result_types, operands=operands, attributes=state.attributes
         )
+
+    def resolve_operand_types(self, state: ParsingState) -> None:
+        """
+        Use the inferred type resolutions to fill missing operand types from other parsed
+        types.
+        """
+        for i, operand_type in enumerate(state.operand_types):
+            if operand_type is None:
+                state.operand_types[i] = self._resolve_type(
+                    state, VarIRConstruct.OPERAND, i
+                )
+
+    def resolve_result_types(self, state: ParsingState) -> None:
+        """
+        Use the inferred type resolutions to fill missing result types from other parsed
+        types.
+        """
+        for i, result_type in enumerate(state.result_types):
+            if result_type is None:
+                state.result_types[i] = self._resolve_type(
+                    state, VarIRConstruct.RESULT, i
+                )
+
+    def _resolve_type(
+        self, state: ParsingState, construct: OperandOrResult, index: int
+    ):
+        """
+        Helper function resolving a specific operand or result type from the inferred
+        resolution map.
+        """
+        resolve, construct, idx = self.type_resolutions[construct, index]
+        match construct:
+            case VarIRConstruct.OPERAND:
+                input_type = state.operand_types[idx]
+            case VarIRConstruct.RESULT:
+                input_type = state.result_types[idx]
+        assert input_type is not None
+        return resolve(input_type)
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """

@@ -1,6 +1,7 @@
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from contextlib import redirect_stdout
 from importlib.metadata import version
 from io import StringIO
 from typing import IO
@@ -197,14 +198,14 @@ class xDSLOptMain(CommandLineTool):
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
             try:
-                from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
+                from xdsl.interpreters.riscv_emulator import run_riscv
             except ImportError:
                 print("Please install optional dependencies to run riscv emulation")
                 return
 
             code = riscv_code(prog)
-            RV_Debug.stream = output
-            run_riscv(code, unlimited_regs=True, verbosity=0)
+            with redirect_stdout(output):
+                run_riscv(code, unlimited_regs=True, verbosity=0)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
