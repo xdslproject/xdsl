@@ -1127,9 +1127,8 @@ class AttrParser(BaseParser):
 
     def try_parse_builtin_none_type(self) -> NoneType | None:
         """
-        Parse a none type
+        Parse a none type, if present
         none-type ::= `none`
-
         """
         if (value := self.parse_optional_type()) is not None:
             return NoneType(value)
