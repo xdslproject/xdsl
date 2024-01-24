@@ -1,5 +1,5 @@
 from itertools import product
-from typing import Any
+from typing import Any, cast
 
 from xdsl.dialects import linalg
 from xdsl.interpreter import (
@@ -20,10 +20,6 @@ class LinalgFunctions(InterpreterFunctions):
     def run_generic(
         self, interpreter: Interpreter, op: linalg.Generic, args: tuple[Any, ...]
     ) -> PythonValues:
-        if not all(it.data == linalg.IteratorType.PARALLEL for it in op.iterator_types):
-            raise NotImplementedError(
-                'Only "parallel" iterator types supported in linalg.generic interpreter'
-            )
         if op.library_call is not None:
             raise NotImplementedError(
                 "library_call not yet supported in linalg.generic interpreter"
@@ -35,19 +31,19 @@ class LinalgFunctions(InterpreterFunctions):
 
         inputs_count = len(op.inputs)
 
-        inputs: tuple[ShapedArray[float], ...] = args[:inputs_count]
         outputs: tuple[ShapedArray[float], ...] = args[inputs_count:]
 
         indexing_maps = op.get_indexing_maps()
-        input_indexing_maps = indexing_maps[:inputs_count]
         output_indexing_maps = indexing_maps[inputs_count:]
 
         loop_ranges = op.get_static_loop_ranges()
 
         for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
             loop_args = tuple(
-                i.load(index) if (index := indexing_map.eval(indices, ())) else i
-                for i, indexing_map in zip(inputs, input_indexing_maps, strict=True)
+                (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
+                if isinstance(i, ShapedArray)
+                else i
+                for i, indexing_map in zip(args, indexing_maps, strict=True)
             )
             loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
             for res, indexing_map in zip(
