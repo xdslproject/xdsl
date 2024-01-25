@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import textwrap
+from collections.abc import Callable
 from io import StringIO
 from typing import Annotated, Generic, TypeVar
 
@@ -18,15 +19,20 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AttrSizedOperandSegments,
     ConstraintVar,
     EqAttrConstraint,
     IRDLOperation,
     ParameterDef,
+    VarOperand,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
     result_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -67,7 +73,10 @@ def check_equivalence(program1: str, program2: str, ctx: MLContext):
     while (op := parser.parse_optional_operation()) is not None:
         ops2.append(op)
 
-    assert ModuleOp(ops1).is_structurally_equivalent(ModuleOp(ops2))
+    mod1 = ModuleOp(ops1)
+    mod2 = ModuleOp(ops2)
+
+    assert mod1.is_structurally_equivalent(mod2), str(mod1) + "\n!=\n" + str(mod2)
 
 
 ################################################################################
@@ -293,6 +302,30 @@ def test_punctuations_and_keywords(format: str, program: str):
     check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
 
 
+@pytest.mark.parametrize(
+    "variadic_def, format",
+    [
+        (var_operand_def, "$variadic `,` attr-dict"),
+        (var_operand_def, "type($variadic) `,` attr-dict"),
+        (var_result_def, "type($variadic) `,` attr-dict"),
+    ],
+)
+def test_variadic_comma_safeguard(
+    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic directive cannot be followed by a comma literal.",
+    ):
+
+        @irdl_op_definition
+        class CommaSafeguardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.comma_safeguard"
+
+            variadic = variadic_def()
+            assembly_format = format
+
+
 ################################################################################
 # Variables                                                                    #
 ################################################################################
@@ -405,6 +438,95 @@ def test_operands(format: str, program: str, generic_program: str):
 
 
 @pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "$args type($args) attr-dict",
+            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand %0 i32",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.variadic_operand"(%0) : (i32) -> ()',
+        ),
+        (
+            "$args type($args) attr-dict",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.variadic_operand %0, %1 i32, i64",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.variadic_operand"(%0, %1) : (i32, i64) -> ()',
+        ),
+        (
+            "$args `:` type($args) attr-dict",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            "test.variadic_operand %0, %1, %2 : i32, i64, i128",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            '"test.variadic_operand"(%0, %1, %2) : (i32, i64, i128) -> ()',
+        ),
+    ],
+)
+def test_variadic_operand(format: str, program: str, generic_program: str):
+    """Test the parsing of variadic operands"""
+
+    @irdl_op_definition
+    class VariadicOperandOp(IRDLOperation):
+        name = "test.variadic_operand"
+        args = var_operand_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(VariadicOperandOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\n'
+            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
+        ),
+        (
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.variadic_operands(%0, %1 : i32, i64) [%1, %0 : i64, i32]",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.variadic_operands"(%0, %1, %1, %0) {operandSegmentSizes = array<i32:2,2>} : (i32, i64, i64, i32) -> ()',
+        ),
+        (
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            "test.variadic_operands(%0, %1, %2 : i32, i64, i128) [%2, %1, %0 : i128, i64, i32]",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            '"test.variadic_operands"(%0, %1, %2, %2, %1, %0) {operandSegmentSizes = array<i32:3,3>} : (i32, i64, i128, i128, i64, i32) -> ()',
+        ),
+    ],
+)
+def test_multiple_variadic_operands(program: str, generic_program: str):
+    """Test the parsing of variadic operands"""
+
+    @irdl_op_definition
+    class VariadicOperandsOp(IRDLOperation):
+        name = "test.variadic_operands"
+        args1 = var_operand_def()
+        args2 = var_operand_def()
+
+        irdl_options = [AttrSizedOperandSegments()]
+
+        assembly_format = (
+            "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
+        )
+
+    ctx = MLContext()
+    ctx.load_op(VariadicOperandsOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
     "format, program",
     [
         (
@@ -500,6 +622,44 @@ def test_results(format: str, program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(TwoResultOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "`:` type($res) attr-dict",
+            "%0 = test.variadic_result : i32",
+            '%0 = "test.variadic_result"() : () -> i32',
+        ),
+        (
+            "`:` type($res) attr-dict",
+            "%0, %1 = test.variadic_result : i32, i64",
+            '%0, %1 = "test.variadic_result"() : () -> (i32, i64)',
+        ),
+        (
+            "`:` type($res) attr-dict",
+            "%0, %1, %2 = test.variadic_result : i32, i64, i128",
+            '%0, %1, %2 = "test.variadic_result"() : () -> (i32, i64, i128)',
+        ),
+    ],
+)
+def test_variadic_result(format: str, program: str, generic_program: str):
+    """Test the parsing of variadic results"""
+
+    @irdl_op_definition
+    class VariadicResultOp(IRDLOperation):
+        name = "test.variadic_result"
+        res = var_result_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(VariadicResultOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
