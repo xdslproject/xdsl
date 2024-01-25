@@ -286,7 +286,9 @@ class AttrDictDirective(FormatDirective):
                 "Cannot print attributes and properties with the same name"
                 "in a signle dictionary"
             )
-        printer.print_op_attributes(op.attributes | op.properties, reserved_attr_names=["operandSegmentSizes"])
+        printer.print_op_attributes(
+            op.attributes | op.properties, reserved_attr_names=["operandSegmentSizes"]
+        )
         state.last_was_punctuation = False
         state.should_emit_space = False
 
