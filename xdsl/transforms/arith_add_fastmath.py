@@ -4,13 +4,13 @@ from dataclasses import dataclass
 from typing import Literal
 
 from xdsl.dialects import arith, builtin, llvm
-from xdsl.ir import Operation
 from xdsl.passes import MLContext, ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
+    op_type_rewrite_pattern,
 )
 
 _FASTMATH_NAMES_TO_ENUM = {str(member.value): member for member in llvm.FastMathFlag}
@@ -27,13 +27,19 @@ def _get_flag_list(flags: list[str]):
 class AddArithFastMathFlags(RewritePattern):
     """Adds fastmath flags to FP binary operations from arith dialect."""
 
-    arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
     fastmath_op_attr: arith.FastMathFlagsAttr
 
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
-        if not isinstance(op, self.arith_op_cls):
-            return
-
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self,
+        op: arith.Addf
+        | arith.Subf
+        | arith.Mulf
+        | arith.Divf
+        | arith.Minimumf
+        | arith.Maximumf,
+        rewriter: PatternRewriter,
+    ) -> None:
         op.fastmath = self.fastmath_op_attr
 
 
@@ -70,12 +76,7 @@ class AddArithFastMathFlagsPass(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    AddArithFastMathFlags(arith.Addf, fm_flags),
-                    AddArithFastMathFlags(arith.Subf, fm_flags),
-                    AddArithFastMathFlags(arith.Mulf, fm_flags),
-                    AddArithFastMathFlags(arith.Divf, fm_flags),
-                    AddArithFastMathFlags(arith.Minimumf, fm_flags),
-                    AddArithFastMathFlags(arith.Maximumf, fm_flags),
+                    AddArithFastMathFlags(fm_flags),
                 ]
             ),
             apply_recursively=False,
