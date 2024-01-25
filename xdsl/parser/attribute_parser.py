@@ -37,6 +37,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
+    MemRefType,
     NoneAttr,
     OpaqueAttr,
     RankedVectorOrTensorOf,
@@ -46,12 +47,12 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
+    UnrankedMemrefType,
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
     i64,
 )
-from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.parser.base_parser import BaseParser

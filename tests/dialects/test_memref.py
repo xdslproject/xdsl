@@ -8,7 +8,9 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerType,
+    MemRefType,
     StridedLayoutAttr,
+    UnrankedMemrefType,
     i32,
     i64,
 )
@@ -23,10 +25,8 @@ from xdsl.dialects.memref import (
     ExtractAlignedPointerAsIndexOp,
     Load,
     MemorySpaceCast,
-    MemRefType,
     Store,
     Subview,
-    UnrankedMemrefType,
 )
 from xdsl.ir import Attribute, BlockArgument, OpResult
 from xdsl.utils.exceptions import VerifyException

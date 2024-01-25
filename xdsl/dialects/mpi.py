@@ -6,8 +6,14 @@ from enum import Enum
 from typing import Generic, TypeVar
 
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import AnyFloat, IntegerType, Signedness, StringAttr, i32
-from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    IntegerType,
+    MemRefType,
+    Signedness,
+    StringAttr,
+    i32,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,

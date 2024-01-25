@@ -3,12 +3,12 @@ import pytest
 from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
+    MemRefType,
     VectorType,
     i1,
     i32,
     i64,
 )
-from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.vector import (
     FMA,
     Broadcast,
