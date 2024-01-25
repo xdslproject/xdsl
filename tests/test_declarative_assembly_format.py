@@ -14,6 +14,7 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     result_def,
 )
 from xdsl.parser import Parser
@@ -195,6 +196,30 @@ def test_attr_dict(program: str, generic_program: str):
     ctx = MLContext()
     ctx.load_op(AttrDictOp)
     ctx.load_op(AttrDictWithKeywordOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ('test.prop {"prop" = true}', '"test.prop"() <{"prop" = true}> : () -> ()'),
+        (
+            'test.prop {"a" = 2 : i32, "prop" = true}',
+            '"test.prop"() <{"prop" = true}> {"a" = 2 : i32} : () -> ()',
+        ),
+    ],
+)
+def test_attr_dict_prop_fallack(program: str, generic_program: str):
+    @irdl_op_definition
+    class PropOp(IRDLOperation):
+        name = "test.prop"
+        prop = opt_prop_def(Attribute)
+        assembly_format = "attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(PropOp)
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)

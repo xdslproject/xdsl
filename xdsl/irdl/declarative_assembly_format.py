@@ -39,9 +39,10 @@ class ParsingState:
     operand_types: list[Attribute | None]
     result_types: list[Attribute | None]
     attributes: dict[str, Attribute]
+    properties: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):
-        if op_def.attributes or op_def.regions or op_def.successors:
+        if op_def.regions or op_def.successors:
             raise NotImplementedError(
                 "Operation definitions with attributes, regions, "
                 "or successors are not yet supported"
@@ -56,6 +57,7 @@ class ParsingState:
         self.operand_types = [None] * len(op_def.operands)
         self.result_types = [None] * len(op_def.results)
         self.attributes = {}
+        self.properties = {}
 
 
 @dataclass
@@ -112,7 +114,8 @@ class FormatProgram:
         FormatProgram.
         """
         # Parse elements one by one
-        state = ParsingState(op_type.get_irdl_definition())
+        op_def = op_type.get_irdl_definition()
+        state = ParsingState(op_def)
         for stmt in self.stmts:
             stmt.parse(parser, state)
 
@@ -132,8 +135,12 @@ class FormatProgram:
         operands = parser.resolve_operands(
             unresolved_operands, operand_types, parser.pos
         )
+        properties = op_def.split_properties(state.attributes)
         return op_type.build(
-            result_types=result_types, operands=operands, attributes=state.attributes
+            result_types=result_types,
+            operands=operands,
+            attributes=state.attributes,
+            properties=properties,
         )
 
     def resolve_operand_types(self, state: ParsingState) -> None:
@@ -223,11 +230,16 @@ class AttrDictDirective(FormatDirective):
         state.attributes = res
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if not op.attributes:
+        if not op.attributes and not op.properties:
             return
         if self.with_keyword:
             printer.print(" attributes")
-        printer.print_op_attributes(op.attributes)
+        if any(name in op.attributes for name in op.properties):
+            raise ValueError(
+                "Cannot print attributes and properties with the same name"
+                "in a signle dictionary"
+            )
+        printer.print_op_attributes(op.attributes | op.properties)
         state.last_was_punctuation = False
         state.should_emit_space = False
 
