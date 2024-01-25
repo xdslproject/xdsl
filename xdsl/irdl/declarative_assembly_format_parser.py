@@ -142,7 +142,12 @@ class FormatParser(BaseParser):
             seen_operand,
             seen_operand_type,
             (operand_name, operand_def),
-        ) in zip(self.seen_operands, self.seen_operand_types, self.op_def.operands):
+        ) in zip(
+            self.seen_operands,
+            self.seen_operand_types,
+            self.op_def.operands,
+            strict=True,
+        ):
             if not seen_operand:
                 self.raise_error(
                     f"operand '{operand_name}' "
@@ -162,7 +167,7 @@ class FormatParser(BaseParser):
         from another construct."""
 
         for result_type, (result_name, result_def) in zip(
-            self.seen_result_types, self.op_def.results
+            self.seen_result_types, self.op_def.results, strict=True
         ):
             if not result_type:
                 if not result_def.constr.can_infer(seen_variables):
