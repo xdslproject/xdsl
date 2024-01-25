@@ -130,7 +130,7 @@ class FormatParser(BaseParser):
                 )
             ):
                 self.raise_error(
-                    "A variadic directive cannot be followed by a comma litteral."
+                    "A variadic directive cannot be followed by a comma literal."
                 )
 
         seen_variables = self.resolve_types()
