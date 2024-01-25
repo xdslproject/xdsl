@@ -33,6 +33,8 @@
     %x14 = "arith.constant"() {"value" = 0 : i64, "test" = @foo::@bar::@baz} : () -> i64
     // CHECK:  "test" = loc(unknown)
     %x15 = "arith.constant"() {"value" = 0 : i64, "test" = loc(unknown)} : () -> i64
+    // CHECK:  "test" = none
+    %x16 = "arith.constant"() {"value" = 0 : i64, "test" = none} : () -> i64
     "func.return"() : () -> ()
   }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
   "test.op"() {"value"= {"one"=1 : i64, "two"=2 : i64, "three"="three"}} : () -> ()

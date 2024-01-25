@@ -618,6 +618,10 @@ class Printer:
             self.print("index")
             return
 
+        if isinstance(attribute, NoneType):
+            self.print("none")
+            return
+
         if isinstance(attribute, OpaqueAttr):
             self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
             if not isinstance(attribute.type, NoneAttr):
@@ -667,10 +671,6 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
-
-        if isinstance(attribute, NoneType):
-            self.print("none")
-            return
 
         return
 
