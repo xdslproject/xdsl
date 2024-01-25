@@ -276,6 +276,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return canonicalize_dmp.CanonicalizeDmpPass
 
+    def get_convert_linalg_to_loops():
+        from xdsl.transforms import convert_linalg_to_loops
+
+        return convert_linalg_to_loops.ConvertLinalgToLoopsPass
+
     def get_convert_scf_to_openmp():
         from xdsl.transforms import convert_scf_to_openmp
 
@@ -460,6 +465,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "constant-fold-interp": get_constant_fold_interp,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
+        "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
