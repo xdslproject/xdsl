@@ -39,6 +39,7 @@ from xdsl.dialects.builtin import (
     LocationAttr,
     MemRefType,
     NoneAttr,
+    NoneType,
     OpaqueAttr,
     RankedVectorOrTensorOf,
     Signedness,
@@ -1125,6 +1126,15 @@ class AttrParser(BaseParser):
             return IntegerAttr(1 if value else 0, IntegerType(1))
         return None
 
+    def _parse_optional_none_type(self) -> NoneType | None:
+        """
+        Parse a none type, if present
+        none-type ::= `none`
+        """
+        if self.parse_optional_keyword("none"):
+            return NoneType()
+        return None
+
     def _parse_optional_string_attr(self) -> StringAttr | None:
         """
         Parse a string attribute, if present.
@@ -1264,7 +1274,7 @@ class AttrParser(BaseParser):
 
     def _parse_optional_builtin_type(self) -> Attribute | None:
         """
-        parse a builtin-type, like i32, index, vector<i32>, if present.
+        parse a builtin-type, like i32, index, vector<i32>, none, if present.
         """
 
         # Check for a function type
@@ -1274,6 +1284,10 @@ class AttrParser(BaseParser):
         # Check for an integer or float type
         if (number_type := self._parse_optional_integer_or_float_type()) is not None:
             return number_type
+
+        # check for a none type
+        if (none_type := self._parse_optional_none_type()) is not None:
+            return none_type
 
         return self._parse_optional_builtin_parametrized_type()
 

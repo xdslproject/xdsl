@@ -1480,6 +1480,11 @@ _UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit", bound=Att
 
 
 @irdl_attr_definition
+class NoneType(ParametrizedAttribute, TypeAttribute):
+    name = "none_type"
+
+
+@irdl_attr_definition
 class MemRefType(
     Generic[_MemRefTypeElement],
     ParametrizedAttribute,
@@ -1627,6 +1632,7 @@ Builtin = Dialect(
         TupleType,
         IntegerType,
         IndexType,
+        NoneType,
         VectorType,
         TensorType,
         UnrankedTensorType,
