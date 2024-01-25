@@ -4,7 +4,7 @@ from functools import singledispatchmethod
 from typing import IO, cast
 
 from xdsl.dialects import arith, builtin, gpu, memref
-from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.builtin import MemRefType
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.utils.hints import isa
 

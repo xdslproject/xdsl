@@ -387,9 +387,42 @@ class Reshape(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class Abs(IRDLOperation):
+    """
+    Absolute takes one input data (Tensor) and produces one output data (Tensor) where absolute value,
+    y = abs(x), is applied to the tensor elementwise.
+    """
+
+    name = "onnx.Abs"
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    operand = operand_def(TensorType[T])
+    res = result_def(TensorType[T])
+    assembly_format = (
+        "`(` $operand`)` attr-dict `:` `(` type($operand) `)` `->` type($res)"
+    )
+
+    def __init__(self, operand: SSAValue):
+        super().__init__(
+            operands=[operand],
+            result_types=[operand.type],
+        )
+
+    def verify_(self) -> None:
+        assert isinstance(operand_type := self.operand.type, TensorType)
+        assert isinstance(res_type := self.res.type, TensorType)
+        operand_type = cast(TensorType[Attribute], operand_type)
+        res_type = cast(TensorType[Attribute], res_type)
+        if operand_type != res_type:
+            raise VerifyException(
+                "Mismatch between operand type and res type of onnx.Abs"
+            )
+
+
 ONNX = Dialect(
     "onnx",
     [
+        Abs,
         Add,
         Div,
         Gemm,

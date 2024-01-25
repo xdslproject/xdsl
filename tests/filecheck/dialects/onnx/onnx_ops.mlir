@@ -9,6 +9,7 @@
 %t12, %t13, %t14 = "test.op"(): () -> (tensor<5x3xf32>, tensor<3x2xf32>, tensor<5x2xf32>)
 %t15,%t16 = "test.op"(): () -> (tensor<48x256x64xf32>, tensor<3xi64>)
 %t17,%t18 = "test.op"(): () -> (tensor<0x1x2x3x4x5xf32>, tensor<6xi64>)
+%t19 = "test.op"(): () -> (tensor<10x10xf32>)
 
 
 %res_add = "onnx.Add"(%t0, %t1) {onnx_node_name = "/Add"} : (tensor<1x2x6xf32>, tensor<1x2x6xf32>) -> tensor<1x2x6xf32>
@@ -37,3 +38,6 @@
 
 %res_reshape_2 = "onnx.Reshape"(%t17, %t18) {onnx_node_name = "/Reshape"}: (tensor<0x1x2x3x4x5xf32>, tensor<6xi64>) -> tensor<0x1x2x3x4x5xf32>
 //CHECK: %res_reshape_2 = onnx.Reshape(%t17, %t18) {"onnx_node_name" = "/Reshape"}: (tensor<0x1x2x3x4x5xf32>, tensor<6xi64>) -> tensor<0x1x2x3x4x5xf32>
+
+%res_abs = "onnx.Abs"(%t19) {onnx_node_name = "/Abs"}: (tensor<10x10xf32>) -> tensor<10x10xf32>
+// CHECK: %res_abs = onnx.Abs(%t19) {"onnx_node_name" = "/Abs"}: (tensor<10x10xf32>) -> tensor<10x10xf32>

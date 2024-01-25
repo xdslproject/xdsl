@@ -190,3 +190,16 @@ builtin.module {
 
 }
 
+// -----
+
+builtin.module {
+    %t0 = "test.op"() : () -> (tensor<3x3xf32>)
+
+    //CHECK: Operation does not verify: Mismatch between operand type and res type of onnx.Abs
+    %res_abs = "onnx.Abs"(%t0) {onnx_node_name = "/Abs"}: (tensor<3x3xf32>) -> tensor<2x3xf32>
+
+}
+
+
+
+
