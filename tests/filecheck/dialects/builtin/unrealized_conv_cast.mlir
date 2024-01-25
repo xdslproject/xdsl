@@ -17,6 +17,8 @@
     %5 = "builtin.unrealized_conversion_cast"(%0, %0) : (i64, i64) -> f32
     // CHECK: %6, %7 = builtin.unrealized_conversion_cast %5 : f32 to i64, i64
     %6, %7 = "builtin.unrealized_conversion_cast"(%5) : (f32) -> (i64, i64)
+    // CHECK: %8 = builtin.unrealized_conversion_cast to none  {"comment" = "test"}
+    %8 = "builtin.unrealized_conversion_cast"() {"comment" = "test"} : () -> none
     "func.return"() : () -> ()
   }) {"function_type" = () -> (), "sym_name" = "builtin"} : () -> ()
 }) : () -> ()
