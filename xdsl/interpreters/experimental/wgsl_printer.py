@@ -65,7 +65,7 @@ class WGSLPrinter:
             f"""
     @compute
     @workgroup_size({",".join(str(i) for i in workgroup_size)})
-    fn {op.sym_name.data}(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
+    fn {op.sym_name.string_value}(@builtin(global_invocation_id) global_invocation_id : vec3<u32>,
     @builtin(workgroup_id) workgroup_id : vec3<u32>,
     @builtin(local_invocation_id) local_invocation_id : vec3<u32>,
     @builtin(num_workgroups) num_workgroups : vec3<u32>) {{

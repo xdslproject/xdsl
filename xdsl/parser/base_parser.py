@@ -379,7 +379,7 @@ class BaseParser:
             "integer or float literal expected" + context_msg,
         )
 
-    def parse_optional_str_literal(self) -> str | None:
+    def parse_optional_str_literal(self) -> bytes | None:
         """
         Parse a string literal with the format `"..."`, if present.
 
@@ -401,7 +401,7 @@ class BaseParser:
         return self.expect(
             self.parse_optional_str_literal,
             "string literal expected" + context_msg,
-        )
+        ).decode()
 
     def parse_optional_identifier(self) -> str | None:
         """

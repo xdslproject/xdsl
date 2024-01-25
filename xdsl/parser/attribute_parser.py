@@ -175,6 +175,9 @@ class AttrParser(BaseParser):
                 "Expected bare-id or string-literal here as part of attribute entry!"
             )
 
+        if isinstance(name, bytes):
+            name = name.decode()
+
         if self.parse_optional_punctuation("=") is None:
             return name, UnitAttr()
 
@@ -531,7 +534,7 @@ class AttrParser(BaseParser):
         # We only accept strided layouts and affine_maps
         if isa(memory_or_layout, StridedLayoutAttr) or (
             isinstance(memory_or_layout, UnregisteredAttr)
-            and memory_or_layout.attr_name.data == "affine_map"
+            and memory_or_layout.attr_name.string_value == "affine_map"
         ):
             return MemRefType(type, shape, layout=memory_or_layout)
         self.raise_error(
@@ -783,7 +786,7 @@ class AttrParser(BaseParser):
             dense_contents = None
         else:
             if (hex_string := self.parse_optional_str_literal()) is not None:
-                dense_contents, shape = hex_string, None
+                dense_contents, shape = hex_string.decode(), None
             else:
                 # Expect a tensor literal instead
                 dense_contents = self._parse_tensor_literal()

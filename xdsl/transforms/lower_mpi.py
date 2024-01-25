@@ -225,8 +225,8 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
         Translates an MPI dialect operation to the corresponding numeric value
         required by the underlying MPI library
         """
-        if hasattr(self.info, op_attr.op_str.data):
-            return getattr(self.info, op_attr.op_str.data)
+        if hasattr(self.info, op_attr.op_str.string_value):
+            return getattr(self.info, op_attr.op_str.string_value)
         else:
             raise RuntimeError("Unknown MPI operation type")
 

@@ -175,7 +175,7 @@ def test_linkage_attr():
     linkage = llvm.LinkageAttr("internal")
 
     assert isinstance(linkage.linkage, builtin.StringAttr)
-    assert linkage.linkage.data == "internal"
+    assert linkage.linkage.string_value == "internal"
 
 
 def test_linkage_attr_unknown_str():
@@ -198,9 +198,9 @@ def test_global_op():
 
     assert global_op.global_type == builtin.i32
     assert isinstance(global_op.sym_name, builtin.StringAttr)
-    assert global_op.sym_name.data == "testsymbol"
+    assert global_op.sym_name.string_value == "testsymbol"
     assert isinstance(global_op.section, builtin.StringAttr)
-    assert global_op.section.data == "test"
+    assert global_op.section.string_value == "test"
     assert isinstance(global_op.addr_space, builtin.IntegerAttr)
     assert global_op.addr_space.value.data == 10
     assert isinstance(global_op.alignment, builtin.IntegerAttr)
@@ -217,7 +217,7 @@ def test_addressof_op():
     address_of = llvm.AddressOfOp("test", ptr_type)
 
     assert isinstance(address_of.global_name, builtin.SymbolRefAttr)
-    assert address_of.global_name.root_reference.data == "test"
+    assert address_of.global_name.root_reference.string_value == "test"
     assert address_of.result.type == ptr_type
 
 

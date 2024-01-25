@@ -340,7 +340,7 @@ class BranchOp(IRDLOperation, riscv.RISCVOp):
         if self.comment is None:
             return None
 
-        return f"    # {self.comment.data}"
+        return f"    # {self.comment.string_value}"
 
 
 @irdl_op_definition

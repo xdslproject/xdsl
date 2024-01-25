@@ -150,10 +150,10 @@ class PDLMatcher:
             return self.matching_context[ssa_val] == xdsl_op
 
         if pdl_op.opName is not None:
-            if xdsl_op.name != pdl_op.opName.data:
+            if xdsl_op.name != pdl_op.opName.string_value:
                 return False
 
-        attribute_value_names = [avn.data for avn in pdl_op.attributeValueNames.data]
+        attribute_value_names = [avn.string_value for avn in pdl_op.attributeValueNames]
 
         for avn, av in zip(attribute_value_names, pdl_op.attribute_values):
             assert isinstance(av, OpResult)
@@ -203,7 +203,7 @@ class PDLMatcher:
         args = [
             self.get_constant_or_matched_value(operand) for operand in pdl_op.operands
         ]
-        name = pdl_op.constraint_name.data
+        name = pdl_op.constraint_name.string_value
         if name not in self.native_constraints:
             raise InterpretationError(f"{name} PDL native constraint is not registered")
         return self.native_constraints[name](*args)
@@ -285,7 +285,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: pdl.OperationOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         assert op.opName is not None
-        op_name = op.opName.data
+        op_name = op.opName.string_value
         op_type = self.ctx.get_optional_op(op_name)
 
         if op_type is None:
@@ -293,7 +293,9 @@ class PDLRewriteFunctions(InterpreterFunctions):
                 f"Could not find op type for name {op_name} in context"
             )
 
-        attribute_value_names = [avn.data for avn in op.attributeValueNames.data]
+        attribute_value_names = [
+            avn.string_value for avn in op.attributeValueNames.data
+        ]
 
         # How to deal with operandSegmentSizes?
         # operand_values, attribute_values, type_values = args

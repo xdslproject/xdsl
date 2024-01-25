@@ -243,7 +243,7 @@ def test_token_get_float_value(text: str, expected: float):
         ('"\\t"', "\t"),
     ],
 )
-def test_token_get_string_literal_value(text: str, expected: float):
+def test_token_get_string_literal_value(text: str, expected: str):
     token = get_token(text)
     assert token.kind == Token.Kind.STRING_LIT
-    assert token.get_string_literal_value() == expected
+    assert token.get_string_literal_value().decode() == expected

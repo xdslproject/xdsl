@@ -34,16 +34,18 @@ class LowerFuncOp(RewritePattern):
         result_types = list(a_regs_for_types(op.function_type.outputs.data))
 
         new_func = riscv_func.FuncOp(
-            op.sym_name.data,
+            op.sym_name.string_value,
             rewriter.move_region_contents_to_new_regions(op.body),
             (input_types, result_types),
         )
 
         new_ops: list[Operation] = []
 
-        if (visibility := op.sym_visibility) is None or visibility.data == "public":
+        if (
+            visibility := op.sym_visibility
+        ) is None or visibility.string_value == "public":
             # C-like: default is public
-            new_ops.append(riscv.DirectiveOp(".globl", op.sym_name.data))
+            new_ops.append(riscv.DirectiveOp(".globl", op.sym_name.string_value))
 
         new_ops.append(
             # FIXME we should ask the target for alignment, this works for rv32

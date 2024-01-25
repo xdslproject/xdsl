@@ -610,7 +610,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 "function body.",
             )
 
-        callee = parent_op.sym_name.data
+        callee = parent_op.sym_name.string_value
         func_return_types = parent_op.function_type.outputs.data
 
         if node.value is None:

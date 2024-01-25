@@ -391,13 +391,13 @@ class Printer:
             return
 
         if isinstance(attribute, StringAttr):
-            self.print_string_literal(attribute.data)
+            self.print_string_literal(attribute.string_value)
             return
 
         if isinstance(attribute, SymbolRefAttr):
-            self.print(f"@{attribute.root_reference.data}")
+            self.print(f"@{attribute.root_reference.string_value}")
             for ref in attribute.nested_references.data:
-                self.print(f"::@{ref.data}")
+                self.print(f"::@{ref.string_value}")
             return
 
         if isinstance(attribute, IntegerAttr):
@@ -515,7 +515,7 @@ class Printer:
             return
 
         if isinstance(attribute, DenseResourceAttr):
-            handle = attribute.resource_handle.data
+            handle = attribute.resource_handle.string_value
             self.print(f"dense_resource<{handle}> : ", attribute.type)
             return
 
@@ -639,14 +639,14 @@ class Printer:
             # Do not print `!` or `#` for unregistered builtin attributes
             self.print("!" if attribute.is_type.data else "#")
             if attribute.is_opaque.data:
-                self.print(attribute.attr_name.data.replace(".", "<", 1))
-                self.print(attribute.value.data)
+                self.print(attribute.attr_name.string_value.replace(".", "<", 1))
+                self.print(attribute.value.string_value)
                 self.print(">")
             else:
-                self.print(attribute.attr_name.data)
+                self.print(attribute.attr_name.string_value)
                 if attribute.value.data:
                     self.print("<")
-                    self.print(attribute.value.data)
+                    self.print(attribute.value.string_value)
                     self.print(">")
             return
 
@@ -791,7 +791,7 @@ class Printer:
         self._print_results(op)
         use_custom_format = False
         if isinstance(op, UnregisteredOp):
-            self.print(f'"{op.op_name.data}"')
+            self.print(f'"{op.op_name.string_value}"')
         # If we print with the generic format, or the operation does not have a custom
         # format
         elif self.print_generic_format or Operation.print is type(op).print:

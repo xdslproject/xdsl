@@ -174,7 +174,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print(" ")
-        printer.print_string_literal(self.constraint_name.data)
+        printer.print_string_literal(self.constraint_name.string_value)
         printer.print("(")
         print_operands_with_types(printer, self.operands)
         printer.print(")")
@@ -220,7 +220,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print(" ")
-        printer.print_string_literal(self.constraint_name.data)
+        printer.print_string_literal(self.constraint_name.string_value)
         printer.print("(")
         print_operands_with_types(printer, self.operands)
         printer.print(")")
@@ -429,6 +429,8 @@ class OperationOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> OperationOp:
         name = parser.parse_optional_str_literal()
+        if name is not None:
+            name = name.decode()
         operands = []
         if parser.parse_optional_punctuation("(") is not None:
             operands = parse_operands_with_types(parser)
@@ -602,7 +604,7 @@ class PatternOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.sym_name is not None:
-            printer.print(" @", self.sym_name.data)
+            printer.print(" @", self.sym_name.string_value)
         printer.print(" : benefit(", self.benefit.value.data, ") ", self.body)
 
 

@@ -40,7 +40,7 @@ class PrintFormatOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        num_of_templates = self.format_str.data.count("{}")
+        num_of_templates = self.format_str.string_value.count("{}")
         if not num_of_templates == len(self.format_vals):
             raise VerifyException(
                 "Number of templates in template string must match number of arguments!"

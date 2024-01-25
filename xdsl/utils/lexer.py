@@ -172,9 +172,37 @@ class StringLiteral(Span):
         return cls(span.start, span.end, span.input)
 
     @property
-    def string_contents(self):
+    def string_contents(self) -> str:
         # TODO: is this a hack-job?
         return ast.literal_eval(self.text)
+
+    @property
+    def bytes_contents(self) -> bytes:
+        bytes_contents = bytearray()
+        iter_string = iter(self.text[1:-1])
+        for c0 in iter_string:
+            if c0 != "\\":
+                bytes_contents += c0.encode()
+            else:
+                c0 = next(iter_string, None)
+                if c0 is None:
+                    raise ParseError(self, "Invalid escape sequence!")
+                match c0:
+                    case "n":
+                        bytes_contents += b"\n"
+                    case "t":
+                        bytes_contents += b"\t"
+                    case "\\":
+                        bytes_contents += b"\\"
+                    case '"':
+                        bytes_contents += b'"'
+                    case _:
+                        c1 = next(iter_string, None)
+                        if c1 is None:
+                            raise ParseError(self, "Invalid escape sequence")
+                        bytes_contents += int(c0 + c1, 16).to_bytes(1)
+
+        return bytes(bytes_contents)
 
 
 @dataclass
@@ -324,7 +352,7 @@ class Token:
             raise ValueError("Token is not a float literal!")
         return float(self.text)
 
-    def get_string_literal_value(self) -> str:
+    def get_string_literal_value(self) -> bytes:
         """
         Translate the token text into a string literal value.
         This will remove the quotes around the string literal, and unescape
@@ -333,7 +361,7 @@ class Token:
         """
         if self.kind != Token.Kind.STRING_LIT:
             raise ValueError("Token is not a string literal!")
-        return StringLiteral.from_span(self.span).string_contents
+        return StringLiteral.from_span(self.span).bytes_contents
 
 
 @dataclass

@@ -390,7 +390,7 @@ class ConstantOpLowering(RewritePattern):
 class FuncOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.FuncOp, rewriter: PatternRewriter):
-        name = op.sym_name.data
+        name = op.sym_name.string_value
 
         # We only lower the main function as we expect that all other functions
         # have been inlined.

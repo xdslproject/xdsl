@@ -365,10 +365,10 @@ def test_attribute_setters():
     op = AttributeOp.create(attributes={"attr": StringAttr("test")})
 
     op.attr = StringAttr("new_test")
-    assert op.attr.data == "new_test"
+    assert op.attr.string_value == "new_test"
 
     op.opt_attr = StringAttr("new_opt_test")
-    assert op.opt_attr.data == "new_opt_test"
+    assert op.opt_attr.string_value == "new_opt_test"
 
     op.opt_attr = None
     assert op.opt_attr is None
@@ -401,10 +401,10 @@ def test_property_setters():
     op = PropertyOp.create(properties={"attr": StringAttr("test")})
 
     op.attr = StringAttr("new_test")
-    assert op.attr.data == "new_test"
+    assert op.attr.string_value == "new_test"
 
     op.opt_attr = StringAttr("new_opt_test")
-    assert op.opt_attr.data == "new_opt_test"
+    assert op.opt_attr.string_value == "new_opt_test"
 
     op.opt_attr = None
     assert op.opt_attr is None

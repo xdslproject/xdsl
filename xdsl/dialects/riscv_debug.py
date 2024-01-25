@@ -64,7 +64,7 @@ class PrintfOp(IRDLOperation, riscv.RISCVInstruction):
         return {"format_str"}
 
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg, ...]:
-        return f'"{self.format_str.data}"', *self.operands
+        return f'"{self.format_str.string_value}"', *self.operands
 
 
 RISCV_Debug = Dialect(

@@ -4,7 +4,6 @@ from typing import Any, cast
 
 import wgpu  # pyright: ignore
 import wgpu.utils  # pyright: ignore
-
 from xdsl.dialects import gpu
 from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.memref import MemRefType
@@ -197,7 +196,10 @@ class WGPUFunctions(InterpreterFunctions):
         # Create and run the pipeline
         compute_pipeline = device.create_compute_pipeline(  # pyright: ignore
             layout=pipeline_layout,  # pyright: ignore
-            compute={"module": shader_module, "entry_point": func.sym_name.data},
+            compute={
+                "module": shader_module,
+                "entry_point": func.sym_name.string_value,
+            },
         )
 
         command_encoder = device.create_command_encoder()  # pyright: ignore

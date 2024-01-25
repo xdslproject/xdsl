@@ -436,7 +436,7 @@ class Interpreter:
                 if (symbol_interface := op.get_trait(SymbolOpInterface)) is not None:
                     symbol = symbol_interface.get_sym_attr_name(op)
                     if symbol:
-                        self._symbol_table[symbol.data] = op
+                        self._symbol_table[symbol.string_value] = op
         return self._symbol_table
 
     def get_values(self, values: Iterable[SSAValue]) -> tuple[Any, ...]:

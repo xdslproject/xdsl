@@ -176,16 +176,25 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
-class StringAttr(Data[str]):
+class StringAttr(Data[bytes]):
     name = "string"
 
+    # Those are never called on builtin attributes!
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        with parser.in_angle_brackets():
-            return parser.parse_str_literal()
+    def parse_parameter(cls, parser: AttrParser) -> bytes:
+        return b""
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f'"{self.data}"')
+        pass
+
+    def __init__(self, data: str | bytes) -> None:
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        super().__init__(data)
+
+    @property
+    def string_value(self) -> str:
+        return self.data.decode("utf-8")
 
 
 @irdl_attr_definition
@@ -219,9 +228,9 @@ class SymbolRefAttr(ParametrizedAttribute):
         super().__init__([root, nested])
 
     def string_value(self):
-        root = self.root_reference.data
+        root = self.root_reference.string_value
         for ref in self.nested_references.data:
-            root += "." + ref.data
+            root += "." + ref.string_value
         return root
 
 
@@ -1385,14 +1394,14 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
         class UnregisteredAttrWithName(UnregisteredAttr):
             def verify(self):
-                if self.attr_name.data != name:
+                if self.attr_name.string_value != name:
                     raise VerifyException("Unregistered attribute name mismatch")
                 if self.is_type.data != int(is_type):
                     raise VerifyException("Unregistered attribute is_type mismatch")
 
         class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
             def verify(self):
-                if self.attr_name.data != name:
+                if self.attr_name.string_value != name:
                     raise VerifyException("Unregistered attribute name mismatch")
                 if self.is_type.data != int(is_type):
                     raise VerifyException("Unregistered attribute is_type mismatch")
