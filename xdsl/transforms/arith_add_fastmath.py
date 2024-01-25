@@ -13,20 +13,14 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
 )
 
-
-def _match_string_to_enum(flag: str, enum_type: type[llvm.FastMathFlag]):
-    for member in enum_type:
-        if flag == str(member.value):
-            return member
-
-    raise ValueError(f"{flag} is not a valid fastmath flag.")
+_FASTMATH_NAMES_TO_ENUM = {str(member.value): member for member in llvm.FastMathFlag}
 
 
-def _get_flag_list(flags: list[str], enum_type: type[llvm.FastMathFlag]):
-    list_flags: list[enum_type] = []
-    for flag in flags:
-        list_flags.append(_match_string_to_enum(flag, llvm.FastMathFlag))
-    return list_flags
+def _get_flag_list(flags: list[str]):
+    try:
+        return [_FASTMATH_NAMES_TO_ENUM[flag] for flag in flags]
+    except KeyError as e:
+        raise ValueError(f"{e} is not a valid fastmath flag.")
 
 
 @dataclass
@@ -71,9 +65,7 @@ class AddArithFastMathFlagsPass(ModulePass):
                     'f{"none" or "fast" cannot be provided along with other fastmath flags'
                 )
 
-            fm_flags = arith.FastMathFlagsAttr(
-                _get_flag_list(self.flags, llvm.FastMathFlag)
-            )
+            fm_flags = arith.FastMathFlagsAttr(_get_flag_list(self.flags))
 
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
