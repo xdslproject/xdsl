@@ -7,7 +7,6 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -21,6 +20,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Token
 
@@ -40,6 +40,7 @@ class ParsingState:
     result_types: list[Attribute | None]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
+    constraint_variables: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):
         if op_def.regions or op_def.successors:
@@ -58,6 +59,7 @@ class ParsingState:
         self.result_types = [None] * len(op_def.results)
         self.attributes = {}
         self.properties = {}
+        self.constraint_variables = {}
 
 
 @dataclass
@@ -88,12 +90,6 @@ class FormatProgram:
     stmts: list[FormatDirective]
     """The list of statements composing the program. They are executed in order."""
 
-    type_resolutions: dict[
-        tuple[OperandOrResult, int],
-        tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
-    ]
-    """A mapping describing how to resolve unparsed operand and result types."""
-
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
         """
@@ -119,17 +115,20 @@ class FormatProgram:
         for stmt in self.stmts:
             stmt.parse(parser, state)
 
-        # Ensure that all operands and operand types are parsed
+        # Get constraint variables from the parsed operand and result types
+        self.assign_constraint_variables(parser, state, op_def)
+
+        # Infer operand types that should be inferred
         unresolved_operands = state.operands
         assert isa(unresolved_operands, list[UnresolvedOperand])
-        self.resolve_operand_types(state)
+        self.resolve_operand_types(state, op_def)
         operand_types = state.operand_types
         assert isa(operand_types, list[Attribute])
 
-        # Ensure that all result types are parsed or resolved
-        self.resolve_result_types(state)
+        # Infer result types that should be inferred
+        self.resolve_result_types(state, op_def)
         result_types = state.result_types
-        assert isa(state.result_types, list[Attribute])
+        assert isa(result_types, list[Attribute])
 
         # Resolve all operands
         operands = parser.resolve_operands(
@@ -143,43 +142,59 @@ class FormatProgram:
             properties=properties,
         )
 
-    def resolve_operand_types(self, state: ParsingState) -> None:
+    def assign_constraint_variables(
+        self, parser: Parser, state: ParsingState, op_def: OpDef
+    ):
+        """
+        Assign constraint variables with values got from the
+        parsed operand and result types.
+        """
+        if any(type is None for type in (*state.operand_types, *state.result_types)):
+            try:
+                for (_, operand_def), operand_type in zip(
+                    op_def.operands, state.operand_types, strict=True
+                ):
+                    if operand_type is not None:
+                        operand_def.constr.verify(
+                            operand_type, state.constraint_variables
+                        )
+                for (_, result_def), result_type in zip(
+                    op_def.results, state.result_types, strict=True
+                ):
+                    if result_type is not None:
+                        result_def.constr.verify(
+                            result_type, state.constraint_variables
+                        )
+            except VerifyException as e:
+                parser.raise_error(
+                    "Verification error while inferring operation type: " + str(e)
+                )
+
+    def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
         Use the inferred type resolutions to fill missing operand types from other parsed
         types.
         """
-        for i, operand_type in enumerate(state.operand_types):
+        for i, (operand_type, (_, operand_def)) in enumerate(
+            zip(state.operand_types, op_def.operands, strict=True)
+        ):
             if operand_type is None:
-                state.operand_types[i] = self._resolve_type(
-                    state, VarIRConstruct.OPERAND, i
+                state.operand_types[i] = operand_def.constr.infer(
+                    state.constraint_variables
                 )
 
-    def resolve_result_types(self, state: ParsingState) -> None:
+    def resolve_result_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
         Use the inferred type resolutions to fill missing result types from other parsed
         types.
         """
-        for i, result_type in enumerate(state.result_types):
+        for i, (result_type, (_, result_def)) in enumerate(
+            zip(state.result_types, op_def.results, strict=True)
+        ):
             if result_type is None:
-                state.result_types[i] = self._resolve_type(
-                    state, VarIRConstruct.RESULT, i
+                state.result_types[i] = result_def.constr.infer(
+                    state.constraint_variables
                 )
-
-    def _resolve_type(
-        self, state: ParsingState, construct: OperandOrResult, index: int
-    ):
-        """
-        Helper function resolving a specific operand or result type from the inferred
-        resolution map.
-        """
-        resolve, construct, idx = self.type_resolutions[construct, index]
-        match construct:
-            case VarIRConstruct.OPERAND:
-                input_type = state.operand_types[idx]
-            case VarIRConstruct.RESULT:
-                input_type = state.result_types[idx]
-        assert input_type is not None
-        return resolve(input_type)
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """
