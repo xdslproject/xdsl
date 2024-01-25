@@ -27,6 +27,7 @@ from xdsl.irdl import (
     operand_def,
     opt_prop_def,
     result_def,
+    var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -67,7 +68,10 @@ def check_equivalence(program1: str, program2: str, ctx: MLContext):
     while (op := parser.parse_optional_operation()) is not None:
         ops2.append(op)
 
-    assert ModuleOp(ops1).is_structurally_equivalent(ModuleOp(ops2))
+    mod1 = ModuleOp(ops1)
+    mod2 = ModuleOp(ops2)
+
+    assert mod1.is_structurally_equivalent(mod2), str(mod1) + "\n!=\n" + str(mod2)
 
 
 ################################################################################
@@ -398,6 +402,49 @@ def test_operands(format: str, program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(TwoOperandsOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "$args type($args) attr-dict",
+            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand %0 i32",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.variadic_operand"(%0) : (i32) -> ()',
+        ),
+        (
+            "$args type($args) attr-dict",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.variadic_operand %0, %1 i32, i64",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.variadic_operand"(%0, %1) : (i32, i64) -> ()',
+        ),
+        (
+            "$args `:` type($args) attr-dict",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            "test.variadic_operand %0, %1, %2 : i32, i64, i128",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            '"test.variadic_operand"(%0, %1, %2) : (i32, i64, i128) -> ()',
+        ),
+    ],
+)
+def test_variadic_operand(format: str, program: str, generic_program: str):
+    """Test the parsing of operands"""
+
+    @irdl_op_definition
+    class VariadicOperandOp(IRDLOperation):
+        name = "test.variadic_operand"
+        args = var_operand_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(VariadicOperandOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
