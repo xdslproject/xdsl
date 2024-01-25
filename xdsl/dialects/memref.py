@@ -286,6 +286,8 @@ class GetGlobal(IRDLOperation):
             result_types=[return_type], properties={"name": SymbolRefAttr(name)}
         )
 
+    assembly_format = "$name `:` type($memref) attr-dict"
+
     # TODO how to verify the types, as the global might be defined in another
     # compilation unit
 

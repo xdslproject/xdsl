@@ -53,7 +53,7 @@ builtin.module {
 // CHECK-NEXT:   "memref.global"() <{"sym_name" = "g_constant", "sym_visibility" = "public", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "constant"}> : () -> ()
 // CHECK-NEXT:   "memref.global"() <{"sym_name" = "g_with_alignment", "sym_visibility" = "public", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "alignment" = 64 : i64}> : () -> ()
 // CHECK-NEXT:   func.func private @memref_test() {
-// CHECK-NEXT:     %{{.*}} = "memref.get_global"() <{"name" = @g}> : () -> memref<1xindex>
+// CHECK-NEXT:     %{{.*}} = memref.get_global @g : memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = arith.constant 0 : index
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = arith.constant 42 : index
