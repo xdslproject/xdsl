@@ -188,7 +188,7 @@ class Generic(IRDLOperation):
                     sizes.append(dim)
         return sizes
 
-    def get_static_loop_ranges(self) -> list[int]:
+    def get_static_loop_ranges(self) -> tuple[int, ...]:
         shapes_to_loops = self.get_shapes_to_loops_map()
         return shapes_to_loops.eval(self.get_static_shapes(), [])
 
