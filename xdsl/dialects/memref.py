@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import Annotated, cast
 
 from typing_extensions import Self
 
@@ -32,8 +32,8 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     VarOperand,
@@ -57,17 +57,17 @@ from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-if TYPE_CHECKING:
-    from xdsl.parser import Parser
-    from xdsl.printer import Printer
-
 
 @irdl_op_definition
 class Load(IRDLOperation):
+    T = Annotated[Attribute, ConstraintVar("T")]
+
     name = "memref.load"
-    memref: Operand = operand_def(MemRefType[Attribute])
-    indices: VarOperand = var_operand_def(IndexType)
-    res: OpResult = result_def(AnyAttr())
+    memref: Operand = operand_def(MemRefType[T])
+    indices: VarOperand = var_operand_def(IndexType())
+    res: OpResult = result_def(T)
+
+    assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
 
     # TODO varargs for indexing, which must match the memref dimensions
     # Problem: memref dimensions require variadic type parameters,
@@ -79,9 +79,6 @@ class Load(IRDLOperation):
             raise VerifyException("expected a memreftype")
 
         memref_type = cast(MemRefType[Attribute], memref_type)
-
-        if memref_type.element_type != self.res.type:
-            raise Exception("expected return type to match the MemRef element type")
 
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
@@ -95,49 +92,23 @@ class Load(IRDLOperation):
         ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
         return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
 
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        unresolved_ref = parser.parse_unresolved_operand()
-        unresolved_indices = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
-        )
-        attributes = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        ref_type = parser.parse_attribute()
-        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
-        resolved_indices = [
-            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
-        ]
-        res = cls.get(resolved_ref, resolved_indices)
-        res.attributes.update(attributes)
-        return res
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print(self.memref)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_operand)
-        printer.print_string("]")
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.memref.type)
-
 
 @irdl_op_definition
 class Store(IRDLOperation):
+    T = Annotated[Attribute, ConstraintVar("T")]
+
     name = "memref.store"
-    value: Operand = operand_def(AnyAttr())
-    memref: Operand = operand_def(MemRefType[Attribute])
-    indices: VarOperand = var_operand_def(IndexType)
+    value: Operand = operand_def(T)
+    memref: Operand = operand_def(MemRefType[T])
+    indices: VarOperand = var_operand_def(IndexType())
+
+    assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
 
     def verify_(self):
         if not isinstance(memref_type := self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
         memref_type = cast(MemRefType[Attribute], memref_type)
-
-        if memref_type.element_type != self.value.type:
-            raise Exception("Expected value type to match the MemRef element type")
 
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
@@ -150,37 +121,6 @@ class Store(IRDLOperation):
         indices: Sequence[Operation | SSAValue],
     ) -> Self:
         return cls(operands=[value, ref, indices])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        value = parser.parse_operand()
-        parser.parse_punctuation(",")
-        unresolved_ref = parser.parse_unresolved_operand()
-        unresolved_indices = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
-        )
-        attributes = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        ref_type = parser.parse_attribute()
-        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
-        resolved_indices = [
-            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
-        ]
-        res = cls.get(value, resolved_ref, resolved_indices)
-        res.attributes.update(attributes)
-        return res
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print(self.value)
-        printer.print_string(", ")
-        printer.print(self.memref)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_operand)
-        printer.print_string("]")
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.memref.type)
 
 
 @irdl_op_definition
