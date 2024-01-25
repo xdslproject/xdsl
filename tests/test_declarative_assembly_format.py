@@ -315,7 +315,7 @@ def test_variadic_comma_safeguard(
 ):
     with pytest.raises(
         PyRDLOpDefinitionError,
-        match="A variadic directive cannot be followed by a comma litteral.",
+        match="A variadic directive cannot be followed by a comma literal.",
     ):
 
         @irdl_op_definition
