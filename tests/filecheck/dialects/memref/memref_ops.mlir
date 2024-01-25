@@ -16,7 +16,9 @@ builtin.module {
     %2 = "memref.alloca"() {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<1xindex>
     %3 = arith.constant 42 : index
     "memref.store"(%3, %2, %1) : (index, memref<1xindex>, index) -> ()
+    "memref.store"(%3, %2, %1) <{"nontemporal" = true}> : (index, memref<1xindex>, index) -> ()
     %4 = "memref.load"(%2, %1) : (memref<1xindex>, index) -> index
+    %f = "memref.load"(%2, %1) <{"nontemporal" = false}> : (memref<1xindex>, index) -> index
     %5 = "memref.alloc"() {"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<10x2xindex>
     "memref.store"(%3, %5, %3, %4) : (index, memref<10x2xindex>, index, index) -> ()
     %6 = "memref.subview"(%5) {"operandSegmentSizes" = array<i32: 1, 0, 0, 0>, "static_offsets" = array<i64: 0, 0>, "static_sizes" = array<i64: 1, 1>, "static_strides" = array<i64: 1, 1>} : (memref<10x2xindex>) -> memref<1x1xindex>
@@ -55,8 +57,10 @@ builtin.module {
 // CHECK-NEXT:     %{{.*}} = arith.constant 0 : index
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = arith.constant 42 : index
-// CHECK-NEXT:     memref.store %{{.*}} %{{.*}}[%{{.*}}] : memref<1xindex>
+// CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}] : memref<1xindex>
+// CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}] {"nontemporal" = true}: memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] : memref<1xindex>
+// CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] {"nontemporal" = false}: memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.alloc"() <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<10x2xindex>
 // CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}, %{{.*}}] : memref<10x2xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.subview"(%5) <{"static_offsets" = array<i64: 0, 0>, "static_sizes" = array<i64: 1, 1>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<10x2xindex>) -> memref<1x1xindex>

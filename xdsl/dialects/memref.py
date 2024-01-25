@@ -8,6 +8,7 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
+    BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     IndexType,
@@ -63,6 +64,9 @@ class Load(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     name = "memref.load"
+
+    nontemporal = opt_prop_def(BoolAttr)
+
     memref: Operand = operand_def(MemRefType[T])
     indices: VarOperand = var_operand_def(IndexType())
     res: OpResult = result_def(T)
@@ -98,6 +102,9 @@ class Store(IRDLOperation):
     T = Annotated[Attribute, ConstraintVar("T")]
 
     name = "memref.store"
+
+    nontemporal = opt_prop_def(BoolAttr)
+
     value: Operand = operand_def(T)
     memref: Operand = operand_def(MemRefType[T])
     indices: VarOperand = var_operand_def(IndexType())

@@ -453,6 +453,7 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
+BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
 class _FloatType(ABC):
