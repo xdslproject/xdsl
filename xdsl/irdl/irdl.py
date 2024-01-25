@@ -255,7 +255,7 @@ class AnyOf(AttrConstraint):
         if len(self.attr_constrs) == 0:
             return set()
         return set[str].intersection(
-            *[constr.get_resolved_variables() for constr in self.attr_constrs]
+            *(constr.get_resolved_variables() for constr in self.attr_constrs)
         )
 
 
