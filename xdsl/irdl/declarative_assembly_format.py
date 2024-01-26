@@ -43,12 +43,9 @@ class ParsingState:
     constraint_variables: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):
-        has_attributes = bool(op_def.attributes) and list(op_def.attributes.keys()) != [
-            "operandSegmentSizes"
-        ]
-        if has_attributes or op_def.regions or op_def.successors:
+        if op_def.regions or op_def.successors:
             raise NotImplementedError(
-                "Operation definitions with attributes, regions, "
+                "Operation definitions with regions "
                 "or successors are not yet supported"
             )
         self.operands = [None] * len(op_def.operands)
@@ -265,6 +262,13 @@ class AttrDictDirective(FormatDirective):
     with_keyword: bool
     """If this is set, the format starts with the `attributes` keyword."""
 
+    reserved_attr_names: set[str]
+    """
+    The set of attributes that should not be printed.
+    These attributes are printed in other places in the format, and thus would be
+    printed twice otherwise.
+    """
+
     def parse(self, parser: Parser, state: ParsingState) -> None:
         if self.with_keyword:
             res = parser.parse_optional_attr_dict_with_keyword()
@@ -274,20 +278,27 @@ class AttrDictDirective(FormatDirective):
                 res = res.data
         else:
             res = parser.parse_optional_attr_dict()
-        state.attributes = res
+        defined_reserved_keys = self.reserved_attr_names & res.keys()
+        if defined_reserved_keys:
+            parser.raise_error(
+                f"attributes {', '.join(defined_reserved_keys)} are defined in other parts of the "
+                "assembly format, and thus should not be defined in the attribute "
+                "dictionary."
+            )
+        state.attributes |= res
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if not op.attributes and not op.properties:
             return
-        if self.with_keyword:
-            printer.print(" attributes")
         if any(name in op.attributes for name in op.properties):
             raise ValueError(
                 "Cannot print attributes and properties with the same name"
                 "in a signle dictionary"
             )
         printer.print_op_attributes(
-            op.attributes | op.properties, reserved_attr_names=["operandSegmentSizes"]
+            op.attributes | op.properties,
+            reserved_attr_names=self.reserved_attr_names,
+            print_keyword=self.with_keyword,
         )
         state.last_was_punctuation = False
         state.should_emit_space = False
@@ -297,7 +308,7 @@ class AttrDictDirective(FormatDirective):
 class OperandVariable(FormatDirective):
     """
     An operand variable, with the following format:
-      operand-directive ::= percent-ident
+      operand-directive ::= dollar-ident
     The directive will request a space to be printed after.
     """
 
@@ -344,7 +355,7 @@ class VariadicOperandVariable(OperandVariable):
 class OperandTypeDirective(FormatDirective):
     """
     An operand variable type directive, with the following format:
-      operand-type-directive ::= type(percent-ident)
+      operand-type-directive ::= type(dollar-ident)
     The directive will request a space to be printed right after.
     """
 
@@ -393,7 +404,7 @@ class VariadicOperandTypeDirective(OperandTypeDirective):
 class ResultVariable(FormatDirective):
     """
     An result variable, with the following format:
-      result-directive ::= percent-ident
+      result-directive ::= dollar-ident
     This directive can not be used for parsing and printing directly, as result
     parsing is not handled by the custom operation parser.
     """
@@ -442,7 +453,7 @@ class VariadicResultVariable(ResultVariable):
 class ResultTypeDirective(FormatDirective):
     """
     A result variable type directive, with the following format:
-      result-type-directive ::= type(percent-ident)
+      result-type-directive ::= type(dollar-ident)
     The directive will request a space to be printed right after.
     """
 
@@ -461,6 +472,29 @@ class ResultTypeDirective(FormatDirective):
         printer.print_attribute(op.results[self.index].type)
         state.last_was_punctuation = False
         state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class AttributeVariable(FormatDirective):
+    """
+    An attribute variable, with the following format:
+      result-directive ::= dollar-ident
+    The directive will request a space to be printed right after.
+    """
+
+    attr_name: str
+    """The attribute name as it should be in the attribute or property dictionary."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        attribute = parser.parse_attribute()
+        state.attributes[self.attr_name] = attribute
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+        printer.print_attribute(op.attributes[self.attr_name])
 
 
 @dataclass(frozen=True)
