@@ -195,7 +195,7 @@ class StringAttr(Data[bytes]):
 
     @property
     def string(self) -> str:
-        return self.data.decode('utf-8')
+        return self.data.decode("utf-8")
 
     @property
     def escaped_string(self) -> str:
