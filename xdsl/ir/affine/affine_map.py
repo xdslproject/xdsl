@@ -214,7 +214,8 @@ class AffineMap:
 
     def compress_dims(self, selectors: Sequence[bool]) -> AffineMap:
         """
-        Given a sequence of `selectors` indicating the dimensions to keep, return a new map only with the new dimensions. The results of `self` must be a subset of the
+        Given a sequence of `selectors` indicating the dimensions to keep, return a new
+        map only with the new dimensions. The results of `self` must be a subset of the
         dimensions in `selectors`. The remaining dimensions are remapped to the remaining
         number.
 
