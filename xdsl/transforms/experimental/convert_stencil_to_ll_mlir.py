@@ -5,8 +5,8 @@ from typing import Literal, TypeVar, cast
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, gpu, memref, scf
+from xdsl.dialects.builtin import MemRefType
 from xdsl.dialects.func import FuncOp
-from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,

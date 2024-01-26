@@ -190,25 +190,26 @@ class AffineMap:
         for i, expr in enumerate(self.results):
             match expr:
                 case AffineDimExpr():
-                    found_dims[expr.position] = i
+                    if found_dims[expr.position] == -1:
+                        found_dims[expr.position] = i
                 case _:
                     continue
 
         if -1 in found_dims:
             return None
 
-        results = tuple(self.results[i] for i in found_dims)
+        results = tuple(AffineExpr.dimension(i) for i in found_dims)
         return AffineMap(
             num_dims=len(self.results),
             num_symbols=0,
             results=results,
         )
 
-    def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> list[int]:
+    def eval(self, dims: Sequence[int], symbols: Sequence[int]) -> tuple[int, ...]:
         """Evaluate the AffineMap given the values of dimensions and symbols."""
         assert len(dims) == self.num_dims
         assert len(symbols) == self.num_symbols
-        return [expr.eval(dims, symbols) for expr in self.results]
+        return tuple(expr.eval(dims, symbols) for expr in self.results)
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

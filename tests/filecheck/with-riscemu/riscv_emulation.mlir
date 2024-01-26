@@ -68,3 +68,20 @@ builtin.module {
 }
 
 // CHECK: 7
+
+// -----
+
+builtin.module {
+  riscv.directive ".globl" "main"
+  riscv_func.func @main() {
+    %0 = riscv.li 6 : () -> !riscv.reg<j0>
+    %1 = riscv.li 7 : () -> !riscv.reg<j1>
+    %2 = riscv.mul %0, %1 : (!riscv.reg<j0>, !riscv.reg<j1>) -> !riscv.reg<j2>
+    riscv_debug.printf %0, %1, %2 "{} x {} = {}" : (!riscv.reg<j0>, !riscv.reg<j1>, !riscv.reg<j2>) -> ()
+    %3 = riscv.li 93 : () -> !riscv.reg<a7>
+    riscv.ecall
+    riscv_func.return
+  }
+}
+
+// CHECK: 6 x 7 = 42

@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
+    AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
@@ -34,7 +35,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
+    MemRefType,
     NoneAttr,
+    NoneType,
     OpaqueAttr,
     Signedness,
     StridedLayoutAttr,
@@ -42,12 +45,12 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
+    UnrankedMemrefType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
 )
-from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (
     Attribute,
     Block,
@@ -615,6 +618,10 @@ class Printer:
             self.print("index")
             return
 
+        if isinstance(attribute, NoneType):
+            self.print("none")
+            return
+
         if isinstance(attribute, OpaqueAttr):
             self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
             if not isinstance(attribute.type, NoneAttr):
@@ -664,6 +671,7 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
+
         return
 
     def print_successors(self, successors: list[Block]):

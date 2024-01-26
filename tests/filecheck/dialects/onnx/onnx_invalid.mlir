@@ -110,3 +110,96 @@ builtin.module {
   // CHECK: Operation does not verify: tensor C should be a 1D tensor or 2D tensor
   %res_gemm = "onnx.Gemm"(%t0, %t1, %t2) {onnx_node_name = "/Gemm",  beta = 47.0 : f32}: (tensor<5x3xf32>, tensor<3x2xf32>, tensor<5x2x7xf32>) -> tensor<5x3xf32>
 }
+
+// -----
+
+builtin.module {
+  %t0, %t1 = "test.op"() : () -> (f32, tensor<2x4xi64>)
+
+  // CHECK: operand at position 0 does not verify!
+  // CHECK: f32 should be of base attribute tensor
+  %res_reshape =  "onnx.Reshape"(%t0, %t1) {onnx_node_name = "/Reshape"} : (f32, tensor<2x4xi64>) -> tensor<2x4xi64>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<4x3x2xf32>, tensor<1xi64>)
+
+  // CHECK: result at position 0 does not verify!
+  // CHECK: attribute f32 expected from variable 'T', but got i32
+  %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<4x3x2xf32>, tensor<1xi64>) -> tensor<4x3x2xi32>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<6x9x5xf32>, tensor<3xi64>)
+
+  // CHECK: result at position 0 does not verify!
+  // CHECK: Operation does not verify: Input tensor's shape and output tensor's shape must have the same number of elements
+  %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<6x9x5xf32>, tensor<3xi64>) -> tensor<6x9xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<6x9x5xf32>, tensor<3xi32>)
+
+  // CHECK: Operation does not verify: shape element type has to be a 64-bit signless integer
+  %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<6x9x5xf32>, tensor<3xi32>) -> tensor<6x9xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<6x9x5xf32>, tensor<3xi64>)
+
+  // CHECK: result at position 0 does not verify!
+  // CHECK:  vector<6x9x5xf32> should be of base attribute tensor
+  %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<6x9x5xf32>, tensor<3xi64>) -> vector<6x9x5xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (vector<6x9x5xf32>, tensor<3xi64>)
+
+  // CHECK: operand at position 0 does not verify!
+  // CHECK:  vector<6x9x5xf32> should be of base attribute tensor
+  %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (vector<6x9x5xf32>, tensor<3xi64>) -> tensor<6x9x5xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<5x5xf32>, tensor<2x2xi64>)
+
+    //CHECK: Operation does not verify: Shape tensor must have a rank one
+    %res_reshape = "onnx.Reshape"(%t0, %t1) {onnx_node_name = "/Reshape"}: (tensor<5x5xf32>, tensor<2x2xi64>) -> tensor<5x5xf32>
+
+}
+
+// -----
+
+builtin.module {
+    %t0, %t1 = "test.op"() : () -> (tensor<3x3xf32>, tensor<?xi64>)
+
+    //CHECK: Operation does not verify: Shape tensor rank must not be equal to -1
+    %res_reshape = "onnx.Reshape"(%t0, %t1) {onnx_node_name = "/Reshape"}: (tensor<3x3xf32>, tensor<?xi64>) -> tensor<3x3xf32>
+
+}
+
+// -----
+
+builtin.module {
+    %t0 = "test.op"() : () -> (tensor<3x3xf32>)
+
+    //CHECK: Operation does not verify: Mismatch between operand type and res type of onnx.Abs
+    %res_abs = "onnx.Abs"(%t0) {onnx_node_name = "/Abs"}: (tensor<3x3xf32>) -> tensor<2x3xf32>
+
+}
+
+
+
+

@@ -313,14 +313,122 @@ class Gemm(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class Reshape(IRDLOperation):
+    """
+    Reshape the input tensor similar to numpy.reshape.
+    First input is the data tensor, second input is a shape tensor which specifies the output shape. It outputs the reshaped tensor.
+    At most one dimension of the new shape can be -1. In this case, the value is
+    inferred from the size of the tensor and the remaining dimensions. A dimension
+    could also be 0, in which case the actual dimension value is unchanged (i.e. taken
+    from the input tensor). Shape (second input) could be an empty shape, which means converting to a scalar.
+    The input tensor's shape and the output tensor's shape are required to have the same number of elements.
+
+     Attributes:
+        - allowzero  int (default is 0):  By default, when any value in the 'shape' input is equal to zero
+     the corresponding dimension value is copied from the input tensor dynamically. allowzero=1 indicates that if any
+     value in the 'shape' input is set to zero, the zero value is honoured, similar to NumPy.
+
+    """
+
+    name = "onnx.Reshape"
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    data = operand_def(TensorType[T])
+    shape = operand_def(TensorType[IntegerType])
+    reshaped = result_def(TensorType[T])
+
+    allow_zero = opt_attr_def(AnyIntegerAttr, attr_name="allowzero")
+
+    assembly_format = "`(` $data `,` $shape `)` attr-dict `:` `(` type($data) `,` type($shape) `)` `->` type($reshaped)"
+
+    def __init__(self, data: SSAValue, shape: SSAValue, allow_zero: Attribute):
+        super().__init__(
+            attributes={"allowzero": allow_zero},
+            operands=[data, shape],
+            result_types=[data.type],
+        )
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(data_type := self.data.type, TensorType)
+            or not isinstance(shape_type := self.shape.type, TensorType)
+            or not isinstance(reshaped_type := self.reshaped.type, TensorType)
+        ):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        data_type = cast(TensorType[Attribute], data_type)
+        reshaped_type = cast(TensorType[Attribute], reshaped_type)
+        shape_type = cast(TensorType[Attribute], shape_type)
+
+        if shape_type.element_type != IntegerType(64):
+            raise VerifyException(
+                "shape element type has to be a 64-bit signless integer"
+            )
+
+        data_type = data_type.get_shape()
+        shape_type = shape_type.get_shape()
+        reshaped_type = reshaped_type.get_shape()
+
+        # Shape tensor rank can't be -1.
+        if shape_type[0] == -1:
+            raise VerifyException("Shape tensor rank must not be equal to -1")
+
+        # There is currently only support for rank one shape tensors in onnx-mlir
+        # Shape tensor must have a constant shape.
+        if len(shape_type) != 1:
+            raise VerifyException("Shape tensor must have a rank one")
+
+        # The input tensor's shape and the output tensor's shape are required to have the same number of elements.
+        if len(data_type) != len(reshaped_type):
+            raise VerifyException(
+                "Input tensor's shape and output tensor's shape must have the same number of elements"
+            )
+
+
+@irdl_op_definition
+class Abs(IRDLOperation):
+    """
+    Absolute takes one input data (Tensor) and produces one output data (Tensor) where absolute value,
+    y = abs(x), is applied to the tensor elementwise.
+    """
+
+    name = "onnx.Abs"
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    operand = operand_def(TensorType[T])
+    res = result_def(TensorType[T])
+    assembly_format = (
+        "`(` $operand`)` attr-dict `:` `(` type($operand) `)` `->` type($res)"
+    )
+
+    def __init__(self, operand: SSAValue):
+        super().__init__(
+            operands=[operand],
+            result_types=[operand.type],
+        )
+
+    def verify_(self) -> None:
+        assert isinstance(operand_type := self.operand.type, TensorType)
+        assert isinstance(res_type := self.res.type, TensorType)
+        operand_type = cast(TensorType[Attribute], operand_type)
+        res_type = cast(TensorType[Attribute], res_type)
+        if operand_type != res_type:
+            raise VerifyException(
+                "Mismatch between operand type and res type of onnx.Abs"
+            )
+
+
 ONNX = Dialect(
     "onnx",
     [
+        Abs,
         Add,
         Div,
         Gemm,
         Mul,
         Relu,
+        Reshape,
         Sub,
     ],
 )
