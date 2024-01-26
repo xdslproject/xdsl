@@ -201,5 +201,121 @@ builtin.module {
 }
 
 
+// -----
+
+builtin.module {
+  %t0,%t1,%t2 = "test.op"(): () ->  (f32, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: operand at position 0 does not verify!
+  // CHECK: f32 should be of base attribute tensor
+  %res_conv =  "onnx.Conv"(%t0, %t1, %t2) {onnx_node_name = "/Conv"} : (f32, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: result at position 0 does not verify!
+  // CHECK: attribute f32 expected from variable 'T', but got i32
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv"} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xi32>
+
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, tensor<4x2xf32>)
+
+  // CHECK: Operation does not verify: bias must be 1D
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [1 : i64, 1: i64], "group" = 1 : i64, "kernel_shape" = [4 : i64, 4 : i64], "pads" = [0 : i64, 0: i64, 0: i64, 0: i64], "strides" = [1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, tensor<4x2xf32>) -> tensor<1x1x3x3xf32>
+
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify: kernel shape rank and weight tensor rank are not the same
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [1 : i64, 1: i64], "group" = 1 : i64, "kernel_shape" = [4 : i64, 4 : i64], "pads" = [0 : i64, 0: i64, 0: i64, 0: i64], "strides" = [1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify: dilation value must be non zero positive
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [-2 : i64, -2: i64], "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "pads" = [0 : i64, 0: i64, 0: i64, 0: i64], "strides" = [1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify: dilations rank and kernel shape rank are not the same
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [1 : i64, 1: i64, 3: i64], "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "pads" = [0 : i64, 0: i64, 0: i64, 0: i64], "strides" = [1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify: group value must be nonnegative
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [1 : i64, 1: i64], "group" = 0 : i64, "kernel_shape" = [3 : i64, 3 : i64], "pads" = [0 : i64, 0: i64, 0: i64, 0: i64], "strides" = [1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+}
+
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify: stride value must be non zero positive
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [1 : i64, 1: i64], "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "pads" = [0 : i64, 0: i64, 0: i64, 0: i64], "strides" = [-2 : i64, -2: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify: strides rank and kernel shape rank are not the same
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [1 : i64, 1: i64], "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "pads" = [0 : i64, 0: i64, 0: i64, 0: i64], "strides" = [1: i64, 1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify: pads value must be nonnegative
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [1 : i64, 1: i64], "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "pads" = [-1 : i64, -1: i64, -1: i64, -1: i64], "strides" = [1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+}
+
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify: pads rank is not twice the kernel shape rank
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "dilations" = [1 : i64, 1: i64], "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "pads" = [1 : i64, 1: i64, 1: i64], "strides" = [1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+}
+
+// -----
+
+builtin.module {
+    %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+
+  // CHECK: Operation does not verify:  Invalid auto_pad string. Must be one of ['NOTSET', 'SAME_UPPER', 'SAME_LOWER', 'VALID']
+  %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv", "auto_pad" = "INVALID", "dilations" = [1 : i64, 1: i64], "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "pads" = [0 : i64, 0: i64, 0: i64, 0: i64], "strides" = [1: i64, 1: i64]} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
+
+  }
+
 
 
