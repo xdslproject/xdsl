@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import codecs
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -63,6 +62,7 @@ from xdsl.traits import (
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.mlir_escape import decode_mlir_escape, encode_mlir_escape
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -176,16 +176,6 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
-def wtf(err: UnicodeDecodeError):
-    print(err.object[err.start : err.end])
-    thebyte = err.object[err.start : err.end]
-    a = f"\\{thebyte.hex().capitalize()}"
-    return (a, err.end)
-
-
-codecs.register_error("wtf", wtf)
-
-
 @irdl_attr_definition
 class StringAttr(Data[bytes]):
     name = "string"
@@ -200,40 +190,16 @@ class StringAttr(Data[bytes]):
 
     def __init__(self, data: str | bytes) -> None:
         if isinstance(data, str):
-            bytes_array = bytearray()
-            iter_data = iter(data)
-            for c in iter_data:
-                match c:
-                    case "\\":
-                        c = next(iter_data)
-                        match c:
-                            case "n":
-                                bytes_array.append(ord("\n"))
-                            case "t":
-                                bytes_array.append(ord("\t"))
-                            case "\\":
-                                bytes_array.append(ord("\\"))
-                            case '"':
-                                bytes_array.append(ord('"'))
-                            case c if c in "0123456789abcdefABCDEF":
-                                n = next(iter_data)
-                                try:
-                                    bytes_array.append(int(c + n, 16))
-                                except ValueError:
-                                    raise ValueError(
-                                        f"Invalid escape sequence: \\{c}{n}"
-                                    )
-                            case _:
-                                raise ValueError(f"Invalid escape sequence: \\{c}")
-                    case _:
-                        bytes_array += c.encode()
-
-            data = bytes(bytes_array)
+            data = encode_mlir_escape(data)
         super().__init__(data)
 
     @property
     def string(self) -> str:
-        return self.data.decode("utf-8")
+        return self.data.decode('utf-8')
+
+    @property
+    def escaped_string(self) -> str:
+        return decode_mlir_escape(self.data)
 
 
 @irdl_attr_definition

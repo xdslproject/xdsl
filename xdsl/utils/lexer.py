@@ -9,6 +9,7 @@ from string import hexdigits
 from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast, overload
 
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.mlir_escape import encode_mlir_escape
 
 Position = int
 """
@@ -178,31 +179,7 @@ class StringLiteral(Span):
 
     @property
     def bytes_contents(self) -> bytes:
-        bytes_contents = bytearray()
-        iter_string = iter(self.text[1:-1])
-        for c0 in iter_string:
-            if c0 != "\\":
-                bytes_contents += c0.encode()
-            else:
-                c1 = next(iter_string, None)
-                if c1 is None:
-                    raise ParseError(self, "Invalid escape sequence!")
-                match c1:
-                    case "n":
-                        bytes_contents += b"\n"
-                    case "t":
-                        bytes_contents += b"\t"
-                    case "\\":
-                        bytes_contents += b"\\"
-                    case '"':
-                        bytes_contents += b'"'
-                    case _:
-                        c2 = next(iter_string, None)
-                        if c2 is None:
-                            raise ParseError(self, "Invalid escape sequence")
-                        bytes_contents += int(c1 + c2, 16).to_bytes(1)
-
-        return bytes(bytes_contents)
+        return encode_mlir_escape(self.text[1:-1])
 
 
 @dataclass

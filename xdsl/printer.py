@@ -390,7 +390,7 @@ class Printer:
             return
 
         if isinstance(attribute, StringAttr):
-            self.print_string_literal(attribute.string)
+            self.print_string_literal(attribute.escaped_string)
             return
 
         if isinstance(attribute, SymbolRefAttr):
