@@ -1,8 +1,10 @@
 from collections.abc import Sequence
+from itertools import compress
 
 from xdsl.builder import Builder
-from xdsl.dialects import arith, linalg, memref, scf
+from xdsl.dialects import affine, arith, linalg, memref, scf
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     IndexType,
     IntegerAttr,
     ModuleOp,
@@ -20,15 +22,38 @@ from xdsl.pattern_rewriter import (
 
 
 def indices_for_map(
-    affine_map: AffineMap, input_index_vals: Sequence[SSAValue]
+    b: Builder, affine_map: AffineMap, input_index_vals: Sequence[SSAValue]
 ) -> Sequence[SSAValue]:
-    output_indices: list[int] = []
+    if affine_map.num_symbols:
+        raise NotImplementedError("Cannot create indices for affine map with symbols")
+    output_indices: list[SSAValue] = []
     for expr in affine_map.results:
-        if not isinstance(expr, AffineDimExpr):
-            raise NotImplementedError("Cannot handle non-dim affine maps")
-        output_indices.append(expr.position)
+        if isinstance(expr, AffineDimExpr):
+            output_indices.append(input_index_vals[expr.position])
+        else:
+            used_dims = expr.used_dims()
+            new_index_vals = input_index_vals
+            new_affine_map = AffineMap(
+                affine_map.num_dims, affine_map.num_symbols, (expr,)
+            )
+            if len(used_dims) != affine_map.num_dims:
+                # Remove unused dims
+                selectors = tuple(
+                    dim in used_dims for dim in range(affine_map.num_dims)
+                )
+                new_index_vals = tuple(compress(new_index_vals, selectors))
+                new_affine_map = new_affine_map.compress_dims(selectors)
 
-    return tuple(input_index_vals[index] for index in output_indices)
+            b.insert(
+                apply_op := affine.ApplyOp(
+                    new_index_vals,
+                    AffineMapAttr(new_affine_map),
+                )
+            )
+
+            output_indices.append(apply_op.result)
+
+    return output_indices
 
 
 class LowerGenericOpPattern(RewritePattern):
@@ -97,7 +122,7 @@ class LowerGenericOpPattern(RewritePattern):
             if not arg.uses:
                 continue
             affine_map = affine_map_attr.data
-            indices = indices_for_map(affine_map, loop_args)
+            indices = indices_for_map(b, affine_map, loop_args)
             load_op = memref.Load.get(operand, indices)
             b.insert(load_op)
             arg.replace_by(load_op.res)
@@ -113,7 +138,10 @@ class LowerGenericOpPattern(RewritePattern):
             output_indexing_maps, linalg_yield_op.operands, output_operands, strict=True
         ):
             affine_map = affine_map_attr.data
-            indices = indices_for_map(affine_map, loop_args)
+            # TODO: Use rewriter instead of existing builder in the future
+            # This is safe as-is, will just insert the affine.apply ops at the start of
+            # the block, potentially leading to more register pressure
+            indices = indices_for_map(b, affine_map, loop_args)
             store_op = memref.Store.get(yield_value, ref, indices)
             rewriter.insert_op_before(store_op, linalg_yield_op)
 

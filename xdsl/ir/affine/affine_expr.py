@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -251,6 +252,15 @@ class AffineExpr:
         # TODO (#1086): Simplify modulo here before returning.
         return AffineBinaryOpExpr(AffineBinaryOpKind.Mod, self, other)
 
+    @abstractmethod
+    def add_used_dims(self, used_dims: set[int]) -> None:
+        raise NotImplementedError()
+
+    def used_dims(self) -> set[int]:
+        res: set[int] = set()
+        self.add_used_dims(res)
+        return res
+
 
 class AffineBinaryOpKind(Enum):
     """Enum for the kind of storage node used in AffineExpr."""
@@ -286,6 +296,10 @@ class AffineBinaryOpExpr(AffineExpr):
     def __str__(self) -> str:
         return f"({self.lhs} {self.kind.get_token()} {self.rhs})"
 
+    def add_used_dims(self, used_dims: set[int]) -> None:
+        self.lhs.add_used_dims(used_dims)
+        self.rhs.add_used_dims(used_dims)
+
 
 @dataclass
 class AffineDimExpr(AffineExpr):
@@ -295,6 +309,9 @@ class AffineDimExpr(AffineExpr):
 
     def __str__(self) -> str:
         return f"d{self.position}"
+
+    def add_used_dims(self, used_dims: set[int]) -> None:
+        used_dims.add(self.position)
 
 
 @dataclass
@@ -306,6 +323,9 @@ class AffineSymExpr(AffineExpr):
     def __str__(self) -> str:
         return f"s{self.position}"
 
+    def add_used_dims(self, used_dims: set[int]) -> None:
+        pass
+
 
 @dataclass
 class AffineConstantExpr(AffineExpr):
@@ -315,3 +335,6 @@ class AffineConstantExpr(AffineExpr):
 
     def __str__(self) -> str:
         return f"{self.value}"
+
+    def add_used_dims(self, used_dims: set[int]) -> None:
+        pass
