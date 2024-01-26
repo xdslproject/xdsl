@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -253,13 +253,16 @@ class AffineExpr:
         return AffineBinaryOpExpr(AffineBinaryOpKind.Mod, self, other)
 
     @abstractmethod
-    def add_used_dims(self, used_dims: set[int]) -> None:
-        raise NotImplementedError()
+    def dfs(self) -> Iterator[AffineExpr]:
+        """
+        Iterates nodes in depth-first order.
+
+        https://en.wikipedia.org/wiki/Depth-first_search
+        """
+        yield self
 
     def used_dims(self) -> set[int]:
-        res: set[int] = set()
-        self.add_used_dims(res)
-        return res
+        return {expr.position for expr in self.dfs() if isinstance(expr, AffineDimExpr)}
 
 
 class AffineBinaryOpKind(Enum):
@@ -296,9 +299,10 @@ class AffineBinaryOpExpr(AffineExpr):
     def __str__(self) -> str:
         return f"({self.lhs} {self.kind.get_token()} {self.rhs})"
 
-    def add_used_dims(self, used_dims: set[int]) -> None:
-        self.lhs.add_used_dims(used_dims)
-        self.rhs.add_used_dims(used_dims)
+    def dfs(self) -> Iterator[AffineExpr]:
+        yield self
+        yield from self.lhs.dfs()
+        yield from self.rhs.dfs()
 
 
 @dataclass
@@ -310,9 +314,6 @@ class AffineDimExpr(AffineExpr):
     def __str__(self) -> str:
         return f"d{self.position}"
 
-    def add_used_dims(self, used_dims: set[int]) -> None:
-        used_dims.add(self.position)
-
 
 @dataclass
 class AffineSymExpr(AffineExpr):
@@ -323,9 +324,6 @@ class AffineSymExpr(AffineExpr):
     def __str__(self) -> str:
         return f"s{self.position}"
 
-    def add_used_dims(self, used_dims: set[int]) -> None:
-        pass
-
 
 @dataclass
 class AffineConstantExpr(AffineExpr):
@@ -335,6 +333,3 @@ class AffineConstantExpr(AffineExpr):
 
     def __str__(self) -> str:
         return f"{self.value}"
-
-    def add_used_dims(self, used_dims: set[int]) -> None:
-        pass
