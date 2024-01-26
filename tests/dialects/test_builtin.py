@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     FloatData,
     IntAttr,
+    MemRefType,
     NoneAttr,
     StridedLayoutAttr,
     SymbolRefAttr,
@@ -32,7 +33,6 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute
 from xdsl.irdl import AttrConstraint
 from xdsl.utils.exceptions import VerifyException

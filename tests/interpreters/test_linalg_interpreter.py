@@ -2,8 +2,13 @@ import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg
-from xdsl.dialects.builtin import AffineMapAttr, ModuleOp, StringAttr, i32
-from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    MemRefType,
+    ModuleOp,
+    StringAttr,
+    i32,
+)
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.linalg import LinalgFunctions

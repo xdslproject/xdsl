@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     IntAttr,
+    MemRefType,
     f64,
     i32,
     i64,
@@ -32,7 +33,6 @@ from xdsl.dialects.llvm import (
     LoadOp,
     UndefOp,
 )
-from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
