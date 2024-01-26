@@ -205,7 +205,7 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
 
     def print(self, printer: Printer):
         if self.sym_visibility:
-            visibility = self.sym_visibility.string_value
+            visibility = self.sym_visibility.string
             printer.print(f" {visibility}")
 
         print_func_op_like(
@@ -218,7 +218,7 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
         )
 
     def assembly_line(self) -> str:
-        return f"{self.sym_name.string_value}:"
+        return f"{self.sym_name.string}:"
 
 
 @irdl_op_definition

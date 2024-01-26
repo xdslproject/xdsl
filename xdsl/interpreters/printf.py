@@ -10,5 +10,5 @@ class PrintfFunctions(InterpreterFunctions):
     def run_println(
         self, interpreter: Interpreter, op: PrintFormatOp, args: tuple[Any, ...]
     ):
-        print(op.format_str.string_value.format(*args), file=interpreter.file)
+        print(op.format_str.string.format(*args), file=interpreter.file)
         return ()

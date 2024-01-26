@@ -949,14 +949,14 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: Call, rewriter: PatternRewriter, /):
-        if op.callee.root_reference.string_value == "dummy_load_data":
+        if op.callee.root_reference.string == "dummy_load_data":
             self.n_input = get_number_input_stencils(
                 typing.cast(
                     func.FuncOp, typing.cast(PragmaDataflow, op.parent_op()).parent_op()
                 )
             )
         if (
-            op.callee.root_reference.string_value == "dummy_load_data"
+            op.callee.root_reference.string == "dummy_load_data"
             and self.n_current_load < self.n_input
         ):
             self.n_current_load += 1

@@ -59,7 +59,7 @@ def _format_string_spec_from_print_op(
 
     Empty string parts are omitted.
     """
-    format_str = op.format_str.string_value.split("{}")
+    format_str = op.format_str.string.split("{}")
     args = iter(op.format_vals)
 
     for part in format_str[:-1]:
@@ -130,7 +130,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
                 format_str += _format_str_for_type(part.type)
 
         globl = self._construct_global(format_str + "\n")
-        self.collected_global_symbs[globl.sym_name.string_value] = globl
+        self.collected_global_symbs[globl.sym_name.string] = globl
 
         rewriter.replace_matched_op(
             casts

@@ -193,7 +193,7 @@ class StringAttr(Data[bytes]):
         super().__init__(data)
 
     @property
-    def string_value(self) -> str:
+    def string(self) -> str:
         return self.data.decode("utf-8")
 
 
@@ -228,9 +228,9 @@ class SymbolRefAttr(ParametrizedAttribute):
         super().__init__([root, nested])
 
     def string_value(self):
-        root = self.root_reference.string_value
+        root = self.root_reference.string
         for ref in self.nested_references.data:
-            root += "." + ref.string_value
+            root += "." + ref.string
         return root
 
 
@@ -1394,14 +1394,14 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
 
         class UnregisteredAttrWithName(UnregisteredAttr):
             def verify(self):
-                if self.attr_name.string_value != name:
+                if self.attr_name.string != name:
                     raise VerifyException("Unregistered attribute name mismatch")
                 if self.is_type.data != int(is_type):
                     raise VerifyException("Unregistered attribute is_type mismatch")
 
         class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
             def verify(self):
-                if self.attr_name.string_value != name:
+                if self.attr_name.string != name:
                     raise VerifyException("Unregistered attribute name mismatch")
                 if self.is_type.data != int(is_type):
                     raise VerifyException("Unregistered attribute is_type mismatch")

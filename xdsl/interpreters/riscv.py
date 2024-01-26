@@ -271,7 +271,7 @@ class RiscvFunctions(InterpreterFunctions):
         data: dict[str, RawPtr] = {}
         for op in module_op.ops:
             if isinstance(op, riscv.AssemblySectionOp):
-                if op.directive.string_value == ".data":
+                if op.directive.string == ".data":
                     assert op.data is not None
                     ops = list(op.data.block.ops)
                     for label, data_op in pairs(ops):
@@ -288,15 +288,15 @@ class RiscvFunctions(InterpreterFunctions):
                                 "Unexpected None value in data section directive"
                             )
 
-                        match data_op.directive.string_value:
+                        match data_op.directive.string:
                             case ".word":
-                                hexs = data_op.value.string_value.split(",")
+                                hexs = data_op.value.string.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
                                 data[label.label.data] = RawPtr.new_int32(ints)
                             case _:
                                 raise InterpretationError(
                                     "Cannot interpret data directive "
-                                    f"{data_op.directive.string_value}"
+                                    f"{data_op.directive.string}"
                                 )
         return data
 
@@ -644,7 +644,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        instr = op.instruction_name.string_value
+        instr = op.instruction_name.string
         if instr not in self.custom_instructions:
             raise InterpretationError(
                 "Could not find custom riscv assembly instruction implementation for"

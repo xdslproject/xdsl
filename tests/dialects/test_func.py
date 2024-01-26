@@ -149,7 +149,7 @@ def test_func_get_return_op():
 def test_callable_constructor():
     f = FuncOp("f", ((i32, i32, i32), ()))
 
-    assert f.sym_name.string_value == "f"
+    assert f.sym_name.string == "f"
     assert not f.body.block.ops
 
 
@@ -179,7 +179,7 @@ def test_call():
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call(func0.sym_name.string_value, [a, b], [ret0.arguments[0].type])
+    call0 = Call(func0.sym_name.string, [a, b], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, b, call0])
@@ -225,7 +225,7 @@ def test_call_II():
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call(func0.sym_name.string_value, [a], [ret0.arguments[0].type])
+    call0 = Call(func0.sym_name.string, [a], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, call0])
@@ -264,4 +264,4 @@ def test_external_func_def():
 
     assert len(ext.regions) == 1
     assert len(ext.regions[0].blocks) == 0
-    assert ext.sym_name.string_value == "testname"
+    assert ext.sym_name.string == "testname"

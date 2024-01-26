@@ -534,7 +534,7 @@ class AttrParser(BaseParser):
         # We only accept strided layouts and affine_maps
         if isa(memory_or_layout, StridedLayoutAttr) or (
             isinstance(memory_or_layout, UnregisteredAttr)
-            and memory_or_layout.attr_name.string_value == "affine_map"
+            and memory_or_layout.attr_name.string == "affine_map"
         ):
             return MemRefType(type, shape, layout=memory_or_layout)
         self.raise_error(

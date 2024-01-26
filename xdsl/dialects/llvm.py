@@ -110,7 +110,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
         if self.struct_name.data:
-            printer.print_string_literal(self.struct_name.string_value)
+            printer.print_string_literal(self.struct_name.string)
             printer.print_string(", ")
         printer.print("(")
         printer.print_list(self.types.data, printer.print_attribute)
@@ -350,7 +350,7 @@ class LinkageAttr(ParametrizedAttribute):
             "weak_odr",
             "external",
         ]
-        if self.linkage.string_value not in allowed_linkage:
+        if self.linkage.string not in allowed_linkage:
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
@@ -1003,7 +1003,7 @@ class CallingConventionAttr(ParametrizedAttribute):
 
     @property
     def cconv_name(self) -> str:
-        return self.convention.string_value
+        return self.convention.string
 
     def __init__(self, conv: str):
         super().__init__([StringAttr(conv)])
@@ -1013,7 +1013,7 @@ class CallingConventionAttr(ParametrizedAttribute):
             raise VerifyException(f'Invalid calling convention "{self.cconv_name}"')
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<" + self.convention.string_value + ">")
+        printer.print_string("<" + self.convention.string + ">")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

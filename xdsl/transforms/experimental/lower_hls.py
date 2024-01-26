@@ -263,7 +263,7 @@ class PragmaPipelineToFunc(RewritePattern):
         pipeline_func_name = f"_pipeline_{ii}_"
         func1 = FuncOp.external(pipeline_func_name, [], [])
 
-        call1 = Call(func1.sym_name.string_value, [], [])
+        call1 = Call(func1.sym_name.string, [], [])
 
         if pipeline_func_name not in self.declared_pipeline_names:
             self.module.body.block.add_op(func1)
@@ -288,7 +288,7 @@ class PragmaUnrollToFunc(RewritePattern):
         region1 = Region(block1)
         func1 = FuncOp.from_region(f"_unroll_{factor}_", [], [], region1)
 
-        call1 = Call(func1.sym_name.string_value, [], [])
+        call1 = Call(func1.sym_name.string, [], [])
 
         self.module.body.block.add_op(func1)
 

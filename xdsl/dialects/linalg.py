@@ -268,7 +268,7 @@ class Generic(IRDLOperation):
                         iterator_types.append(iterator_type)
                     case StringAttr():
                         iterator_type = IteratorTypeAttr(
-                            IteratorType(iterator_type.string_value)
+                            IteratorType(iterator_type.string)
                         )
                         iterator_types.append(iterator_type)
                     case _:

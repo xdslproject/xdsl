@@ -18,7 +18,7 @@ class InlineFunctions(RewritePattern):
     def lookup_func_op(self, module: ModuleOp, name: str) -> toy.FuncOp:
         if self._func_op_by_name is None:
             self._func_op_by_name = {
-                op.sym_name.string_value: op
+                op.sym_name.string: op
                 for op in module.ops
                 if isinstance(op, toy.FuncOp)
             }
@@ -84,7 +84,7 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
                 if isinstance(op, toy.GenericCallOp)
             }
 
-        return op.sym_name.string_value not in self._used_funcs
+        return op.sym_name.string not in self._used_funcs
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.FuncOp, rewriter: PatternRewriter):

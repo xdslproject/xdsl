@@ -198,7 +198,7 @@ class WGPUFunctions(InterpreterFunctions):
             layout=pipeline_layout,  # pyright: ignore
             compute={
                 "module": shader_module,
-                "entry_point": func.sym_name.string_value,
+                "entry_point": func.sym_name.string,
             },
         )
 

@@ -106,9 +106,9 @@ def get_symbol(op: Operation) -> str | None:
     attributes, None is returned.
     """
     if isinstance(op, symref.Declare):
-        return op.sym_name.string_value
+        return op.sym_name.string
     elif isinstance(op, symref.Fetch | symref.Update):
-        return op.symbol.root_reference.string_value
+        return op.symbol.root_reference.string
     else:
         return None
 

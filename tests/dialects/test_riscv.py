@@ -82,7 +82,7 @@ def test_csr_op():
 def test_comment_op():
     comment_op = riscv.CommentOp("my comment")
 
-    assert comment_op.comment.string_value == "my comment"
+    assert comment_op.comment.string == "my comment"
 
     code = riscv.riscv_code(ModuleOp([comment_op]))
     assert code == "    # my comment\n"
@@ -113,7 +113,7 @@ def test_return_op():
 
     assert return_op.comment is not None
 
-    assert return_op.comment.string_value == "my comment"
+    assert return_op.comment.string == "my comment"
 
     code = riscv.riscv_code(ModuleOp([return_op]))
     assert code == "    ebreak                                       # my comment\n"

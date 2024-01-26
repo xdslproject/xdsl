@@ -67,7 +67,7 @@ class InsertExitSyscallOp(RewritePattern):
         parent_op = op.parent_op()
         if (
             not isinstance(parent_op, riscv_func.FuncOp)
-            or parent_op.sym_name.string_value != "main"
+            or parent_op.sym_name.string != "main"
         ):
             return
 

@@ -106,9 +106,9 @@ class InnerRefAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<@")
-        printer.print_string(self.module_ref.root_reference.string_value)
+        printer.print_string(self.module_ref.root_reference.string)
         printer.print_string("::@")
-        printer.print_string(self.sym_name.string_value)
+        printer.print_string(self.sym_name.string)
         printer.print_string(">")
 
 

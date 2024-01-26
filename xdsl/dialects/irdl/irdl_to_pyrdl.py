@@ -21,8 +21,8 @@ def convert_type_or_attr(op: TypeOp | AttributeOp, dialect_name: str) -> str:
     type_addition = ", TypeAttribute" if isinstance(op, TypeOp) else ""
     res = f"""\
 @irdl_attr_definition
-class {op.sym_name.string_value}(ParametrizedAttribute{type_addition}):
-    name = "{dialect_name}.{op.sym_name.string_value}"
+class {op.sym_name.string}(ParametrizedAttribute{type_addition}):
+    name = "{dialect_name}.{op.sym_name.string}"
 """
 
     for sub_op in op.body.ops:
@@ -37,8 +37,8 @@ def convert_op(op: OperationOp, dialect_name: str) -> str:
     """Convert an IRDL operation to Python code creating that operation in xDSL."""
     res = f"""\
 @irdl_op_definition
-class {op.sym_name.string_value}(IRDLOperation):
-    name = "{dialect_name}.{op.sym_name.string_value}"
+class {op.sym_name.string}(IRDLOperation):
+    name = "{dialect_name}.{op.sym_name.string}"
 """
 
     for sub_op in op.body.ops:
@@ -60,15 +60,15 @@ def convert_dialect(dialect: DialectOp) -> str:
     attrs: list[str] = []
     for op in dialect.body.ops:
         if isinstance(op, TypeOp) or isinstance(op, AttributeOp):
-            res += convert_type_or_attr(op, dialect.sym_name.string_value) + "\n\n"
-            attrs += [op.sym_name.string_value]
+            res += convert_type_or_attr(op, dialect.sym_name.string) + "\n\n"
+            attrs += [op.sym_name.string]
         if isinstance(op, OperationOp):
-            res += convert_op(op, dialect.sym_name.string_value) + "\n\n"
-            ops += [op.sym_name.string_value]
+            res += convert_op(op, dialect.sym_name.string) + "\n\n"
+            ops += [op.sym_name.string]
     op_list = "[" + ", ".join(ops) + "]"
     attr_list = "[" + ", ".join(attrs) + "]"
     return (
         res
-        + dialect.sym_name.string_value
-        + f' = Dialect("{dialect.sym_name.string_value}", {op_list}, {attr_list})'
+        + dialect.sym_name.string
+        + f' = Dialect("{dialect.sym_name.string}", {op_list}, {attr_list})'
     )

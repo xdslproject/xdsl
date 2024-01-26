@@ -232,9 +232,7 @@ class SymbolTable(OpTrait):
             if not isinstance(sym_name, StringAttr):
                 continue
             if sym_name in met_names:
-                raise VerifyException(
-                    f'Redefinition of symbol "{sym_name.string_value}"'
-                )
+                raise VerifyException(f'Redefinition of symbol "{sym_name.string}"')
             met_names.add(sym_name)
 
     @staticmethod

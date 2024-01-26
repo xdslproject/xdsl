@@ -128,7 +128,7 @@ def print_func_op_like(
     arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
-    printer.print(f" @{sym_name.string_value}")
+    printer.print(f" @{sym_name.string}")
     if body.blocks:
         printer.print("(")
         if arg_attrs is not None:
@@ -173,7 +173,7 @@ def parse_func_op_like(
     Returns the function name, argument types, return types, body, extra args, and arg_attrs.
     """
     # Parse function name
-    name = parser.parse_symbol_name().string_value
+    name = parser.parse_symbol_name().string
 
     def parse_fun_input() -> Attribute | tuple[parser.Argument, dict[str, Attribute]]:
         arg = parser.parse_optional_argument()

@@ -148,7 +148,7 @@ class FuncOp(IRDLOperation):
 
     def print(self, printer: Printer):
         if self.sym_visibility:
-            visibility = self.sym_visibility.string_value
+            visibility = self.sym_visibility.string
             printer.print(f" {visibility}")
 
         print_func_op_like(

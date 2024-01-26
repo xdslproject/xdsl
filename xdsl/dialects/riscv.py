@@ -502,7 +502,7 @@ def _append_comment(line: str, comment: StringAttr | None) -> str:
 
     padding = " " * max(0, 48 - len(line))
 
-    return f"{line}{padding} # {comment.string_value}"
+    return f"{line}{padding} # {comment.string}"
 
 
 def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
@@ -2515,12 +2515,12 @@ class DirectiveOp(IRDLOperation, RISCVOp):
         )
 
     def assembly_line(self) -> str | None:
-        if self.value is not None and self.value.string_value:
-            arg_str = _assembly_arg_str(self.value.string_value)
+        if self.value is not None and self.value.string:
+            arg_str = _assembly_arg_str(self.value.string)
         else:
             arg_str = ""
 
-        return _assembly_line(self.directive.string_value, arg_str, is_indented=False)
+        return _assembly_line(self.directive.string, arg_str, is_indented=False)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2534,10 +2534,10 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        printer.print_string_literal(self.directive.string_value)
+        printer.print_string_literal(self.directive.string)
         if self.value is not None:
             printer.print(" ")
-            printer.print_string_literal(self.value.string_value)
+            printer.print_string_literal(self.value.string)
         return {"directive", "value"}
 
     def print_op_type(self, printer: Printer) -> None:
@@ -2602,7 +2602,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
-        printer.print_string_literal(self.directive.string_value)
+        printer.print_string_literal(self.directive.string)
         printer.print_op_attributes(
             self.attributes, reserved_attr_names=("directive",), print_keyword=True
         )
@@ -2611,7 +2611,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
             printer.print_region(self.data)
 
     def assembly_line(self) -> str | None:
-        return _assembly_line(self.directive.string_value, "", is_indented=False)
+        return _assembly_line(self.directive.string, "", is_indented=False)
 
 
 @irdl_op_definition
@@ -2662,7 +2662,7 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
         )
 
     def assembly_instruction_name(self) -> str:
-        return self.instruction_name.string_value
+        return self.instruction_name.string
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return *self.results, *self.operands
@@ -2684,7 +2684,7 @@ class CommentOp(IRDLOperation, RISCVOp):
         )
 
     def assembly_line(self) -> str | None:
-        return f"    # {self.comment.string_value}"
+        return f"    # {self.comment.string}"
 
 
 @irdl_op_definition

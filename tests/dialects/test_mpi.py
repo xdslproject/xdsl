@@ -34,4 +34,4 @@ def test_mpi_baseop():
     assert recv.tag == tag.result
     assert test_res.request == recv.request
     assert source.status == wait.status
-    assert source.field.string_value == mpi.StatusTypeField.MPI_SOURCE.value
+    assert source.field.string == mpi.StatusTypeField.MPI_SOURCE.value
