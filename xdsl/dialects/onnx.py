@@ -461,10 +461,10 @@ class Conv(IRDLOperation):
     bias = operand_def(TensorType[T] | NoneType)
     res = result_def(TensorType[T])
 
-    auto_pad = attr_def(StringAttr, attr_name="auto_pad")
-    dilations = attr_def(ArrayAttr[AnyIntegerAttr], attr_name="dilations")
+    auto_pad = attr_def(StringAttr)
+    dilations = attr_def(ArrayAttr[AnyIntegerAttr])
     group = attr_def(AnyIntegerAttr)
-    kernel_shape = attr_def(ArrayAttr[AnyIntegerAttr], attr_name="kernel_shape")
+    kernel_shape = attr_def(ArrayAttr[AnyIntegerAttr])
     pads = attr_def(ArrayAttr[AnyIntegerAttr])
     strides = attr_def(ArrayAttr[AnyIntegerAttr])
 
