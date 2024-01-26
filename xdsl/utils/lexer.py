@@ -184,10 +184,10 @@ class StringLiteral(Span):
             if c0 != "\\":
                 bytes_contents += c0.encode()
             else:
-                c0 = next(iter_string, None)
-                if c0 is None:
+                c1 = next(iter_string, None)
+                if c1 is None:
                     raise ParseError(self, "Invalid escape sequence!")
-                match c0:
+                match c1:
                     case "n":
                         bytes_contents += b"\n"
                     case "t":
@@ -197,10 +197,10 @@ class StringLiteral(Span):
                     case '"':
                         bytes_contents += b'"'
                     case _:
-                        c1 = next(iter_string, None)
-                        if c1 is None:
+                        c2 = next(iter_string, None)
+                        if c2 is None:
                             raise ParseError(self, "Invalid escape sequence")
-                        bytes_contents += int(c0 + c1, 16).to_bytes(1)
+                        bytes_contents += int(c1 + c2, 16).to_bytes(1)
 
         return bytes(bytes_contents)
 
@@ -626,11 +626,25 @@ class Lexer:
             # TODO: handle unicode escape
             if current_char == "\\":
                 escaped_char = self._get_chars()
-                if escaped_char not in ['"', "\\", "n", "t"]:
+                if escaped_char is None:
                     raise ParseError(
                         StringLiteral(self.pos - 1, self.pos, self.input),
-                        "Unknown escape in string literal.",
+                        "Unterminated string litteral",
                     )
+                if escaped_char not in ['"', "\\", "n", "t"]:
+                    next_char = self._get_chars()
+                    if next_char is None:
+                        raise ParseError(
+                            StringLiteral(self.pos - 1, self.pos, self.input),
+                            "Unterminated string litteral",
+                        )
+                    try:
+                        int(escaped_char + next_char, 16)
+                    except ValueError:
+                        raise ParseError(
+                            StringLiteral(self.pos - 1, self.pos, self.input),
+                            "Unknown escape in string literal.",
+                        )
 
         raise ParseError(
             Span(start_pos, self.pos, self.input),

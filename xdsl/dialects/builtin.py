@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import codecs
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -175,6 +176,16 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
+def wtf(err: UnicodeDecodeError):
+    print(err.object[err.start : err.end])
+    thebyte = err.object[err.start : err.end]
+    a = f"\\{thebyte.hex().capitalize()}"
+    return (a, err.end)
+
+
+codecs.register_error("wtf", wtf)
+
+
 @irdl_attr_definition
 class StringAttr(Data[bytes]):
     name = "string"
@@ -189,7 +200,35 @@ class StringAttr(Data[bytes]):
 
     def __init__(self, data: str | bytes) -> None:
         if isinstance(data, str):
-            data = data.encode("utf-8")
+            bytes_array = bytearray()
+            iter_data = iter(data)
+            for c in iter_data:
+                match c:
+                    case "\\":
+                        c = next(iter_data)
+                        match c:
+                            case "n":
+                                bytes_array.append(ord("\n"))
+                            case "t":
+                                bytes_array.append(ord("\t"))
+                            case "\\":
+                                bytes_array.append(ord("\\"))
+                            case '"':
+                                bytes_array.append(ord('"'))
+                            case c if c in "0123456789abcdefABCDEF":
+                                n = next(iter_data)
+                                try:
+                                    bytes_array.append(int(c + n, 16))
+                                except ValueError:
+                                    raise ValueError(
+                                        f"Invalid escape sequence: \\{c}{n}"
+                                    )
+                            case _:
+                                raise ValueError(f"Invalid escape sequence: \\{c}")
+                    case _:
+                        bytes_array += c.encode()
+
+            data = bytes(bytes_array)
         super().__init__(data)
 
     @property

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -351,7 +350,7 @@ class Printer:
         self.print(">")
 
     def print_string_literal(self, string: str):
-        self.print(json.dumps(string))
+        self.print(f'"{string}"')
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
