@@ -1,27 +1,32 @@
 def encode_mlir_escape(input: str):
     bytes_contents = bytearray()
-    iter_string = iter(input)
-    for c0 in iter_string:
-        if c0 != "\\":
-            bytes_contents += c0.encode()
-        else:
-            c1 = next(iter_string, None)
-            if c1 is None:
-                raise ValueError(rf"Invalid escape sequence \{c1}f!")
-            match c1:
-                case "n":
-                    bytes_contents += b"\n"
-                case "t":
-                    bytes_contents += b"\t"
-                case "\\":
-                    bytes_contents += b"\\"
-                case '"':
-                    bytes_contents += b'"'
-                case _:
-                    c2 = next(iter_string, None)
-                    if c2 is None:
-                        raise ValueError(rf"Invalid escape sequence \{c0}{c1}f!")
-                    bytes_contents += int(c1 + c2, 16).to_bytes(1)
+    i = 0
+    ei = input.find("\\", i)
+    if ei == -1:
+        return input.encode()
+    while i < len(input):
+        if ei == -1:
+            bytes_contents += input[i:].encode()
+            break
+        bytes_contents += input[i:ei].encode()
+        i = ei
+        i += 1
+        c0 = input[i]
+        match c0:
+            case "n":
+                bytes_contents += b"\n"
+            case "t":
+                bytes_contents += b"\t"
+            case "\\":
+                bytes_contents += b"\\"
+            case '"':
+                bytes_contents += b'"'
+            case _:
+                i += 1
+                c1 = input[i]
+                bytes_contents += int(c0 + c1, 16).to_bytes(1)
+        i += 1
+        ei = input.find("\\", i)
 
     return bytes(bytes_contents)
 
