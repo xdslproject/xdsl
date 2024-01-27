@@ -187,14 +187,29 @@ class StringAttr(Data[bytes]):
     def print_parameter(self, printer: Printer) -> None:
         pass
 
-    def __init__(self, data: str | bytes) -> None:
+    def __init__(self, data: str | bytes | StringAttr) -> None:
         if isinstance(data, str):
             data = data.encode("utf-8")
+        if isinstance(data, StringAttr):
+            data = data.data
         super().__init__(data)
 
     @property
     def string(self) -> str:
         return self.data.decode("utf-8")
+
+    @property
+    def escaped(self) -> str:
+        string = ""
+        for byte in self.data:
+            match byte:
+                case 0x5C:  # ord("\\")
+                    string += "\\\\"
+                case _ if 0x20 > byte or byte > 0x7E or byte == 0x22:
+                    string += f"\\{byte:02X}"
+                case _:
+                    string += chr(byte)
+        return string
 
 
 @irdl_attr_definition
@@ -1153,7 +1168,9 @@ class OpaqueAttr(ParametrizedAttribute):
     type: ParameterDef[Attribute]
 
     @staticmethod
-    def from_strings(name: str, value: str, type: Attribute = NoneAttr()) -> OpaqueAttr:
+    def from_strings(
+        name: str | StringAttr, value: str | StringAttr, type: Attribute = NoneAttr()
+    ) -> OpaqueAttr:
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 

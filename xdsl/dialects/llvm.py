@@ -110,7 +110,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
         if self.struct_name.data:
-            printer.print_string_literal(self.struct_name.string)
+            printer.print_string_attribute(self.struct_name)
             printer.print_string(", ")
         printer.print("(")
         printer.print_list(self.types.data, printer.print_attribute)

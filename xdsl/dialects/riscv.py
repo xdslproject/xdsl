@@ -356,11 +356,11 @@ class LabelAttr(Data[str]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
         with parser.in_angle_brackets():
-            return parser.parse_str_literal()
+            return parser.parse_str_literal().string
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string_literal(self.data)
+            printer.print_string_attribute(StringAttr(self.data))
 
 
 class RISCVOp(Operation, ABC):
@@ -1132,7 +1132,7 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
             IntegerType(32),
         )
         if parser.parse_optional_punctuation(",") is not None:
-            if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
+            if (flag := parser.parse_str_literal("Expected 'w' flag").string) != "w":
                 parser.raise_error(f"Expected 'w' flag, got '{flag}'")
             attributes["writeonly"] = UnitAttr()
         return attributes
@@ -1210,7 +1210,7 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
             IntegerType(32),
         )
         if parser.parse_optional_punctuation(",") is not None:
-            if (flag := parser.parse_str_literal("Expected 'r' flag")) != "r":
+            if (flag := parser.parse_str_literal("Expected 'r' flag").string) != "r":
                 parser.raise_error(f"Expected 'r' flag, got '{flag}'")
             attributes["readonly"] = UnitAttr()
         return attributes
@@ -1288,7 +1288,7 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         parser.parse_punctuation(",")
         attributes["immediate"] = _parse_immediate_value(parser, IntegerType(32))
         if parser.parse_optional_punctuation(",") is not None:
-            if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
+            if (flag := parser.parse_str_literal("Expected 'w' flag").string) != "w":
                 parser.raise_error(f"Expected 'w' flag, got '{flag}'")
             attributes["writeonly"] = UnitAttr()
         return attributes
@@ -2465,12 +2465,14 @@ class LabelOp(IRDLOperation, RISCVOp):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
+        attributes["label"] = LabelAttr(
+            parser.parse_str_literal("Expected label").string
+        )
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        printer.print_string_literal(self.label.data)
+        printer.print_string_attribute(StringAttr(self.label.data))
         return {"label"}
 
     def print_op_type(self, printer: Printer) -> None:
@@ -2534,10 +2536,10 @@ class DirectiveOp(IRDLOperation, RISCVOp):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        printer.print_string_literal(self.directive.string)
+        printer.print_string_attribute(self.directive)
         if self.value is not None:
             printer.print(" ")
-            printer.print_string_literal(self.value.string)
+            printer.print_string_attribute(self.value)
         return {"directive", "value"}
 
     def print_op_type(self, printer: Printer) -> None:
@@ -2602,7 +2604,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
-        printer.print_string_literal(self.directive.string)
+        printer.print_string_attribute(self.directive)
         printer.print_op_attributes(
             self.attributes, reserved_attr_names=("directive",), print_keyword=True
         )
@@ -3659,7 +3661,7 @@ def _parse_optional_immediate_value(
     if (immediate := parser.parse_optional_integer()) is not None:
         return IntegerAttr(immediate, integer_type)
     if (immediate := parser.parse_optional_str_literal()) is not None:
-        return LabelAttr(immediate.decode())
+        return LabelAttr(immediate.string)
 
 
 def _parse_immediate_value(
@@ -3676,7 +3678,7 @@ def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAt
         case IntegerAttr():
             printer.print(immediate.value.data)
         case LabelAttr():
-            printer.print_string_literal(immediate.data)
+            printer.print_string_attribute(StringAttr(immediate.data))
 
 
 RISCV = Dialect(

@@ -717,7 +717,7 @@ class Parser(AttrParser):
             # Generic operation format
             op_name = self.expect(
                 self.parse_optional_str_literal, "operation name expected"
-            ).decode()
+            ).escaped
             op_type = self._get_op_by_name(op_name)
             dialect_name = op_type.dialect_name()
             self._parser_state.dialect_stack.append(dialect_name)

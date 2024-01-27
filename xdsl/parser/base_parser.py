@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import NoReturn, TypeVar, overload
 
+from xdsl.dialects.builtin import StringAttr
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token
 
@@ -379,29 +380,31 @@ class BaseParser:
             "integer or float literal expected" + context_msg,
         )
 
-    def parse_optional_str_literal(self) -> bytes | None:
+    def parse_optional_str_literal(self) -> StringAttr | None:
         """
         Parse a string literal with the format `"..."`, if present.
 
         Returns the string contents without the quotes and with escape sequences
-        resolved.
+        resolved. Because the string is allowed to contain arbitrary binary
+        escape sequences, the result is returned as a `bytes` object.
         """
 
         if (token := self._parse_optional_token(Token.Kind.STRING_LIT)) is None:
             return None
-        return token.get_string_literal_value()
+        return StringAttr(token.get_string_literal_value())
 
-    def parse_str_literal(self, context_msg: str = "") -> str:
+    def parse_str_literal(self, context_msg: str = "") -> StringAttr:
         """
         Parse a string literal with the format `"..."`.
 
         Returns the string contents without the quotes and with escape sequences
-        resolved.
+        resolved. Because the string is allowed to contain arbitrary binary
+        escape sequences, the result is returned as a `bytes` object.
         """
         return self.expect(
             self.parse_optional_str_literal,
             "string literal expected" + context_msg,
-        ).decode()
+        )
 
     def parse_optional_identifier(self) -> str | None:
         """

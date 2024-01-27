@@ -198,8 +198,8 @@ class Generic(IRDLOperation):
         printer.print_string(", iterator_types = [")
         printer.print_list(
             self.iterator_types,
-            lambda iterator_type: printer.print_string_literal(
-                iterator_type.data.value
+            lambda iterator_type: printer.print_string_attribute(
+                StringAttr(iterator_type.data.value)
             ),
         )
         printer.print_string("]}")

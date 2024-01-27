@@ -175,13 +175,29 @@ class AttrParser(BaseParser):
                 "Expected bare-id or string-literal here as part of attribute entry!"
             )
 
-        if isinstance(name, bytes):
-            name = name.decode()
+        if isinstance(name, StringAttr):
+            name = name.escaped
 
         if self.parse_optional_punctuation("=") is None:
             return name, UnitAttr()
 
         return name, self.parse_attribute()
+
+    def parse_optional_string_attribute(self) -> StringAttr | None:
+        """
+        Parse a string attribute, if present.
+        """
+        if (str_lit := self.parse_optional_str_literal()) is not None:
+            return StringAttr(str_lit)
+        return None
+
+    def parse_string_attribute(self) -> StringAttr:
+        """
+        Parse a string attribute.
+        """
+        return self.expect(
+            self.parse_optional_string_attribute, "Expected string attribute"
+        )
 
     def parse_optional_dictionary_attr_dict(self) -> dict[str, Attribute]:
         attrs = self.parse_optional_comma_separated_list(
@@ -786,7 +802,7 @@ class AttrParser(BaseParser):
             dense_contents = None
         else:
             if (hex_string := self.parse_optional_str_literal()) is not None:
-                dense_contents, shape = hex_string.decode(), None
+                dense_contents, shape = hex_string.string, None
             else:
                 # Expect a tensor literal instead
                 dense_contents = self._parse_tensor_literal()
@@ -852,7 +868,9 @@ class AttrParser(BaseParser):
                 self.parse_optional_type, "opaque attribute must be typed!"
             )
 
-        return OpaqueAttr.from_strings(*str_lit_list, type=type)
+        return OpaqueAttr.from_strings(
+            *(StringAttr(str_lit) for str_lit in str_lit_list), type=type
+        )
 
     def _parse_builtin_dense_resource_attr(self, _name: Span) -> DenseResourceAttr:
         self.parse_characters("<", " in dense_resource attribute")
@@ -1039,7 +1057,7 @@ class AttrParser(BaseParser):
             literal_span = StringLiteral(
                 token.span.start + 1, token.span.end, token.span.input
             )
-            return StringAttr(literal_span.string_contents)
+            return StringAttr(literal_span.bytes_contents)
         return StringAttr(token.text[1:])
 
     def parse_symbol_name(self) -> StringAttr:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -350,8 +349,8 @@ class Printer:
         self.print_list(params, self.print_attribute)
         self.print(">")
 
-    def print_string_literal(self, string: str):
-        self.print(json.dumps(string))
+    def print_string_attribute(self, attribute: StringAttr) -> None:
+        self.print(f'"{attribute.escaped}"')
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
@@ -391,7 +390,7 @@ class Printer:
             return
 
         if isinstance(attribute, StringAttr):
-            self.print_string_literal(attribute.string)
+            self.print_string_attribute(attribute)
             return
 
         if isinstance(attribute, SymbolRefAttr):

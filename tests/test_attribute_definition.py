@@ -98,7 +98,7 @@ class StringData(Data[str]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
         with parser.in_angle_brackets():
-            return parser.parse_str_literal()
+            return parser.parse_str_literal().string
 
     def print_parameter(self, printer: Printer):
         with printer.in_angle_brackets():

@@ -34,7 +34,9 @@ class PrintFormatOp(IRDLOperation):
     format_str: builtin.StringAttr = attr_def(builtin.StringAttr)
     format_vals: VarOperand = var_operand_def()
 
-    def __init__(self, format_str: str, *vals: SSAValue | Operation):
+    def __init__(
+        self, format_str: str | builtin.StringAttr, *vals: SSAValue | Operation
+    ):
         super().__init__(
             operands=[vals], attributes={"format_str": builtin.StringAttr(format_str)}
         )

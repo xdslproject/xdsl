@@ -184,9 +184,7 @@ class StringLiteral(Span):
             if c0 != "\\":
                 bytes_contents += c0.encode()
             else:
-                c0 = next(iter_string, None)
-                if c0 is None:
-                    raise ParseError(self, "Invalid escape sequence!")
+                c0 = next(iter_string)
                 match c0:
                     case "n":
                         bytes_contents += b"\n"
@@ -197,9 +195,7 @@ class StringLiteral(Span):
                     case '"':
                         bytes_contents += b'"'
                     case _:
-                        c1 = next(iter_string, None)
-                        if c1 is None:
-                            raise ParseError(self, "Invalid escape sequence")
+                        c1 = next(iter_string)
                         bytes_contents += int(c0 + c1, 16).to_bytes(1)
 
         return bytes(bytes_contents)
@@ -627,10 +623,19 @@ class Lexer:
             if current_char == "\\":
                 escaped_char = self._get_chars()
                 if escaped_char not in ['"', "\\", "n", "t"]:
-                    raise ParseError(
-                        StringLiteral(self.pos - 1, self.pos, self.input),
-                        "Unknown escape in string literal.",
-                    )
+                    next_char = self._get_chars()
+                    if escaped_char is None or next_char is None:
+                        raise ParseError(
+                            Span(start_pos, self.pos, self.input),
+                            "Unknown escape in string literal.",
+                        )
+                    try:
+                        int(escaped_char + next_char, 16)
+                    except Exception:
+                        raise ParseError(
+                            Span(start_pos, self.pos, self.input),
+                            "Unknown escape in string literal.",
+                        )
 
         raise ParseError(
             Span(start_pos, self.pos, self.input),

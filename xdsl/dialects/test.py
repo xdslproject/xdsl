@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from xdsl.dialects.builtin import StringAttr
 from xdsl.ir import (
     Attribute,
     Block,
@@ -123,11 +124,11 @@ class TestType(Data[str], TypeAttribute):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
         with parser.in_angle_brackets():
-            return parser.parse_str_literal()
+            return parser.parse_str_literal().string
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string_literal(self.data)
+            printer.print_string_attribute(StringAttr(self.data))
 
 
 Test = Dialect("test", [TestOp, TestTermOp], [TestType])

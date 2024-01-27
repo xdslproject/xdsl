@@ -174,7 +174,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print(" ")
-        printer.print_string_literal(self.constraint_name.string)
+        printer.print_string_attribute(self.constraint_name)
         printer.print("(")
         print_operands_with_types(printer, self.operands)
         printer.print(")")
@@ -220,7 +220,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print(" ")
-        printer.print_string_literal(self.constraint_name.string)
+        printer.print_string_attribute(self.constraint_name)
         printer.print("(")
         print_operands_with_types(printer, self.operands)
         printer.print(")")
@@ -429,8 +429,6 @@ class OperationOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> OperationOp:
         name = parser.parse_optional_str_literal()
-        if name is not None:
-            name = name.decode()
         operands = []
         if parser.parse_optional_punctuation("(") is not None:
             operands = parse_operands_with_types(parser)
@@ -440,7 +438,7 @@ class OperationOp(IRDLOperation):
             name = parser.parse_str_literal()
             parser.parse_punctuation("=")
             type = parser.parse_operand()
-            return (name, type)
+            return (name.string, type)
 
         attributes = parser.parse_optional_comma_separated_list(
             Parser.Delimiter.BRACES, parse_attribute_entry
