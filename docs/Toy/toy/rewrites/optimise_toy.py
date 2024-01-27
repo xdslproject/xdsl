@@ -5,82 +5,42 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     Float64Type,
     FloatAttr,
+    TensorType,
 )
 from xdsl.ir import OpResult
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
+from xdsl.pattern_rewriter import implicit_rewriter
 from xdsl.utils.hints import isa
 
 from ..dialects.toy import ConstantOp, ReshapeOp, TensorTypeF64, TransposeOp
 
 
-class SimplifyRedundantTranspose(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: TransposeOp, rewriter: PatternRewriter):
-        """
-        Fold transpose(transpose(x)) -> x
-        """
-        # Look at the input of the current transpose.
-        transpose_input = op.arg
-        if not isinstance(transpose_input, OpResult):
-            # Input was not produced by an operation, could be a function argument
-            return
-
-        transpose_input_op = transpose_input.op
-        if not isinstance(transpose_input_op, TransposeOp):
-            # Input defined by another transpose? If not, no match.
-            return
-
-        rewriter.replace_op(op, [], [transpose_input_op.arg])
+@implicit_rewriter
+def simplify_redundant_transpose(op: TransposeOp):
+    """Fold transpose(transpose(x)) -> x"""
+    if isinstance(input := op.arg, OpResult) and isinstance(input.op, TransposeOp):
+        return input.op.operands
 
 
-class ReshapeReshapeOpPattern(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: ReshapeOp, rewriter: PatternRewriter):
-        """
-        Reshape(Reshape(x)) = Reshape(x)
-        """
-        # Look at the input of the current reshape.
-        reshape_input = op.arg
-        if not isinstance(reshape_input, OpResult):
-            # Input was not produced by an operation, could be a function argument
-            return
-
-        reshape_input_op = reshape_input.op
-        if not isinstance(reshape_input_op, ReshapeOp):
-            # Input defined by another transpose? If not, no match.
-            return
-
-        t = cast(TensorTypeF64, op.res.type)
-        new_op = ReshapeOp.from_input_and_type(reshape_input_op.arg, t)
-        rewriter.replace_matched_op(new_op)
+@implicit_rewriter
+def reshape_reshape(op: ReshapeOp):
+    """Reshape(Reshape(x)) = Reshape(x)"""
+    if isinstance(input := op.arg, OpResult) and isinstance(input.op, ReshapeOp):
+        t = cast(TensorType[Float64Type], op.res.type)
+        new_op = ReshapeOp(input.op.arg, t)
+        return new_op.results
 
 
-class FoldConstantReshapeOpPattern(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: ReshapeOp, rewriter: PatternRewriter):
-        """
-        Reshaping a constant can be done at compile time
-        """
-        # Look at the input of the current reshape.
-        reshape_input = op.arg
-        if not isinstance(reshape_input, OpResult):
-            # Input was not produced by an operation, could be a function argument
-            return
-
-        reshape_input_op = reshape_input.op
-        if not isinstance(reshape_input_op, ConstantOp):
-            # Input defined by another transpose? If not, no match.
-            return
-
+@implicit_rewriter
+def fold_constant_reshape(op: ReshapeOp):
+    """
+    Reshaping a constant can be done at compile time
+    """
+    if isinstance(input := op.arg, OpResult) and isinstance(input.op, ConstantOp):
         assert isa(op.res.type, TensorTypeF64)
-        assert isa(reshape_input_op.value.data, ArrayAttr[FloatAttr[Float64Type]])
+        assert isa(input.op.value.data, ArrayAttr[FloatAttr[Float64Type]])
 
         new_value = DenseIntOrFPElementsAttr.create_dense_float(
-            type=op.res.type, data=reshape_input_op.value.data.data
+            type=op.res.type, data=input.op.value.data.data
         )
         new_op = ConstantOp(new_value)
-        rewriter.replace_matched_op(new_op)
+        return new_op.results

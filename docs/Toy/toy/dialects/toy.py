@@ -376,12 +376,9 @@ class ReturnOp(IRDLOperation):
 class ReshapeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from ..rewrites.optimise_toy import (
-            FoldConstantReshapeOpPattern,
-            ReshapeReshapeOpPattern,
-        )
+        from ..rewrites.optimise_toy import fold_constant_reshape, reshape_reshape
 
-        return (ReshapeReshapeOpPattern(), FoldConstantReshapeOpPattern())
+        return (reshape_reshape, fold_constant_reshape)
 
 
 @irdl_op_definition
@@ -402,24 +399,18 @@ class ReshapeOp(IRDLOperation):
 
     traits = frozenset((Pure(), ReshapeOpHasCanonicalisationPatternsTrait()))
 
-    def __init__(self, arg: SSAValue, shape: list[int]):
+    def __init__(self, arg: SSAValue, shape: list[int] | TensorTypeF64):
         if not isa(arg.type, AnyTensorTypeF64):
             raise ValueError(
                 f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
                 " {AnyTensorTypeF64}"
             )
         element_type = arg.type.element_type
-        t = TensorTypeF64(element_type, shape)
+        if isinstance(shape, list):
+            t = TensorTypeF64(element_type, shape)
+        else:
+            t = shape
         return super().__init__(result_types=[t], operands=[arg])
-
-    @staticmethod
-    def from_input_and_type(arg: SSAValue, t: TensorTypeF64) -> ReshapeOp:
-        if not isa(arg.type, AnyTensorTypeF64):
-            raise ValueError(
-                f"Unexpected arg of type {arg.type} passed to ReshapeOp, expected"
-                " {AnyTensorTypeF64}"
-            )
-        return ReshapeOp.create(result_types=[t], operands=[arg])
 
     def verify_(self):
         result_type = self.res.type
@@ -449,9 +440,9 @@ class InferTransposeOpShapeTrait(ToyShapeInferenceTrait):
 class TransposeOpHasCanonicalisationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from ..rewrites.optimise_toy import SimplifyRedundantTranspose
+        from ..rewrites.optimise_toy import simplify_redundant_transpose
 
-        return (SimplifyRedundantTranspose(),)
+        return (simplify_redundant_transpose,)
 
 
 @irdl_op_definition

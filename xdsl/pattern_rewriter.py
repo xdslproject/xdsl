@@ -14,7 +14,7 @@ from typing import (
     get_origin,
 )
 
-from xdsl.builder import BuilderListener
+from xdsl.builder import Builder, BuilderListener, ImplicitBuilder
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -348,6 +348,36 @@ class RewritePattern(ABC):
         ...
 
 
+class ImplicitBuilderRewritePattern(RewritePattern):
+    _match_and_build: Callable[[Operation, PatternRewriter], Sequence[SSAValue] | None]
+
+    def __init__(
+        self,
+        match_and_build: Callable[
+            [Operation, PatternRewriter], Sequence[SSAValue] | None
+        ],
+    ):
+        super().__init__()
+        self._match_and_build = match_and_build
+
+    def match_and_build(
+        self, op: Operation, rewriter: PatternRewriter
+    ) -> Sequence[SSAValue] | None:
+        """
+        Match an operation, and insert all the operations created before the current op.
+        """
+        return self._match_and_build(op, rewriter)
+
+    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
+        if op.parent is None:
+            return
+
+        with ImplicitBuilder(Builder.before(op)):
+            new_results = self.match_and_build(op, rewriter)
+            if new_results is not None:
+                rewriter.replace_matched_op([], new_results)
+
+
 _RewritePatternT = TypeVar("_RewritePatternT", bound=RewritePattern)
 _OperationT = TypeVar("_OperationT", bound=Operation)
 
@@ -398,6 +428,78 @@ def op_type_rewrite_pattern(
             func(self, op, rewriter)
 
     return impl
+
+
+def op_type_rewrite_build_pattern(
+    func: Callable[
+        [_RewritePatternT, _OperationT, PatternRewriter], Sequence[SSAValue] | None
+    ]
+) -> Callable[
+    [_RewritePatternT, Operation, PatternRewriter], Sequence[SSAValue] | None
+]:
+    """
+    This function is intended to be used as a decorator on a RewritePatter method.
+    It uses type hints to match on a specific operation type before calling the decorated
+    function.
+    """
+    # Get the operation argument and check that it is a subclass of Operation
+    params = [param for param in inspect.signature(func).parameters.values()]
+    if len(params) != 3:
+        raise Exception(
+            "op_type_rewrite_build_pattern expects the decorated method to "
+            "have three arguments."
+        )
+    expected_type: type[_OperationT] = params[-2].annotation
+
+    expected_types = (expected_type,)
+    if get_origin(expected_type) in [Union, UnionType]:
+        expected_types = get_args(expected_type)
+    if not all(issubclass(t, Operation) for t in expected_types):
+        raise Exception(
+            "op_type_rewrite_pattern expects the first non-self argument "
+            "type hint to be an `Operation` subclass or a union of `Operation` "
+            "subclasses."
+        )
+
+    def op_type_rewrite_pattern_method_wrapper(
+        self: _RewritePatternT, op: Operation, rewriter: PatternRewriter
+    ) -> Sequence[SSAValue] | None:
+        if not isinstance(op, expected_type):
+            return None
+        return func(self, op, rewriter)
+
+    return op_type_rewrite_pattern_method_wrapper
+
+
+def implicit_rewriter(
+    func: Callable[[_OperationT], Sequence[SSAValue] | None]
+) -> ImplicitBuilderRewritePattern:
+    # Get the operation argument and check that it is a subclass of Operation
+    params = [param for param in inspect.signature(func).parameters.values()]
+    if len(params) != 1:
+        raise Exception(
+            "op_type_rewrite_build_pattern expects the decorated method to "
+            "have three arguments."
+        )
+    expected_type: type[_OperationT] = params[0].annotation
+
+    expected_types = (expected_type,)
+    if get_origin(expected_type) in [Union, UnionType]:
+        expected_types = get_args(expected_type)
+    if not all(issubclass(t, Operation) for t in expected_types):
+        raise Exception(
+            "op_type_rewrite_pattern expects the first non-self argument "
+            "type hint to be an `Operation` subclass or a union of `Operation` "
+            "subclasses."
+        )
+
+    def impl(op: Operation, rewriter: PatternRewriter) -> Sequence[SSAValue] | None:
+        if not isinstance(op, expected_type):
+            return None
+
+        return func(op)
+
+    return ImplicitBuilderRewritePattern(impl)
 
 
 @dataclass
