@@ -4,13 +4,13 @@ from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
     IndexType,
+    MemRefType,
     VectorBaseTypeAndRankConstraint,
     VectorBaseTypeConstraint,
     VectorRankConstraint,
     VectorType,
     i1,
 )
-from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AnyAttr,

@@ -90,6 +90,31 @@ class AttrConstraint(ABC):
         """
         ...
 
+    def get_resolved_variables(self) -> set[str]:
+        """
+        Get the set of type variables that are always resolved when verifying
+        the constraint.
+        """
+        return set()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        """
+        Check if there is enough information to infer the attribute given the
+        constraint variables that are already set.
+        """
+        # By default, we cannot infer anything.
+        return False
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        """
+        Infer the attribute given the constraint variables that are already set.
+
+        Raises an exception if the attribute cannot be inferred. If `can_infer`
+        returns `True` with the given constraint variables, this method should
+        not raise an exception.
+        """
+        raise ValueError("Cannot infer attribute from constraint")
+
 
 @dataclass
 class VarConstraint(AttrConstraint):
@@ -117,6 +142,17 @@ class VarConstraint(AttrConstraint):
             self.constraint.verify(attr, constraint_vars)
             constraint_vars[self.name] = attr
 
+    def get_resolved_variables(self) -> set[str]:
+        return {self.name, *self.constraint.get_resolved_variables()}
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.name in constraint_names
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        if self.name not in constraint_vars:
+            raise ValueError(f"Cannot infer attribute from constraint {self}")
+        return constraint_vars[self.name]
+
 
 @dataclass(frozen=True)
 class ConstraintVar:
@@ -143,6 +179,12 @@ class EqAttrConstraint(AttrConstraint):
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if attr != self.attr:
             raise VerifyException(f"Expected attribute {self.attr} but got {attr}")
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return True
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        return self.attr
 
 
 @dataclass
@@ -209,6 +251,13 @@ class AnyOf(AttrConstraint):
                 pass
         raise VerifyException(f"Unexpected attribute {attr}")
 
+    def get_resolved_variables(self) -> set[str]:
+        if len(self.attr_constrs) == 0:
+            return set()
+        return set[str].intersection(
+            *(constr.get_resolved_variables() for constr in self.attr_constrs)
+        )
+
 
 @dataclass()
 class AllOf(AttrConstraint):
@@ -232,6 +281,22 @@ class AllOf(AttrConstraint):
             exc_msg = "The following constraints were not satisfied:\n"
             exc_msg += "\n".join([str(e) for e in exc_bucket])
             raise VerifyException(exc_msg)
+
+    def get_resolved_variables(self) -> set[str]:
+        if len(self.attr_constrs) == 0:
+            return set()
+        return set[str].union(
+            *[constr.get_resolved_variables() for constr in self.attr_constrs]
+        )
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return any(constr.can_infer(constraint_names) for constr in self.attr_constrs)
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        for constr in self.attr_constrs:
+            if constr.can_infer(set(constraint_vars.keys())):
+                return constr.infer(constraint_vars)
+        raise ValueError("Cannot infer attribute from constraint")
 
 
 @dataclass(init=False)
@@ -267,6 +332,15 @@ class ParamAttrConstraint(AttrConstraint):
             )
         for idx, param_constr in enumerate(self.param_constrs):
             param_constr.verify(attr.parameters[idx], constraint_vars)
+
+    def get_resolved_variables(self) -> set[str]:
+        if not self.param_constrs:
+            return set()
+        return {
+            var
+            for constr in self.param_constrs
+            for var in constr.get_resolved_variables()
+        }
 
 
 def _irdl_list_to_attr_constraint(
@@ -1368,6 +1442,17 @@ class OpDef:
         # Verify traits.
         for trait in self.traits:
             trait.verify(op)
+
+    def split_properties(self, attr_dict: dict[str, Attribute]) -> dict[str, Attribute]:
+        """
+        Remove all entries of an attribute dictionary that are defined as properties
+        by the operation definition, and return them in a new dictionary.
+        """
+        properties: dict[str, Attribute] = {}
+        for property_name in self.properties.keys():
+            if property_name in attr_dict:
+                properties[property_name] = attr_dict.pop(property_name)
+        return properties
 
 
 class VarIRConstruct(Enum):

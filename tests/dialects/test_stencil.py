@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     bf16,
     f16,
@@ -25,7 +26,6 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.func import (
     FuncOp,
 )
-from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,

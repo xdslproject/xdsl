@@ -66,4 +66,4 @@ def test_loop_range_methods():
     )
 
     loops = op.get_static_loop_ranges()
-    assert loops == [100, 50, 50]
+    assert loops == (100, 100, 50)

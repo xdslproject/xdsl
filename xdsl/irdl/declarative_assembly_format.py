@@ -7,20 +7,20 @@ https://mlir.llvm.org/docs/DefiningDialects/Operations/#declarative-assembly-for
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, cast
 
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
-    VariadicDef,
     VarIRConstruct,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Token
 
@@ -35,27 +35,25 @@ class ParsingState:
     It contains the elements that have already been parsed.
     """
 
-    operands: list[UnresolvedOperand | None]
-    operand_types: list[Attribute | None]
-    result_types: list[Attribute | None]
+    operands: list[UnresolvedOperand | None | list[UnresolvedOperand | None]]
+    operand_types: list[Attribute | None | list[Attribute | None]]
+    result_types: list[Attribute | None | list[Attribute | None]]
     attributes: dict[str, Attribute]
+    properties: dict[str, Attribute]
+    constraint_variables: dict[str, Attribute]
 
     def __init__(self, op_def: OpDef):
-        if op_def.attributes or op_def.regions or op_def.successors:
+        if op_def.regions or op_def.successors:
             raise NotImplementedError(
-                "Operation definitions with attributes, regions, "
+                "Operation definitions with regions "
                 "or successors are not yet supported"
             )
-        for _, operand in (*op_def.operands, *op_def.results):
-            if isinstance(operand, VariadicDef):
-                raise NotImplementedError(
-                    "Operation definition with variadic operand or "
-                    "result definitions are not supported."
-                )
         self.operands = [None] * len(op_def.operands)
         self.operand_types = [None] * len(op_def.operands)
         self.result_types = [None] * len(op_def.results)
         self.attributes = {}
+        self.properties = {}
+        self.constraint_variables = {}
 
 
 @dataclass
@@ -86,12 +84,6 @@ class FormatProgram:
     stmts: list[FormatDirective]
     """The list of statements composing the program. They are executed in order."""
 
-    type_resolutions: dict[
-        tuple[OperandOrResult, int],
-        tuple[Callable[[Attribute], Attribute], OperandOrResult, int],
-    ]
-    """A mapping describing how to resolve unparsed operand and result types."""
-
     @staticmethod
     def from_str(input: str, op_def: OpDef) -> FormatProgram:
         """
@@ -112,67 +104,126 @@ class FormatProgram:
         FormatProgram.
         """
         # Parse elements one by one
-        state = ParsingState(op_type.get_irdl_definition())
+        op_def = op_type.get_irdl_definition()
+        state = ParsingState(op_def)
         for stmt in self.stmts:
             stmt.parse(parser, state)
 
-        # Ensure that all operands and operand types are parsed
-        unresolved_operands = state.operands
-        assert isa(unresolved_operands, list[UnresolvedOperand])
-        self.resolve_operand_types(state)
-        operand_types = state.operand_types
-        assert isa(operand_types, list[Attribute])
+        # Get constraint variables from the parsed operand and result types
+        self.assign_constraint_variables(parser, state, op_def)
 
-        # Ensure that all result types are parsed or resolved
-        self.resolve_result_types(state)
+        # Infer operand types that should be inferred
+        unresolved_operands = state.operands
+        assert isa(
+            unresolved_operands, list[UnresolvedOperand | list[UnresolvedOperand]]
+        )
+        self.resolve_operand_types(state, op_def)
+        operand_types = state.operand_types
+        assert isa(operand_types, list[Attribute | list[Attribute]])
+
+        # Infer result types that should be inferred
+        self.resolve_result_types(state, op_def)
         result_types = state.result_types
-        assert isa(state.result_types, list[Attribute])
+        assert isa(result_types, list[Attribute | list[Attribute]])
 
         # Resolve all operands
-        operands = parser.resolve_operands(
-            unresolved_operands, operand_types, parser.pos
-        )
+        operands: Sequence[SSAValue | Sequence[SSAValue]] = []
+        for uo, ot in zip(unresolved_operands, operand_types, strict=True):
+            if isinstance(uo, list):
+                assert isinstance(
+                    ot, list
+                ), "Something went wrong with the declarative assembly format parser."
+                "Variadic or optional operand has no type or a single type "
+                operands.append(parser.resolve_operands(uo, ot, parser.pos))
+            else:
+                assert isinstance(
+                    ot, Attribute
+                ), "Something went wrong with the declarative assembly format parser."
+                "Single operand has no type or variadic/optional type"
+                operands.append(parser.resolve_operand(uo, ot))
+
+        properties = op_def.split_properties(state.attributes)
         return op_type.build(
-            result_types=result_types, operands=operands, attributes=state.attributes
+            result_types=result_types,
+            operands=operands,
+            attributes=state.attributes,
+            properties=properties,
         )
 
-    def resolve_operand_types(self, state: ParsingState) -> None:
+    def assign_constraint_variables(
+        self, parser: Parser, state: ParsingState, op_def: OpDef
+    ):
+        """
+        Assign constraint variables with values got from the
+        parsed operand and result types.
+        """
+        if any(type is None for type in (*state.operand_types, *state.result_types)):
+            try:
+                for (_, operand_def), operand_type in zip(
+                    op_def.operands, state.operand_types, strict=True
+                ):
+                    if operand_type is None:
+                        continue
+                    if isinstance(operand_type, Attribute):
+                        operand_type = [operand_type]
+                    for ot in operand_type:
+                        if ot is None:
+                            continue
+                        operand_def.constr.verify(ot, state.constraint_variables)
+                for (_, result_def), result_type in zip(
+                    op_def.results, state.result_types, strict=True
+                ):
+                    if result_type is None:
+                        continue
+                    if isinstance(result_type, Attribute):
+                        result_type = [result_type]
+                    for rt in result_type:
+                        if rt is None:
+                            continue
+                        result_def.constr.verify(rt, state.constraint_variables)
+            except VerifyException as e:
+                parser.raise_error(
+                    "Verification error while inferring operation type: " + str(e)
+                )
+
+    def resolve_operand_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
         Use the inferred type resolutions to fill missing operand types from other parsed
         types.
         """
-        for i, operand_type in enumerate(state.operand_types):
+        for i, (operand_type, (_, operand_def)) in enumerate(
+            zip(state.operand_types, op_def.operands, strict=True)
+        ):
             if operand_type is None:
-                state.operand_types[i] = self._resolve_type(
-                    state, VarIRConstruct.OPERAND, i
-                )
+                operand_type = operand_def.constr.infer(state.constraint_variables)
+                operand = state.operands[i]
+                if isinstance(operand, UnresolvedOperand):
+                    state.operand_types[i] = operand_type
+                elif isinstance(operand, list):
+                    state.operand_types[i] = cast(
+                        list[Attribute | None], [operand_type]
+                    ) * len(operand)
 
-    def resolve_result_types(self, state: ParsingState) -> None:
+    def resolve_result_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
         Use the inferred type resolutions to fill missing result types from other parsed
         types.
         """
-        for i, result_type in enumerate(state.result_types):
+        for i, (result_type, (_, result_def)) in enumerate(
+            zip(state.result_types, op_def.results, strict=True)
+        ):
             if result_type is None:
-                state.result_types[i] = self._resolve_type(
-                    state, VarIRConstruct.RESULT, i
+                result_type = result_def.constr.infer(state.constraint_variables)
+                state.result_types[i] = result_def.constr.infer(
+                    state.constraint_variables
                 )
-
-    def _resolve_type(
-        self, state: ParsingState, construct: OperandOrResult, index: int
-    ):
-        """
-        Helper function resolving a specific operand or result type from the inferred
-        resolution map.
-        """
-        resolve, construct, idx = self.type_resolutions[construct, index]
-        match construct:
-            case VarIRConstruct.OPERAND:
-                input_type = state.operand_types[idx]
-            case VarIRConstruct.RESULT:
-                input_type = state.result_types[idx]
-        assert input_type is not None
-        return resolve(input_type)
+                result_type = state.result_types[i]
+                if isinstance(result_type, Attribute):
+                    state.result_types[i] = result_type
+                elif isinstance(result_type, list):
+                    state.result_types[i] = cast(
+                        list[Attribute | None], [result_type]
+                    ) * len(result_type)
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """
@@ -211,6 +262,13 @@ class AttrDictDirective(FormatDirective):
     with_keyword: bool
     """If this is set, the format starts with the `attributes` keyword."""
 
+    reserved_attr_names: set[str]
+    """
+    The set of attributes that should not be printed.
+    These attributes are printed in other places in the format, and thus would be
+    printed twice otherwise.
+    """
+
     def parse(self, parser: Parser, state: ParsingState) -> None:
         if self.with_keyword:
             res = parser.parse_optional_attr_dict_with_keyword()
@@ -220,14 +278,28 @@ class AttrDictDirective(FormatDirective):
                 res = res.data
         else:
             res = parser.parse_optional_attr_dict()
-        state.attributes = res
+        defined_reserved_keys = self.reserved_attr_names & res.keys()
+        if defined_reserved_keys:
+            parser.raise_error(
+                f"attributes {', '.join(defined_reserved_keys)} are defined in other parts of the "
+                "assembly format, and thus should not be defined in the attribute "
+                "dictionary."
+            )
+        state.attributes |= res
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if not op.attributes:
+        if not op.attributes and not op.properties:
             return
-        if self.with_keyword:
-            printer.print(" attributes")
-        printer.print_op_attributes(op.attributes)
+        if any(name in op.attributes for name in op.properties):
+            raise ValueError(
+                "Cannot print attributes and properties with the same name"
+                "in a signle dictionary"
+            )
+        printer.print_op_attributes(
+            op.attributes | op.properties,
+            reserved_attr_names=self.reserved_attr_names,
+            print_keyword=self.with_keyword,
+        )
         state.last_was_punctuation = False
         state.should_emit_space = False
 
@@ -236,7 +308,7 @@ class AttrDictDirective(FormatDirective):
 class OperandVariable(FormatDirective):
     """
     An operand variable, with the following format:
-      operand-directive ::= percent-ident
+      operand-directive ::= dollar-ident
     The directive will request a space to be printed after.
     """
 
@@ -258,10 +330,32 @@ class OperandVariable(FormatDirective):
 
 
 @dataclass(frozen=True)
+class VariadicOperandVariable(OperandVariable):
+    """
+    A variadic operand variable, with the following format:
+      operand-directive ::= ( percent-ident ( `,` percent-id )* )?
+    The directive will request a space to be printed after.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        operands = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        state.operands[self.index] = cast(list[UnresolvedOperand | None], operands)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_list(getattr(op, self.name), printer.print_ssa_value)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
 class OperandTypeDirective(FormatDirective):
     """
     An operand variable type directive, with the following format:
-      operand-type-directive ::= type(percent-ident)
+      operand-type-directive ::= type(dollar-ident)
     The directive will request a space to be printed right after.
     """
 
@@ -283,10 +377,34 @@ class OperandTypeDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
+class VariadicOperandTypeDirective(OperandTypeDirective):
+    """
+    A variadic operand variable, with the following format:
+      operand-directive ::= ( percent-ident ( `,` percent-id )* )?
+    The directive will request a space to be printed after.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        operand_types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_type
+        )
+        state.operand_types[self.index] = cast(list[Attribute | None], operand_types)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_list(
+            (o.type for o in getattr(op, self.name)), printer.print_attribute
+        )
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
 class ResultVariable(FormatDirective):
     """
     An result variable, with the following format:
-      result-directive ::= percent-ident
+      result-directive ::= dollar-ident
     This directive can not be used for parsing and printing directly, as result
     parsing is not handled by the custom operation parser.
     """
@@ -310,10 +428,32 @@ class ResultVariable(FormatDirective):
 
 
 @dataclass(frozen=True)
+class VariadicResultVariable(ResultVariable):
+    """
+    A variadic result variable, with the following format:
+      result-directive ::= percent-ident (( `,` percent-id )* )?
+    This directive can not be used for parsing and printing directly, as result
+    parsing is not handled by the custom operation parser.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        assert (
+            "Result variables cannot be used directly to parse/print in "
+            "declarative formats."
+        )
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        assert (
+            "Result variables cannot be used directly to parse/print in "
+            "declarative formats."
+        )
+
+
+@dataclass(frozen=True)
 class ResultTypeDirective(FormatDirective):
     """
     A result variable type directive, with the following format:
-      result-type-directive ::= type(percent-ident)
+      result-type-directive ::= type(dollar-ident)
     The directive will request a space to be printed right after.
     """
 
@@ -330,6 +470,53 @@ class ResultTypeDirective(FormatDirective):
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
         printer.print_attribute(op.results[self.index].type)
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class AttributeVariable(FormatDirective):
+    """
+    An attribute variable, with the following format:
+      result-directive ::= dollar-ident
+    The directive will request a space to be printed right after.
+    """
+
+    attr_name: str
+    """The attribute name as it should be in the attribute or property dictionary."""
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        attribute = parser.parse_attribute()
+        state.attributes[self.attr_name] = attribute
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+        printer.print_attribute(op.attributes[self.attr_name])
+
+
+@dataclass(frozen=True)
+class VariadicResultTypeDirective(ResultTypeDirective):
+    """
+    A variadic result variable type directive, with the following format:
+      variadic-result-type-directive ::= ( percent-ident ( `,` percent-id )* )?
+    The directive will request a space to be printed after.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        result_types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_type
+        )
+        state.result_types[self.index] = cast(list[Attribute | None], result_types)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_list(
+            (r.type for r in getattr(op, self.name)), printer.print_attribute
+        )
         state.last_was_punctuation = False
         state.should_emit_space = True
 

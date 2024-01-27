@@ -267,6 +267,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     """Return the list of all available passes."""
 
+    def get_arith_add_fastmath():
+        from xdsl.transforms import arith_add_fastmath
+
+        return arith_add_fastmath.AddArithFastMathFlagsPass
+
     def get_canonicalize():
         from xdsl.transforms import canonicalize
 
@@ -467,6 +472,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return stencil_unroll.StencilUnrollPass
 
     return {
+        "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
