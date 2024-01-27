@@ -1003,7 +1003,7 @@ class CallingConventionAttr(ParametrizedAttribute):
 
     @property
     def cconv_name(self) -> str:
-        return self.convention.string
+        return self.convention.escaped
 
     def __init__(self, conv: str):
         super().__init__([StringAttr(conv)])
@@ -1013,7 +1013,7 @@ class CallingConventionAttr(ParametrizedAttribute):
             raise VerifyException(f'Invalid calling convention "{self.cconv_name}"')
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<" + self.convention.string + ">")
+        printer.print_string("<" + self.convention.escaped + ">")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

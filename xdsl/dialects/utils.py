@@ -173,7 +173,7 @@ def parse_func_op_like(
     Returns the function name, argument types, return types, body, extra args, and arg_attrs.
     """
     # Parse function name
-    name = parser.parse_symbol_name().string
+    name = parser.parse_symbol_name().escaped
 
     def parse_fun_input() -> Attribute | tuple[parser.Argument, dict[str, Attribute]]:
         arg = parser.parse_optional_argument()

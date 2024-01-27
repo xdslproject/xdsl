@@ -34,7 +34,7 @@ class LowerFuncOp(RewritePattern):
         result_types = list(a_regs_for_types(op.function_type.outputs.data))
 
         new_func = riscv_func.FuncOp(
-            op.sym_name.string,
+            op.sym_name.escaped,
             rewriter.move_region_contents_to_new_regions(op.body),
             (input_types, result_types),
         )

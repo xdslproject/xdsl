@@ -438,7 +438,7 @@ class OperationOp(IRDLOperation):
             name = parser.parse_str_literal()
             parser.parse_punctuation("=")
             type = parser.parse_operand()
-            return (name.string, type)
+            return (name.escaped, type)
 
         attributes = parser.parse_optional_comma_separated_list(
             Parser.Delimiter.BRACES, parse_attribute_entry

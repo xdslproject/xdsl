@@ -275,11 +275,11 @@ class Call(IRDLOperation):
     # TODO how do we verify that the types are correct?
     def __init__(
         self,
-        callee: str | SymbolRefAttr,
+        callee: str | StringAttr | SymbolRefAttr,
         arguments: Sequence[SSAValue | Operation],
         return_types: Sequence[Attribute],
     ):
-        if isinstance(callee, str):
+        if isinstance(callee, str | StringAttr):
             callee = SymbolRefAttr(callee)
         super().__init__(
             operands=[arguments],

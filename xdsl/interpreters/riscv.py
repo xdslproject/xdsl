@@ -288,15 +288,15 @@ class RiscvFunctions(InterpreterFunctions):
                                 "Unexpected None value in data section directive"
                             )
 
-                        match data_op.directive.string:
+                        match data_op.directive.escaped:
                             case ".word":
-                                hexs = data_op.value.string.split(",")
+                                hexs = data_op.value.escaped.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
                                 data[label.label.data] = RawPtr.new_int32(ints)
                             case _:
                                 raise InterpretationError(
                                     "Cannot interpret data directive "
-                                    f"{data_op.directive.string}"
+                                    f"{data_op.directive.escaped}"
                                 )
         return data
 

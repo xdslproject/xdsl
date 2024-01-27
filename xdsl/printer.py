@@ -394,9 +394,9 @@ class Printer:
             return
 
         if isinstance(attribute, SymbolRefAttr):
-            self.print(f"@{attribute.root_reference.string}")
+            self.print(f"@{attribute.root_reference.escaped}")
             for ref in attribute.nested_references.data:
-                self.print(f"::@{ref.string}")
+                self.print(f"::@{ref.escaped}")
             return
 
         if isinstance(attribute, IntegerAttr):
@@ -638,7 +638,7 @@ class Printer:
             # Do not print `!` or `#` for unregistered builtin attributes
             self.print("!" if attribute.is_type.data else "#")
             if attribute.is_opaque.data:
-                self.print(attribute.attr_name.string.replace(".", "<", 1))
+                self.print(attribute.attr_name.escaped.replace(".", "<", 1))
                 self.print(attribute.value.string)
                 self.print(">")
             else:

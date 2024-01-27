@@ -124,7 +124,7 @@ class TestType(Data[str], TypeAttribute):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
         with parser.in_angle_brackets():
-            return parser.parse_str_literal().string
+            return parser.parse_str_literal().escaped
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():

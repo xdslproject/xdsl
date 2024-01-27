@@ -243,7 +243,7 @@ class ConvertMemrefGlobalOp(RewritePattern):
 
         section = riscv.AssemblySectionOp(".data")
         with ImplicitBuilder(section.data):
-            riscv.LabelOp(op.sym_name.string)
+            riscv.LabelOp(op.sym_name.escaped)
             riscv.DirectiveOp(".word", text)
 
         rewriter.replace_matched_op(section)

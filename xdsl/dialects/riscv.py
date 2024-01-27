@@ -356,7 +356,7 @@ class LabelAttr(Data[str]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
         with parser.in_angle_brackets():
-            return parser.parse_str_literal().string
+            return parser.parse_str_literal().escaped
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -2466,7 +2466,7 @@ class LabelOp(IRDLOperation, RISCVOp):
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["label"] = LabelAttr(
-            parser.parse_str_literal("Expected label").string
+            parser.parse_str_literal("Expected label").escaped
         )
         return attributes
 
@@ -2517,12 +2517,12 @@ class DirectiveOp(IRDLOperation, RISCVOp):
         )
 
     def assembly_line(self) -> str | None:
-        if self.value is not None and self.value.string:
-            arg_str = _assembly_arg_str(self.value.string)
+        if self.value is not None and self.value.escaped:
+            arg_str = _assembly_arg_str(self.value.escaped)
         else:
             arg_str = ""
 
-        return _assembly_line(self.directive.string, arg_str, is_indented=False)
+        return _assembly_line(self.directive.escaped, arg_str, is_indented=False)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2613,7 +2613,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
             printer.print_region(self.data)
 
     def assembly_line(self) -> str | None:
-        return _assembly_line(self.directive.string, "", is_indented=False)
+        return _assembly_line(self.directive.escaped, "", is_indented=False)
 
 
 @irdl_op_definition
@@ -2664,7 +2664,7 @@ class CustomAssemblyInstructionOp(IRDLOperation, RISCVInstruction):
         )
 
     def assembly_instruction_name(self) -> str:
-        return self.instruction_name.string
+        return self.instruction_name.escaped
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return *self.results, *self.operands
@@ -3661,7 +3661,7 @@ def _parse_optional_immediate_value(
     if (immediate := parser.parse_optional_integer()) is not None:
         return IntegerAttr(immediate, integer_type)
     if (immediate := parser.parse_optional_str_literal()) is not None:
-        return LabelAttr(immediate.string)
+        return LabelAttr(immediate.escaped)
 
 
 def _parse_immediate_value(

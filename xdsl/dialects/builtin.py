@@ -195,11 +195,21 @@ class StringAttr(Data[bytes]):
         super().__init__(data)
 
     @property
-    def string(self) -> str:
-        return self.data.decode("utf-8")
+    def string(self) -> str | None:
+        """
+        Decode a string. Because we can parse arbitrary binary escape sequences, a StringAttr
+        might contain invalid Unicode. In that case, we return None.
+        """
+        try:
+            return self.data.decode("utf-8")
+        except Exception:
+            return None
 
     @property
     def escaped(self) -> str:
+        """
+        Return the content of the StringAttribute in escaped form.
+        """
         string = ""
         for byte in self.data:
             match byte:
@@ -243,9 +253,9 @@ class SymbolRefAttr(ParametrizedAttribute):
         super().__init__([root, nested])
 
     def string_value(self):
-        root = self.root_reference.string
+        root = self.root_reference.escaped
         for ref in self.nested_references.data:
-            root += "." + ref.string
+            root += "." + ref.escaped
         return root
 
 

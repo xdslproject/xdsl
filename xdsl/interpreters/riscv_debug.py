@@ -22,5 +22,5 @@ class RiscvDebugFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        print(op.format_str.string.format(*args), end="", file=interpreter.file)
+        print(op.format_str.escaped.format(*args), end="", file=interpreter.file)
         return ()

@@ -179,7 +179,7 @@ def test_call():
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call(func0.sym_name.string, [a, b], [ret0.arguments[0].type])
+    call0 = Call(func0.sym_name, [a, b], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, b, call0])
@@ -225,7 +225,7 @@ def test_call_II():
 
     # Create a call for this function, passing a, b as args
     # and returning the type of the return
-    call0 = Call(func0.sym_name.string, [a], [ret0.arguments[0].type])
+    call0 = Call(func0.sym_name, [a], [ret0.arguments[0].type])
 
     # Wrap all in a ModuleOp
     mod = ModuleOp([func0, a, call0])
