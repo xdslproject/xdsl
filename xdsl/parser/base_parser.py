@@ -10,7 +10,7 @@ from enum import Enum
 from typing import NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Lexer, Position, Span, Token
+from xdsl.utils.lexer import Lexer, Position, Span, StringLiteral, Token
 
 
 @dataclass(init=False)
@@ -389,7 +389,10 @@ class BaseParser:
 
         if (token := self._parse_optional_token(Token.Kind.STRING_LIT)) is None:
             return None
-        return token.get_string_literal_value()
+        try:
+            return token.get_string_literal_value()
+        except UnicodeDecodeError:
+            return None
 
     def parse_str_literal(self, context_msg: str = "") -> str:
         """
@@ -401,6 +404,30 @@ class BaseParser:
         return self.expect(
             self.parse_optional_str_literal,
             "string literal expected" + context_msg,
+        )
+
+    def parse_optional_bytes_literal(self) -> bytes | None:
+        """
+        Parse a bytes literal with the format `"..."`, if present.
+
+        Returns the bytes contents without the quotes and with escape sequences
+        resolved.
+        """
+
+        if (token := self._parse_optional_token(Token.Kind.BYTES_LIT)) is None:
+            return None
+        return StringLiteral.from_span(token.span).bytes_contents
+
+    def parse_bytes_literal(self, context_msg: str = "") -> bytes:
+        """
+        Parse a bytes literal with the format `"..."`.
+
+        Returns the bytes contents without the quotes and with escape sequences
+        resolved.
+        """
+        return self.expect(
+            self.parse_optional_bytes_literal,
+            "bytes literal expected" + context_msg,
         )
 
     def parse_optional_identifier(self) -> str | None:
