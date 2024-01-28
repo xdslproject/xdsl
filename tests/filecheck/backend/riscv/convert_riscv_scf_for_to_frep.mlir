@@ -78,14 +78,14 @@ riscv_scf.for %index3 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
 
 // 3. All operations in the loop all operate on float registers
 
-riscv_scf.for %index4 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
+riscv_scf.for %index4 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
     %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
     %f5 = riscv.fcvt.s.w %i2 : (!riscv.reg<>) -> !riscv.freg<ft1>
     riscv_snitch.write %f5 to %writable : !riscv.freg<ft1>
     riscv_scf.yield
 }
 
-// CHECK-NEXT:    riscv_scf.for %index4 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
+// CHECK-NEXT:    riscv_scf.for %index4 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
 // CHECK-NEXT:      %{{.*}} = riscv_snitch.read from %readable : !riscv.freg<ft0>
 // CHECK-NEXT:      %{{.*}} = riscv.fcvt.s.w %i2 : (!riscv.reg<>) -> !riscv.freg<ft1>
 // CHECK-NEXT:      riscv_snitch.write %{{.*}} to %writable : !riscv.freg<ft1>
@@ -99,14 +99,14 @@ riscv_scf.for %index4 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
 //      b) riscv_snitch.write
 //      c) builtin.unrealized_conversion_cast
 
-riscv_scf.for %index5 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
+riscv_scf.for %index5 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
     %f4 = riscv_snitch.read from %readable : !riscv.freg<ft0>
-    riscv.fsw %i2, %f4, 4 : (!riscv.reg<>, !riscv.freg<ft0>) -> ()
+    "test.op"(%f4) : (!riscv.freg<ft0>) -> ()
     riscv_scf.yield
 }
 
-// CHECK-NEXT:    riscv_scf.for %index5 : !riscv.reg<a4> = %i0 to %i1 step %c2 {
+// CHECK-NEXT:    riscv_scf.for %index5 : !riscv.reg<a4> = %i0 to %i1 step %c1 {
 // CHECK-NEXT:      %{{.*}} = riscv_snitch.read from %readable : !riscv.freg<ft0>
-// CHECK-NEXT:      riscv.fsw %i2, %{{.*}}, 4 : (!riscv.reg<>, !riscv.freg<ft0>) -> ()
+// CHECK-NEXT:      "test.op"(%{{.*}}) : (!riscv.freg<ft0>) -> ()
 // CHECK-NEXT:      riscv_scf.yield
 // CHECK-NEXT:    }
