@@ -11,9 +11,10 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from xdsl.ir import Attribute
-from xdsl.irdl import OpDef, VariadicDef
+from xdsl.irdl import AttrSizedOperandSegments, OpDef, VariadicDef
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
+    AttributeVariable,
     FormatDirective,
     FormatProgram,
     KeywordDirective,
@@ -89,6 +90,8 @@ class FormatParser(BaseParser):
     """The operand types that are already parsed."""
     seen_result_types: list[bool]
     """The result types that are already parsed."""
+    seen_attributes: set[str]
+    """The attributes that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
@@ -105,6 +108,7 @@ class FormatParser(BaseParser):
         self.seen_operands = [False] * len(op_def.operands)
         self.seen_operand_types = [False] * len(op_def.operands)
         self.seen_result_types = [False] * len(op_def.results)
+        self.seen_attributes = set[str]()
         self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
@@ -133,11 +137,26 @@ class FormatParser(BaseParser):
                     "A variadic directive cannot be followed by a comma literal."
                 )
 
+        self.add_reserved_attrs_to_directive(elements)
         seen_variables = self.resolve_types()
         self.verify_attr_dict()
         self.verify_operands(seen_variables)
         self.verify_results(seen_variables)
         return FormatProgram(elements)
+
+    def add_reserved_attrs_to_directive(self, elements: list[FormatDirective]):
+        """
+        Add reserved attributes to the attr-dict directive.
+        These are the attributes that are printed/parsed in other places in the format,
+        and thus should not be printed in the attr-dict directive.
+        """
+        for idx, element in enumerate(elements):
+            if isinstance(element, AttrDictDirective):
+                elements[idx] = AttrDictDirective(
+                    with_keyword=element.with_keyword,
+                    reserved_attr_names=self.seen_attributes,
+                )
+                return
 
     def resolve_types(self) -> set[str]:
         """
@@ -203,7 +222,9 @@ class FormatParser(BaseParser):
         if not self.has_attr_dict:
             self.raise_error("'attr-dict' directive not found")
 
-    def parse_optional_variable(self) -> OperandVariable | ResultVariable | None:
+    def parse_optional_variable(
+        self,
+    ) -> OperandVariable | ResultVariable | AttributeVariable | None:
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
@@ -223,6 +244,8 @@ class FormatParser(BaseParser):
                 if self.seen_operands[idx]:
                     self.raise_error(f"operand '{variable_name}' is already bound")
                 self.seen_operands[idx] = True
+                if isinstance(operand_def, VariadicDef):
+                    self.seen_attributes.add(AttrSizedOperandSegments.attribute_name)
             if isinstance(operand_def, VariadicDef):
                 return VariadicOperandVariable(variable_name, idx)
             else:
@@ -241,6 +264,17 @@ class FormatParser(BaseParser):
                 return VariadicResultVariable(variable_name, idx)
             else:
                 return ResultVariable(variable_name, idx)
+
+        # Check if the variable is an attribute
+        if variable_name in self.op_def.accessor_names:
+            (attr_name, attr_or_prop) = self.op_def.accessor_names[variable_name]
+            if attr_or_prop == "property":
+                self.raise_error("properties are currently not supported")
+            if self.context == ParsingContext.TopLevel:
+                if attr_name in self.seen_attributes:
+                    self.raise_error(f"attribute '{variable_name}' is already bound")
+                self.seen_attributes.add(attr_name)
+            return AttributeVariable(variable_name)
 
         self.raise_error(
             "expected variable to refer to an operand, "
@@ -283,6 +317,8 @@ class FormatParser(BaseParser):
                     self.raise_error(f"type of '{name}' is already bound")
                 self.seen_result_types[index] = True
                 res = ResultTypeDirective(name, index)
+            case AttributeVariable():
+                self.raise_error("can only take the type of an operand or result")
 
         self.parse_punctuation(")")
         self.context = previous_context
@@ -358,4 +394,6 @@ class FormatParser(BaseParser):
                 "in the assembly format description"
             )
         self.has_attr_dict = True
-        return AttrDictDirective(with_keyword=with_keyword)
+        # reserved_attr_names is populated once the format is parsed, as some attributes
+        # might appear after the attr-dict directive
+        return AttrDictDirective(with_keyword=with_keyword, reserved_attr_names=set())
