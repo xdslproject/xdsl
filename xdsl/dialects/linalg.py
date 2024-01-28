@@ -177,20 +177,17 @@ class Generic(IRDLOperation):
         return inverse
 
     def get_static_shapes(self) -> list[int]:
-        sizes: list[int] = []
-        for input in self.inputs:
-            if isinstance(input.type, ShapedType):
-                for dim in input.type.get_shape():
-                    sizes.append(dim)
-        for output in self.outputs:
-            if isinstance(output.type, ShapedType):
-                for dim in output.type.get_shape():
-                    sizes.append(dim)
-        return sizes
+        return [
+            dim
+            for operand in self.operands
+            if isinstance(operand.type, ShapedType)
+            for dim in operand.type.get_shape()
+        ]
 
     def get_static_loop_ranges(self) -> tuple[int, ...]:
         shapes_to_loops = self.get_shapes_to_loops_map()
-        return shapes_to_loops.eval(self.get_static_shapes(), [])
+        static_shapes = self.get_static_shapes()
+        return shapes_to_loops.eval(static_shapes, [])
 
     def print(self, printer: Printer):
         printer.print_string(" {indexing_maps = ")
