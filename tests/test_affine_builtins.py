@@ -184,3 +184,10 @@ def test_inverse_permutation():
     ).inverse_permutation() == AffineMap(
         8, 0, tuple(AffineExpr.dimension(d) for d in (2, 0, 3))
     )
+
+
+def test_used_dims():
+    assert AffineExpr.dimension(1).used_dims() == {1}
+    assert (AffineExpr.dimension(2) + AffineExpr.dimension(3)).used_dims() == {2, 3}
+    assert AffineExpr.symbol(4).used_dims() == set()
+    assert AffineExpr.constant(5).used_dims() == set()
