@@ -195,7 +195,7 @@ class StringLiteral(Span):
                         bytes_contents += b'"'
                     case _:
                         c1 = next(iter_string)
-                        bytes_contents += int(c0 + c1, 16).to_bytes(1)
+                        bytes_contents += int(c0 + c1, 16).to_bytes(1, "big")
 
         return bytes(bytes_contents)
 
