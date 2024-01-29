@@ -7,6 +7,7 @@ Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode
 be sure to install `textual-dev` to run this command.
 """
 
+import argparse
 import os
 from collections.abc import Callable
 from dataclasses import fields
@@ -157,7 +158,15 @@ class InputApp(App[None]):
     text areas.
     """
 
-    def __init__(self):
+    pre_loaded_file_path_option: str | None = None
+    """
+    Saves the path name of the file called on terminal to be pre-loaded into the gui.
+    """
+
+    def __init__(
+        self,
+        pre_load_file_path: str | None,
+    ):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
@@ -168,6 +177,7 @@ class InputApp(App[None]):
         self.diff_operation_count_datatable = DataTable(
             id="diff_operation_count_datatable"
         )
+        self.pre_loaded_file_path_option = pre_load_file_path
 
         super().__init__()
 
@@ -238,6 +248,22 @@ class InputApp(App[None]):
 
         self.diff_operation_count_datatable.add_columns("Operation", "Count", "Diff")
         self.diff_operation_count_datatable.zebra_stripes = True
+
+        # upload specified file (via terminal) to Input Text Area
+        if self.pre_loaded_file_path_option is not None:
+            self.input_text_area.clear()
+            try:
+                if os.path.exists(self.pre_loaded_file_path_option):
+                    # Open the file and read its contents
+                    with open(self.pre_loaded_file_path_option) as file:
+                        file_contents = file.read()
+                        self.input_text_area.load_text(file_contents)
+                else:
+                    self.input_text_area.load_text(
+                        f"The file '{self.pre_loaded_file_path_option}' does not exist."
+                    )
+            except Exception as e:
+                self.input_text_area.load_text(str(e))
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -544,7 +570,14 @@ class InputApp(App[None]):
 
 
 def main():
-    return InputApp().run()
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument(
+        "input_file", type=str, nargs="?", help="path to input file"
+    )
+    args = arg_parser.parse_args()
+
+    file = args.input_file
+    return InputApp(file).run()
 
 
 if __name__ == "__main__":
