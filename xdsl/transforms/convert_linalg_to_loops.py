@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 from itertools import compress
 
-from xdsl.builder import Builder
 from xdsl.dialects import affine, arith, linalg, memref, scf
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -9,7 +8,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     ModuleOp,
 )
-from xdsl.ir import Block, BlockArgument, MLContext, Region, SSAValue
+from xdsl.ir import Block, BlockArgument, MLContext, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -22,7 +21,10 @@ from xdsl.pattern_rewriter import (
 
 
 def indices_for_map(
-    b: Builder, affine_map: AffineMap, input_index_vals: Sequence[SSAValue]
+    rewriter: PatternRewriter,
+    target_op: Operation,
+    affine_map: AffineMap,
+    input_index_vals: Sequence[SSAValue],
 ) -> Sequence[SSAValue]:
     if affine_map.num_symbols:
         raise NotImplementedError("Cannot create indices for affine map with symbols")
@@ -44,11 +46,12 @@ def indices_for_map(
                 new_index_vals = tuple(compress(new_index_vals, selectors))
                 new_affine_map = new_affine_map.compress_dims(selectors)
 
-            b.insert(
+            rewriter.insert_op_before(
                 apply_op := affine.ApplyOp(
                     new_index_vals,
                     AffineMapAttr(new_affine_map),
-                )
+                ),
+                target_op,
             )
 
             output_indices.append(apply_op.result)
@@ -86,7 +89,7 @@ class LowerGenericOpPattern(RewritePattern):
         # Insert loop nest
 
         loop_args: list[BlockArgument] = []
-        b = Builder.before(op)
+        insertion_target: Operation = op
 
         for ub in bound_constant_values:
             loop = scf.For(
@@ -94,11 +97,11 @@ class LowerGenericOpPattern(RewritePattern):
                 ub,
                 one_val,
                 (),
-                Region(Block((scf.Yield(),), arg_types=(index,))),
+                Region(Block((yield_op := scf.Yield(),), arg_types=(index,))),
             )
             loop_args.append(loop.body.block.args[0])
-            b.insert(loop)
-            b = Builder.at_start(loop.body.block)
+            rewriter.insert_op_before(loop, insertion_target)
+            insertion_target = yield_op
 
         # Add load ops
 
@@ -108,9 +111,9 @@ class LowerGenericOpPattern(RewritePattern):
             if not arg.uses:
                 continue
             affine_map = affine_map_attr.data
-            indices = indices_for_map(b, affine_map, loop_args)
+            indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
             load_op = memref.Load.get(operand, indices)
-            b.insert(load_op)
+            rewriter.insert_op_before(load_op, insertion_target)
             arg.replace_by(load_op.res)
 
         # Add store ops
@@ -127,7 +130,7 @@ class LowerGenericOpPattern(RewritePattern):
             # TODO: Use rewriter instead of existing builder in the future
             # This is safe as-is, will just insert the affine.apply ops at the start of
             # the block, potentially leading to more register pressure
-            indices = indices_for_map(b, affine_map, loop_args)
+            indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
             store_op = memref.Store.get(yield_value, ref, indices)
             rewriter.insert_op_before(store_op, linalg_yield_op)
 
@@ -135,9 +138,7 @@ class LowerGenericOpPattern(RewritePattern):
 
         # Inline generic body
 
-        scf_yield_op = b.insertion_point.block.last_op
-        assert scf_yield_op is not None
-        rewriter.inline_block_before(op.body.block, scf_yield_op)
+        rewriter.inline_block_before(op.body.block, insertion_target)
 
         # Erase generic
 
