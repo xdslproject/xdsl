@@ -376,6 +376,10 @@ class Rank(IRDLOperation):
 
 @irdl_op_definition
 class CollapseShapeOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
+    """
+
     name = "memref.collapse_shape"
     src: Operand = operand_def(MemRefType)
     result: OpResult = result_def(MemRefType)
@@ -384,6 +388,10 @@ class CollapseShapeOp(IRDLOperation):
 
 @irdl_op_definition
 class ExpandShapeOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
+    """
+
     name = "memref.expand_shape"
     src: Operand = operand_def(MemRefType)
     result: OpResult = result_def(MemRefType)
