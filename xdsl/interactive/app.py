@@ -162,10 +162,12 @@ class InputApp(App[None]):
     """
     Saves the path name of the file called on terminal to be pre-loaded into the gui.
     """
+    pre_load_pass_pipeline_option: list[PipelinePassSpec] | None = None
 
     def __init__(
         self,
         pre_load_file_path: str | None,
+        pre_load_pass_pipeline: list[PipelinePassSpec] | None,
     ):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
@@ -178,6 +180,7 @@ class InputApp(App[None]):
             id="diff_operation_count_datatable"
         )
         self.pre_loaded_file_path_option = pre_load_file_path
+        self.pre_load_pass_pipeline_option = pre_load_pass_pipeline
 
         super().__init__()
 
@@ -264,6 +267,16 @@ class InputApp(App[None]):
                     )
             except Exception as e:
                 self.input_text_area.load_text(str(e))
+
+        # upload specificied passes (via terminal)
+        if self.pre_load_pass_pipeline_option is not None:
+            temp_dict = dict(ALL_PASSES)
+
+            for value_spec in self.pre_load_pass_pipeline_option:
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
+                    (temp_dict.get(value_spec.name), value_spec),
+                )
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -574,10 +587,20 @@ def main():
     arg_parser.add_argument(
         "input_file", type=str, nargs="?", help="path to input file"
     )
+    pass_names = ",".join([name for name in get_all_passes()])
+    arg_parser.add_argument(
+        "-p",
+        "--passes",
+        required=False,
+        help="Delimited list of passes." f" Available passes are: {pass_names}",
+        type=str,
+        default="",
+    )
     args = arg_parser.parse_args()
 
     file = args.input_file
-    return InputApp(file).run()
+    pass_pipeline = list(parse_pipeline(args.passes))
+    return InputApp(file, pass_pipeline).run()
 
 
 if __name__ == "__main__":
