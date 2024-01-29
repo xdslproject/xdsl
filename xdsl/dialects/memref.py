@@ -374,6 +374,11 @@ class Rank(IRDLOperation):
         return Rank.build(operands=[memref], result_types=[IndexType()])
 
 
+ReassociationAttr = ArrayAttr[
+    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+]
+
+
 @irdl_op_definition
 class CollapseShapeOp(IRDLOperation):
     """
@@ -383,9 +388,7 @@ class CollapseShapeOp(IRDLOperation):
     name = "memref.collapse_shape"
     src: Operand = operand_def(MemRefType)
     result: OpResult = result_def(MemRefType)
-    reassociation = prop_def(
-        ArrayAttr[ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]]
-    )
+    reassociation = prop_def(ReassociationAttr)
 
 
 @irdl_op_definition
@@ -397,9 +400,7 @@ class ExpandShapeOp(IRDLOperation):
     name = "memref.expand_shape"
     src: Operand = operand_def(MemRefType)
     result: OpResult = result_def(MemRefType)
-    reassociation = prop_def(
-        ArrayAttr[ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]]
-    )
+    reassociation = prop_def(ReassociationAttr)
 
 
 @irdl_op_definition
