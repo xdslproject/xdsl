@@ -6,8 +6,12 @@ from typing import Annotated, cast
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
+    AnyTensorType,
     ArrayAttr,
+    DenseIntOrFPElementsAttr,
+    Float32Type,
     FloatAttr,
+    IntegerAttr,
     IntegerType,
     NoneType,
     SSAValue,
@@ -570,11 +574,99 @@ class Conv(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class Constant(IRDLOperation):
+    """
+    Produce a constant tensor.
+
+    Exactly one of the provided attributes, either value, sparse_value, or value_* must be specified.
+
+    Parameters:
+    - sparse_value: sparse_tensor
+    The value for the elements of the output tensor in sparse format. (currently unsupported)
+    - value : tensor
+     The value for the elements of the output tensor.
+    - value_float: float
+     The value for the sole element for the scalar, float32, output tensor.
+    - value_floats: list of floats
+     The values for the elements for the 1D, float32, output tensor.
+    - value_int : int
+     The value for the sole element for the scalar, int64, output tensor.
+    - value_ints : list of ints
+     The values for the elements for the 1D, int64, output tensor.
+    - value_string : string
+     The value for the sole element for the scalar, UTF-8 string, output tensor.
+    - value_strings: list of strings
+     The values for the elements for the 1D, UTF-8 string, output tensor.
+    """
+
+    name = "onnx.Constant"
+    output = result_def(AnyTensorType)
+
+    value = opt_attr_def(DenseIntOrFPElementsAttr)
+    value_float = opt_attr_def(FloatAttr[Float32Type])
+    value_floats = opt_attr_def(ArrayAttr[FloatAttr[Float32Type]])
+    value_int = opt_attr_def(IntegerAttr[IntegerType])
+    value_ints = opt_attr_def(ArrayAttr[IntegerAttr[IntegerType]])
+    value_string = opt_attr_def(StringAttr)
+    value_strings = opt_attr_def(ArrayAttr[StringAttr])
+
+    assembly_format = "`(``)` attr-dict `:` `(``)` `->` type($output) "
+
+    def __init__(
+        self,
+        value: Attribute,
+        value_float: Attribute,
+        value_floats: Attribute,
+        value_int: Attribute,
+        value_ints: Attribute,
+        value_string: Attribute,
+        value_strings: Attribute,
+        output_type: Attribute,
+    ):
+        super().__init__(
+            attributes={
+                "value": value,
+                "value_float": value_float,
+                "value_floats": value_floats,
+                "value_int": value_int,
+                "value_ints": value_ints,
+                "value_string": value_string,
+                "value_strings": value_strings,
+            },
+            operands=[],
+            result_types=[output_type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(output_type := self.output.type, TensorType):
+            assert False, "onnx.Constant result must be of type TensorType"
+
+        output_type = cast(TensorType[Attribute], output_type)
+
+        if self.value is not None and not isinstance(self.value.type, TensorType):
+            raise VerifyException("value attribute type must be of type TensorType")
+
+        if self.value_int is not None and self.value_int.type.width.data != 64:
+            raise VerifyException(
+                "value_int element type has to be a 64-bit signless integer"
+            )
+
+        if self.value_ints is not None:
+            for value in self.value_ints:
+                width = value.type.width.data
+                if width != 64:
+                    raise VerifyException(
+                        "value_ints elements type has to be a 64-bit signless integer"
+                    )
+
+
 ONNX = Dialect(
     "onnx",
     [
         Abs,
         Add,
+        Constant,
         Conv,
         Div,
         Gemm,

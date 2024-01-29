@@ -318,4 +318,39 @@ builtin.module {
   }
 
 
+  // -----
+
+builtin.module {
+
+  // CHECK: f32 should be of base attribute tensor
+  %res_constant = onnx.Constant() {"onnx_node_name" = "/Constant", "value" = dense<[3.0]> : tensor<1xf32>} : () -> f32
+
+  }
+
+// -----
+
+builtin.module {
+
+  // CHECK: Operation does not verify: value attribute type must be of type TensorType
+  %res_constant = onnx.Constant() {"onnx_node_name" = "/Constant", "value" = dense<[3.0]> : vector<1xf32>} : () -> tensor<1xf32>
+
+  }
+
+// -----
+
+builtin.module {
+
+  // CHECK: Operation does not verify: value_int element type has to be a 64-bit signless integer
+  %res_constant = onnx.Constant() {"onnx_node_name" = "/Constant", "value_int" = 4 : i32} : () -> tensor<1xf32>
+
+  }
+
+// -----
+
+builtin.module {
+
+  // CHECK: Operation does not verify: value_ints elements type has to be a 64-bit signless integer
+  %res_constant = onnx.Constant() {"onnx_node_name" = "/Constant", "value_ints" = [1: i64, 2: i32, 3: i64]} : () -> tensor<3xi32>
+
+  }
 
