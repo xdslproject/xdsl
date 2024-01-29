@@ -471,22 +471,7 @@ class FlowOp(IRDLOperation):
             operands=[source, dest],
         )
 
-    def print(self, printer: Printer):
-        printer.print(
-            "(",
-            self.source,
-            ", ",
-            self.sourceBundle.data,
-            ": ",
-            self.sourceChannel.value.data,
-            ", ",
-            self.dest,
-            ", ",
-            self.destBundle.data,
-            ": ",
-            self.destChannel.value.data,
-            ")",
-        )
+    assembly_format = "`<` $sourceBundle `: ` $sourceChannel `, ` $destBundle `: ` destChannel `>`  attr-dict"
 
 
 @irdl_op_definition
