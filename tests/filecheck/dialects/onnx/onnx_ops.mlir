@@ -63,3 +63,4 @@
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
 //CHECK: %res_constant = onnx.Constant() {"onnx_node_name" = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
+
