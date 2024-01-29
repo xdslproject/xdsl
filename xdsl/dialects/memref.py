@@ -6,7 +6,6 @@ from typing import Annotated, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
-    AnyArrayAttr,
     AnyIntegerAttr,
     ArrayAttr,
     BoolAttr,
@@ -380,7 +379,7 @@ class CollapseShapeOp(IRDLOperation):
     name = "memref.collapse_shape"
     src: Operand = operand_def(MemRefType)
     result: OpResult = result_def(MemRefType)
-    reassociation: AnyArrayAttr = prop_def(AnyArrayAttr)
+    reassociation = prop_def(ArrayAttr[Annotated[IntegerType, IntegerType(64)]])
 
 
 @irdl_op_definition
@@ -388,7 +387,7 @@ class ExpandShapeOp(IRDLOperation):
     name = "memref.expand_shape"
     src: Operand = operand_def(MemRefType)
     result: OpResult = result_def(MemRefType)
-    reassociation: AnyArrayAttr = prop_def(AnyArrayAttr)
+    reassociation = prop_def(ArrayAttr[Annotated[IntegerType, IntegerType(64)]])
 
 
 @irdl_op_definition
