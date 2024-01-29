@@ -127,9 +127,6 @@ class LowerGenericOpPattern(RewritePattern):
             output_indexing_maps, linalg_yield_op.operands, output_operands, strict=True
         ):
             affine_map = affine_map_attr.data
-            # TODO: Use rewriter instead of existing builder in the future
-            # This is safe as-is, will just insert the affine.apply ops at the start of
-            # the block, potentially leading to more register pressure
             indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
             store_op = memref.Store.get(yield_value, ref, indices)
             rewriter.insert_op_before(store_op, linalg_yield_op)
