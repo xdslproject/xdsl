@@ -6,6 +6,7 @@ from typing import Annotated, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    AnyArrayAttr,
     AnyIntegerAttr,
     ArrayAttr,
     BoolAttr,
@@ -375,6 +376,22 @@ class Rank(IRDLOperation):
 
 
 @irdl_op_definition
+class CollapseShapeOp(IRDLOperation):
+    name = "memref.collapse_shape"
+    src: Operand = operand_def(MemRefType)
+    result: OpResult = result_def(MemRefType)
+    reassociation: AnyArrayAttr = prop_def(AnyArrayAttr)
+
+
+@irdl_op_definition
+class ExpandShapeOp(IRDLOperation):
+    name = "memref.expand_shape"
+    src: Operand = operand_def(MemRefType)
+    result: OpResult = result_def(MemRefType)
+    reassociation: AnyArrayAttr = prop_def(AnyArrayAttr)
+
+
+@irdl_op_definition
 class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     name = "memref.extract_aligned_pointer_as_index"
 
@@ -668,6 +685,8 @@ MemRef = Dialect(
         AllocaScopeOp,
         AllocaScopeReturnOp,
         CopyOp,
+        CollapseShapeOp,
+        ExpandShapeOp,
         Dealloc,
         GetGlobal,
         Global,
