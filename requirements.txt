@@ -17,5 +17,5 @@ textual-dev==1.4.0
 pytest-asyncio==0.23.4
 # pyright version has to be fixed with `==`. The CI parses this file
 # and installs the according version for typechecking.
-pyright==1.1.345
+pyright==1.1.348
 -e .[extras]
