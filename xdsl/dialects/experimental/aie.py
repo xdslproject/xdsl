@@ -8,6 +8,7 @@ of the original dialect can be found here https://xilinx.github.io/mlir-aie/AIED
 from __future__ import annotations
 
 from collections.abc import Iterable
+from enum import auto
 from typing import Annotated, Generic
 
 from xdsl.dialects import memref
@@ -34,10 +35,12 @@ from xdsl.ir import (
     AttributeInvT,
     Data,
     Dialect,
+    EnumAttribute,
     Operation,
     OpResult,
     ParametrizedAttribute,
     SSAValue,
+    StrEnum,
 )
 from xdsl.irdl import (
     IRDLOperation,
@@ -73,6 +76,15 @@ NONBLOCKING = 0
 
 MM2S = 0
 S2MM = 1
+
+
+class AIEDeviceEnum(StrEnum):
+    xcvc1902 = auto()
+
+
+@irdl_attr_definition
+class AIEDeviceAttr(EnumAttribute[AIEDeviceEnum]):
+    name = "aie.device_attr"
 
 
 @irdl_attr_definition
@@ -406,18 +418,13 @@ class DeviceOp(IRDLOperation):
 
     region = region_def()
 
-    device = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
+    device = attr_def(AIEDeviceAttr)
     traits = frozenset([SymbolTable()])
 
     def __init__(self, device: IntegerAttr[IntegerType], region: Region):
         super().__init__(attributes={"device": device}, regions=[region])
 
-    def print(self, printer: Printer):
-        printer.print("(")
-        device_str = "xcvc1902" if self.device.value.data == 0 else ""
-        printer.print(device_str)
-        printer.print(") ")
-        printer.print_region(self.region)
+    assembly_format = "$device attr-dict"
 
 
 @irdl_op_definition
@@ -471,7 +478,22 @@ class FlowOp(IRDLOperation):
             operands=[source, dest],
         )
 
-    assembly_format = "`<` $sourceBundle `: ` $sourceChannel `, ` $destBundle `: ` $destChannel `>`  attr-dict"
+    def print(self, printer: Printer):
+        printer.print(
+            "(",
+            self.source,
+            ", ",
+            self.sourceBundle.data,
+            ": ",
+            self.sourceChannel.value.data,
+            ", ",
+            self.dest,
+            ", ",
+            self.destBundle.data,
+            ": ",
+            self.destChannel.value.data,
+            ")",
+        )
 
 
 @irdl_op_definition
