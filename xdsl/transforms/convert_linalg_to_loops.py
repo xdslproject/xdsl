@@ -68,9 +68,6 @@ class LowerGenericOpPattern(RewritePattern):
 
         ubs = op.get_static_loop_ranges()
 
-        if not ubs:
-            assert False, "TODO"
-
         bound_constant_ops = tuple(
             arith.Constant(IntegerAttr.from_index_int_value(ub)) for ub in ubs
         )
@@ -79,9 +76,10 @@ class LowerGenericOpPattern(RewritePattern):
 
         zero_op = arith.Constant(IntegerAttr.from_index_int_value(0))
         one_op = arith.Constant(IntegerAttr.from_index_int_value(1))
-        rewriter.insert_op_before_matched_op((zero_op, one_op))
         zero_val = zero_op.result
         one_val = one_op.result
+        if bound_constant_values:
+            rewriter.insert_op_before_matched_op((zero_op, one_op))
 
         index = IndexType()
 

@@ -1,3 +1,4 @@
+// RUN: xdsl-opt -p convert-linalg-to-loops %s | filecheck %s
 
 %A, %B, %C = "test.op"() : () -> (memref<f64>, memref<f64>, memref<f64>)
 
@@ -17,10 +18,10 @@ linalg.generic {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (memref<f64>, memref<f64>, memref<f64>)
-// CHECK-NEXT:    %%{{.*}} = memref.load %0[] : memref<f64>
-// CHECK-NEXT:    %%{{.*}} = memref.load %0[] : memref<f64>
-// CHECK-NEXT:    %%{{.*}} = memref.load %0[] : memref<f64>
-// CHECK-NEXT:    %%{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:    %%{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:    %{{.*}} = memref.load %{{.*}}[] : memref<f64>
+// CHECK-NEXT:    %{{.*}} = memref.load %{{.*}}[] : memref<f64>
+// CHECK-NEXT:    %{{.*}} = memref.load %{{.*}}[] : memref<f64>
+// CHECK-NEXT:    %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:    %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:    memref.store %{{.*}}, %{{.*}}[] : memref<f64>
 // CHECK-NEXT:  }
