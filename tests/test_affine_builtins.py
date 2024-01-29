@@ -197,3 +197,10 @@ def test_compress_dims():
     assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).compress_dims(
         [t, f, t]
     ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
+
+
+def test_used_dims():
+    assert AffineExpr.dimension(1).used_dims() == {1}
+    assert (AffineExpr.dimension(2) + AffineExpr.dimension(3)).used_dims() == {2, 3}
+    assert AffineExpr.symbol(4).used_dims() == set()
+    assert AffineExpr.constant(5).used_dims() == set()
