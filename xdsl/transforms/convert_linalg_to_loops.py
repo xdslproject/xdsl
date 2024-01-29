@@ -85,36 +85,24 @@ class LowerGenericOpPattern(RewritePattern):
 
         index = IndexType()
 
+        # Insert loop nest
+
         loop_args: list[BlockArgument] = []
+        b = Builder.before(op)
 
-        innermost_loop = scf.For(
-            zero_val,
-            bound_constant_values[-1],
-            one_val,
-            (),
-            Region(Block((scf.Yield(),), arg_types=(index,))),
-        )
-        innermost_body = innermost_loop.body.block
-
-        outermost_loop = innermost_loop
-        loop_args = [innermost_body.args[0]]
-
-        for ub in reversed(bound_constant_values[:-1]):
-            outermost_loop = scf.For(
+        for ub in bound_constant_values:
+            loop = scf.For(
                 zero_val,
                 ub,
                 one_val,
                 (),
-                Region(Block((outermost_loop, scf.Yield()), arg_types=(index,))),
+                Region(Block((scf.Yield(),), arg_types=(index,))),
             )
-            loop_args.append(outermost_loop.body.block.args[0])
-
-        # last loop is innermost
-        loop_args.reverse()
+            loop_args.append(loop.body.block.args[0])
+            b.insert(loop)
+            b = Builder.at_start(loop.body.block)
 
         # Add load ops
-
-        b = Builder.at_start(innermost_body)
 
         for affine_map_attr, operand, arg in zip(
             op.indexing_maps.data, op.operands, op.body.block.args, strict=True
@@ -147,13 +135,9 @@ class LowerGenericOpPattern(RewritePattern):
 
         rewriter.erase_op(linalg_yield_op)
 
-        # Insert loop nest
-
-        rewriter.insert_op_before_matched_op(outermost_loop)
-
         # Inline generic body
 
-        scf_yield_op = innermost_body.last_op
+        scf_yield_op = b.insertion_point.block.last_op
         assert scf_yield_op is not None
         rewriter.inline_block_before(op.body.block, scf_yield_op)
 
