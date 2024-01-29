@@ -4,7 +4,7 @@ toml<0.11
 pytest-cov
 coverage<8.0.0
 ipykernel
-pytest<8.0
+pytest<9.0
 nbval<0.11
 filecheck<0.0.25
 lit<18.0.0
