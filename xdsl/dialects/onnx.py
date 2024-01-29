@@ -639,11 +639,6 @@ class Constant(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(output_type := self.output.type, TensorType):
-            assert False, "onnx.Constant result must be of type TensorType"
-
-        output_type = cast(TensorType[Attribute], output_type)
-
         if self.value is not None and not isinstance(self.value.type, TensorType):
             raise VerifyException("value attribute type must be of type TensorType")
 
