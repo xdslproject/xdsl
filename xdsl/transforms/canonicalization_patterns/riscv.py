@@ -365,6 +365,34 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
             )
 
 
+class FuseMultiplyAddD(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.FAddDOp, rewriter: PatternRewriter) -> None:
+        addend = multiplicand1 = None
+        if isinstance(op.rs1.type, riscv.RISCVRegisterType):
+            addend = op.rs1
+            multiplicand1 = op.rs2
+        elif isinstance(op.rs2.type, riscv.RISCVRegisterType):
+            addend = op.rs2
+            multiplicand1 = op.rs1
+
+        if (
+            addend is not None
+            and multiplicand1 is not None
+            and isinstance(mulop := multiplicand1.owner, riscv.FMulDOp)
+            and len(mulop.rd.uses) == 1
+            and isinstance(mulop.rd.type, riscv.RISCVRegisterType)
+        ):
+            rewriter.replace_matched_op(
+                riscv.FMAddDOp(
+                    mulop.rs1,
+                    mulop.rs2,
+                    addend,
+                    comment=op.comment,
+                )
+            )
+
+
 class BitwiseAndByZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter):

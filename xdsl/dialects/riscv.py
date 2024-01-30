@@ -3449,6 +3449,16 @@ class FMSubDOp(RdRsRsRsFloatOperation):
     traits = frozenset((Pure(),))
 
 
+class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            FuseMultiplyAddD,
+        )
+
+        return (FuseMultiplyAddD(),)
+
+
 @irdl_op_definition
 class FAddDOp(RdRsRsFloatOperationWithFastMath):
     """
@@ -3461,7 +3471,12 @@ class FAddDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fadd.d"
 
-    traits = frozenset((Pure(),))
+    traits = frozenset(
+        (
+            Pure(),
+            FuseMultiplyAddDCanonicalizationPatternTrait(),
+        )
+    )
 
 
 @irdl_op_definition
