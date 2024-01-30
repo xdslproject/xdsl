@@ -406,10 +406,13 @@ class InputApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        query = "\n"
-        query += ",\n".join(
-            str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
-        )
+        query = ""
+        if self.pass_pipeline != ():
+            query += "'"
+            query += ",".join(
+                str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
+            )
+            query += "'"
         return f"xdsl-opt -p {query}"
 
     def update_input_operation_count_tuple(self, input_module: ModuleOp) -> None:
