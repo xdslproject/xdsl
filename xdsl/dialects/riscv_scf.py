@@ -4,7 +4,7 @@ RISC-V SCF dialect
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 from typing_extensions import Self
@@ -43,11 +43,11 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
     traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(WhileOp, ForRofBaseOp)])
+        lambda: frozenset([IsTerminator(), HasParent(WhileOp, ForRofOperation)])
     )
 
 
-class ForRofBaseOp(IRDLOperation):
+class ForRofOperation(IRDLOperation, ABC):
     lb: Operand = operand_def(IntRegisterType)
     ub: Operand = operand_def(IntRegisterType)
     step: Operand = operand_def(IntRegisterType)
@@ -196,7 +196,7 @@ class ForRofBaseOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ForOp(ForRofBaseOp):
+class ForOp(ForRofOperation):
     """
     A for loop, counting up from lb to ub by step each iteration.
     """
@@ -217,7 +217,7 @@ class ForOp(ForRofBaseOp):
 
 
 @irdl_op_definition
-class RofOp(ForRofBaseOp):
+class RofOp(ForRofOperation):
     """
     Reverse Order For loop.
 
