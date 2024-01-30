@@ -8,7 +8,7 @@ riscv_scf.for %i : !riscv.reg<> = %lb to %ub step %step {
     "riscv.addi"(%acc) {"immediate" = 1 : i12} : (!riscv.reg<t0>) -> !riscv.reg<t0>
     "riscv_scf.yield"() : () -> ()
 }
-riscv_scf.rof %j : !riscv.reg<> = %ub to %lb step %step {
+riscv_scf.rof %j : !riscv.reg<> = %ub down to %lb step %step {
     "riscv.addi"(%acc) {"immediate" = 1 : i12} : (!riscv.reg<t0>) -> !riscv.reg<t0>
     "riscv_scf.yield"() : () -> ()
 }

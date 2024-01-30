@@ -1,8 +1,10 @@
 """
 RISC-V SCF dialect
 """
+
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Sequence
 
 from typing_extensions import Self
@@ -113,6 +115,15 @@ class ForRofBaseOp(IRDLOperation):
                         f"variables types."
                     )
 
+    @abstractmethod
+    def _print_bounds(self, printer: Printer) -> None:
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        raise NotImplementedError()
+
     def print(self, printer: Printer):
         block = self.body.block
         index, *iter_args = block.args
@@ -121,9 +132,7 @@ class ForRofBaseOp(IRDLOperation):
         printer.print(" : ")
         printer.print_attribute(index.type)
         printer.print_string(" = ")
-        printer.print_ssa_value(self.lb)
-        printer.print_string(" to ")
-        printer.print_ssa_value(self.ub)
+        self._print_bounds(printer)
         printer.print_string(" step ")
         printer.print_ssa_value(self.step)
         printer.print_string(" ")
@@ -147,9 +156,7 @@ class ForRofBaseOp(IRDLOperation):
         parser.parse_characters(":")
         index_arg_type = parser.parse_type()
         parser.parse_characters("=")
-        lb = parser.parse_operand()
-        parser.parse_characters("to")
-        ub = parser.parse_operand()
+        lb, ub = cls._parse_bounds(parser)
         parser.parse_characters("step")
         step = parser.parse_operand()
 
@@ -196,6 +203,18 @@ class ForOp(ForRofBaseOp):
 
     name = "riscv_scf.for"
 
+    def _print_bounds(self, printer: Printer):
+        printer.print_ssa_value(self.lb)
+        printer.print_string(" to ")
+        printer.print_ssa_value(self.ub)
+
+    @classmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        lb = parser.parse_operand()
+        parser.parse_characters("to")
+        ub = parser.parse_operand()
+        return lb, ub
+
 
 @irdl_op_definition
 class RofOp(ForRofBaseOp):
@@ -214,6 +233,19 @@ class RofOp(ForRofBaseOp):
     """
 
     name = "riscv_scf.rof"
+
+    def _print_bounds(self, printer: Printer):
+        printer.print_ssa_value(self.ub)
+        printer.print_string(" down to ")
+        printer.print_ssa_value(self.lb)
+
+    @classmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        ub = parser.parse_operand()
+        parser.parse_characters("down")
+        parser.parse_characters("to")
+        lb = parser.parse_operand()
+        return lb, ub
 
 
 @irdl_op_definition
