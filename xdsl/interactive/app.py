@@ -7,6 +7,7 @@ Run `textual run xdsl.interactive.app:InputApp --dev` to run in development mode
 be sure to install `textual-dev` to run this command.
 """
 
+import argparse
 import os
 from collections.abc import Callable
 from dataclasses import fields
@@ -157,7 +158,12 @@ class InputApp(App[None]):
     text areas.
     """
 
-    def __init__(self):
+    pre_loaded_input_text: str
+
+    def __init__(
+        self,
+        input_text: str | None = None,
+    ):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.passes_list_view = ListView(id="passes_list_view")
@@ -168,6 +174,11 @@ class InputApp(App[None]):
         self.diff_operation_count_datatable = DataTable(
             id="diff_operation_count_datatable"
         )
+
+        if input_text is None:
+            self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
+        else:
+            self.pre_loaded_input_text = input_text
 
         super().__init__()
 
@@ -229,8 +240,8 @@ class InputApp(App[None]):
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
-        # initialize GUI with an interesting input IR and pass application
-        self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
+        # initialize GUI with either specified input text or default example
+        self.input_text_area.load_text(self.pre_loaded_input_text)
 
         # initialize DataTable with column names
         self.input_operation_count_datatable.add_columns("Operation", "Count")
@@ -544,7 +555,22 @@ class InputApp(App[None]):
 
 
 def main():
-    return InputApp().run()
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument(
+        "input_file", type=str, nargs="?", help="path to input file"
+    )
+    args = arg_parser.parse_args()
+
+    file_path = args.input_file
+
+    if file_path is not None:
+        # Open the file and read its contents
+        with open(file_path) as file:
+            file_contents = file.read()
+    else:
+        file_contents = None
+
+    return InputApp(file_contents).run()
 
 
 if __name__ == "__main__":
