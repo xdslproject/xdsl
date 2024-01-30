@@ -223,7 +223,7 @@ class Token:
         FLOAT_LIT = object()  # 1.0
         INTEGER_LIT = object()  # 1
         STRING_LIT = object()  # "foo"
-        BYTES_LIT = object()  # "foo"
+        BYTES_LIT = object()  # "foo\00\00"
 
         # Punctuation
         ARROW = "->"
