@@ -159,9 +159,6 @@ class InputApp(App[None]):
     """
 
     pre_loaded_input_text: str
-    """
-    Saves the path name of the file called on terminal to be pre-loaded into the gui.
-    """
 
     def __init__(
         self,
@@ -244,7 +241,7 @@ class InputApp(App[None]):
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
-        # initialize GUI with either terminal specifiec file or input IR example
+        # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
 
         # initialize DataTable with column names
