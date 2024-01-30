@@ -33,7 +33,7 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec
 @pytest.mark.asyncio()
 async def test_inputs():
     """Test different inputs produce desired result."""
-    async with InputApp(None).run_test() as pilot:
+    async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -99,7 +99,7 @@ async def test_inputs():
 @pytest.mark.asyncio()
 async def test_buttons():
     """Test pressing keys has the desired result."""
-    async with InputApp(None).run_test() as pilot:
+    async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
 
         # clear preloaded code and unselect preselected pass
@@ -293,7 +293,7 @@ async def test_buttons():
 @pytest.mark.asyncio()
 async def test_passes():
     """Test pass application has the desired result."""
-    async with InputApp(None).run_test() as pilot:
+    async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()

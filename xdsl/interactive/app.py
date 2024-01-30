@@ -159,15 +159,11 @@ class InputApp(App[None]):
     """
 
     pre_loaded_input_text: str
-    """
-    Saves the path name of the file called on terminal to be pre-loaded into the gui.
-    """
-    pre_load_pass_pipeline_option: list[PipelinePassSpec] | None = None
 
     def __init__(
         self,
-        pre_load_file_path: str | None,
-        pre_load_pass_pipeline: list[PipelinePassSpec] | None,
+        input_text: str | None = None,
+        pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
     ):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
@@ -181,11 +177,12 @@ class InputApp(App[None]):
         )
 
         # initialize to contain terminal specified file path or to IR example
-        if pre_load_file_path is None:
+        if input_text is None:
             self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
         else:
-            self.pre_loaded_input_text = pre_load_file_path
-        self.pre_load_pass_pipeline_option = pre_load_pass_pipeline
+            self.pre_loaded_input_text = input_text
+
+        self.pass_pipeline = pass_pipeline
 
         super().__init__()
 
@@ -247,7 +244,7 @@ class InputApp(App[None]):
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
-        # initialize GUI with either terminal specifiec file or input IR example
+        # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
 
         # initialize DataTable with column names
@@ -256,16 +253,6 @@ class InputApp(App[None]):
 
         self.diff_operation_count_datatable.add_columns("Operation", "Count", "Diff")
         self.diff_operation_count_datatable.zebra_stripes = True
-
-        # upload specificied passes (via terminal)
-        if self.pre_load_pass_pipeline_option is not None:
-            temp_dict = dict(ALL_PASSES)
-
-            for value_spec in self.pre_load_pass_pipeline_option:
-                self.pass_pipeline = (
-                    *self.pass_pipeline,
-                    (temp_dict.get(value_spec.name), value_spec),
-                )
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -576,21 +563,19 @@ def main():
     arg_parser.add_argument(
         "input_file", type=str, nargs="?", help="path to input file"
     )
-    pass_names = ",".join([name for name in get_all_passes()])
+
+    available_passes = ",".join([name for name in get_all_passes()])
     arg_parser.add_argument(
         "-p",
         "--passes",
         required=False,
-        help="Delimited list of passes." f" Available passes are: {pass_names}",
+        help="Delimited list of passes." f" Available passes are: {available_passes}",
         type=str,
         default="",
     )
     args = arg_parser.parse_args()
 
     file_path = args.input_file
-
-    pass_pipeline = list(parse_pipeline(args.passes))
-
     if file_path is not None:
         # Open the file and read its contents
         with open(file_path) as file:
@@ -598,7 +583,11 @@ def main():
     else:
         file_contents = None
 
-    return InputApp(file_contents, pass_pipeline).run()
+    pass_spec_pipeline = list(parse_pipeline(args.passes))
+    pass_list = get_all_passes()
+    pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
+
+    return InputApp(file_contents, pipeline).run()
 
 
 if __name__ == "__main__":
