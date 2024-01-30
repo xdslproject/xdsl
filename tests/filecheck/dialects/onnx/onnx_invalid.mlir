@@ -354,3 +354,12 @@ builtin.module {
 
   }
 
+// -----
+
+builtin.module {
+
+  // CHECK: Operation does not verify: More than one value atrribute provided. Only one should be used
+  %res_constant = onnx.Constant() {"onnx_node_name" = "/Constant", "value_ints" = [1: i64, 1: i64], "value_int" =  3: i64} : () -> tensor<3xi64>
+
+  }
+

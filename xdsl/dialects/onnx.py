@@ -655,6 +655,21 @@ class Constant(IRDLOperation):
                         "value_ints elements type has to be a 64-bit signless integer"
                     )
 
+        attrs = [
+            self.value,
+            self.value_float,
+            self.value_floats,
+            self.value_int,
+            self.value_ints,
+            self.value_string,
+            self.value_strings,
+        ]
+        used_attrs = sum(1 for attr in attrs if attr is not None)
+        if used_attrs != 1:
+            raise VerifyException(
+                "More than one value atrribute provided. Only one should be used"
+            )
+
 
 ONNX = Dialect(
     "onnx",
