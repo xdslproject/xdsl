@@ -2,13 +2,15 @@ from typing import Any
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import affine, arith, func, memref
-from xdsl.dialects.builtin import IndexType, ModuleOp
+from xdsl.dialects.builtin import AffineMapAttr, IndexType, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.ir.affine import AffineMap
+from xdsl.utils.test_value import TestSSAValue
 
 index = IndexType()
 
@@ -82,3 +84,16 @@ def test_functions():
         ShapedArray(data=[0, 1, 2, 1, 2, 3], shape=[2, 3]),
         ShapedArray(data=[0, 1, 1, 2, 2, 3], shape=[3, 2]),
     )
+
+
+def test_apply():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(AffineFunctions())
+
+    assert interpreter.run_op(
+        affine.ApplyOp(
+            (TestSSAValue(index), TestSSAValue(index)),
+            AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0 + d1,))),
+        ),
+        (1, 2),
+    ) == (3,)

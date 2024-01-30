@@ -68,6 +68,12 @@ class AffineFunctions(InterpreterFunctions):
 
         return ()
 
+    @impl(affine.ApplyOp)
+    def run_apply(
+        self, interpreter: Interpreter, op: affine.ApplyOp, args: tuple[Any, ...]
+    ):
+        return op.map.data.eval(args, ())
+
     @impl_terminator(affine.Yield)
     def run_yield(
         self, interpreter: Interpreter, op: affine.Yield, args: tuple[Any, ...]
