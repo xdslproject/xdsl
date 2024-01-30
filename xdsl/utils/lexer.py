@@ -172,7 +172,6 @@ class StringLiteral(Span):
 
     @property
     def string_contents(self):
-        # TODO: is this a hack-job?
         return self.bytes_contents.decode()
 
     @property
