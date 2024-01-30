@@ -159,6 +159,7 @@ class InputApp(App[None]):
     """
 
     pre_loaded_input_text: str
+    pre_loaded_pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
 
     def __init__(
         self,
@@ -182,7 +183,7 @@ class InputApp(App[None]):
         else:
             self.pre_loaded_input_text = input_text
 
-        self.pass_pipeline = pass_pipeline
+        self.pre_loaded_pass_pipeline = pass_pipeline
 
         super().__init__()
 
@@ -253,6 +254,9 @@ class InputApp(App[None]):
 
         self.diff_operation_count_datatable.add_columns("Operation", "Count", "Diff")
         self.diff_operation_count_datatable.zebra_stripes = True
+
+        # initialize GUI with specified pass pipeline
+        self.pass_pipeline = self.pre_loaded_pass_pipeline
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
