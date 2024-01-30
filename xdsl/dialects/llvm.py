@@ -105,7 +105,7 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
 
     @staticmethod
     def from_type_list(types: Sequence[Attribute]) -> LLVMStructType:
-        return LLVMStructType([StringAttr(""), ArrayAttr(types)])
+        return LLVMStructType((StringAttr(""), ArrayAttr(types)))
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print("<")
@@ -154,27 +154,27 @@ class LLVMPointerType(
         printer.print_string(">")
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[Attribute, ...]:
         if parser.parse_optional_characters("<") is None:
-            return [NoneAttr(), NoneAttr()]
+            return (NoneAttr(), NoneAttr())
         type = parse_optional_llvm_type(parser)
         if type is None:
             parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
         if parser.parse_optional_characters(",") is None:
             parser.parse_characters(">", " for llvm.ptr parameters")
-            return [type, NoneAttr()]
+            return (type, NoneAttr())
         parser.parse_characters(",", " between llvm.ptr args")
         addr_space = parser.parse_integer()
         parser.parse_characters(">", " to end llvm.ptr parameters")
-        return [type, IntegerAttr(addr_space, IndexType())]
+        return (type, IntegerAttr(addr_space, IndexType()))
 
     @staticmethod
     def opaque():
-        return LLVMPointerType([NoneAttr(), NoneAttr()])
+        return LLVMPointerType((NoneAttr(), NoneAttr()))
 
     @staticmethod
     def typed(type: Attribute):
-        return LLVMPointerType([type, NoneAttr()])
+        return LLVMPointerType((type, NoneAttr()))
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
@@ -198,24 +198,24 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
         printer.print_string(">")
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[Attribute, ...]:
         if parser.parse_optional_characters("<") is None:
-            return [NoneAttr(), NoneAttr()]
+            return (NoneAttr(), NoneAttr())
         size = IntAttr(parser.parse_integer())
         if parser.parse_optional_characters(">") is not None:
-            return [size, NoneAttr()]
+            return (size, NoneAttr())
         parser.parse_shape_delimiter()
         type = parse_optional_llvm_type(parser)
         if type is None:
             parser.raise_error("Expected second parameter of llvm.array to be a type!")
         parser.parse_characters(">", " to end llvm.array parameters")
-        return [size, type]
+        return (size, type)
 
     @staticmethod
     def from_size_and_type(size: int | IntAttr, type: Attribute):
         if isinstance(size, int):
             size = IntAttr(size)
-        return LLVMArrayType([size, type])
+        return LLVMArrayType((size, type))
 
 
 @irdl_attr_definition
@@ -248,7 +248,7 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         if output is None:
             output = LLVMVoidType()
         variad_attr = UnitAttr() if is_variadic else NoneAttr()
-        super().__init__([inputs, output, variad_attr])
+        super().__init__((inputs, output, variad_attr))
 
     @property
     def is_variadic(self) -> bool:
@@ -316,7 +316,7 @@ class LinkageAttr(ParametrizedAttribute):
     def __init__(self, linkage: str | StringAttr) -> None:
         if isinstance(linkage, str):
             linkage = StringAttr(linkage)
-        super().__init__([linkage])
+        super().__init__((linkage,))
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -1006,7 +1006,7 @@ class CallingConventionAttr(ParametrizedAttribute):
         return self.convention.data
 
     def __init__(self, conv: str):
-        super().__init__([StringAttr(conv)])
+        super().__init__((StringAttr(conv),))
 
     def _verify(self):
         if self.cconv_name not in LLVM_CALLING_CONVS:

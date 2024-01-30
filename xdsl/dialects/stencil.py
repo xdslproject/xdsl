@@ -72,11 +72,11 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @staticmethod
     def get(*indices: int | IntAttr):
         return IndexAttr(
-            [
+            (
                 ArrayAttr(
                     [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-                )
-            ]
+                ),
+            )
         )
 
     @staticmethod
@@ -145,10 +145,10 @@ class StencilBoundsAttr(ParametrizedAttribute):
         else:
             lb, ub = (), ()
         super().__init__(
-            [
+            (
                 IndexAttr.get(*lb),
                 IndexAttr.get(*ub),
-            ]
+            )
         )
 
 
@@ -252,7 +252,7 @@ class StencilType(
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
-        return super().__init__([nbounds, element_type])
+        return super().__init__((nbounds, element_type))
 
 
 @irdl_attr_definition
@@ -293,7 +293,7 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
     elem: ParameterDef[AnyFloat]
 
     def __init__(self, float_t: AnyFloat) -> None:
-        super().__init__([float_t])
+        super().__init__((float_t,))
 
 
 @irdl_op_definition
@@ -527,11 +527,7 @@ class AccessOp(IRDLOperation):
         temp_type = cast(TempType[Attribute], temp_type)
 
         attributes: dict[str, IndexAttr | ArrayAttr[IntAttr]] = {
-            "offset": IndexAttr(
-                [
-                    ArrayAttr(IntAttr(value) for value in offset),
-                ]
-            ),
+            "offset": IndexAttr((ArrayAttr(IntAttr(value) for value in offset),)),
         }
 
         if offset_mapping is not None:

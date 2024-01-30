@@ -146,7 +146,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
         type2: ParameterDef[IntegerType | AnyFloat | ReferenceType] | None = None,
     ):
         if type2 is not None:
-            super().__init__([ArrayAttr([NoneType()]), type1, type2])
+            super().__init__((ArrayAttr([NoneType()]), type1, type2))
         else:
             if shape is None:
                 shape = [1]
@@ -157,11 +157,11 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
                 ]
             )
             super().__init__(
-                [
+                (
                     shape_array_attr,
                     type1,
                     NoneType(),
-                ]
+                )
             )
 
     def print_parameters(self, printer: Printer) -> None:

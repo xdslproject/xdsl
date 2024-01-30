@@ -209,7 +209,7 @@ class SymbolNameAttr(ParametrizedAttribute):
     def __init__(self, data: str | StringAttr) -> None:
         if isinstance(data, str):
             data = StringAttr(data)
-        super().__init__([data])
+        super().__init__((data,))
 
 
 @irdl_attr_definition
@@ -229,7 +229,7 @@ class SymbolRefAttr(ParametrizedAttribute):
             nested = ArrayAttr(
                 [StringAttr(x) if isinstance(x, str) else x for x in nested]
             )
-        super().__init__([root, nested])
+        super().__init__((root, nested))
 
     def string_value(self):
         root = self.root_reference.data
@@ -348,7 +348,7 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
             data = IntAttr(data)
         if isinstance(signedness, Signedness):
             signedness = SignednessAttr(signedness)
-        super().__init__([data, signedness])
+        super().__init__((data, signedness))
 
 
 i64 = IntegerType(64)
@@ -422,7 +422,7 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
             value = IntAttr(value)
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        super().__init__([value, value_type])
+        super().__init__((value, value_type))
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
@@ -586,7 +586,7 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
                 type = Float128Type()
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
-        super().__init__([data_attr, type])
+        super().__init__((data_attr, type))
 
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
@@ -598,7 +598,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
     element_type: ParameterDef[IntegerType | AnyFloat]
 
     def __init__(self, element_type: IntegerType | AnyFloat) -> None:
-        ParametrizedAttribute.__init__(self, [element_type])
+        ParametrizedAttribute.__init__(self, (element_type,))
 
 
 @irdl_attr_definition
@@ -629,7 +629,7 @@ class TupleType(ParametrizedAttribute):
     def __init__(self, types: list[Attribute] | ArrayAttr[Attribute]) -> None:
         if isinstance(types, list):
             types = ArrayAttr(types)
-        super().__init__([types])
+        super().__init__((types,))
 
 
 @irdl_attr_definition
@@ -657,7 +657,7 @@ class VectorType(
         )
         if isinstance(num_scalable_dims, int):
             num_scalable_dims = IntAttr(num_scalable_dims)
-        super().__init__([shape, element_type, num_scalable_dims])
+        super().__init__((shape, element_type, num_scalable_dims))
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -737,7 +737,7 @@ class TensorType(
         shape = ArrayAttr(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
-        super().__init__([shape, element_type, encoding])
+        super().__init__((shape, element_type, encoding))
 
     def get_num_dims(self) -> int:
         return len(self.shape.data)
@@ -787,7 +787,7 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
     def __init__(
         self: UnrankedTensorType[AttributeCovT], element_type: AttributeCovT
     ) -> None:
-        super().__init__([element_type])
+        super().__init__((element_type,))
 
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
@@ -931,7 +931,7 @@ class DenseIntOrFPElementsAttr(
         else:
             attr_list = cast(Sequence[IntegerAttr[IndexType]], data)
 
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
+        return DenseIntOrFPElementsAttr((type, ArrayAttr(attr_list)))
 
     @staticmethod
     def create_dense_int(
@@ -946,7 +946,7 @@ class DenseIntOrFPElementsAttr(
         else:
             attr_list = cast(Sequence[IntegerAttr[IntegerType]], data)
 
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
+        return DenseIntOrFPElementsAttr((type, ArrayAttr(attr_list)))
 
     @staticmethod
     def create_dense_float(
@@ -961,7 +961,7 @@ class DenseIntOrFPElementsAttr(
         else:
             attr_list = cast(Sequence[AnyFloatAttr], data)
 
-        return DenseIntOrFPElementsAttr([type, ArrayAttr(attr_list)])
+        return DenseIntOrFPElementsAttr((type, ArrayAttr(attr_list)))
 
     @overload
     @staticmethod
@@ -1038,7 +1038,7 @@ class DenseResourceAttr(ParametrizedAttribute):
     def from_params(handle: str | StringAttr, type: Attribute) -> DenseResourceAttr:
         if isinstance(handle, str):
             handle = StringAttr(handle)
-        return DenseResourceAttr([handle, type])
+        return DenseResourceAttr((handle, type))
 
 
 @irdl_attr_definition
@@ -1073,7 +1073,7 @@ class DenseArrayBase(ParametrizedAttribute):
         else:
             attr_list = cast(Sequence[IntAttr], data)
 
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        return DenseArrayBase((data_type, ArrayAttr(attr_list)))
 
     @staticmethod
     def create_dense_float(
@@ -1084,7 +1084,7 @@ class DenseArrayBase(ParametrizedAttribute):
         else:
             attr_list = cast(Sequence[FloatData], data)
 
-        return DenseArrayBase([data_type, ArrayAttr(attr_list)])
+        return DenseArrayBase((data_type, ArrayAttr(attr_list)))
 
     @overload
     @staticmethod
@@ -1140,13 +1140,13 @@ class FunctionType(ParametrizedAttribute, TypeAttribute):
     def from_lists(
         inputs: Sequence[Attribute], outputs: Sequence[Attribute]
     ) -> FunctionType:
-        return FunctionType([ArrayAttr(inputs), ArrayAttr(outputs)])
+        return FunctionType((ArrayAttr(inputs), ArrayAttr(outputs)))
 
     @staticmethod
     def from_attrs(
         inputs: ArrayAttr[Attribute], outputs: ArrayAttr[Attribute]
     ) -> FunctionType:
-        return FunctionType([inputs, outputs])
+        return FunctionType((inputs, outputs))
 
 
 @irdl_attr_definition
@@ -1159,7 +1159,7 @@ class OpaqueAttr(ParametrizedAttribute):
 
     @staticmethod
     def from_strings(name: str, value: str, type: Attribute = NoneAttr()) -> OpaqueAttr:
-        return OpaqueAttr([StringAttr(name), StringAttr(value), type])
+        return OpaqueAttr((StringAttr(name), StringAttr(value), type))
 
 
 @irdl_attr_definition
@@ -1200,7 +1200,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
         if offset is None:
             offset = NoneAttr()
 
-        super().__init__([strides, offset])
+        super().__init__((strides, offset))
 
 
 @irdl_attr_definition
@@ -1386,7 +1386,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
             is_opaque = IntAttr(int(is_opaque))
         if isinstance(value, str):
             value = StringAttr(value)
-        super().__init__([attr_name, is_type, is_opaque, value])
+        super().__init__((attr_name, is_type, is_opaque, value))
 
     @classmethod
     def with_name_and_type(cls, name: str, is_type: bool) -> type[UnregisteredAttr]:
@@ -1524,12 +1524,12 @@ class MemRefType(
             [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
         )
         super().__init__(
-            [
+            (
                 shape,
                 element_type,
                 layout,
                 memory_space,
-            ]
+            )
         )
 
     def get_num_dims(self) -> int:
@@ -1603,7 +1603,7 @@ class UnrankedMemrefType(
         referenced_type: _UnrankedMemrefTypeElemsInit,
         memory_space: Attribute = NoneAttr(),
     ) -> UnrankedMemrefType[_UnrankedMemrefTypeElemsInit]:
-        return UnrankedMemrefType([referenced_type, memory_space])
+        return UnrankedMemrefType((referenced_type, memory_space))
 
 
 AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
