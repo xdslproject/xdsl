@@ -24,6 +24,7 @@ from xdsl.irdl import (
     EqAttrConstraint,
     IRDLOperation,
     ParameterDef,
+    ParsePropInAttrDict,
     VarOperand,
     VarOpResult,
     attr_def,
@@ -31,6 +32,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_prop_def,
+    prop_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -237,6 +239,7 @@ def test_attr_dict_prop_fallack(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.prop"
         prop = opt_prop_def(Attribute)
+        irdl_options = [ParsePropInAttrDict()]
         assembly_format = "attr-dict"
 
     ctx = MLContext()
@@ -287,6 +290,46 @@ def test_attr_variable_shadowed():
         match="attributes attr are defined in other parts",
     ):
         parser.parse_operation()
+
+
+def test_missing_property_error():
+    class OpWithMissingProp(IRDLOperation):
+        name = "test.missing_prop"
+
+        prop1 = prop_def(Attribute)
+        prop2 = prop_def(Attribute)
+        assembly_format = "$prop1 attr-dict"
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="prop2 properties are missing",
+    ):
+        irdl_op_definition(OpWithMissingProp)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_prop i32", '"test.one_prop"() <{"prop" = i32}> : () -> ()'),
+        (
+            'test.one_prop i32 {"attr2" = i64}',
+            '"test.one_prop"() <{"prop" = i32}> {"attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_standard_prop_directive(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithProp(IRDLOperation):
+        name = "test.one_prop"
+
+        prop = prop_def(Attribute)
+        assembly_format = "$prop attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithProp)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
 
 
 ################################################################################
