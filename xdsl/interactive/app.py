@@ -175,7 +175,6 @@ class InputApp(App[None]):
             id="diff_operation_count_datatable"
         )
 
-        # initialize to contain terminal specified file path or to IR example
         if input_text is None:
             self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
         else:
