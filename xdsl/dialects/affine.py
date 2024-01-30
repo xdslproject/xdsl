@@ -48,6 +48,13 @@ class ApplyOp(IRDLOperation):
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
+    def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
+        super().__init__(
+            operands=[map_operands],
+            properties={"map": affine_map},
+            result_types=[IndexType()],
+        )
+
     def verify_(self) -> None:
         if len(self.mapOperands) != self.map.data.num_dims + self.map.data.num_symbols:
             raise VerifyException(

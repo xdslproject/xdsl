@@ -217,11 +217,6 @@ class xDSLOptMain(CommandLineTool):
 
         Fails, if not all passes are registered.
         """
-        pipeline = list(parse_pipeline(self.args.passes))
-
-        for p in pipeline:
-            if p.name not in self.available_passes:
-                raise Exception(f"Unrecognized pass: {p.name}")
 
         def callback(
             previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
@@ -235,7 +230,12 @@ class xDSLOptMain(CommandLineTool):
                 print("\n\n\n")
 
         self.pipeline = PipelinePass(
-            [self.available_passes[p.name]().from_pass_spec(p) for p in pipeline],
+            list(
+                pass_type.from_pass_spec(spec)
+                for pass_type, spec in PipelinePass.build_pipeline_tuples(
+                    self.available_passes, parse_pipeline(self.args.passes)
+                )
+            ),
             callback,
         )
 
