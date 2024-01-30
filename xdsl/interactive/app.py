@@ -165,6 +165,7 @@ class InputApp(App[None]):
         self,
         file_path: str | None = None,
         input_text: str | None = None,
+        pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
     ):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
@@ -186,6 +187,8 @@ class InputApp(App[None]):
             self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
         else:
             self.pre_loaded_input_text = input_text
+
+        self.pre_loaded_pass_pipeline = pass_pipeline
 
         super().__init__()
 
@@ -256,6 +259,9 @@ class InputApp(App[None]):
 
         self.diff_operation_count_datatable.add_columns("Operation", "Count", "Diff")
         self.diff_operation_count_datatable.zebra_stripes = True
+
+        # initialize GUI with specified pass pipeline
+        self.pass_pipeline = self.pre_loaded_pass_pipeline
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -414,10 +420,13 @@ class InputApp(App[None]):
         pipeline generated thus far.
         """
         query = self.pre_loaded_file_path + " -p "
-        query += ",\n".join(
-            str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
-        )
-        return f"xdsl-opt {query}"
+        if self.pass_pipeline != ():
+            query += "'"
+            query += ",".join(
+                str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
+            )
+            query += "'"
+        return f"xdsl-opt -p {query}"
 
     def update_input_operation_count_tuple(self, input_module: ModuleOp) -> None:
         """
@@ -566,10 +575,19 @@ def main():
     arg_parser.add_argument(
         "input_file", type=str, nargs="?", help="path to input file"
     )
+
+    available_passes = ",".join([name for name in get_all_passes()])
+    arg_parser.add_argument(
+        "-p",
+        "--passes",
+        required=False,
+        help="Delimited list of passes." f" Available passes are: {available_passes}",
+        type=str,
+        default="",
+    )
     args = arg_parser.parse_args()
 
     file_path = args.input_file
-
     if file_path is not None:
         # Open the file and read its contents
         with open(file_path) as file:
@@ -577,7 +595,11 @@ def main():
     else:
         file_contents = None
 
-    return InputApp(file_path, file_contents).run()
+    pass_spec_pipeline = list(parse_pipeline(args.passes))
+    pass_list = get_all_passes()
+    pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
+
+    return InputApp(file_path, file_contents, pipeline).run()
 
 
 if __name__ == "__main__":
