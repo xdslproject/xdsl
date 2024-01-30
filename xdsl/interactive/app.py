@@ -160,6 +160,7 @@ class InputApp(App[None]):
 
     pre_loaded_input_text: str
     pre_loaded_file_path: str
+    pre_loaded_pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
 
     def __init__(
         self,
@@ -424,7 +425,7 @@ class InputApp(App[None]):
         else:
             query = self.pre_loaded_file_path + " -p "
 
-        if self.pass_pipeline != ():
+        if self.pass_pipeline:
             query += "'"
             query += ",".join(
                 str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
@@ -564,6 +565,8 @@ class InputApp(App[None]):
                     with open(file_path) as file:
                         file_contents = file.read()
                         self.input_text_area.load_text(file_contents)
+                    self.pre_loaded_file_path = file_path
+                    self.selected_query_label.update(self.get_query_string())
                 else:
                     self.input_text_area.load_text(
                         f"The file '{file_path}' does not exist."
