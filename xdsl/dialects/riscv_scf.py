@@ -40,13 +40,10 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ForOp, WhileOp)]))
+    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(WhileOp, ForRofBaseOp)]))
 
 
-@irdl_op_definition
-class ForOp(IRDLOperation):
-    name = "riscv_scf.for"
-
+class ForRofBaseOp(IRDLOperation):
     lb: Operand = operand_def(IntRegisterType)
     ub: Operand = operand_def(IntRegisterType)
     step: Operand = operand_def(IntRegisterType)
@@ -187,6 +184,32 @@ class ForOp(IRDLOperation):
             body.block.add_op(YieldOp())
 
         return cls(lb, ub, step, iter_arg_operands, body)
+
+
+@irdl_op_definition
+class ForOp(ForRofBaseOp):
+    """
+    A for loop, counting up from lb to ub by step each iteration.
+    """
+    name = "riscv_scf.for"
+
+
+@irdl_op_definition
+class RofOp(ForRofBaseOp):
+    """
+    Reverse Order For loop.
+
+    MLIRs for loops have the implicit constraint that lb < ub, and step > 0.
+
+    In order to express loops that count down in higher-level IR, the rof op
+    is needed.
+
+    ROF has the semantics of going from lb to ub, decrementing by step each time.
+
+    In order to convert a for to a rof, one needs to switch lb and ub.
+    (for the normalized case that (ub - lb) % step == 0)
+    """
+    name = "riscv_scf.rof"
 
 
 @irdl_op_definition
@@ -365,6 +388,7 @@ RISCV_Scf = Dialect(
     [
         YieldOp,
         ForOp,
+        RofOp,
         WhileOp,
         ConditionOp,
     ],
