@@ -1,14 +1,11 @@
 from dataclasses import dataclass
 from typing import Any
 
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects import riscv
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp
 from xdsl.dialects.riscv_cf import BranchOp, ConditionalBranchOperation, JOp
-from xdsl.interpreter import Interpreter
-from xdsl.interpreters import arith, riscv, riscv_debug
 from xdsl.ir import Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
-from xdsl.traits import ConstantLike, Pure
-from xdsl.utils.exceptions import InterpretationError
 
 
 class ElideConstantBranches(RewritePattern):
@@ -23,17 +20,8 @@ class ElideConstantBranches(RewritePattern):
         if module is None:
             return
 
-        # set up interpreter for constant evaluation
-        try:
-            interpreter = Interpreter(module)
-            interpreter.register_implementations(riscv.RiscvFunctions())
-            interpreter.register_implementations(riscv_debug.RiscvDebugFunctions())
-            interpreter.register_implementations(arith.ArithFunctions())
-
-            # evaluate inputs to op
-            inputs = const_evaluate_expr_inputs(interpreter, op.rs1, op.rs2)
-        except InterpretationError:
-            return
+        # evaluate inputs to op
+        inputs = const_evaluate_expr_inputs(op.rs1, op.rs2)
 
         # inputs are not compile time constant
         if not inputs.success:
@@ -75,9 +63,7 @@ class ConstEvalResult:
         return self.value is not None
 
 
-def const_evaluate_expr_inputs(
-    interp: Interpreter, *exp_inputs: SSAValue
-) -> ConstEvalResult:
+def const_evaluate_expr_inputs(*exp_inputs: SSAValue) -> ConstEvalResult:
     """
     Tries to evaluate the inputs to an operatin by Evaluating ConstantLike and Pure operations
     using the interpreter.
@@ -92,23 +78,22 @@ def const_evaluate_expr_inputs(
         if not isinstance(operand.owner, Operation):
             return ConstEvalResult(None)
 
-        # if constant like, it passes the check. Move on to next
-        inputs: tuple[Any, ...]
-        if operand.owner.has_trait(ConstantLike):
-            inputs = ()
-        # recurse on inputs of pure ops
-        elif operand.owner.has_trait(Pure):
-            evaluated_inputs = const_evaluate_expr_inputs(
-                interp, *operand.owner.operands
-            ).value
-            if evaluated_inputs is None:
+        # grab the value from Li ops:
+        if isinstance(operand.owner, riscv.LiOp):
+            imm = operand.owner.immediate
+            if not isinstance(imm, IntegerAttr):
                 return ConstEvalResult(None)
-            inputs = evaluated_inputs
+            results.append(imm.value.data)
+        # propagate through mv ops
+        elif isinstance(operand.owner, riscv.MVOp):
+            evaluated_inputs = const_evaluate_expr_inputs(*operand.owner.operands)
+            # check that the evaluation was successful
+            if not evaluated_inputs.success:
+                return ConstEvalResult(None)
+            assert evaluated_inputs.value is not None
+            results.extend(evaluated_inputs.value)
         else:
             # if op is neither ConstantLike nor Pure, fail
             return ConstEvalResult(None)
-
-        res = interp.run_op(operand.owner, inputs)
-        results.extend(res)
 
     return ConstEvalResult(tuple(results))
