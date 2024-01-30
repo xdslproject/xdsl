@@ -226,7 +226,7 @@ class RofOp(ForRofOperation):
     In order to express loops that count down in higher-level IR, the rof op
     is needed.
 
-    Rof has the semantics of going from lb to ub, decrementing by step each time.
+    Rof has the semantics of going from ub to lb, decrementing by step each time.
     The implicit constraints are that lb < ub, and step > 0.
 
     In order to convert a for to a rof, one needs to switch lb and ub.
