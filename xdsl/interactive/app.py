@@ -158,7 +158,7 @@ class InputApp(App[None]):
     text areas.
     """
 
-    pre_loaded_file_path_option: str | None = None
+    pre_loaded_input_text: str
     """
     Saves the path name of the file called on terminal to be pre-loaded into the gui.
     """
@@ -177,7 +177,12 @@ class InputApp(App[None]):
         self.diff_operation_count_datatable = DataTable(
             id="diff_operation_count_datatable"
         )
-        self.pre_loaded_file_path_option = pre_load_file_path
+
+        # initialize to contain terminal specified file path or to IR example
+        if pre_load_file_path is None:
+            self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
+        else:
+            self.pre_loaded_input_text = pre_load_file_path
 
         super().__init__()
 
@@ -239,8 +244,8 @@ class InputApp(App[None]):
         for n, _ in ALL_PASSES:
             self.passes_list_view.append(ListItem(Label(n), name=n))
 
-        # initialize GUI with an interesting input IR and pass application
-        self.input_text_area.load_text(InputApp.INITIAL_IR_TEXT)
+        # initialize GUI with either terminal specifiec file or input IR example
+        self.input_text_area.load_text(self.pre_loaded_input_text)
 
         # initialize DataTable with column names
         self.input_operation_count_datatable.add_columns("Operation", "Count")
@@ -248,22 +253,6 @@ class InputApp(App[None]):
 
         self.diff_operation_count_datatable.add_columns("Operation", "Count", "Diff")
         self.diff_operation_count_datatable.zebra_stripes = True
-
-        # upload specified file (via terminal) to Input Text Area
-        if self.pre_loaded_file_path_option is not None:
-            self.input_text_area.clear()
-            try:
-                if os.path.exists(self.pre_loaded_file_path_option):
-                    # Open the file and read its contents
-                    with open(self.pre_loaded_file_path_option) as file:
-                        file_contents = file.read()
-                        self.input_text_area.load_text(file_contents)
-                else:
-                    self.input_text_area.load_text(
-                        f"The file '{self.pre_loaded_file_path_option}' does not exist."
-                    )
-            except Exception as e:
-                self.input_text_area.load_text(str(e))
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -576,8 +565,16 @@ def main():
     )
     args = arg_parser.parse_args()
 
-    file = args.input_file
-    return InputApp(file).run()
+    file_path = args.input_file
+
+    if file_path is not None:
+        # Open the file and read its contents
+        with open(file_path) as file:
+            file_contents = file.read()
+    else:
+        file_contents = None
+
+    return InputApp(file_contents).run()
 
 
 if __name__ == "__main__":
