@@ -31,7 +31,7 @@ riscv_scf.rof %j : !riscv.reg<> = %ub down to %lb step %step {
 // CHECK-NEXT:     %0 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:     riscv_scf.yield
 // CHECK-NEXT:   }
-// CHECK-NEXT:   riscv_scf.rof %j : !riscv.reg<> = %ub to %lb step %step {
+// CHECK-NEXT:   riscv_scf.rof %j : !riscv.reg<> = %ub down to %lb step %step {
 // CHECK-NEXT:     %1 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:     riscv_scf.yield
 // CHECK-NEXT:   }
