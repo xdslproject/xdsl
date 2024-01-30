@@ -48,6 +48,7 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConstantLike,
     HasCanonicalisationPatternsTrait,
     IsTerminator,
     NoTerminator,
@@ -2393,7 +2394,7 @@ class LiOp(RdImmIntegerOperation):
 
     name = "riscv.li"
 
-    traits = frozenset((Pure(),))
+    traits = frozenset((Pure(), ConstantLike()))
 
     def __init__(
         self,

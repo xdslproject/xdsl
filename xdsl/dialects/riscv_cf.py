@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 from typing_extensions import Self
@@ -11,6 +11,7 @@ from xdsl.dialects.riscv import (
     RISCVInstruction,
     RISCVRegisterType,
 )
+from xdsl.interpreters.comparisons import to_unsigned
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -24,8 +25,9 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasCanonicalisationPatternsTrait, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -40,6 +42,16 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
     parser.parse_punctuation(":")
     type = parser.parse_type()
     return parser.resolve_operand(unresolved, type)
+
+
+class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv_cf import (
+            ElideConstantBranches,
+        )
+
+        return (ElideConstantBranches(),)
 
 
 class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -58,7 +70,9 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset(
+        [IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()]
+    )
 
     def __init__(
         self,
@@ -175,6 +189,10 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
             op.attributes |= attrs.data
         return op
 
+    @abstractmethod
+    def const_evaluate(self, rs1: int, rs2: int) -> bool:
+        pass
+
 
 @irdl_op_definition
 class BeqOp(ConditionalBranchOperation):
@@ -187,6 +205,9 @@ class BeqOp(ConditionalBranchOperation):
     """
 
     name = "riscv_cf.beq"
+
+    def const_evaluate(self, rs1: int, rs2: int) -> bool:
+        return rs1 == rs2
 
 
 @irdl_op_definition
@@ -201,6 +222,9 @@ class BneOp(ConditionalBranchOperation):
 
     name = "riscv_cf.bne"
 
+    def const_evaluate(self, rs1: int, rs2: int) -> bool:
+        return rs1 != rs2
+
 
 @irdl_op_definition
 class BltOp(ConditionalBranchOperation):
@@ -213,6 +237,9 @@ class BltOp(ConditionalBranchOperation):
     """
 
     name = "riscv_cf.blt"
+
+    def const_evaluate(self, rs1: int, rs2: int) -> bool:
+        return rs1 < rs2
 
 
 @irdl_op_definition
@@ -227,6 +254,9 @@ class BgeOp(ConditionalBranchOperation):
 
     name = "riscv_cf.bge"
 
+    def const_evaluate(self, rs1: int, rs2: int) -> bool:
+        return rs1 >= rs2
+
 
 @irdl_op_definition
 class BltuOp(ConditionalBranchOperation):
@@ -240,6 +270,10 @@ class BltuOp(ConditionalBranchOperation):
 
     name = "riscv_cf.bltu"
 
+    def const_evaluate(self, rs1: int, rs2: int) -> bool:
+        # TODO: use proper bitwidth here?
+        return to_unsigned(rs1, 32) < to_unsigned(rs2, 32)
+
 
 @irdl_op_definition
 class BgeuOp(ConditionalBranchOperation):
@@ -252,6 +286,10 @@ class BgeuOp(ConditionalBranchOperation):
     """
 
     name = "riscv_cf.bgeu"
+
+    def const_evaluate(self, rs1: int, rs2: int) -> bool:
+        # TODO: use proper bitwidth here?
+        return to_unsigned(rs1, 32) >= to_unsigned(rs2, 32)
 
 
 @irdl_op_definition
