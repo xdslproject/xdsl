@@ -40,7 +40,9 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(WhileOp, ForRofBaseOp)]))
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(WhileOp, ForRofBaseOp)])
+    )
 
 
 class ForRofBaseOp(IRDLOperation):
@@ -191,6 +193,7 @@ class ForOp(ForRofBaseOp):
     """
     A for loop, counting up from lb to ub by step each iteration.
     """
+
     name = "riscv_scf.for"
 
 
@@ -209,6 +212,7 @@ class RofOp(ForRofBaseOp):
     In order to convert a for to a rof, one needs to switch lb and ub.
     (for the normalized case that (ub - lb) % step == 0)
     """
+
     name = "riscv_scf.rof"
 
 
