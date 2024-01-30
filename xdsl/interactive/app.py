@@ -165,7 +165,7 @@ class InputApp(App[None]):
 
     def __init__(
         self,
-        pre_load_file_path: str | None,
+        input_text: str | None = None,
     ):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
@@ -179,10 +179,10 @@ class InputApp(App[None]):
         )
 
         # initialize to contain terminal specified file path or to IR example
-        if pre_load_file_path is None:
+        if input_text is None:
             self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
         else:
-            self.pre_loaded_input_text = pre_load_file_path
+            self.pre_loaded_input_text = input_text
 
         super().__init__()
 
