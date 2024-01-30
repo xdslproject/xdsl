@@ -186,6 +186,19 @@ def test_inverse_permutation():
     )
 
 
+def test_compress_dims():
+    # (d0, d1, d2) -> (d1, d2) with [0,1,1] gives (d0, d1) -> (d0, d1)
+    # (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
+    t = True
+    f = False
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d1, d2)).compress_dims(
+        [f, t, t]
+    ) == AffineMap.from_callable(lambda d0, d1: (d0, d1))
+    assert AffineMap.from_callable(lambda d0, d1, d2: (d2, d2)).compress_dims(
+        [t, f, t]
+    ) == AffineMap.from_callable(lambda d0, d1: (d1, d1))
+
+
 def test_used_dims():
     assert AffineExpr.dimension(1).used_dims() == {1}
     assert (AffineExpr.dimension(2) + AffineExpr.dimension(3)).used_dims() == {2, 3}
