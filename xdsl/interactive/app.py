@@ -159,9 +159,11 @@ class InputApp(App[None]):
     """
 
     pre_loaded_input_text: str
+    pre_loaded_file_path: str
 
     def __init__(
         self,
+        file_path: str | None = None,
         input_text: str | None = None,
     ):
         self.input_text_area = TextArea(id="input")
@@ -174,6 +176,11 @@ class InputApp(App[None]):
         self.diff_operation_count_datatable = DataTable(
             id="diff_operation_count_datatable"
         )
+
+        if file_path is None:
+            self.pre_loaded_file_path = ""
+        else:
+            self.pre_loaded_file_path = file_path
 
         if input_text is None:
             self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
@@ -406,11 +413,11 @@ class InputApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        query = "\n"
+        query = self.pre_loaded_file_path + " -p "
         query += ",\n".join(
             str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
         )
-        return f"xdsl-opt -p {query}"
+        return f"xdsl-opt {query}"
 
     def update_input_operation_count_tuple(self, input_module: ModuleOp) -> None:
         """
@@ -570,7 +577,7 @@ def main():
     else:
         file_contents = None
 
-    return InputApp(file_contents).run()
+    return InputApp(file_path, file_contents).run()
 
 
 if __name__ == "__main__":
