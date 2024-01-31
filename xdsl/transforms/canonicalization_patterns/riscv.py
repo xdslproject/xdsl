@@ -13,8 +13,23 @@ from xdsl.pattern_rewriter import (
 class RemoveRedundantMv(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MVOp, rewriter: PatternRewriter) -> None:
-        if op.rd.type == op.rs.type and isinstance(op.rd.type, riscv.RISCVRegisterType):
+        if (
+            op.rd.type == op.rs.type
+            and isinstance(op.rd.type, riscv.RISCVRegisterType)
+            and op.rd.type.is_allocated
+        ):
             rewriter.replace_matched_op([], [op.rs])
+
+
+class ImmediateMoveToCopy(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.MVOp, rewriter: PatternRewriter, /):
+        if (
+            isinstance(op.rd.type, riscv.RISCVRegisterType)
+            and not op.rd.type.is_allocated
+            and isinstance(op.rs.owner, riscv.LiOp)
+        ):
+            rewriter.replace_matched_op(riscv.LiOp(op.rs.owner.immediate))
 
 
 class RemoveRedundantFMv(RewritePattern):
