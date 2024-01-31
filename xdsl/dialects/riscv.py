@@ -3065,7 +3065,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FAddSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point addition.
 
@@ -3080,7 +3080,7 @@ class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FSubSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point substraction.
 
@@ -3093,7 +3093,7 @@ class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMulSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point multiplication.
 
@@ -3106,7 +3106,7 @@ class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FDivSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FDivSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point division.
 
@@ -3181,7 +3181,7 @@ class FSgnJXSOp(
 
 
 @irdl_op_definition
-class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMinSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of single precision data in rs1 and rs2 to rd.
 
@@ -3194,7 +3194,7 @@ class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMaxSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMaxSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
@@ -3516,7 +3516,7 @@ class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMinDOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of double precision data in rs1 and rs2 to rd.
 
@@ -3531,7 +3531,7 @@ class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMaxDOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
