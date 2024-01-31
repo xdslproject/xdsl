@@ -667,7 +667,7 @@ class Constant(IRDLOperation):
         used_attrs = sum(1 for attr in attrs if attr is not None)
         if used_attrs != 1:
             raise VerifyException(
-                "More than one value atrribute provided. Only one should be used"
+               f"Only one value attribute must be provided, but {used_attrs} were specified"
             )
 
 
