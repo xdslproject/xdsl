@@ -31,7 +31,7 @@ memref.store %v0, %m[%i0, %i1] {"nontemporal" = true} : memref<2x3xi32>
 // CHECK-NEXT:   %1 = "test.op"() : () -> index
 // CHECK-NEXT:   %2 = "test.op"() : () -> index
 // CHECK-NEXT:   %3 = "test.op"() : () -> memref<2x3xi32>
-// CHECK-NEXT:   %4 = "test.op"() : () -> memref<2x3xi32>
+// CHECK-NEXT:   %4 = "test.op"() : () -> memref<10x3xi32>
 // CHECK-NEXT:   memref.store %0, %3[%1, %2] : memref<2x3xi32>
 // CHECK-NEXT:   memref.store %0, %3[%1, %2] : memref<2x3xi32>
 // CHECK-NEXT:   memref.store %0, %3[%1, %2] {nontemporal = true} : memref<2x3xi32>
