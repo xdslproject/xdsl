@@ -643,17 +643,17 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    immediate = attr_def(SImm20Attr | LabelAttr)
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm20Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, si20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(rd, str):
@@ -709,6 +709,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
+    # https://github.com/xdslproject/xdsl/issues/2056
     immediate = attr_def(IntegerAttr[IntegerType] | LabelAttr)
 
     def __init__(
@@ -811,18 +812,18 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    immediate = attr_def(SImm12Attr | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm12Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(12, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -901,18 +902,18 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rs1: Operand = operand_def(IntRegisterType)
     rs2: Operand = operand_def(IntRegisterType)
-    offset: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    offset = attr_def(SImm12Attr | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        offset: int | AnyIntegerAttr | LabelAttr,
+        offset: int | SImm12Attr | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(offset, int):
-            offset = IntegerAttr(offset, 12)
+            offset = IntegerAttr(offset, si12)
         if isinstance(offset, str):
             offset = LabelAttr(offset)
         if isinstance(comment, str):
@@ -932,7 +933,7 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = _parse_immediate_value(parser, IntegerType(12))
+        attributes["offset"] = _parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1812,7 +1813,7 @@ class JOp(RdImmJumpOperation):
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm20Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
