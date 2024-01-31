@@ -6,13 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import (
-    TypeVar,
-    Union,
-    final,
-    get_args,
-    get_origin,
-)
+from typing import TypeVar, Union, final, get_args, get_origin
 
 from xdsl.builder import BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
@@ -26,6 +20,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.rewriter import Rewriter
+from xdsl.traits import OpTrait
 from xdsl.utils.hints import isa
 
 
@@ -92,11 +87,11 @@ class PatternRewriter(PatternRewriterListener):
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
-    def insert_op_before_matched_op(self, op: (Operation | Sequence[Operation])):
+    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations before the matched operation."""
         self.insert_op_before(op, self.current_operation)
 
-    def insert_op_after_matched_op(self, op: (Operation | Sequence[Operation])):
+    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations after the matched operation."""
         self.insert_op_after(op, self.current_operation)
 
@@ -396,6 +391,41 @@ def op_type_rewrite_pattern(
     def impl(self: _RewritePatternT, op: Operation, rewriter: PatternRewriter) -> None:
         if isinstance(op, expected_type):
             func(self, op, rewriter)
+
+    return impl
+
+
+_TraitT = TypeVar("_TraitT", bound=OpTrait)
+
+
+def op_trait_rewrite_pattern(
+    func: Callable[[_RewritePatternT, Operation, _TraitT, PatternRewriter], None]
+) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
+    """
+    This function is intended to be used as a decorator on a RewritePatter
+    method. It uses type hints to match on a specific operation type and trait
+    before calling the decorated function.
+    """
+    # Get the operation argument and check that it is a subclass of Operation
+    params = tuple(param for param in inspect.signature(func).parameters.values())
+    if len(params) != 4:
+        raise Exception(
+            "op_type_rewrite_pattern expects the decorated function to "
+            "have three non-self arguments."
+        )
+
+    expected_trait: type[_TraitT] = params[-2].annotation
+
+    if not issubclass(expected_trait, OpTrait):
+        raise Exception(
+            "op_trait_rewrite_pattern expects the second non-self argument "
+            "type hint to be an `OpTrait` subclass."
+        )
+
+    def impl(self: _RewritePatternT, op: Operation, rewriter: PatternRewriter) -> None:
+        trait = op.get_trait(expected_trait)
+        if trait is not None:
+            func(self, op, trait, rewriter)
 
     return impl
 
