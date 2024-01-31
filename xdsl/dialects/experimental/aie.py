@@ -471,7 +471,7 @@ class FlowOp(IRDLOperation):
             operands=[source, dest],
         )
 
-    assembly_format = "`<` $sourceBundle `: ` $sourceChannel `, ` $destBundle `: ` $destChannel `>`  attr-dict"
+    assembly_format = "`(` $source `, ` $dest `)` `<` $sourceBundle `: ` $sourceChannel `, ` $destBundle `: ` $destChannel `>`  attr-dict"
 
 
 @irdl_op_definition

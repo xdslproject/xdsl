@@ -212,8 +212,10 @@ class FormatParser(BaseParser):
         """
         if self._current_token.text[0] != "$":
             return None
+        start_pos = self.pos
         self._consume_token()
         variable_name = self.parse_identifier(" after '$'")
+        end_pos = self.pos
 
         # Check if the variable is an operand
         for idx, (operand_name, operand_def) in enumerate(self.op_def.operands):
@@ -244,7 +246,9 @@ class FormatParser(BaseParser):
 
         self.raise_error(
             "expected variable to refer to an operand, "
-            "attribute, region, result, or successor"
+            "attribute, region, result, or successor",
+            at_position=start_pos,
+            end_position=end_pos,
         )
 
     def parse_type_directive(self) -> FormatDirective:
