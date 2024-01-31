@@ -50,7 +50,7 @@ builtin.module {
   %add_vars = riscv.add %i0, %i1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%add_vars) : (!riscv.reg<a0>) -> ()
 
-  %add_immediate_zero = riscv.addi %2, 0 : (!riscv.reg<>) -> !riscv.reg<a0>
+  %add_immediate_zero = riscv.addi %i2, 0 : (!riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%add_immediate_zero) : (!riscv.reg<a0>) -> ()
 
   %add_immediate_constant = riscv.addi %2, 1 : (!riscv.reg<>) -> !riscv.reg<a0>
@@ -152,7 +152,7 @@ builtin.module {
 // CHECK-NEXT:   %add_vars = riscv.add %i0, %i1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_vars) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %add_immediate_zero = riscv.li 2 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %add_immediate_zero = riscv.mv %i2 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_immediate_zero) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %add_immediate_constant = riscv.li 3 : () -> !riscv.reg<a0>
