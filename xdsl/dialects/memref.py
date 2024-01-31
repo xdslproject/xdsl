@@ -379,28 +379,31 @@ ReassociationAttr = ArrayAttr[
 ]
 
 
+class AlterShapeOp(IRDLOperation):
+    src: Operand = operand_def(MemRefType)
+    result: OpResult = result_def(MemRefType)
+    reassociation = prop_def(ReassociationAttr)
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
+
 @irdl_op_definition
-class CollapseShapeOp(IRDLOperation):
+class CollapseShapeOp(AlterShapeOp):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
     """
 
     name = "memref.collapse_shape"
-    src: Operand = operand_def(MemRefType)
-    result: OpResult = result_def(MemRefType)
-    reassociation = prop_def(ReassociationAttr)
 
 
 @irdl_op_definition
-class ExpandShapeOp(IRDLOperation):
+class ExpandShapeOp(AlterShapeOp):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
     """
 
     name = "memref.expand_shape"
-    src: Operand = operand_def(MemRefType)
-    result: OpResult = result_def(MemRefType)
-    reassociation = prop_def(ReassociationAttr)
 
 
 @irdl_op_definition
