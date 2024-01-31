@@ -12,15 +12,9 @@ class ElideConstantBranches(RewritePattern):
         if not isinstance(op, ConditionalBranchOperation):
             return
 
-        # evaluate inputs to op
-        inputs = const_evaluate_expr_inputs(op.rs1, op.rs2)
-
-        # inputs are not compile time constant
-        if inputs is None:
+        rs1, rs2 = map(const_evaluate_operand, (op.rs1, op.rs2))
+        if rs1 is None or rs2 is None:
             return
-
-        assert len(inputs) == 2
-        rs1, rs2 = inputs
 
         # check if the op would take the branch or not
         branch_taken = op.const_evaluate(rs1, rs2)
@@ -45,36 +39,12 @@ class ElideConstantBranches(RewritePattern):
             )
 
 
-def const_evaluate_expr_inputs(*exp_inputs: SSAValue) -> tuple[Any, ...] | None:
+def const_evaluate_operand(operand: SSAValue) -> Any:
     """
-    Tries to evaluate the inputs to an operatin by Evaluating ConstantLike and
-    Pure operations.
-
-    Returns either None (cannot evaluate) or tuple[Any, ...] with the const
-    evaluated values of the exp_inputs.
+    Try to constant evaluate an SSA value, returning None on failure.
     """
-    results: list[Any] = []
-    for operand in exp_inputs:
-        # block arguments cannot be argued about
-        if not isinstance(operand.owner, Operation):
+    if isinstance(operand.owner, riscv.LiOp):
+        imm = operand.owner.immediate
+        if not isinstance(imm, IntegerAttr):
             return None
-
-        # grab the value from Li ops:
-        if isinstance(operand.owner, riscv.LiOp):
-            imm = operand.owner.immediate
-            if not isinstance(imm, IntegerAttr):
-                return None
-            results.append(imm.value.data)
-
-        # propagate through mv ops
-        elif isinstance(operand.owner, riscv.MVOp):
-            evaluated_inputs = const_evaluate_expr_inputs(*operand.owner.operands)
-            # check that the evaluation was successful
-            if evaluated_inputs is None:
-                return None
-            results.extend(evaluated_inputs)
-        else:
-            # if op is neither ConstantLike nor Pure, fail
-            return None
-
-    return tuple(results)
+        return imm.value.data

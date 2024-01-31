@@ -15,17 +15,16 @@ riscv_func.func @at_least_once() {
     riscv_func.return
 }
 
-// CHECK:    riscv_func.func @at_least_once() {
-// CHECK-NEXT:      %one = riscv.li 1 : () -> !riscv.reg<>
-// CHECK-NEXT:      %three = riscv.li 3 : () -> !riscv.reg<>
-// CHECK-NEXT:      %0 = riscv.mv %one : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK:       riscv_func.func @at_least_once() {
+// CHECK-NEXT:    %three = riscv.li 3 : () -> !riscv.reg<>
+// CHECK-NEXT:    %0 = riscv.li 1 : () -> !riscv.reg<>
 // CHECK-NEXT:    riscv_cf.branch ^0(%0 : !riscv.reg<>) attributes {"comment" = "Constant folded riscv_cf.bge"}
-// CHECK-NEXT:    ^0(%i : !riscv.reg<>):
-// CHECK-NEXT:      riscv.label "scf_body_0_for"
-// CHECK-NEXT:      "test.op"(%i) : (!riscv.reg<>) -> ()
-// CHECK-NEXT:      %1 = riscv.addi %i, 1 : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:      riscv_cf.blt %1 : !riscv.reg<>, %three : !riscv.reg<>, ^0(%1 : !riscv.reg<>), ^1(%1 : !riscv.reg<>)
-// CHECK-NEXT:    ^1(%2 : !riscv.reg<>):
-// CHECK-NEXT:      riscv.label "scf_body_end_0_for"
-// CHECK-NEXT:      riscv_func.return
-// CHECK-NEXT:    }
+// CHECK-NEXT:  ^0(%i : !riscv.reg<>):
+// CHECK-NEXT:    riscv.label "scf_body_0_for"
+// CHECK-NEXT:    "test.op"(%i) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:    %1 = riscv.addi %i, 1 : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:    riscv_cf.blt %1 : !riscv.reg<>, %three : !riscv.reg<>, ^0(%1 : !riscv.reg<>), ^1(%1 : !riscv.reg<>)
+// CHECK-NEXT:  ^1(%2 : !riscv.reg<>):
+// CHECK-NEXT:    riscv.label "scf_body_end_0_for"
+// CHECK-NEXT:    riscv_func.return
+// CHECK-NEXT:  }
