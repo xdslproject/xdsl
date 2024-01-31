@@ -1556,9 +1556,12 @@ class AuipcOp(RdImmIntegerOperation):
 class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantMv
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ImmediateMoveToCopy,
+            RemoveRedundantMv,
+        )
 
-        return (RemoveRedundantMv(),)
+        return (RemoveRedundantMv(), ImmediateMoveToCopy())
 
 
 @irdl_op_definition
