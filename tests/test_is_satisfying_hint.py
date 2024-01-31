@@ -369,7 +369,7 @@ class MyParamAttr(Generic[_T], ParametrizedAttribute):
 
 
 def test_parametrized_attribute():
-    attr = MyParamAttr[IntAttr]((IntAttr(0),))
+    attr = MyParamAttr[IntAttr]([IntAttr(0)])
 
     assert isa(attr, MyParamAttr)
     assert isa(attr, MyParamAttr[IntAttr])

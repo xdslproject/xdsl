@@ -38,7 +38,7 @@ class StreamType(
     element_type: ParameterDef[_StreamTypeElement]
 
     def __init__(self, element_type: _StreamTypeElement):
-        super().__init__((element_type,))
+        super().__init__([element_type])
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type

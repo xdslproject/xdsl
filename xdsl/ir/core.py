@@ -618,8 +618,8 @@ class ParametrizedAttribute(Attribute):
 
     parameters: tuple[Attribute, ...] = field()
 
-    def __init__(self, parameters: tuple[Attribute, ...] = ()):
-        object.__setattr__(self, "parameters", parameters)
+    def __init__(self, parameters: Sequence[Attribute] = ()):
+        object.__setattr__(self, "parameters", tuple(parameters))
         super().__init__()
 
     @classmethod
