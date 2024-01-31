@@ -48,6 +48,7 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConstantLike,
     HasCanonicalisationPatternsTrait,
     IsTerminator,
     NoTerminator,
@@ -1535,9 +1536,12 @@ class AuipcOp(RdImmIntegerOperation):
 class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantMv
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ImmediateMoveToCopy,
+            RemoveRedundantMv,
+        )
 
-        return (RemoveRedundantMv(),)
+        return (RemoveRedundantMv(), ImmediateMoveToCopy())
 
 
 @irdl_op_definition
@@ -2369,7 +2373,7 @@ class LiOp(RdImmIntegerOperation):
 
     name = "riscv.li"
 
-    traits = frozenset((Pure(),))
+    traits = frozenset((Pure(), ConstantLike()))
 
     def __init__(
         self,
