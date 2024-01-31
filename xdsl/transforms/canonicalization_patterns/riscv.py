@@ -16,7 +16,6 @@ class RemoveRedundantMv(RewritePattern):
         if (
             op.rd.type == op.rs.type
             and isinstance(op.rd.type, riscv.RISCVRegisterType)
-            and op.rd.type.is_allocated
         ):
             rewriter.replace_matched_op([], [op.rs])
 
