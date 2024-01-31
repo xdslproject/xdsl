@@ -81,10 +81,12 @@ class WireBundleAttr(Data[str]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
+        with parser.in_angle_brackets():
+            return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f'"{self.data}"')
+        with printer.in_angle_brackets():
+            printer.print_string_literal(self.data)
 
 
 @irdl_attr_definition
