@@ -228,8 +228,8 @@ def test_param_attr_verify():
     constraint = ParamAttrConstraint(
         DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
     )
-    constraint.verify(DoubleParamAttr((bool_true, IntData(0))), {})
-    constraint.verify(DoubleParamAttr((bool_true, IntData(42))), {})
+    constraint.verify(DoubleParamAttr([bool_true, IntData(0)]), {})
+    constraint.verify(DoubleParamAttr([bool_true, IntData(42)]), {})
 
 
 def test_param_attr_verify_base_fail():
@@ -247,7 +247,7 @@ def test_param_attr_verify_base_fail():
 def test_param_attr_verify_params_num_params_fail():
     bool_true = BoolData(True)
     constraint = ParamAttrConstraint(DoubleParamAttr, [EqAttrConstraint(bool_true)])
-    attr = DoubleParamAttr((bool_true, IntData(0)))
+    attr = DoubleParamAttr([bool_true, IntData(0)])
     with pytest.raises(VerifyException) as e:
         constraint.verify(attr, {})
     assert e.value.args[0] == ("1 parameters expected, but got 2")
@@ -261,13 +261,13 @@ def test_param_attr_verify_params_fail():
     )
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(DoubleParamAttr((bool_true, bool_false)), {})
+        constraint.verify(DoubleParamAttr([bool_true, bool_false]), {})
     assert e.value.args[0] == (
         f"{bool_false} should be of base attribute {IntData.name}"
     )
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(DoubleParamAttr((bool_false, IntData(0))), {})
+        constraint.verify(DoubleParamAttr([bool_false, IntData(0)]), {})
     assert e.value.args[0] == (f"Expected attribute {bool_true} but got {bool_false}")
 
 
