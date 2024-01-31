@@ -17,17 +17,17 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
-    OpResult,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_operand_def,
+    opt_result_def,
     result_def,
 )
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
@@ -131,10 +131,12 @@ class GeneralRegisterType(X86RegisterType):
     }
 
 
-RDInvT = TypeVar("RDInvT", bound=X86RegisterType)
-RSInvT = TypeVar("RSInvT", bound=X86RegisterType)
-RS1InvT = TypeVar("RS1InvT", bound=X86RegisterType)
-RS2InvT = TypeVar("RS2InvT", bound=X86RegisterType)
+R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
+R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
+# RDInvT = TypeVar("RDInvT", bound=X86RegisterType)
+# RSInvT = TypeVar("RSInvT", bound=X86RegisterType)
+# RS1InvT = TypeVar("RS1InvT", bound=X86RegisterType)
+# RS2InvT = TypeVar("RS2InvT", bound=X86RegisterType)
 
 
 class Registers(ABC):
@@ -300,200 +302,281 @@ class X86Instruction(X86Op):
         return _assembly_line(instruction_name, arg_str, self.comment)
 
 
-class RdRsOperation(Generic[RDInvT, RS1InvT], IRDLOperation, X86Instruction, ABC):
+class SingleOperandInstruction(IRDLOperation, X86Instruction, ABC):
     """
-    A base class for x86 operations which has a source register and a destination register.
+    Base class for instructions that take a single operand.
     """
 
-    rd: OpResult = result_def(RDInvT)
-    rs: Operand = operand_def(RS1InvT)
+
+class DoubleOperandInstruction(IRDLOperation, X86Instruction, ABC):
+    """
+    Base class for instructions that take two operands.
+    """
+
+
+class TripleOperandInstruction(IRDLOperation, X86Instruction, ABC):
+    """
+    Base class for instructions that take three operands.
+    """
+
+
+class RROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
+    """
+    A base class for x86 operations that have two registers.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+
+    result = result_def(R1InvT)
 
     def __init__(
         self,
-        rs: Operation | SSAValue,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
         *,
-        rd: RDInvT,
         comment: str | StringAttr | None = None,
+        result: R1InvT,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[rs],
+            operands=[r1, r2],
             attributes={
                 "comment": comment,
             },
-            result_types=[rd],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.rs
-
-
-class RsOperation(Generic[RS1InvT], IRDLOperation, X86Instruction, ABC):
-    """
-    A base class for x86 operations that have one source register.
-    """
-
-    rs: Operand = operand_def(RS1InvT)
-
-    def __init__(
-        self,
-        rs: Operation | SSAValue,
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[rs],
-            attributes={
-                "comment": comment,
-            },
+            result_types=[result],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.rs,)
+        return self.r1, self.r2
 
 
-class RdOperation(Generic[RDInvT], IRDLOperation, X86Instruction, ABC):
+class ROperation(Generic[R1InvT], SingleOperandInstruction):
     """
-    A base class for x86 operations that have one destination register.
+    A base class for x86 operations that have one register.
     """
 
-    rd: OpResult = result_def(RDInvT)
+    source = opt_operand_def(R1InvT)
+    destination = opt_result_def(R1InvT)
 
     def __init__(
         self,
+        source: Operation | SSAValue | None = None,
         *,
-        rd: RDInvT,
         comment: str | StringAttr | None = None,
+        destination: R1InvT | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
+            operands=[source],
             attributes={
                 "comment": comment,
             },
-            result_types=[rd],
+            result_types=[destination],
         )
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return (self.rd,)
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.destination,) if self.destination else (self.source,)
+
+
+# class RdRsOperation(Generic[RDInvT, RS1InvT], IRDLOperation, X86Instruction, ABC):
+#     """
+#     A base class for x86 operations which has a source register and a destination register.
+#     """
+
+#     rd: OpResult = result_def(RDInvT)
+#     rs: Operand = operand_def(RS1InvT)
+
+#     def __init__(
+#         self,
+#         rs: Operation | SSAValue,
+#         *,
+#         rd: RDInvT,
+#         comment: str | StringAttr | None = None,
+#     ):
+#         if isinstance(comment, str):
+#             comment = StringAttr(comment)
+
+#         super().__init__(
+#             operands=[rs],
+#             attributes={
+#                 "comment": comment,
+#             },
+#             result_types=[rd],
+#         )
+
+#     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+#         return self.rd, self.rs
+
+
+# class RsOperation(Generic[RS1InvT], IRDLOperation, X86Instruction, ABC):
+#     """
+#     A base class for x86 operations that have one source register.
+#     """
+
+#     rs: Operand = operand_def(RS1InvT)
+
+#     def __init__(
+#         self,
+#         rs: Operation | SSAValue,
+#         *,
+#         comment: str | StringAttr | None = None,
+#     ):
+#         if isinstance(comment, str):
+#             comment = StringAttr(comment)
+
+#         super().__init__(
+#             operands=[rs],
+#             attributes={
+#                 "comment": comment,
+#             },
+#         )
+
+#     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+#         return (self.rs,)
+
+
+# class RdOperation(Generic[RDInvT], IRDLOperation, X86Instruction, ABC):
+#     """
+#     A base class for x86 operations that have one destination register.
+#     """
+
+#     rd: OpResult = result_def(RDInvT)
+
+#     def __init__(
+#         self,
+#         *,
+#         rd: RDInvT,
+#         comment: str | StringAttr | None = None,
+#     ):
+#         if isinstance(comment, str):
+#             comment = StringAttr(comment)
+
+#         super().__init__(
+#             attributes={
+#                 "comment": comment,
+#             },
+#             result_types=[rd],
+#         )
+
+#     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+#         return (self.rd,)
 
 
 @irdl_op_definition
-class AddOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+class AddOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
-    Adds the registers rs and rd and stores the result in rd.
+    Adds the registers r1 and r2 and stores the result in r1.
 
-    x[rd] = x[rd] + x[rs]
+    x[r1] = x[r1] + x[r2]
     """
 
     name = "x86.add"
 
 
 @irdl_op_definition
-class SubOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+class SubOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
-    subtracts rs from rd and stores the result in rd.
+    subtracts r2 from r1 and stores the result in r1.
 
-    x[rd] = x[rd] - x[rs]
+    x[r1] = x[r1] - x[r2]
     """
 
     name = "x86.sub"
 
 
 @irdl_op_definition
-class ImulOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+class ImulOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
-    Multiplies the registers rs and rd and stores the result in rd.
+    Multiplies the registers r1 and r2 and stores the result in r1.
 
-    x[rd] = x[rd] * x[rs]
+    x[r1] = x[r1] * x[r2]
     """
 
     name = "x86.imul"
 
 
 @irdl_op_definition
-class IdivOp(RsOperation[GeneralRegisterType]):
+class IdivOp(ROperation[GeneralRegisterType]):
     """
-    Divide rdx:rax by x[rs]. Store quotient in rax and store remainder in rdx.
+    Divide rdx:rax by x[r1]. Store quotient in rax and store remainder in rdx.
     """
 
     name = "x86.idiv"
 
 
 @irdl_op_definition
-class NotOp(RdOperation[GeneralRegisterType]):
+class NotOp(ROperation[GeneralRegisterType]):
     """
-    bitwise not of rd, stored in rd
+    bitwise not of r1, stored in r1
 
-    x[rd] = ~x[rd]
+    x[r1] = ~x[r1]
     """
 
     name = "x86.not"
 
 
 @irdl_op_definition
-class AndOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+class AndOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
-    bitwise and of rs and rd, stored in rd
+    bitwise and of r1 and r2, stored in r1
 
-    x[rd] = x[rd] & x[rs]
+    x[r1] = x[r1] & x[r2]
     """
 
     name = "x86.and"
 
 
 @irdl_op_definition
-class OrOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+class OrOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
-    bitwise or of rs and rd, stored in rd
+    bitwise or of r1 and r2, stored in r1
 
-    x[rd] = x[rd] | x[rs]
+    x[r1] = x[r1] | x[r2]
     """
 
     name = "x86.or"
 
 
 @irdl_op_definition
-class XorOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+class XorOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
-    bitwise xor of rs and rd, stored in rd
+    bitwise xor of r1 and r2, stored in r1
 
-    x[rd] = x[rd] ^ x[rs]
+    x[r1] = x[r1] ^ x[r2]
     """
 
     name = "x86.xor"
 
 
 @irdl_op_definition
-class MovOp(RdRsOperation[GeneralRegisterType, GeneralRegisterType]):
+class MovOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
-    Copies the value of rs into rd.
+    Copies the value of r1 into r2.
 
-    x[rd] = x[rs]
+    x[r1] = x[r2]
     """
 
     name = "x86.mov"
 
 
 @irdl_op_definition
-class PushOp(RsOperation[GeneralRegisterType]):
+class PushOp(ROperation[GeneralRegisterType]):
     """
-    Decreases %rsp and places src at the new memory location pointed to by %rsp.
+    Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
     """
 
     name = "x86.push"
 
 
 @irdl_op_definition
-class PopOp(RdOperation[GeneralRegisterType]):
+class PopOp(ROperation[GeneralRegisterType]):
     """
-    Copies the value at the top of the stack into rd and increases %rsp.
+    Copies the value at the top of the stack into r1 and increases %rsp.
     """
 
     name = "x86.pop"
