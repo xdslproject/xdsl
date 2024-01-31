@@ -358,7 +358,7 @@ builtin.module {
 
 builtin.module {
 
-  // CHECK: Operation does not verify: Only one value attribute must be provided, but 2 were specified
+  // CHECK: Operation does not verify: Only one value attribute must be provided, but 2 were specified.
   %res_constant = onnx.Constant() {"onnx_node_name" = "/Constant", "value_ints" = [1: i64, 1: i64], "value_int" =  3: i64} : () -> tensor<3xi64>
 
   }
