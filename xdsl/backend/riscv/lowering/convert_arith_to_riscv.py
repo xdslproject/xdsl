@@ -146,8 +146,8 @@ class LowerBinaryIntegerOp(RewritePattern):
 @dataclass
 class LowerBinaryFloatOp(RewritePattern):
     arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
-    riscv_f_op_cls: type[RdRsRsFloatOperation]
-    riscv_d_op_cls: type[RdRsRsFloatOperation]
+    riscv_f_op_cls: type[RdRsRsFloatOperation | riscv.RdRsRsFloatOperationWithFastMath]
+    riscv_d_op_cls: type[RdRsRsFloatOperation | riscv.RdRsRsFloatOperationWithFastMath]
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         if not isinstance(op, self.arith_op_cls):
