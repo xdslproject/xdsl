@@ -221,9 +221,8 @@ class RofOp(ForRofOperation):
     """
     Reverse Order For loop.
 
-    MLIR's for loops have the implicit constraint that lb < ub, and step > 0.
-
-    In order to express loops that count down in higher-level IR, the rof op
+    MLIR's for loops have the constraint of always executing from lb to ub,
+    so in order to express loops that count down from ub to lb, the rof op
     is needed.
 
     Rof has the semantics of going from ub to lb, decrementing by step each time.
