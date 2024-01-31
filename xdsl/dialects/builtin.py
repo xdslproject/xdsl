@@ -189,6 +189,19 @@ class StringAttr(Data[str]):
 
 
 @irdl_attr_definition
+class BytesAttr(Data[bytes]):
+    name = "bytes"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> bytes:
+        with parser.in_angle_brackets():
+            return parser.parse_bytes_literal()
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string(f'"{self.data}"')
+
+
+@irdl_attr_definition
 class SymbolNameAttr(ParametrizedAttribute):
     name = "symbol_name"
     data: ParameterDef[StringAttr]

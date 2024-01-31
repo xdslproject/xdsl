@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from inspect import getfullargspec
@@ -210,6 +211,36 @@ class AffineMap:
         assert len(dims) == self.num_dims
         assert len(symbols) == self.num_symbols
         return tuple(expr.eval(dims, symbols) for expr in self.results)
+
+    def compress_dims(self, selectors: Sequence[bool]) -> AffineMap:
+        """
+        Given a sequence of `selectors` indicating the input dimensions to keep, return a
+        new map only with the new dimensions. The results of `self` must be a subset of
+        the dimensions in `selectors`. The remaining dimensions are remapped to the
+        remaining number.
+
+        Examples:
+        ```
+        (d0, d1, d2) -> (d1, d2) with [0,1,1] gives (d0, d1) -> (d0, d1)
+        (d0, d1, d2) -> (d2, d2) with [1,0,1] gives (d0, d1) -> (d1, d1)
+        ```
+        """
+        if len(selectors) != self.num_dims:
+            raise ValueError(
+                f"Invalid `selectors`, expected {self.num_dims} `bool` values, got "
+                f"{len(selectors)}"
+            )
+
+        result_num_dims = sum(selectors)
+        new_dims = tuple(
+            AffineExpr.dimension(dim)
+            for dim in itertools.accumulate(selectors, initial=0)
+        )
+        new_symbols = tuple(AffineExpr.symbol(s) for s in range(self.num_symbols))
+
+        return self.replace_dims_and_symbols(
+            new_dims, new_symbols, result_num_dims, self.num_symbols
+        )
 
     def __str__(self) -> str:
         # Create comma seperated list of dims.

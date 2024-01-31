@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -597,6 +598,9 @@ class AttrParser(BaseParser):
         # String literal
         if (str_lit := self.parse_optional_str_literal()) is not None:
             return StringAttr(str_lit)
+        # Bytes literal
+        if (bytes_lit := self.parse_optional_bytes_literal()) is not None:
+            return BytesAttr(bytes_lit)
 
         attrs = (
             self.parse_optional_builtin_int_or_float_attr,

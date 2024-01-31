@@ -688,6 +688,16 @@ class AttrSizedSuccessorSegments(AttrSizedSegments):
 
 
 @dataclass
+class ParsePropInAttrDict(IRDLOption):
+    """
+    Parse properties in the attribute dictionary instead of requiring them to
+    be in the assembly format.
+    This should only be used to ensure MLIR compatibility, it is otherwise
+    bad design to use it.
+    """
+
+
+@dataclass
 class OperandOrResultDef(ABC):
     """An operand or a result definition. Should not be used directly."""
 
@@ -1987,9 +1997,7 @@ def irdl_op_init(
                             f"Unexpected option {option} in operation definition {op_def}."
                         )
             case _:
-                raise ValueError(
-                    f"Unexpected option {option} in operation definition {op_def}."
-                )
+                pass
 
     Operation.__init__(
         self,
