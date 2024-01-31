@@ -48,7 +48,7 @@
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_outer"(%c5) ({
 // CHECK-GENERIC-NEXT:        %a = "riscv_snitch.read"(%a_stream) : (!stream.readable<!riscv.freg<ft0>>) -> !riscv.freg<ft0>
 // CHECK-GENERIC-NEXT:        %b = "riscv_snitch.read"(%b_stream) : (!stream.readable<!riscv.freg<ft1>>) -> !riscv.freg<ft1>
-// CHECK-GENERIC-NEXT:        %c = "riscv.fadd.d"(%a, %b) : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+// CHECK-GENERIC-NEXT:        %c = "riscv.fadd.d"(%a, %b) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 // CHECK-GENERIC-NEXT:        "riscv_snitch.write"(%c, %c_stream) : (!riscv.freg<ft2>, !stream.writable<!riscv.freg<ft2>>) -> ()
 // CHECK-GENERIC-NEXT:        "riscv_snitch.frep_yield"() : () -> ()
 // CHECK-GENERIC-NEXT:      }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>) -> ()

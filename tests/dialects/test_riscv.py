@@ -2,6 +2,7 @@ import pytest
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
+from xdsl.dialects.llvm import FastMathFlag
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import ParseError, VerifyException
