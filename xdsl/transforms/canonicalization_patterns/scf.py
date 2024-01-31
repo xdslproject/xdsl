@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import (
 )
 
 
-class StoreWordWithKnownOffset(RewritePattern):
+class SimplifyTrivialLoops(RewritePattern):
     """
     Rewriting pattern that erases loops that are known not to iterate, replaces
     single-iteration loops with their bodies, and removes empty loops that iterate at
@@ -27,12 +27,12 @@ class StoreWordWithKnownOffset(RewritePattern):
             return
 
         if lb == ub:
-            rewriter.replace_matched_op((), op.operands)
+            rewriter.replace_matched_op((), op.iter_args)
             return
 
         # If the loop is known to have 0 iterations, remove it.
         if (diff := ub - lb) <= 0:
-            rewriter.replace_matched_op((), op.operands)
+            rewriter.replace_matched_op((), op.iter_args)
             return
 
         if (step := const_evaluate_operand(op.step)) is None:
@@ -74,6 +74,7 @@ def replace_op_with_region(
     terminator = block.last_op
     assert terminator is not None
     rewriter.inline_block_before(block, op, args)
+    rewriter.erase_op(op)
 
 
 def const_evaluate_operand(operand: SSAValue) -> int | None:
