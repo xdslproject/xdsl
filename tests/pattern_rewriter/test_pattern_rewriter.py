@@ -766,9 +766,8 @@ def test_inline_block_before_matched_op():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() : () -> !test.type<"int">
   %2 = "test.op"() ({
-  ^0:
   }, {
-  ^1:
+  ^0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -810,12 +809,11 @@ def test_inline_block_before():
   %1 = "test.op"() ({
     %2 = "test.op"() : () -> !test.type<"int">
     %3 = "test.op"() ({
-    ^0:
     }, {
-    ^1:
+    ^0:
     }) : () -> !test.type<"int">
   }, {
-  ^2:
+  ^1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -857,9 +855,8 @@ def test_inline_block_at_before_when_op_is_matched_op():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() : () -> !test.type<"int">
   %2 = "test.op"() ({
-  ^0:
   }, {
-  ^1:
+  ^0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
