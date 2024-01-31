@@ -4,4 +4,4 @@
 
 aie.flow(%source, %dest) <!aie.wire_bundle<"source">: 1, !aie.wire_bundle<"dest">: 2>
 
-// CHECK: aie.flow
+// CHECK: aie.flow(%source, %dest) <!aie.wire_bundle<"source">: 1, !aie.wire_bundle<"dest">: 2>
