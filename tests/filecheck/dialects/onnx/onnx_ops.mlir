@@ -60,3 +60,7 @@
 
 %res_conv_6 = "onnx.Conv"(%t23, %t24, %t25) {onnx_node_name = "/Conv", "auto_pad" = "NOTSET", "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "strides" = [2 : i64, 2 : i64], "pads" = [1 : i64, 0 : i64, 1 : i64, 0 : i64]}: (tensor<1x1x7x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x4x2xf32>
 //CHECK: %res_conv_6 = onnx.Conv(%t23, %t24, %t25) {"onnx_node_name" = "/Conv", "auto_pad" = "NOTSET", "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "strides" = [2 : i64, 2 : i64], "pads" = [1 : i64, 0 : i64, 1 : i64, 0 : i64]}: (tensor<1x1x7x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x4x2xf32>
+
+%res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
+//CHECK: %res_constant = onnx.Constant() {"onnx_node_name" = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
+
