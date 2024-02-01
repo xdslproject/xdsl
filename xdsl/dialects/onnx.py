@@ -679,7 +679,7 @@ class MaxPoolSingleOut(IRDLOperation):
 
      Attributes:
 
-    - auto_pad string (defaukt is 'NOTSET'):  auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or
+    - auto_pad string (default is 'NOTSET'):  auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or
     VALID. Where default value is NOTSET, which means explicit padding is used. SAME_UPPER or SAME_LOWER mean pad the
     input so that output_shape[i] = ceil(input_shape[i] / strides[i]) for each axis i. The padding is split between
     the two sides equally or almost equally (depending on whether it is even or odd). In case the padding is an odd
@@ -761,7 +761,7 @@ class MaxPoolSingleOut(IRDLOperation):
         data_type = cast(TensorType[Attribute], data_type)
         output_type = cast(TensorType[Attribute], output_type)
 
-        # auto_pad
+        # auto pad
         auto_pad_strings = ["NOTSET", "SAME_UPPER", "SAME_LOWER", "VALID"]
         if self.auto_pad.data not in auto_pad_strings:
             raise VerifyException(
@@ -777,7 +777,7 @@ class MaxPoolSingleOut(IRDLOperation):
             kernel_dims := len(self.kernel_shape)
         ):
             raise VerifyException(
-                f"input data and kernel shape rank mismatch: {input_dims} vs {kernel_dims}"
+                f"input data and kernel shape rank mismatch: ({input_dims}) vs ({kernel_dims})"
             )
 
         # dilations
@@ -819,9 +819,9 @@ class MaxPoolSingleOut(IRDLOperation):
             if val < 0:
                 raise VerifyException("pads value must be nonnegative")
 
-        if (pads_dims := len(self.pads)) != (kernel_dims := 2 * len(self.kernel_shape)):
+        if (pads_dims := len(self.pads)) != 2 * len(self.kernel_shape):
             raise VerifyException(
-                f"pads rank ({pads_dims}) is not twice the kernel shape rank ({kernel_dims})"
+                f"pads rank ({pads_dims}) is not twice the kernel shape rank ({len(self.kernel_shape)})"
             )
 
 

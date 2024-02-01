@@ -409,7 +409,7 @@ builtin.module {
 builtin.module {
     %t0 = "test.op"(): () ->  (tensor<5x5x32x32xf32>)
 
-  // CHECK: Operation does not verify: input data and kernel shape rank mismatch
+  // CHECK: Operation does not verify: input data and kernel shape rank mismatch: (2) vs (1)
   %res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t0) {"onnx_node_name" = "/MaxPoolSingleOut", "auto_pad"  = "NOTSET", "ceil_mode" = 0 : i64, "kernel_shape" = [3 : i64], "dilations" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0 : i64, 0 : i64], "storage_order" = 0 : i64, "strides" = [1 : i64, 1 : i64]} : (tensor<5x5x32x32xf32>) -> tensor<5x5x32x32xf32>
 
 }
@@ -429,7 +429,7 @@ builtin.module {
 builtin.module {
     %t0 = "test.op"(): () ->  (tensor<5x5x32x32xf32>)
 
-  // CHECK: Operation does not verify: dilations rank and kernel shape rank are not the same
+  // CHECK: Operation does not verify: dilations rank (3) and kernel shape rank (2) are not the same
   %res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t0) {"onnx_node_name" = "/MaxPoolSingleOut", "auto_pad"  = "NOTSET", "ceil_mode" = 0 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64, 1: i64], "pads" = [0 : i64, 0 : i64, 0 : i64, 0 : i64], "storage_order" = 0 : i64, "strides" = [1 : i64, 1 : i64]} : (tensor<5x5x32x32xf32>) -> tensor<5x5x32x32xf32>
 
 }
@@ -459,7 +459,7 @@ builtin.module {
 builtin.module {
     %t0 = "test.op"(): () ->  (tensor<5x5x32x32xf32>)
 
-  // CHECK: Operation does not verify: strides rank and kernel shape rank are not the same
+  // CHECK: Operation does not verify: strides rank (3) and kernel shape rank (2) are not the same
   %res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t0) {"onnx_node_name" = "/MaxPoolSingleOut", "auto_pad"  = "NOTSET", "ceil_mode" = 0 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0 : i64, 0 : i64], "storage_order" = 0 : i64, "strides" = [1 : i64, 1 : i64, 1: i64]} : (tensor<5x5x32x32xf32>) -> tensor<5x5x32x32xf32>
 
 }
@@ -479,7 +479,7 @@ builtin.module {
 builtin.module {
     %t0 = "test.op"(): () ->  (tensor<5x5x32x32xf32>)
 
-  // CHECK: Operation does not verify: pads rank is not twice the kernel shape rank
+  // CHECK: Operation does not verify: pads rank (5) is not twice the kernel shape rank (2)
   %res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t0) {"onnx_node_name" = "/MaxPoolSingleOut", "auto_pad"  = "NOTSET", "ceil_mode" = 0 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0 : i64, 0 : i64, 0: i64], "storage_order" = 0 : i64, "strides" = [1 : i64, 1 : i64]} : (tensor<5x5x32x32xf32>) -> tensor<5x5x32x32xf32>
 
 }
