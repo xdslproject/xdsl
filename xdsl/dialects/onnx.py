@@ -679,7 +679,7 @@ class MaxPoolSingleOut(IRDLOperation):
 
      Attributes:
 
-    - auto_pad string (defaukt is 'NOTSET'):  auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or
+    - auto_pad string (default is 'NOTSET'):  auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or
     VALID. Where default value is NOTSET, which means explicit padding is used. SAME_UPPER or SAME_LOWER mean pad the
     input so that output_shape[i] = ceil(input_shape[i] / strides[i]) for each axis i. The padding is split between
     the two sides equally or almost equally (depending on whether it is even or odd). In case the padding is an odd
