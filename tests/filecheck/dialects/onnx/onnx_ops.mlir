@@ -67,3 +67,7 @@
 
 %res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t26) {onnx_node_name = "/MaxPoolSingleOut", "auto_pad" = "VALID", "ceil_mode" = 0 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0 : i64, 0 : i64], "storage_order" = 0 : i64, "strides" = [1 : i64, 1 : i64]}: (tensor<5x5x32x32xf32>) -> tensor<5x5x30x30xf32>
 //CHECK: %res_max_pool_single_out = onnx.MaxPoolSingleOut(%t26) {"onnx_node_name" = "/MaxPoolSingleOut", "auto_pad" = "VALID", "ceil_mode" = 0 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0 : i64, 0 : i64], "storage_order" = 0 : i64, "strides" = [1 : i64, 1 : i64]}: (tensor<5x5x32x32xf32>) -> tensor<5x5x30x30xf32>
+
+// CHECK-LABEL:  func.func @main_graph
+"onnx.EntryPoint"() {onnx_node_name = "/EntryPoint", "func" = @main_graph} : () -> ()
+//CHECK: "onnx.EntryPoint"() {"onnx_node_name" = "/EntryPoint", "func" = @main_graph} : () -> ()
