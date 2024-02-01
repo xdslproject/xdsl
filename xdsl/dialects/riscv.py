@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnitAttr,
 )
+from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
 from xdsl.ir import (
     Attribute,
     Block,
@@ -56,6 +57,14 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+
+class FastMathFlagsAttr(LLVMFastMathAttr):
+    """
+    riscv.fastmath is a mirror of LLVMs fastmath flags.
+    """
+
+    name = "riscv.fastmath"
 
 
 class RISCVRegisterType(Data[str], TypeAttribute, ABC):
@@ -577,6 +586,59 @@ class RdRsRsOperation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.rs2
+
+
+class RdRsRsFloatOperationWithFastMath(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RISC-V operations that have one destination floating-point register,
+    and two source floating-point registers and can be annotated with fastmath flags.
+
+    This is called R-Type in the RISC-V specification.
+    """
+
+    rd: OpResult = result_def(FloatRegisterType)
+    rs1: Operand = operand_def(FloatRegisterType)
+    rs2: Operand = operand_def(FloatRegisterType)
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        rd: FloatRegisterType,
+        fastmath: FastMathFlagsAttr | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rs1, rs2],
+            attributes={
+                "fastmath": fastmath,
+                "comment": comment,
+            },
+            result_types=[rd],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.rs2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        flags = FastMathFlagsAttr("none")
+        if parser.parse_optional_keyword("fastmath") is not None:
+            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        attributes["fastmath"] = flags
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
+        return {"fastmath"}
 
 
 class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -2986,7 +3048,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FAddSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point addition.
 
@@ -3001,7 +3063,7 @@ class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FSubSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point substraction.
 
@@ -3014,7 +3076,7 @@ class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMulSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point multiplication.
 
@@ -3027,7 +3089,7 @@ class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FDivSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FDivSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point division.
 
@@ -3102,7 +3164,7 @@ class FSgnJXSOp(
 
 
 @irdl_op_definition
-class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMinSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of single precision data in rs1 and rs2 to rd.
 
@@ -3115,7 +3177,7 @@ class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMaxSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMaxSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
@@ -3371,7 +3433,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FAddDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point addition.
 
@@ -3386,7 +3448,7 @@ class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FSubDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point substraction.
 
@@ -3399,7 +3461,7 @@ class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMulDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point multiplication.
 
@@ -3414,7 +3476,7 @@ class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FDivDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point division.
 
@@ -3437,7 +3499,7 @@ class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMinDOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of double precision data in rs1 and rs2 to rd.
 
@@ -3452,7 +3514,7 @@ class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMaxDOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
@@ -3779,5 +3841,6 @@ RISCV = Dialect(
         IntRegisterType,
         FloatRegisterType,
         LabelAttr,
+        FastMathFlagsAttr,
     ],
 )
