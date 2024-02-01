@@ -93,7 +93,7 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t3, 288
 // CHECK-NEXT:      mv t2, zero
-// CHECK-NEXT:      bge t2, t3, scf_body_end_0_for
+// CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_0_for:
 // CHECK-NEXT:      add t4, t1, t2
 // CHECK-NEXT:      fld ft3, 0(t4)

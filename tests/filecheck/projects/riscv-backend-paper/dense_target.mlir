@@ -107,7 +107,7 @@ riscv.assembly_section ".text" {
 // CHECK-NEXT:      scfgwi t4, 802
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      mv t1, zero
-// CHECK-NEXT:      bge t1, t2, scf_body_end_0_for
+// CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_0_for:
 // CHECK-NEXT:      add t4, t0, t1
 // CHECK-NEXT:      fld ft4, 0(t4)

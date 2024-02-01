@@ -70,7 +70,7 @@ riscv_func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t3, 392
 // CHECK-NEXT:      mv t2, zero
-// CHECK-NEXT:      bge t2, t3, scf_body_end_0_for
+// CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_0_for:
 // CHECK-NEXT:      add t4, t1, t2
 // CHECK-NEXT:      fld ft3, 0(t4)
