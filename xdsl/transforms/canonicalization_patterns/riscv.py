@@ -392,11 +392,11 @@ class FuseMultiplyAddD(RewritePattern):
         elif isinstance(op.rs2.type, riscv.RISCVRegisterType):
             addend = op.rs2
             potential_multiplicand1 = op.rs1
+        else:
+            return
 
         if (
-            addend is not None
-            and potential_multiplicand1 is not None
-            and isinstance(mulop := potential_multiplicand1.owner, riscv.FMulDOp)
+            isinstance(mulop := potential_multiplicand1.owner, riscv.FMulDOp)
             and len(mulop.rd.uses) == 1
             and (
                 mulop.fastmath is not None
