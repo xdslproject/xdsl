@@ -2405,16 +2405,6 @@ class LiOp(RdImmIntegerOperation):
         )
         return attributes
 
-    def assembly_line(self) -> str | None:
-        # Loading 0 to zero register is a no-op
-        if (
-            isinstance(self.immediate, IntegerAttr)
-            and self.immediate.value.data == 0
-            and self.rd.type == Registers.ZERO
-        ):
-            return None
-        return super().assembly_line()
-
 
 @irdl_op_definition
 class EcallOp(NullaryOperation):
