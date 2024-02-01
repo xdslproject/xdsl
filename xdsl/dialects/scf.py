@@ -153,7 +153,7 @@ class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
     traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(ForOp, If, ParallelOp, While)])
+        lambda: frozenset([IsTerminator(), HasParent(ForRofOperation, If, ParallelOp, While)])
     )
 
 
@@ -286,9 +286,7 @@ class ForRofOperation(IRDLOperation, ABC):
         printer.print_string(" ")
         printer.print_ssa_value(indvar)
         printer.print_string(" = ")
-        printer.print_ssa_value(self.lb)
-        printer.print_string(" to ")
-        printer.print_ssa_value(self.ub)
+        self._print_bounds(printer)
         printer.print_string(" step ")
         printer.print_ssa_value(self.step)
         printer.print_string(" ")
@@ -317,9 +315,7 @@ class ForRofOperation(IRDLOperation, ABC):
         # Parse bounds
         unresolved_indvar = parser.parse_argument(expect_type=False)
         parser.parse_characters("=")
-        lb = parser.parse_operand()
-        parser.parse_characters("to")
-        ub = parser.parse_operand()
+        lb, ub = cls._parse_bounds(parser)
         parser.parse_characters("step")
         step = parser.parse_operand()
 
