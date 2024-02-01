@@ -16,7 +16,7 @@ riscv.assembly_section ".text" {
     %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
     %G_moved = riscv.mv %G : (!riscv.reg<a2>) -> !riscv.reg<>
 
-    %c0 = riscv.get_register : () -> !riscv.reg<zero>
+    %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
     %c8 = riscv.li 8 : () -> !riscv.reg<>
     %c512 = riscv.li 512 : () -> !riscv.reg<>
