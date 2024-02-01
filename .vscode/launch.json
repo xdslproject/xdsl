@@ -12,8 +12,6 @@
             "justMyCode": true,
             "args": [
                 "${file}",
-                "-p",
-                "canonicalize"
             ]
         },
         {
