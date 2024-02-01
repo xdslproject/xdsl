@@ -364,9 +364,11 @@ class VariadicOperandVariable(OperandVariable):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        operands = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        operands = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
         )
+        if operands is None:
+            operands = []
         state.operands[self.index] = cast(list[UnresolvedOperand | None], operands)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -411,9 +413,11 @@ class VariadicOperandTypeDirective(OperandTypeDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        operand_types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type
+        operand_types = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_type, parser.parse_type
         )
+        if operand_types is None:
+            operand_types = []
         state.operand_types[self.index] = cast(list[Attribute | None], operand_types)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:

@@ -529,6 +529,11 @@ def test_operands(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
+            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand  ",
+            '%0 = "test.op"() : () -> i32\n' '"test.variadic_operand"() : () -> ()',
+        ),
+        (
+            "$args type($args) attr-dict",
             '%0 = "test.op"() : () -> i32\n' "test.variadic_operand %0 i32",
             '%0 = "test.op"() : () -> i32\n'
             '"test.variadic_operand"(%0) : (i32) -> ()',
