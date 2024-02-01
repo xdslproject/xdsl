@@ -458,6 +458,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_unroll.StencilUnrollPass
 
+    def get_test_lower_linalg_to_snitch():
+        from xdsl.transforms import test_lower_linalg_to_snitch
+
+        return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
@@ -498,6 +503,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-unroll": get_stencil_unroll,
+        "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
     }
 
 
