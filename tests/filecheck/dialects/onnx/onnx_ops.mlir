@@ -71,3 +71,4 @@
 // CHECK-LABEL:  func.func @main_graph
 "onnx.EntryPoint"() {onnx_node_name = "/EntryPoint", "func" = @main_graph} : () -> ()
 //CHECK: "onnx.EntryPoint"() {"onnx_node_name" = "/EntryPoint", "func" = @main_graph} : () -> ()
+
