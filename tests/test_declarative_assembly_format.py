@@ -20,6 +20,7 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AttrSizedOperandSegments,
+    AttrSizedResultSegments,
     ConstraintVar,
     EqAttrConstraint,
     IRDLOperation,
@@ -387,30 +388,6 @@ def test_punctuations_and_keywords(format: str, program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
-
-
-@pytest.mark.parametrize(
-    "variadic_def, format",
-    [
-        (var_operand_def, "$variadic `,` attr-dict"),
-        (var_operand_def, "type($variadic) `,` attr-dict"),
-        (var_result_def, "type($variadic) `,` attr-dict"),
-    ],
-)
-def test_variadic_comma_safeguard(
-    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
-):
-    with pytest.raises(
-        PyRDLOpDefinitionError,
-        match="A variadic directive cannot be followed by a comma literal.",
-    ):
-
-        @irdl_op_definition
-        class CommaSafeguardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
-            name = "test.comma_safeguard"
-
-            variadic = variadic_def()
-            assembly_format = format
 
 
 ################################################################################
@@ -927,3 +904,95 @@ def test_non_verifying_inference():
         match="Verification error while inferring operation type: ",
     ):
         check_roundtrip(program, ctx)
+
+
+################################################################################
+# Declarative Format Verification                                              #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "variadic_def, format",
+    [
+        (var_operand_def, "$variadic `,` attr-dict"),
+        (var_operand_def, "type($variadic) `,` attr-dict"),
+        (var_result_def, "type($variadic) `,` attr-dict"),
+    ],
+)
+def test_variadic_comma_safeguard(
+    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic directive cannot be followed by a comma literal.",
+    ):
+
+        @irdl_op_definition
+        class CommaSafeguardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.comma_safeguard"
+
+            variadic = variadic_def()
+            assembly_format = format
+
+
+@pytest.mark.parametrize(
+    "variadic_def_one, variadic_def_two, format",
+    [
+        (
+            var_operand_def,
+            var_operand_def,
+            "type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            var_result_def,
+            var_result_def,
+            "type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            var_result_def,
+            var_operand_def,
+            "type($variadic_one) type($variadic_two) attr-dict",
+        ),
+        (
+            var_operand_def,
+            var_result_def,
+            "type($variadic_one) type($variadic_two) attr-dict",
+        ),
+    ],
+)
+def test_chained_variadic_types_safeguard(
+    variadic_def_one: Callable[[], VarOperand | VarOpResult],
+    variadic_def_two: Callable[[], VarOperand | VarOpResult],
+    format: str,
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic type directive cannot be followed by another variadic type directive.",
+    ):
+
+        @irdl_op_definition
+        class VarTypeGuardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.variadic_type_safeguard"
+
+            variadic_one = variadic_def_one()
+            variadic_two = variadic_def_two()
+            assembly_format = format
+
+            irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
+
+
+def test_chained_variadic_operands_safeguard():
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic operand variable cannot be followed by another variadic operand variable.",
+    ):
+
+        @irdl_op_definition
+        class VarOpGuardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.variadic_operand_safeguard"
+
+            variadic_one = var_operand_def()
+            variadic_two = var_operand_def()
+            assembly_format = "$variadic_one $variadic_two attr-dict"
+
+            irdl_options = [AttrSizedOperandSegments()]
