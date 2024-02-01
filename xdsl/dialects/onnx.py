@@ -754,7 +754,7 @@ class MaxPoolSingleOut(IRDLOperation):
             data_type := self.data.type, TensorType | MemRefType
         ) or not isinstance(output_type := self.output.type, TensorType | MemRefType):
             assert False, (
-                "onnx elementwise operation operands (data, weight) and result (output) must be of type TensorType or "
+                "onnx elementwise operation operands (data) and result (output) must be of type TensorType or "
                 "MemRefTyoe "
             )
 
