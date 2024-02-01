@@ -761,7 +761,7 @@ class MaxPoolSingleOut(IRDLOperation):
         data_type = cast(TensorType[Attribute], data_type)
         output_type = cast(TensorType[Attribute], output_type)
 
-        # auto_pad
+        # auto pad
         auto_pad_strings = ["NOTSET", "SAME_UPPER", "SAME_LOWER", "VALID"]
         if self.auto_pad.data not in auto_pad_strings:
             raise VerifyException(
