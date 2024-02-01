@@ -544,9 +544,11 @@ class VariadicResultTypeDirective(ResultTypeDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        result_types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type
+        result_types = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_type, parser.parse_type
         )
+        if result_types is None:
+            result_types = []
         state.result_types[self.index] = cast(list[Attribute | None], result_types)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:

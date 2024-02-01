@@ -725,6 +725,11 @@ def test_results(format: str, program: str, generic_program: str):
     [
         (
             "`:` type($res) attr-dict",
+            "test.variadic_result : ",
+            '"test.variadic_result"() : () -> ()',
+        ),
+        (
+            "`:` type($res) attr-dict",
             "%0 = test.variadic_result : i32",
             '%0 = "test.variadic_result"() : () -> i32',
         ),
