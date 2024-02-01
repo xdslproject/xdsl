@@ -373,6 +373,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return reduce_register_pressure.RiscvReduceRegisterPressurePass
 
+    def get_riscv_get_zero_register():
+        from xdsl.transforms import riscv_get_zero_register
+
+        return riscv_get_zero_register.RiscvGetZeroRegisterPass
+
     def get_riscv_register_allocation():
         from xdsl.transforms import riscv_register_allocation
 
@@ -497,6 +502,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "riscv-reduce-register-pressure": get_reduce_register_pressure,
+        "riscv-get-zero-register": get_riscv_get_zero_register,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
