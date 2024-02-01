@@ -74,7 +74,8 @@ def replace_op_with_region(
     terminator = block.last_op
     assert terminator is not None
     rewriter.inline_block_before(block, op, args)
-    rewriter.erase_op(op)
+    rewriter.replace_op(op, (), terminator.operands)
+    rewriter.erase_op(terminator)
 
 
 def const_evaluate_operand(operand: SSAValue) -> int | None:
