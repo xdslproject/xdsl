@@ -1,6 +1,6 @@
 from typing import cast
 
-from xdsl.dialects import riscv, riscv_snitch
+from xdsl.dialects import riscv, riscv_snitch, llvm
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
@@ -379,19 +379,29 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
 class FuseMultiplyAddD(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FAddDOp, rewriter: PatternRewriter) -> None:
-        addend = multiplicand1 = None
+        if (
+            op.fastmath is None
+            or llvm.FastMathFlag.ALLOW_CONTRACT not in op.fastmath.flags
+        ):
+            return
+
+        addend = potential_multiplicand1 = None
         if isinstance(op.rs1.type, riscv.RISCVRegisterType):
             addend = op.rs1
-            multiplicand1 = op.rs2
+            potential_multiplicand1 = op.rs2
         elif isinstance(op.rs2.type, riscv.RISCVRegisterType):
             addend = op.rs2
-            multiplicand1 = op.rs1
+            potential_multiplicand1 = op.rs1
 
         if (
             addend is not None
-            and multiplicand1 is not None
-            and isinstance(mulop := multiplicand1.owner, riscv.FMulDOp)
+            and potential_multiplicand1 is not None
+            and isinstance(mulop := potential_multiplicand1.owner, riscv.FMulDOp)
             and len(mulop.rd.uses) == 1
+            and (
+                mulop.fastmath is not None
+                and llvm.FastMathFlag.ALLOW_CONTRACT in mulop.fastmath.flags
+            )
             and isinstance(mulop.rd.type, riscv.RISCVRegisterType)
         ):
             rewriter.replace_matched_op(
