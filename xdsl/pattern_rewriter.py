@@ -283,13 +283,15 @@ class PatternRewriter(PatternRewriterListener):
         """
         self.inline_block_before(block, self.current_operation)
 
-    def inline_block_before(self, block: Block, op: Operation):
+    def inline_block_before(
+        self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations before the given operation.
         The block should not be a parent of the operation.
         """
         self.has_done_action = True
-        Rewriter.inline_block_before(block, op)
+        Rewriter.inline_block_before(block, op, arg_values=arg_values)
 
     def inline_block_after_matched_op(self, block: Block):
         """
