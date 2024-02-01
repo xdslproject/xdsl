@@ -1,17 +1,3 @@
-# XDSLOPT_PASSES += snitch-allocate-registers
-# XDSLOPT_PASSES += convert-snitch-stream-to-snitch
-# XDSLOPT_PASSES += lower-snitch
-# XDSLOPT_PASSES += canonicalize
-# XDSLOPT_PASSES += riscv-scf-loop-range-folding
-# XDSLOPT_PASSES += canonicalize
-# XDSLOPT_PASSES += riscv-reduce-register-pressure
-# XDSLOPT_PASSES += riscv-allocate-registers
-# XDSLOPT_PASSES += canonicalize
-# XDSLOPT_PASSES += lower-riscv-func
-# XDSLOPT_PASSES += convert-riscv-scf-to-riscv-cf
-# XDSLOPT_PASSES += canonicalize
-
-
 from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
     ConvertRiscvScfToRiscvCfPass,
 )
@@ -33,6 +19,11 @@ from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
 
 
 class TestLowerLinalgToSnitchPass(ModulePass):
+    """
+    A compiler pass used for testing of the lowering from ML kernels defined as
+    linalg.generic operations to riscv-assemby leveraging Snitch cores.
+    """
+
     name = "test-lower-linalg-to-snitch"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
