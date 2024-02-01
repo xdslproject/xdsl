@@ -1,6 +1,6 @@
 from typing import cast
 
-from xdsl.dialects import riscv, riscv_snitch, llvm
+from xdsl.dialects import llvm, riscv, riscv_snitch
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
