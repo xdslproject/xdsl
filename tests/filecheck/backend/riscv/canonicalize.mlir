@@ -213,6 +213,9 @@ builtin.module {
 %rmul0 = riscv.fmul.d %0, %1 {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 %radd0 = riscv.fadd.d %0, %rmul0 {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
+%rmul0b = riscv.fmul.d %0, %1 {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd0b = riscv.fadd.d %rmul0b, %0 {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
 // should not fuse due to missing "contract" fastmath flag
 %rmul1 = riscv.fmul.d %0, %1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 %radd1 = riscv.fadd.d %0, %rmul1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
@@ -233,6 +236,7 @@ builtin.module {
 
 // keep results around to avoid dead code deletion
 "test.op"(%radd0) : (!riscv.freg<>) -> ()
+"test.op"(%radd0b) : (!riscv.freg<>) -> ()
 "test.op"(%radd1) : (!riscv.freg<>) -> ()
 "test.op"(%radd2) : (!riscv.freg<>) -> ()
 "test.op"(%radd3) : (!riscv.freg<>) -> ()
@@ -243,6 +247,8 @@ builtin.module {
 // CHECK-NEXT:   %0, %1 = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
 
 // CHECK-NEXT:   %radd0 = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+// CHECK-NEXT:   %radd0b = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
 // CHECK-NEXT:   %rmul1 = riscv.fmul.d %0, %1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-NEXT:   %radd1 = riscv.fadd.d %0, %rmul1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
@@ -258,6 +264,7 @@ builtin.module {
 // CHECK-NEXT:   "test.op"(%rmul4) : (!riscv.freg<>) -> ()
 
 // CHECK-NEXT:   "test.op"(%radd0) : (!riscv.freg<>) -> ()
+// CHECK-NEXT:   "test.op"(%radd0b) : (!riscv.freg<>) -> ()
 // CHECK-NEXT:   "test.op"(%radd1) : (!riscv.freg<>) -> ()
 // CHECK-NEXT:   "test.op"(%radd2) : (!riscv.freg<>) -> ()
 // CHECK-NEXT:   "test.op"(%radd3) : (!riscv.freg<>) -> ()
