@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p canonicalize %s | filecheck %s
+// RUN: xdsl-opt --split-input-file -p canonicalize %s | filecheck %s
 
 builtin.module {
   %i0, %i1, %i2 = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<>)
@@ -204,3 +204,36 @@ builtin.module {
 // CHECK-NEXT:   "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
 
 // CHECK-NEXT: }
+
+// -----
+
+%ff0, %ff1 = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
+
+// should fuse
+%ffres0 = riscv.fmul.d %ff0, %ff1 {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%ffres1 = riscv.fadd.d %ff0, %ffres0 {"fastmath" = #riscv.fastmath<fast>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+// should not fuse due to more than one uses
+%ffres2 = riscv.fmul.d %ff0, %ff1: (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%ffres3 = riscv.fadd.d %ff0, %ffres2 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+// use multiplication result here to stop the fusion
+"test.op"(%ffres2) : (!riscv.freg<>) -> ()
+
+// keep results around to avoid dead code deletion
+"test.op"(%ffres1, %ffres3) : (!riscv.freg<>, !riscv.freg<>) -> ()
+
+// CHECK:        builtin.module {
+
+// CHECK-NEXT:   %ff0, %ff1 = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
+
+// CHECK-NEXT:   %ffres1 = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+// CHECK-NEXT:   %ffres2 = riscv.fmul.d %ff0, %ff1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-NEXT:   %ffres3 = riscv.fadd.d %ff0, %ffres2 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+// CHECK-NEXT:  "test.op"(%ffres2) : (!riscv.freg<>) -> ()
+
+// CHECK-NEXT:  "test.op"(%ffres1, %ffres3) : (!riscv.freg<>, !riscv.freg<>) -> ()
+
+// CHECK-NEXT:  }
