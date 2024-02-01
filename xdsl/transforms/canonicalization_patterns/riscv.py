@@ -391,19 +391,22 @@ class FuseMultiplyAddD(RewritePattern):
         ):
             return
 
-        addend = potential_multiplicand1 = None
-        if isinstance(op.rs1.type, riscv.RISCVRegisterType):
+        addend = mulop = None
+        if isinstance(op.rs1.type, riscv.RISCVRegisterType) and isinstance(
+            op.rs2.owner, riscv.FMulDOp
+        ):
             addend = op.rs1
-            potential_multiplicand1 = op.rs2
-        elif isinstance(op.rs2.type, riscv.RISCVRegisterType):
+            mulop = op.rs2.owner
+        elif isinstance(op.rs2.type, riscv.RISCVRegisterType) and isinstance(
+            op.rs1.owner, riscv.FMulDOp
+        ):
             addend = op.rs2
-            potential_multiplicand1 = op.rs1
+            mulop = op.rs1.owner
         else:
             return
 
         if (
-            isinstance(mulop := potential_multiplicand1.owner, riscv.FMulDOp)
-            and len(mulop.rd.uses) == 1
+            len(mulop.rd.uses) == 1
             and (
                 mulop.fastmath is not None
                 and llvm.FastMathFlag.ALLOW_CONTRACT in mulop.fastmath.flags
