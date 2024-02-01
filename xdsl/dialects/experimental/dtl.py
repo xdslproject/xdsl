@@ -544,7 +544,7 @@ class DenseExecuteTensorOp(IRDLOperation):
     args = operand_def(ExecuteArgsType)
     outputs: ExecuteOutputOp = operand_def(ExecuteOutputType)
 
-    tensor_arg_indices: ArrayAttr[ArrayAttr[StringAttr]] = attr_def(ArrayAttr[ArrayAttr[StringAttr]])
+    tensor_arg_indices: ArrayAttr[ArrayAttr[dlt.DimensionAttr]] = attr_def(ArrayAttr[ArrayAttr[dlt.DimensionAttr]])
     tensor_arg_base_types: ArrayAttr[builtin.AnyFloat|builtin.IntegerType] = attr_def(ArrayAttr[builtin.AnyFloat|builtin.IntegerType])
     tensor_args: VarOperand = var_operand_def(dlt.PtrType)
 
