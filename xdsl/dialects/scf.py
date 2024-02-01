@@ -153,7 +153,9 @@ class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
     traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(ForRofOperation, If, ParallelOp, While)])
+        lambda: frozenset(
+            [IsTerminator(), HasParent(ForRofOperation, If, ParallelOp, While)]
+        )
     )
 
 
