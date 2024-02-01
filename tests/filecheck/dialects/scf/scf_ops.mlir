@@ -163,7 +163,7 @@ builtin.module {
     %ub = arith.constant 42 : index
     %s = arith.constant 3 : index
     %prod = arith.constant 1 : index
-    %res_1 = scf.rof %iv = %ub down to %lb step %s iter_args(%prod_iter = %prod) -> (index) {
+    %res_1 = scf.xdsl.rof %iv = %ub down to %lb step %s iter_args(%prod_iter = %prod) -> (index) {
       %prod_new = arith.muli %prod_iter, %iv : index
       scf.yield %prod_new : index
     }
@@ -175,7 +175,7 @@ builtin.module {
   // CHECK-NEXT:   %{{.*}} = arith.constant 42 : index
   // CHECK-NEXT:   %{{.*}} = arith.constant 3 : index
   // CHECK-NEXT:   %{{.*}} = arith.constant 1 : index
-  // CHECK-NEXT:   %{{.*}} = scf.rof %{{.*}} = %{{.*}} down to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (index) {
+  // CHECK-NEXT:   %{{.*}} = scf.xdsl.rof %{{.*}} = %{{.*}} down to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (index) {
   // CHECK-NEXT:     %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
   // CHECK-NEXT:     scf.yield %{{.*}} : index
   // CHECK-NEXT:   }

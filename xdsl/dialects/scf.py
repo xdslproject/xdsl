@@ -405,7 +405,7 @@ class RofOp(ForRofOperation):
     (for the normalized case that (ub - lb) % step == 0)
     """
 
-    name = "scf.rof"
+    name = "scf.xdsl.rof"
 
     def _print_bounds(self, printer: Printer):
         printer.print_ssa_value(self.ub)
