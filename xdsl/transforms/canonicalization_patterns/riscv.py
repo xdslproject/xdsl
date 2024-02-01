@@ -376,6 +376,13 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
             )
 
 
+def _has_fuseable_flags(op: riscv.RdRsRsFloatOperationWithFastMath) -> bool:
+    return (
+        op.fastmath is not None
+        and llvm.FastMathFlag.ALLOW_CONTRACT in op.fastmath.flags
+    )
+
+
 class FuseMultiplyAddD(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FAddDOp, rewriter: PatternRewriter) -> None:
@@ -385,42 +392,33 @@ class FuseMultiplyAddD(RewritePattern):
         `contract` fastmath flag set.
         """
 
-        if (
-            op.fastmath is None
-            or llvm.FastMathFlag.ALLOW_CONTRACT not in op.fastmath.flags
-        ):
+        if not _has_fuseable_flags(op):
             return
 
-        addend = mulop = None
-        if isinstance(op.rs1.type, riscv.RISCVRegisterType) and isinstance(
-            op.rs2.owner, riscv.FMulDOp
+        addend = mul = None
+        if (
+            isinstance(mul := op.rs2.owner, riscv.FMulDOp)
+            and _has_fuseable_flags(mul)
+            and len(mul.rd.uses) == 1
         ):
             addend = op.rs1
-            mulop = op.rs2.owner
-        elif isinstance(op.rs2.type, riscv.RISCVRegisterType) and isinstance(
-            op.rs1.owner, riscv.FMulDOp
+        elif (
+            isinstance(mul := op.rs1.owner, riscv.FMulDOp)
+            and _has_fuseable_flags(mul)
+            and len(mul.rd.uses) == 1
         ):
             addend = op.rs2
-            mulop = op.rs1.owner
         else:
             return
 
-        if (
-            len(mulop.rd.uses) == 1
-            and (
-                mulop.fastmath is not None
-                and llvm.FastMathFlag.ALLOW_CONTRACT in mulop.fastmath.flags
+        rewriter.replace_matched_op(
+            riscv.FMAddDOp(
+                mul.rs1,
+                mul.rs2,
+                addend,
+                comment=op.comment,
             )
-            and isinstance(mulop.rd.type, riscv.RISCVRegisterType)
-        ):
-            rewriter.replace_matched_op(
-                riscv.FMAddDOp(
-                    mulop.rs1,
-                    mulop.rs2,
-                    addend,
-                    comment=op.comment,
-                )
-            )
+        )
 
 
 class BitwiseAndByZero(RewritePattern):
