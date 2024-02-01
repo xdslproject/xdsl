@@ -132,7 +132,7 @@ def get_mlir_itoa():
 
         return absolute_value.results[0]
 
-    def print_digits(digits: SSAValue, absolute_value: SSAValue) -> scf.For:
+    def print_digits(digits: SSAValue, absolute_value: SSAValue) -> scf.ForOp:
         """
         Return an scf.for loop that prints all digits of the given value.
         In python code:
@@ -147,7 +147,7 @@ def get_mlir_itoa():
         loop_body = Block(arg_types=(IndexType(),))
 
         # Print all from most significant to least
-        for_loop = scf.For(zero_index, digits_index, one_index, (), loop_body)
+        for_loop = scf.ForOp(zero_index, digits_index, one_index, (), loop_body)
         with ImplicitBuilder(loop_body) as (index_var,):
             one = arith.Constant.from_int_and_width(1, i32)
             size_minus_one = arith.Subi(digits, one)

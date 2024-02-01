@@ -175,11 +175,11 @@ def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
 
 class IndexOpToLoopSSA(RewritePattern):
     @staticmethod
-    def discover_enclosing_loops(op: Operation) -> Iterable[scf.For | scf.ParallelOp]:
+    def discover_enclosing_loops(op: Operation) -> Iterable[scf.ForOp | scf.ParallelOp]:
         parent_op = op.parent_op()
         if parent_op is not None:
             yield from IndexOpToLoopSSA.discover_enclosing_loops(parent_op)
-        if isa(op, scf.For) or isa(op, scf.ParallelOp):
+        if isa(op, scf.ForOp) or isa(op, scf.ParallelOp):
             yield op
 
     @op_type_rewrite_pattern
@@ -191,7 +191,7 @@ class IndexOpToLoopSSA(RewritePattern):
         enclosing_loops = list(IndexOpToLoopSSA.discover_enclosing_loops(op))
         # The first block argument is the loop iterator
         loop_op = enclosing_loops[op.dim.value.data]
-        assert isa(loop_op, scf.For) or isa(loop_op, scf.ParallelOp)
+        assert isa(loop_op, scf.ForOp) or isa(loop_op, scf.ParallelOp)
         assert len(loop_op.body.blocks) == 1
         assert len(loop_op.body.block.args) >= 1
         replacement_ssa = loop_op.body.block.args[0]
@@ -322,7 +322,7 @@ class ApplyOpToParallel(RewritePattern):
                     steps=[tiled_steps[0]],
                     body=Region(Block([scf.Yield()], arg_types=[builtin.IndexType()])),
                 )
-                loops: list[scf.ParallelOp | scf.For] = [p]
+                loops: list[scf.ParallelOp | scf.ForOp] = [p]
                 current_loop = p
                 tiled_index = 0
 
@@ -342,7 +342,7 @@ class ApplyOpToParallel(RewritePattern):
                         tiled_index += 1
                     assert (lb := lowerBounds[i]) is not None
                     assert (st := tiled_steps[i]) is not None
-                    loop = scf.For(
+                    loop = scf.ForOp(
                         lb=lb,
                         ub=upperBounds[i],
                         step=st,

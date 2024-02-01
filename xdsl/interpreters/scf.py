@@ -21,9 +21,9 @@ class ScfFunctions(InterpreterFunctions):
         results = interpreter.run_ssacfg_region(region, ())
         return results
 
-    @impl(scf.For)
+    @impl(scf.ForOp)
     def run_for(
-        self, interpreter: Interpreter, op: scf.For, args: PythonValues
+        self, interpreter: Interpreter, op: scf.ForOp, args: PythonValues
     ) -> PythonValues:
         lb, ub, step, *loop_args = args
         loop_args = tuple(loop_args)

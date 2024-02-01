@@ -455,7 +455,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             assert isinstance(start, SSAValue)
             assert isinstance(end, SSAValue)
             assert isinstance(step, SSAValue)
-            op = scf.For(start, end, step, [], body)
+            op = scf.ForOp(start, end, step, [], body)
 
         self.inserter.set_insertion_point_from_block(curr_block)
         self.inserter.insert_op(op)

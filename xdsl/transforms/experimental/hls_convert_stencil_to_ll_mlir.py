@@ -111,7 +111,7 @@ def gen_duplicate_loop(
     ub = n
     step = Constant.from_int_and_width(1, IndexType())
 
-    for_duplicate = scf.For(lb, ub, step, [], for_body)
+    for_duplicate = scf.ForOp(lb, ub, step, [], for_body)
 
     return [ii, lb, ub, step, for_duplicate]
 
@@ -418,7 +418,7 @@ def transform_apply_into_loop(
     # The for loop for the y index receives its trip variable from the get_chunk_size function, since the chunking
     # is happening in the y axis. TODO: this is currently intended for the 3D case. It should be extended to the
     # 1D and 2D cases as well.
-    y_for_op: scf.For
+    y_for_op: scf.ForOp
 
     # Pipeline the loop
     ii = Constant.from_int_and_width(1, i32)
@@ -426,9 +426,9 @@ def transform_apply_into_loop(
 
     # current_region = for_body
     current_region = body
-    for_op_lst: list[scf.For] = []
+    for_op_lst: list[scf.ForOp] = []
     for i in range(1, dim + 1):
-        for_op = scf.For(
+        for_op = scf.ForOp(
             lb=lowerBounds[-i],
             ub=upperBounds[-i],
             step=one,
@@ -1190,7 +1190,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
                 yield_op = scf.Yield()
                 builder.insert(yield_op)
 
-            for_local_copies = scf.For(lb, ub, step, [], for_body)
+            for_local_copies = scf.ForOp(lb, ub, step, [], for_body)
             rewriter.insert_op_before_matched_op([lb, ub, step, ii, for_local_copies])
 
             self.inserted_already = True

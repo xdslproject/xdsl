@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -152,7 +154,7 @@ class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
     traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While)])
+        lambda: frozenset([IsTerminator(), HasParent(ForOp, If, ParallelOp, While)])
     )
 
 
@@ -195,9 +197,14 @@ class If(IRDLOperation):
         return If(cond, return_types, true_region, false_region)
 
 
-@irdl_op_definition
-class For(IRDLOperation):
-    name = "scf.for"
+class ForRofOperation(IRDLOperation, ABC):
+    """
+    Base class for both for and rof (reverse order for) operation.
+
+    These two operations share the same constraints, but differ in
+    semantics, where the for goes from lower bound to upper bound,
+    rof goes from upper bound to lower bound.
+    """
 
     T = Annotated[AnySignlessIntegerOrIndexType, ConstraintVar("T")]
 
@@ -229,17 +236,6 @@ class For(IRDLOperation):
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
-
-    @staticmethod
-    @deprecated("Use init constructor instead")
-    def get(
-        lb: SSAValue | Operation,
-        ub: SSAValue | Operation,
-        step: SSAValue | Operation,
-        iter_args: Sequence[SSAValue | Operation],
-        body: Region | Sequence[Operation] | Sequence[Block] | Block,
-    ) -> For:
-        return For(lb, ub, step, iter_args, body)
 
     def verify_(self):
         # body block verification
@@ -368,6 +364,64 @@ class For(IRDLOperation):
                 ensure_terminator(for_op, trait)
 
         return for_op
+
+    @abstractmethod
+    def _print_bounds(self, printer: Printer) -> None:
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        raise NotImplementedError()
+
+
+@irdl_op_definition
+class ForOp(ForRofOperation):
+    name = "scf.for"
+
+    def _print_bounds(self, printer: Printer):
+        printer.print_ssa_value(self.lb)
+        printer.print_string(" to ")
+        printer.print_ssa_value(self.ub)
+
+    @classmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        lb = parser.parse_operand()
+        parser.parse_characters("to")
+        ub = parser.parse_operand()
+        return lb, ub
+
+
+@irdl_op_definition
+class RofOp(ForRofOperation):
+    """
+    Reverse Order For loop.
+
+    MLIR's for loops have the constraint of always executing from lb to ub,
+    so in order to express loops that count down from ub to lb, the rof op
+    is needed.
+
+    Rof has the semantics of going from ub to lb, decrementing by step each time.
+    The implicit constraints are that lb < ub, and step > 0.
+
+    In order to convert a for to a rof, one needs to switch lb and ub.
+    (for the normalized case that (ub - lb) % step == 0)
+    """
+
+    name = "scf.rof"
+
+    def _print_bounds(self, printer: Printer):
+        printer.print_ssa_value(self.ub)
+        printer.print_string(" down to ")
+        printer.print_ssa_value(self.lb)
+
+    @classmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        ub = parser.parse_operand()
+        parser.parse_characters("down")
+        parser.parse_characters("to")
+        lb = parser.parse_operand()
+        return lb, ub
 
 
 @irdl_op_definition
@@ -646,7 +700,8 @@ Scf = Dialect(
     "scf",
     [
         If,
-        For,
+        ForOp,
+        RofOp,
         Yield,
         Condition,
         ParallelOp,

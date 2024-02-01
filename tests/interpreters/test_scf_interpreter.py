@@ -36,7 +36,7 @@ def sum_to_for_op():
             res = arith.Addi(i, acc)
             scf.Yield(res)
 
-        result = scf.For(lb, ub, step, (initial,), for_loop_region)
+        result = scf.ForOp(lb, ub, step, (initial,), for_loop_region)
         func.Return(result)
 
 
