@@ -773,8 +773,12 @@ class MaxPoolSingleOut(IRDLOperation):
             raise VerifyException("ceil value must be either zero or one")
 
         # kernel shape
-        if len(data_type.get_shape()) - 2 != len(self.kernel_shape):
-            raise VerifyException("input data and kernel shape rank mismatch ")
+        if (input_dims := len(data_type.get_shape()) - 2) != (
+            kernel_dims := len(self.kernel_shape)
+        ):
+            raise VerifyException(
+                f"input data and kernel shape rank mismatch: {input_dims} vs {kernel_dims}"
+            )
 
         # dilations
         for value in self.dilations:
@@ -782,9 +786,12 @@ class MaxPoolSingleOut(IRDLOperation):
             if val <= 0:
                 raise VerifyException("dilation value must be non zero positive")
 
-        if len(self.dilations) != len(self.kernel_shape):
+        if (dilations_dims := len(self.dilations)) != (
+            kernel_dims := len(self.kernel_shape)
+        ):
             raise VerifyException(
-                "dilations rank and kernel shape rank are not the same"
+                f"dilations rank ({dilations_dims}) and kernel shape rank ({kernel_dims}) are not the "
+                f"same "
             )
 
         # storage order
@@ -798,8 +805,13 @@ class MaxPoolSingleOut(IRDLOperation):
             if val <= 0:
                 raise VerifyException("stride value must be non zero positive")
 
-        if len(self.strides) != len(self.kernel_shape):
-            raise VerifyException("strides rank and kernel shape rank are not the same")
+        if (strides_dims := len(self.strides)) != (
+            kernel_dims := len(self.kernel_shape)
+        ):
+            raise VerifyException(
+                f"strides rank ({strides_dims}) and kernel shape rank ({kernel_dims}) are not the "
+                f"same "
+            )
 
         # pads
         for value in self.pads:
@@ -807,8 +819,10 @@ class MaxPoolSingleOut(IRDLOperation):
             if val < 0:
                 raise VerifyException("pads value must be nonnegative")
 
-        if len(self.pads) != 2 * len(self.kernel_shape):
-            raise VerifyException("pads rank is not twice the kernel shape rank")
+        if (pads_dims := len(self.pads)) != (kernel_dims := 2 * len(self.kernel_shape)):
+            raise VerifyException(
+                f"pads rank ({pads_dims}) is not twice the kernel shape rank ({kernel_dims})"
+            )
 
 
 ONNX = Dialect(
