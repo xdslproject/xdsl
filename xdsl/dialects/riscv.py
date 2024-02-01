@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, ClassVar, Generic, TypeAlias, TypeVar
+from typing import IO, Annotated, ClassVar, Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
@@ -49,6 +49,7 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConstantLike,
     HasCanonicalisationPatternsTrait,
     IsTerminator,
     NoTerminator,
@@ -328,34 +329,12 @@ class Registers(ABC):
     FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
 
 
-@irdl_attr_definition
-class SImm12Attr(IntegerAttr[IntegerType]):
-    """
-    A 12-bit immediate signed value.
-    """
-
-    name = "riscv.simm12"
-
-    def __init__(self, value: int) -> None:
-        super().__init__(value, IntegerType(12, Signedness.SIGNED))
-
-    def verify(self) -> None:
-        """
-        All I- and S-type instructions with 12-bit signed immediates --- e.g., addi but not slli ---
-        accept their immediate argument as an integer in the interval [-2048, 2047]. Integers in the subinterval [-2048, -1]
-        can also be passed by their (unsigned) associates in the interval [0xfffff800, 0xffffffff] on RV32I,
-        and in [0xfffffffffffff800, 0xffffffffffffffff] on both RV32I and RV64I.
-
-        https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
-        """
-
-        if 0xFFFFFFFFFFFFF800 <= self.value.data <= 0xFFFFFFFFFFFFFFFF:
-            return
-
-        if 0xFFFFF800 <= self.value.data <= 0xFFFFFFFF:
-            return
-
-        super().verify()
+ui5 = IntegerType(5, Signedness.UNSIGNED)
+si12 = IntegerType(12, Signedness.SIGNED)
+si20 = IntegerType(20, Signedness.SIGNED)
+UImm5Attr = IntegerAttr[Annotated[IntegerType, ui5]]
+SImm12Attr = IntegerAttr[Annotated[IntegerType, si12]]
+SImm20Attr = IntegerAttr[Annotated[IntegerType, si20]]
 
 
 @irdl_attr_definition
@@ -727,17 +706,17 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    immediate = attr_def(SImm20Attr | LabelAttr)
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm20Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, si20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(rd, str):
@@ -791,20 +770,21 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called I-Type in the RISC-V specification.
     """
 
-    rd: OpResult = result_def(IntRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    # https://github.com/xdslproject/xdsl/issues/2056
+    immediate = attr_def(IntegerAttr[IntegerType] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm12Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -857,13 +837,13 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | UImm5Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(5, Signedness.UNSIGNED))
+            immediate = IntegerAttr(immediate, ui5)
 
         super().__init__(rs1, immediate, rd=rd, comment=comment)
 
@@ -895,18 +875,18 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    immediate = attr_def(SImm12Attr | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm12Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(12, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -985,18 +965,18 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rs1: Operand = operand_def(IntRegisterType)
     rs2: Operand = operand_def(IntRegisterType)
-    offset: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    offset = attr_def(SImm12Attr | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        offset: int | AnyIntegerAttr | LabelAttr,
+        offset: int | SImm12Attr | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(offset, int):
-            offset = IntegerAttr(offset, 12)
+            offset = IntegerAttr(offset, si12)
         if isinstance(offset, str):
             offset = LabelAttr(offset)
         if isinstance(comment, str):
@@ -1016,7 +996,7 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = _parse_immediate_value(parser, IntegerType(12))
+        attributes["offset"] = _parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1033,20 +1013,20 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     This is called S-Type in the RISC-V specification.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(IntRegisterType)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    rs1 = operand_def(IntRegisterType)
+    rs2 = operand_def(IntRegisterType)
+    immediate = attr_def(SImm12Attr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm12Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -1618,9 +1598,12 @@ class AuipcOp(RdImmIntegerOperation):
 class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantMv
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ImmediateMoveToCopy,
+            RemoveRedundantMv,
+        )
 
-        return (RemoveRedundantMv(),)
+        return (RemoveRedundantMv(), ImmediateMoveToCopy())
 
 
 @irdl_op_definition
@@ -1896,7 +1879,7 @@ class JOp(RdImmJumpOperation):
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm20Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -2452,7 +2435,7 @@ class LiOp(RdImmIntegerOperation):
 
     name = "riscv.li"
 
-    traits = frozenset((Pure(),))
+    traits = frozenset((Pure(), ConstantLike()))
 
     def __init__(
         self,
@@ -2912,20 +2895,20 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     (one integer and one floating-point) and an immediate.
     """
 
-    rs1: Operand = operand_def(IntRegisterType)
-    rs2: Operand = operand_def(FloatRegisterType)
-    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    rs1 = operand_def(IntRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+    immediate = attr_def(SImm12Attr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm12Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -2963,20 +2946,20 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     one immediate operand.
     """
 
-    rd: OpResult = result_def(FloatRegisterType)
-    rs1: Operand = operand_def(IntRegisterType)
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    rd = result_def(FloatRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    immediate = attr_def(SImm12Attr | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | SImm12Attr | str | LabelAttr,
         *,
         rd: FloatRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = SImm12Attr(immediate)
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 

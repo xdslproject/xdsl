@@ -354,12 +354,12 @@
 // CHECK-GENERIC-NEXT:     "riscv.jalr"(%0) {"immediate" = #riscv.label<"label">} : (!riscv.reg<>) -> ()
 // CHECK-GENERIC-NEXT:     "riscv.ret"() : () -> ()
 // CHECK-GENERIC-NEXT:   ^0(%2 : !riscv.reg<>, %3 : !riscv.reg<>):
-// CHECK-GENERIC-NEXT:     "riscv.beq"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.bne"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.blt"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.bge"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.bltu"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.bgeu"(%0, %1) {"offset" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv.beq"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv.bne"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv.blt"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv.bge"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv.bltu"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv.bgeu"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-GENERIC-NEXT:     %lb = "riscv.lb"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %lbu = "riscv.lbu"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %lh = "riscv.lh"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>

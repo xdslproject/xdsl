@@ -130,18 +130,7 @@ def test_immediate_i_inst():
         riscv.AddiOp(a1, -(1 << 11) - 2, rd=riscv.Registers.A0)
 
     riscv.AddiOp(a1, -(1 << 11), rd=riscv.Registers.A0)
-
     riscv.AddiOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
-
-    """
-    Special handling for signed immediates for I- and S-Type instructions
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
-    """
-
-    riscv.AddiOp(a1, 0xFFFFFFFFFFFFF800, rd=riscv.Registers.A0)
-    riscv.AddiOp(a1, 0xFFFFFFFFFFFFFFFF, rd=riscv.Registers.A0)
-    riscv.AddiOp(a1, 0xFFFFF800, rd=riscv.Registers.A0)
-    riscv.AddiOp(a1, 0xFFFFFFFF, rd=riscv.Registers.A0)
 
 
 def test_immediate_s_inst():
@@ -157,16 +146,6 @@ def test_immediate_s_inst():
 
     riscv.SwOp(a1, a2, -(1 << 11))
     riscv.SwOp(a1, a2, (1 << 11) - 1)
-
-    """
-    Special handling for signed immediates for I- and S-Type instructions
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
-    """
-
-    riscv.SwOp(a1, a2, 0xFFFFFFFFFFFFF800)
-    riscv.SwOp(a1, a2, 0xFFFFFFFFFFFFFFFF)
-    riscv.SwOp(a1, a2, 0xFFFFF800)
-    riscv.SwOp(a1, a2, 0xFFFFFFFF)
 
 
 def test_immediate_u_j_inst():
