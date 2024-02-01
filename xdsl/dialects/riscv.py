@@ -2361,6 +2361,16 @@ class RemuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
 # https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
 
+class LiOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadImmediate0,
+        )
+
+        return (LoadImmediate0(),)
+
+
 @irdl_op_definition
 class LiOp(RdImmIntegerOperation):
     """
@@ -2373,7 +2383,7 @@ class LiOp(RdImmIntegerOperation):
 
     name = "riscv.li"
 
-    traits = frozenset((Pure(), ConstantLike()))
+    traits = frozenset((Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()))
 
     def __init__(
         self,
@@ -2394,6 +2404,16 @@ class LiOp(RdImmIntegerOperation):
             parser, IntegerType(32, Signedness.SIGNED)
         )
         return attributes
+
+    def assembly_line(self) -> str | None:
+        # Loading 0 to zero register is a no-op
+        if (
+            isinstance(self.immediate, IntegerAttr)
+            and self.immediate.value.data == 0
+            and self.rd.type == Registers.ZERO
+        ):
+            return None
+        return super().assembly_line()
 
 
 @irdl_op_definition
@@ -2735,9 +2755,21 @@ class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
         return None
 
 
+class GetRegisterOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            GetZeroRegister,
+        )
+
+        return (GetZeroRegister(),)
+
+
 @irdl_op_definition
 class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
     name = "riscv.get_register"
+
+    traits = frozenset((GetRegisterOpHasCanonicalizationPatternTrait(),))
 
 
 @irdl_op_definition

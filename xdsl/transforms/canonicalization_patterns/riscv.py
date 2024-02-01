@@ -424,3 +424,39 @@ class ScfgwOpUsingImmediate(RewritePattern):
                     comment=op.comment,
                 ),
             )
+
+
+class GetZeroRegister(RewritePattern):
+    """
+    The canonical form of an operation that creates a zero register is `li 0`, so that the
+    downstream patterns can assume that any constant is created by `li`, and don't need
+    more sophisticated checks.
+    To revert to getting the zero register, use `riscv-get-zero-register`
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: riscv.GetRegisterOp, rewriter: PatternRewriter
+    ) -> None:
+        if (
+            isinstance(op.res.type, riscv.IntRegisterType)
+            and op.res.type == riscv.Registers.ZERO
+        ):
+            rewriter.replace_matched_op(riscv.LiOp(0, rd=op.res.type))
+
+
+class LoadImmediate0(RewritePattern):
+    """
+    The canonical form of an operation that loads a 0 value is `li zero, 0`, so that the
+    downstream patterns can assume that any constant is created by `li`, and don't need
+    more sophisticated checks.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.LiOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.immediate, IntegerAttr)
+            and op.immediate.value.data == 0
+            and op.rd.type == riscv.IntRegisterType.unallocated()
+        ):
+            rewriter.replace_matched_op(riscv.LiOp(0, rd=riscv.Registers.ZERO))
