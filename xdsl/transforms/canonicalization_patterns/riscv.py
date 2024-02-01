@@ -379,6 +379,12 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
 class FuseMultiplyAddD(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FAddDOp, rewriter: PatternRewriter) -> None:
+        """
+        Converts `c = a * b` and `d = e + c` to `d = e + a * b`.
+        `c` should not be used anywhere else and both operations must have the
+        `contract` fastmath flag set.
+        """
+
         if (
             op.fastmath is None
             or llvm.FastMathFlag.ALLOW_CONTRACT not in op.fastmath.flags
