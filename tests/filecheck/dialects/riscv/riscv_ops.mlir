@@ -286,7 +286,16 @@
     %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.vfmul.s %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
-    // RV32F: 9 “D” Standard Extension for Single-Precision Floating-Point, Version 2.0
+    // RV32F: 9 “D” Standard Extension for Double-Precision Floating-Point, Version 2.0
+
+    %fadd_d = riscv.fadd.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fadd.d %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %fsub_d = riscv.fsub.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fsub.d %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %fmul_d = riscv.fmul.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fmul.d %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %fdiv_d = riscv.fdiv.d %f0, %f1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    // CHECK-NEXT: %{{.*}} = riscv.fdiv.d %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
     %fmadd_d = riscv.fmadd.d %f0, %f1, %f2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     // CHECK-NEXT: %{{.*}} = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
@@ -400,16 +409,16 @@
 // CHECK-GENERIC-NEXT:     %fmsub_s = "riscv.fmsub.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fnmsub_s = "riscv.fnmsub.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fnmadd_s = "riscv.fnmadd.s"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-// CHECK-GENERIC-NEXT:     %fadd_s = "riscv.fadd.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-// CHECK-GENERIC-NEXT:     %fsub_s = "riscv.fsub.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-// CHECK-GENERIC-NEXT:     %fmul_s = "riscv.fmul.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-// CHECK-GENERIC-NEXT:     %fdiv_s = "riscv.fdiv.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fadd_s = "riscv.fadd.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fsub_s = "riscv.fsub.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmul_s = "riscv.fmul.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fdiv_s = "riscv.fdiv.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fsqrt_s = "riscv.fsqrt.s"(%f0) : (!riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fsgnj_s = "riscv.fsgnj.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fsgnjn_s = "riscv.fsgnjn.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fsgnjx_s = "riscv.fsgnjx.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-// CHECK-GENERIC-NEXT:     %fmin_s = "riscv.fmin.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-// CHECK-GENERIC-NEXT:     %fmax_s = "riscv.fmax.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmin_s = "riscv.fmin.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmax_s = "riscv.fmax.s"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fcvt_w_s = "riscv.fcvt.w.s"(%f0) : (!riscv.freg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %fcvt_wu_s = "riscv.fcvt.wu.s"(%f0) : (!riscv.freg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %fmv_x_w = "riscv.fmv.x.w"(%f0) : (!riscv.freg<>) -> !riscv.reg<>
@@ -427,10 +436,14 @@
 // CHECK-GENERIC-NEXT:     %fmv_d = "riscv.fmv.d"(%f0) : (!riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %vfadd_s = "riscv.vfadd.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %vfmul_s = "riscv.vfmul.s"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %{{.*}} = "riscv.fadd.d"(%{{.*}}, %{{.*}}) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %{{.*}} = "riscv.fsub.d"(%{{.*}}, %{{.*}}) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %{{.*}} = "riscv.fmul.d"(%{{.*}}, %{{.*}}) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %{{.*}} = "riscv.fdiv.d"(%{{.*}}, %{{.*}}) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fmadd_d = "riscv.fmadd.d"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     %fmsub_d = "riscv.fmsub.d"(%f0, %f1, %f2) : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-// CHECK-GENERIC-NEXT:     %fmin_d = "riscv.fmin.d"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-// CHECK-GENERIC-NEXT:     %fmax_d = "riscv.fmax.d"(%f0, %f1) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmin_d = "riscv.fmin.d"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+// CHECK-GENERIC-NEXT:     %fmax_d = "riscv.fmax.d"(%f0, %f1) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT: %{{.*}} = "riscv.fcvt.d.w"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT: %{{.*}} = "riscv.fcvt.d.wu"(%{{.*}}) : (!riscv.reg<>) -> !riscv.freg<>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()

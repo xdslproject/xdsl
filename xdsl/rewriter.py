@@ -109,6 +109,8 @@ class Rewriter:
         Move the block operations before another operation.
         The block should not be a parent of the operation.
         """
+        # MLIR equivalent:
+        # https://github.com/llvm/llvm-project/blob/96a3d05ed923d2abd51acb52984b83b9e8044924/mlir/lib/IR/PatternMatch.cpp#L290
         assert len(arg_values) == len(source.args), (
             f"Expected {len(source.args)} replacement argument values, got "
             f"{len(arg_values)}"
@@ -122,6 +124,11 @@ class Rewriter:
 
         if (dest := op.parent) is None:
             raise Exception("Cannot inline a block before a toplevel operation")
+
+        # TODO: verify that the successors will make sense after inlining
+        # We currently cannot perform this check, just like the TODO above, due to lack
+        # of infrastructure in xDSL
+        # https://github.com/xdslproject/xdsl/issues/2066
 
         # if dest.last_op != op:
         #       The source block will be inserted in the middle of the dest block, so the
