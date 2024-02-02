@@ -54,7 +54,7 @@ jobs:
 
           cd pyodide
           git fetch --all
-          git checkout 0.23.4
+          git checkout 0.24.1
           python -m pip install -U -r requirements.txt
           sudo apt update && sudo apt install f2c
 
