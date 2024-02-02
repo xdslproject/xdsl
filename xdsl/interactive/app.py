@@ -159,10 +159,12 @@ class InputApp(App[None]):
     """
 
     pre_loaded_input_text: str
+    current_file_path: str
     pre_loaded_pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
 
     def __init__(
         self,
+        file_path: str | None = None,
         input_text: str | None = None,
         pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
     ):
@@ -176,6 +178,11 @@ class InputApp(App[None]):
         self.diff_operation_count_datatable = DataTable(
             id="diff_operation_count_datatable"
         )
+
+        if file_path is None:
+            self.current_file_path = ""
+        else:
+            self.current_file_path = file_path
 
         if input_text is None:
             self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
@@ -413,14 +420,18 @@ class InputApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        query = ""
-        if self.pass_pipeline != ():
+        if self.current_file_path == "":
+            query = "-p "
+        else:
+            query = self.current_file_path + " -p "
+
+        if self.pass_pipeline:
             query += "'"
             query += ",".join(
                 str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
             )
             query += "'"
-        return f"xdsl-opt -p {query}"
+        return f"xdsl-opt {query}"
 
     def update_input_operation_count_tuple(self, input_module: ModuleOp) -> None:
         """
@@ -554,6 +565,8 @@ class InputApp(App[None]):
                     with open(file_path) as file:
                         file_contents = file.read()
                         self.input_text_area.load_text(file_contents)
+                    self.current_file_path = file_path
+                    self.selected_query_label.update(self.get_query_string())
                 else:
                     self.input_text_area.load_text(
                         f"The file '{file_path}' does not exist."
@@ -593,7 +606,7 @@ def main():
     pass_list = get_all_passes()
     pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
 
-    return InputApp(file_contents, pipeline).run()
+    return InputApp(file_path, file_contents, pipeline).run()
 
 
 if __name__ == "__main__":
