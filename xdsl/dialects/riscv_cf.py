@@ -391,7 +391,7 @@ class JOp(IRDLOperation, RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments: VarOperand = var_operand_def(IntRegisterType)
+    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     successor = successor_def()
 
