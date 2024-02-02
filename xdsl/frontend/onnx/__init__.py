@@ -1,4 +1,4 @@
-from typing import Any
+from onnx import GraphProto, NodeProto, TensorShapeProto, TypeProto, ValueInfoProto
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, onnx
@@ -28,22 +28,22 @@ def get_elem_type(code: int) -> Attribute:
         raise ValueError(f"Unknown elem_type: {code}")
 
 
-def get_shape(s: Any) -> tuple[int, ...]:
+def get_shape(s: TensorShapeProto) -> tuple[int, ...]:
     return tuple(dim.dim_value for dim in s.dim)
 
 
-def get_tensor_type(tensor: Any) -> TensorType[Any]:
+def get_tensor_type(tensor: TypeProto.Tensor) -> TensorType[Attribute]:
     elem_type = get_elem_type(tensor.elem_type)
     shape = get_shape(tensor.shape)
     return TensorType(elem_type, shape)
 
 
-def _get_type(type: Any) -> Attribute:
+def _get_type(type: TypeProto) -> Attribute:
     tt = get_tensor_type(type.tensor_type)
     return tt
 
 
-def _visit_value_info(i: Any, ctx: Ctx) -> Attribute:
+def _visit_value_info(i: ValueInfoProto, ctx: Ctx) -> Attribute:
     name = i.name
     t = _get_type(i.type)
     ctx.type_by_name[name] = t
@@ -55,7 +55,7 @@ OP_BY_OP_TYPE: dict[str, type[IRDLOperation]] = {
 }
 
 
-def visit_node(node: Any, ctx: Ctx) -> None:
+def visit_node(node: NodeProto, ctx: Ctx) -> None:
     if node.op_type not in OP_BY_OP_TYPE:
         raise ValueError(f"Unknown ONNX op name {node.op_type}")
 
@@ -70,7 +70,7 @@ def visit_node(node: Any, ctx: Ctx) -> None:
         ctx.value_by_name[output_name] = result
 
 
-def visit_graph(g: Any, ctx: Ctx) -> None:
+def visit_graph(g: GraphProto, ctx: Ctx) -> None:
     name = g.name
 
     input_types = tuple(_visit_value_info(input, ctx) for input in g.input)
@@ -89,7 +89,7 @@ def visit_graph(g: Any, ctx: Ctx) -> None:
         func.Return(*returned_values)
 
 
-def build_module(graph: Any) -> ModuleOp:
+def build_module(graph: GraphProto) -> ModuleOp:
     module = ModuleOp([])
 
     ctx = Ctx()
