@@ -74,6 +74,7 @@ indentNumSpaces = 2
 class Printer:
     stream: Any | None = field(default=None)
     print_generic_format: bool = field(default=False)
+    print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
@@ -747,9 +748,19 @@ class Printer:
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
         self.print_successors(op.successors)
-        self._print_op_properties(op.properties)
+        if not self.print_properties_as_attributes:
+            self._print_op_properties(op.properties)
         self.print_regions(op.regions)
-        self.print_op_attributes(op.attributes)
+        if self.print_properties_as_attributes:
+            clashing_names = op.properties.keys() & op.attributes.keys()
+            if clashing_names:
+                raise ValueError(
+                    f"Properties {', '.join(clashing_names)} would overwrite the attributes of the same names."
+                )
+
+            self.print_op_attributes(op.attributes | op.properties)
+        else:
+            self.print_op_attributes(op.attributes)
         self.print(" : ")
         self.print_operation_type(op)
 
