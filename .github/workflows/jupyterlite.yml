@@ -62,7 +62,7 @@ jobs:
 
           ../xdsl/.github/workflows/update_xdsl_pyodide_build.py packages/xdsl/meta.yaml ../xdsl
 
-          PYODIDE_PACKAGES="xdsl,typing_extensions" make
+          PYODIDE_PACKAGES="xdsl,typing-extensions" make
 
       - name: Build the JupyterLite site
         run: |
