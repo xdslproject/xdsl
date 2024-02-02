@@ -114,7 +114,7 @@ class LowerAffineFor(RewritePattern):
         step_op = arith.Constant(op.step)
         rewriter.insert_op_before_matched_op(step_op)
         rewriter.replace_matched_op(
-            scf.For(
+            scf.ForOp(
                 lb_val,
                 ub_val,
                 step_op.result,

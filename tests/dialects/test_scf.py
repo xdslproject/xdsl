@@ -10,7 +10,7 @@ from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import IndexType, ModuleOp, i32, i64
 from xdsl.dialects.scf import (
-    For,
+    ForOp,
     If,
     ParallelOp,
     ReduceOp,
@@ -35,7 +35,7 @@ def test_for_with_loop_carried_verify():
     def body(_: tuple[BlockArgument, ...]) -> None:
         Yield(carried)
 
-    for_op = For(lower, upper, step, [carried], body)
+    for_op = ForOp(lower, upper, step, [carried], body)
 
     assert for_op.lb is lower.result
     assert for_op.ub is upper.result
@@ -68,7 +68,7 @@ def test_for_without_loop_carried_verify():
     def body(_: tuple[BlockArgument, ...]) -> None:
         Yield()
 
-    for_op = For(lower, upper, step, [], body)
+    for_op = ForOp(lower, upper, step, [], body)
 
     assert for_op.lb is lower.result
     assert for_op.ub is upper.result

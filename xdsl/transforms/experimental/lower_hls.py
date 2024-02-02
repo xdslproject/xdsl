@@ -25,7 +25,7 @@ from xdsl.dialects.llvm import (
     LoadOp,
     StoreOp,
 )
-from xdsl.dialects.scf import For, ParallelOp, Yield
+from xdsl.dialects.scf import ForOp, ParallelOp, Yield
 from xdsl.ir import Block, MLContext, Operation, OpResult, Region, Use
 from xdsl.irdl import VarOperand, VarOpResult
 from xdsl.passes import ModulePass
@@ -350,9 +350,9 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
             for_region.block.erase_arg(for_region.block.args[i])
 
         if res != []:
-            for_op = For.get(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
+            for_op = ForOp(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
         else:
-            for_op = For.get(lb[-1], ub[-1], step[-1], [], for_region)
+            for_op = ForOp(lb[-1], ub[-1], step[-1], [], for_region)
 
         for i in range(len(lb) - 2, -1, -1):
             for_region = Region(Block([for_op]))
@@ -370,7 +370,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
             )
             yieldop = Yield()
             for_region.block.add_op(yieldop)
-            for_op = For.get(lb[i], ub[i], step[i], [], for_region)
+            for_op = ForOp(lb[i], ub[i], step[i], [], for_region)
 
         for_region.block.insert_op_before(
             hls_pipeline_op, cast(Operation, for_region.block.first_op)
