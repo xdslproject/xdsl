@@ -62,8 +62,8 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
 
-    then_arguments = var_operand_def(IntRegisterType)
-    else_arguments = var_operand_def(IntRegisterType)
+    then_arguments = var_operand_def(RISCVRegisterType)
+    else_arguments = var_operand_def(RISCVRegisterType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
