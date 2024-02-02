@@ -748,7 +748,7 @@ def test_print_properties_as_attributes():
     """Test that properties can be printed as attributes."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"extra_attr", "sym_name" = "this should be overriden by the property"} : () -> ()
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"extra_attr"} : () -> ()
     """
 
     retro_prog = """
@@ -763,3 +763,27 @@ def test_print_properties_as_attributes():
     parsed = parser.parse_op()
 
     assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+
+
+def test_print_properties_as_attributes_safeguard():
+    """Test that properties can be printed as attributes."""
+
+    prog = """
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"extra_attr", "sym_name" = "this should be overriden by the property"} : () -> ()
+    """
+
+    retro_prog = """
+"func.func"() {"extra_attr", "sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"} : () -> ()
+    """
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+    with pytest.raises(
+        ValueError,
+        match="Properties sym_name would overwrite the attributes of the same names.",
+    ):
+        assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
