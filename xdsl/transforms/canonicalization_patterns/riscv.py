@@ -1,6 +1,6 @@
 from typing import cast
 
-from xdsl.dialects import riscv, riscv_snitch
+from xdsl.dialects import llvm, riscv, riscv_snitch
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
@@ -374,6 +374,53 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
                     ),
                 ]
             )
+
+
+def _has_contract_flag(op: riscv.RdRsRsFloatOperationWithFastMath) -> bool:
+    return (
+        op.fastmath is not None
+        and llvm.FastMathFlag.ALLOW_CONTRACT in op.fastmath.flags
+    )
+
+
+class FuseMultiplyAddD(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.FAddDOp, rewriter: PatternRewriter) -> None:
+        """
+        Converts `c = a * b` and `d = e + c` to `d = e + a * b`.
+        `c` should not be used anywhere else and both operations must have the
+        `contract` fastmath flag set.
+        """
+
+        if not _has_contract_flag(op):
+            return
+
+        addend = mul = None
+        if (
+            isinstance(mul := op.rs2.owner, riscv.FMulDOp)
+            and _has_contract_flag(mul)
+            and len(mul.rd.uses) == 1
+        ):
+            addend = op.rs1
+        elif (
+            isinstance(mul := op.rs1.owner, riscv.FMulDOp)
+            and _has_contract_flag(mul)
+            and len(mul.rd.uses) == 1
+        ):
+            addend = op.rs2
+        else:
+            return
+
+        rd = cast(riscv.FloatRegisterType, op.rd.type)
+        rewriter.replace_matched_op(
+            riscv.FMAddDOp(
+                mul.rs1,
+                mul.rs2,
+                addend,
+                rd=rd,
+                comment=op.comment,
+            )
+        )
 
 
 class BitwiseAndByZero(RewritePattern):
