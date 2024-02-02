@@ -213,9 +213,18 @@ builtin.module {
 %rmul0 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 %radd0 = riscv.fadd.d %0, %rmul0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
+// same as above, but swapped addends
 %rmul0b = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 %radd0b = riscv.fadd.d %rmul0b, %0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
+// same as above but allocated
+%rmul0_a = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd0_a = riscv.fadd.d %0, %rmul0_a fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<ft0>
+
+%rmul0b_a = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd0b_a = riscv.fadd.d %rmul0b_a, %0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<ft1>
+
+// both addends are results of multiplcation, if all else is the same we fuse with second operand
 %rmul0c0 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 %rmul0c1 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 %radd0c = riscv.fadd.d %rmul0c0, %rmul0c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
@@ -255,6 +264,8 @@ builtin.module {
 // keep results around to avoid dead code deletion
 "test.op"(%radd0) : (!riscv.freg<>) -> ()
 "test.op"(%radd0b) : (!riscv.freg<>) -> ()
+"test.op"(%radd0_a) : (!riscv.freg<ft0>) -> ()
+"test.op"(%radd0b_a) : (!riscv.freg<ft1>) -> ()
 "test.op"(%radd0c) : (!riscv.freg<>) -> ()
 "test.op"(%radd1) : (!riscv.freg<>) -> ()
 "test.op"(%radd1b) : (!riscv.freg<>) -> ()
@@ -272,6 +283,10 @@ builtin.module {
 // CHECK-NEXT:   %radd0 = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
 // CHECK-NEXT:   %radd0b = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+// CHECK-NEXT:   %radd0_a = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<ft0>
+
+// CHECK-NEXT:   %radd0b_a = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<ft1>
 
 // CHECK-NEXT:   %rmul0c0 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 // CHECK-NEXT:   %radd0c = riscv.fmadd.d %{{.*}}, %{{.*}}, %{{.*}} : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
@@ -305,6 +320,8 @@ builtin.module {
 
 // CHECK-NEXT:   "test.op"(%radd0) : (!riscv.freg<>) -> ()
 // CHECK-NEXT:   "test.op"(%radd0b) : (!riscv.freg<>) -> ()
+// CHECK-NEXT:   "test.op"(%radd0_a) : (!riscv.freg<ft0>) -> ()
+// CHECK-NEXT:   "test.op"(%radd0b_a) : (!riscv.freg<ft1>) -> ()
 // CHECK-NEXT:   "test.op"(%radd0c) : (!riscv.freg<>) -> ()
 // CHECK-NEXT:   "test.op"(%radd1) : (!riscv.freg<>) -> ()
 // CHECK-NEXT:   "test.op"(%radd1b) : (!riscv.freg<>) -> ()

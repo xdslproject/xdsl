@@ -411,11 +411,13 @@ class FuseMultiplyAddD(RewritePattern):
         else:
             return
 
+        rd = cast(riscv.FloatRegisterType, op.rd.type)
         rewriter.replace_matched_op(
             riscv.FMAddDOp(
                 mul.rs1,
                 mul.rs2,
                 addend,
+                rd=rd,
                 comment=op.comment,
             )
         )
