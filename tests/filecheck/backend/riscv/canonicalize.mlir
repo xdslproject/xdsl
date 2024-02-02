@@ -261,7 +261,7 @@ builtin.module {
 "test.op"(%rmul4) : (!riscv.freg<>) -> ()
 "test.op"(%rmul4b) : (!riscv.freg<>) -> ()
 
-// keep results around to avoid dead code deletion
+// use results here to avoid dead code elimination up the SSA chain
 "test.op"(%radd0) : (!riscv.freg<>) -> ()
 "test.op"(%radd0b) : (!riscv.freg<>) -> ()
 "test.op"(%radd0_a) : (!riscv.freg<ft0>) -> ()

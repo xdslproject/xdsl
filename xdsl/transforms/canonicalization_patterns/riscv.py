@@ -376,7 +376,7 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
             )
 
 
-def _has_fuseable_flags(op: riscv.RdRsRsFloatOperationWithFastMath) -> bool:
+def _has_contract_flags(op: riscv.RdRsRsFloatOperationWithFastMath) -> bool:
     return (
         op.fastmath is not None
         and llvm.FastMathFlag.ALLOW_CONTRACT in op.fastmath.flags
@@ -392,19 +392,19 @@ class FuseMultiplyAddD(RewritePattern):
         `contract` fastmath flag set.
         """
 
-        if not _has_fuseable_flags(op):
+        if not _has_contract_flags(op):
             return
 
         addend = mul = None
         if (
             isinstance(mul := op.rs2.owner, riscv.FMulDOp)
-            and _has_fuseable_flags(mul)
+            and _has_contract_flags(mul)
             and len(mul.rd.uses) == 1
         ):
             addend = op.rs1
         elif (
             isinstance(mul := op.rs1.owner, riscv.FMulDOp)
-            and _has_fuseable_flags(mul)
+            and _has_contract_flags(mul)
             and len(mul.rd.uses) == 1
         ):
             addend = op.rs2
