@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     NoneType,
     SSAValue,
     StringAttr,
+    SymbolRefAttr,
     TensorType,
 )
 from xdsl.ir import (
@@ -825,6 +826,24 @@ class MaxPoolSingleOut(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class EntryPoint(IRDLOperation):
+    """
+    Indicate ONNX entry point
+    The "onnx.EntryPoint" function indicates the main entry point of ONNX model.
+    """
+
+    name = "onnx.EntryPoint"
+    func = attr_def(SymbolRefAttr)
+
+    def __init__(self, func: Attribute):
+        super().__init__(
+            attributes={
+                "func": func,
+            },
+        )
+
+
 ONNX = Dialect(
     "onnx",
     [
@@ -833,6 +852,7 @@ ONNX = Dialect(
         Constant,
         Conv,
         Div,
+        EntryPoint,
         Gemm,
         MaxPoolSingleOut,
         Mul,
