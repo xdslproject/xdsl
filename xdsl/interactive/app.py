@@ -159,7 +159,7 @@ class InputApp(App[None]):
     """
 
     pre_loaded_input_text: str
-    pre_loaded_file_path: str
+    current_file_path: str
     pre_loaded_pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
 
     def __init__(
@@ -180,9 +180,9 @@ class InputApp(App[None]):
         )
 
         if file_path is None:
-            self.pre_loaded_file_path = ""
+            self.current_file_path = ""
         else:
-            self.pre_loaded_file_path = file_path
+            self.current_file_path = file_path
 
         if input_text is None:
             self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
@@ -420,10 +420,10 @@ class InputApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        if self.pre_loaded_file_path == "":
+        if self.current_file_path == "":
             query = "-p "
         else:
-            query = self.pre_loaded_file_path + " -p "
+            query = self.current_file_path + " -p "
 
         if self.pass_pipeline:
             query += "'"
@@ -565,7 +565,7 @@ class InputApp(App[None]):
                     with open(file_path) as file:
                         file_contents = file.read()
                         self.input_text_area.load_text(file_contents)
-                    self.pre_loaded_file_path = file_path
+                    self.current_file_path = file_path
                     self.selected_query_label.update(self.get_query_string())
                 else:
                     self.input_text_area.load_text(
