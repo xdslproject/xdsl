@@ -5,6 +5,10 @@ on:
   # but only for the master branch
   schedule:
     - cron: '15 4 * * *'
+  push:
+    branches:
+      - master
+      - emilien/jupyter-fix
 
 jobs:
   build:
