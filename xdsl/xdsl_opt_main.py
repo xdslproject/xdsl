@@ -149,6 +149,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--print-no-properties",
+            default=False,
+            action="store_true",
+            help="Print properties as if they were attributes for retrocompatibility.",
+        )
+
+        arg_parser.add_argument(
             "--print-debuginfo",
             default=False,
             action="store_true",
@@ -187,6 +194,7 @@ class xDSLOptMain(CommandLineTool):
             printer = Printer(
                 stream=output,
                 print_generic_format=self.args.print_op_generic,
+                print_properties_as_attributes=self.args.print_no_properties,
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
