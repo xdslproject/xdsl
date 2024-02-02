@@ -612,11 +612,15 @@ class EnumAttribute(Data[EnumType]):
         return cast(EnumType, enum_type(val))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    parameters: list[Attribute] = field(default_factory=list)
+    parameters: tuple[Attribute, ...] = field()
+
+    def __init__(self, parameters: Sequence[Attribute] = ()):
+        object.__setattr__(self, "parameters", tuple(parameters))
+        super().__init__()
 
     @classmethod
     def new(cls: type[Self], params: Sequence[Attribute]) -> Self:
@@ -633,7 +637,7 @@ class ParametrizedAttribute(Attribute):
 
         # Call the __init__ of ParametrizedAttribute, which will set the
         # parameters field.
-        ParametrizedAttribute.__init__(attr, list(params))
+        ParametrizedAttribute.__init__(attr, tuple(params))
         return attr
 
     @classmethod

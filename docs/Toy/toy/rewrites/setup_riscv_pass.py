@@ -34,4 +34,4 @@ class SetupRiscvPass(ModulePass):
     name = "setup-lowering-to-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        PatternRewriteWalker(AddSections()).rewrite_module(op)
+        PatternRewriteWalker(AddSections(), apply_recursively=False).rewrite_module(op)

@@ -12,10 +12,12 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
+    AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -34,7 +36,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
+    MemRefType,
     NoneAttr,
+    NoneType,
     OpaqueAttr,
     Signedness,
     StridedLayoutAttr,
@@ -42,12 +46,12 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
+    UnrankedMemrefType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
 )
-from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (
     Attribute,
     Block,
@@ -351,6 +355,18 @@ class Printer:
     def print_string_literal(self, string: str):
         self.print(json.dumps(string))
 
+    def print_bytes_literal(self, bytestring: bytes):
+        self.print('"')
+        for byte in bytestring:
+            match byte:
+                case 0x5C:  # ord("\\")
+                    self.print("\\\\")
+                case _ if 0x20 > byte or byte > 0x7E or byte == 0x22:
+                    self.print(f"\\{byte:02X}")
+                case _:
+                    self.print(chr(byte))
+        self.print('"')
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -390,6 +406,10 @@ class Printer:
 
         if isinstance(attribute, StringAttr):
             self.print_string_literal(attribute.data)
+            return
+
+        if isinstance(attribute, BytesAttr):
+            self.print_bytes_literal(attribute.data)
             return
 
         if isinstance(attribute, SymbolRefAttr):
@@ -615,6 +635,10 @@ class Printer:
             self.print("index")
             return
 
+        if isinstance(attribute, NoneType):
+            self.print("none")
+            return
+
         if isinstance(attribute, OpaqueAttr):
             self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
             if not isinstance(attribute.type, NoneAttr):
@@ -664,6 +688,7 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
+
         return
 
     def print_successors(self, successors: list[Block]):
