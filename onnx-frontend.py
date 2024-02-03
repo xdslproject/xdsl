@@ -68,112 +68,23 @@ def __():
 
 @app.cell
 def __():
-    import numpy as np
-    return np,
-
-
-@app.cell
-def __():
-    import onnxruntime
-    return onnxruntime,
-
-
-@app.cell
-def __(model_def, np, onnxruntime):
-    np.random.seed(42)
-
-    input1 = np.random.rand(3, 2).astype(np.float32)
-    input2 = np.random.rand(3, 2).astype(np.float32)
-
-    # Load the ONNX model
-    session = onnxruntime.InferenceSession(model_def.SerializeToString())
-
-    # Create a dictionary to hold the input data
-    input_dict = {
-        session.get_inputs()[0].name: input1,
-        session.get_inputs()[1].name: input2
-    }
-
-    # Run the inference
-    output = session.run(None, input_dict)
-
-    # Output will contain the result of the computation
-    result = output[0]
-
-    # Display the inputs and result
-    print("Input 1:\n", input1)
-    print("Input 2:\n", input2)
-    print("Result:\n", result)
-    return input1, input2, input_dict, output, result, session
-
-
-@app.cell
-def __(mo):
-    mo.md("""
-    ```
-    module {
-      func.func @main_graph(%arg0: tensor<3x2xf32>, %arg1: tensor<3x2xf32>) -> tensor<3x2xf32> {
-        %0 = "onnx.Add"(%arg0, %arg1) : (tensor<3x2xf32>, tensor<3x2xf32>) -> tensor<3x2xf32>
-        return %0 : tensor<3x2xf32>
-      }
-    }
-    ```
-    """)
-    return
-
-
-@app.cell
-def __():
-    from xdsl.dialects.onnx import Add
-    from xdsl.dialects.builtin import ModuleOp, TensorType, Float32Type, f32
-    from xdsl.dialects.func import FuncOp, Return
-
-    from xdsl.builder import ImplicitBuilder
-
-    def tt(shape: tuple[int, ...]) -> TensorType[Float32Type]:
-        return TensorType(f32, shape)
-    return (
-        Add,
-        Float32Type,
-        FuncOp,
-        ImplicitBuilder,
-        ModuleOp,
-        Return,
-        TensorType,
-        f32,
-        tt,
-    )
-
-
-@app.cell
-def __(Add, FuncOp, ImplicitBuilder, ModuleOp, Return, tt):
-    target = ModuleOp([])
-
-    tt32 = tt((3, 2))
-
-
-    with ImplicitBuilder(target.body):
-        func = FuncOp("main_graph", ((tt32, tt32), (tt32,)))
-        with ImplicitBuilder(func.body) as (arg0, arg1):
-            res = Add(arg0, arg1).res
-            Return(res)
-
-    str(target)
-    return arg0, arg1, func, res, target, tt32
-
-
-@app.cell
-def __():
     from xdsl.ir import Attribute, SSAValue
     return Attribute, SSAValue
 
 
 @app.cell
 def __(model_def):
-    from xdsl.frontend.onnx import build_module as bm
+    from xdsl.frontend.onnx import build_module
 
-    str(bm(model_def.graph))
-    return bm,
+    module = build_module(model_def.graph)
+
+    str(module)
+    return build_module, module
+
+
+@app.cell
+def __():
+    return
 
 
 if __name__ == "__main__":
