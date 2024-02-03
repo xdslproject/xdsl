@@ -589,7 +589,7 @@ class Lexer:
         if match is None:
             raise ParseError(
                 Span(start_pos, self.pos, self.input),
-                "Expected suffix identifier after {first_char}",
+                f"Expected suffix identifier after {first_char}",
             )
 
         return self._form_token(kind, start_pos)

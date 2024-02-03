@@ -29,9 +29,11 @@ from xdsl.irdl.declarative_assembly_format import (
     FormatDirective,
     FormatProgram,
     KeywordDirective,
+    LiteralDirective,
     OperandOrResult,
     OperandTypeDirective,
     OperandVariable,
+    OptionalGroupDirective,
     OptionalOperandTypeDirective,
     OptionalOperandVariable,
     OptionalResultTypeDirective,
@@ -75,7 +77,7 @@ class FormatLexer(Lexer):
 
         # We parse '`', `\\` and '$' as a BARE_IDENT.
         # This is a hack to reuse the MLIR lexer.
-        if current_char in ("`", "$", "\\"):
+        if current_char in ("`", "$", "\\", "^"):
             self._consume_chars()
             return self._form_token(Token.Kind.BARE_IDENT, start_pos)
         return super().lex()
@@ -442,6 +444,36 @@ class FormatParser(BaseParser):
         self.parse_characters("`")
         return KeywordDirective(ident)
 
+    def parse_optional_group(self) -> FormatDirective:
+        """
+        Parse an optional group, with the following format:
+          group ::= `(` then-elements `)` `?`
+        """
+        then_elements: tuple[FormatDirective, ...] = ()
+        anchor: FormatDirective | None = None
+        while not self.parse_optional_punctuation(")"):
+            then_elements += (self.parse_directive(),)
+            if self.parse_optional_keyword("^"):
+                if anchor is not None:
+                    self.raise_error("multiple anchors in a group")
+                anchor = then_elements[-1]
+        self.parse_punctuation("?")
+
+        if anchor is None:
+            self.raise_error("no anchor in a group")
+        if not then_elements:
+            self.raise_error("empty group")
+        # TODO: allow attribute and region variables when implemented.
+        if not isinstance(then_elements[0], LiteralDirective):
+            self.raise_error(
+                "first then-element of a group must be a litteral, operand, region or"
+                "attribute"
+            )
+        if not isinstance(anchor, VariadicLikeVariable | VariadicLikeTypeDirective):
+            self.raise_error("anchor of a group must be a variable or type directive")
+
+        return OptionalGroupDirective(anchor, then_elements)
+
     def parse_directive(self) -> FormatDirective:
         """
         Parse a format directive, with the following format:
@@ -457,6 +489,8 @@ class FormatParser(BaseParser):
             return self.create_attr_dict_directive(True)
         if self.parse_optional_keyword("type"):
             return self.parse_type_directive()
+        if self.parse_optional_punctuation("("):
+            return self.parse_optional_group()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
         if variable := self.parse_optional_variable():

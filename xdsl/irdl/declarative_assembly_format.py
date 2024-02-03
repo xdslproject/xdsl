@@ -259,8 +259,10 @@ class TypeDirective(FormatDirective):
     pass
 
 
-class VariadicLikeFormatDirective(FormatDirective):
-    pass
+class VariadicLikeFormatDirective(FormatDirective, ABC):
+    @abstractmethod
+    def is_present(self, op: IRDLOperation) -> bool:
+        ...
 
 
 class VariadicLikeVariable(VariadicLikeFormatDirective, FormatDirective):
@@ -269,6 +271,14 @@ class VariadicLikeVariable(VariadicLikeFormatDirective, FormatDirective):
 
 class VariadicLikeTypeDirective(TypeDirective, VariadicLikeFormatDirective):
     pass
+
+
+@dataclass(frozen=True)
+class VariableDirective(FormatDirective):
+    name: str
+    """The operand name. This is only used for error message reporting."""
+    index: int
+    """Index of the operand definition."""
 
 
 @dataclass(frozen=True)
@@ -347,17 +357,12 @@ class AttrDictDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
-class OperandVariable(FormatDirective):
+class OperandVariable(VariableDirective):
     """
     An operand variable, with the following format:
       operand-directive ::= dollar-ident
     The directive will request a space to be printed after.
     """
-
-    name: str
-    """The operand name. This is only used for error message reporting."""
-    index: int
-    """Index of the operand definition."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         operand = parser.parse_unresolved_operand()
@@ -390,11 +395,13 @@ class VariadicOperandVariable(OperandVariable, VariadicLikeVariable):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        operand = getattr(op, self.name)
-        if operand:
-            printer.print_list(operand, printer.print_ssa_value)
+        if self.is_present(op):
+            printer.print_list(getattr(op, self.name), printer.print_ssa_value)
             state.last_was_punctuation = False
             state.should_emit_space = True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return len(getattr(op, self.name)) > 0
 
 
 class OptionalOperandVariable(OperandVariable, VariadicLikeVariable):
@@ -413,11 +420,13 @@ class OptionalOperandVariable(OperandVariable, VariadicLikeVariable):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        operand = getattr(op, self.name)
-        if operand:
-            printer.print_ssa_value(op.operands[self.index])
+        if self.is_present(op):
+            printer.print_ssa_value(getattr(op, self.name))
             state.last_was_punctuation = False
             state.should_emit_space = True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return getattr(op, self.name) is not None
 
 
 @dataclass(frozen=True)
@@ -464,11 +473,15 @@ class VariadicOperandTypeDirective(OperandTypeDirective, VariadicLikeTypeDirecti
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_list(
-            (o.type for o in getattr(op, self.name)), printer.print_attribute
-        )
-        state.last_was_punctuation = False
-        state.should_emit_space = True
+        if self.is_present(op):
+            printer.print_list(
+                (o.type for o in getattr(op, self.name)), printer.print_attribute
+            )
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return len(getattr(op, self.name)) > 0
 
 
 class OptionalOperandTypeDirective(OperandTypeDirective, VariadicLikeTypeDirective):
@@ -487,26 +500,23 @@ class OptionalOperandTypeDirective(OperandTypeDirective, VariadicLikeTypeDirecti
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        operand = getattr(op, self.name)
-        if operand:
-            printer.print_attribute(operand.type)
+        if self.is_present(op):
+            printer.print_attribute(getattr(op, self.name).type)
             state.last_was_punctuation = False
             state.should_emit_space = True
 
+    def is_present(self, op: IRDLOperation) -> bool:
+        return getattr(op, self.name) is not None
+
 
 @dataclass(frozen=True)
-class ResultVariable(FormatDirective):
+class ResultVariable(VariableDirective):
     """
     An result variable, with the following format:
       result-directive ::= dollar-ident
     This directive can not be used for parsing and printing directly, as result
     parsing is not handled by the custom operation parser.
     """
-
-    name: str
-    """The result name. This is only used for error message reporting."""
-    index: int
-    """Index of the result definition."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         assert (
@@ -542,6 +552,9 @@ class VariadicResultVariable(ResultVariable, VariadicLikeVariable):
             "declarative formats."
         )
 
+    def is_present(self, op: IRDLOperation) -> bool:
+        return len(getattr(op, self.name)) > 0
+
 
 class OptionalResultVariable(ResultVariable, VariadicLikeVariable):
     """
@@ -562,6 +575,9 @@ class OptionalResultVariable(ResultVariable, VariadicLikeVariable):
             "Result variables cannot be used directly to parse/print in "
             "declarative formats."
         )
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return getattr(op, self.name) is not None
 
 
 @dataclass(frozen=True)
@@ -608,11 +624,15 @@ class VariadicResultTypeDirective(ResultTypeDirective, VariadicLikeTypeDirective
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_list(
-            (r.type for r in getattr(op, self.name)), printer.print_attribute
-        )
-        state.last_was_punctuation = False
-        state.should_emit_space = True
+        if self.is_present(op):
+            printer.print_list(
+                (r.type for r in getattr(op, self.name)), printer.print_attribute
+            )
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return len(getattr(op, self.name)) > 0
 
 
 class OptionalResultTypeDirective(ResultTypeDirective, VariadicLikeTypeDirective):
@@ -631,11 +651,13 @@ class OptionalResultTypeDirective(ResultTypeDirective, VariadicLikeTypeDirective
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        result = getattr(op, self.name)
-        if result:
-            printer.print_attribute(result.type)
+        if self.is_present(op):
+            printer.print_attribute(getattr(op, self.name).type)
             state.last_was_punctuation = False
             state.should_emit_space = True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return getattr(op, self.name) is not None
 
 
 @dataclass(frozen=True)
@@ -669,8 +691,12 @@ class AttributeVariable(FormatDirective):
             printer.print_attribute(op.attributes[self.attr_name])
 
 
+class LiteralDirective(FormatDirective):
+    pass
+
+
 @dataclass(frozen=True)
-class WhitespaceDirective(FormatDirective):
+class WhitespaceDirective(LiteralDirective):
     """
     A whitespace directive, with the following format:
       whitespace-directive ::= `\n` | ` `
@@ -692,7 +718,7 @@ class WhitespaceDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
-class PunctuationDirective(FormatDirective):
+class PunctuationDirective(LiteralDirective):
     """
     A punctuation directive, with the following format:
       punctuation-directive ::= punctuation
@@ -728,7 +754,7 @@ class PunctuationDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
-class KeywordDirective(FormatDirective):
+class KeywordDirective(LiteralDirective):
     """
     A keyword directive, with the following format:
       keyword-directive ::= bare-ident
@@ -748,3 +774,46 @@ class KeywordDirective(FormatDirective):
         printer.print(self.keyword)
         state.should_emit_space = True
         state.last_was_punctuation = False
+
+
+@dataclass(frozen=True)
+class OptionalGroupDirective(FormatDirective):
+    anchor: VariadicLikeFormatDirective
+    then_elements: tuple[FormatDirective, ...] = field(default_factory=tuple)
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        # Optionally parse the first element, deciding if  the then-elements
+        # should be parsed or not
+        match self.then_elements[0]:
+            case PunctuationDirective(punctuation):
+                then = parser.parse_optional_punctuation(punctuation) is not None
+            case KeywordDirective(keyword):
+                then = parser.parse_optional_keyword(keyword) is not None
+            case WhitespaceDirective(whitespace):
+                then = parser.parse_optional_keyword(whitespace) is not None
+            case _:
+                raise NotImplementedError(
+                    "This first element type is not implemented" "yet"
+                )
+        # If the first element was parsed, parse the then-elements as usual
+        if then:
+            for element in self.then_elements[1:]:
+                element.parse(parser, state)
+        # Otherwise, just explicitly set the variadic/optional variables and
+        # type to empty
+        else:
+            for element in self.then_elements:
+                match element:
+                    case OperandVariable(_, index):
+                        state.operands[index] = list[UnresolvedOperand | None]()
+                    case OperandTypeDirective(_, index):
+                        state.operand_types[index] = list[Attribute | None]()
+                    case ResultTypeDirective(_, index):
+                        state.result_types[index] = list[Attribute | None]()
+                    case _:
+                        pass
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if self.anchor.is_present(op):
+            for element in self.then_elements:
+                element.print(printer, state, op)
