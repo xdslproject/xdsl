@@ -112,8 +112,8 @@ class LowerRiscvScfForPattern(RewritePattern):
                 riscv_cf.BltOp(
                     add_op.rd,
                     op.ub,
-                    (add_op.rd, *op.iter_args),
-                    (add_op.rd, *op.iter_args),
+                    (add_op.rd, *yield_op.operands),
+                    (add_op.rd, *yield_op.operands),
                     first_body_block,
                     end_block,
                 ),
