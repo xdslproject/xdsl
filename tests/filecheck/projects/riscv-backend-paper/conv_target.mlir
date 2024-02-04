@@ -15,11 +15,11 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
     %Z_moved = riscv.mv %Z : (!riscv.reg<a2>) -> !riscv.reg<>
 
-    %c0 = riscv.get_register : () -> !riscv.reg<zero>
+    %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
     %c8 = riscv.li 8 : () -> !riscv.reg<>
 
-    %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<zero>) -> !riscv.freg<>
+    %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
     %stride_pattern_0 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<3>, #builtin.int<3>, #builtin.int<6>, #builtin.int<6>], "strides" = [#builtin.int<8>, #builtin.int<64>, #builtin.int<8>, #builtin.int<64>], "dm" = #builtin.int<0>} : () -> !snitch_stream.stride_pattern_type<4>
     %stride_pattern_1 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<3>, #builtin.int<3>, #builtin.int<6>, #builtin.int<6>], "strides" = [#builtin.int<8>, #builtin.int<24>, #builtin.int<0>, #builtin.int<0>], "dm" = #builtin.int<1>} : () -> !snitch_stream.stride_pattern_type<4>
@@ -93,7 +93,7 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t3, 288
 // CHECK-NEXT:      mv t2, zero
-// CHECK-NEXT:      bge t2, t3, scf_body_end_0_for
+// CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_0_for:
 // CHECK-NEXT:      add t4, t1, t2
 // CHECK-NEXT:      fld ft3, 0(t4)

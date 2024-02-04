@@ -12,6 +12,7 @@ from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
+from xdsl.transforms.riscv_get_zero_register import RiscvGetZeroRegisterPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
@@ -39,5 +40,6 @@ class TestLowerLinalgToSnitchPass(ModulePass):
                 CanonicalizePass(),
                 ConvertRiscvScfToRiscvCfPass(),
                 CanonicalizePass(),
+                RiscvGetZeroRegisterPass(),
             ]
         ).apply(ctx, op)
