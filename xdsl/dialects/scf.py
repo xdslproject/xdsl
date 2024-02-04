@@ -32,8 +32,10 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    HasCanonicalisationPatternsTrait,
     HasParent,
     IsTerminator,
     SingleBlockImplicitTerminator,
@@ -195,6 +197,14 @@ class If(IRDLOperation):
         return If(cond, return_types, true_region, false_region)
 
 
+class ForOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.scf import SimplifyTrivialLoops
+
+        return (SimplifyTrivialLoops(),)
+
+
 @irdl_op_definition
 class For(IRDLOperation):
     name = "scf.for"
@@ -211,7 +221,9 @@ class For(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+    traits = frozenset(
+        [SingleBlockImplicitTerminator(Yield), ForOpHasCanonicalizationPatternsTrait()]
+    )
 
     def __init__(
         self,
