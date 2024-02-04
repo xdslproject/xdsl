@@ -17,7 +17,8 @@ class ElideConstantBranches(RewritePattern):
             return
 
         # check if the op would take the branch or not
-        branch_taken = op.const_evaluate(rs1, rs2)
+        # TODO: take bitwidth into account
+        branch_taken = op.const_evaluate(rs1, rs2, 32)
 
         # if branch is always taken, replace by jump
         if branch_taken:
