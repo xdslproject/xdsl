@@ -8,6 +8,7 @@ from xdsl.dialects import (
     builtin,
     memref_stream,
     riscv,
+    riscv_scf,
     riscv_snitch,
     snitch_stream,
     stream,
@@ -63,13 +64,17 @@ class LowerGenericOp(RewritePattern):
         )
 
         with ImplicitBuilder(streaming_region_body):
-            rep_count_minus_one = riscv.AddiOp(new_rep_count, -1).rd
-            frep = riscv_snitch.FrepOuter(
-                rep_count_minus_one,
+            lb = riscv.LiOp(0)
+            step = riscv.LiOp(1)
+            frep = riscv_scf.ForOp(
+                lb,
+                new_rep_count,
+                step,
+                (),
                 rewriter.move_region_contents_to_new_regions(op.body),
             )
             with ImplicitBuilder(frep.body):
-                riscv_snitch.FrepYieldOp()
+                riscv_scf.YieldOp()
 
         rewriter.replace_matched_op(
             [
@@ -141,6 +146,10 @@ class LowerYieldOp(RewritePattern):
         # delete block arguments
         for arg in loop_block.args[::-1]:
             rewriter.erase_block_argument(arg)
+
+        rewriter.insert_block_argument(
+            loop_block, 0, riscv.IntRegisterType.unallocated()
+        )
 
         rewriter.replace_matched_op(new_ops)
 
