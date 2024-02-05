@@ -199,7 +199,14 @@ class Generic(IRDLOperation):
                 iterator_type.data.value
             ),
         )
-        printer.print_string("]}")
+        printer.print_string("]")
+        if self.doc:
+            printer.print_string(", doc = ")
+            printer.print_attribute(self.doc)
+        if self.library_call:
+            printer.print_string(", library_call = ")
+            printer.print_attribute(self.library_call)
+        printer.print_string("}")
 
         if self.inputs:
             printer.print_string(" ins(")
@@ -281,6 +288,20 @@ class Generic(IRDLOperation):
                 attrs_end_pos,
             )
 
+        if "doc" in attrs:
+            doc = attrs["doc"]
+            assert isinstance(doc, StringAttr)
+            del attrs["doc"]
+        else:
+            doc = None
+
+        if "library_call" in attrs:
+            library_call = attrs["library_call"]
+            assert isinstance(library_call, StringAttr)
+            del attrs["library_call"]
+        else:
+            library_call = None
+
         pos = parser.pos
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
@@ -321,7 +342,7 @@ class Generic(IRDLOperation):
 
         body = parser.parse_region()
 
-        generic = cls(ins, outs, body, indexing_maps, iterator_types)
+        generic = cls(ins, outs, body, indexing_maps, iterator_types, doc, library_call)
         generic.attributes |= attrs
         generic.attributes |= extra_attrs
 
