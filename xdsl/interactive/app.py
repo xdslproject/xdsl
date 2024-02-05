@@ -152,11 +152,11 @@ class InputApp(App[None]):
     """
 
     INITIAL_IR_TEXT = """
-        func.func @hello(%n : index) -> index {
-          %two = arith.constant 2 : index
-          %res = arith.muli %n, %two : index
-          func.return %res : index
-        }
+func.func @hello(%n : i32) -> i32 {
+  %two = arith.constant 0 : i32
+  %res = arith.addi %two, %n : i32
+  func.return %res : i32
+}
         """
 
     current_module = reactive[ModuleOp | Exception | None](None)
@@ -165,14 +165,19 @@ class InputApp(App[None]):
     (i.e. is the Output TextArea).
     """
     pass_pipeline = reactive(tuple[tuple[type[ModulePass], PipelinePassSpec], ...])
-    """Reactive variable that saves the list of selected passes."""
+    """Reactive variable that saves the selected passes."""
 
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
     available_pass_list = reactive(tuple[type[ModulePass], ...])
     """
-    Reactive variable that saves the list of passes that have an effect on
-    current_module.
+    Reactive variable that saves the passes that have an effect on current_module.
+    """
+    current_possible_rewrites = reactive(
+        tuple[tuple[int, tuple[str, str, RewritePattern], ModuleOp]]
+    )
+    """
+    Reactive variable that saves the rewrite patterns that have an effect on current_module.
     """
 
     input_text_area: TextArea
@@ -292,10 +297,6 @@ class InputApp(App[None]):
         ).border_title = "Choose a pass or multiple passes to be applied."
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
-        # initialize ListView to contain the pass options
-        for n, _ in ALL_PASSES:
-            self.passes_list_view.append(ListItem(Label(n), name=n))
-
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
 
@@ -308,6 +309,49 @@ class InputApp(App[None]):
 
         # initialize GUI with specified pass pipeline
         self.pass_pipeline = self.pre_loaded_pass_pipeline
+
+    def compute_current_possible_rewrites(
+        self,
+    ) -> list[tuple[int, tuple[str, str, RewritePattern], ModuleOp]]:
+        """
+        When any reactive variable is modified, this function (re-)computes the
+        current_possible_rewrites variable.
+        """
+        match self.current_module:
+            case None:
+                return []
+            case Exception():
+                return []
+            case ModuleOp():
+                return get_all_possible_rewrites(ALL_PATTERNS, self.current_module)
+
+    def watch_current_possible_rewrites(
+        self,
+        old_pass_list: tuple[tuple[int, tuple[str, str, RewritePattern], ModuleOp]],
+        new_pass_list: tuple[tuple[int, tuple[str, str, RewritePattern], ModuleOp]],
+    ) -> None:
+        """
+        Function called when the reactive variable current_possible_rewrites changes -
+        updates the ListView to display the current_available_rewrites options.
+        """
+        if old_pass_list != new_pass_list:
+            self.passes_list_view.clear()
+            # initialize ListView to contain the pass options
+            for value in self.available_pass_list:
+                self.passes_list_view.append(
+                    ListItem(Label(value.name), name=value.name)
+                )
+
+            for op_idx, (op_name, pat_name, pat), n in new_pass_list:
+                op = list(self.current_module.walk())[op_idx]
+                self.passes_list_view.append(
+                    ListItem(
+                        Label(f"{op}:{op_name}:{pat_name}"),
+                        name=str(
+                            new_pass_list.index((op_idx, (op_name, pat_name, pat), n))
+                        ),
+                    )
+                )
 
     def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
         """
@@ -397,10 +441,30 @@ class InputApp(App[None]):
         passes is updated.
         """
         selected_pass = event.item.name
+
+        # Dealing with Passes
+        flag = False
         for pass_name, pass_value in ALL_PASSES:
             if pass_name == selected_pass:
                 # check if pass has arguments
                 self.get_pass_arguments(pass_value)
+                flag = True
+
+        # Dealing with Rewrtite Patterns
+        if flag is False:
+            assert selected_pass is not None
+            index = int(selected_pass)
+
+            (op_idx, (op_name, pat_name, _), _) = self.current_possible_rewrites[index]
+            selected_pass_value = individual_rewrite.IndividualRewrite
+            argument_str = f'matched_operation_index={op_idx} operation_name="{op_name}" pattern_name={pat_name}'
+            new_pass_with_arguments = list(
+                parse_pipeline(f"{selected_pass_value.name}{{{argument_str}}}")
+            )[0]
+            self.pass_pipeline = (
+                *self.pass_pipeline,
+                (selected_pass_value, new_pass_with_arguments),
+            )
 
     def watch_pass_pipeline(self) -> None:
         """
