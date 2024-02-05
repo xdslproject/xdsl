@@ -40,8 +40,13 @@ from xdsl.interactive.pass_metrics import (
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
+from xdsl.pattern_rewriter import (
+    PatternRewriter,
+    RewritePattern,
+)
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.transforms import individual_rewrite
 from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
@@ -50,6 +55,46 @@ from ._pasteboard import pyclip_copy
 
 ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
 """Contains the list of xDSL passes."""
+
+ALL_PATTERNS = tuple(
+    (op_name, pattern_name, pattern)
+    for (op_name, pattern_by_name) in individual_rewrite.REWRITE_BY_NAMES.items()
+    for (pattern_name, pattern) in pattern_by_name.items()
+)
+"""Contains all the rewrite patterns."""
+
+
+def get_all_possible_rewrites(
+    patterns: tuple[tuple[str, str, RewritePattern], ...], op: ModuleOp
+) -> list[tuple[int, tuple[str, str, RewritePattern], ModuleOp]]:
+    """
+    Function that takes a sequence of Rewrite Patterns and a ModuleOp, and
+    returns the possible rewrites.
+    """
+    old_module = op.clone()
+    num_ops = len(list(old_module.walk()))
+
+    current_module = old_module.clone()
+
+    res: list[tuple[int, tuple[str, str, RewritePattern], ModuleOp]] = []
+
+    for op_idx in range(num_ops):
+        matched_op = list(current_module.walk())[op_idx]
+        if matched_op.name not in individual_rewrite.REWRITE_BY_NAMES:
+            continue
+        pattern_by_name = individual_rewrite.REWRITE_BY_NAMES[matched_op.name]
+
+        for pattern_name, pattern in pattern_by_name.items():
+            rewriter = PatternRewriter(matched_op)
+            pattern.match_and_rewrite(matched_op, rewriter)
+            if rewriter.has_done_action:
+                res.append(
+                    (op_idx, (matched_op.name, pattern_name, pattern), current_module)
+                )
+                current_module = old_module.clone()
+                matched_op = list(current_module.walk())[op_idx]
+
+    return res
 
 
 def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
