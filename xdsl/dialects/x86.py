@@ -9,6 +9,7 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    IntegerAttr,
     ModuleOp,
     StringAttr,
 )
@@ -34,8 +35,6 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-
-# don't mind the unused imports, I'll delete those that turn out to be obsolete later
 
 
 class X86RegisterType(Data[str], TypeAttribute, ABC):
@@ -131,8 +130,61 @@ class GeneralRegisterType(X86RegisterType):
     }
 
 
+@irdl_attr_definition
+class AVXRegisterType(X86RegisterType):
+    """
+    An x86 register type for AVX512 instructions.
+    """
+
+    name = "x86.avxreg"
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "x86AVX"
+
+    @classmethod
+    def abi_index_by_name(cls) -> dict[str, int]:
+        return AVXRegisterType.X86AVX_INDEX_BY_NAME
+
+    X86AVX_INDEX_BY_NAME = {
+        "zmm0": 0,
+        "zmm1": 1,
+        "zmm2": 2,
+        "zmm3": 3,
+        "zmm4": 4,
+        "zmm5": 5,
+        "zmm6": 6,
+        "zmm7": 7,
+        "zmm8": 8,
+        "zmm9": 9,
+        "zmm10": 10,
+        "zmm11": 11,
+        "zmm12": 12,
+        "zmm13": 13,
+        "zmm14": 14,
+        "zmm15": 15,
+        "zmm16": 16,
+        "zmm17": 17,
+        "zmm18": 18,
+        "zmm19": 19,
+        "zmm20": 20,
+        "zmm21": 21,
+        "zmm22": 22,
+        "zmm23": 23,
+        "zmm24": 24,
+        "zmm25": 25,
+        "zmm26": 26,
+        "zmm27": 27,
+        "zmm28": 28,
+        "zmm29": 29,
+        "zmm30": 30,
+        "zmm31": 31,
+    }
+
+
 R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
 R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
+R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 # RDInvT = TypeVar("RDInvT", bound=X86RegisterType)
 # RSInvT = TypeVar("RSInvT", bound=X86RegisterType)
 # RS1InvT = TypeVar("RS1InvT", bound=X86RegisterType)
@@ -158,6 +210,39 @@ class Registers(ABC):
     R13 = GeneralRegisterType("r13")
     R14 = GeneralRegisterType("r14")
     R15 = GeneralRegisterType("r15")
+
+    ZMM0 = AVXRegisterType("zmm0")
+    ZMM1 = AVXRegisterType("zmm1")
+    ZMM2 = AVXRegisterType("zmm2")
+    ZMM3 = AVXRegisterType("zmm3")
+    ZMM4 = AVXRegisterType("zmm4")
+    ZMM5 = AVXRegisterType("zmm5")
+    ZMM6 = AVXRegisterType("zmm6")
+    ZMM7 = AVXRegisterType("zmm7")
+    ZMM8 = AVXRegisterType("zmm8")
+    ZMM9 = AVXRegisterType("zmm9")
+    ZMM10 = AVXRegisterType("zmm10")
+    ZMM11 = AVXRegisterType("zmm11")
+    ZMM12 = AVXRegisterType("zmm12")
+    ZMM13 = AVXRegisterType("zmm13")
+    ZMM14 = AVXRegisterType("zmm14")
+    ZMM15 = AVXRegisterType("zmm15")
+    ZMM16 = AVXRegisterType("zmm16")
+    ZMM17 = AVXRegisterType("zmm17")
+    ZMM18 = AVXRegisterType("zmm18")
+    ZMM19 = AVXRegisterType("zmm19")
+    ZMM20 = AVXRegisterType("zmm20")
+    ZMM21 = AVXRegisterType("zmm21")
+    ZMM22 = AVXRegisterType("zmm22")
+    ZMM23 = AVXRegisterType("zmm23")
+    ZMM24 = AVXRegisterType("zmm24")
+    ZMM25 = AVXRegisterType("zmm25")
+    ZMM26 = AVXRegisterType("zmm26")
+    ZMM27 = AVXRegisterType("zmm27")
+    ZMM28 = AVXRegisterType("zmm28")
+    ZMM29 = AVXRegisterType("zmm29")
+    ZMM30 = AVXRegisterType("zmm30")
+    ZMM31 = AVXRegisterType("zmm31")
 
 
 @irdl_attr_definition
@@ -582,6 +667,124 @@ class PopOp(ROperation[GeneralRegisterType]):
     name = "x86.pop"
 
 
+class RRROperation(TripleOperandInstruction):
+    """
+    A base class for x86 operations that have three registers.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    r3 = operand_def(R3InvT)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        r3: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2, r3],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2, self.r3
+
+
+class RROffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
+    """
+    A base class for x86 operations that have two registers and an offset.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    offset: AnyIntegerAttr
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | AnyIntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2
+
+
+@irdl_op_definition
+class vfmadd231pd(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]):
+    """
+    Multiply packed double-precision floating-point elements in r2 and r3, add the intermediate result to r1, and store the final result in r1.
+    """
+
+    name = "x86.vfmadd231pd"
+
+
+@irdl_op_definition
+class vmovapd(RROffOperation[AVXRegisterType, GeneralRegisterType]):
+    """
+    Move aligned packed double-precision floating-point elements.
+    """
+
+    name = "x86.vmovapd"
+
+    def assembly_line_args(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        destination = _assembly_arg_str(self.r1)
+        source = _assembly_arg_str(self.r2)
+        offset = self.offset.data
+        return _assembly_line(
+            instruction_name, f"{destination}, {offset}({source})", self.comment
+        )
+
+
+@irdl_op_definition
+class vboradcastsd(RROffOperation[AVXRegisterType, GeneralRegisterType]):
+    """
+    Broadcast scalar double-precision floating-point element.
+    """
+
+    name = "x86.vboradcastsd"
+
+    def assembly_line_args(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        destination = _assembly_arg_str(self.r1)
+        source = _assembly_arg_str(self.r2)
+        offset = self.offset.data
+        return _assembly_line(
+            instruction_name, f"{destination}, {offset}({source})", self.comment
+        )
+
+
 # region Assembly printing
 
 
@@ -658,6 +861,7 @@ X86 = Dialect(
     ],
     [
         GeneralRegisterType,
+        AVXRegisterType,
         LabelAttr,
     ],
 )
