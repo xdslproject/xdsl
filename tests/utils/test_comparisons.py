@@ -1,4 +1,4 @@
-from xdsl.interpreters.comparisons import (
+from xdsl.utils.comparisons import (
     signed_lower_bound,
     signed_upper_bound,
     to_signed,
