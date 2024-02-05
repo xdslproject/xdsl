@@ -27,16 +27,15 @@ riscv.assembly_section ".text" {
 
     "snitch_stream.streaming_region"(%X_moved, %Y_moved, %stride_pattern_0, %stride_pattern_1) <{"operandSegmentSizes" = array<i32: 2, 0, 2>}> ({
     ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
-      %c7 = riscv.li 7 : () -> !riscv.reg<>
       riscv_scf.for %g_i : !riscv.reg<> = %c0 to %c512 step %c8 {
         %G_dest = riscv.add %G_moved, %g_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %init = riscv.fld %G_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
-        %g = riscv_snitch.frep_outer %c7 iter_args(%acc = %init) -> (!riscv.freg<>) {
+        %g = riscv_scf.for %i : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
           %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
           %y = riscv_snitch.read from %Y_stream : !riscv.freg<ft1>
           %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<ft0>, !riscv.freg<ft1>, !riscv.freg<>) -> !riscv.freg<>
-          riscv_snitch.frep_yield %res : !riscv.freg<>
+          riscv_scf.yield %res : !riscv.freg<>
         }
 
         riscv.fsd %G_dest, %g, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
@@ -55,9 +54,9 @@ riscv.assembly_section ".text" {
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  matmul:
 // CHECK-NEXT:      mv t5, a0
-// CHECK-NEXT:      mv t0, a1
-// CHECK-NEXT:      mv t1, a2
-// CHECK-NEXT:      li t3, 512
+// CHECK-NEXT:      mv t4, a1
+// CHECK-NEXT:      mv t0, a2
+// CHECK-NEXT:      li t2, 512
 // CHECK-NEXT:      li t6, 8
 // CHECK-NEXT:      li a3, 7
 // CHECK-NEXT:      li a4, 7
@@ -83,19 +82,19 @@ riscv.assembly_section ".text" {
 // CHECK-NEXT:      li t6, -504
 // CHECK-NEXT:      scfgwi t6, 257
 // CHECK-NEXT:      scfgwi t5, 832
-// CHECK-NEXT:      scfgwi t0, 833
+// CHECK-NEXT:      scfgwi t4, 833
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      li t0, 7
-// CHECK-NEXT:      mv t2, zero
+// CHECK-NEXT:      mv t1, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_0_for:
-// CHECK-NEXT:      add t5, t1, t2
-// CHECK-NEXT:      fld ft3, 0(t5)
-// CHECK-NEXT:      frep.o t0, 1, 0, 0
+// CHECK-NEXT:      add t4, t0, t1
+// CHECK-NEXT:      fld ft3, 0(t4)
+// CHECK-NEXT:      li t5, 7
+// CHECK-NEXT:      frep.o t5, 1, 0, 0
 // CHECK-NEXT:      fmadd.d ft3, ft0, ft1, ft3
-// CHECK-NEXT:      fsd ft3, 0(t5)
-// CHECK-NEXT:      addi t2, t2, 8
-// CHECK-NEXT:      blt t2, t3, scf_body_0_for
+// CHECK-NEXT:      fsd ft3, 0(t4)
+// CHECK-NEXT:      addi t1, t1, 8
+// CHECK-NEXT:      blt t1, t2, scf_body_0_for
 // CHECK-NEXT:  scf_body_end_0_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret
