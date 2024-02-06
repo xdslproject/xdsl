@@ -149,10 +149,10 @@ builtin.module {
 // CHECK-NEXT:   %multiply_immediates = riscv.li 6 : () -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %multiply_immediate_r0 = riscv.li 0 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %multiply_immediate_r0 = riscv.mv %c0_1 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediate_r0) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %multiply_immediate_l0 = riscv.li 0 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %multiply_immediate_l0 = riscv.mv %c0_1 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediate_l0) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %add_lhs_immediate = riscv.addi %i2, 2 : (!riscv.reg<>) -> !riscv.reg<a0>
@@ -209,10 +209,10 @@ builtin.module {
 // CHECK-NEXT:   %add_lhs_rhs_1 = riscv.mul %i1, %add_lhs_rhs : (!riscv.reg<a1>, !riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_lhs_rhs_1) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %and_bitwise_zero_l0 = riscv.li 0 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %and_bitwise_zero_l0 = riscv.mv %c0_1 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%and_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %and_bitwise_zero_r0 = riscv.li 0 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %and_bitwise_zero_r0 = riscv.mv %c0_1 : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %scfgw = riscv_snitch.scfgwi %i1, 1 : (!riscv.reg<a1>) -> !riscv.reg<zero>
@@ -222,55 +222,55 @@ builtin.module {
 
 // -----
 
-%c0, %c1 = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
+%0, %1 = "test.op"() : () -> (!riscv.freg<>, !riscv.freg<>)
 
 // should fuse
-%rmul0 = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd0 = riscv.fadd.d %c0, %rmul0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul0 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd0 = riscv.fadd.d %0, %rmul0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
 // same as above, but swapped addends
-%rmul0b = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd0b = riscv.fadd.d %rmul0b, %c0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul0b = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd0b = riscv.fadd.d %rmul0b, %0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
 // same as above but allocated
-%rmul0_a = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd0_a = riscv.fadd.d %c0, %rmul0_a fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<ft0>
+%rmul0_a = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd0_a = riscv.fadd.d %0, %rmul0_a fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<ft0>
 
-%rmul0b_a = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd0b_a = riscv.fadd.d %rmul0b_a, %c0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<ft1>
+%rmul0b_a = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd0b_a = riscv.fadd.d %rmul0b_a, %0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<ft1>
 
 // both addends are results of multiplcation, if all else is the same we fuse with second operand
-%rmul0c0 = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%rmul0c1 = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul0c0 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul0c1 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 %radd0c = riscv.fadd.d %rmul0c0, %rmul0c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
 // should not fuse due to missing "contract" fastmath flag
-%rmul1 = riscv.fmul.d %c0, %c1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd1 = riscv.fadd.d %c0, %rmul1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul1 = riscv.fmul.d %0, %1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd1 = riscv.fadd.d %0, %rmul1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
-%rmul1b = riscv.fmul.d %c0, %c1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd1b = riscv.fadd.d %rmul1b, %c0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-
-// should not fuse due to missing "contract" fastmath flag
-%rmul2 = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd2 = riscv.fadd.d %c0, %rmul2 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-
-%rmul2b = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd2b = riscv.fadd.d %rmul2b, %c0 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul1b = riscv.fmul.d %0, %1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd1b = riscv.fadd.d %rmul1b, %0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
 // should not fuse due to missing "contract" fastmath flag
-%rmul3 = riscv.fmul.d %c0, %c1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd3 = riscv.fadd.d %c0, %rmul3 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul2 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd2 = riscv.fadd.d %0, %rmul2 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
-%rmul3b = riscv.fmul.d %c0, %c1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd3b = riscv.fadd.d %rmul3b, %c0 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul2b = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd2b = riscv.fadd.d %rmul2b, %0 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+// should not fuse due to missing "contract" fastmath flag
+%rmul3 = riscv.fmul.d %0, %1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd3 = riscv.fadd.d %0, %rmul3 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+%rmul3b = riscv.fmul.d %0, %1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd3b = riscv.fadd.d %rmul3b, %0 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
 // should not fuse due to more than one uses
-%rmul4 = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd4 = riscv.fadd.d %c0, %rmul4 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul4 = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd4 = riscv.fadd.d %0, %rmul4 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
-%rmul4b = riscv.fmul.d %c0, %c1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-%radd4b = riscv.fadd.d %rmul4b, %c0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%rmul4b = riscv.fmul.d %0, %1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+%radd4b = riscv.fadd.d %rmul4b, %0 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
 // use multiplication result here to stop the fusion
 "test.op"(%rmul4) : (!riscv.freg<>) -> ()

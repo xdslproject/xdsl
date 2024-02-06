@@ -61,20 +61,10 @@ class MultiplyImmediates(RewritePattern):
 class MultiplyImmediateZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and op.rs1.op.immediate.value.data == 0
-        ):
+        if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
-        elif (
-            isinstance(op.rs2, OpResult)
-            and isinstance(op.rs2.op, riscv.LiOp)
-            and isinstance(op.rs2.op.immediate, IntegerAttr)
-            and op.rs2.op.immediate.value.data == 0
-        ):
+        elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
@@ -453,11 +443,11 @@ class LoadImmediate0(RewritePattern):
 
 
 def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
-    if value.type == riscv.Registers.ZERO or (
-        isinstance(value.owner, riscv.MVOp)
-        and value.owner.rs.type == riscv.Registers.ZERO
-    ):
+    if value.type == riscv.Registers.ZERO:
         return IntegerAttr.from_int_and_width(0, 32)
+
+    if isinstance(value.owner, riscv.MVOp):
+        return get_constant_value(value.owner.rs)
 
     if isinstance(value.owner, riscv.LiOp) and isinstance(
         value.owner.immediate, IntegerAttr
