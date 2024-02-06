@@ -2824,21 +2824,9 @@ class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
         return None
 
 
-class GetRegisterOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            GetZeroRegister,
-        )
-
-        return (GetZeroRegister(),)
-
-
 @irdl_op_definition
 class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
     name = "riscv.get_register"
-
-    traits = frozenset((GetRegisterOpHasCanonicalizationPatternTrait(),))
 
 
 @irdl_op_definition
