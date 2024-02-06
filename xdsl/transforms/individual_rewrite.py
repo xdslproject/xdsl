@@ -45,7 +45,6 @@ class IndividualRewrite(ModulePass):
         assert self.pattern_name is not None
 
         matched_operation_list = list(op.walk())
-        print(len(matched_operation_list))
         if self.matched_operation_index >= len(matched_operation_list):
             raise ValueError("Matched operation index out of range.")
 
