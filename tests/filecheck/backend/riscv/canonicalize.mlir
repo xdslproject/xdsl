@@ -21,13 +21,17 @@ builtin.module {
   %fo5 = riscv.fmv.d %f2 : (!riscv.freg<>) -> !riscv.freg<>
   "test.op"(%fo0, %fo1, %fo2, %fo3, %fo4, %fo5) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>, !riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>) -> ()
 
+  %zero = riscv.get_register : () -> !riscv.reg<zero>
   %0 = riscv.li 0 : () -> !riscv.reg<>
   %1 = riscv.li 1 : () -> !riscv.reg<>
   %2 = riscv.li 2 : () -> !riscv.reg<>
   %3 = riscv.li 3 : () -> !riscv.reg<>
 
   // Don't optimise out unused immediates
-  "test.op"(%0, %1, %2, %3) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+  "test.op"(%zero, %0, %1, %2, %3) : (!riscv.reg<zero>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+
+  %add_immediate_zero_reg = riscv.addi %zero, 1 : (!riscv.reg<zero>) -> !riscv.reg<a0>
+  "test.op"(%add_immediate_zero_reg) : (!riscv.reg<a0>) -> ()
 
   %multiply_immediates = riscv.mul %2, %3 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<a0>
   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
@@ -125,11 +129,15 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
 // CHECK-NEXT:   "test.op"(%f0, %fo1, %fo2, %f0, %fo4, %fo5) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>, !riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg<>) -> ()
 
+// CHECK-NEXT:   %zero = riscv.get_register : () -> !riscv.reg<zero>
 // CHECK-NEXT:   %0 = riscv.li 0 : () -> !riscv.reg<zero>
 // CHECK-NEXT:   %1 = riscv.li 1 : () -> !riscv.reg<>
 // CHECK-NEXT:   %2 = riscv.li 2 : () -> !riscv.reg<>
 // CHECK-NEXT:   %3 = riscv.li 3 : () -> !riscv.reg<>
-// CHECK-NEXT:   "test.op"(%0, %1, %2, %3) : (!riscv.reg<zero>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:   "test.op"(%zero, %0, %1, %2, %3) : (!riscv.reg<zero>, !riscv.reg<zero>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+
+// CHECK-NEXT:   %add_immediate_zero_reg = riscv.li 1 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%add_immediate_zero_reg) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %multiply_immediates = riscv.li 6 : () -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
