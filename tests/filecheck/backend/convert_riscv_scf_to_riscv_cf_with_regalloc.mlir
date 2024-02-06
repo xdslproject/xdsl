@@ -16,7 +16,7 @@ builtin.module {
 // CHECK:        builtin.module {
 // CHECK-NEXT:    riscv_func.func @sum_range(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
 // CHECK-NEXT:      %2 = riscv.li 1 : () -> !riscv.reg<t2>
-// CHECK-NEXT:      %3 = riscv.li 0 : () -> !riscv.reg<t0>
+// CHECK-NEXT:      %3 = riscv.li 0 : () -> !riscv.reg<zero>
 // CHECK-NEXT:      %4 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<t1>
 // CHECK-NEXT:      riscv_cf.bge %4 : !riscv.reg<t1>, %1 : !riscv.reg<a1>, ^0(%4 : !riscv.reg<t1>, %3 : !riscv.reg<t0>), ^1(%4 : !riscv.reg<t1>, %3 : !riscv.reg<t0>)
 // CHECK-NEXT:    ^1(%5 : !riscv.reg<t1>, %6 : !riscv.reg<t0>):

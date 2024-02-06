@@ -440,9 +440,8 @@ class ScfgwOpUsingImmediate(RewritePattern):
 
 class LoadImmediate0(RewritePattern):
     """
-    The canonical form of an operation that loads a 0 value is `li zero, 0`, so that the
-    downstream patterns can assume that any constant is created by `li`, and don't need
-    more sophisticated checks.
+    The canonical form of an operation that stores a 0 constant to the ZERO register is
+    `GetRegisterOp(riscv.Registers.ZERO)`.
     """
 
     @op_type_rewrite_pattern
@@ -450,9 +449,9 @@ class LoadImmediate0(RewritePattern):
         if (
             isinstance(op.immediate, IntegerAttr)
             and op.immediate.value.data == 0
-            and op.rd.type == riscv.IntRegisterType.unallocated()
+            and op.rd.type == riscv.Registers.ZERO
         ):
-            rewriter.replace_matched_op(riscv.LiOp(0, rd=riscv.Registers.ZERO))
+            rewriter.replace_matched_op(riscv.GetRegisterOp(riscv.Registers.ZERO))
 
 
 def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
