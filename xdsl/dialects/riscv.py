@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
     UnitAttr,
+    i32,
 )
 from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
 from xdsl.ir import (
@@ -332,9 +333,12 @@ class Registers(ABC):
 ui5 = IntegerType(5, Signedness.UNSIGNED)
 si12 = IntegerType(12, Signedness.SIGNED)
 si20 = IntegerType(20, Signedness.SIGNED)
+i20 = IntegerType(20, Signedness.SIGNLESS)
 UImm5Attr = IntegerAttr[Annotated[IntegerType, ui5]]
 SImm12Attr = IntegerAttr[Annotated[IntegerType, si12]]
 SImm20Attr = IntegerAttr[Annotated[IntegerType, si20]]
+Imm20Attr = IntegerAttr[Annotated[IntegerType, i20]]
+Imm32Attr = IntegerAttr[Annotated[IntegerType, i32]]
 
 
 @irdl_attr_definition
@@ -648,7 +652,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(IntRegisterType)
-    immediate: SImm20Attr | LabelAttr = attr_def(SImm20Attr | LabelAttr)
+    immediate: Imm20Attr | LabelAttr = attr_def(Imm20Attr | LabelAttr)
 
     def __init__(
         self,
@@ -658,7 +662,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, si20)
+            immediate = IntegerAttr(immediate, i20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
@@ -682,7 +686,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, si20)
+        attributes["immediate"] = _parse_immediate_value(parser, i20)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -2432,9 +2436,9 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class LiOp(RdImmIntegerOperation):
+class LiOp(IRDLOperation, RISCVInstruction, ABC):
     """
-    Loads an immediate into rd.
+    Loads a 32-bit immediate into rd.
 
     This is an assembler pseudo-instruction.
 
@@ -2443,27 +2447,50 @@ class LiOp(RdImmIntegerOperation):
 
     name = "riscv.li"
 
+    rd: OpResult = result_def(IntRegisterType)
+    immediate: Imm32Attr | LabelAttr = attr_def(Imm32Attr | LabelAttr)
+
     traits = frozenset((Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()))
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | Imm32Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(32, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, i32)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if rd is None:
+            rd = IntRegisterType.unallocated()
+        elif isinstance(rd, str):
+            rd = IntRegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
 
-        super().__init__(immediate, rd=rd, comment=comment)
+        super().__init__(
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(32, Signedness.SIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, i32)
         return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 @irdl_op_definition

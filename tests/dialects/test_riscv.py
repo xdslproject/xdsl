@@ -4,6 +4,11 @@ from xdsl.dialects import riscv
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
+from xdsl.utils.comparisons import (
+    signed_lower_bound,
+    signed_upper_bound,
+    unsigned_upper_bound,
+)
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -150,13 +155,19 @@ def test_immediate_s_inst():
 
 def test_immediate_u_j_inst():
     # U-Type and J-Type - 20-bits immediate
-    with pytest.raises(VerifyException):
-        riscv.LuiOp(1 << 20)
+    ub = signed_upper_bound(20)
+    lb = signed_lower_bound(20)
+    assert ub == 524288
+    assert lb == -524288
 
     with pytest.raises(VerifyException):
-        riscv.LuiOp(-(1 << 20) - 2)
+        riscv.LuiOp(ub)
 
-    riscv.LuiOp((1 << 20) - 1)
+    with pytest.raises(VerifyException):
+        riscv.LuiOp(lb - 1)
+
+    riscv.LuiOp(ub - 1)
+    riscv.LuiOp(lb)
 
 
 def test_immediate_jalr_inst():
@@ -173,14 +184,20 @@ def test_immediate_jalr_inst():
 
 
 def test_immediate_pseudo_inst():
+    ub = unsigned_upper_bound(32)
+    lb = signed_lower_bound(32)
+    assert ub == 4294967296
+    assert lb == -2147483648
+
     # Pseudo-Instruction with custom handling
     with pytest.raises(VerifyException):
-        riscv.LiOp(-(1 << 31) - 1, rd=riscv.Registers.A0)
+        riscv.LiOp(ub, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.LiOp(1 << 32, rd=riscv.Registers.A0)
+        riscv.LiOp(lb - 1, rd=riscv.Registers.A0)
 
-    riscv.LiOp((1 << 31) - 1, rd=riscv.Registers.A0)
+    riscv.LiOp(ub - 1, rd=riscv.Registers.A0)
+    riscv.LiOp(lb, rd=riscv.Registers.A0)
 
 
 def test_immediate_shift_inst():

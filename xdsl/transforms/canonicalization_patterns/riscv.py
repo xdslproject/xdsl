@@ -221,10 +221,13 @@ class SubAddi(RewritePattern):
         if (
             isinstance(op.rs1, OpResult)
             and isinstance(op.rs1.op, riscv.AddiOp)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
             and op.rs2 == op.rs1.op.rs1
         ):
             rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.LiOp(op.rs1.op.immediate, rd=rd))
+            rewriter.replace_matched_op(
+                riscv.LiOp(op.rs1.op.immediate.value.data, rd=rd)
+            )
 
 
 class ShiftLeftImmediate(RewritePattern):

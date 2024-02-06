@@ -359,8 +359,8 @@
 // CHECK-GENERIC-NEXT:     %slli = "riscv.slli"(%0) {"immediate" = 1 : ui5} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %srli = "riscv.srli"(%0) {"immediate" = 1 : ui5} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %srai = "riscv.srai"(%0) {"immediate" = 1 : ui5} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %lui = "riscv.lui"() {"immediate" = 1 : ui20} : () -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %auipc = "riscv.auipc"() {"immediate" = 1 : ui20} : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %lui = "riscv.lui"() {"immediate" = 1 : i20} : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %auipc = "riscv.auipc"() {"immediate" = 1 : i20} : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %mv = "riscv.mv"(%0) : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %add = "riscv.add"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %slt = "riscv.slt"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
@@ -418,16 +418,16 @@
 // CHECK-GENERIC-NEXT:     %divu = "riscv.divu"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %rem = "riscv.rem"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %remu = "riscv.remu"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %li = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %li = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     "riscv.ecall"() : () -> ()
 // CHECK-GENERIC-NEXT:     "riscv.ebreak"() : () -> ()
 // CHECK-GENERIC-NEXT:     "riscv.directive"() {"directive" = ".bss"} : () -> ()
 // CHECK-GENERIC-NEXT:     "riscv.directive"() {"directive" = ".align", "value" = "2"} : () -> ()
 // CHECK-GENERIC-NEXT:     "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:       %nested_li = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:       %nested_li = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     }) {"directive" = ".text", "foo" = i32} : () -> ()
 // CHECK-GENERIC-NEXT:     "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:       %nested_li_1 = "riscv.li"() {"immediate" = 1 : si32} : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:       %nested_li_1 = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     }) {"directive" = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:     %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
 // CHECK-GENERIC-NEXT:     %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>
