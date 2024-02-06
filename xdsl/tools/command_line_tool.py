@@ -333,6 +333,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_global_to_local.LowerHaloToMPI
 
+    def get_individual_rewrite():
+        from xdsl.transforms.individual_rewrite import IndividualRewrite
+
+        return IndividualRewrite
+
     def get_lower_affine():
         from xdsl.transforms import lower_affine
 
@@ -479,6 +484,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "frontend-desymrefy": get_desymrefy,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
+        "apply-individual-rewrite": get_individual_rewrite,
         "lower-affine": get_lower_affine,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
