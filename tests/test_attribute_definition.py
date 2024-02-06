@@ -226,13 +226,13 @@ def test_unsigned_integer_attr():
 def test_signless_integer_attr():
     """Test the verification of a signless integer attribute."""
     with pytest.raises(VerifyException):
-        IntegerAttr((1 << 32) + 1, IntegerType(32, Signedness.SIGNLESS))
+        IntegerAttr((1 << 32), IntegerType(32, Signedness.SIGNLESS))
 
     with pytest.raises(VerifyException):
         IntegerAttr(-(1 << 32) - 1, IntegerType(32, Signedness.SIGNLESS))
 
-    IntegerAttr(1 << 32, IntegerType(32, Signedness.SIGNLESS))
-    IntegerAttr(-(1 << 32), IntegerType(32, Signedness.SIGNLESS))
+    IntegerAttr(1 << 32 - 1, IntegerType(32, Signedness.SIGNLESS))
+    IntegerAttr(-(1 << 31), IntegerType(32, Signedness.SIGNLESS))
 
 
 ################################################################################
