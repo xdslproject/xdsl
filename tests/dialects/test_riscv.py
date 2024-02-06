@@ -1,14 +1,9 @@
 import pytest
 
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, Signedness, i32
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
-from xdsl.utils.comparisons import (
-    signed_lower_bound,
-    signed_upper_bound,
-    unsigned_upper_bound,
-)
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -155,9 +150,8 @@ def test_immediate_s_inst():
 
 def test_immediate_u_j_inst():
     # U-Type and J-Type - 20-bits immediate
-    ub = signed_upper_bound(20)
-    lb = signed_lower_bound(20)
-    assert ub == 524288
+    lb, ub = Signedness.SIGNLESS.value_range(20)
+    assert ub == 1048576
     assert lb == -524288
 
     with pytest.raises(VerifyException):
@@ -184,8 +178,7 @@ def test_immediate_jalr_inst():
 
 
 def test_immediate_pseudo_inst():
-    ub = unsigned_upper_bound(32)
-    lb = signed_lower_bound(32)
+    lb, ub = Signedness.SIGNLESS.value_range(32)
     assert ub == 4294967296
     assert lb == -2147483648
 
