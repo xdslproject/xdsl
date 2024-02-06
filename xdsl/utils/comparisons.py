@@ -32,26 +32,31 @@
     their bit representations are the same.
 """
 
+from xdsl.dialects.builtin import Signedness
+
 
 def unsigned_upper_bound(bitwidth: int) -> int:
     """
     The maximum representable value + 1.
     """
-    return 1 << bitwidth
+    _, ub = Signedness.UNSIGNED.value_range(bitwidth)
+    return ub
 
 
 def signed_lower_bound(bitwidth: int) -> int:
     """
     The minimum representable value.
     """
-    return -(1 << (bitwidth - 1))
+    lb, _ = Signedness.SIGNED.value_range(bitwidth)
+    return lb
 
 
 def signed_upper_bound(bitwidth: int) -> int:
     """
     The maximum representable value + 1.
     """
-    return 1 << (bitwidth - 1)
+    _, ub = Signedness.SIGNED.value_range(bitwidth)
+    return ub
 
 
 def to_unsigned(signless: int, bitwidth: int) -> int:

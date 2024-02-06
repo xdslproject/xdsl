@@ -34,7 +34,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -145,8 +150,15 @@ class ForRofOperation(IRDLOperation, ABC):
             printer.print_string(") -> (")
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
+        yield_op = block.last_op
+        print_block_terminators = not isinstance(yield_op, YieldOp) or bool(
+            yield_op.operands
+        )
         printer.print_region(
-            self.body, print_entry_block_args=False, print_empty_block=False
+            self.body,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=print_block_terminators,
         )
 
     @classmethod
@@ -188,11 +200,13 @@ class ForRofOperation(IRDLOperation, ABC):
 
         # Parse body
         body = parser.parse_region((index, *iter_args))
-        if not body.block.ops:
-            assert not iter_args, "Cannot create implicit yield with arguments"
-            body.block.add_op(YieldOp())
 
-        return cls(lb, ub, step, iter_arg_operands, body)
+        for_rof = cls(lb, ub, step, iter_arg_operands, body)
+
+        for trait in for_rof.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(for_rof, trait)
+
+        return for_rof
 
 
 @irdl_op_definition

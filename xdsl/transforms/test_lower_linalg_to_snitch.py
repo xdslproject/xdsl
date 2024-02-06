@@ -4,15 +4,12 @@ from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
 from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
     ConvertSnitchStreamToSnitch,
 )
-from xdsl.backend.riscv.lowering.reduce_register_pressure import (
-    RiscvReduceRegisterPressurePass,
-)
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
+from xdsl.transforms.convert_riscv_scf_for_to_frep import ConvertRiscvScfForToFrepPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
-from xdsl.transforms.riscv_get_zero_register import RiscvGetZeroRegisterPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
@@ -29,17 +26,16 @@ class TestLowerLinalgToSnitchPass(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PipelinePass(
             [
+                ConvertRiscvScfForToFrepPass(),
                 SnitchRegisterAllocation(),
                 ConvertSnitchStreamToSnitch(),
                 LowerSnitchPass(),
                 CanonicalizePass(),
                 RiscvScfLoopRangeFoldingPass(),
                 CanonicalizePass(),
-                RiscvReduceRegisterPressurePass(),
                 RISCVRegisterAllocation(),
                 CanonicalizePass(),
                 ConvertRiscvScfToRiscvCfPass(),
                 CanonicalizePass(),
-                RiscvGetZeroRegisterPass(),
             ]
         ).apply(ctx, op)

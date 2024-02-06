@@ -30,8 +30,9 @@ riscv_func.func @never() {
 }
 
 // CHECK:       riscv_func.func @at_least_once() {
+// CHECK-NEXT:    %one = riscv.li 1 : () -> !riscv.reg<>
 // CHECK-NEXT:    %three = riscv.li 3 : () -> !riscv.reg<>
-// CHECK-NEXT:    %0 = riscv.li 1 : () -> !riscv.reg<>
+// CHECK-NEXT:    %0 = riscv.mv %one : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:    riscv_cf.branch ^0(%0 : !riscv.reg<>) attributes {"comment" = "Constant folded riscv_cf.bge"}
 // CHECK-NEXT:  ^0(%i : !riscv.reg<>):
 // CHECK-NEXT:    riscv.label "scf_body_0_for"
@@ -44,8 +45,9 @@ riscv_func.func @never() {
 // CHECK-NEXT:  }
 
 // CHECK-NEXT:  riscv_func.func @never() {
+// CHECK-NEXT:    %one_1 = riscv.li 1 : () -> !riscv.reg<>
 // CHECK-NEXT:    %three_1 = riscv.li 3 : () -> !riscv.reg<>
-// CHECK-NEXT:    %3 = riscv.li 1 : () -> !riscv.reg<>
+// CHECK-NEXT:    %3 = riscv.mv %one_1 : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:    riscv_cf.j ^2(%3 : !riscv.reg<>) attributes {"comment" = "Constant folded riscv_cf.bge"}
 // CHECK-NEXT:  ^3(%i_1 : !riscv.reg<>):
 // CHECK-NEXT:    riscv.label "scf_body_0_for"
