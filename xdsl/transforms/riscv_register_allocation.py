@@ -1,36 +1,10 @@
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
-from xdsl.dialects import riscv, riscv_func
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp
+from xdsl.dialects import riscv_func
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-    op_type_rewrite_pattern,
-)
-
-
-class LoadZeroImmediatePattern(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.LiOp, rewriter: PatternRewriter) -> None:
-        if not isinstance(op.immediate, IntegerAttr) or op.immediate.value.data != 0:
-            return
-
-        assert isinstance(op.rd.type, riscv.IntRegisterType)
-
-        if op.rd.type.is_allocated:
-            return
-
-        # Set the result type to 0
-        op.rd.type = riscv.Registers.ZERO
-
-        for use in op.rd.uses:
-            if isinstance(use.operation, riscv_scf.ForRofOperation):
-
 
 
 @dataclass
@@ -72,12 +46,6 @@ class RISCVRegisterAllocation(ModulePass):
                 "The limit of available registers cannot be less than 0."
                 "When set to 0 it signifies all available registers are used."
             )
-
-        # 0 should always be zero
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier([LoadZeroImmediatePattern()]),
-            apply_recursively=False,
-        ).rewrite_module(op)
 
         for inner_op in op.walk():
             if isinstance(inner_op, riscv_func.FuncOp):

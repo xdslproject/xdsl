@@ -8,10 +8,12 @@ from xdsl.dialects import riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
+    Registers,
     RISCVOp,
     RISCVRegisterType,
 )
 from xdsl.ir import Block, Operation, SSAValue
+from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 
 
@@ -96,7 +98,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             isinstance(reg.type, IntRegisterType | FloatRegisterType)
             and not reg.type.is_allocated
         ):
-            reg.type = self.available_registers.pop(type(reg.type))
+            if (val := get_constant_value(reg)) is not None and val.value.data == 0:
+                reg.type = Registers.ZERO
+            else:
+                reg.type = self.available_registers.pop(type(reg.type))
             return True
 
         return False
