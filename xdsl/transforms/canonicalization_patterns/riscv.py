@@ -21,14 +21,6 @@ class RemoveRedundantMv(RewritePattern):
             rewriter.replace_matched_op([], [op.rs])
 
 
-class ImmediateMoveToCopy(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.MVOp, rewriter: PatternRewriter, /):
-        if (rs := get_constant_value(op.rs)) is not None:
-            reg = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.LiOp(rs, rd=reg))
-
-
 class RemoveRedundantFMv(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FMVOp, rewriter: PatternRewriter) -> None:
