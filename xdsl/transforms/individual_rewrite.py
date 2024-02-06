@@ -53,7 +53,9 @@ class IndividualRewrite(ModulePass):
 
         rewrite_dictionary = REWRITE_BY_NAMES.get(self.operation_name)
         if rewrite_dictionary is None:
-            raise ValueError("Operation name not found in the rewrite dictionary.")
+            raise ValueError(
+                f"Operation name {self.operation_name} not found in the rewrite dictionary."
+            )
 
         pattern = rewrite_dictionary.get(self.pattern_name)
         if pattern is None:
