@@ -45,6 +45,7 @@ class IndividualRewrite(ModulePass):
         assert self.pattern_name is not None
 
         matched_operation_list = list(op.walk())
+        print(len(matched_operation_list))
         if self.matched_operation_index >= len(matched_operation_list):
             raise ValueError("Matched operation index out of range.")
 
@@ -59,6 +60,10 @@ class IndividualRewrite(ModulePass):
 
         pattern = rewrite_dictionary.get(self.pattern_name)
         if pattern is None:
-            raise ValueError("Pattern name not found for the provided operation name.")
+            raise ValueError(
+                f"Pattern name {self.pattern_name} not found for the provided operation name."
+            )
 
         pattern.match_and_rewrite(matched_operation, rewriter)
+        if not rewriter.has_done_action:
+            raise ValueError("Invalid rewrite at current location.")
