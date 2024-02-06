@@ -648,7 +648,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(IntRegisterType)
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    immediate: SImm20Attr | LabelAttr = attr_def(SImm20Attr | LabelAttr)
 
     def __init__(
         self,
@@ -658,7 +658,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.UNSIGNED))
+            immediate = IntegerAttr(immediate, si20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
@@ -682,9 +682,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(20, Signedness.UNSIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, si20)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
