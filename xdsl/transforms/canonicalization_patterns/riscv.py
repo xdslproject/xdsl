@@ -21,14 +21,6 @@ class RemoveRedundantMv(RewritePattern):
             rewriter.replace_matched_op([], [op.rs])
 
 
-class ImmediateMoveToCopy(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.MVOp, rewriter: PatternRewriter, /):
-        if (rs := get_constant_value(op.rs)) is not None:
-            reg = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_matched_op(riscv.LiOp(rs, rd=reg))
-
-
 class RemoveRedundantFMv(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.FMVOp, rewriter: PatternRewriter) -> None:
@@ -430,24 +422,32 @@ class ScfgwOpUsingImmediate(RewritePattern):
 
 class LoadImmediate0(RewritePattern):
     """
-    The canonical form of an operation that loads a 0 value is `li zero, 0`, so that the
-    downstream patterns can assume that any constant is created by `li`, and don't need
-    more sophisticated checks.
+    The canonical form of an operation that stores a 0 to register RD is li RD, ZERO.
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.LiOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.immediate, IntegerAttr)
-            and op.immediate.value.data == 0
-            and op.rd.type == riscv.IntRegisterType.unallocated()
-        ):
-            rewriter.replace_matched_op(riscv.LiOp(0, rd=riscv.Registers.ZERO))
+        if not (isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0):
+            return
+
+        rd = cast(riscv.IntRegisterType, op.rd.type)
+        if rd == riscv.Registers.ZERO:
+            rewriter.replace_matched_op(riscv.GetRegisterOp(riscv.Registers.ZERO))
+        else:
+            rewriter.replace_matched_op(
+                (
+                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    riscv.MVOp(zero.res, rd=rd, comment=op.comment),
+                )
+            )
 
 
 def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
     if value.type == riscv.Registers.ZERO:
         return IntegerAttr.from_int_and_width(0, 32)
+
+    if isinstance(value.owner, riscv.MVOp):
+        return get_constant_value(value.owner.rs)
 
     if isinstance(value.owner, riscv.LiOp) and isinstance(
         value.owner.immediate, IntegerAttr
