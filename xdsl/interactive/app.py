@@ -334,7 +334,7 @@ func.func @hello(%n : i32) -> i32 {
         Function called when the reactive variable current_possible_rewrites changes -
         updates the ListView to display the current_available_rewrites options.
         """
-        if old_pass_list != new_pass_list:
+        if old_pass_list != new_pass_list and isinstance(self.current_module, ModuleOp):
             self.passes_list_view.clear()
             # initialize ListView to contain the pass options
             for value in self.available_pass_list:
