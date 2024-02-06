@@ -18,6 +18,10 @@ riscv_func.func @main() {
     %10 = riscv.mv %9 : (!riscv.reg<>) -> !riscv.reg<>
     riscv_scf.yield %10 : !riscv.reg<>
   }
+
+  %zero_0 = riscv.li 0 : () -> !riscv.reg<>
+  %zero_1 = riscv.li 0 : () -> !riscv.reg<a0>
+
   riscv_func.return
 }
 
@@ -36,6 +40,8 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:        riscv_scf.yield %{{\d+}} : !riscv.reg<t0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      }
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %zero_0 = riscv.li 0 : () -> !riscv.reg<zero>
+//   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      %zero_1 = riscv.li 0 : () -> !riscv.reg<a0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:      riscv_func.return
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:    }
 //   CHECK-LIVENESS-BLOCK-NAIVE-NEXT:  }
@@ -55,6 +61,8 @@ riscv_func.func @main() {
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        %{{\d+}} = riscv.mv %9 : (!riscv.reg<j0>) -> !riscv.reg<j0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:        riscv_scf.yield %{{\d+}} : !riscv.reg<j0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      }
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %zero_0 = riscv.li 0 : () -> !riscv.reg<zero>
+//   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      %zero_1 = riscv.li 0 : () -> !riscv.reg<a0>
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:      riscv_func.return
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:    }
 //   CHECK-LIVENESS-BLOCK-NAIVE-J-NEXT:  }
