@@ -440,22 +440,31 @@ class ScfgwOpUsingImmediate(RewritePattern):
 
 class LoadImmediate0(RewritePattern):
     """
-    The canonical form of an operation that stores a 0 constant to the ZERO register is
-    `GetRegisterOp(riscv.Registers.ZERO)`.
+    The canonical form of an operation that stores a 0 to register RD is li RD, ZERO.
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.LiOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.immediate, IntegerAttr)
-            and op.immediate.value.data == 0
-            and op.rd.type == riscv.Registers.ZERO
-        ):
+        if not (isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0):
+            return
+
+        rd = cast(riscv.IntRegisterType, op.rd.type)
+        if rd == riscv.Registers.ZERO:
             rewriter.replace_matched_op(riscv.GetRegisterOp(riscv.Registers.ZERO))
+        else:
+            rewriter.replace_matched_op(
+                (
+                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    riscv.MVOp(zero.res, rd=rd, comment=op.comment),
+                )
+            )
 
 
 def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
-    if value.type == riscv.Registers.ZERO:
+    if value.type == riscv.Registers.ZERO or (
+        isinstance(value.owner, riscv.MVOp)
+        and value.owner.rs.type == riscv.Registers.ZERO
+    ):
         return IntegerAttr.from_int_and_width(0, 32)
 
     if isinstance(value.owner, riscv.LiOp) and isinstance(
