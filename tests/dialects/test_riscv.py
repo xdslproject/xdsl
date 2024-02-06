@@ -121,31 +121,33 @@ def test_return_op():
 
 def test_immediate_i_inst():
     # I-Type - 12-bits immediate
+    lb, ub = Signedness.SIGNLESS.value_range(12)
     a1 = TestSSAValue(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
-        riscv.AddiOp(a1, 1 << 11, rd=riscv.Registers.A0)
+        riscv.AddiOp(a1, ub, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.AddiOp(a1, -(1 << 11) - 2, rd=riscv.Registers.A0)
+        riscv.AddiOp(a1, lb - 1, rd=riscv.Registers.A0)
 
-    riscv.AddiOp(a1, -(1 << 11), rd=riscv.Registers.A0)
-    riscv.AddiOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
+    riscv.AddiOp(a1, ub - 1, rd=riscv.Registers.A0)
+    riscv.AddiOp(a1, lb, rd=riscv.Registers.A0)
 
 
 def test_immediate_s_inst():
     # S-Type - 12-bits immediate
+    lb, ub = Signedness.SIGNLESS.value_range(12)
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
 
     with pytest.raises(VerifyException):
-        riscv.SwOp(a1, a2, 1 << 11)
+        riscv.SwOp(a1, a2, ub)
 
     with pytest.raises(VerifyException):
-        riscv.SwOp(a1, a2, -(1 << 11) - 2)
+        riscv.SwOp(a1, a2, lb - 1)
 
-    riscv.SwOp(a1, a2, -(1 << 11))
-    riscv.SwOp(a1, a2, (1 << 11) - 1)
+    riscv.SwOp(a1, a2, ub - 1)
+    riscv.SwOp(a1, a2, lb)
 
 
 def test_immediate_u_j_inst():
