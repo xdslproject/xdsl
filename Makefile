@@ -29,7 +29,7 @@ clean:
 
 # run filecheck tests
 filecheck:
-	lit -vv tests/filecheck --order=smart
+	lit -vv tests/filecheck --order=smart --timeout=3
 
 # run pytest tests
 pytest:
