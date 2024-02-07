@@ -93,10 +93,12 @@ class WireBundleAttr(Data[str]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
-        return parser.parse_str_literal()
+        with parser.in_angle_brackets():
+            return parser.parse_str_literal()
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f'"{self.data}"')
+        with printer.in_angle_brackets():
+            printer.print_string_literal(self.data)
 
 
 @irdl_attr_definition
@@ -478,22 +480,7 @@ class FlowOp(IRDLOperation):
             operands=[source, dest],
         )
 
-    def print(self, printer: Printer):
-        printer.print(
-            "(",
-            self.source,
-            ", ",
-            self.sourceBundle.data,
-            ": ",
-            self.sourceChannel.value.data,
-            ", ",
-            self.dest,
-            ", ",
-            self.destBundle.data,
-            ": ",
-            self.destChannel.value.data,
-            ")",
-        )
+    assembly_format = "`(` $source `, ` $dest `)` `<` $sourceBundle `: ` $sourceChannel `, ` $destBundle `: ` $destChannel `>`  attr-dict"
 
 
 @irdl_op_definition

@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from xdsl.ir import Attribute
-from xdsl.irdl import AttrSizedOperandSegments, OpDef, VariadicDef
+from xdsl.irdl import AttrSizedOperandSegments, OpDef, ParsePropInAttrDict, VariadicDef
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
     AttributeVariable,
@@ -92,6 +92,8 @@ class FormatParser(BaseParser):
     """The result types that are already parsed."""
     seen_attributes: set[str]
     """The attributes that are already parsed."""
+    seen_properties: set[str]
+    """The properties that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
@@ -109,6 +111,7 @@ class FormatParser(BaseParser):
         self.seen_operand_types = [False] * len(op_def.operands)
         self.seen_result_types = [False] * len(op_def.results)
         self.seen_attributes = set[str]()
+        self.seen_properties = set[str]()
         self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
@@ -140,6 +143,7 @@ class FormatParser(BaseParser):
         self.add_reserved_attrs_to_directive(elements)
         seen_variables = self.resolve_types()
         self.verify_attr_dict()
+        self.verify_properties()
         self.verify_operands(seen_variables)
         self.verify_results(seen_variables)
         return FormatProgram(elements)
@@ -155,6 +159,7 @@ class FormatParser(BaseParser):
                 elements[idx] = AttrDictDirective(
                     with_keyword=element.with_keyword,
                     reserved_attr_names=self.seen_attributes,
+                    print_properties=element.print_properties,
                 )
                 return
 
@@ -222,6 +227,30 @@ class FormatParser(BaseParser):
         if not self.has_attr_dict:
             self.raise_error("'attr-dict' directive not found")
 
+    def verify_properties(self):
+        """
+        Check that all properties are present, unless `ParsePropInAttrDict` option is
+        used.
+        """
+        # This is used for compatibility with MLIR
+        if any(
+            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
+        ):
+            if self.seen_properties:
+                self.raise_error(
+                    "properties cannot be specified in the declarative format "
+                    "when 'ParsePropInAttrDict' IRDL option is used. They are instead "
+                    "parsed from the attribute dictionary."
+                )
+            return
+        missing_properties = set(self.op_def.properties.keys()) - self.seen_properties
+        if missing_properties:
+            self.raise_error(
+                f"{', '.join(missing_properties)} properties are missing from "
+                "the declarative format. If this is intentional, consider using "
+                "'ParsePropInAttrDict' IRDL option."
+            )
+
     def parse_optional_variable(
         self,
     ) -> OperandVariable | ResultVariable | AttributeVariable | None:
@@ -233,8 +262,10 @@ class FormatParser(BaseParser):
         """
         if self._current_token.text[0] != "$":
             return None
+        start_pos = self.pos
         self._consume_token()
         variable_name = self.parse_identifier(" after '$'")
+        end_pos = self.pos
 
         # Check if the variable is an operand
         for idx, (operand_name, operand_def) in enumerate(self.op_def.operands):
@@ -268,17 +299,25 @@ class FormatParser(BaseParser):
         # Check if the variable is an attribute
         if variable_name in self.op_def.accessor_names:
             (attr_name, attr_or_prop) = self.op_def.accessor_names[variable_name]
-            if attr_or_prop == "property":
-                self.raise_error("properties are currently not supported")
             if self.context == ParsingContext.TopLevel:
-                if attr_name in self.seen_attributes:
-                    self.raise_error(f"attribute '{variable_name}' is already bound")
-                self.seen_attributes.add(attr_name)
-            return AttributeVariable(variable_name)
+                if attr_or_prop == "property":
+                    if attr_name in self.seen_properties:
+                        self.raise_error(f"property '{variable_name}' is already bound")
+                    self.seen_properties.add(attr_name)
+                else:
+                    if attr_name in self.seen_attributes:
+                        self.raise_error(
+                            f"attribute '{variable_name}' is already bound"
+                        )
+                    self.seen_attributes.add(attr_name)
+
+            return AttributeVariable(variable_name, attr_or_prop == "property")
 
         self.raise_error(
             "expected variable to refer to an operand, "
-            "attribute, region, result, or successor"
+            "attribute, region, result, or successor",
+            at_position=start_pos,
+            end_position=end_pos,
         )
 
     def parse_type_directive(self) -> FormatDirective:
@@ -394,6 +433,13 @@ class FormatParser(BaseParser):
                 "in the assembly format description"
             )
         self.has_attr_dict = True
+        print_properties = any(
+            isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
+        )
         # reserved_attr_names is populated once the format is parsed, as some attributes
         # might appear after the attr-dict directive
-        return AttrDictDirective(with_keyword=with_keyword, reserved_attr_names=set())
+        return AttrDictDirective(
+            with_keyword=with_keyword,
+            reserved_attr_names=set(),
+            print_properties=print_properties,
+        )

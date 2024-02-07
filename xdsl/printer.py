@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -354,6 +355,18 @@ class Printer:
     def print_string_literal(self, string: str):
         self.print(json.dumps(string))
 
+    def print_bytes_literal(self, bytestring: bytes):
+        self.print('"')
+        for byte in bytestring:
+            match byte:
+                case 0x5C:  # ord("\\")
+                    self.print("\\\\")
+                case _ if 0x20 > byte or byte > 0x7E or byte == 0x22:
+                    self.print(f"\\{byte:02X}")
+                case _:
+                    self.print(chr(byte))
+        self.print('"')
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -393,6 +406,10 @@ class Printer:
 
         if isinstance(attribute, StringAttr):
             self.print_string_literal(attribute.data)
+            return
+
+        if isinstance(attribute, BytesAttr):
+            self.print_bytes_literal(attribute.data)
             return
 
         if isinstance(attribute, SymbolRefAttr):

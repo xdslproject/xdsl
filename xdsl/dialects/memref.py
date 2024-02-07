@@ -37,6 +37,7 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     Operand,
+    ParsePropInAttrDict,
     VarOperand,
     irdl_op_definition,
     operand_def,
@@ -71,6 +72,7 @@ class Load(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType())
     res: OpResult = result_def(T)
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
 
     # TODO varargs for indexing, which must match the memref dimensions
@@ -109,6 +111,7 @@ class Store(IRDLOperation):
     memref: Operand = operand_def(MemRefType[T])
     indices: VarOperand = var_operand_def(IndexType())
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
 
     def verify_(self):
