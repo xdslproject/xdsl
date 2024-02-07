@@ -12,6 +12,7 @@ from xdsl.interpreters import (
     riscv_debug,
     riscv_func,
     riscv_libc,
+    riscv_scf,
     riscv_snitch,
     scf,
     snitch_stream,
@@ -31,6 +32,7 @@ def register_implementations(
     interpreter.register_implementations(riscv_debug.RiscvDebugFunctions())
     interpreter.register_implementations(riscv_func.RiscvFuncFunctions())
     interpreter.register_implementations(riscv_libc.RiscvLibcFunctions())
+    interpreter.register_implementations(riscv_scf.RiscvScfFunctions())
     interpreter.register_implementations(riscv_snitch.RiscvSnitchFunctions())
     interpreter.register_implementations(pdl.PDLRewriteFunctions(ctx))
     interpreter.register_implementations(affine.AffineFunctions())

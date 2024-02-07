@@ -2,7 +2,7 @@ from onnx import GraphProto, NodeProto, TensorShapeProto, TypeProto, ValueInfoPr
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, onnx
-from xdsl.dialects.builtin import ModuleOp, TensorType, f32
+from xdsl.dialects.builtin import ModuleOp, TensorType, f32, f64
 from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import IRDLOperation
 
@@ -18,6 +18,7 @@ class Ctx:
 
 ELEM_TYPE = {
     1: f32,
+    11: f64,
 }
 
 
