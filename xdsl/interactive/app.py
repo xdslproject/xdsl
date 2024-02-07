@@ -24,7 +24,6 @@ from textual.widgets import (
     DataTable,
     Footer,
     Label,
-    ListItem,
     ListView,
     TextArea,
 )
@@ -33,6 +32,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
+from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
@@ -299,6 +299,12 @@ func.func @hello(%n : i32) -> i32 {
         ).border_title = "Choose a pass or multiple passes to be applied."
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
+        # initialize ListView to contain the pass options
+        for n, module_pass in ALL_PASSES:
+            self.passes_list_view.append(
+                PassListItem(Label(n), module_pass=module_pass, name=n)
+            )
+
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
 
@@ -344,13 +350,13 @@ func.func @hello(%n : i32) -> i32 {
             # initialize ListView to contain the pass options
             for value, _ in self.available_pass_list:
                 self.passes_list_view.append(
-                    ListItem(Label(value.name), name=value.name)
+                    PassListItem(Label(value.name), name=value.name)
                 )
 
             for op_idx, (op_name, pat_name, pat), n in new_pass_list:
                 op = list(self.current_module.walk())[op_idx]
                 self.passes_list_view.append(
-                    ListItem(
+                    PassListItem(
                         Label(f"{op}:{op_name}:{pat_name}"),
                         name=str(
                             new_pass_list.index((op_idx, (op_name, pat_name, pat), n))
@@ -390,7 +396,7 @@ func.func @hello(%n : i32) -> i32 {
             self.passes_list_view.clear()
             for value, _ in new_pass_list:
                 self.passes_list_view.append(
-                    ListItem(Label(value.name), name=value.name)
+                    PassListItem(Label(value.name), module_pass=value, name=value.name)
                 )
 
     def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
@@ -448,6 +454,9 @@ func.func @hello(%n : i32) -> i32 {
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
         """
+        list_item = event.item
+        assert isinstance(list_item, PassListItem)
+        self.get_pass_arguments(list_item.module_pass)
         selected_pass = event.item.name
 
         # Dealing with Passes
