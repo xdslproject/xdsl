@@ -42,7 +42,6 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.pattern_rewriter import (
     PatternRewriter,
-    RewritePattern,
 )
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
@@ -63,12 +62,21 @@ ALL_PATTERNS = tuple(
 )
 """Contains all the rewrite patterns."""
 
-NamedTuple = tuple[str, str, RewritePattern]
+NamedTuple = tuple[str, str]
+"""
+Type alias for a possible rewrite, described by an operation and pattern name.
+"""
+
+
+RewriteTuple = tuple[int, NamedTuple]
+"""
+Type alias for a specific rewrite pattern, additionally consisting of its operation index.
+"""
 
 
 def get_all_possible_rewrites(
     patterns: tuple[NamedTuple, ...], op: ModuleOp
-) -> tuple[tuple[int, NamedTuple], ...]:
+) -> tuple[RewriteTuple, ...]:
     """
     Function that takes a sequence of Rewrite Patterns and a ModuleOp, and
     returns the possible rewrites.
@@ -78,7 +86,7 @@ def get_all_possible_rewrites(
 
     current_module = old_module.clone()
 
-    res: tuple[tuple[int, NamedTuple], ...] = ()
+    res: tuple[RewriteTuple, ...] = ()
 
     for op_idx in range(num_ops):
         matched_op = list(current_module.walk())[op_idx]
@@ -90,7 +98,7 @@ def get_all_possible_rewrites(
             rewriter = PatternRewriter(matched_op)
             pattern.match_and_rewrite(matched_op, rewriter)
             if rewriter.has_done_action:
-                res = (*res, ((op_idx, (matched_op.name, pattern_name, pattern))))
+                res = (*res, ((op_idx, (matched_op.name, pattern_name))))
                 current_module = old_module.clone()
                 matched_op = list(current_module.walk())[op_idx]
 
