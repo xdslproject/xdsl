@@ -54,23 +54,22 @@ from ._pasteboard import pyclip_copy
 
 
 class IndividualRewrite(NamedTuple):
+    """
+    Type alias for a possible rewrite, described by an operation and pattern name.
+    """
+
     operation: str
     pattern: str
 
 
-"""
-Type alias for a possible rewrite, described by an operation and pattern name.
-"""
-
-
 class IndexedIndividualRewrite(NamedTuple):
+    """
+    Type alias for a specific rewrite pattern, additionally consisting of its operation index.
+    """
+
     operation_index: int
     rewrite: IndividualRewrite
 
-
-"""
-Type alias for a specific rewrite pattern, additionally consisting of its operation index.
-"""
 
 ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
 """Contains the list of xDSL passes."""
