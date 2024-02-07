@@ -48,6 +48,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
@@ -147,15 +148,16 @@ class Alloc(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    @staticmethod
+    @classmethod
     def get(
+        cls,
         return_type: Attribute,
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
-    ) -> Alloc:
+    ) -> Self:
         if shape is None:
             shape = [1]
 
@@ -165,7 +167,7 @@ class Alloc(IRDLOperation):
         if isinstance(alignment, int):
             alignment = IntegerAttr.from_int_and_width(alignment, 64)
 
-        return Alloc.build(
+        return cls.build(
             operands=[dynamic_sizes, []],
             result_types=[MemRefType(return_type, shape, layout, memory_space)],
             properties={
@@ -184,6 +186,26 @@ class Alloc(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        #  %alloc = memref.alloc() {alignment = 64 : i64} : memref<3x2xf32>
+
+        parser.parse_punctuation("(")
+        parser.parse_punctuation(")")
+        attrs = parser.expect(parser.parse_optional_attr_dict, "no bueno")
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+
+        op = cls.build(
+            operands=[(), []],
+            result_types=[res_type],
+            properties=attrs,
+        )
+
+        op.attributes |= attrs
+
+        return op
 
 
 @irdl_op_definition
