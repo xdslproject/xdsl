@@ -342,7 +342,7 @@ func.func @hello(%n : i32) -> i32 {
                 rewrites_as_pass_list: tuple[
                     tuple[str, type[ModulePass], PipelinePassSpec], ...
                 ] = ()
-                for op_idx, (op_name, pat_name, _) in rewrites:
+                for op_idx, (op_name, pat_name) in rewrites:
                     rewrite_pass = individual_rewrite.IndividualRewrite
                     rewrite_spec_arg_str = f'matched_operation_index={op_idx} operation_name="{op_name}" pattern_name={pat_name}'
                     rewrite_spec = list(
