@@ -28,7 +28,7 @@ class MLIROptPass(ModulePass):
             raise ValueError("mlir-opt is not available")
 
         stream = StringIO()
-        printer = Printer(print_generic_format=True, stream=stream)
+        printer = Printer(stream=stream)
         printer.print(op)
 
         my_string = stream.getvalue()
