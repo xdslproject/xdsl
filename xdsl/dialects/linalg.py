@@ -22,6 +22,7 @@ from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     VarOperand,
     VarOpResult,
     irdl_attr_definition,
@@ -335,4 +336,31 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = frozenset([IsTerminator()])
 
 
-Linalg = Dialect("linalg", [Generic, YieldOp], [IteratorTypeAttr])
+@irdl_op_definition
+class AddOp(IRDLOperation):
+    name = "linalg.add"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+
+Linalg = Dialect(
+    "linalg",
+    [
+        Generic,
+        YieldOp,
+        AddOp,
+    ],
+    [
+        IteratorTypeAttr,
+    ],
+)
