@@ -106,7 +106,14 @@ def get_all_possible_rewrites(
             rewriter = PatternRewriter(matched_op)
             pattern.match_and_rewrite(matched_op, rewriter)
             if rewriter.has_done_action:
-                res = (*res, ((op_idx, (matched_op.name, pattern_name))))
+                res = (
+                    *res,
+                    (
+                        IndexedIndividualRewrite(
+                            op_idx, IndividualRewrite(matched_op.name, pattern_name)
+                        )
+                    ),
+                )
                 current_module = old_module.clone()
                 matched_op = list(current_module.walk())[op_idx]
 
