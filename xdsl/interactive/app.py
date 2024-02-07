@@ -176,7 +176,7 @@ func.func @hello(%n : i32) -> i32 {
     Reactive variable that saves the passes that have an effect on current_module.
     """
     current_possible_rewrites = reactive(
-        tuple[tuple[int, tuple[str, str, RewritePattern], ModuleOp]]
+        tuple[tuple[int, tuple[str, str, RewritePattern]], ...]
     )
     """
     Reactive variable that saves the rewrite patterns that have an effect on current_module.
@@ -371,6 +371,7 @@ func.func @hello(%n : i32) -> i32 {
             case Exception():
                 return ()
             case ModuleOp():
+                get_all_possible_rewrites(ALL_PATTERNS, self.current_module)
                 if self.condense_mode:
                     return condensed_pass_list(self.current_module)
                 else:
