@@ -66,7 +66,7 @@ ALL_PATTERNS = tuple(
 
 def get_all_possible_rewrites(
     patterns: tuple[tuple[str, str, RewritePattern], ...], op: ModuleOp
-) -> list[tuple[int, tuple[str, str, RewritePattern], ModuleOp]]:
+) -> tuple[tuple[int, tuple[str, str, RewritePattern]], ...]:
     """
     Function that takes a sequence of Rewrite Patterns and a ModuleOp, and
     returns the possible rewrites.
@@ -76,7 +76,7 @@ def get_all_possible_rewrites(
 
     current_module = old_module.clone()
 
-    res: list[tuple[int, tuple[str, str, RewritePattern], ModuleOp]] = []
+    res: tuple[tuple[int, tuple[str, str, RewritePattern]], ...] = ()
 
     for op_idx in range(num_ops):
         matched_op = list(current_module.walk())[op_idx]
@@ -88,9 +88,7 @@ def get_all_possible_rewrites(
             rewriter = PatternRewriter(matched_op)
             pattern.match_and_rewrite(matched_op, rewriter)
             if rewriter.has_done_action:
-                res.append(
-                    (op_idx, (matched_op.name, pattern_name, pattern), current_module)
-                )
+                res = (*res, ((op_idx, (matched_op.name, pattern_name, pattern))))
                 current_module = old_module.clone()
                 matched_op = list(current_module.walk())[op_idx]
 
