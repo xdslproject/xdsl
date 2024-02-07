@@ -204,6 +204,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Symref
 
+    def get_tensor():
+        from xdsl.dialects.tensor import Tensor
+
+        return Tensor
+
     def get_test():
         from xdsl.dialects.test import Test
 
@@ -253,6 +258,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "stencil": get_stencil,
         "stream": get_stream,
         "symref": get_symref,
+        "tensor": get_tensor,
         "test": get_test,
         "vector": get_vector,
     }
@@ -403,6 +409,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_memref_to_riscv.ConvertMemrefToRiscvPass
 
+    def get_convert_onnx_to_linalg():
+        from xdsl.transforms import convert_onnx_to_linalg
+
+        return convert_onnx_to_linalg.ConvertOnnxToLinalgPass
+
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
@@ -471,6 +482,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
