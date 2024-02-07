@@ -106,14 +106,23 @@ def get_all_possible_rewrites(
             rewriter = PatternRewriter(matched_op)
             pattern.match_and_rewrite(matched_op, rewriter)
             if rewriter.has_done_action:
-                res = (*res, ((op_idx, (matched_op.name, pattern_name))))
+                res = (
+                    *res,
+                    (
+                        IndexedIndividualRewrite(
+                            op_idx, IndividualRewrite(matched_op.name, pattern_name)
+                        )
+                    ),
+                )
                 current_module = old_module.clone()
                 matched_op = list(current_module.walk())[op_idx]
 
     return res
 
 
-def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
+def get_condensed_pass_list(
+    input: builtin.ModuleOp,
+) -> tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
 
     ctx = MLContext(True)
@@ -121,11 +130,14 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
-    selections: list[type[ModulePass]] = []
+    selections: tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...] = ()
     for _, value in ALL_PASSES:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            selections.append(value)
+            selections = (
+                *selections,
+                (value.name, value, value().pipeline_pass_spec()),
+            )
             continue
         try:
             cloned_module = input.clone()
@@ -135,9 +147,9 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
                 continue
         except Exception:
             pass
-        selections.append(value)
+        selections = (*selections, (value.name, value, None))
 
-    return tuple(selections)
+    return selections
 
 
 class OutputTextArea(TextArea):
@@ -168,11 +180,11 @@ class InputApp(App[None]):
     """
 
     INITIAL_IR_TEXT = """
-        func.func @hello(%n : index) -> index {
-          %two = arith.constant 2 : index
-          %res = arith.muli %n, %two : index
-          func.return %res : index
-        }
+func.func @hello(%n : i32) -> i32 {
+  %two = arith.constant 0 : i32
+  %res = arith.addi %two, %n : i32
+  func.return %res : i32
+}
         """
 
     current_module = reactive[ModuleOp | Exception | None](None)
@@ -181,14 +193,15 @@ class InputApp(App[None]):
     (i.e. is the Output TextArea).
     """
     pass_pipeline = reactive(tuple[tuple[type[ModulePass], PipelinePassSpec], ...])
-    """Reactive variable that saves the list of selected passes."""
+    """Reactive variable that saves the selected passes."""
 
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
-    available_pass_list = reactive(tuple[type[ModulePass], ...])
+    available_pass_list = reactive(
+        tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]
+    )
     """
-    Reactive variable that saves the list of passes that have an effect on
-    current_module.
+    Reactive variable that saves the passes that have an effect on current_module.
     """
 
     input_text_area: TextArea
@@ -311,7 +324,7 @@ class InputApp(App[None]):
         # initialize ListView to contain the pass options
         for n, module_pass in ALL_PASSES:
             self.passes_list_view.append(
-                PassListItem(Label(n), module_pass=module_pass, name=n)
+                PassListItem(Label(n), module_pass=module_pass, pass_spec=None, name=n)
             )
 
         # initialize GUI with either specified input text or default example
@@ -327,26 +340,52 @@ class InputApp(App[None]):
         # initialize GUI with specified pass pipeline
         self.pass_pipeline = self.pre_loaded_pass_pipeline
 
-    def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
+    def compute_available_pass_list(
+        self,
+    ) -> tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]:
         """
         When any reactive variable is modified, this function (re-)computes the
         available_pass_list variable.
         """
         match self.current_module:
             case None:
-                return tuple(p for _, p in ALL_PASSES)
+                return tuple((p.name, p, None) for _, p in ALL_PASSES)
             case Exception():
                 return ()
             case ModuleOp():
+                # transform rewrites into passes
+                rewrites = get_all_possible_rewrites(ALL_PATTERNS, self.current_module)
+                rewrites_as_pass_list: tuple[
+                    tuple[str, type[ModulePass], PipelinePassSpec], ...
+                ] = ()
+                for op_idx, (op_name, pat_name) in rewrites:
+                    rewrite_pass = individual_rewrite.IndividualRewrite
+                    rewrite_spec_arg_str = f'matched_operation_index={op_idx} operation_name="{op_name}" pattern_name={pat_name}'
+                    rewrite_spec = list(
+                        parse_pipeline(f"{rewrite_pass.name}{{{rewrite_spec_arg_str}}}")
+                    )[0]
+                    op = list(self.current_module.walk())[op_idx]
+                    rewrites_as_pass_list = (
+                        *rewrites_as_pass_list,
+                        (f"{op}:{op_name}:{pat_name}", rewrite_pass, rewrite_spec),
+                    )
+
+                # merge rewrite passes with "other" pass list
                 if self.condense_mode:
-                    return condensed_pass_list(self.current_module)
+                    pass_list = get_condensed_pass_list(self.current_module)
+                    return pass_list + rewrites_as_pass_list
                 else:
-                    return tuple(p for _, p in ALL_PASSES)
+                    pass_list = tuple((p.name, p, None) for _, p in ALL_PASSES)
+                    return pass_list + rewrites_as_pass_list
 
     def watch_available_pass_list(
         self,
-        old_pass_list: tuple[type[ModulePass], ...],
-        new_pass_list: tuple[type[ModulePass], ...],
+        old_pass_list: tuple[
+            tuple[str, type[ModulePass], PipelinePassSpec | None], ...
+        ],
+        new_pass_list: tuple[
+            tuple[str, type[ModulePass], PipelinePassSpec | None], ...
+        ],
     ) -> None:
         """
         Function called when the reactive variable available_pass_list changes - updates
@@ -354,12 +393,21 @@ class InputApp(App[None]):
         """
         if old_pass_list != new_pass_list:
             self.passes_list_view.clear()
-            for value in new_pass_list:
+            for pass_name, value, value_spec in new_pass_list:
                 self.passes_list_view.append(
-                    PassListItem(Label(value.name), module_pass=value, name=value.name)
+                    PassListItem(
+                        Label(pass_name),
+                        module_pass=value,
+                        pass_spec=value_spec,
+                        name=value.name,
+                    )
                 )
 
-    def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
+    def get_pass_arguments(
+        self,
+        selected_pass_value: type[ModulePass],
+        selected_pass_spec: PipelinePassSpec | None,
+    ) -> None:
         """
         This function facilitates user input of pass concatenated_arg_val by navigating
         to the AddArguments screen, and subsequently parses the returned string upon
@@ -390,7 +438,7 @@ class InputApp(App[None]):
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
         # if selected_pass_value has arguments, push screen
-        if fields(selected_pass_value):
+        if fields(selected_pass_value) and selected_pass_spec is None:
             # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
             self.push_screen(
                 AddArguments(
@@ -403,10 +451,16 @@ class InputApp(App[None]):
             )
         else:
             # add the selected pass to pass_pipeline
-            self.pass_pipeline = (
-                *self.pass_pipeline,
-                (selected_pass_value, selected_pass_value().pipeline_pass_spec()),
-            )
+            if selected_pass_spec is None:
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
+                    (selected_pass_value, selected_pass_value().pipeline_pass_spec()),
+                )
+            else:
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
+                    (selected_pass_value, selected_pass_spec),
+                )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
@@ -416,7 +470,7 @@ class InputApp(App[None]):
         """
         list_item = event.item
         assert isinstance(list_item, PassListItem)
-        self.get_pass_arguments(list_item.module_pass)
+        self.get_pass_arguments(list_item.module_pass, list_item.pass_spec)
 
     def watch_pass_pipeline(self) -> None:
         """
