@@ -24,7 +24,6 @@ from textual.widgets import (
     DataTable,
     Footer,
     Label,
-    ListItem,
     ListView,
     TextArea,
 )
@@ -33,6 +32,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
+from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
@@ -291,8 +291,10 @@ class InputApp(App[None]):
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
         # initialize ListView to contain the pass options
-        for n, _ in ALL_PASSES:
-            self.passes_list_view.append(ListItem(Label(n), name=n))
+        for n, module_pass in ALL_PASSES:
+            self.passes_list_view.append(
+                PassListItem(Label(n), module_pass=module_pass, name=n)
+            )
 
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
@@ -336,7 +338,7 @@ class InputApp(App[None]):
             self.passes_list_view.clear()
             for value in new_pass_list:
                 self.passes_list_view.append(
-                    ListItem(Label(value.name), name=value.name)
+                    PassListItem(Label(value.name), module_pass=value, name=value.name)
                 )
 
     def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
@@ -394,11 +396,9 @@ class InputApp(App[None]):
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
         """
-        selected_pass = event.item.name
-        for pass_name, pass_value in ALL_PASSES:
-            if pass_name == selected_pass:
-                # check if pass has arguments
-                self.get_pass_arguments(pass_value)
+        list_item = event.item
+        assert isinstance(list_item, PassListItem)
+        self.get_pass_arguments(list_item.module_pass)
 
     def watch_pass_pipeline(self) -> None:
         """
