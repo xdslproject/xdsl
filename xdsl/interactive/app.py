@@ -97,7 +97,9 @@ def get_all_possible_rewrites(
     return res
 
 
-def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
+def condensed_pass_list(
+    input: builtin.ModuleOp,
+) -> tuple[tuple[type[ModulePass], PipelinePassSpec], ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
 
     ctx = MLContext(True)
@@ -105,11 +107,11 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
-    selections: list[type[ModulePass]] = []
+    selections: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = ()
     for _, value in ALL_PASSES:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            selections.append(value)
+            selections = (*selections, (value, value().pipeline_pass_spec()))
             continue
         try:
             cloned_module = input.clone()
@@ -119,9 +121,9 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
                 continue
         except Exception:
             pass
-        selections.append(value)
+        selections = (*selections, (value, value().pipeline_pass_spec()))
 
-    return tuple(selections)
+    return selections
 
 
 class OutputTextArea(TextArea):
@@ -169,7 +171,9 @@ func.func @hello(%n : i32) -> i32 {
 
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
-    available_pass_list = reactive(tuple[type[ModulePass], ...])
+    available_pass_list = reactive(
+        tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
+    )
     """
     Reactive variable that saves the passes that have an effect on current_module.
     """
@@ -319,10 +323,13 @@ func.func @hello(%n : i32) -> i32 {
         """
         match self.current_module:
             case None:
+                tuple((p, p().pipeline_pass_spec()) for _, p in ALL_PASSES)
                 return []
             case Exception():
                 return []
             case ModuleOp():
+                get_all_possible_rewrites(ALL_PATTERNS, self.current_module)
+
                 return get_all_possible_rewrites(ALL_PATTERNS, self.current_module)
 
     def watch_current_possible_rewrites(
@@ -337,7 +344,7 @@ func.func @hello(%n : i32) -> i32 {
         if old_pass_list != new_pass_list and isinstance(self.current_module, ModuleOp):
             self.passes_list_view.clear()
             # initialize ListView to contain the pass options
-            for value in self.available_pass_list:
+            for value, _ in self.available_pass_list:
                 self.passes_list_view.append(
                     ListItem(Label(value.name), name=value.name)
                 )
@@ -353,26 +360,28 @@ func.func @hello(%n : i32) -> i32 {
                     )
                 )
 
-    def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
+    def compute_available_pass_list(
+        self,
+    ) -> tuple[tuple[type[ModulePass], PipelinePassSpec], ...]:
         """
         When any reactive variable is modified, this function (re-)computes the
         available_pass_list variable.
         """
         match self.current_module:
             case None:
-                return tuple(p for _, p in ALL_PASSES)
+                return tuple((p, p().pipeline_pass_spec()) for _, p in ALL_PASSES)
             case Exception():
                 return ()
             case ModuleOp():
                 if self.condense_mode:
                     return condensed_pass_list(self.current_module)
                 else:
-                    return tuple(p for _, p in ALL_PASSES)
+                    return tuple((p, p().pipeline_pass_spec()) for _, p in ALL_PASSES)
 
     def watch_available_pass_list(
         self,
-        old_pass_list: tuple[type[ModulePass], ...],
-        new_pass_list: tuple[type[ModulePass], ...],
+        old_pass_list: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
+        new_pass_list: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
     ) -> None:
         """
         Function called when the reactive variable available_pass_list changes - updates
@@ -380,7 +389,7 @@ func.func @hello(%n : i32) -> i32 {
         """
         if old_pass_list != new_pass_list:
             self.passes_list_view.clear()
-            for value in new_pass_list:
+            for value, _ in new_pass_list:
                 self.passes_list_view.append(
                     ListItem(Label(value.name), name=value.name)
                 )
