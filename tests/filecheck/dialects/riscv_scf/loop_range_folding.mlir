@@ -12,7 +12,6 @@ riscv_scf.for %arg4 : !riscv.reg<> = %c0 to %c64 step %c1 {
     %6 = riscv.li 4 : () -> !riscv.reg<>
     %7 = riscv.mul %arg4, %6 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     "test.op"(%7) : (!riscv.reg<>) -> ()
-    riscv_scf.yield
 }
 
 // Don't hoist multiplication by different constants
@@ -21,7 +20,6 @@ riscv_scf.for %arg4 : !riscv.reg<> = %c0 to %c64 step %c1 {
     %5 = riscv.mul %arg4, %4 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     %6 = riscv.li 5 : () -> !riscv.reg<>
     %7 = riscv.mul %arg4, %6 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-    riscv_scf.yield
 }
 
 
@@ -39,13 +37,11 @@ riscv_scf.for %arg4 : !riscv.reg<> = %c0 to %c64 step %c1 {
 // CHECK-NEXT:            "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:            %{{.*}} = riscv.li 4 : () -> !riscv.reg<>
 // CHECK-NEXT:            "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
-// CHECK-NEXT:            riscv_scf.yield
 // CHECK-NEXT:        }
 // CHECK-NEXT:        riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %c64 step %c1 {
 // CHECK-NEXT:            %{{.*}} = riscv.li 4 : () -> !riscv.reg<>
 // CHECK-NEXT:            %{{.*}} = riscv.mul %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-NEXT:            %{{.*}} = riscv.li 5 : () -> !riscv.reg<>
 // CHECK-NEXT:            %{{.*}} = riscv.mul %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:            riscv_scf.yield
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }
