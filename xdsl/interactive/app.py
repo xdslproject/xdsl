@@ -118,7 +118,9 @@ def get_all_possible_rewrites(
     return res
 
 
-def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
+def get_condensed_pass_list(
+    input: builtin.ModuleOp,
+) -> tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
 
     ctx = MLContext(True)
@@ -126,11 +128,14 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
-    selections: list[type[ModulePass]] = []
+    selections: tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...] = ()
     for _, value in ALL_PASSES:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            selections.append(value)
+            selections = (
+                *selections,
+                (value.name, value, value().pipeline_pass_spec()),
+            )
             continue
         try:
             cloned_module = input.clone()
@@ -140,9 +145,9 @@ def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]
                 continue
         except Exception:
             pass
-        selections.append(value)
+        selections = (*selections, (value.name, value, None))
 
-    return tuple(selections)
+    return selections
 
 
 class OutputTextArea(TextArea):
@@ -190,7 +195,9 @@ class InputApp(App[None]):
 
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
-    available_pass_list = reactive(tuple[type[ModulePass], ...])
+    available_pass_list = reactive(
+        tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]
+    )
     """
     Reactive variable that saves the list of passes that have an effect on
     current_module.
@@ -344,7 +351,7 @@ class InputApp(App[None]):
                 return ()
             case ModuleOp():
                 if self.condense_mode:
-                    return condensed_pass_list(self.current_module)
+                    return get_condensed_pass_list(self.current_module)
                 else:
                     return tuple(p for _, p in ALL_PASSES)
 
