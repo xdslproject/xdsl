@@ -69,6 +69,12 @@ class IndexedIndividualRewrite(NamedTuple):
     rewrite: IndividualRewrite
 
 
+class AvailablePass(NamedTuple):
+    display_name: str
+    module_pass: type[ModulePass]
+    pass_spec: PipelinePassSpec | None
+
+
 ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
 """Contains the list of xDSL passes."""
 
@@ -120,7 +126,7 @@ def get_all_possible_rewrites(
 
 def get_condensed_pass_list(
     input: builtin.ModuleOp,
-) -> tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]:
+) -> tuple[AvailablePass, ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
 
     ctx = MLContext(True)
@@ -128,13 +134,13 @@ def get_condensed_pass_list(
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
-    selections: tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...] = ()
+    selections: tuple[AvailablePass, ...] = ()
     for _, value in ALL_PASSES:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
             selections = (
                 *selections,
-                (value.name, value, value().pipeline_pass_spec()),
+                AvailablePass(value.name, value, value().pipeline_pass_spec()),
             )
             continue
         try:
@@ -145,7 +151,7 @@ def get_condensed_pass_list(
                 continue
         except Exception:
             pass
-        selections = (*selections, (value.name, value, None))
+        selections = (*selections, AvailablePass(value.name, value, None))
 
     return selections
 
@@ -195,9 +201,7 @@ class InputApp(App[None]):
 
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
-    available_pass_list = reactive(
-        tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]
-    )
+    available_pass_list = reactive(tuple[AvailablePass, ...])
     """
     Reactive variable that saves the list of passes that have an effect on
     current_module.
@@ -341,22 +345,20 @@ class InputApp(App[None]):
 
     def compute_available_pass_list(
         self,
-    ) -> tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]:
+    ) -> tuple[AvailablePass, ...]:
         """
         When any reactive variable is modified, this function (re-)computes the
         available_pass_list variable.
         """
         match self.current_module:
             case None:
-                return tuple((p.name, p, None) for _, p in ALL_PASSES)
+                return tuple(AvailablePass(p.name, p, None) for _, p in ALL_PASSES)
             case Exception():
                 return ()
             case ModuleOp():
                 # transform rewrites into passes
                 rewrites = get_all_possible_rewrites(ALL_PATTERNS, self.current_module)
-                rewrites_as_pass_list: tuple[
-                    tuple[str, type[ModulePass], PipelinePassSpec], ...
-                ] = ()
+                rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
                 for op_idx, (op_name, pat_name) in rewrites:
                     rewrite_pass = individual_rewrite.IndividualRewrite
                     rewrite_spec_arg_str = f'matched_operation_index={op_idx} operation_name="{op_name}" pattern_name={pat_name}'
@@ -366,7 +368,11 @@ class InputApp(App[None]):
                     op = list(self.current_module.walk())[op_idx]
                     rewrites_as_pass_list = (
                         *rewrites_as_pass_list,
-                        (f"{op}:{op_name}:{pat_name}", rewrite_pass, rewrite_spec),
+                        (
+                            AvailablePass(
+                                f"{op}:{op_name}:{pat_name}", rewrite_pass, rewrite_spec
+                            )
+                        ),
                     )
 
                 # merge rewrite passes with "other" pass list
@@ -374,17 +380,15 @@ class InputApp(App[None]):
                     pass_list = get_condensed_pass_list(self.current_module)
                     return pass_list + rewrites_as_pass_list
                 else:
-                    pass_list = tuple((p.name, p, None) for _, p in ALL_PASSES)
+                    pass_list = tuple(
+                        AvailablePass(p.name, p, None) for _, p in ALL_PASSES
+                    )
                     return pass_list + rewrites_as_pass_list
 
     def watch_available_pass_list(
         self,
-        old_pass_list: tuple[
-            tuple[str, type[ModulePass], PipelinePassSpec | None], ...
-        ],
-        new_pass_list: tuple[
-            tuple[str, type[ModulePass], PipelinePassSpec | None], ...
-        ],
+        old_pass_list: tuple[AvailablePass, ...],
+        new_pass_list: tuple[AvailablePass, ...],
     ) -> None:
         """
         Function called when the reactive variable available_pass_list changes - updates
