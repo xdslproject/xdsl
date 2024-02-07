@@ -12,7 +12,7 @@ import os
 from collections.abc import Callable
 from dataclasses import fields
 from io import StringIO
-from typing import Any, ClassVar
+from typing import Any, ClassVar, NamedTuple
 
 from textual import events, on
 from textual.app import App, ComposeResult
@@ -52,12 +52,22 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
-NamedTuple = tuple[str, str]
+
+class IndividualRewrite(NamedTuple):
+    operation: str
+    pattern: str
+
+
 """
 Type alias for a possible rewrite, described by an operation and pattern name.
 """
 
-RewriteTuple = tuple[int, NamedTuple]
+
+class IndexedIndividualRewrite(NamedTuple):
+    operation_index: int
+    rewrite: IndividualRewrite
+
+
 """
 Type alias for a specific rewrite pattern, additionally consisting of its operation index.
 """
@@ -65,8 +75,8 @@ Type alias for a specific rewrite pattern, additionally consisting of its operat
 ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
 """Contains the list of xDSL passes."""
 
-ALL_PATTERNS: tuple[NamedTuple, ...] = tuple(
-    (op_name, pattern_name)
+ALL_PATTERNS: tuple[IndividualRewrite, ...] = tuple(
+    IndividualRewrite(op_name, pattern_name)
     for (op_name, pattern_by_name) in individual_rewrite.REWRITE_BY_NAMES.items()
     for (pattern_name, _) in pattern_by_name.items()
 )
@@ -74,10 +84,10 @@ ALL_PATTERNS: tuple[NamedTuple, ...] = tuple(
 
 
 def get_all_possible_rewrites(
-    patterns: tuple[NamedTuple, ...], op: ModuleOp
-) -> tuple[RewriteTuple, ...]:
+    patterns: tuple[IndividualRewrite, ...], op: ModuleOp
+) -> tuple[IndexedIndividualRewrite, ...]:
     """
-    Function that takes a sequence of Rewrite Patterns and a ModuleOp, and
+    Function that takes a sequence of IndividualRewrite Patterns and a ModuleOp, and
     returns the possible rewrites.
     """
     old_module = op.clone()
@@ -85,7 +95,7 @@ def get_all_possible_rewrites(
 
     current_module = old_module.clone()
 
-    res: tuple[RewriteTuple, ...] = ()
+    res: tuple[IndexedIndividualRewrite, ...] = ()
 
     for op_idx in range(num_ops):
         matched_op = list(current_module.walk())[op_idx]
