@@ -1621,7 +1621,7 @@ class Block(IRNode):
                 return idx
         assert False, "Unexpected xdsl error"
 
-    def get_operation_by_index(self, idx: int) -> Operation:
+    def get_operation_at_index(self, idx: int) -> Operation:
         """Get the operation by its position in its parent block."""
         if idx not in range(0, len(self.ops)):
             raise Exception(
