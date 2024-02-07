@@ -16,7 +16,7 @@ riscv.assembly_section ".text" {
     %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
     %G_moved = riscv.mv %G : (!riscv.reg<a2>) -> !riscv.reg<>
 
-    %c0 = riscv.get_register : () -> !riscv.reg<zero>
+    %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
     %c8 = riscv.li 8 : () -> !riscv.reg<>
     %c512 = riscv.li 512 : () -> !riscv.reg<>
@@ -87,7 +87,7 @@ riscv.assembly_section ".text" {
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t0, 7
 // CHECK-NEXT:      mv t2, zero
-// CHECK-NEXT:      bge t2, t3, scf_body_end_0_for
+// CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_0_for:
 // CHECK-NEXT:      add t5, t1, t2
 // CHECK-NEXT:      fld ft3, 0(t5)

@@ -1,10 +1,7 @@
-from typing import Any
-
-from xdsl.dialects import riscv
-from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.riscv_cf import BranchOp, ConditionalBranchOperation, JOp
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Operation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
+from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 
 
 class ElideConstantBranches(RewritePattern):
@@ -12,12 +9,13 @@ class ElideConstantBranches(RewritePattern):
         if not isinstance(op, ConditionalBranchOperation):
             return
 
-        rs1, rs2 = map(const_evaluate_operand, (op.rs1, op.rs2))
+        rs1, rs2 = map(get_constant_value, (op.rs1, op.rs2))
         if rs1 is None or rs2 is None:
             return
 
         # check if the op would take the branch or not
-        branch_taken = op.const_evaluate(rs1, rs2)
+        # TODO: take bitwidth into account
+        branch_taken = op.const_evaluate(rs1.value.data, rs2.value.data, 32)
 
         # if branch is always taken, replace by jump
         if branch_taken:
@@ -37,14 +35,3 @@ class ElideConstantBranches(RewritePattern):
                     comment=f"Constant folded {op.name}",
                 )
             )
-
-
-def const_evaluate_operand(operand: SSAValue) -> Any:
-    """
-    Try to constant evaluate an SSA value, returning None on failure.
-    """
-    if isinstance(operand.owner, riscv.LiOp):
-        imm = operand.owner.immediate
-        if not isinstance(imm, IntegerAttr):
-            return None
-        return imm.value.data

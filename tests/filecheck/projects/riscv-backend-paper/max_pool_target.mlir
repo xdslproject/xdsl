@@ -13,7 +13,7 @@ riscv_func.func public @pooling_nchw_max_d1_s2_3x3(
     %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
     %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
 
-    %c0 = riscv.get_register : () -> !riscv.reg<zero>
+    %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
     %c8 = riscv.li 8 : () -> !riscv.reg<>
     %c512 = riscv.li 512 : () -> !riscv.reg<>
@@ -70,7 +70,7 @@ riscv_func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t3, 392
 // CHECK-NEXT:      mv t2, zero
-// CHECK-NEXT:      bge t2, t3, scf_body_end_0_for
+// CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_0_for:
 // CHECK-NEXT:      add t4, t1, t2
 // CHECK-NEXT:      fld ft3, 0(t4)

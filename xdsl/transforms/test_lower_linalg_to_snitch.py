@@ -4,9 +4,6 @@ from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
 from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
     ConvertSnitchStreamToSnitch,
 )
-from xdsl.backend.riscv.lowering.reduce_register_pressure import (
-    RiscvReduceRegisterPressurePass,
-)
 from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
@@ -34,7 +31,6 @@ class TestLowerLinalgToSnitchPass(ModulePass):
                 CanonicalizePass(),
                 RiscvScfLoopRangeFoldingPass(),
                 CanonicalizePass(),
-                RiscvReduceRegisterPressurePass(),
                 RISCVRegisterAllocation(),
                 CanonicalizePass(),
                 ConvertRiscvScfToRiscvCfPass(),

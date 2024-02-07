@@ -34,8 +34,9 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import ConstantLike, Pure
+from xdsl.traits import ConstantLike, HasCanonicalisationPatternsTrait, Pure
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -263,11 +264,19 @@ FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
 IntegerBinaryOp = BinaryOperation[IntegerType]
 
 
+class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
+
+        return (AddImmediateZero(),)
+
+
 @irdl_op_definition
 class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
-    traits = frozenset([Pure()])
+    traits = frozenset([Pure(), AddiOpHasCanonicalizationPatternsTrait()])
 
 
 @irdl_op_definition

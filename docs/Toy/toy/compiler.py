@@ -13,9 +13,6 @@ from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
     ConvertRiscvScfToRiscvCfPass,
 )
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
-from xdsl.backend.riscv.lowering.reduce_register_pressure import (
-    RiscvReduceRegisterPressurePass,
-)
 from xdsl.dialects import (
     affine,
     arith,
@@ -123,7 +120,6 @@ def transform(
     CanonicalizePass().apply(ctx, module_op)
     RiscvScfLoopRangeFoldingPass().apply(ctx, module_op)
     CanonicalizePass().apply(ctx, module_op)
-    RiscvReduceRegisterPressurePass().apply(ctx, module_op)
 
     module_op.verify()
 
