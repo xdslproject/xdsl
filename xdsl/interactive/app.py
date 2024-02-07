@@ -63,10 +63,12 @@ ALL_PATTERNS = tuple(
 )
 """Contains all the rewrite patterns."""
 
+NamedTuple = tuple[str, str, RewritePattern]
+
 
 def get_all_possible_rewrites(
-    patterns: tuple[tuple[str, str, RewritePattern], ...], op: ModuleOp
-) -> tuple[tuple[int, tuple[str, str, RewritePattern]], ...]:
+    patterns: tuple[NamedTuple, ...], op: ModuleOp
+) -> tuple[tuple[int, NamedTuple], ...]:
     """
     Function that takes a sequence of Rewrite Patterns and a ModuleOp, and
     returns the possible rewrites.
@@ -76,7 +78,7 @@ def get_all_possible_rewrites(
 
     current_module = old_module.clone()
 
-    res: tuple[tuple[int, tuple[str, str, RewritePattern]], ...] = ()
+    res: tuple[tuple[int, NamedTuple], ...] = ()
 
     for op_idx in range(num_ops):
         matched_op = list(current_module.walk())[op_idx]
