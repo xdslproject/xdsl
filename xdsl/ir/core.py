@@ -1623,14 +1623,13 @@ class Block(IRNode):
 
     def get_operation_at_index(self, idx: int) -> Operation:
         """Get the operation by its position in its parent block."""
-        if idx not in range(0, len(self.ops)):
-            raise Exception(
-                f"Cannot get operation by out-of-bounds index {idx} in its parent block."
-            )
         for _idx, block_op in enumerate(self.ops):
             if idx == _idx:
                 return block_op
-        assert False, "Unexpected xdsl error"
+
+        raise Exception(
+            f"Cannot get operation by out-of-bounds index {idx} in its parent block."
+        )
 
     def detach_op(self, op: Operation) -> Operation:
         """
