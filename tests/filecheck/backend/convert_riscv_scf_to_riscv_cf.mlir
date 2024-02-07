@@ -66,7 +66,7 @@ builtin.module {
 // CHECK-NEXT:      riscv.label "scf_body_0_for"
 // CHECK-NEXT:      %7 = riscv.add %5, %6 : (!riscv.reg<a4>, !riscv.reg<a3>) -> !riscv.reg<a3>
 // CHECK-NEXT:      %8 = riscv.add %5, %2 : (!riscv.reg<a4>, !riscv.reg<a2>) -> !riscv.reg<a4>
-// CHECK-NEXT:      riscv_cf.blt %8 : !riscv.reg<a4>, %1 : !riscv.reg<a1>, ^1(%8 : !riscv.reg<a4>, %3 : !riscv.reg<a3>), ^0(%8 : !riscv.reg<a4>, %3 : !riscv.reg<a3>)
+// CHECK-NEXT:      riscv_cf.blt %8 : !riscv.reg<a4>, %1 : !riscv.reg<a1>, ^1(%8 : !riscv.reg<a4>, %7 : !riscv.reg<a3>), ^0(%8 : !riscv.reg<a4>, %7 : !riscv.reg<a3>)
 // CHECK-NEXT:    ^0(%9 : !riscv.reg<a4>, %10 : !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "scf_body_end_0_for"
 // CHECK-NEXT:      %11 = riscv.mv %10 : (!riscv.reg<a3>) -> !riscv.reg<a0>
@@ -113,11 +113,11 @@ builtin.module {
 // CHECK-NEXT:      %7 = riscv.add %arg1, %arg3 : (!riscv.reg<a2>, !riscv.reg<a4>) -> !riscv.reg<a0>
 // CHECK-NEXT:      %8 = riscv.add %arg4, %7 : (!riscv.reg<a1>, !riscv.reg<a0>) -> !riscv.reg<a1>
 // CHECK-NEXT:      %9 = riscv.add %arg3, %5 : (!riscv.reg<a4>, !riscv.reg<a5>) -> !riscv.reg<a4>
-// CHECK-NEXT:      riscv_cf.blt %9 : !riscv.reg<a4>, %arg0 : !riscv.reg<a0>, ^3(%9 : !riscv.reg<a4>, %arg2 : !riscv.reg<a1>), ^2(%9 : !riscv.reg<a4>, %arg2 : !riscv.reg<a1>)
+// CHECK-NEXT:      riscv_cf.blt %9 : !riscv.reg<a4>, %arg0 : !riscv.reg<a0>, ^3(%9 : !riscv.reg<a4>, %8 : !riscv.reg<a1>), ^2(%9 : !riscv.reg<a4>, %8 : !riscv.reg<a1>)
 // CHECK-NEXT:    ^2(%10 : !riscv.reg<a4>, %11 : !riscv.reg<a1>):
 // CHECK-NEXT:      riscv.label "scf_body_end_0_for"
 // CHECK-NEXT:      %12 = riscv.add %arg1, %2 : (!riscv.reg<a2>, !riscv.reg<a3>) -> !riscv.reg<a2>
-// CHECK-NEXT:      riscv_cf.blt %12 : !riscv.reg<a2>, %arg0 : !riscv.reg<a0>, ^1(%12 : !riscv.reg<a2>, %0 : !riscv.reg<a1>), ^0(%12 : !riscv.reg<a2>, %0 : !riscv.reg<a1>)
+// CHECK-NEXT:      riscv_cf.blt %12 : !riscv.reg<a2>, %arg0 : !riscv.reg<a0>, ^1(%12 : !riscv.reg<a2>, %11 : !riscv.reg<a1>), ^0(%12 : !riscv.reg<a2>, %11 : !riscv.reg<a1>)
 // CHECK-NEXT:    ^0(%13 : !riscv.reg<a2>, %14 : !riscv.reg<a1>):
 // CHECK-NEXT:      riscv.label "scf_body_end_1_for"
 // CHECK-NEXT:      riscv_func.return %14 : !riscv.reg<a1>

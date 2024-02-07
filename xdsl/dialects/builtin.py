@@ -16,7 +16,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, assert_never
+from typing_extensions import Self
 
 from xdsl.ir import (
     Attribute,
@@ -304,6 +304,27 @@ class Signedness(Enum):
     SIGNED = 1
     UNSIGNED = 2
 
+    def value_range(self, bitwidth: int) -> tuple[int, int]:
+        """
+        For a given bitwidth, returns (min, max+1), where min and max are the smallest and
+        largest representable values.
+
+        Signless integers are bit patterns, so the representable range is the union of the
+        signed and unsigned representable ranges.
+        """
+        match self:
+            case Signedness.SIGNLESS:
+                min_value = -(1 << (bitwidth - 1))
+                max_value = 1 << bitwidth
+            case Signedness.SIGNED:
+                min_value = -(1 << (bitwidth - 1))
+                max_value = 1 << (bitwidth - 1)
+            case Signedness.UNSIGNED:
+                min_value = 0
+                max_value = 1 << bitwidth
+
+        return min_value, max_value
+
 
 @irdl_attr_definition
 class SignednessAttr(Data[Signedness]):
@@ -349,6 +370,9 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
         if isinstance(signedness, Signedness):
             signedness = SignednessAttr(signedness)
         super().__init__([data, signedness])
+
+    def value_range(self) -> tuple[int, int]:
+        return self.signedness.data.value_range(self.width.data)
 
 
 i64 = IntegerType(64)
@@ -432,36 +456,17 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
     def from_index_int_value(value: int) -> IntegerAttr[IndexType]:
         return IntegerAttr(value, IndexType())
 
-    @staticmethod
-    def _get_value_range(int_type: IntegerType) -> tuple[int, int]:
-        signedness = int_type.signedness.data
-        width = int_type.width.data
-
-        if signedness == Signedness.SIGNLESS:
-            min_value = -(1 << width)
-            max_value = 1 << width
-        elif signedness == Signedness.SIGNED:
-            min_value = -(1 << (width - 1))
-            max_value = (1 << (width - 1)) - 1
-        elif signedness == Signedness.UNSIGNED:
-            min_value = 0
-            max_value = (1 << width) - 1
-        else:
-            assert_never(signedness)
-
-        return min_value, max_value
-
     def verify(self) -> None:
         if isinstance(int_type := self.type, IndexType):
             return
 
-        min_value, max_value = self._get_value_range(int_type)
+        min_value, max_value = int_type.value_range()
 
-        if not (min_value <= self.value.data <= max_value):
+        if not (min_value <= self.value.data < max_value):
             raise VerifyException(
                 f"Integer value {self.value.data} is out of range for "
                 f"type {self.type} which supports values in the "
-                f"range [{min_value}, {max_value}]"
+                f"range [{min_value}, {max_value})"
             )
 
 
@@ -967,9 +972,11 @@ class DenseIntOrFPElementsAttr(
     @staticmethod
     def from_list(
         type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
-        data: Sequence[int]
-        | Sequence[IntegerAttr[IndexType]]
-        | Sequence[IntegerAttr[IntegerType]],
+        data: (
+            Sequence[int]
+            | Sequence[IntegerAttr[IndexType]]
+            | Sequence[IntegerAttr[IntegerType]]
+        ),
     ) -> DenseIntOrFPElementsAttr:
         ...
 
@@ -1013,11 +1020,13 @@ class DenseIntOrFPElementsAttr(
 
     @staticmethod
     def tensor_from_list(
-        data: Sequence[int]
-        | Sequence[float]
-        | Sequence[IntegerAttr[IndexType]]
-        | Sequence[IntegerAttr[IntegerType]]
-        | Sequence[AnyFloatAttr],
+        data: (
+            Sequence[int]
+            | Sequence[float]
+            | Sequence[IntegerAttr[IndexType]]
+            | Sequence[IntegerAttr[IntegerType]]
+            | Sequence[AnyFloatAttr]
+        ),
         data_type: IntegerType | IndexType | AnyFloat,
         shape: Sequence[int],
     ) -> DenseIntOrFPElementsAttr:
@@ -1103,10 +1112,12 @@ class DenseArrayBase(ParametrizedAttribute):
     @staticmethod
     def from_list(
         data_type: Attribute,
-        data: Sequence[int]
-        | Sequence[int | float]
-        | Sequence[IntAttr]
-        | Sequence[FloatData],
+        data: (
+            Sequence[int]
+            | Sequence[int | float]
+            | Sequence[IntAttr]
+            | Sequence[FloatData]
+        ),
     ) -> DenseArrayBase:
         if isinstance(data_type, IndexType | IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
@@ -1180,8 +1191,9 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
     def __init__(
         self,
-        strides: ArrayAttr[IntAttr | NoneAttr]
-        | Sequence[int | None | IntAttr | NoneAttr],
+        strides: (
+            ArrayAttr[IntAttr | NoneAttr] | Sequence[int | None | IntAttr | NoneAttr]
+        ),
         offset: int | None | IntAttr | NoneAttr = 0,
     ) -> None:
         if not isinstance(strides, ArrayAttr):

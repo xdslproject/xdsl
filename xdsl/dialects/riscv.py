@@ -16,7 +16,9 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
     UnitAttr,
+    i32,
 )
+from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
 from xdsl.ir import (
     Attribute,
     Block,
@@ -56,6 +58,14 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+
+class FastMathFlagsAttr(LLVMFastMathAttr):
+    """
+    riscv.fastmath is a mirror of LLVMs fastmath flags.
+    """
+
+    name = "riscv.fastmath"
 
 
 class RISCVRegisterType(Data[str], TypeAttribute, ABC):
@@ -321,11 +331,16 @@ class Registers(ABC):
 
 
 ui5 = IntegerType(5, Signedness.UNSIGNED)
-si12 = IntegerType(12, Signedness.SIGNED)
 si20 = IntegerType(20, Signedness.SIGNED)
+si12 = IntegerType(12, Signedness.SIGNED)
+i12 = IntegerType(12, Signedness.SIGNLESS)
+i20 = IntegerType(20, Signedness.SIGNLESS)
 UImm5Attr = IntegerAttr[Annotated[IntegerType, ui5]]
 SImm12Attr = IntegerAttr[Annotated[IntegerType, si12]]
 SImm20Attr = IntegerAttr[Annotated[IntegerType, si20]]
+Imm12Attr = IntegerAttr[Annotated[IntegerType, i12]]
+Imm20Attr = IntegerAttr[Annotated[IntegerType, i20]]
+Imm32Attr = IntegerAttr[Annotated[IntegerType, i32]]
 
 
 @irdl_attr_definition
@@ -579,6 +594,59 @@ class RdRsRsOperation(
         return self.rd, self.rs1, self.rs2
 
 
+class RdRsRsFloatOperationWithFastMath(IRDLOperation, RISCVInstruction, ABC):
+    """
+    A base class for RISC-V operations that have one destination floating-point register,
+    and two source floating-point registers and can be annotated with fastmath flags.
+
+    This is called R-Type in the RISC-V specification.
+    """
+
+    rd: OpResult = result_def(FloatRegisterType)
+    rs1: Operand = operand_def(FloatRegisterType)
+    rs2: Operand = operand_def(FloatRegisterType)
+    fastmath: FastMathFlagsAttr | None = opt_attr_def(FastMathFlagsAttr)
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        rd: FloatRegisterType,
+        fastmath: FastMathFlagsAttr | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rs1, rs2],
+            attributes={
+                "fastmath": fastmath,
+                "comment": comment,
+            },
+            result_types=[rd],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.rs2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        flags = FastMathFlagsAttr("none")
+        if parser.parse_optional_keyword("fastmath") is not None:
+            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        attributes["fastmath"] = flags
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
+        return {"fastmath"}
+
+
 class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, and one
@@ -586,7 +654,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(IntRegisterType)
-    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr | LabelAttr)
+    immediate: Imm20Attr | LabelAttr = attr_def(Imm20Attr | LabelAttr)
 
     def __init__(
         self,
@@ -596,7 +664,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(20, Signedness.UNSIGNED))
+            immediate = IntegerAttr(immediate, i20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if rd is None:
@@ -620,9 +688,7 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(20, Signedness.UNSIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, i20)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -675,9 +741,7 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(20, Signedness.SIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, si20)
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
@@ -722,7 +786,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, si12)
+            immediate = IntegerAttr(immediate, i12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -747,9 +811,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -788,9 +850,7 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(5, Signedness.UNSIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, ui5)
         return attributes
 
 
@@ -849,9 +909,7 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, si12)
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
@@ -953,18 +1011,18 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
-    immediate = attr_def(SImm12Attr)
+    immediate = attr_def(Imm12Attr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | SImm12Attr | str | LabelAttr,
+        immediate: int | Imm12Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, si12)
+            immediate = IntegerAttr(immediate, i12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -984,9 +1042,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -1537,11 +1593,10 @@ class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
-            ImmediateMoveToCopy,
             RemoveRedundantMv,
         )
 
-        return (RemoveRedundantMv(), ImmediateMoveToCopy())
+        return (RemoveRedundantMv(),)
 
 
 @irdl_op_definition
@@ -2361,10 +2416,20 @@ class RemuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
 # https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md
 
 
+class LiOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadImmediate0,
+        )
+
+        return (LoadImmediate0(),)
+
+
 @irdl_op_definition
-class LiOp(RdImmIntegerOperation):
+class LiOp(IRDLOperation, RISCVInstruction, ABC):
     """
-    Loads an immediate into rd.
+    Loads a 32-bit immediate into rd.
 
     This is an assembler pseudo-instruction.
 
@@ -2373,27 +2438,50 @@ class LiOp(RdImmIntegerOperation):
 
     name = "riscv.li"
 
-    traits = frozenset((Pure(), ConstantLike()))
+    rd: OpResult = result_def(IntRegisterType)
+    immediate: Imm32Attr | LabelAttr = attr_def(Imm32Attr | LabelAttr)
+
+    traits = frozenset((Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()))
 
     def __init__(
         self,
-        immediate: int | AnyIntegerAttr | str | LabelAttr,
+        immediate: int | Imm32Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, IntegerType(32, Signedness.SIGNED))
+            immediate = IntegerAttr(immediate, i32)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if rd is None:
+            rd = IntRegisterType.unallocated()
+        elif isinstance(rd, str):
+            rd = IntRegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
 
-        super().__init__(immediate, rd=rd, comment=comment)
+        super().__init__(
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(32, Signedness.SIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, i32)
         return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 @irdl_op_definition
@@ -2835,18 +2923,18 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(FloatRegisterType)
-    immediate = attr_def(SImm12Attr)
+    immediate = attr_def(Imm12Attr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | SImm12Attr | str | LabelAttr,
+        immediate: int | Imm12Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, si12)
+            immediate = IntegerAttr(immediate, i12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -2866,9 +2954,7 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -2886,18 +2972,18 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(SImm12Attr | LabelAttr)
+    immediate = attr_def(Imm12Attr | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | SImm12Attr | str | LabelAttr,
+        immediate: int | Imm12Attr | str | LabelAttr,
         *,
         rd: FloatRegisterType | str | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, si12)
+            immediate = IntegerAttr(immediate, i12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -2922,9 +3008,7 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        attributes["immediate"] = _parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -2986,7 +3070,7 @@ class FNMAddSOp(RdRsRsRsFloatOperation):
 
 
 @irdl_op_definition
-class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FAddSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point addition.
 
@@ -3001,7 +3085,7 @@ class FAddSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FSubSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point substraction.
 
@@ -3014,7 +3098,7 @@ class FSubSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMulSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point multiplication.
 
@@ -3027,7 +3111,7 @@ class FMulSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FDivSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FDivSOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform single-precision floating-point division.
 
@@ -3102,7 +3186,7 @@ class FSgnJXSOp(
 
 
 @irdl_op_definition
-class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMinSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of single precision data in rs1 and rs2 to rd.
 
@@ -3115,7 +3199,7 @@ class FMinSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMaxSOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMaxSOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
@@ -3370,8 +3454,18 @@ class FMSubDOp(RdRsRsRsFloatOperation):
     traits = frozenset((Pure(),))
 
 
+class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            FuseMultiplyAddD,
+        )
+
+        return (FuseMultiplyAddD(),)
+
+
 @irdl_op_definition
-class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FAddDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point addition.
 
@@ -3382,11 +3476,16 @@ class FAddDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
     name = "riscv.fadd.d"
 
-    traits = frozenset((Pure(),))
+    traits = frozenset(
+        (
+            Pure(),
+            FuseMultiplyAddDCanonicalizationPatternTrait(),
+        )
+    )
 
 
 @irdl_op_definition
-class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FSubDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point substraction.
 
@@ -3399,7 +3498,7 @@ class FSubDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMulDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point multiplication.
 
@@ -3414,7 +3513,7 @@ class FMulDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FDivDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FDivDOp(RdRsRsFloatOperationWithFastMath):
     """
     Perform double-precision floating-point division.
 
@@ -3437,7 +3536,7 @@ class FLdOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMinDOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the smaller of double precision data in rs1 and rs2 to rd.
 
@@ -3452,7 +3551,7 @@ class FMinDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegiste
 
 
 @irdl_op_definition
-class FMaxDOp(RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]):
+class FMaxDOp(RdRsRsFloatOperationWithFastMath):
     """
     Write the larger of single precision data in rs1 and rs2 to rd.
 
@@ -3779,5 +3878,6 @@ RISCV = Dialect(
         IntRegisterType,
         FloatRegisterType,
         LabelAttr,
+        FastMathFlagsAttr,
     ],
 )

@@ -24,7 +24,6 @@ from textual.widgets import (
     DataTable,
     Footer,
     Label,
-    ListItem,
     ListView,
     TextArea,
 )
@@ -33,6 +32,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.load_file_screen import LoadFile
+from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
@@ -159,10 +159,12 @@ class InputApp(App[None]):
     """
 
     pre_loaded_input_text: str
+    current_file_path: str
     pre_loaded_pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
 
     def __init__(
         self,
+        file_path: str | None = None,
         input_text: str | None = None,
         pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
     ):
@@ -176,6 +178,11 @@ class InputApp(App[None]):
         self.diff_operation_count_datatable = DataTable(
             id="diff_operation_count_datatable"
         )
+
+        if file_path is None:
+            self.current_file_path = ""
+        else:
+            self.current_file_path = file_path
 
         if input_text is None:
             self.pre_loaded_input_text = InputApp.INITIAL_IR_TEXT
@@ -241,8 +248,10 @@ class InputApp(App[None]):
         self.query_one("#selected_passes").border_title = "Selected passes/query"
 
         # initialize ListView to contain the pass options
-        for n, _ in ALL_PASSES:
-            self.passes_list_view.append(ListItem(Label(n), name=n))
+        for n, module_pass in ALL_PASSES:
+            self.passes_list_view.append(
+                PassListItem(Label(n), module_pass=module_pass, name=n)
+            )
 
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
@@ -286,7 +295,7 @@ class InputApp(App[None]):
             self.passes_list_view.clear()
             for value in new_pass_list:
                 self.passes_list_view.append(
-                    ListItem(Label(value.name), name=value.name)
+                    PassListItem(Label(value.name), module_pass=value, name=value.name)
                 )
 
     def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
@@ -344,11 +353,9 @@ class InputApp(App[None]):
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
         """
-        selected_pass = event.item.name
-        for pass_name, pass_value in ALL_PASSES:
-            if pass_name == selected_pass:
-                # check if pass has arguments
-                self.get_pass_arguments(pass_value)
+        list_item = event.item
+        assert isinstance(list_item, PassListItem)
+        self.get_pass_arguments(list_item.module_pass)
 
     def watch_pass_pipeline(self) -> None:
         """
@@ -413,14 +420,18 @@ class InputApp(App[None]):
         Function returning a string containing the textual description of the pass
         pipeline generated thus far.
         """
-        query = ""
-        if self.pass_pipeline != ():
+        if self.current_file_path == "":
+            query = "-p "
+        else:
+            query = self.current_file_path + " -p "
+
+        if self.pass_pipeline:
             query += "'"
             query += ",".join(
                 str(pipeline_pass_spec) for _, pipeline_pass_spec in self.pass_pipeline
             )
             query += "'"
-        return f"xdsl-opt -p {query}"
+        return f"xdsl-opt {query}"
 
     def update_input_operation_count_tuple(self, input_module: ModuleOp) -> None:
         """
@@ -554,6 +565,8 @@ class InputApp(App[None]):
                     with open(file_path) as file:
                         file_contents = file.read()
                         self.input_text_area.load_text(file_contents)
+                    self.current_file_path = file_path
+                    self.selected_query_label.update(self.get_query_string())
                 else:
                     self.input_text_area.load_text(
                         f"The file '{file_path}' does not exist."
@@ -593,7 +606,7 @@ def main():
     pass_list = get_all_passes()
     pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
 
-    return InputApp(file_contents, pipeline).run()
+    return InputApp(file_path, file_contents, pipeline).run()
 
 
 if __name__ == "__main__":
