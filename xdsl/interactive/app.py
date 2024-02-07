@@ -120,7 +120,7 @@ def get_all_possible_rewrites(
     return res
 
 
-def get_condensed_pass_list(
+def condensed_pass_list(
     input: builtin.ModuleOp,
 ) -> tuple[tuple[str, type[ModulePass], PipelinePassSpec | None], ...]:
     """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
