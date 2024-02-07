@@ -134,14 +134,14 @@ def get_condensed_pass_list(
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
-    selections: tuple[AvailablePass, ...] = ()
+    selections: list[AvailablePass] = []
     for _, value in ALL_PASSES:
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            selections = (
-                *selections,
-                AvailablePass(value.name, value, value().pipeline_pass_spec()),
+            selections.append(
+                AvailablePass(value.name, value, value().pipeline_pass_spec())
             )
+
             continue
         try:
             cloned_module = input.clone()
@@ -151,9 +151,9 @@ def get_condensed_pass_list(
                 continue
         except Exception:
             pass
-        selections = (*selections, AvailablePass(value.name, value, None))
+            selections.append(AvailablePass(value.name, value, None))
 
-    return selections
+    return tuple(selections)
 
 
 class OutputTextArea(TextArea):
