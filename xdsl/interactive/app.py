@@ -70,6 +70,11 @@ class IndexedIndividualRewrite(NamedTuple):
 
 
 class AvailablePass(NamedTuple):
+    """
+    Type alias for the attributes that describe a pass, namely the display name of the
+    pass, the module pass and pass spec.
+    """
+
     display_name: str
     module_pass: type[ModulePass]
     pass_spec: PipelinePassSpec | None
@@ -141,7 +146,6 @@ def get_condensed_pass_list(
             selections.append(
                 AvailablePass(value.name, value, value().pipeline_pass_spec())
             )
-
             continue
         try:
             cloned_module = input.clone()
@@ -151,7 +155,7 @@ def get_condensed_pass_list(
                 continue
         except Exception:
             pass
-            selections.append(AvailablePass(value.name, value, None))
+        selections.append(AvailablePass(value.name, value, None))
 
     return tuple(selections)
 
@@ -441,7 +445,7 @@ func.func @hello(%n : i32) -> i32 {
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
         # if selected_pass_value has arguments, push screen
-        if fields(selected_pass_value) and selected_pass_spec is None:
+        if fields(selected_pass_value):
             # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
             self.push_screen(
                 AddArguments(
