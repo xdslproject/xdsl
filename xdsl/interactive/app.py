@@ -52,26 +52,25 @@ from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
 
-ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
-"""Contains the list of xDSL passes."""
-
-ALL_PATTERNS = tuple(
-    (op_name, pattern_name, pattern)
-    for (op_name, pattern_by_name) in individual_rewrite.REWRITE_BY_NAMES.items()
-    for (pattern_name, pattern) in pattern_by_name.items()
-)
-"""Contains all the rewrite patterns."""
-
 NamedTuple = tuple[str, str]
 """
 Type alias for a possible rewrite, described by an operation and pattern name.
 """
 
-
 RewriteTuple = tuple[int, NamedTuple]
 """
 Type alias for a specific rewrite pattern, additionally consisting of its operation index.
 """
+
+ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
+"""Contains the list of xDSL passes."""
+
+ALL_PATTERNS: tuple[NamedTuple, ...] = tuple(
+    (op_name, pattern_name)
+    for (op_name, pattern_by_name) in individual_rewrite.REWRITE_BY_NAMES.items()
+    for (pattern_name, _) in pattern_by_name.items()
+)
+"""Contains all the rewrite patterns."""
 
 
 def get_all_possible_rewrites(
