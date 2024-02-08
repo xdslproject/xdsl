@@ -174,5 +174,4 @@ class HoistMemrefPass(ModulePass):
                 ]
             ),
             apply_recursively=True,
-            walk_reverse=True,
         ).rewrite_module(op)
