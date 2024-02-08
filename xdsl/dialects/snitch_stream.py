@@ -18,6 +18,7 @@ where `n` is the number of streaming registers, have a restricted functionality.
 register is configured as a readable stream register, then it cannot be written to, and
 if the register is configured as a writable stream register, then it cannot be read from.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -171,22 +172,23 @@ class StridedReadOp(IRDLOperation):
     name = "snitch_stream.strided_read"
 
     pointer = operand_def(riscv.IntRegisterType)
-    pattern = operand_def(StridePatternType)
     stream = result_def(ReadableStreamType[riscv.FloatRegisterType])
     dm = attr_def(IntAttr)
+    rank = attr_def(IntAttr)
 
     def __init__(
         self,
         pointer: SSAValue,
-        pattern: SSAValue,
         register: riscv.FloatRegisterType,
         dm: IntAttr,
+        rank: IntAttr,
     ):
         super().__init__(
-            operands=[pointer, pattern],
+            operands=[pointer],
             result_types=[ReadableStreamType(register)],
             attributes={
                 "dm": dm,
+                "rank": rank,
             },
         )
 
@@ -200,22 +202,23 @@ class StridedWriteOp(IRDLOperation):
     name = "snitch_stream.strided_write"
 
     pointer = operand_def(riscv.IntRegisterType)
-    pattern = operand_def(StridePatternType)
     stream = result_def(WritableStreamType[riscv.FloatRegisterType])
     dm = attr_def(IntAttr)
+    rank = attr_def(IntAttr)
 
     def __init__(
         self,
         pointer: SSAValue,
-        pattern: SSAValue,
         register: riscv.FloatRegisterType,
         dm: IntAttr,
+        rank: IntAttr,
     ):
         super().__init__(
-            operands=[pointer, pattern],
+            operands=[pointer],
             result_types=[WritableStreamType(register)],
             attributes={
                 "dm": dm,
+                "rank": rank,
             },
         )
 
