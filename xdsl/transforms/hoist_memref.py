@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.dialects import memref, builtin, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.irdl.irdl import Operand
 from xdsl.passes import MLContext, ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -81,6 +82,10 @@ class LoopHoistMemref(RewritePattern):
         for op in for_op.body.ops:
             if isinstance(op, memref.Load):
                 load_ops.append(op)
+
+        # not handling multiple loads from the same location FIX
+        if len(load_ops) != len(set(load_ops)):
+            return
 
         load_store_pairs: dict[memref.Load, memref.Store] = {}
 
