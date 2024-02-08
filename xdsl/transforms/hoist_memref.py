@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.dialects import memref, builtin, scf
+from xdsl.dialects import builtin, memref, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl.irdl import Operand
 from xdsl.passes import MLContext, ModulePass
