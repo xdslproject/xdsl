@@ -76,7 +76,7 @@ S2MM = 1
 
 @irdl_attr_definition
 class WireBundleAttr(Data[str]):
-    name = "AIE.wire_bundle"
+    name = "aie.wire_bundle"
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> str:
@@ -88,7 +88,7 @@ class WireBundleAttr(Data[str]):
 
 @irdl_attr_definition
 class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute):
-    name = "AIE.objectFifo"
+    name = "aie.objectFifo"
 
     buffer: ParameterDef[AttributeInvT]
 
@@ -110,7 +110,7 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute):
 
 @irdl_attr_definition
 class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute):
-    name = "AIE.objectFifoSubview"
+    name = "aie.objectFifoSubview"
 
     buffer: ParameterDef[AttributeInvT]
 
@@ -134,7 +134,7 @@ class ObjectFIFOSubview(Generic[AttributeInvT], ParametrizedAttribute):
 
 @irdl_op_definition
 class AMSelOp(IRDLOperation):
-    name = "AIE.amsel"
+    name = "aie.amsel"
     arbiterID = attr_def(AnyIntegerAttr)
     msel = attr_def(AnyIntegerAttr)
     result = result_def(IndexType())
@@ -160,7 +160,7 @@ class AMSelOp(IRDLOperation):
 
 @irdl_op_definition
 class BufferOp(IRDLOperation):
-    name = "AIE.buffer"
+    name = "aie.buffer"
     tile = operand_def(IndexType())
     shape = attr_def(ArrayAttr[IntegerType])
     element_type = attr_def(Attribute)
@@ -184,7 +184,7 @@ class BufferOp(IRDLOperation):
 
 @irdl_op_definition
 class TileOp(IRDLOperation):
-    name = "AIE.tile"
+    name = "aie.tile"
     col = attr_def(IntegerAttr[IntegerType])
     row = attr_def(IntegerAttr[IntegerType])
     result = result_def(IndexType())
@@ -197,7 +197,7 @@ class TileOp(IRDLOperation):
 
 @irdl_op_definition
 class ConnectOp(IRDLOperation):
-    name = "AIE.connect"
+    name = "aie.connect"
     sourceBundle = attr_def(WireBundleAttr)
     sourceChannel = attr_def(AnyIntegerAttr)
     destBundle = attr_def(WireBundleAttr)
@@ -250,7 +250,7 @@ class ConnectOp(IRDLOperation):
 
 @irdl_op_definition
 class CoreOp(IRDLOperation):
-    name = "AIE.core"
+    name = "aie.core"
     stackSize = attr_def(IntegerType)
     tile = operand_def(IndexType())
     region = region_def()
@@ -292,7 +292,7 @@ class CoreOp(IRDLOperation):
 
 @irdl_op_definition
 class DMABDOp(IRDLOperation):
-    name = "AIE.dmaBd"
+    name = "aie.dmaBd"
     offset = attr_def(IntegerAttr[IntegerType])
     length = attr_def(IntegerAttr[IntegerType])
     ab = attr_def(IntegerAttr[IntegerType], attr_name="AB")
@@ -343,7 +343,7 @@ class DMABDOp(IRDLOperation):
 
 @irdl_op_definition
 class DMABDPACKETOp(IRDLOperation):
-    name = "AIE.dmaBdPacket"
+    name = "aie.dmaBdPacket"
     packet_type = attr_def(IntegerAttr[IntegerType])
     packet_id = attr_def(IntegerAttr[IntegerType])
 
@@ -367,7 +367,7 @@ class DMABDPACKETOp(IRDLOperation):
 # TODO: add successor basic blocks
 @irdl_op_definition
 class DMAStartOp(IRDLOperation):
-    name = "AIE.dmaStart"
+    name = "aie.dmaStart"
     channelDir = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
     channelIndex = attr_def(IntegerAttr[IntegerType])
     dest = successor_def()
@@ -398,7 +398,7 @@ class DMAStartOp(IRDLOperation):
 
 @irdl_op_definition
 class DebugOp(IRDLOperation):
-    name = "AIE.debug"
+    name = "aie.debug"
     arg = operand_def(AnyAttr())
 
     def __init__(self, arg: Operation | SSAValue):
@@ -407,7 +407,7 @@ class DebugOp(IRDLOperation):
 
 @irdl_op_definition
 class DeviceOp(IRDLOperation):
-    name = "AIE.device"
+    name = "aie.device"
 
     region = region_def()
 
@@ -427,7 +427,7 @@ class DeviceOp(IRDLOperation):
 
 @irdl_op_definition
 class ExternalBufferOp(IRDLOperation):
-    name = "AIE.external_buffer"
+    name = "aie.external_buffer"
 
     sym_name = attr_def(StringAttr)
     buffer = result_def(memref.MemRefType)
@@ -448,7 +448,7 @@ class ExternalBufferOp(IRDLOperation):
 
 @irdl_op_definition
 class FlowOp(IRDLOperation):
-    name = "AIE.flow"
+    name = "aie.flow"
 
     sourceBundle = attr_def(WireBundleAttr)
     sourceChannel = attr_def(IntegerAttr[IntegerType])
@@ -504,7 +504,7 @@ class GetCascadeOp(IRDLOperation):
 
 @irdl_op_definition
 class GetStreamOp(IRDLOperation):
-    name = "AIE.getStream"
+    name = "aie.getStream"
 
     channel = operand_def(i32)
     result = result_def(IntegerType)
@@ -518,7 +518,7 @@ class GetStreamOp(IRDLOperation):
 
 @irdl_op_definition
 class LockOp(IRDLOperation):
-    name = "AIE.lock"
+    name = "aie.lock"
 
     lockID = attr_def(IntegerAttr[IntegerType])
     init = attr_def(IntegerAttr[IntegerType])
@@ -542,7 +542,7 @@ class LockOp(IRDLOperation):
 
 @irdl_op_definition
 class MasterSetOp(IRDLOperation):
-    name = "AIE.masterset"
+    name = "aie.masterset"
 
     destBundle = attr_def(WireBundleAttr)
     destChannel = attr_def(IntegerAttr[IntegerType])
@@ -563,7 +563,7 @@ class MasterSetOp(IRDLOperation):
 
 @irdl_op_definition
 class MemOp(IRDLOperation):
-    name = "AIE.mem"
+    name = "aie.mem"
 
     tile = operand_def(IndexType())
     region = region_def()
@@ -575,7 +575,7 @@ class MemOp(IRDLOperation):
 
 @irdl_op_definition
 class MemTileDMAOp(IRDLOperation):
-    name = "AIE.memTileDMA"
+    name = "aie.memTileDMA"
 
     tile = operand_def(IndexType())
 
@@ -585,7 +585,7 @@ class MemTileDMAOp(IRDLOperation):
 
 @irdl_op_definition
 class NextBDOp(IRDLOperation):
-    name = "AIE.nextBd"
+    name = "aie.nextBd"
 
     dest = successor_def()
 
@@ -595,7 +595,7 @@ class NextBDOp(IRDLOperation):
 
 @irdl_op_definition
 class ObjectFifoAcquireOp(IRDLOperation):
-    name = "AIE.objectFifo.acquire"
+    name = "aie.objectFifo.acquire"
 
     port = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
     size = attr_def(IntegerAttr[IntegerType])
@@ -643,7 +643,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
 
 @irdl_op_definition
 class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
-    name = "AIE.objectFifo.registerExternalBuffers"
+    name = "aie.objectFifo.registerExternalBuffers"
 
     tile = operand_def(IndexType())
     externalBuffers = operand_def(memref.MemRefType)
@@ -677,7 +677,7 @@ class ObjectFifoRegisterExternalBuffersOp(IRDLOperation):
 
 @irdl_op_definition
 class ObjectFIFOSubviewAccessOp(IRDLOperation):
-    name = "AIE.objectFifo.subview.access"
+    name = "aie.objectFifo.subview.access"
 
     index = attr_def(IntegerAttr[IntegerType])
     subview = operand_def(ObjectFIFOSubview[memref.MemRefType[Attribute]])
@@ -709,7 +709,7 @@ class ObjectFIFOSubviewAccessOp(IRDLOperation):
 
 @irdl_op_definition
 class createObjectFifo(IRDLOperation):
-    name = "AIE.objectFifo"
+    name = "aie.objectFifo"
 
     elemNumber = attr_def(IntegerAttr[IntegerType])
     producerTile = operand_def(IndexType())
@@ -755,7 +755,7 @@ class createObjectFifo(IRDLOperation):
 
 @irdl_op_definition
 class ObjectFIFOReleaseOp(IRDLOperation):
-    name = "AIE.objectFifo.release"
+    name = "aie.objectFifo.release"
 
     port = attr_def(IntegerAttr[IntegerType])
     size = attr_def(IntegerAttr[IntegerType])
@@ -794,7 +794,7 @@ class ObjectFIFOReleaseOp(IRDLOperation):
 
 @irdl_op_definition
 class PLIOOp(IRDLOperation):
-    name = "AIE.plio"
+    name = "aie.plio"
 
     col = attr_def(IntegerAttr[IntegerType])
 
@@ -804,7 +804,7 @@ class PLIOOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketDestOp(IRDLOperation):
-    name = "AIE.packet_dest"
+    name = "aie.packet_dest"
 
     bundle = attr_def(WireBundleAttr)
     channel = attr_def(IntegerAttr[IntegerType])
@@ -829,7 +829,7 @@ class PacketDestOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketFlowOp(IRDLOperation):
-    name = "AIE.packet_flow"
+    name = "aie.packet_flow"
 
     ID = attr_def(IntegerAttr[IntegerType])
     region = region_def()
@@ -844,7 +844,7 @@ class PacketFlowOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketRuleOp(IRDLOperation):
-    name = "AIE.rule"
+    name = "aie.rule"
 
     mask = attr_def(IntegerAttr[IntegerType])
     value = attr_def(IntegerAttr[IntegerType])
@@ -862,7 +862,7 @@ class PacketRuleOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketRulesOp(IRDLOperation):
-    name = "AIE.packetrules"
+    name = "aie.packetrules"
 
     sourceBundle = attr_def(WireBundleAttr)
     sourceChannel = attr_def(IntegerAttr[IntegerType])
@@ -877,7 +877,7 @@ class PacketRulesOp(IRDLOperation):
 
 @irdl_op_definition
 class PacketSourceOp(IRDLOperation):
-    name = "AIE.packet_source"
+    name = "aie.packet_source"
 
     bundle = attr_def(WireBundleAttr)
     channel = attr_def(IntegerAttr[IntegerType])
@@ -901,7 +901,7 @@ class PacketSourceOp(IRDLOperation):
 
 @irdl_op_definition
 class putCascade(IRDLOperation):
-    name = "AIE.putCascade"
+    name = "aie.putCascade"
 
     cascadeValue = operand_def(IntegerType(CASCADE_SIZE))
 
@@ -911,7 +911,7 @@ class putCascade(IRDLOperation):
 
 @irdl_op_definition
 class putStream(IRDLOperation):
-    name = "AIE.putStream"
+    name = "aie.putStream"
 
     channel = operand_def(i32)
     streamValue = operand_def(
@@ -928,7 +928,7 @@ class putStream(IRDLOperation):
 
 @irdl_op_definition
 class ShimDMAAllocationOp(IRDLOperation):
-    name = "AIE.shimDMAAllocation"
+    name = "aie.shimDMAAllocation"
 
     sym_name = attr_def(StringAttr)
     channelDir = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
@@ -954,7 +954,7 @@ class ShimDMAAllocationOp(IRDLOperation):
 
 @irdl_op_definition
 class ShimDMAOp(IRDLOperation):
-    name = "AIE.shimDMA"
+    name = "aie.shimDMA"
 
     tile = operand_def(IndexType())
 
@@ -964,7 +964,7 @@ class ShimDMAOp(IRDLOperation):
 
 @irdl_op_definition
 class ShimMuxOp(IRDLOperation):
-    name = "AIE.shimmux"
+    name = "aie.shimmux"
 
     tile = operand_def(IndexType())
 
@@ -974,7 +974,7 @@ class ShimMuxOp(IRDLOperation):
 
 @irdl_op_definition
 class ShimSwitchBoxOp(IRDLOperation):
-    name = "AIE.shimswitchbox"
+    name = "aie.shimswitchbox"
 
     col = attr_def(IntegerAttr[IntegerType])
 
@@ -984,7 +984,7 @@ class ShimSwitchBoxOp(IRDLOperation):
 
 @irdl_op_definition
 class SwitchboxOp(IRDLOperation):
-    name = "AIE.switchbox"
+    name = "aie.switchbox"
 
     tile = operand_def(IndexType())
     region = region_def()
@@ -1002,7 +1002,7 @@ class SwitchboxOp(IRDLOperation):
 
 @irdl_op_definition
 class UseLockOp(IRDLOperation):
-    name = "AIE.useLock"
+    name = "aie.use_lock"
 
     value = attr_def(IntegerAttr[IntegerType])
     action = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
@@ -1056,7 +1056,7 @@ class UseLockOp(IRDLOperation):
 
 @irdl_op_definition
 class WireOp(IRDLOperation):
-    name = "AIE.wire"
+    name = "aie.wire"
 
     sourceBundle = attr_def(WireBundleAttr)
     destBundle = attr_def(WireBundleAttr)
@@ -1078,7 +1078,7 @@ class WireOp(IRDLOperation):
 
 @irdl_op_definition
 class EndOp(IRDLOperation):
-    name = "AIE.end"
+    name = "aie.end"
 
     def __init__(self):
         super().__init__()
