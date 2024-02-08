@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.dialects import builtin, memref, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
-from xdsl.irdl.irdl import Operand
+from xdsl.irdl import Operand
 from xdsl.passes import MLContext, ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
