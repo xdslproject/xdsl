@@ -108,8 +108,8 @@ class LoopHoistMemref(RewritePattern):
             return
 
         # hoist new load before the current loop
-        new_ld = load_op.clone()
-        rewriter.insert_op_before(new_ld, outer_loop)
+        new_load_op = load_op.clone()
+        rewriter.insert_op_before(new_load_op, outer_loop)
 
         ld_idx = parent_block.get_operation_index(load_op)
         st_idx = parent_block.get_operation_index(store_op)
@@ -119,40 +119,39 @@ class LoopHoistMemref(RewritePattern):
         outer_loop.body.clone_into(new_body, None, None, block_map)
 
         new_block_arg = new_body.block.insert_arg(
-            new_ld.res.type, len(new_body.block.args)
+            new_load_op.res.type, len(new_body.block.args)
         )
 
         new_parent_block = block_map[parent_block]
-        new_parent_block = block_map[parent_block]
-        assert new_parent_block is new_parent_block
 
-        interim_ld = new_parent_block.get_operation_at_index(ld_idx)
-        assert isinstance(interim_ld, memref.Load)
-        interim_ld.res.replace_by(new_block_arg)
-        interim_ld.detach()
-        interim_ld.erase()
+        interim_load_op = new_parent_block.get_operation_at_index(ld_idx)
+        assert isinstance(interim_load_op, memref.Load)
+        interim_load_op.res.replace_by(new_block_arg)
+        interim_load_op.detach()
+        interim_load_op.erase()
 
         st_idx = st_idx - 1
 
-        interim_st = new_parent_block.get_operation_at_index(st_idx)
-        assert isinstance(interim_st, memref.Store)
-        new_yield_val = interim_st.value
-        interim_st.detach()
-        interim_st.erase()
+        interim_store_op = new_parent_block.get_operation_at_index(st_idx)
+        assert isinstance(interim_store_op, memref.Store)
+        new_yield_val = interim_store_op.value
+        interim_store_op.detach()
+        interim_store_op.erase()
 
         # yield the value that was used in the old store
         assert new_body.block.last_op is not None
-        assert new_yield_val is not None
         rewriter.replace_op(new_body.block.last_op, scf.Yield(new_yield_val))
 
         new_loop = scf.For(
-            outer_loop.lb, outer_loop.ub, outer_loop.step, [new_ld], new_body
+            outer_loop.lb, outer_loop.ub, outer_loop.step, [new_load_op], new_body
         )
 
-        # use new loop's yielded result in a store after the loop
+        # use yielded result of new loop in a store after the loop
         assert len(new_loop.res) == 1
-        new_st = memref.Store.get(new_loop.res[0], store_op.memref, store_op.indices)
-        rewriter.insert_op_after(new_st, outer_loop)
+        new_store_op = memref.Store.get(
+            new_loop.res[0], store_op.memref, store_op.indices
+        )
+        rewriter.insert_op_after(new_store_op, outer_loop)
 
         rewriter.insert_op_before(new_loop, outer_loop)
         rewriter.erase_op(outer_loop)
