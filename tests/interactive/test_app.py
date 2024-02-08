@@ -17,18 +17,20 @@ from xdsl.dialects.builtin import (
 from xdsl.interactive.app import AvailablePass, InputApp
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
+    canonicalize,
     individual_rewrite,
     mlir_opt,
     printf_to_llvm,
     scf_parallel_loop_tiling,
     stencil_unroll,
+    test_lower_linalg_to_snitch,
 )
 from xdsl.transforms.experimental import (
     hls_convert_stencil_to_ll_mlir,
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.parse_pipeline import PipelinePassSpec
+from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 
 @pytest.mark.asyncio()
@@ -326,6 +328,130 @@ async def test_buttons():
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state changes accordingly
         assert app.condense_mode is False
+
+
+@pytest.mark.asyncio()
+async def test_rewrites():
+    """Test rewrite application has the desired result."""
+    async with InputApp().run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
+        # Testing a pass
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : i32) -> i32 {
+  %two = arith.constant 0 : i32
+  %res = arith.addi %two, %n : i32
+  func.return %res : i32
+}
+        """
+        )
+
+        # press "Condense" button
+        await pilot.click("#condense_button")
+
+        condensed_list = tuple(
+            (
+                AvailablePass(
+                    display_name="apply-individual-rewrite",
+                    module_pass=individual_rewrite.IndividualRewrite,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="canonicalize",
+                    module_pass=canonicalize.CanonicalizePass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="convert-arith-to-riscv",
+                    module_pass=convert_arith_to_riscv.ConvertArithToRiscvPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="convert-func-to-riscv-func",
+                    module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="distribute-stencil",
+                    module_pass=stencil_global_to_local.DistributeStencilPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="hls-convert-stencil-to-ll-mlir",
+                    module_pass=hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="mlir-opt",
+                    module_pass=mlir_opt.MLIROptPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="printf-to-llvm",
+                    module_pass=printf_to_llvm.PrintfToLLVM,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="scf-parallel-loop-tiling",
+                    module_pass=scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="stencil-unroll",
+                    module_pass=stencil_unroll.StencilUnrollPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="test-lower-linalg-to-snitch",
+                    module_pass=test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
+                    module_pass=individual_rewrite.IndividualRewrite,
+                    pass_spec=list(
+                        parse_pipeline(
+                            'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                        )
+                    )[0],
+                ),
+            )
+        )
+
+        await pilot.pause()
+        # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
+        assert app.condense_mode is True
+        assert app.available_pass_list == condensed_list
+
+        # Select a rewrite
+        app.pass_pipeline = (
+            *app.pass_pipeline,
+            (
+                individual_rewrite.IndividualRewrite,
+                list(
+                    parse_pipeline(
+                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                    )
+                )[0],
+            ),
+        )
+
+        # assert that pass selection affected Output Text Area
+        await pilot.pause()
+        assert (
+            app.output_text_area.text
+            == """builtin.module {
+  func.func @hello(%n : i32) -> i32 {
+    %two = arith.constant 0 : i32
+    func.return %n : i32
+  }
+}
+"""
+        )
 
 
 @pytest.mark.asyncio()
