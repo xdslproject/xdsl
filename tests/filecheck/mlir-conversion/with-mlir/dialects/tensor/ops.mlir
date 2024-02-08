@@ -1,5 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: XDSL_ROUNDTRIP
 
-%t1 = tensor.empty() : tensor<2x3xf32>
-
-// CHECK:   %1 = tensor.empty() : tensor<2x3xf32>
+%t1 = "tensor.empty"() : tensor<2x3xf32>
+// CHECK:   %t1 = tensor.empty() : tensor<2x3xf32>
