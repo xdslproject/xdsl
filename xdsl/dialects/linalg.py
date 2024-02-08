@@ -347,7 +347,12 @@ class Generic(IRDLOperation):
 
         body = parser.parse_region()
 
-        result_types = ()
+        if parser.parse_optional_punctuation("->"):
+            res_types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_attribute
+            )
+        else:
+            res_types = ()
 
         generic = cls(
             ins,
@@ -355,7 +360,7 @@ class Generic(IRDLOperation):
             body,
             indexing_maps,
             iterator_types,
-            result_types,
+            res_types,
             doc,
             library_call,
         )
