@@ -86,18 +86,15 @@ class LoopHoistMemref(RewritePattern):
         rewriter: PatternRewriter,
     ) -> None:
         parent_block = load_op.parent_block()
-
         if parent_block is None:
             return
 
-        loop_nest = _get_loop_nest(load_op)
-
-        if not loop_nest:
+        store_op = _find_corresponding_store(load_op)
+        if store_op is None:
             return
 
-        store_op = _find_corresponding_store(load_op)
-
-        if store_op is None:
+        loop_nest = _get_loop_nest(load_op)
+        if not loop_nest:
             return
 
         # assert parent_block is st_block
