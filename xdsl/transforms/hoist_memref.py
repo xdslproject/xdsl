@@ -34,17 +34,6 @@ def _find_corresponding_store(load: memref.Load):
     return found_op
 
 
-def _get_loop_nest(op: Operation):
-    loop_nest: list[scf.For] = []
-
-    while (parent_op := op.parent_op()) is not None:
-        if isinstance(parent_op, scf.For):
-            loop_nest.append(parent_op)
-        op = parent_op
-
-    return tuple(loop_nest)
-
-
 def _is_loop_dependent(val: SSAValue, loop: scf.For):
     worklist: set[SSAValue] = set()
     visited: set[SSAValue] = set()
@@ -82,79 +71,82 @@ class LoopHoistMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        load_op: memref.Load,
+        for_op: scf.For,
         rewriter: PatternRewriter,
     ) -> None:
-        parent_block = load_op.parent_block()
-        if parent_block is None:
+        if for_op.parent_block() is None:
             return
 
-        store_op = _find_corresponding_store(load_op)
-        if store_op is None:
+        load_ops: list[memref.Load] = []
+        for op in for_op.body.ops:
+            if isinstance(op, memref.Load):
+                load_ops.append(op)
+
+        load_store_pairs: dict[memref.Load, memref.Store] = {}
+
+        for load_op in load_ops:
+            if store_op := _find_corresponding_store(load_op):
+                load_store_pairs[load_op] = store_op
+
+        if len(load_store_pairs) != 1:
             return
 
-        loop_nest = _get_loop_nest(load_op)
-        if not loop_nest:
-            return
+        for load_op, store_op in load_store_pairs.items():
+            parent_block = load_op.parent_block()
+            if parent_block is None:
+                continue
 
-        # assert parent_block is st_block
+            if any(_is_loop_dependent(idx, for_op) for idx in load_op.indices):
+                continue
 
-        outer_loop = None
-        for loop in loop_nest:
-            if not any(_is_loop_dependent(idx, loop) for idx in load_op.indices):
-                outer_loop = loop
+            # hoist new load before the current loop
+            new_load_op = load_op.clone()
+            rewriter.insert_op_before(new_load_op, for_op)
 
-        if outer_loop is None or outer_loop.parent_block() is None:
-            return
+            ld_idx = parent_block.get_operation_index(load_op)
+            st_idx = parent_block.get_operation_index(store_op)
 
-        # hoist new load before the current loop
-        new_load_op = load_op.clone()
-        rewriter.insert_op_before(new_load_op, outer_loop)
+            new_body = Region()
+            block_map: dict[Block, Block] = {}
+            for_op.body.clone_into(new_body, None, None, block_map)
 
-        ld_idx = parent_block.get_operation_index(load_op)
-        st_idx = parent_block.get_operation_index(store_op)
+            new_block_arg = new_body.block.insert_arg(
+                new_load_op.res.type, len(new_body.block.args)
+            )
 
-        new_body = Region()
-        block_map: dict[Block, Block] = {}
-        outer_loop.body.clone_into(new_body, None, None, block_map)
+            new_parent_block = block_map[parent_block]
 
-        new_block_arg = new_body.block.insert_arg(
-            new_load_op.res.type, len(new_body.block.args)
-        )
+            interim_load_op = new_parent_block.get_operation_at_index(ld_idx)
+            assert isinstance(interim_load_op, memref.Load)
+            interim_load_op.res.replace_by(new_block_arg)
+            interim_load_op.detach()
+            interim_load_op.erase()
 
-        new_parent_block = block_map[parent_block]
+            st_idx = st_idx - 1
 
-        interim_load_op = new_parent_block.get_operation_at_index(ld_idx)
-        assert isinstance(interim_load_op, memref.Load)
-        interim_load_op.res.replace_by(new_block_arg)
-        interim_load_op.detach()
-        interim_load_op.erase()
+            interim_store_op = new_parent_block.get_operation_at_index(st_idx)
+            assert isinstance(interim_store_op, memref.Store)
+            new_yield_val = interim_store_op.value
+            interim_store_op.detach()
+            interim_store_op.erase()
 
-        st_idx = st_idx - 1
+            # yield the value that was used in the old store
+            assert new_body.block.last_op is not None
+            rewriter.replace_op(new_body.block.last_op, scf.Yield(new_yield_val))
 
-        interim_store_op = new_parent_block.get_operation_at_index(st_idx)
-        assert isinstance(interim_store_op, memref.Store)
-        new_yield_val = interim_store_op.value
-        interim_store_op.detach()
-        interim_store_op.erase()
+            new_for_op = scf.For(
+                for_op.lb, for_op.ub, for_op.step, [new_load_op], new_body
+            )
 
-        # yield the value that was used in the old store
-        assert new_body.block.last_op is not None
-        rewriter.replace_op(new_body.block.last_op, scf.Yield(new_yield_val))
+            # use yielded result of new loop in a store after the loop
+            assert len(new_for_op.res) == 1
+            new_store_op = memref.Store.get(
+                new_for_op.res[0], store_op.memref, store_op.indices
+            )
+            rewriter.insert_op_after(new_store_op, for_op)
 
-        new_loop = scf.For(
-            outer_loop.lb, outer_loop.ub, outer_loop.step, [new_load_op], new_body
-        )
-
-        # use yielded result of new loop in a store after the loop
-        assert len(new_loop.res) == 1
-        new_store_op = memref.Store.get(
-            new_loop.res[0], store_op.memref, store_op.indices
-        )
-        rewriter.insert_op_after(new_store_op, outer_loop)
-
-        rewriter.insert_op_before(new_loop, outer_loop)
-        rewriter.erase_op(outer_loop)
+            rewriter.insert_op_before(new_for_op, for_op)
+            rewriter.erase_op(for_op)
 
 
 @dataclass
@@ -173,5 +165,6 @@ class HoistMemrefPass(ModulePass):
                     LoopHoistMemref(),
                 ]
             ),
+            walk_regions_first=False,
             apply_recursively=True,
         ).rewrite_module(op)
