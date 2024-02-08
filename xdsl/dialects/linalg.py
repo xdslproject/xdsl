@@ -410,4 +410,14 @@ class AddOp(IRDLOperation):
         )
 
 
-Linalg = Dialect("linalg", [Generic, YieldOp, AddOp], [IteratorTypeAttr])
+Linalg = Dialect(
+    "linalg",
+    [
+        Generic,
+        YieldOp,
+        AddOp,
+    ],
+    [
+        IteratorTypeAttr,
+    ],
+)
