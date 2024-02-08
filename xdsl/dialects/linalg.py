@@ -347,10 +347,7 @@ class Generic(IRDLOperation):
 
         body = parser.parse_region()
 
-        if parser.parse_optional_characters(" -> "):
-            result_types = parser._parse_op_result()
-        else:
-            result_types = ()
+        result_types = ()
 
         generic = cls(
             ins,
