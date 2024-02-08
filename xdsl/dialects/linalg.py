@@ -347,7 +347,21 @@ class Generic(IRDLOperation):
 
         body = parser.parse_region()
 
-        generic = cls(ins, outs, body, indexing_maps, iterator_types, doc, library_call)
+        if parser.parse_optional_characters(" -> "):
+            result_types = parser._parse_op_result()
+        else:
+            result_types = ()
+
+        generic = cls(
+            ins,
+            outs,
+            body,
+            indexing_maps,
+            iterator_types,
+            result_types,
+            doc,
+            library_call,
+        )
         generic.attributes |= attrs
         generic.attributes |= extra_attrs
 
