@@ -85,18 +85,17 @@ class LoopHoistMemref(RewritePattern):
         load_store_pairs: dict[memref.Load, memref.Store] = {}
 
         for load_op in load_ops:
-            if store_op := _find_corresponding_store(load_op):
+            if (store_op := _find_corresponding_store(load_op)) and not any(
+                _is_loop_dependent(idx, for_op) for idx in load_op.indices
+            ):
                 load_store_pairs[load_op] = store_op
 
-        if len(load_store_pairs) != 1:
+        if len(load_store_pairs.items()) == 0:
             return
 
         for load_op, store_op in load_store_pairs.items():
             parent_block = load_op.parent_block()
             if parent_block is None:
-                continue
-
-            if any(_is_loop_dependent(idx, for_op) for idx in load_op.indices):
                 continue
 
             # hoist new load before the current loop
@@ -165,6 +164,6 @@ class HoistMemrefPass(ModulePass):
                     LoopHoistMemref(),
                 ]
             ),
-            walk_regions_first=False,
+            walk_regions_first=True,
             apply_recursively=True,
         ).rewrite_module(op)
