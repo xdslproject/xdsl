@@ -21,6 +21,8 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
     linalg.yield %acc : f32
 } -> tensor<2x3xf32>
 
+%sum_2 = linalg.add ins(%2, %2 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%3 : tensor<2x3xf32>) -> tensor<2x3xf32>
+
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:  module {
@@ -39,4 +41,5 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-NEXT:      %3 = arith.addf %in, %in_0 : f32
 // CHECK-NEXT:      linalg.yield %3 : f32
 // CHECK-NEXT:    } -> tensor<2x3xf32>
+// CHECK-NEXT:    %4 = linalg.add ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#1 : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:  }
