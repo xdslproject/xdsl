@@ -204,6 +204,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Symref
 
+    def get_tensor():
+        from xdsl.dialects.tensor import Tensor
+
+        return Tensor
+
     def get_test():
         from xdsl.dialects.test import Test
 
@@ -253,6 +258,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "stencil": get_stencil,
         "stream": get_stream,
         "symref": get_symref,
+        "tensor": get_tensor,
         "test": get_test,
         "vector": get_vector,
     }
