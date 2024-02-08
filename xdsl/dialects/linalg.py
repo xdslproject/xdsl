@@ -110,12 +110,13 @@ class Generic(IRDLOperation):
         body: Region,
         indexing_maps: Sequence[AffineMapAttr] | ArrayAttr[AffineMapAttr],
         iterator_types: Sequence[Attribute] | ArrayAttr[Attribute],
+        result_types: Sequence[Attribute] = (),
         doc: StringAttr | None = None,
         library_call: StringAttr | None = None,
     ) -> None:
         super().__init__(
             operands=[inputs, outputs],
-            result_types=[[]],
+            result_types=[result_types],
             properties={
                 "indexing_maps": ArrayAttr(indexing_maps),
                 "iterator_types": ArrayAttr(iterator_types),
@@ -238,6 +239,10 @@ class Generic(IRDLOperation):
 
         printer.print_string(" ")
         printer.print_region(self.body)
+
+        if self.res:
+            printer.print_string(" -> ")
+            printer.print_list(self.res, lambda res: printer.print_attribute(res.type))
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
