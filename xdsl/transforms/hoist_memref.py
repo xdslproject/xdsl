@@ -46,8 +46,8 @@ def _get_loop_nest(op: Operation):
 
 
 def _does_index_depend_on_loop(load: memref.Load, loop: scf.For):
-    worklist: set[SSAValue] = field(default_factory=set)
-    visited: set[SSAValue] = field(default_factory=set)
+    worklist: set[SSAValue] = set()
+    visited: set[SSAValue] = set()
 
     for idx in load.indices:
         worklist.add(idx)
