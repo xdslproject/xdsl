@@ -15,6 +15,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 extras = ["riscemu==2.2.5", "wgpu==0.13.2", "textual==0.47.1", "pyclip==0.7"]
+onnx = ["onnx-weekly"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -46,6 +47,7 @@ typeCheckingMode = "strict"
     "tests/test_frontend_python_code_check.py",
     "tests/dialects/test_memref.py",
     "xdsl/interpreters/experimental/wgpu.py",
+    "xdsl/frontend/onnx.py",
 ]
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",
