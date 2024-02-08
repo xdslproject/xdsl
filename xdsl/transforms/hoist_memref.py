@@ -45,29 +45,28 @@ def _get_loop_nest(op: Operation):
     return tuple(loop_nest)
 
 
-def _does_index_depend_on_loop(load: memref.Load, loop: scf.For):
+def _is_loop_dependent(val: SSAValue, loop: scf.For):
     worklist: set[SSAValue] = set()
     visited: set[SSAValue] = set()
 
-    for idx in load.indices:
-        worklist.add(idx)
+    worklist.add(val)
 
-    while not worklist:
-        op = worklist.pop()
-        if op in visited:
+    while worklist:
+        val = worklist.pop()
+        if val in visited:
             continue
 
-        visited.add(op)
+        visited.add(val)
 
-        if op is loop.body.block.args[0]:
+        if val is loop.body.block.args[0]:
             return True
 
-        if isinstance(op.owner, Operation):
-            for oprnd in op.owner.operands:
+        if isinstance(val.owner, Operation):
+            for oprnd in val.owner.operands:
                 if oprnd not in visited:
                     worklist.add(oprnd)
         else:
-            for arg in op.owner.args:
+            for arg in val.owner.args:
                 if arg not in visited:
                     worklist.add(arg)
 
@@ -105,13 +104,11 @@ class LoopHoistMemref(RewritePattern):
 
         outer_loop = None
         for loop in loop_nest:
-            if not _does_index_depend_on_loop(load_op, loop):
+            if not any(_is_loop_dependent(idx, loop) for idx in load_op.indices):
                 outer_loop = loop
 
         if outer_loop is None or outer_loop.parent_block() is None:
             return
-
-        print(f"outer loop: {outer_loop}")
 
         # hoist new load before the current loop
         new_ld = load_op.clone()
