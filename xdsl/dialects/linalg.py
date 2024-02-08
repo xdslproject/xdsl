@@ -110,12 +110,13 @@ class Generic(IRDLOperation):
         body: Region,
         indexing_maps: Sequence[AffineMapAttr] | ArrayAttr[AffineMapAttr],
         iterator_types: Sequence[Attribute] | ArrayAttr[Attribute],
+        result_types: Sequence[Attribute] = (),
         doc: StringAttr | None = None,
         library_call: StringAttr | None = None,
     ) -> None:
         super().__init__(
             operands=[inputs, outputs],
-            result_types=[[]],
+            result_types=[result_types],
             properties={
                 "indexing_maps": ArrayAttr(indexing_maps),
                 "iterator_types": ArrayAttr(iterator_types),
@@ -239,6 +240,10 @@ class Generic(IRDLOperation):
         printer.print_string(" ")
         printer.print_region(self.body)
 
+        if self.res:
+            printer.print_string(" -> ")
+            printer.print_list(self.res, lambda res: printer.print_attribute(res.type))
+
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         attrs_start_pos = parser.pos
@@ -342,7 +347,23 @@ class Generic(IRDLOperation):
 
         body = parser.parse_region()
 
-        generic = cls(ins, outs, body, indexing_maps, iterator_types, doc, library_call)
+        if parser.parse_optional_punctuation("->"):
+            res_types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_attribute
+            )
+        else:
+            res_types = ()
+
+        generic = cls(
+            ins,
+            outs,
+            body,
+            indexing_maps,
+            iterator_types,
+            res_types,
+            doc,
+            library_call,
+        )
         generic.attributes |= attrs
         generic.attributes |= extra_attrs
 
