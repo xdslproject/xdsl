@@ -93,59 +93,65 @@ class LoopHoistMemref(RewritePattern):
         if len(load_store_pairs.items()) == 0:
             return
 
-        for load_op, store_op in load_store_pairs.items():
-            parent_block = load_op.parent_block()
-            if parent_block is None:
-                continue
+        parent_block = next(iter(load_store_pairs.values())).parent_block()
+        if parent_block is None:
+            return
 
-            # hoist new load before the current loop
-            new_load_op = load_op.clone()
-            rewriter.insert_op_before(new_load_op, for_op)
+        # hoist new loads before the current loop
+        new_load_ops = [load_op.clone() for load_op in load_store_pairs.keys()]
+        rewriter.insert_op_before(new_load_ops, for_op)
 
-            ld_idx = parent_block.get_operation_index(load_op)
-            st_idx = parent_block.get_operation_index(store_op)
+        ld_indices = [
+            parent_block.get_operation_index(load_op)
+            for load_op in load_store_pairs.keys()
+        ]
+        st_indices = [
+            parent_block.get_operation_index(store_op)
+            for store_op in load_store_pairs.values()
+        ]
 
-            new_body = Region()
-            block_map: dict[Block, Block] = {}
-            for_op.body.clone_into(new_body, None, None, block_map)
+        new_body = Region()
+        block_map: dict[Block, Block] = {}
+        for_op.body.clone_into(new_body, None, None, block_map)
 
-            new_block_arg = new_body.block.insert_arg(
-                new_load_op.res.type, len(new_body.block.args)
-            )
+        new_block_args = [
+            new_body.block.insert_arg(new_load_op.res.type, len(new_body.block.args))
+            for new_load_op in new_load_ops
+        ]
 
-            new_parent_block = block_map[parent_block]
+        new_parent_block = block_map[parent_block]
 
-            interim_load_op = new_parent_block.get_operation_at_index(ld_idx)
+        for new_block_arg, idx in zip(new_block_args, ld_indices):
+            interim_load_op = new_parent_block.get_operation_at_index(idx)
             assert isinstance(interim_load_op, memref.Load)
             interim_load_op.res.replace_by(new_block_arg)
             interim_load_op.detach()
             interim_load_op.erase()
 
-            st_idx = st_idx - 1
-
-            interim_store_op = new_parent_block.get_operation_at_index(st_idx)
+        new_yield_vals: list[Operand] = []
+        for idx in st_indices:
+            idx = idx - 1
+            interim_store_op = new_parent_block.get_operation_at_index(idx)
             assert isinstance(interim_store_op, memref.Store)
-            new_yield_val = interim_store_op.value
+            new_yield_vals.append(interim_store_op.value)
             interim_store_op.detach()
             interim_store_op.erase()
 
-            # yield the value that was used in the old store
-            assert new_body.block.last_op is not None
-            rewriter.replace_op(new_body.block.last_op, scf.Yield(new_yield_val))
+        # yield the value that was used in the old store
+        assert new_body.block.last_op is not None
+        rewriter.replace_op(new_body.block.last_op, scf.Yield(*new_yield_vals))
 
-            new_for_op = scf.For(
-                for_op.lb, for_op.ub, for_op.step, [new_load_op], new_body
-            )
+        new_for_op = scf.For(for_op.lb, for_op.ub, for_op.step, new_load_ops, new_body)
 
-            # use yielded result of new loop in a store after the loop
-            assert len(new_for_op.res) == 1
-            new_store_op = memref.Store.get(
-                new_for_op.res[0], store_op.memref, store_op.indices
-            )
-            rewriter.insert_op_after(new_store_op, for_op)
+        # use yielded results of new loop in stores after the loop
+        new_store_ops = [
+            memref.Store.get(new_for_op.res[idx], store_op.memref, store_op.indices)
+            for idx, store_op in enumerate(load_store_pairs.values())
+        ]
+        rewriter.insert_op_after(new_store_ops, for_op)
 
-            rewriter.insert_op_before(new_for_op, for_op)
-            rewriter.erase_op(for_op)
+        rewriter.insert_op_before(new_for_op, for_op)
+        rewriter.erase_op(for_op)
 
 
 @dataclass
