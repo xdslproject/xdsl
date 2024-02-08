@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import abc
 from typing import Annotated, Generic, TypeVar, cast
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     ContainerType,
@@ -54,9 +57,10 @@ class WritableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElem
     name = "stream.writable"
 
 
-@irdl_op_definition
-class ReadOp(IRDLOperation):
-    name = "stream.read"
+class ReadOperation(IRDLOperation, abc.ABC):
+    """
+    Abstract base class for operations that read from a stream.
+    """
 
     T = Annotated[Attribute, ConstraintVar("T")]
 
@@ -71,13 +75,13 @@ class ReadOp(IRDLOperation):
         super().__init__(operands=[stream], result_types=[result_type])
 
     @classmethod
-    def parse(cls, parser: Parser) -> ReadOp:
+    def parse(cls, parser: Parser) -> Self:
         parser.parse_characters("from")
         unresolved = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_attribute()
         resolved = parser.resolve_operand(unresolved, ReadableStreamType(result_type))
-        return ReadOp(resolved, result_type)
+        return cls(resolved, result_type)
 
     def print(self, printer: Printer):
         printer.print_string(" from ")
@@ -86,9 +90,10 @@ class ReadOp(IRDLOperation):
         printer.print_attribute(self.res.type)
 
 
-@irdl_op_definition
-class WriteOp(IRDLOperation):
-    name = "stream.write"
+class WriteOperation(IRDLOperation, abc.ABC):
+    """
+    Abstract base class for operations that write to a stream.
+    """
 
     T = Annotated[Attribute, ConstraintVar("T")]
 
@@ -99,7 +104,7 @@ class WriteOp(IRDLOperation):
         super().__init__(operands=[value, stream])
 
     @classmethod
-    def parse(cls, parser: Parser) -> WriteOp:
+    def parse(cls, parser: Parser) -> Self:
         unresolved_value = parser.parse_unresolved_operand()
         parser.parse_characters("to")
         unresolved_stream = parser.parse_unresolved_operand()
@@ -109,7 +114,7 @@ class WriteOp(IRDLOperation):
         resolved_stream = parser.resolve_operand(
             unresolved_stream, WritableStreamType(result_type)
         )
-        return WriteOp(resolved_value, resolved_stream)
+        return cls(resolved_value, resolved_stream)
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -118,6 +123,16 @@ class WriteOp(IRDLOperation):
         printer.print_ssa_value(self.stream)
         printer.print_string(" : ")
         printer.print_attribute(self.value.type)
+
+
+@irdl_op_definition
+class ReadOp(ReadOperation):
+    name = "stream.read"
+
+
+@irdl_op_definition
+class WriteOp(WriteOperation):
+    name = "stream.write"
 
 
 Stream = Dialect(
