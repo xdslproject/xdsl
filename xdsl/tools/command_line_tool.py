@@ -276,6 +276,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return canonicalize_dmp.CanonicalizeDmpPass
 
+    def get_convert_riscv_scf_for_to_frep():
+        from xdsl.transforms import convert_riscv_scf_for_to_frep
+
+        return convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass
+
     def get_convert_scf_to_openmp():
         from xdsl.transforms import convert_scf_to_openmp
 
@@ -328,6 +333,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_global_to_local.LowerHaloToMPI
 
+    def get_individual_rewrite():
+        from xdsl.transforms.individual_rewrite import IndividualRewrite
+
+        return IndividualRewrite
+
     def get_lower_affine():
         from xdsl.transforms import lower_affine
 
@@ -362,11 +372,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import printf_to_putchar
 
         return printf_to_putchar.PrintfToPutcharPass
-
-    def get_reduce_register_pressure():
-        from xdsl.backend.riscv.lowering import reduce_register_pressure
-
-        return reduce_register_pressure.RiscvReduceRegisterPressurePass
 
     def get_riscv_register_allocation():
         from xdsl.transforms import riscv_register_allocation
@@ -453,6 +458,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_unroll.StencilUnrollPass
 
+    def get_test_lower_linalg_to_snitch():
+        from xdsl.transforms import test_lower_linalg_to_snitch
+
+        return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
@@ -462,6 +472,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
+        "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
@@ -473,6 +484,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "frontend-desymrefy": get_desymrefy,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
+        "apply-individual-rewrite": get_individual_rewrite,
         "lower-affine": get_lower_affine,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
@@ -485,13 +497,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
-        "riscv-reduce-register-pressure": get_reduce_register_pressure,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-unroll": get_stencil_unroll,
+        "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
     }
 
 

@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 from typing_extensions import Self
@@ -24,8 +24,10 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasCanonicalisationPatternsTrait, IsTerminator
+from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -42,6 +44,16 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
     return parser.resolve_operand(unresolved, type)
 
 
+class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv_cf import (
+            ElideConstantBranches,
+        )
+
+        return (ElideConstantBranches(),)
+
+
 class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V branch operations. Lowers to RsRsOffOperation.
@@ -50,15 +62,17 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
 
-    then_arguments = var_operand_def(IntRegisterType)
-    else_arguments = var_operand_def(IntRegisterType)
+    then_arguments = var_operand_def(RISCVRegisterType)
+    else_arguments = var_operand_def(RISCVRegisterType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset(
+        [IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()]
+    )
 
     def __init__(
         self,
@@ -175,6 +189,10 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
             op.attributes |= attrs.data
         return op
 
+    @abstractmethod
+    def const_evaluate(self, rs1: int, rs2: int, bitwidth: int) -> bool:
+        pass
+
 
 @irdl_op_definition
 class BeqOp(ConditionalBranchOperation):
@@ -187,6 +205,11 @@ class BeqOp(ConditionalBranchOperation):
     """
 
     name = "riscv_cf.beq"
+
+    def const_evaluate(self, rs1: int, rs2: int, bitwidth: int) -> bool:
+        lhs = to_unsigned(rs1, bitwidth)
+        rhs = to_unsigned(rs2, bitwidth)
+        return lhs == rhs
 
 
 @irdl_op_definition
@@ -201,6 +224,11 @@ class BneOp(ConditionalBranchOperation):
 
     name = "riscv_cf.bne"
 
+    def const_evaluate(self, rs1: int, rs2: int, bitwidth: int) -> bool:
+        lhs = to_unsigned(rs1, bitwidth)
+        rhs = to_unsigned(rs2, bitwidth)
+        return lhs != rhs
+
 
 @irdl_op_definition
 class BltOp(ConditionalBranchOperation):
@@ -213,6 +241,11 @@ class BltOp(ConditionalBranchOperation):
     """
 
     name = "riscv_cf.blt"
+
+    def const_evaluate(self, rs1: int, rs2: int, bitwidth: int) -> bool:
+        lhs = to_signed(rs1, bitwidth)
+        rhs = to_signed(rs2, bitwidth)
+        return lhs < rhs
 
 
 @irdl_op_definition
@@ -227,6 +260,11 @@ class BgeOp(ConditionalBranchOperation):
 
     name = "riscv_cf.bge"
 
+    def const_evaluate(self, rs1: int, rs2: int, bitwidth: int) -> bool:
+        lhs = to_signed(rs1, bitwidth)
+        rhs = to_signed(rs2, bitwidth)
+        return lhs >= rhs
+
 
 @irdl_op_definition
 class BltuOp(ConditionalBranchOperation):
@@ -240,6 +278,11 @@ class BltuOp(ConditionalBranchOperation):
 
     name = "riscv_cf.bltu"
 
+    def const_evaluate(self, rs1: int, rs2: int, bitwidth: int) -> bool:
+        lhs = to_unsigned(rs1, bitwidth)
+        rhs = to_unsigned(rs2, bitwidth)
+        return lhs < rhs
+
 
 @irdl_op_definition
 class BgeuOp(ConditionalBranchOperation):
@@ -252,6 +295,11 @@ class BgeuOp(ConditionalBranchOperation):
     """
 
     name = "riscv_cf.bgeu"
+
+    def const_evaluate(self, rs1: int, rs2: int, bitwidth: int) -> bool:
+        lhs = to_unsigned(rs1, bitwidth)
+        rhs = to_unsigned(rs2, bitwidth)
+        return lhs >= rhs
 
 
 @irdl_op_definition
@@ -353,7 +401,7 @@ class JOp(IRDLOperation, RISCVInstruction):
 
     name = "riscv_cf.j"
 
-    block_arguments: VarOperand = var_operand_def(IntRegisterType)
+    block_arguments: VarOperand = var_operand_def(RISCVRegisterType)
 
     successor = successor_def()
 

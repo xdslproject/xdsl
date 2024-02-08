@@ -1,9 +1,10 @@
 import pytest
 
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, Signedness, i32
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
+from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -121,63 +122,49 @@ def test_return_op():
 
 def test_immediate_i_inst():
     # I-Type - 12-bits immediate
+    lb, ub = Signedness.SIGNLESS.value_range(12)
     a1 = TestSSAValue(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
-        riscv.AddiOp(a1, 1 << 11, rd=riscv.Registers.A0)
+        riscv.AddiOp(a1, ub, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.AddiOp(a1, -(1 << 11) - 2, rd=riscv.Registers.A0)
+        riscv.AddiOp(a1, lb - 1, rd=riscv.Registers.A0)
 
-    riscv.AddiOp(a1, -(1 << 11), rd=riscv.Registers.A0)
-
-    riscv.AddiOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
-
-    """
-    Special handling for signed immediates for I- and S-Type instructions
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
-    """
-
-    riscv.AddiOp(a1, 0xFFFFFFFFFFFFF800, rd=riscv.Registers.A0)
-    riscv.AddiOp(a1, 0xFFFFFFFFFFFFFFFF, rd=riscv.Registers.A0)
-    riscv.AddiOp(a1, 0xFFFFF800, rd=riscv.Registers.A0)
-    riscv.AddiOp(a1, 0xFFFFFFFF, rd=riscv.Registers.A0)
+    riscv.AddiOp(a1, ub - 1, rd=riscv.Registers.A0)
+    riscv.AddiOp(a1, lb, rd=riscv.Registers.A0)
 
 
 def test_immediate_s_inst():
     # S-Type - 12-bits immediate
+    lb, ub = Signedness.SIGNLESS.value_range(12)
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
 
     with pytest.raises(VerifyException):
-        riscv.SwOp(a1, a2, 1 << 11)
+        riscv.SwOp(a1, a2, ub)
 
     with pytest.raises(VerifyException):
-        riscv.SwOp(a1, a2, -(1 << 11) - 2)
+        riscv.SwOp(a1, a2, lb - 1)
 
-    riscv.SwOp(a1, a2, -(1 << 11))
-    riscv.SwOp(a1, a2, (1 << 11) - 1)
-
-    """
-    Special handling for signed immediates for I- and S-Type instructions
-    https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#signed-immediates-for-i--and-s-type-instructions
-    """
-
-    riscv.SwOp(a1, a2, 0xFFFFFFFFFFFFF800)
-    riscv.SwOp(a1, a2, 0xFFFFFFFFFFFFFFFF)
-    riscv.SwOp(a1, a2, 0xFFFFF800)
-    riscv.SwOp(a1, a2, 0xFFFFFFFF)
+    riscv.SwOp(a1, a2, ub - 1)
+    riscv.SwOp(a1, a2, lb)
 
 
 def test_immediate_u_j_inst():
     # U-Type and J-Type - 20-bits immediate
-    with pytest.raises(VerifyException):
-        riscv.LuiOp(1 << 20)
+    lb, ub = Signedness.SIGNLESS.value_range(20)
+    assert ub == 1048576
+    assert lb == -524288
 
     with pytest.raises(VerifyException):
-        riscv.LuiOp(-(1 << 20) - 2)
+        riscv.LuiOp(ub)
 
-    riscv.LuiOp((1 << 20) - 1)
+    with pytest.raises(VerifyException):
+        riscv.LuiOp(lb - 1)
+
+    riscv.LuiOp(ub - 1)
+    riscv.LuiOp(lb)
 
 
 def test_immediate_jalr_inst():
@@ -194,14 +181,19 @@ def test_immediate_jalr_inst():
 
 
 def test_immediate_pseudo_inst():
+    lb, ub = Signedness.SIGNLESS.value_range(32)
+    assert ub == 4294967296
+    assert lb == -2147483648
+
     # Pseudo-Instruction with custom handling
     with pytest.raises(VerifyException):
-        riscv.LiOp(-(1 << 31) - 1, rd=riscv.Registers.A0)
+        riscv.LiOp(ub, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.LiOp(1 << 32, rd=riscv.Registers.A0)
+        riscv.LiOp(lb - 1, rd=riscv.Registers.A0)
 
-    riscv.LiOp((1 << 31) - 1, rd=riscv.Registers.A0)
+    riscv.LiOp(ub - 1, rd=riscv.Registers.A0)
+    riscv.LiOp(lb, rd=riscv.Registers.A0)
 
 
 def test_immediate_shift_inst():
@@ -246,3 +238,12 @@ def test_riscv_parse_immediate_value():
 def test_asm_section():
     section = riscv.AssemblySectionOp("section")
     section.verify()
+
+
+def test_get_constant_value():
+    li_op = riscv.LiOp(1)
+    li_val = get_constant_value(li_op.rd)
+    assert li_val == IntegerAttr.from_int_and_width(1, 32)
+    zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
+    zero_val = get_constant_value(zero_op.res)
+    assert zero_val == IntegerAttr.from_int_and_width(0, 32)

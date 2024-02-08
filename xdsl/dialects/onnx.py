@@ -6,9 +6,18 @@ from typing import Annotated, cast
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
+    AnyTensorType,
+    ArrayAttr,
+    DenseIntOrFPElementsAttr,
+    Float32Type,
     FloatAttr,
+    IntegerAttr,
     IntegerType,
+    MemRefType,
+    NoneType,
     SSAValue,
+    StringAttr,
+    SymbolRefAttr,
     TensorType,
 )
 from xdsl.ir import (
@@ -18,6 +27,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    attr_def,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -419,13 +429,432 @@ class Abs(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class Conv(IRDLOperation):
+    """
+    The convolution operator consumes an input tensor and a filter, and computes the output.
+
+    Attributes:
+
+    - auto_pad  string (default is NOTSET): auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or
+    VALID. Where default value is NOTSET, which means explicit padding is used. SAME_UPPER or SAME_LOWER mean pad the
+    input so that output_shape[i] = ceil(input_shape[i] / strides[i]) for each axis i. The padding is split between
+    the two sides equally or almost equally (depending on whether it is even or odd). In case the padding is an odd
+    number, the extra padding is added at the end for SAME_UPPER and at the beginning for SAME_LOWER.
+
+    -dilations list of ints: dilation value along each spatial axis of the filter. If not present, the dilation
+    defaults is 1 along each spatial axis.
+
+    -group int (default is '1'): number of groups input channels and output channels are divided into.
+
+    -kernel_shape list of ints: The shape of the convolution kernel. If not present, should be inferred from input W.
+
+    -pads list of ints: Padding for the beginning and ending along each spatial axis, it can take any value greater
+    than or equal to 0. The value represent the number of pixels added to the beginning and end part of the
+    corresponding axis. `pads` format should be as follow [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin
+    the number of pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis
+    `i`. This attribute cannot be used simultaneously with auto_pad attribute. If not present, the padding defaults
+    to 0 along start and end of each spatial axis.
+
+    -strides list of ints: Stride along each spatial axis. If not present, the stride defaults is 1 along each spatial axis.
+
+    """
+
+    name = "onnx.Conv"
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    data = operand_def(TensorType[T])
+    weight = operand_def(TensorType[T])
+    bias = operand_def(TensorType[T] | NoneType)
+    res = result_def(TensorType[T])
+
+    auto_pad = attr_def(StringAttr)
+    dilations = attr_def(ArrayAttr[AnyIntegerAttr])
+    group = attr_def(AnyIntegerAttr)
+    kernel_shape = attr_def(ArrayAttr[AnyIntegerAttr])
+    pads = attr_def(ArrayAttr[AnyIntegerAttr])
+    strides = attr_def(ArrayAttr[AnyIntegerAttr])
+
+    assembly_format = (
+        "`(` $data `,` $weight `,`$bias`)` attr-dict `:` `(` type($data) `,"
+        "` type($weight) `,`type($bias)`)` `->` type($res) "
+    )
+
+    def __init__(
+        self,
+        data: SSAValue,
+        weight: SSAValue,
+        bias: SSAValue,
+        auto_pad: Attribute,
+        dilations: Attribute,
+        group: Attribute,
+        kernel_shape: Attribute,
+        pads: Attribute,
+        strides: Attribute,
+    ):
+        super().__init__(
+            attributes={
+                "auto_pad": auto_pad,
+                "dilations": dilations,
+                "group": group,
+                "kernel_shape": kernel_shape,
+                "pads": pads,
+                "strides": strides,
+            },
+            operands=[data, weight, bias],
+            result_types=[data.type],
+        )
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(data_type := self.data.type, TensorType)
+            or not isinstance(weight_type := self.weight.type, TensorType)
+            or not isinstance(bias_type := self.bias.type, TensorType | NoneType)
+            or not isinstance(res_type := self.res.type, TensorType)
+        ):
+            assert False, (
+                "onnx elementwise operation operands (data, weight) and result (res) must be of type TensorType,"
+                "operand (bias) must be of type TensorType or NoneType"
+            )
+
+        weight_type = cast(TensorType[Attribute], weight_type)
+        data_type = cast(TensorType[Attribute], data_type)
+        res_type = cast(TensorType[Attribute], res_type)
+
+        # case that bias is a tensor type
+        if isinstance(bias_type, TensorType):
+            bias_type = bias_type.get_shape()
+            if len(bias_type) != 1:
+                raise VerifyException("bias must be 1D")
+
+        weight_type = weight_type.get_shape()
+        # kernel_shape
+        kernel_shape_data: list[int] = []
+        for value in self.kernel_shape:
+            val = value.value.data
+            kernel_shape_data.append(val)
+        if list(weight_type[-2:]) != kernel_shape_data:
+            raise VerifyException(
+                "kernel shape rank and weight tensor rank are not the same"
+            )
+
+        # dilations
+        for value in self.dilations:
+            val = value.value.data
+            if val <= 0:
+                raise VerifyException("dilation value must be non zero positive")
+        if len(self.dilations) != len(self.kernel_shape):
+            raise VerifyException(
+                "dilations rank and kernel shape rank are not the same"
+            )
+
+        # group
+        if self.group.value.data < 1:
+            raise VerifyException("group value must be nonnegative")
+
+        # strides
+        for value in self.strides:
+            val = value.value.data
+            if val <= 0:
+                raise VerifyException("stride value must be non zero positive")
+        if len(self.strides) != len(self.kernel_shape):
+            raise VerifyException(
+                "strides rank and kernel shape rank are not the same "
+            )
+
+        # pads
+        for value in self.pads:
+            val = value.value.data
+            if val < 0:
+                raise VerifyException("pads value must be nonnegative")
+        if len(self.pads) != 2 * len(self.kernel_shape):
+            raise VerifyException("pads rank is not twice the kernel shape rank")
+
+        auto_pad_strings = ["NOTSET", "SAME_UPPER", "SAME_LOWER", "VALID"]
+        if self.auto_pad.data not in auto_pad_strings:
+            raise VerifyException(
+                f"Invalid auto_pad string. Must be one of {auto_pad_strings}"
+            )
+
+
+@irdl_op_definition
+class Constant(IRDLOperation):
+    """
+    Produce a constant tensor.
+
+    Exactly one of the provided attributes, either value, sparse_value, or value_* must be specified.
+
+    Attributes:
+    - sparse_value: sparse_tensor
+    The value for the elements of the output tensor in sparse format. (currently unsupported)
+    - value : tensor
+     The value for the elements of the output tensor.
+    - value_float: float
+     The value for the sole element for the scalar, float32, output tensor.
+    - value_floats: list of floats
+     The values for the elements for the 1D, float32, output tensor.
+    - value_int : int
+     The value for the sole element for the scalar, int64, output tensor.
+    - value_ints : list of ints
+     The values for the elements for the 1D, int64, output tensor.
+    - value_string : string
+     The value for the sole element for the scalar, UTF-8 string, output tensor.
+    - value_strings: list of strings
+     The values for the elements for the 1D, UTF-8 string, output tensor.
+    """
+
+    name = "onnx.Constant"
+    output = result_def(AnyTensorType)
+
+    value = opt_attr_def(DenseIntOrFPElementsAttr)
+    value_float = opt_attr_def(FloatAttr[Float32Type])
+    value_floats = opt_attr_def(ArrayAttr[FloatAttr[Float32Type]])
+    value_int = opt_attr_def(IntegerAttr[IntegerType])
+    value_ints = opt_attr_def(ArrayAttr[IntegerAttr[IntegerType]])
+    value_string = opt_attr_def(StringAttr)
+    value_strings = opt_attr_def(ArrayAttr[StringAttr])
+
+    assembly_format = "`(``)` attr-dict `:` `(``)` `->` type($output) "
+
+    def __init__(
+        self,
+        value: Attribute,
+        value_float: Attribute,
+        value_floats: Attribute,
+        value_int: Attribute,
+        value_ints: Attribute,
+        value_string: Attribute,
+        value_strings: Attribute,
+        output_type: Attribute,
+    ):
+        super().__init__(
+            attributes={
+                "value": value,
+                "value_float": value_float,
+                "value_floats": value_floats,
+                "value_int": value_int,
+                "value_ints": value_ints,
+                "value_string": value_string,
+                "value_strings": value_strings,
+            },
+            operands=[],
+            result_types=[output_type],
+        )
+
+    def verify_(self) -> None:
+        if self.value is not None and not isinstance(self.value.type, TensorType):
+            raise VerifyException("value attribute type must be of type TensorType")
+
+        if self.value_int is not None and self.value_int.type.width.data != 64:
+            raise VerifyException(
+                "value_int element type has to be a 64-bit signless integer"
+            )
+
+        if self.value_ints is not None:
+            for value in self.value_ints:
+                width = value.type.width.data
+                if width != 64:
+                    raise VerifyException(
+                        "value_ints elements type has to be a 64-bit signless integer"
+                    )
+
+        attrs = [
+            self.value,
+            self.value_float,
+            self.value_floats,
+            self.value_int,
+            self.value_ints,
+            self.value_string,
+            self.value_strings,
+        ]
+        used_attrs = sum(1 for attr in attrs if attr is not None)
+        if used_attrs != 1:
+            raise VerifyException(
+                f"Only one value attribute must be provided, but {used_attrs} were specified"
+            )
+
+
+@irdl_op_definition
+class MaxPoolSingleOut(IRDLOperation):
+    """
+    ONNX MaxPool operation with a single output.
+
+     Attributes:
+
+    - auto_pad string (default is 'NOTSET'):  auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or
+    VALID. Where default value is NOTSET, which means explicit padding is used. SAME_UPPER or SAME_LOWER mean pad the
+    input so that output_shape[i] = ceil(input_shape[i] / strides[i]) for each axis i. The padding is split between
+    the two sides equally or almost equally (depending on whether it is even or odd). In case the padding is an odd
+    number, the extra padding is added at the end for SAME_UPPER and at the beginning for SAME_LOWER.
+
+    - ceil_mode  int (default is '1'): Whether to use ceil or floor (default) to compute the output shape.
+
+    - dilations list of ints: Dilation value along each spatial axis of filter.
+
+    - kernel_shape list of ints: The size of the kernel along each axis.
+
+    - pads list of ints: Padding for the beginning and ending along each spatial axis, it can take any value greater
+    than or equal to 0. The value represent the number of pixels added to the beginning and end part of the
+    corresponding axis. `pads` format should be as follow [x1_begin, x2_begin...x1_end, x2_end,...], where xi_begin
+    the number of pixels added at the beginning of axis `i` and xi_end, the number of pixels added at the end of axis
+    `i`. This attribute cannot be used simultaneously with auto_pad attribute. If not present, the padding defaults
+    to 0 along start and end of each spatial axis.
+
+    - storage_order int (default is '0') : The storage order of the tensor. 0 is row major, and 1 is column major.
+    This attribute is used only to convert an n-tuple index value into a single integer value for producing the
+    second output.
+
+    - strides list of ints: Stride along each spatial axis. If not present, the stride defaults to 1 along each spatial axis
+
+    """
+
+    name = "onnx.MaxPoolSingleOut"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    data = operand_def(TensorType[T] | MemRefType[T])
+    output = result_def(TensorType[T] | MemRefType[T])
+
+    auto_pad = attr_def(StringAttr)
+    ceil_mode = attr_def(AnyIntegerAttr)
+    dilations = attr_def(ArrayAttr[AnyIntegerAttr])
+    kernel_shape = attr_def(ArrayAttr[AnyIntegerAttr])
+    pads = attr_def(ArrayAttr[AnyIntegerAttr])
+    storage_order = attr_def(AnyIntegerAttr)
+    strides = attr_def(ArrayAttr[AnyIntegerAttr])
+
+    assembly_format = (
+        "`(` $data`)` attr-dict `:` `(` type($data) `)` `->` type($output)"
+    )
+
+    def __init__(
+        self,
+        data: SSAValue,
+        auto_pad: Attribute,
+        ceil_mode: Attribute,
+        dilations: Attribute,
+        kernel_shape: Attribute,
+        pads: Attribute,
+        storage_order: Attribute,
+        strides: Attribute,
+    ):
+        super().__init__(
+            attributes={
+                "auto_pad": auto_pad,
+                "ceil_mode": ceil_mode,
+                "dilations": dilations,
+                "kernel_shape": kernel_shape,
+                "pads": pads,
+                "storage_order": storage_order,
+                "strides": strides,
+            },
+            operands=[data],
+            result_types=[data.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(
+            data_type := self.data.type, TensorType | MemRefType
+        ) or not isinstance(output_type := self.output.type, TensorType | MemRefType):
+            assert False, (
+                "onnx elementwise operation operands (data) and result (output) must be of type TensorType or "
+                "MemRefTyoe "
+            )
+
+        data_type = cast(TensorType[Attribute], data_type)
+        output_type = cast(TensorType[Attribute], output_type)
+
+        # auto pad
+        auto_pad_strings = ["NOTSET", "SAME_UPPER", "SAME_LOWER", "VALID"]
+        if self.auto_pad.data not in auto_pad_strings:
+            raise VerifyException(
+                f"Invalid auto_pad string. Must be one of {auto_pad_strings}"
+            )
+
+        # ceil mode
+        if self.ceil_mode.value.data < 0 or self.ceil_mode.value.data > 1:
+            raise VerifyException("ceil value must be either zero or one")
+
+        # kernel shape
+        if (input_dims := len(data_type.get_shape()) - 2) != (
+            kernel_dims := len(self.kernel_shape)
+        ):
+            raise VerifyException(
+                f"input data and kernel shape rank mismatch: ({input_dims}) vs ({kernel_dims})"
+            )
+
+        # dilations
+        for value in self.dilations:
+            val = value.value.data
+            if val <= 0:
+                raise VerifyException("dilation value must be non zero positive")
+
+        if (dilations_dims := len(self.dilations)) != (
+            kernel_dims := len(self.kernel_shape)
+        ):
+            raise VerifyException(
+                f"dilations rank ({dilations_dims}) and kernel shape rank ({kernel_dims}) are not the "
+                f"same "
+            )
+
+        # storage order
+        # Not supported for storage order in column major mode in onnx-mlir (therefore row major mode only considered)
+        if self.storage_order.value.data != 0:
+            raise VerifyException("column major storage order not implemented yet")
+
+        # strides
+        for value in self.strides:
+            val = value.value.data
+            if val <= 0:
+                raise VerifyException("stride value must be non zero positive")
+
+        if (strides_dims := len(self.strides)) != (
+            kernel_dims := len(self.kernel_shape)
+        ):
+            raise VerifyException(
+                f"strides rank ({strides_dims}) and kernel shape rank ({kernel_dims}) are not the "
+                f"same "
+            )
+
+        # pads
+        for value in self.pads:
+            val = value.value.data
+            if val < 0:
+                raise VerifyException("pads value must be nonnegative")
+
+        if (pads_dims := len(self.pads)) != 2 * len(self.kernel_shape):
+            raise VerifyException(
+                f"pads rank ({pads_dims}) is not twice the kernel shape rank ({len(self.kernel_shape)})"
+            )
+
+
+@irdl_op_definition
+class EntryPoint(IRDLOperation):
+    """
+    Indicate ONNX entry point
+    The "onnx.EntryPoint" function indicates the main entry point of ONNX model.
+    """
+
+    name = "onnx.EntryPoint"
+    func = attr_def(SymbolRefAttr)
+
+    def __init__(self, func: Attribute):
+        super().__init__(
+            attributes={
+                "func": func,
+            },
+        )
+
+
 ONNX = Dialect(
     "onnx",
     [
         Abs,
         Add,
+        Constant,
+        Conv,
         Div,
+        EntryPoint,
         Gemm,
+        MaxPoolSingleOut,
         Mul,
         Relu,
         Reshape,

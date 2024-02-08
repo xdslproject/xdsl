@@ -149,6 +149,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--print-no-properties",
+            default=False,
+            action="store_true",
+            help="Print properties as if they were attributes for retrocompatibility.",
+        )
+
+        arg_parser.add_argument(
             "--print-debuginfo",
             default=False,
             action="store_true",
@@ -187,6 +194,7 @@ class xDSLOptMain(CommandLineTool):
             printer = Printer(
                 stream=output,
                 print_generic_format=self.args.print_op_generic,
+                print_properties_as_attributes=self.args.print_no_properties,
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
@@ -217,11 +225,6 @@ class xDSLOptMain(CommandLineTool):
 
         Fails, if not all passes are registered.
         """
-        pipeline = list(parse_pipeline(self.args.passes))
-
-        for p in pipeline:
-            if p.name not in self.available_passes:
-                raise Exception(f"Unrecognized pass: {p.name}")
 
         def callback(
             previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
@@ -235,7 +238,12 @@ class xDSLOptMain(CommandLineTool):
                 print("\n\n\n")
 
         self.pipeline = PipelinePass(
-            [self.available_passes[p.name]().from_pass_spec(p) for p in pipeline],
+            list(
+                pass_type.from_pass_spec(spec)
+                for pass_type, spec in PipelinePass.build_pipeline_tuples(
+                    self.available_passes, parse_pipeline(self.args.passes)
+                )
+            ),
             callback,
         )
 

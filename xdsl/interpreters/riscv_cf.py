@@ -10,10 +10,6 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.interpreters.comparisons import (
-    to_signed,
-    to_unsigned,
-)
 
 
 @dataclass
@@ -43,8 +39,11 @@ class RiscvCfFunctions(InterpreterFunctions):
         self,
         interpreter: Interpreter,
         op: riscv_cf.ConditionalBranchOperation,
-        cond: bool,
+        lhs: int,
+        rhs: int,
+        bitwidth: int,
     ) -> tuple[Successor, PythonValues]:
+        cond = op.const_evaluate(lhs, rhs, bitwidth)
         if cond:
             block_args = interpreter.get_values(op.then_arguments)
             return Successor(op.then_block, block_args), ()
@@ -59,9 +58,7 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BeqOp,
         args: tuple[Any, ...],
     ):
-        unsigned_lhs = to_unsigned(args[0], self.bitwidth)
-        unsigned_rhs = to_unsigned(args[1], self.bitwidth)
-        return self.run_cond_branch(interpreter, op, unsigned_lhs == unsigned_rhs)
+        return self.run_cond_branch(interpreter, op, args[0], args[1], self.bitwidth)
 
     @impl_terminator(riscv_cf.BneOp)
     def run_bne(
@@ -70,9 +67,7 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BneOp,
         args: tuple[Any, ...],
     ):
-        unsigned_lhs = to_unsigned(args[0], self.bitwidth)
-        unsigned_rhs = to_unsigned(args[1], self.bitwidth)
-        return self.run_cond_branch(interpreter, op, unsigned_lhs != unsigned_rhs)
+        return self.run_cond_branch(interpreter, op, args[0], args[1], self.bitwidth)
 
     @impl_terminator(riscv_cf.BltOp)
     def run_blt(
@@ -81,9 +76,7 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BltOp,
         args: tuple[Any, ...],
     ):
-        signed_lhs = to_signed(args[0], self.bitwidth)
-        signed_rhs = to_signed(args[1], self.bitwidth)
-        return self.run_cond_branch(interpreter, op, signed_lhs < signed_rhs)
+        return self.run_cond_branch(interpreter, op, args[0], args[1], self.bitwidth)
 
     @impl_terminator(riscv_cf.BgeOp)
     def run_bge(
@@ -92,9 +85,7 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BgeOp,
         args: tuple[Any, ...],
     ):
-        signed_lhs = to_signed(args[0], self.bitwidth)
-        signed_rhs = to_signed(args[1], self.bitwidth)
-        return self.run_cond_branch(interpreter, op, signed_lhs >= signed_rhs)
+        return self.run_cond_branch(interpreter, op, args[0], args[1], self.bitwidth)
 
     @impl_terminator(riscv_cf.BltuOp)
     def run_bltu(
@@ -103,9 +94,7 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BltuOp,
         args: tuple[Any, ...],
     ):
-        unsigned_lhs = to_unsigned(args[0], self.bitwidth)
-        unsigned_rhs = to_unsigned(args[1], self.bitwidth)
-        return self.run_cond_branch(interpreter, op, unsigned_lhs < unsigned_rhs)
+        return self.run_cond_branch(interpreter, op, args[0], args[1], self.bitwidth)
 
     @impl_terminator(riscv_cf.BgeuOp)
     def run_bgeu(
@@ -114,6 +103,4 @@ class RiscvCfFunctions(InterpreterFunctions):
         op: riscv_cf.BgeuOp,
         args: tuple[Any, ...],
     ):
-        unsigned_lhs = to_unsigned(args[0], self.bitwidth)
-        unsigned_rhs = to_unsigned(args[1], self.bitwidth)
-        return self.run_cond_branch(interpreter, op, unsigned_lhs >= unsigned_rhs)
+        return self.run_cond_branch(interpreter, op, args[0], args[1], self.bitwidth)

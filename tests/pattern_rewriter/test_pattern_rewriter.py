@@ -766,9 +766,8 @@ def test_inline_block_before_matched_op():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() : () -> !test.type<"int">
   %2 = "test.op"() ({
-  ^0:
   }, {
-  ^1:
+  ^0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -810,12 +809,11 @@ def test_inline_block_before():
   %1 = "test.op"() ({
     %2 = "test.op"() : () -> !test.type<"int">
     %3 = "test.op"() ({
-    ^0:
     }, {
-    ^1:
+    ^0:
     }) : () -> !test.type<"int">
   }, {
-  ^2:
+  ^1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -857,9 +855,8 @@ def test_inline_block_at_before_when_op_is_matched_op():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() : () -> !test.type<"int">
   %2 = "test.op"() ({
-  ^0:
   }, {
-  ^1:
+  ^0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -869,6 +866,62 @@ def test_inline_block_at_before_when_op_is_matched_op():
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
                 rewriter.inline_block_before(matched_op.regs[0].blocks[0], matched_op)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+    )
+
+
+def test_inline_block_before_with_args():
+    """Test the inlining of a block before an operation."""
+
+    prog = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+  ^0(%arg0 : !test.type<"int">):
+    %1 = "test.op"() ({
+    ^1(%arg1 : !test.type<"int">):
+      %1 = "test.op"(%arg1) : (!test.type<"int">) -> !test.type<"int">
+    }, {
+    ^2:
+    }) : () -> !test.type<"int">
+  }, {
+  ^3:
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "test.op"() : () -> !test.type<"int">
+  %1 = "test.op"() ({
+  ^0(%arg0 : !test.type<"int">):
+    %2 = "test.op"(%arg0) : (!test.type<"int">) -> !test.type<"int">
+    %3 = "test.op"() ({
+    }, {
+    ^1:
+    }) : () -> !test.type<"int">
+  }, {
+  ^2:
+  }) : () -> !test.type<"int">
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
+            if matched_op.regs and matched_op.regs[0].blocks:
+                outer_block = matched_op.regs[0].blocks[0]
+                first_op = outer_block.first_op
+
+                if isinstance(first_op, test.TestOp):
+                    inner_block = first_op.regs[0].blocks[0]
+                    rewriter.inline_block_before(
+                        inner_block, first_op, outer_block.args
+                    )
 
     rewrite_and_compare(
         prog,

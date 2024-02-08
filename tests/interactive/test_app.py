@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interactive.app import InputApp
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
+    individual_rewrite,
     mlir_opt,
     printf_to_llvm,
     scf_parallel_loop_tiling,
@@ -266,6 +267,7 @@ async def test_buttons():
 
         condensed_list = tuple(
             (
+                individual_rewrite.IndividualRewrite,
                 convert_arith_to_riscv.ConvertArithToRiscvPass,
                 convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
                 stencil_global_to_local.DistributeStencilPass,

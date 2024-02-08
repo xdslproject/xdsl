@@ -376,6 +376,38 @@ class Rank(IRDLOperation):
         return Rank.build(operands=[memref], result_types=[IndexType()])
 
 
+ReassociationAttr = ArrayAttr[
+    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+]
+
+
+class AlterShapeOp(IRDLOperation):
+    src: Operand = operand_def(MemRefType)
+    result: OpResult = result_def(MemRefType)
+    reassociation = prop_def(ReassociationAttr)
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
+
+@irdl_op_definition
+class CollapseShapeOp(AlterShapeOp):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
+    """
+
+    name = "memref.collapse_shape"
+
+
+@irdl_op_definition
+class ExpandShapeOp(AlterShapeOp):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
+    """
+
+    name = "memref.expand_shape"
+
+
 @irdl_op_definition
 class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     name = "memref.extract_aligned_pointer_as_index"
@@ -670,6 +702,8 @@ MemRef = Dialect(
         AllocaScopeOp,
         AllocaScopeReturnOp,
         CopyOp,
+        CollapseShapeOp,
+        ExpandShapeOp,
         Dealloc,
         GetGlobal,
         Global,

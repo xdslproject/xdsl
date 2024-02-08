@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated, cast
+from typing import cast
 
 from typing_extensions import Self
 
@@ -30,7 +30,6 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
-    ConstraintVar,
     IRDLOperation,
     attr_def,
     irdl_op_definition,
@@ -110,6 +109,42 @@ class ScfgwiOp(RdRsImmIntegerOperation):
     def verify_(self) -> None:
         if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
             raise VerifyException(f"scfgwi rd must be ZERO, got {self.rd.type}")
+
+
+@irdl_op_definition
+class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
+    name = "riscv_snitch.frep_yield"
+
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(FrepInner, FrepOuter)])
+    )
+
+    def assembly_line(self) -> str | None:
+        return None
+
+
+@irdl_op_definition
+class ReadOp(stream.ReadOperation, RISCVOp):
+    name = "riscv_snitch.read"
+
+    def assembly_line(self) -> str | None:
+        return None
+
+
+@irdl_op_definition
+class WriteOp(stream.WriteOperation, RISCVOp):
+    name = "riscv_snitch.write"
+
+    def assembly_line(self) -> str | None:
+        return None
+
+
+ALLOWED_FREP_OP_TYPES = (
+    FrepYieldOp,
+    ReadOp,
+    WriteOp,
+    UnrealizedConversionCastOp,
+)
 
 
 class FRepOperation(IRDLOperation, RISCVInstruction):
@@ -287,7 +322,7 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
             raise VerifyException("Non-zero stagger mask currently unsupported")
         for instruction in self.body.ops:
             if not instruction.has_trait(Pure) and not isinstance(
-                instruction, FrepYieldOp | ReadOp | WriteOp | UnrealizedConversionCastOp
+                instruction, ALLOWED_FREP_OP_TYPES
             ):
                 raise VerifyException(
                     "Frep operation body may not contain instructions "
@@ -387,92 +422,6 @@ class FrepInner(FRepOperation):
 
     def assembly_instruction_name(self) -> str:
         return "frep.i"
-
-
-@irdl_op_definition
-class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
-    name = "riscv_snitch.frep_yield"
-
-    traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(FrepInner, FrepOuter)])
-    )
-
-    def assembly_line(self) -> str | None:
-        return None
-
-
-@irdl_op_definition
-class ReadOp(IRDLOperation, RISCVOp):
-    name = "riscv_snitch.read"
-
-    T = Annotated[riscv.FloatRegisterType, ConstraintVar("T")]
-
-    stream = operand_def(stream.ReadableStreamType[T])
-    res = result_def(T)
-
-    def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
-        if result_type is None:
-            assert isinstance(stream_type := stream_val.type, stream.ReadableStreamType)
-            stream_type = cast(stream.ReadableStreamType[Attribute], stream_type)
-            result_type = stream_type.element_type
-        super().__init__(operands=[stream_val], result_types=[result_type])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReadOp:
-        parser.parse_characters("from")
-        unresolved = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_attribute()
-        resolved = parser.resolve_operand(
-            unresolved, stream.ReadableStreamType(result_type)
-        )
-        return ReadOp(resolved, result_type)
-
-    def print(self, printer: Printer):
-        printer.print_string(" from ")
-        printer.print(self.stream)
-        printer.print_string(" : ")
-        printer.print_attribute(self.res.type)
-
-    def assembly_line(self) -> str | None:
-        return None
-
-
-@irdl_op_definition
-class WriteOp(IRDLOperation, RISCVOp):
-    name = "riscv_snitch.write"
-
-    T = Annotated[riscv.FloatRegisterType, ConstraintVar("T")]
-
-    value = operand_def(T)
-    stream = operand_def(stream.WritableStreamType[T])
-
-    def __init__(self, value: SSAValue, stream: SSAValue):
-        super().__init__(operands=[value, stream])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> WriteOp:
-        unresolved_value = parser.parse_unresolved_operand()
-        parser.parse_characters("to")
-        unresolved_stream = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_attribute()
-        resolved_value = parser.resolve_operand(unresolved_value, result_type)
-        resolved_stream = parser.resolve_operand(
-            unresolved_stream, stream.WritableStreamType(result_type)
-        )
-        return WriteOp(resolved_value, resolved_stream)
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.value)
-        printer.print_string(" to ")
-        printer.print_ssa_value(self.stream)
-        printer.print_string(" : ")
-        printer.print_attribute(self.value.type)
-
-    def assembly_line(self) -> str | None:
-        return None
 
 
 @irdl_op_definition
