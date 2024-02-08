@@ -6,8 +6,6 @@ from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.snitch_stream import (
     SnitchStreamFunctions,
-    StridedPointerInputStream,
-    StridedPointerOutputStream,
     StridePattern,
     indexing_map_from_bounds,
     offset_map_from_strides,
@@ -67,39 +65,6 @@ def test_snitch_stream_interpreter():
     a = RawPtr.new_float64([2.0] * 6)
     b = RawPtr.new_float64([3.0] * 6)
     c = RawPtr.new_float64([4.0] * 6)
-
-    a_stream_op = snitch_stream.StridedReadOp(
-        TestSSAValue(register),
-        riscv.Registers.FT0,
-        IntAttr(0),
-        IntAttr(2),
-    )
-
-    assert interpreter.run_op(a_stream_op, (a, stride_pattern)) == (
-        StridedPointerInputStream(stride_pattern.offset_expr, a),
-    )
-
-    b_stream_op = snitch_stream.StridedReadOp(
-        TestSSAValue(register),
-        riscv.Registers.FT1,
-        IntAttr(1),
-        IntAttr(2),
-    )
-
-    assert interpreter.run_op(b_stream_op, (b, stride_pattern)) == (
-        StridedPointerInputStream(stride_pattern.offset_expr, b),
-    )
-
-    c_stream_op = snitch_stream.StridedWriteOp(
-        TestSSAValue(register),
-        riscv.Registers.FT2,
-        IntAttr(2),
-        IntAttr(2),
-    )
-
-    assert interpreter.run_op(c_stream_op, (c, stride_pattern)) == (
-        StridedPointerOutputStream(stride_pattern.offset_expr, c),
-    )
 
     streaming_region_body = Region(
         Block(
