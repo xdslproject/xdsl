@@ -45,9 +45,10 @@ typeCheckingMode = "strict"
 "exclude" = [
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
+    "tests/frontend/onnx/test_tensor_type.py",
     "tests/dialects/test_memref.py",
     "xdsl/interpreters/experimental/wgpu.py",
-    "xdsl/frontend/onnx.py",
+    "xdsl/frontend/onnx/shape_type.py",
 ]
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",

@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.dialects.builtin import TensorType, f32, f64
 
-pytest.importorskip("onnx", reason="riscemu is an optional dependency")
+pytest.importorskip("onnx-weekly", reason="onnx is an optional dependency")
 
 from onnx import TensorShapeProto, TypeProto  # noqa: E402
 
