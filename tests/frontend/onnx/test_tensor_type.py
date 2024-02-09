@@ -2,11 +2,13 @@ import pytest
 
 from xdsl.dialects.builtin import TensorType, f32, f64
 
-pytest.importorskip("onnx-weekly", reason="onnx is an optional dependency")
+try:
+    from onnx import TensorShapeProto, TypeProto  # noqa: E402
 
-from onnx import TensorShapeProto, TypeProto  # noqa: E402
-
-from xdsl.frontend.onnx.shape_type import get_shape, get_tensor_type  # noqa: E402
+    from xdsl.frontend.onnx.shape_type import get_shape, get_tensor_type  # noqa: E402
+except ImportError as exc:
+    print(exc)
+    pytest.skip("onnx is an optional dependency", allow_module_level=True)
 
 
 def test_get_shape():
