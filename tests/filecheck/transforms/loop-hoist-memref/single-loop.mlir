@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p memref-hoist | filecheck %s
+// RUN: xdsl-opt %s -p loop-hoist-memref | filecheck %s
 
 module {
   func.func public @foo(%arg0: memref<128xf64>, %arg1: memref<128xf64>, %arg2: memref<f64>) -> memref<f64> {
