@@ -15,7 +15,7 @@ def get_operation_at_index(block: Block, idx: int) -> Operation:
     )
 
 
-def find_corresponding_store(load: memref.Load):
+def find_same_target_store(load: memref.Load):
     parent_block = load.parent_block()
 
     if parent_block is None:

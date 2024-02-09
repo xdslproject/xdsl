@@ -12,7 +12,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.utils import (
-    find_corresponding_store,
+    find_same_target_store,
     get_operation_at_index,
     is_loop_dependent,
 )
@@ -46,7 +46,7 @@ class LoopHoistMemref(RewritePattern):
         load_store_pairs: dict[memref.Load, memref.Store] = {}
 
         for load_op in load_ops:
-            if (store_op := find_corresponding_store(load_op)) and not any(
+            if (store_op := find_same_target_store(load_op)) and not any(
                 is_loop_dependent(idx, for_op) for idx in load_op.indices
             ):
                 load_store_pairs[load_op] = store_op
