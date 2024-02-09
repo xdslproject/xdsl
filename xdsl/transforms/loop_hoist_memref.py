@@ -1,11 +1,6 @@
 from dataclasses import dataclass
 
 from xdsl.dialects import builtin, memref, scf
-from xdsl.transforms.utils import (
-    get_operation_at_index,
-    find_corresponding_store,
-    is_loop_dependent,
-)
 from xdsl.ir import Block, Operation, Region
 from xdsl.irdl import Operand
 from xdsl.passes import MLContext, ModulePass
@@ -15,6 +10,11 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
+)
+from xdsl.transforms.utils import (
+    find_corresponding_store,
+    get_operation_at_index,
+    is_loop_dependent,
 )
 
 

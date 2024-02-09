@@ -1,6 +1,5 @@
+from xdsl.dialects import memref, scf
 from xdsl.ir import Block, Operation, SSAValue
-
-from xdsl.dialects import scf, memref
 
 
 # TODO replace by functionality (when added) as described in https://github.com/xdslproject/xdsl/issues/2128
