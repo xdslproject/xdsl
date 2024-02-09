@@ -156,14 +156,8 @@ class LoopHoistMemref(RewritePattern):
             interim_load_op.res.replace_by(new_block_arg)
             toerase_ops.append(interim_load_op)
 
-        for op in toerase_ops:
-            op.detach()
-            op.erase()
-
-        toerase_ops.clear()
         new_yield_vals: list[Operand] = []
         for idx in st_indices:
-            idx = idx - len(ld_indices)
             interim_store_op = _get_operation_at_index(new_parent_block, idx)
             assert isinstance(interim_store_op, memref.Store)
             new_yield_vals.append(interim_store_op.value)
