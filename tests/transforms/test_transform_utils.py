@@ -103,8 +103,8 @@ def test_is_loop_dependent_no_dep_with_visited():
 
     op1 = test.TestOp(result_types=[i32])
     op2 = test.TestOp(result_types=[i32])
-    op3 = test.TestOp([op1, op2], result_types=[i32])
-    op4 = test.TestOp([op1, op2], result_types=[i32])
+    op3 = test.TestOp([op2, op1], result_types=[i32])
+    op4 = test.TestOp([op3, op2], result_types=[i32])
     bb0 = Block([op1, op2, op3, op4], arg_types=[i32])
 
     for_op = For(lb, ub, step, [], bb0)
@@ -113,3 +113,23 @@ def test_is_loop_dependent_no_dep_with_visited():
     assert not is_loop_dependent(*op2.res, for_op)
     assert not is_loop_dependent(*op3.res, for_op)
     assert not is_loop_dependent(*op4.res, for_op)
+
+
+def test_is_loop_dependent_dep():
+    lb = Constant.from_int_and_width(0, i32)
+    ub = Constant.from_int_and_width(42, i32)
+    step = Constant.from_int_and_width(3, i32)
+
+    bb0 = Block(arg_types=[i32])
+    op1 = test.TestOp(result_types=[i32])
+    op2 = test.TestOp(result_types=[i32])
+    op3 = test.TestOp([op2, op1], result_types=[i32])
+    op4 = test.TestOp([bb0.args[0], op2], result_types=[i32])
+    bb0.add_ops([op1, op2, op3, op4])
+
+    for_op = For(lb, ub, step, [], bb0)
+
+    assert not is_loop_dependent(*op1.res, for_op)
+    assert not is_loop_dependent(*op2.res, for_op)
+    assert not is_loop_dependent(*op3.res, for_op)
+    assert is_loop_dependent(*op4.res, for_op)

@@ -45,9 +45,6 @@ def is_loop_dependent(val: SSAValue, loop: scf.For):
 
     while worklist:
         val = worklist.pop()
-        if val in visited:
-            continue
-
         visited.add(val)
 
         if val is loop.body.block.args[0]:
@@ -57,9 +54,5 @@ def is_loop_dependent(val: SSAValue, loop: scf.For):
             for oprnd in val.owner.operands:
                 if oprnd not in visited:
                     worklist.add(oprnd)
-        else:
-            for arg in val.owner.args:
-                if arg not in visited:
-                    worklist.add(arg)
 
     return False
