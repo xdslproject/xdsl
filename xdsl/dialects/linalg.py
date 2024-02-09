@@ -380,6 +380,12 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 
 @irdl_op_definition
 class AddOp(IRDLOperation):
+    """
+    Adds two tensors elementwise.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgadd-linalgaddop
+    """
+
     name = "linalg.add"
 
     inputs = var_operand_def()
