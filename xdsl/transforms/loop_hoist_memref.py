@@ -80,8 +80,6 @@ def _is_loop_dependent(val: SSAValue, loop: scf.For):
 class LoopHoistMemref(RewritePattern):
     """Hoist pairs of memref.loads and memref.stores out of a loop."""
 
-    loop_depth: int | None = None
-
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
@@ -96,9 +94,12 @@ class LoopHoistMemref(RewritePattern):
             if isinstance(op, memref.Load):
                 load_ops.append(op)
 
-        # not handling multiple loads from the same location FIX
-        if len(load_ops) != len(set(load_ops)):
-            return
+        # not handling multiple loads from the same location
+        load_locs = [load_op.memref for load_op in load_ops]
+        dup_load_locs = [loc for loc in set(load_locs) if load_locs.count(loc) > 1]
+        load_ops = [
+            load_op for load_op in load_ops if load_op.memref not in dup_load_locs
+        ]
 
         load_store_pairs: dict[memref.Load, memref.Store] = {}
 
@@ -107,6 +108,15 @@ class LoopHoistMemref(RewritePattern):
                 _is_loop_dependent(idx, for_op) for idx in load_op.indices
             ):
                 load_store_pairs[load_op] = store_op
+
+        # not handling the same value in multiple stores
+        store_vals = [store_op.value for store_op in load_store_pairs.values()]
+        dup_store_vals = [val for val in store_vals if store_vals.count(val) > 1]
+        load_store_pairs = {
+            load_op: store_op
+            for load_op, store_op in load_store_pairs.items()
+            if store_op.value not in dup_store_vals
+        }
 
         if len(load_store_pairs.items()) == 0:
             return
@@ -139,21 +149,29 @@ class LoopHoistMemref(RewritePattern):
 
         new_parent_block = block_map[parent_block]
 
+        toerase_ops: list[Operation] = []
         for new_block_arg, idx in zip(new_block_args, ld_indices):
             interim_load_op = _get_operation_at_index(new_parent_block, idx)
             assert isinstance(interim_load_op, memref.Load)
             interim_load_op.res.replace_by(new_block_arg)
-            interim_load_op.detach()
-            interim_load_op.erase()
+            toerase_ops.append(interim_load_op)
 
+        for op in toerase_ops:
+            op.detach()
+            op.erase()
+
+        toerase_ops.clear()
         new_yield_vals: list[Operand] = []
         for idx in st_indices:
-            idx = idx - 1
+            idx = idx - len(ld_indices)
             interim_store_op = _get_operation_at_index(new_parent_block, idx)
             assert isinstance(interim_store_op, memref.Store)
             new_yield_vals.append(interim_store_op.value)
-            interim_store_op.detach()
-            interim_store_op.erase()
+            toerase_ops.append(interim_store_op)
+
+        for op in toerase_ops:
+            op.detach()
+            op.erase()
 
         # yield the value that was used in the old store
         assert new_body.block.last_op is not None
@@ -176,12 +194,7 @@ class LoopHoistMemref(RewritePattern):
 class LoopHoistMemrefPass(ModulePass):
     name = "loop-hoist-memref"
 
-    loop_depth: int | None = None
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        if self.loop_depth is None or self.loop_depth < 0:
-            self.loop_depth = 0
-
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
