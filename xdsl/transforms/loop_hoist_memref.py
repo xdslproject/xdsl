@@ -1,7 +1,12 @@
 from dataclasses import dataclass
 
 from xdsl.dialects import builtin, memref, scf
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.transforms.utils import (
+    get_operation_at_index,
+    find_corresponding_store,
+    is_loop_dependent,
+)
+from xdsl.ir import Block, Operation, Region
 from xdsl.irdl import Operand
 from xdsl.passes import MLContext, ModulePass
 from xdsl.pattern_rewriter import (
@@ -11,69 +16,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-
-# TODO replace by functionality (when added) as described in https://github.com/xdslproject/xdsl/issues/2128
-def _get_operation_at_index(block: Block, idx: int) -> Operation:
-    """Get an operation by its position in its parent block."""
-
-    for _idx, block_op in enumerate(block.ops):
-        if idx == _idx:
-            return block_op
-
-    raise ValueError(
-        f"Cannot get operation by out-of-bounds index {idx} in its parent block."
-    )
-
-
-def _find_corresponding_store(load: memref.Load):
-    parent_block = load.parent_block()
-
-    if parent_block is None:
-        return None
-
-    found_op = None
-
-    for op in parent_block.ops:
-        if (
-            isinstance(op, memref.Store)
-            and op.memref == load.memref
-            and op.indices == load.indices
-        ):
-            if found_op is None:
-                found_op = op
-            else:
-                return None
-
-    return found_op
-
-
-def _is_loop_dependent(val: SSAValue, loop: scf.For):
-    worklist: set[SSAValue] = set()
-    visited: set[SSAValue] = set()
-
-    worklist.add(val)
-
-    while worklist:
-        val = worklist.pop()
-        if val in visited:
-            continue
-
-        visited.add(val)
-
-        if val is loop.body.block.args[0]:
-            return True
-
-        if isinstance(val.owner, Operation):
-            for oprnd in val.owner.operands:
-                if oprnd not in visited:
-                    worklist.add(oprnd)
-        else:
-            for arg in val.owner.args:
-                if arg not in visited:
-                    worklist.add(arg)
-
-    return False
 
 
 @dataclass
@@ -104,8 +46,8 @@ class LoopHoistMemref(RewritePattern):
         load_store_pairs: dict[memref.Load, memref.Store] = {}
 
         for load_op in load_ops:
-            if (store_op := _find_corresponding_store(load_op)) and not any(
-                _is_loop_dependent(idx, for_op) for idx in load_op.indices
+            if (store_op := find_corresponding_store(load_op)) and not any(
+                is_loop_dependent(idx, for_op) for idx in load_op.indices
             ):
                 load_store_pairs[load_op] = store_op
 
@@ -151,14 +93,14 @@ class LoopHoistMemref(RewritePattern):
 
         toerase_ops: list[Operation] = []
         for new_block_arg, idx in zip(new_block_args, ld_indices):
-            interim_load_op = _get_operation_at_index(new_parent_block, idx)
+            interim_load_op = get_operation_at_index(new_parent_block, idx)
             assert isinstance(interim_load_op, memref.Load)
             interim_load_op.res.replace_by(new_block_arg)
             toerase_ops.append(interim_load_op)
 
         new_yield_vals: list[Operand] = []
         for idx in st_indices:
-            interim_store_op = _get_operation_at_index(new_parent_block, idx)
+            interim_store_op = get_operation_at_index(new_parent_block, idx)
             assert isinstance(interim_store_op, memref.Store)
             new_yield_vals.append(interim_store_op.value)
             toerase_ops.append(interim_store_op)
