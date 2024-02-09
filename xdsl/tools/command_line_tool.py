@@ -266,10 +266,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return arith_add_fastmath.AddArithFastMathFlagsPass
 
-    def get_memref_hoist():
-        from xdsl.transforms import hoist_memref
+    def get_loop_hoist_memref():
+        from xdsl.transforms import loop_hoist_memref
 
-        return hoist_memref.HoistMemrefPass
+        return loop_hoist_memref.LoopHoistMemrefPass
 
     def get_canonicalize():
         from xdsl.transforms import canonicalize
@@ -470,7 +470,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
-        "memref-hoist": get_memref_hoist,
+        "loop-hoist-memref": get_loop_hoist_memref,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,

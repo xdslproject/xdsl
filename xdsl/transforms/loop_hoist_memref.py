@@ -172,8 +172,8 @@ class LoopHoistMemref(RewritePattern):
 
 
 @dataclass
-class HoistMemrefPass(ModulePass):
-    name = "memref-hoist"
+class LoopHoistMemrefPass(ModulePass):
+    name = "loop-hoist-memref"
 
     loop_depth: int | None = None
 
