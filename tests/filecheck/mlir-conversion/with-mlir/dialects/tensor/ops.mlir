@@ -3,6 +3,8 @@
 
 %t1 = tensor.empty() : tensor<2x3xf32>
 
+
+
 // CHECK:       module {
-// CHECK-NEXT:   %0 = tensor.empty() : tensor<2x3xf32>
-// CHECK-NEXT: }
+// CHECK-NEXT:  %0 = tensor.empty() : tensor<2x3xf32>
+// CHECK-NEXT:  }
