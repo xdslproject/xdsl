@@ -13,6 +13,18 @@ from xdsl.pattern_rewriter import (
 )
 
 
+def _get_operation_at_index(block: Block, idx: int) -> Operation:
+    """Get an operation by its position in its parent block."""
+
+    for _idx, block_op in enumerate(block.ops):
+        if idx == _idx:
+            return block_op
+
+    raise ValueError(
+        f"Cannot get operation by out-of-bounds index {idx} in its parent block."
+    )
+
+
 def _find_corresponding_store(load: memref.Load):
     parent_block = load.parent_block()
 
@@ -127,7 +139,7 @@ class LoopHoistMemref(RewritePattern):
         new_parent_block = block_map[parent_block]
 
         for new_block_arg, idx in zip(new_block_args, ld_indices):
-            interim_load_op = new_parent_block.get_operation_at_index(idx)
+            interim_load_op = _get_operation_at_index(new_parent_block, idx)
             assert isinstance(interim_load_op, memref.Load)
             interim_load_op.res.replace_by(new_block_arg)
             interim_load_op.detach()
@@ -136,7 +148,7 @@ class LoopHoistMemref(RewritePattern):
         new_yield_vals: list[Operand] = []
         for idx in st_indices:
             idx = idx - 1
-            interim_store_op = new_parent_block.get_operation_at_index(idx)
+            interim_store_op = _get_operation_at_index(new_parent_block, idx)
             assert isinstance(interim_store_op, memref.Store)
             new_yield_vals.append(interim_store_op.value)
             interim_store_op.detach()
