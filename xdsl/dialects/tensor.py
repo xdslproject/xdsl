@@ -26,6 +26,9 @@ class EmptyOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
+        printer.print_string("(")
+        printer.print_string(")")
+
         if self.dynamic_sizes:
             printer.print_string("(")
             printer.print_list(self.dynamic_sizes, printer.print_ssa_value)
