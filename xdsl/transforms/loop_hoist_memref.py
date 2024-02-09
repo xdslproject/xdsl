@@ -13,6 +13,7 @@ from xdsl.pattern_rewriter import (
 )
 
 
+# TODO replace by functionality (when added) as described in https://github.com/xdslproject/xdsl/issues/2128
 def _get_operation_at_index(block: Block, idx: int) -> Operation:
     """Get an operation by its position in its parent block."""
 
@@ -77,7 +78,7 @@ def _is_loop_dependent(val: SSAValue, loop: scf.For):
 
 @dataclass
 class LoopHoistMemref(RewritePattern):
-    """Hoist memrefs."""
+    """Hoist pairs of memref.loads and memref.stores out of a loop."""
 
     loop_depth: int | None = None
 
