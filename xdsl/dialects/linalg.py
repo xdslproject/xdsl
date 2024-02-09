@@ -22,6 +22,7 @@ from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     VarOperand,
     VarOpResult,
     irdl_attr_definition,
@@ -377,4 +378,52 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = frozenset([IsTerminator()])
 
 
-Linalg = Dialect("linalg", [Generic, YieldOp], [IteratorTypeAttr])
+@irdl_op_definition
+class AddOp(IRDLOperation):
+    """
+    Adds two tensors elementwise.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgadd-linalgaddop
+    """
+
+    name = "linalg.add"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
+Linalg = Dialect(
+    "linalg",
+    [
+        Generic,
+        YieldOp,
+        AddOp,
+    ],
+    [
+        IteratorTypeAttr,
+    ],
+)
