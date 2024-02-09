@@ -1,12 +1,11 @@
 import pytest
 
-from xdsl.dialects import test, arith
-from xdsl.ir import Block
-from xdsl.dialects.scf import For
-from xdsl.dialects.builtin import i32, MemRefType
-from xdsl.dialects.memref import Load, Store
+from xdsl.dialects import test
 from xdsl.dialects.arith import Constant
-
+from xdsl.dialects.builtin import MemRefType, i32
+from xdsl.dialects.memref import Load, Store
+from xdsl.dialects.scf import For
+from xdsl.ir import Block
 from xdsl.transforms.utils import (
     find_same_target_store,
     get_operation_at_index,
