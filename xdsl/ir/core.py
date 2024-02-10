@@ -1615,7 +1615,7 @@ class Block(IRNode):
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
         if op.parent is not self:
-            raise Exception("Operation is not a child of the block.")
+            raise Exception("Operation is not a children of the block.")
         for idx, block_op in enumerate(self.ops):
             if block_op is op:
                 return idx
