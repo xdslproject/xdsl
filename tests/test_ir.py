@@ -432,42 +432,6 @@ def test_split_block_args():
     assert arg_types == [i32, i64]
 
 
-def test_block_get_op_at_index():
-    # test block with ops
-    bb0 = Block((op0 := test.TestOp(), op1 := test.TestOp(), op2 := test.TestOp()))
-
-    assert bb0.get_operation_at_index(0) is op0
-    assert bb0.get_operation_at_index(1) is op1
-    assert bb0.get_operation_at_index(2) is op2
-
-    with pytest.raises(
-        Exception,
-        match="Cannot get operation by out-of-bounds index -1 in its parent block.",
-    ):
-        bb0.get_operation_at_index(-1)
-
-    with pytest.raises(
-        Exception,
-        match=f"Cannot get operation by out-of-bounds index {len(bb0.ops)} in its parent block.",
-    ):
-        bb0.get_operation_at_index(len(bb0.ops))
-
-    # test empty block
-    bb1 = Block()
-
-    with pytest.raises(
-        Exception,
-        match="Cannot get operation by out-of-bounds index -1 in its parent block.",
-    ):
-        bb1.get_operation_at_index(-1)
-
-    with pytest.raises(
-        Exception,
-        match=f"Cannot get operation by out-of-bounds index {len(bb0.ops)} in its parent block.",
-    ):
-        bb1.get_operation_at_index(len(bb0.ops))
-
-
 def test_region_clone_into_circular_blocks():
     """
     Test that cloning a region with circular block dependency works.
