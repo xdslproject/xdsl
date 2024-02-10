@@ -32,7 +32,7 @@
 
 
 // CHECK-GENERIC:       %X, %Y, %Z, %n = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
-// CHECK-GENERIC-NEXT:       %pattern = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<16>], "strides" = [#builtin.int<128>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type<2>
+// CHECK-GENERIC-NEXT:    %pattern = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<16>], "strides" = [#builtin.int<128>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type<2>
 // CHECK-GENERIC-NEXT:    "snitch_stream.streaming_region"(%X, %Y, %Z, %pattern) <{"operandSegmentSizes" = array<i32: 2, 1, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^0(%a_stream : !stream.readable<!riscv.freg<ft0>>, %b_stream : !stream.readable<!riscv.freg<ft1>>, %c_stream : !stream.writable<!riscv.freg<ft2>>):
 // CHECK-GENERIC-NEXT:      %c5 = "riscv.li"() {"immediate" = 5 : i32} : () -> !riscv.reg<>
