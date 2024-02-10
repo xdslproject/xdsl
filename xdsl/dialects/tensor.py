@@ -71,8 +71,8 @@ class EmptyOp(IRDLOperation):
 
         parser.parse_punctuation(":")
 
-        if parser.parse_optional_punctuation("->"):
-            tensor = parser.parse_attribute
+        parser.parse_punctuation("->")
+        tensor = parser.parse_attribute
 
         empty = cls(dynamic_sizes, tensor)
 
