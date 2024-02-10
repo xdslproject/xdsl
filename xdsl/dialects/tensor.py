@@ -44,7 +44,7 @@ class EmptyOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         pos = parser.pos
-        if parser.parse_punctuation("("):
+        if parser.parse_optional_punctuation("("):
             if parser.parse_optional_punctuation(")"):
                 unresolved_dynamic_sizes = ()
                 unresolved_types = ()
