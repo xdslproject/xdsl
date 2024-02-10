@@ -70,11 +70,12 @@ class EmptyOp(IRDLOperation):
             dynamic_sizes = ()
 
         parser.parse_punctuation(":")
-
+        parser.parse_punctuation("(")
+        parser.parse_punctuation(")")
         parser.parse_punctuation("->")
-        tensor = parser.parse_attribute
+        tensor_types = parser.parse_attribute
 
-        empty = cls(dynamic_sizes, tensor)
+        empty = cls(dynamic_sizes, tensor_types)
 
         return empty
 
