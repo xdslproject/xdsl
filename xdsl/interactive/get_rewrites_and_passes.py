@@ -2,13 +2,15 @@ from typing import NamedTuple
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.interactive.app import ALL_PASSES
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
-from xdsl.tools.command_line_tool import get_all_dialects
+from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 from xdsl.transforms import individual_rewrite
 from xdsl.transforms.mlir_opt import MLIROptPass
+
+ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
+"""Contains the list of xDSL passes."""
 
 
 class IndividualRewrite(NamedTuple):
