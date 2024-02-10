@@ -51,7 +51,7 @@ class EmptyOp(IRDLOperation):
     def parse(cls, parser: Parser) -> Self:
         pos = parser.pos
         if parser.parse_punctuation("("):
-            if parser.parse_punctuation(")"):
+            if parser.parse_optional_punctuation(")"):
                 unresolved_dynamic_sizes = ()
                 unresolved_types = ()
             else:
@@ -62,18 +62,19 @@ class EmptyOp(IRDLOperation):
                 unresolved_types = parser.parse_comma_separated_list(
                     Parser.Delimiter.NONE, parser.parse_type
                 )
-                parser.parse_punctuation(")")
+                parser.parse_optional_punctuation(")")
             dynamic_sizes = parser.resolve_operands(
                 unresolved_dynamic_sizes, unresolved_types, pos
             )
         else:
             dynamic_sizes = ()
 
-        parser.parse_punctuation(":")
+        parser.parse_optional_punctuation(":")
         parser.parse_punctuation("(")
+        parser.parse_optional_type()
         parser.parse_punctuation(")")
         parser.parse_punctuation("->")
-        tensor_types = parser.parse_attribute
+        tensor_types = parser.parse_attribute()
 
         empty = cls(dynamic_sizes, tensor_types)
 

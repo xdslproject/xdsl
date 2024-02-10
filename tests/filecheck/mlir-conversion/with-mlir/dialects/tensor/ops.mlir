@@ -4,7 +4,7 @@
 %t1 = tensor.empty() : () -> tensor<2x3xf32>
 %t2 = tensor.empty() : () -> tensor<2xf32>
 %i1 = "test.op"() : () -> index
-%t3 = tensor.empty(%i1) : (index) -> tensor<3xf32>
+%t3 = tensor.empty(%i1 : index) : (index) -> tensor<3xf32>
 
 
 
