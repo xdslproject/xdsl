@@ -91,8 +91,8 @@ def test_is_loop_dependent_no_dep():
 
     for_op = For(lb, ub, step, [], bb0)
 
-    assert is_loop_dependent(op1.results[0], for_op) is False
-    assert is_loop_dependent(op2.results[0], for_op) is False
+    assert not is_loop_dependent(op1.results[0], for_op)
+    assert not is_loop_dependent(op2.results[0], for_op)
 
 
 def test_is_loop_dependent_no_dep_with_visited():
@@ -108,10 +108,10 @@ def test_is_loop_dependent_no_dep_with_visited():
 
     for_op = For(lb, ub, step, [], bb0)
 
-    assert is_loop_dependent(op1.results[0], for_op) is False
-    assert is_loop_dependent(op2.results[0], for_op) is False
-    assert is_loop_dependent(op3.results[0], for_op) is False
-    assert is_loop_dependent(op4.results[0], for_op) is False
+    assert not is_loop_dependent(op1.results[0], for_op)
+    assert not is_loop_dependent(op2.results[0], for_op)
+    assert not is_loop_dependent(op3.results[0], for_op)
+    assert not is_loop_dependent(op4.results[0], for_op)
 
 
 def test_is_loop_dependent_dep():
@@ -128,7 +128,7 @@ def test_is_loop_dependent_dep():
 
     for_op = For(lb, ub, step, [], bb0)
 
-    assert is_loop_dependent(op1.results[0], for_op) is False
-    assert is_loop_dependent(op2.results[0], for_op) is False
-    assert is_loop_dependent(op3.results[0], for_op) is False
-    assert is_loop_dependent(op4.results[0], for_op) is True
+    assert not is_loop_dependent(op1.results[0], for_op)
+    assert not is_loop_dependent(op2.results[0], for_op)
+    assert not is_loop_dependent(op3.results[0], for_op)
+    assert is_loop_dependent(op4.results[0], for_op)
