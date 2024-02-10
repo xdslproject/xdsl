@@ -45,12 +45,6 @@ class AvailablePass(NamedTuple):
 ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
 """Contains the list of xDSL passes."""
 
-ALL_PATTERNS: tuple[IndividualRewrite, ...] = tuple(
-    IndividualRewrite(op_name, pattern_name)
-    for (op_name, pattern_by_name) in individual_rewrite.REWRITE_BY_NAMES.items()
-    for (pattern_name, _) in pattern_by_name.items()
-)
-
 
 def get_all_possible_rewrites(
     patterns: tuple[IndividualRewrite, ...],
