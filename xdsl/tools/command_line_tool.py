@@ -109,6 +109,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return MemRef
 
+    def get_memref_stream():
+        from xdsl.dialects.memref_stream import MemrefStream
+
+        return MemrefStream
+
     def get_mpi():
         from xdsl.dialects.mpi import MPI
 
@@ -234,6 +239,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "ltl": get_ltl,
         "math": get_math,
         "memref": get_memref,
+        "memref_stream": get_memref_stream,
         "mpi": get_mpi,
         "omp": get_omp,
         "onnx": get_onnx,
