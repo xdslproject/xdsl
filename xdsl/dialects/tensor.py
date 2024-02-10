@@ -69,10 +69,8 @@ class EmptyOp(IRDLOperation):
 
         parser.parse_punctuation(":")
 
-        if parser.parse_punctuation("->"):
-            tensor = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, parser.parse_attribute
-            )
+        if parser.parse_optional_punctuation("->"):
+            tensor = parser.parse_attribute
         else:
             tensor = ()
 
