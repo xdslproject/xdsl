@@ -55,6 +55,7 @@ def test_empty_get_all_possible_rewrite():
             func.Return(res)
 
     expected_res = ()
+
     res = get_all_possible_rewrites(
         ALL_PATTERNS, module, individual_rewrite.REWRITE_BY_NAMES
     )
