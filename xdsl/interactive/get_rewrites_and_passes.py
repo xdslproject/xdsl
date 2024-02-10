@@ -31,14 +31,6 @@ class IndexedIndividualRewrite(NamedTuple):
     rewrite: IndividualRewrite
 
 
-ALL_PATTERNS: tuple[IndividualRewrite, ...] = tuple(
-    IndividualRewrite(op_name, pattern_name)
-    for (op_name, pattern_by_name) in individual_rewrite.REWRITE_BY_NAMES.items()
-    for (pattern_name, _) in pattern_by_name.items()
-)
-"""Contains all the rewrite patterns."""
-
-
 def get_all_possible_rewrites(
     patterns: tuple[IndividualRewrite, ...],
     op: ModuleOp,
