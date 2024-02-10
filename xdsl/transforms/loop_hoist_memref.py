@@ -36,7 +36,13 @@ class LoopHoistMemref(RewritePattern):
             if isinstance(op, memref.Load):
                 load_ops.append(op)
 
-        # not handling multiple loads from the same location
+        if len(load_ops) == 0:
+            return
+
+        parent_block = load_ops[0].parent_block()
+        assert parent_block is not None
+
+        # filter out multiple loads from the same location
         load_locs = [load_op.memref for load_op in load_ops]
         dup_load_locs = [loc for loc in set(load_locs) if load_locs.count(loc) > 1]
         load_ops = [
@@ -46,12 +52,15 @@ class LoopHoistMemref(RewritePattern):
         load_store_pairs: dict[memref.Load, memref.Store] = {}
 
         for load_op in load_ops:
-            if (store_op := find_same_target_store(load_op)) and not any(
-                is_loop_dependent(idx, for_op) for idx in load_op.indices
+            if (
+                (store_op := find_same_target_store(load_op))
+                and parent_block.get_operation_index(load_op)
+                < parent_block.get_operation_index(store_op)
+                and not any(is_loop_dependent(idx, for_op) for idx in load_op.indices)
             ):
                 load_store_pairs[load_op] = store_op
 
-        # not handling the same value in multiple stores
+        # filter out stores using the same value
         store_vals = [store_op.value for store_op in load_store_pairs.values()]
         dup_store_vals = [val for val in store_vals if store_vals.count(val) > 1]
         load_store_pairs = {
@@ -61,10 +70,6 @@ class LoopHoistMemref(RewritePattern):
         }
 
         if len(load_store_pairs.items()) == 0:
-            return
-
-        parent_block = next(iter(load_store_pairs.values())).parent_block()
-        if parent_block is None:
             return
 
         # hoist new loads before the current loop
