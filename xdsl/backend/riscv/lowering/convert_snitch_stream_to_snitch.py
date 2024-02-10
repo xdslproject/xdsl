@@ -114,12 +114,11 @@ class LowerStridedReadOp(RewritePattern):
         stream_type = cast(
             stream.ReadableStreamType[riscv.FloatRegisterType], op.stream.type
         )
-        pattern_type = cast(snitch_stream.StridePatternType, op.pattern.type)
 
         rewriter.replace_matched_op(
             (
                 snitch.SsrSetDimensionSourceOp(
-                    op.pointer, op.dm, builtin.IntAttr(pattern_type.data - 1)
+                    op.pointer, op.dm, builtin.IntAttr(op.rank.data - 1)
                 ),
                 riscv_snitch.GetStreamOp(stream_type),
             )
@@ -135,14 +134,12 @@ class LowerStridedWriteOp(RewritePattern):
     def match_and_rewrite(
         self, op: snitch_stream.StridedWriteOp, rewriter: PatternRewriter, /
     ):
-        pattern_type = cast(snitch_stream.StridePatternType, op.pattern.type)
-
         rewriter.replace_matched_op(
             (
                 snitch.SsrSetDimensionDestinationOp(
                     op.pointer,
                     op.dm,
-                    builtin.IntAttr(pattern_type.data - 1),
+                    builtin.IntAttr(op.rank.data - 1),
                 ),
                 riscv_snitch.GetStreamOp(op.stream.type),
             )
@@ -174,9 +171,11 @@ class LowerStreamingRegionOp(RewritePattern):
         strided_read_ops = tuple(
             snitch_stream.StridedReadOp(
                 input,
-                pattern,
                 riscv.Registers.FT[index],
                 dm=builtin.IntAttr(dm),
+                rank=builtin.IntAttr(
+                    cast(snitch_stream.StridePatternType, pattern.type).data
+                ),
             )
             for index, (input, pattern, dm) in enumerate(
                 zip(op.inputs, patterns[:input_count], dms[:input_count], strict=True)
@@ -188,9 +187,11 @@ class LowerStreamingRegionOp(RewritePattern):
         strided_write_ops = tuple(
             snitch_stream.StridedWriteOp(
                 output,
-                pattern,
                 riscv.Registers.FT[index + input_count],
                 dm=builtin.IntAttr(dm),
+                rank=builtin.IntAttr(
+                    cast(snitch_stream.StridePatternType, pattern.type).data
+                ),
             )
             for index, (output, pattern, dm) in enumerate(
                 zip(op.outputs, patterns[input_count:], dms[input_count:], strict=True)

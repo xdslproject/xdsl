@@ -49,7 +49,6 @@ def test_offset_map_constructor():
 
 def test_snitch_stream_interpreter():
     register = riscv.IntRegisterType.unallocated()
-    pattern_type = snitch_stream.StridePatternType(2)
 
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(RiscvFunctions())
@@ -71,9 +70,9 @@ def test_snitch_stream_interpreter():
 
     a_stream_op = snitch_stream.StridedReadOp(
         TestSSAValue(register),
-        TestSSAValue(pattern_type),
         riscv.Registers.FT0,
         IntAttr(0),
+        IntAttr(2),
     )
 
     assert interpreter.run_op(a_stream_op, (a, stride_pattern)) == (
@@ -82,9 +81,9 @@ def test_snitch_stream_interpreter():
 
     b_stream_op = snitch_stream.StridedReadOp(
         TestSSAValue(register),
-        TestSSAValue(pattern_type),
         riscv.Registers.FT1,
         IntAttr(1),
+        IntAttr(2),
     )
 
     assert interpreter.run_op(b_stream_op, (b, stride_pattern)) == (
@@ -93,8 +92,8 @@ def test_snitch_stream_interpreter():
 
     c_stream_op = snitch_stream.StridedWriteOp(
         TestSSAValue(register),
-        TestSSAValue(pattern_type),
         riscv.Registers.FT2,
+        IntAttr(2),
         IntAttr(2),
     )
 
