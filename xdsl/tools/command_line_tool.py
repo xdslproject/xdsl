@@ -409,6 +409,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_memref_to_riscv.ConvertMemrefToRiscvPass
 
+    def get_convert_memref_stream_to_snitch():
+        from xdsl.transforms import convert_memref_stream_to_snitch_stream
+
+        return convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitch
+
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
@@ -477,6 +482,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
