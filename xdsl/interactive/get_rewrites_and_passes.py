@@ -10,8 +10,6 @@ from xdsl.transforms import individual_rewrite
 from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
-"""Contains all the rewrite patterns."""
-
 
 class IndividualRewrite(NamedTuple):
     """
