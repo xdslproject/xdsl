@@ -31,58 +31,55 @@ class LoopHoistMemref(RewritePattern):
         if for_op.parent_block() is None:
             return
 
-        load_ops: list[memref.Load] = []
+        loads: list[memref.Load] = []
         for op in for_op.body.ops:
             if isinstance(op, memref.Load):
-                load_ops.append(op)
+                loads.append(op)
 
-        if len(load_ops) == 0:
+        if len(loads) == 0:
             return
 
-        parent_block = load_ops[0].parent_block()
+        parent_block = loads[0].parent_block()
         assert parent_block is not None
 
         # filter out multiple loads from the same location
-        load_locs = [load_op.memref for load_op in load_ops]
+        load_locs = [load.memref for load in loads]
         dup_load_locs = [loc for loc in set(load_locs) if load_locs.count(loc) > 1]
-        load_ops = [
-            load_op for load_op in load_ops if load_op.memref not in dup_load_locs
-        ]
+        loads = [load for load in loads if load.memref not in dup_load_locs]
 
         load_store_pairs: dict[memref.Load, memref.Store] = {}
 
-        for load_op in load_ops:
+        for load in loads:
             if (
-                (store_op := find_same_target_store(load_op))
-                and parent_block.get_operation_index(load_op)
-                < parent_block.get_operation_index(store_op)
-                and not any(is_loop_dependent(idx, for_op) for idx in load_op.indices)
+                (store := find_same_target_store(load))
+                and parent_block.get_operation_index(load)
+                < parent_block.get_operation_index(store)
+                and not any(is_loop_dependent(idx, for_op) for idx in load.indices)
             ):
-                load_store_pairs[load_op] = store_op
+                load_store_pairs[load] = store
 
         # filter out stores using the same value
-        store_vals = [store_op.value for store_op in load_store_pairs.values()]
+        store_vals = [store.value for store in load_store_pairs.values()]
         dup_store_vals = [val for val in store_vals if store_vals.count(val) > 1]
         load_store_pairs = {
-            load_op: store_op
-            for load_op, store_op in load_store_pairs.items()
-            if store_op.value not in dup_store_vals
+            load: store
+            for load, store in load_store_pairs.items()
+            if store.value not in dup_store_vals
         }
 
         if len(load_store_pairs.items()) == 0:
             return
 
         # hoist new loads before the current loop
-        new_load_ops = [load_op.clone() for load_op in load_store_pairs.keys()]
-        rewriter.insert_op_before(new_load_ops, for_op)
+        new_loads = [load.clone() for load in load_store_pairs.keys()]
+        rewriter.insert_op_before(new_loads, for_op)
 
         ld_indices = [
-            parent_block.get_operation_index(load_op)
-            for load_op in load_store_pairs.keys()
+            parent_block.get_operation_index(load) for load in load_store_pairs.keys()
         ]
         st_indices = [
-            parent_block.get_operation_index(store_op)
-            for store_op in load_store_pairs.values()
+            parent_block.get_operation_index(store)
+            for store in load_store_pairs.values()
         ]
 
         new_body = Region()
@@ -90,25 +87,25 @@ class LoopHoistMemref(RewritePattern):
         for_op.body.clone_into(new_body, None, None, block_map)
 
         new_block_args = [
-            new_body.block.insert_arg(new_load_op.res.type, len(new_body.block.args))
-            for new_load_op in new_load_ops
+            new_body.block.insert_arg(new_load.res.type, len(new_body.block.args))
+            for new_load in new_loads
         ]
 
         new_parent_block = block_map[parent_block]
 
         toerase_ops: list[Operation] = []
         for new_block_arg, idx in zip(new_block_args, ld_indices):
-            interim_load_op = get_operation_at_index(new_parent_block, idx)
-            assert isinstance(interim_load_op, memref.Load)
-            interim_load_op.res.replace_by(new_block_arg)
-            toerase_ops.append(interim_load_op)
+            interim_load = get_operation_at_index(new_parent_block, idx)
+            assert isinstance(interim_load, memref.Load)
+            interim_load.res.replace_by(new_block_arg)
+            toerase_ops.append(interim_load)
 
         new_yield_vals: list[Operand] = []
         for idx in st_indices:
-            interim_store_op = get_operation_at_index(new_parent_block, idx)
-            assert isinstance(interim_store_op, memref.Store)
-            new_yield_vals.append(interim_store_op.value)
-            toerase_ops.append(interim_store_op)
+            interim_store = get_operation_at_index(new_parent_block, idx)
+            assert isinstance(interim_store, memref.Store)
+            new_yield_vals.append(interim_store.value)
+            toerase_ops.append(interim_store)
 
         for op in toerase_ops:
             op.detach()
@@ -118,14 +115,14 @@ class LoopHoistMemref(RewritePattern):
         assert new_body.block.last_op is not None
         rewriter.replace_op(new_body.block.last_op, scf.Yield(*new_yield_vals))
 
-        new_for_op = scf.For(for_op.lb, for_op.ub, for_op.step, new_load_ops, new_body)
+        new_for_op = scf.For(for_op.lb, for_op.ub, for_op.step, new_loads, new_body)
 
         # use yielded results of new loop in stores after the loop
-        new_store_ops = [
-            memref.Store.get(new_for_op.res[idx], store_op.memref, store_op.indices)
-            for idx, store_op in enumerate(load_store_pairs.values())
+        new_stores = [
+            memref.Store.get(new_for_op.res[idx], store.memref, store.indices)
+            for idx, store in enumerate(load_store_pairs.values())
         ]
-        rewriter.insert_op_after(new_store_ops, for_op)
+        rewriter.insert_op_after(new_stores, for_op)
 
         rewriter.insert_op_before(new_for_op, for_op)
         rewriter.erase_op(for_op)
