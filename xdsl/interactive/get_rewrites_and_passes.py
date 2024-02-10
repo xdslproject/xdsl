@@ -36,6 +36,7 @@ ALL_PATTERNS: tuple[IndividualRewrite, ...] = tuple(
     for (op_name, pattern_by_name) in individual_rewrite.REWRITE_BY_NAMES.items()
     for (pattern_name, _) in pattern_by_name.items()
 )
+"""Contains all the rewrite patterns."""
 
 
 def get_all_possible_rewrites(
