@@ -39,12 +39,6 @@ class EmptyOp(IRDLOperation):
             printer.print_string(")")
 
         printer.print_string(" : ")
-        printer.print_string("(")
-        printer.print_list(
-            (i.type for i in self.dynamic_sizes), printer.print_attribute
-        )
-        printer.print_string(")")
-        printer.print_string(" -> ")
         printer.print_attribute(self.tensor.type)
 
     @classmethod
@@ -62,21 +56,17 @@ class EmptyOp(IRDLOperation):
                 unresolved_types = parser.parse_comma_separated_list(
                     Parser.Delimiter.NONE, parser.parse_type
                 )
-                parser.parse_optional_punctuation(")")
+                parser.parse_punctuation(")")
             dynamic_sizes = parser.resolve_operands(
                 unresolved_dynamic_sizes, unresolved_types, pos
             )
         else:
             dynamic_sizes = ()
 
-        parser.parse_optional_punctuation(":")
-        parser.parse_punctuation("(")
-        parser.parse_optional_type()
-        parser.parse_punctuation(")")
-        parser.parse_punctuation("->")
-        tensor_types = parser.parse_attribute()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_attribute()
 
-        empty = cls(dynamic_sizes, tensor_types)
+        empty = cls(dynamic_sizes, result_type)
 
         return empty
 
