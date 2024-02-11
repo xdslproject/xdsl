@@ -28,9 +28,9 @@ from textual.widgets import (
     TextArea,
 )
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
-from xdsl.interactive.get_rewrites_and_passes import ALL_PASSES, condensed_pass_list
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
@@ -42,10 +42,41 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
+
+ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
+"""Contains the list of xDSL passes."""
+
+
+def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
+    """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
+
+    ctx = MLContext(True)
+
+    for dialect_name, dialect_factory in get_all_dialects().items():
+        ctx.register_dialect(dialect_name, dialect_factory)
+
+    selections: list[type[ModulePass]] = []
+    for _, value in ALL_PASSES:
+        if value is MLIROptPass:
+            # Always keep MLIROptPass as an option in condensed list
+            selections.append(value)
+            continue
+        try:
+            cloned_module = input.clone()
+            cloned_ctx = ctx.clone()
+            value().apply(cloned_ctx, cloned_module)
+            if input.is_structurally_equivalent(cloned_module):
+                continue
+        except Exception:
+            pass
+        selections.append(value)
+
+    return tuple(selections)
 
 
 class OutputTextArea(TextArea):
@@ -76,11 +107,11 @@ class InputApp(App[None]):
     """
 
     INITIAL_IR_TEXT = """
-func.func @hello(%n : i32) -> i32 {
-  %two = arith.constant 0 : i32
-  %res = arith.addi %two, %n : i32
-  func.return %res : i32
-}
+    func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
         """
 
     current_module = reactive[ModuleOp | Exception | None](None)
