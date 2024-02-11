@@ -38,12 +38,11 @@ riscv.assembly_section ".text" {
         %Y_dest = riscv.add %Y_moved, %y_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %c = riscv.fld %Y_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
-        %c7 = riscv.li 7 : () -> !riscv.reg<>
-        %dot = riscv_snitch.frep_outer %c7 iter_args(%acc = %c) -> (!riscv.freg<>) {
+        %dot = riscv_scf.for %i : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%acc = %c) -> (!riscv.freg<>) {
           %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
           %w = riscv_snitch.read from %W_stream : !riscv.freg<ft1>
           %res = riscv.fmadd.d %x, %w, %acc : (!riscv.freg<ft0>, !riscv.freg<ft1>, !riscv.freg<>) -> !riscv.freg<>
-          riscv_snitch.frep_yield %res : !riscv.freg<>
+          riscv_scf.yield %res : !riscv.freg<>
         }
 
         %b = riscv.get_float_register : () -> !riscv.freg<ft2>

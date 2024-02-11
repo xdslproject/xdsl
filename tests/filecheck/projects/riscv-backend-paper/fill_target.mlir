@@ -18,8 +18,10 @@ riscv.assembly_section ".text" {
 
     "snitch_stream.streaming_region"(%Y_moved, %stride_pattern) <{"operandSegmentSizes" = array<i32: 0, 1, 1>}> ({
     ^bb0(%Y_stream : !stream.writable<!riscv.freg<ft0>>):
-      %c255 = riscv.li 255 : () -> !riscv.reg<>
-      riscv_snitch.frep_outer %c255 {
+      %c0 = riscv.li 0 : () -> !riscv.reg<>
+      %c1 = riscv.li 1 : () -> !riscv.reg<>
+      %c256 = riscv.li 256 : () -> !riscv.reg<>
+      riscv_scf.for %i : !riscv.reg<> = %c0 to %c256 step %c1 {
         %y = riscv.fmv.d %x : (!riscv.freg<>) -> !riscv.freg<ft0>
         riscv_snitch.write %y to %Y_stream : !riscv.freg<ft0>
       }
