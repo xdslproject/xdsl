@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import (
     ModuleOp,
 )
 from xdsl.interactive.get_all_possible_rewrites import (
-    ALL_PATTERNS,
     IndexedIndividualRewrite,
     IndividualRewrite,
     get_all_possible_rewrites,
@@ -34,9 +33,7 @@ def test_get_all_possible_rewrite():
         ),
     )
 
-    res = get_all_possible_rewrites(
-        ALL_PATTERNS, module, individual_rewrite.REWRITE_BY_NAMES
-    )
+    res = get_all_possible_rewrites(module, individual_rewrite.REWRITE_BY_NAMES)
     assert res == expected_res
 
 
@@ -56,7 +53,5 @@ def test_empty_get_all_possible_rewrite():
 
     expected_res = ()
 
-    res = get_all_possible_rewrites(
-        ALL_PATTERNS, module, individual_rewrite.REWRITE_BY_NAMES
-    )
+    res = get_all_possible_rewrites(module, individual_rewrite.REWRITE_BY_NAMES)
     assert res == expected_res
