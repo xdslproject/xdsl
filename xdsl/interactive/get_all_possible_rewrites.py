@@ -2,8 +2,6 @@ from typing import NamedTuple
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
-from xdsl.tools.command_line_tool import get_all_passes
-from xdsl.transforms import individual_rewrite
 
 
 class IndividualRewrite(NamedTuple):
@@ -22,17 +20,6 @@ class IndexedIndividualRewrite(NamedTuple):
 
     operation_index: int
     rewrite: IndividualRewrite
-
-
-ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
-"""Contains the list of xDSL passes."""
-
-ALL_PATTERNS: tuple[IndividualRewrite, ...] = tuple(
-    IndividualRewrite(op_name, pattern_name)
-    for (op_name, pattern_by_name) in individual_rewrite.REWRITE_BY_NAMES.items()
-    for (pattern_name, _) in pattern_by_name.items()
-)
-"""Contains all the rewrite patterns."""
 
 
 def get_all_possible_rewrites(
