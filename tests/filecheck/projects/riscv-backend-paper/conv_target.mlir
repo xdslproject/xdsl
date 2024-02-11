@@ -18,6 +18,7 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
     %c8 = riscv.li 8 : () -> !riscv.reg<>
+    %c9 = riscv.li 9 : () -> !riscv.reg<>
 
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
@@ -31,11 +32,11 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         %Z_dest = riscv.add %Z_moved, %z_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %c = riscv.fld %Z_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
-        %z = riscv_snitch.frep_outer %c8 iter_args(%acc = %c) -> (!riscv.freg<>) {
+        %z = riscv_scf.for %i : !riscv.reg<> = %c0 to %c9 step %c1 iter_args(%acc = %c) -> (!riscv.freg<>) {
           %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
           %y = riscv_snitch.read from %Y_stream : !riscv.freg<ft1>
           %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<ft0>, !riscv.freg<ft1>, !riscv.freg<>) -> !riscv.freg<>
-          riscv_snitch.frep_yield %res : !riscv.freg<>
+          riscv_scf.yield %res : !riscv.freg<>
         }
 
         riscv.fsd %Z_dest, %z, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
@@ -53,9 +54,8 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  conv_2d_nchw_fchw_d1_s1_3x3:
 // CHECK-NEXT:      mv t4, a0
-// CHECK-NEXT:      mv t3, a1
-// CHECK-NEXT:      mv t1, a2
-// CHECK-NEXT:      li t0, 8
+// CHECK-NEXT:      mv t2, a1
+// CHECK-NEXT:      mv t0, a2
 // CHECK-NEXT:      li t5, 8
 // CHECK-NEXT:      li t6, 2
 // CHECK-NEXT:      li a3, 2
@@ -89,19 +89,20 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      li t5, -64
 // CHECK-NEXT:      scfgwi t5, 289
 // CHECK-NEXT:      scfgwi t4, 864
-// CHECK-NEXT:      scfgwi t3, 865
+// CHECK-NEXT:      scfgwi t2, 865
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      li t3, 288
-// CHECK-NEXT:      mv t2, zero
+// CHECK-NEXT:      li t2, 288
+// CHECK-NEXT:      mv t1, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_0_for:
-// CHECK-NEXT:      add t4, t1, t2
+// CHECK-NEXT:      add t4, t0, t1
 // CHECK-NEXT:      fld ft3, 0(t4)
-// CHECK-NEXT:      frep.o t0, 1, 0, 0
+// CHECK-NEXT:      li t5, 8
+// CHECK-NEXT:      frep.o t5, 1, 0, 0
 // CHECK-NEXT:      fmadd.d ft3, ft0, ft1, ft3
 // CHECK-NEXT:      fsd ft3, 0(t4)
-// CHECK-NEXT:      addi t2, t2, 8
-// CHECK-NEXT:      blt t2, t3, scf_body_0_for
+// CHECK-NEXT:      addi t1, t1, 8
+// CHECK-NEXT:      blt t1, t2, scf_body_0_for
 // CHECK-NEXT:  scf_body_end_0_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret

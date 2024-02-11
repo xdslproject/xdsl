@@ -18,6 +18,7 @@ where `n` is the number of streaming registers, have a restricted functionality.
 register is configured as a readable stream register, then it cannot be written to, and
 if the register is configured as a writable stream register, then it cannot be read from.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -26,10 +27,6 @@ from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
-)
-from xdsl.dialects.stream import (
-    ReadableStreamType,
-    WritableStreamType,
 )
 from xdsl.ir import (
     Data,
@@ -44,7 +41,6 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    operand_def,
     region_def,
     result_def,
     var_operand_def,
@@ -162,70 +158,10 @@ class StridePatternOp(IRDLOperation):
         )
 
 
-@irdl_op_definition
-class StridedReadOp(IRDLOperation):
-    """
-    Generates a stream reading from a pointer according to the provided pattern.
-    """
-
-    name = "snitch_stream.strided_read"
-
-    pointer = operand_def(riscv.IntRegisterType)
-    pattern = operand_def(StridePatternType)
-    stream = result_def(ReadableStreamType[riscv.FloatRegisterType])
-    dm = attr_def(IntAttr)
-
-    def __init__(
-        self,
-        pointer: SSAValue,
-        pattern: SSAValue,
-        register: riscv.FloatRegisterType,
-        dm: IntAttr,
-    ):
-        super().__init__(
-            operands=[pointer, pattern],
-            result_types=[ReadableStreamType(register)],
-            attributes={
-                "dm": dm,
-            },
-        )
-
-
-@irdl_op_definition
-class StridedWriteOp(IRDLOperation):
-    """
-    Generates a stream writing to a pointer according to the provided pattern.
-    """
-
-    name = "snitch_stream.strided_write"
-
-    pointer = operand_def(riscv.IntRegisterType)
-    pattern = operand_def(StridePatternType)
-    stream = result_def(WritableStreamType[riscv.FloatRegisterType])
-    dm = attr_def(IntAttr)
-
-    def __init__(
-        self,
-        pointer: SSAValue,
-        pattern: SSAValue,
-        register: riscv.FloatRegisterType,
-        dm: IntAttr,
-    ):
-        super().__init__(
-            operands=[pointer, pattern],
-            result_types=[WritableStreamType(register)],
-            attributes={
-                "dm": dm,
-            },
-        )
-
-
 SnitchStream = Dialect(
     "snitch_stream",
     [
         StreamingRegionOp,
-        StridedReadOp,
-        StridedWriteOp,
         StridePatternOp,
     ],
     [
