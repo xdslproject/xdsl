@@ -1,16 +1,7 @@
 from typing import NamedTuple
 
-from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
-from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
-from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
-from xdsl.transforms import individual_rewrite
-from xdsl.transforms.mlir_opt import MLIROptPass
-
-ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
-"""Contains the list of xDSL passes."""
 
 
 class IndividualRewrite(NamedTuple):
@@ -49,9 +40,9 @@ def get_all_possible_rewrites(
 
     for op_idx in range(num_ops):
         matched_op = list(current_module.walk())[op_idx]
-        if matched_op.name not in individual_rewrite.REWRITE_BY_NAMES:
+        if matched_op.name not in rewrite_by_name:
             continue
-        pattern_by_name = individual_rewrite.REWRITE_BY_NAMES[matched_op.name]
+        pattern_by_name = rewrite_by_name[matched_op.name]
 
         for pattern_name, pattern in pattern_by_name.items():
             rewriter = PatternRewriter(matched_op)
@@ -66,33 +57,5 @@ def get_all_possible_rewrites(
                     ),
                 )
                 current_module = old_module.clone()
-                matched_op = list(current_module.walk())[op_idx]
 
     return res
-
-
-def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
-    """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
-
-    ctx = MLContext(True)
-
-    for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
-
-    selections: list[type[ModulePass]] = []
-    for _, value in ALL_PASSES:
-        if value is MLIROptPass:
-            # Always keep MLIROptPass as an option in condensed list
-            selections.append(value)
-            continue
-        try:
-            cloned_module = input.clone()
-            cloned_ctx = ctx.clone()
-            value().apply(cloned_ctx, cloned_module)
-            if input.is_structurally_equivalent(cloned_module):
-                continue
-        except Exception:
-            pass
-        selections.append(value)
-
-    return tuple(selections)
