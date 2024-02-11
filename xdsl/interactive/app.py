@@ -12,7 +12,7 @@ import os
 from collections.abc import Callable
 from dataclasses import fields
 from io import StringIO
-from typing import Any, ClassVar
+from typing import Any, ClassVar, NamedTuple
 
 from textual import events, on
 from textual.app import App, ComposeResult
@@ -28,14 +28,11 @@ from textual.widgets import (
     TextArea,
 )
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
-from xdsl.interactive.get_rewrites_and_passes import (
-    ALL_PASSES,
-    ALL_PATTERNS,
-    AvailablePass,
+from xdsl.interactive.get_all_possible_rewrites import (
     get_all_possible_rewrites,
-    get_condensed_pass_list,
 )
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.pass_list_item import PassListItem
@@ -49,10 +46,52 @@ from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_ty
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 from xdsl.transforms import individual_rewrite
+from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
+
+ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
+"""Contains the list of xDSL passes."""
+
+
+class AvailablePass(NamedTuple):
+    """
+    Type alias for the attributes that describe a pass, namely the display name of the
+    pass, the module pass and pass spec.
+    """
+
+    display_name: str
+    module_pass: type[ModulePass]
+    pass_spec: PipelinePassSpec | None
+
+
+def get_condensed_pass_list(input: builtin.ModuleOp) -> tuple[AvailablePass, ...]:
+    """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
+
+    ctx = MLContext(True)
+
+    for dialect_name, dialect_factory in get_all_dialects().items():
+        ctx.register_dialect(dialect_name, dialect_factory)
+
+    selections: list[AvailablePass] = []
+    for _, value in ALL_PASSES:
+        if value is MLIROptPass:
+            # Always keep MLIROptPass as an option in condensed list
+            selections.append(AvailablePass(value.name, value, None))
+            continue
+        try:
+            cloned_module = input.clone()
+            cloned_ctx = ctx.clone()
+            value().apply(cloned_ctx, cloned_module)
+            if input.is_structurally_equivalent(cloned_module):
+                continue
+        except Exception:
+            pass
+        selections.append(AvailablePass(value.name, value, None))
+
+    return tuple(selections)
 
 
 class OutputTextArea(TextArea):
@@ -83,11 +122,11 @@ class InputApp(App[None]):
     """
 
     INITIAL_IR_TEXT = """
-func.func @hello(%n : i32) -> i32 {
-  %two = arith.constant 0 : i32
-  %res = arith.addi %two, %n : i32
-  func.return %res : i32
-}
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
+        }
         """
 
     current_module = reactive[ModuleOp | Exception | None](None)
@@ -257,7 +296,6 @@ func.func @hello(%n : i32) -> i32 {
             case ModuleOp():
                 # transform rewrites into passes
                 rewrites = get_all_possible_rewrites(
-                    ALL_PATTERNS,
                     self.current_module,
                     individual_rewrite.REWRITE_BY_NAMES,
                 )
