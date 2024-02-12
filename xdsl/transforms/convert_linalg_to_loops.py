@@ -81,7 +81,8 @@ class LowerGenericOpPattern(RewritePattern):
                 "lowering for linalg.generic with results not yet supported"
             )
 
-        # Create loop nest
+        # Create loop nest lb (0), step (1), and ubs
+        # ubs are calculated from affine maps and memref dimensions
 
         ubs = op.get_static_loop_ranges()
 
@@ -93,23 +94,21 @@ class LowerGenericOpPattern(RewritePattern):
 
         zero_op = arith.Constant(IntegerAttr.from_index_int_value(0))
         one_op = arith.Constant(IntegerAttr.from_index_int_value(1))
-        zero_val = zero_op.result
-        one_val = one_op.result
         if bound_constant_values:
             rewriter.insert_op_before_matched_op((zero_op, one_op))
 
         index = IndexType()
 
-        # Insert loop nest
+        # Insert loop nest, from the outtermost loop inwards
 
         loop_args: list[BlockArgument] = []
         insertion_target: Operation = op
 
         for ub in bound_constant_values:
             loop = scf.For(
-                zero_val,
+                zero_op.result,
                 ub,
-                one_val,
+                one_op.result,
                 (),
                 Region(Block((yield_op := scf.Yield(),), arg_types=(index,))),
             )
@@ -117,7 +116,7 @@ class LowerGenericOpPattern(RewritePattern):
             rewriter.insert_op_before(loop, insertion_target)
             insertion_target = yield_op
 
-        # Add load ops
+        # Add load ops before the innermost scf.yield operation
 
         for affine_map_attr, operand, arg in zip(
             op.indexing_maps.data, op.operands, op.body.block.args, strict=True
@@ -130,7 +129,7 @@ class LowerGenericOpPattern(RewritePattern):
             rewriter.insert_op_before(load_op, insertion_target)
             arg.replace_by(load_op.res)
 
-        # Add store ops
+        # Add store ops before the linalg.yield operation in the generic body
 
         linalg_yield_op = op.body.block.last_op
         assert isinstance(linalg_yield_op, linalg.YieldOp)
@@ -145,9 +144,12 @@ class LowerGenericOpPattern(RewritePattern):
             store_op = memref.Store.get(yield_value, ref, indices)
             rewriter.insert_op_before(store_op, linalg_yield_op)
 
+        # Now that the linalg yield op operands have been converted to stores, remove
+
         rewriter.erase_op(linalg_yield_op)
 
-        # Inline generic body
+        # Inline generic body into innermost scf loop
+        # The operands have already been remapped
 
         while op.body.block.args:
             rewriter.erase_block_argument(op.body.block.args[0])
