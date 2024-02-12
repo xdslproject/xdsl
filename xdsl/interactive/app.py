@@ -122,10 +122,10 @@ class InputApp(App[None]):
     """
 
     INITIAL_IR_TEXT = """
-        func.func @hello(%n : index) -> index {
-          %two = arith.constant 2 : index
-          %res = arith.muli %n, %two : index
-          func.return %res : index
+        func.func @hello(%n : i32) -> i32 {
+          %two = arith.constant 0 : i32
+          %res = arith.addi %two, %n : i32
+          func.return %res : i32
         }
         """
 
@@ -183,17 +183,6 @@ class InputApp(App[None]):
         input_text: str | None = None,
         pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
     ):
-        self.input_text_area = TextArea(id="input")
-        self.output_text_area = OutputTextArea(id="output")
-        self.passes_list_view = ListView(id="passes_list_view")
-        self.selected_query_label = Label("", id="selected_passes_label")
-        self.input_operation_count_datatable = DataTable(
-            id="input_operation_count_datatable"
-        )
-        self.diff_operation_count_datatable = DataTable(
-            id="diff_operation_count_datatable"
-        )
-
         if file_path is None:
             self.current_file_path = ""
         else:
@@ -212,6 +201,16 @@ class InputApp(App[None]):
         """
         Creates the required widgets, events, etc.
         """
+        self.input_text_area = TextArea(id="input")
+        self.output_text_area = OutputTextArea(id="output")
+        self.passes_list_view = ListView(id="passes_list_view")
+        self.selected_query_label = Label("", id="selected_passes_label")
+        self.input_operation_count_datatable = DataTable(
+            id="input_operation_count_datatable"
+        )
+        self.diff_operation_count_datatable = DataTable(
+            id="diff_operation_count_datatable"
+        )
 
         with Horizontal(id="top_container"):
             yield self.passes_list_view
