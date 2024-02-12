@@ -74,18 +74,6 @@ i8 = IntegerType(8)
 
 CASCADE_SIZE = 384
 
-LOCK_ACQUIRE = 1
-LOCK_RELEASE = 0
-
-PRODUCE_PORT = 0
-CONSUME_PORT = 1
-
-BLOCKING = 1
-NONBLOCKING = 0
-
-MM2S = 0
-S2MM = 1
-
 
 class AIEDeviceEnum(StrEnum):
     xcvc1902 = auto()
@@ -437,7 +425,6 @@ class DMABDOp(IRDLOperation):
     name = "aie.dma_bd"
     offset = attr_def(IntegerAttr[IntegerType])
     length = attr_def(IntegerAttr[IntegerType])
-    # ab = attr_def(BufferTypeAttr, attr_name="AB")
     buffer = operand_def(memref.MemRefType)
     dimensions = opt_attr_def(
         IntegerAttr[IntegerType]
@@ -447,13 +434,12 @@ class DMABDOp(IRDLOperation):
         self,
         offset: IntegerAttr[IntegerType],
         length: IntegerAttr[IntegerType],
-        # AB: BufferTypeAttr,
         dimensions: None | IntegerAttr[IntegerType],
         buffer: Operation | SSAValue,
     ):
         if dimensions is None:
             super().__init__(
-                attributes={"offset": offset, "length": length},  # "AB": AB},
+                attributes={"offset": offset, "length": length},
                 operands=[buffer],
             )
         else:
@@ -461,7 +447,6 @@ class DMABDOp(IRDLOperation):
                 attributes={
                     "offset": offset,
                     "length": length,
-                    # "AB": AB,
                     "dimensions": dimensions,
                 },
                 operands=[buffer],
@@ -490,9 +475,6 @@ class DMABDOp(IRDLOperation):
         offset = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
         parser.parse_characters(",")
         length = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
-        # parser.parse_characters(",")
-        # dimensions = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
-        # ab = BufferTypeAttr(BufferTypeAttr.parse_parameter(parser))
         parser.parse_characters(")")
 
         return DMABDOp(offset, length, None, buffer)
@@ -601,8 +583,9 @@ class DMAStartOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        direction = "MM2S" if self.channelDir.data == DMAChannelDirEnum.MM2S else "S2MM"
-        printer.print("(", direction, ", ", self.channelIndex.value.data, ", ")
+        printer.print(
+            "(", self.channelDir.data, ", ", self.channelIndex.value.data, ", "
+        )
         printer.print_block_name(self.dest)
         printer.print(", ")
         printer.print_block_name(self.chain)
