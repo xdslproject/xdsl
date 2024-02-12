@@ -6,7 +6,7 @@ from xdsl.dialects.builtin import MemRefType, i32
 from xdsl.dialects.memref import Load, Store
 from xdsl.dialects.scf import For
 from xdsl.ir import Block
-from xdsl.transforms.utils import (
+from xdsl.transforms.loop_hoist_memref import (
     find_same_target_store,
     get_operation_at_index,
     is_loop_dependent,
