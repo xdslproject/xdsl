@@ -43,9 +43,11 @@ def indexing_map_from_bounds(bounds: Sequence[int]) -> AffineMap:
         1,
         0,
         tuple(
-            AffineExpr.dimension(0).floor_div(div) % bound
-            if div != 1
-            else AffineExpr.dimension(0) % bound
+            (
+                AffineExpr.dimension(0).floor_div(div) % bound
+                if div != 1
+                else AffineExpr.dimension(0) % bound
+            )
             for bound, div in zip(bounds, divs)
         ),
     )
@@ -182,37 +184,3 @@ class SnitchStreamFunctions(InterpreterFunctions):
         args: PythonValues,
     ) -> PythonValues:
         return (StridePattern([b.data for b in op.ub], [s.data for s in op.strides]),)
-
-    @impl(snitch_stream.StridedReadOp)
-    def run_strided_read(
-        self,
-        interpreter: Interpreter,
-        op: snitch_stream.StridedReadOp,
-        args: tuple[Any, ...],
-    ) -> PythonValues:
-        (memref, pattern) = args
-        memref: RawPtr = memref
-        pattern: StridePattern = pattern
-
-        input_stream_factory = StridedPointerInputStream(
-            pattern.offset_expr,
-            memref,
-        )
-        return (input_stream_factory,)
-
-    @impl(snitch_stream.StridedWriteOp)
-    def run_strided_write(
-        self,
-        interpreter: Interpreter,
-        op: snitch_stream.StridedWriteOp,
-        args: tuple[Any, ...],
-    ) -> PythonValues:
-        (memref, pattern) = args
-        memref: RawPtr = memref
-        pattern: StridePattern = pattern
-
-        output_stream_factory = StridedPointerOutputStream(
-            pattern.offset_expr,
-            memref,
-        )
-        return (output_stream_factory,)
