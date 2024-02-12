@@ -106,9 +106,9 @@ class DTLDenseRewriter(RewritePattern):
                     print(vs, dim)
                     if isinstance(vs, dtl.UnknownVectorSpace):
                         ssa = None
-                        for i, unknown_vs in enumerate(exe_op.context.type.vectorSpaces):
+                        for i, unknown_vs in enumerate(exe_op.context_vector_spaces):
                             if vs.id == unknown_vs.id:
-                                ssa = SSAValue.get(exe_op.context.op.extents[i].op)
+                                ssa = SSAValue.get(exe_op.context_values[i].op)
                         if ssa is None:
                             raise ValueError(f"Cannot find Extent context for {vs} in {exe_op}")
                         dimension = block_arg.type.contents_type.get_dimension(dim)
@@ -254,7 +254,7 @@ class DTLDenseRewriter(RewritePattern):
                     vector_space = dtl_type.args.vector_space_of(index)
                     if isinstance(vector_space, dtl.KnownVectorSpace):
                         dim_name = StringAttr(f"_{vector_space.dim.data}_{self.next_dimension_name()}_")
-                        dim = dlt.DimensionAttr((dim_name, IntegerAttr(vector_space.dim, IndexType())))
+                        dim = dlt.DimensionAttr(dim_name, dlt.StaticExtentAttr(vector_space.dim))
                         # dim_names.append(dim_name)
                         dims.append(dim)
                         indices_map[index] = dim
@@ -263,7 +263,7 @@ class DTLDenseRewriter(RewritePattern):
                         if extent is None:
                             raise ValueError(f"Cannot find extent for UnknownVectorSpace: {vector_space}")
                         dim_name = StringAttr(f"{vector_space.id.data}_{self.next_dimension_name()}_")
-                        dim = dlt.DimensionAttr((dim_name, vector_space.id))
+                        dim = dlt.DimensionAttr(dim_name, dlt.InitDefinedExtentAttr(vector_space.id))
                         # dim_names.append(dim_name)
                         dims.append(dim)
                         indices_map[index] = dim
@@ -410,12 +410,12 @@ class DTLDenseRewriter(RewritePattern):
 
             vs = expr.expr.type.args.vector_space_of(dim)
             if isinstance(vs, dtl.KnownVectorSpace):
-                extents.append(dlt.ExtentAttr(vs.dim))
+                extents.append(dlt.StaticExtentAttr(vs.dim))
             elif isinstance(vs, dtl.UnknownVectorSpace):
                 extent = self.context.get_extent(vs)
                 if extent is None:
                     raise ValueError(f"Cannot find extent for UnknownVectorSpace: {vs}")
-                extents.append(dlt.ExtentAttr(dim.id))
+                extents.append(dlt.InitDefinedExtentAttr(dim.id))
                 extent_args.append(extent)
             else:
                 raise NotImplementedError(f"Vector space {vs} is not implemented")
@@ -427,33 +427,31 @@ class DTLDenseRewriter(RewritePattern):
 
         elements = self._get_dlt_deindex_typetype(expr.indices, subexpr.result, expr.expr.type, self.next_dimension_name())
 
-
-        def _unknown_extents(element: TupleStruct[DeIndexElement], indices):
+        def _unknown_extents(element: TupleStruct[DeIndexElement], indices) -> dict[dlt.InitDefinedExtentAttr, SSAValue]:
             if isinstance(element, tuple):
                 assert isinstance(indices, dtl.IndexTupleStruct)
-                dim_names_extent_map = {}
+                extent_map = {}
                 for e, i in zip(element, indices.children):
                     map = _unknown_extents(e, i)
-                    for name in map:
-                        if name in dim_names_extent_map:
-                            assert map[name] == dim_names_extent_map[name]
+                    for extent in map:
+                        if extent in extent_map:
+                            assert map[extent] == extent_map[extent]
                         else:
-                            dim_names_extent_map[name] = map[name]
-                return dim_names_extent_map
+                            extent_map[extent] = map[extent]
+                return extent_map
             elif isinstance(element, DeIndexElement):
                 assert isinstance(indices, dtl.IndexShapeStruct)
-                dims = [s for s in element.elem.dimensions if not s.is_static()]
-                dim_names_extent_map = {d.dimensionName: self.context.get_extent(dtl.UnknownVectorSpace.new([d.extent.value])) for d in dims}
-                assert all(ssa is not None for ssa in dim_names_extent_map.values())
-                return dim_names_extent_map
+                extent_map = {e: self.context.get_extent(dtl.UnknownVectorSpace(e.get_id())) for d in element.elem.dimensions if (d.extent.get_stage() >= dlt.Stage.INIT) for e in d.extent.base_extents() if isinstance(e, dlt.InitDefinedExtentAttr)}
+                assert all(ssa is not None for ssa in extent_map.values())
+                return extent_map
             else: raise ValueError()
 
         unknown_extents = _unknown_extents(elements, expr.indices)
 
-        dim_names = []
+        init_time_extents = []
         extent_vars = []
-        for name, ssa in unknown_extents.items():
-            dim_names.append(name)
+        for e, ssa in unknown_extents.items():
+            init_time_extents.append(e)
             extent_vars.append(ssa)
 
         def _elementAttrs(element: TupleStruct[DeIndexElement]):
@@ -465,8 +463,8 @@ class DTLDenseRewriter(RewritePattern):
         dlt_type = dlt.TypeType(_elementAttrs(elements))
 
         alloc = dlt.AllocOp(operands=[[],extent_vars],
-                            attributes={"dynamic_dimensions":ArrayAttr(dim_names)},
-                            result_types=[dlt.PtrType(dlt_type, base=True)])
+                            attributes={"init_extents":ArrayAttr(init_time_extents)},
+                            result_types=[dlt.PtrType(dlt_type, extents=ArrayAttr(init_time_extents), base=True)])
         ops.append(alloc)
         selector_ops, ptr_elements = self._get_new_element_selector(elements, alloc.res)
         ops.extend(selector_ops)
@@ -508,12 +506,12 @@ class DTLDenseRewriter(RewritePattern):
 
             vs = expr.expr.type.args.vector_space_of(dim)
             if isinstance(vs, dtl.KnownVectorSpace):
-                extents.append(dlt.ExtentAttr(vs.dim))
+                extents.append(dlt.StaticExtentAttr(vs.dim))
             elif isinstance(vs, dtl.UnknownVectorSpace):
-                extents.append(dlt.ExtentAttr(vs.id))
                 extent = self.context.get_extent(vs)
                 if extent is None:
                     raise ValueError(f"Cannot find extent for UnknownVectorSpace: {vs}")
+                extents.append(dlt.InitDefinedExtentAttr(vs.id))
                 extent_args.append(extent)
             else:
                 raise NotImplementedError(f"Vector space {vs} is not implemented")

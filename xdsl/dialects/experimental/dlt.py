@@ -13,6 +13,9 @@ from __future__ import annotations
 
 import abc
 import contextvars
+import typing
+from abc import ABC
+from functools import total_ordering
 from typing import Iterable, Iterator, Type, Self
 
 from xdsl.dialects import builtin, func
@@ -120,12 +123,24 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
             val = list(val)
         return SetAttr(list(self.data) + val)
 
+
+class DLTCompatibleElementBaseType(abc.ABC):
+    @abc.abstractmethod
+    def get_size(self) -> tuple[int, int]:
+        raise NotImplementedError()
+
+
 @irdl_attr_definition
-class IndexRangeType(ParametrizedAttribute, TypeAttribute):
+class IndexRangeType(ParametrizedAttribute, TypeAttribute, DLTCompatibleElementBaseType):
     name = "dlt.indexRange"
 
-AcceptedTypes: TypeAlias = IntegerType | AnyFloat | IndexType | IndexRangeType
+    def get_size(self) -> tuple[int, int]:
+        bit_width = builtin.i64.width.data
+        bytes = -(bit_width // -8)
+        return (bytes, bytes)
 
+
+AcceptedTypes: TypeAlias = IntegerType | AnyFloat | IndexType | IndexRangeType
 
 
 @irdl_attr_definition
@@ -178,71 +193,181 @@ class MemberAttr(ParametrizedAttribute):
         printer.print("}")
 
 
-@irdl_attr_definition
-class ExtentAttr(ParametrizedAttribute):
-    name = "dlt.extent"
+@total_ordering
+class Stage(Enum):
+    STATIC = 1
+    SCOPE = 2
+    INIT = 3
+    DYNAMIC = 4
+
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value < other.value
+        return NotImplemented
+
+
+class Extent(ParametrizedAttribute, abc.ABC):
     value: ParameterDef[StringAttr | IntegerAttr]
 
-    def __init__(self, value: StringAttr | str | IntegerAttr | IntAttr | int | Sequence[Attribute, ...]):
-        if isinstance(value, str):
-            value = (StringAttr(value),)
-        elif isinstance(value, int):
-            value = (IntegerAttr(value, IndexType()),)
-        elif isinstance(value, StringAttr):
-            value = (value,)
-        elif isinstance(value, IntegerAttr):
-            value = (value,)
-        elif isinstance(value, IntAttr):
-            value = (IntegerAttr(value, IndexType()),)
-        super().__init__(value)
-
+    @abstractmethod
+    def get_stage(self) -> Stage:
+        pass
 
     def is_static(self) -> bool:
-        return isinstance(self.value, IntegerAttr)
-    # extent: ParameterDef[StringAttr|(IntegerAttr[Annotated[IntegerType, i64]])]
+        return self.get_stage() == Stage.STATIC
 
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        with parser.in_angle_brackets():
-            result = ExtentAttr.internal_parse_parameters(parser)
-        return result
+    def is_scope_time(self) -> bool:
+        return self.get_stage() == Stage.SCOPE
 
-    def print_parameters(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            self.internal_print_parameters(printer)
+    def is_init_time(self) -> bool:
+        return self.get_stage() == Stage.INIT
 
-    @classmethod
-    def internal_parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        i = parser.parse_optional_integer(allow_boolean=False, allow_negative=False)
-        if i is None:
-            e = parser.parse_optional_identifier()
-            if e is None:
-                parser.raise_error("Int or identifier expected")
-            ext = StringAttr(e)
-        else:
-            ext = IntegerAttr(i, IndexType())
-        return [ext]
+    def is_dynamic(self) -> bool:
+        return self.get_stage() == Stage.DYNAMIC
 
-    def internal_print_parameters(self, printer: Printer) -> None:
-        if isinstance(self.value, StringAttr):
-            printer.print(self.value.data)
-        elif isinstance(self.value, IntegerAttr):
-            printer.print(self.value.value.data)
-        else:
-            raise ValueError()
+    @abstractmethod
+    def base_extents(self) -> list["BaseExtent"]:
+        raise NotImplementedError()
+
 
     def verify(self) -> None:
-        if isinstance(self.value, IntegerAttr):
-            assert self.value.value.data >= 0
+        if not any([self.is_static(), self.is_compile_time(), self.is_init_time(), self.is_dynamic()]):
+            raise VerifyException("An extent must be at least one of: static, compile-time, init-time, dynamic")
+
+
+class BaseExtent(Extent, ABC):
+    def base_extents(self) -> list[Self]:
+        return [self]
+
+
+class AnyExtent(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, Extent):
+            raise Exception(f"expected Extent Attribute but got {attr}")
+
+
+class AnyStaticExtent(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, Extent):
+            raise Exception(f"Expected Extent Attribute but got {attr}")
+        if not attr.is_static():
+            raise Exception(f"Expected Extent Attribute to be static, but got {attr}")
+
+
+class AnyRunTimeExtent(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, Extent):
+            raise Exception(f"Expected Extent Attribute but got {attr}")
+        if attr.get_stage() < Stage.INIT:
+            raise Exception(f"Expected Extent Attribute to be runtime (Init or Dynamic), "
+                            f"but got {attr.get_stage()} from {attr}")
+
+
+@irdl_attr_definition
+class StaticExtentAttr(BaseExtent):
+    name = "dlt.StaticExtent"
+    value: ParameterDef[IntegerAttr]
+
+    def __init__(self, value: IntegerAttr | IntAttr | int):
+        if isinstance(value, int):
+            value = IntegerAttr(value, IndexType())
+        if isinstance(value, IntAttr):
+            value = IntegerAttr(value, IndexType())
+        super().__init__((value,))
+
+    def get_stage(self) -> Stage:
+        return Stage.STATIC
+
+    def as_int(self) -> int:
+        return self.value.value.data
+
+    def verify(self) -> None:
+        if self.value.value.data < 0:
+            raise VerifyException(f"Extent cannot be negative: {self}")
+
+
+@irdl_attr_definition
+class ScopeDefinedExtentAttr(BaseExtent):
+    name = "dlt.ScopeDefinedExtent"
+
+    value: ParameterDef[StringAttr]
+
+    def __init__(self, value: StringAttr | str):
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__((value,))
+
+    def get_stage(self) -> Stage:
+        return Stage.SCOPE
+
+    def verify(self) -> None:
+        pass
+
+
+class RunTimeBaseExtent(BaseExtent, abc.ABC):
+    @abc.abstractmethod
+    def get_id(self) -> StringAttr:
+        raise NotImplementedError()
+
+
+class AnyRunTimeBaseExtent(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, RunTimeBaseExtent):
+            raise Exception(f"Expected RuntimeExtent Attribute but got {attr}")
+        if attr.get_stage() < Stage.INIT:
+            raise Exception(f"Expected Extent Attribute to be runtime (Init or Dynamic), "
+                            f"but got {attr.get_stage()} from {attr}")
+
+
+@irdl_attr_definition
+class InitDefinedExtentAttr(RunTimeBaseExtent):
+    name = "dlt.InitDefinedExtent"
+
+    value: ParameterDef[StringAttr]
+
+    def __init__(self, value: StringAttr | str):
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__((value,))
+
+    def get_stage(self) -> Stage:
+        return Stage.INIT
+
+    def get_id(self) -> StringAttr:
+        return self.value
+
+    def verify(self) -> None:
+        pass
+
+
+@irdl_attr_definition
+class DynamicExtentAttr(RunTimeBaseExtent):
+    name = "dlt.DynamicExtent"
+
+    value: ParameterDef[StringAttr]
+
+    def __init__(self, value: StringAttr | str):
+        if isinstance(value, str):
+            value = StringAttr(value)
+        super().__init__((value,))
+
+    def get_stage(self) -> Stage:
+        return Stage.DYNAMIC
+
+    def get_id(self) -> StringAttr:
+        return self.value
+
+    def verify(self) -> None:
+        pass
 
 
 @irdl_attr_definition
 class DimensionAttr(ParametrizedAttribute):
     name = "dlt.dimension"
     dimensionName: ParameterDef[StringAttr]
-    extent: ParameterDef[ExtentAttr]
+    extent: ParameterDef[AnyExtent()]
 
-    def __init__(self, dimensionName: StringAttr | str | Iterable[Attribute], extent: ExtentAttr | StringAttr | str | IntegerAttr | int = None):
+    def __init__(self, dimensionName: StringAttr | str | Iterable[Attribute], extent: Extent | IntegerAttr | int = None):
         if extent is None:
             assert isinstance(dimensionName, Iterable)
             t = tuple(dimensionName)
@@ -251,8 +376,8 @@ class DimensionAttr(ParametrizedAttribute):
             extent = t[1]
         if isinstance(dimensionName, str):
             dimensionName = StringAttr(dimensionName)
-        if not isinstance(extent, ExtentAttr):
-            extent = ExtentAttr(extent)
+        if isinstance(extent, int | IntegerAttr):
+            extent = StaticExtentAttr(extent)
         super().__init__((dimensionName, extent))
 
 
@@ -275,13 +400,13 @@ class DimensionAttr(ParametrizedAttribute):
     def internal_parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         dn = StringAttr(parser.parse_identifier())
         parser.parse_punctuation(":")
-        ext = ExtentAttr(ExtentAttr.internal_parse_parameters(parser))
+        ext = parser.parse_attribute()
         return [dn, ext]
 
     def internal_print_parameters(self, printer: Printer) -> None:
         printer.print(self.dimensionName.data)
         printer.print(":")
-        self.extent.internal_print_parameters(printer)
+        printer.print_attribute(self.extent)
 
 
 @irdl_attr_definition
@@ -293,7 +418,7 @@ class ElementAttr(ParametrizedAttribute):
 
     def __init__(self,
                  member_specifiers: Iterable[MemberAttr| tuple[StringAttr|str, StringAttr|str]] | Iterable[Attribute],
-                 dimensions: Iterable[DimensionAttr| tuple[StringAttr|str, StringAttr|str|IntegerAttr|int]] =None,
+                 dimensions: Iterable[DimensionAttr | tuple[StringAttr|str, IntegerAttr|int]] =None,
                  base_type: AcceptedTypes =None):
         if base_type is None or dimensions is None:
             assert base_type is None and dimensions is None
@@ -542,11 +667,22 @@ class Layout(ParametrizedAttribute, abc.ABC):
 
     @abstractmethod
     def get_children(self) -> list[Layout]:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def from_new_children(self, children: list[Layout]) -> Self:
-        pass
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_stage(self) -> Stage|None:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_all_extents(self) -> set[Extent]:
+        raise NotImplementedError()
+
+    def get_all_runtime_base_extents(self) -> set[RunTimeBaseExtent]:
+        return {e for e in self.get_all_extents() if isinstance(e, RunTimeBaseExtent)}
 
     def named_sub_layouts(self) -> dict[str, Layout]:
         map = {}
@@ -562,6 +698,8 @@ class Layout(ParametrizedAttribute, abc.ABC):
         return False
 
     def verify(self) -> None:
+        if self.contents_type is None:
+            raise VerifyException("Cannot produce contents type for layout")
         map = {}
         for layout in self.walk():
             if isinstance(layout, NamedLayoutAttr):
@@ -633,6 +771,12 @@ class NamedLayoutAttr(Layout):
         assert len(children) == 1
         return NamedLayoutAttr(self.abstract_name, children[0])
 
+    def get_stage(self)->Stage|None:
+        return self.child.get_stage()
+
+    def get_all_extents(self) -> set[Extent]:
+        return self.child.get_all_extents()
+
     def verify(self) -> None:
         super().verify()
         if self.abstract_name.data == "":
@@ -666,6 +810,7 @@ class AbstractLayoutAttr(Layout):
         return True
 
     def verify(self) -> None:
+        super().verify()
         if len(self.children) == 0:
             raise VerifyException(f"{self.name} must have at least 1 child layout")
 
@@ -675,6 +820,12 @@ class AbstractLayoutAttr(Layout):
     def from_new_children(self, children: list[Layout]) -> Self:
         assert len(children) == len(self.children)
         return AbstractLayoutAttr(self.member_specifiers, self.dimensions, children)
+
+    def get_stage(self) -> None:
+        return None
+
+    def get_all_extents(self) -> set[Extent]:
+        return {e for child in self.children for e in child.get_all_extents()} | {dim.extent for dim in self.dimensions}
 
 @irdl_attr_definition
 class PrimitiveLayoutAttr(Layout):
@@ -694,6 +845,12 @@ class PrimitiveLayoutAttr(Layout):
     def from_new_children(self, children: list[Layout]) -> Self:
         assert len(children) == 0
         return self
+
+    def get_stage(self)->Stage:
+        return Stage.STATIC
+
+    def get_all_extents(self) -> set[Extent]:
+        return set()
 
 @irdl_attr_definition
 class DenseLayoutAttr(Layout):
@@ -723,6 +880,21 @@ class DenseLayoutAttr(Layout):
         assert len(children) == 1
         return DenseLayoutAttr(children[0], self.dimension)
 
+    def get_stage(self) -> Stage | None:
+        child_stage = self.child.get_stage()
+        if child_stage is None: return None
+        return max(self.dimension.extent.get_stage(), self.child.get_stage())
+
+    def get_all_extents(self) -> set[Extent]:
+        return self.child.get_all_extents() | {self.dimension.extent}
+
+    def verify(self) -> None:
+        super().verify()
+        if self.dimension.extent.get_stage() > Stage.INIT:
+            raise VerifyException(f"{self.name} does not support Dimensions with extent: {self.dimension.extent} "
+                                  f"- it has an incompatible Stage.")
+
+
 @irdl_attr_definition
 class MemberLayoutAttr(Layout):
     name = "dlt.layout.member"
@@ -751,6 +923,13 @@ class MemberLayoutAttr(Layout):
         assert len(children) == 1
         return MemberLayoutAttr(children[0], self.member_specifier)
 
+    def get_stage(self) -> Stage | None:
+        return self.child.get_stage()
+
+    def get_all_extents(self) -> set[Extent]:
+        return self.child.get_all_extents()
+
+
 @irdl_attr_definition
 class StructLayoutAttr(Layout):
     name = "dlt.layout.struct"
@@ -762,8 +941,6 @@ class StructLayoutAttr(Layout):
         super().__init__((children))
         assert self.contents_type
 
-    def verify(self) -> None:
-        assert self.contents_type is not None
 
     @property
     def contents_type(self) -> TypeType:
@@ -776,10 +953,26 @@ class StructLayoutAttr(Layout):
         assert len(children) == len(self.children)
         return StructLayoutAttr(children)
 
+    def get_stage(self) -> Stage | None:
+        child_stages = [child.get_stage() for child in self.children]
+        if any(stage is None for stage in child_stages):
+            return None
+        return max(*child_stages)
+
+    def get_all_extents(self) -> set[Extent]:
+        return {e for child in self.children for e in child.get_all_extents()}
 
 
-class IndexedLayout(abc.ABC):
-    pass
+    def verify(self):
+        super().verify()
+        if self.get_stage() > Stage.INIT:
+            raise VerifyException(f"{self.name} does not support the Dynamic Staged extents of the sub-layouts: "
+                                  f"{[child for child in self.children if child.get_stage() > Stage.INIT]}")
+
+
+
+# class IndexedLayout(abc.ABC):
+#     pass
 
 
 @irdl_attr_definition
@@ -789,44 +982,49 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
     layout: ParameterDef[AnyLayout()]
     filled_members: ParameterDef[SetAttr[MemberAttr]]
     filled_dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
+    filled_extents: ParameterDef[ArrayAttr[AnyRunTimeBaseExtent()]]
     base: ParameterDef[StringAttr]
 
     def __init__(self, type_type: TypeType,
                  layout: Layout = None,
                  members: SetAttr[MemberAttr] = SetAttr([]),
                  dimensions: ArrayAttr[DimensionAttr] = ArrayAttr([]),
+                 extents: Sequence[InitDefinedExtentAttr]|ArrayAttr[InitDefinedExtentAttr] = ArrayAttr([]),
                  base: bool = False):
         base = StringAttr("Y") if base else StringAttr("N")
         if layout is None:
             layout = Layout.abstract_layout(type_type)
-
-
-
-        super().__init__(tuple([type_type, layout, members, dimensions, base]))
+        extents = ArrayAttr(extents)
+        super().__init__(tuple([type_type, layout, members, dimensions, extents, base]))
 
     @property
     def is_base(self):
         return self.base.data == "Y"
 
     def as_base(self) -> PtrType:
-        return PtrType(self.contents_type, self.layout, self.filled_members, self.filled_dimensions, base=True)
+        return PtrType(self.contents_type, self.layout, self.filled_members, self.filled_dimensions, self.filled_extents, base=True)
 
     def with_layout_name(self, name: str | StringAttr) -> PtrType:
         return PtrType(self.contents_type,
                        NamedLayoutAttr(name, self.layout),
                        self.filled_members,
                        self.filled_dimensions,
+                       self.filled_extents,
                        base=self.is_base)
 
     def with_new_layout(self, layout: Layout) -> PtrType:
-        return PtrType(self.contents_type, layout, self.filled_members, self.filled_dimensions, base=self.is_base)
+        return PtrType(self.contents_type, layout, self.filled_members, self.filled_dimensions, self.filled_extents, base=self.is_base)
 
     def verify(self) -> None:
         layout_type: TypeType = self.layout.contents_type
         layout_type = layout_type.select_members(self.filled_members)
         layout_type = layout_type.select_dimensions(self.filled_dimensions)
         if layout_type != self.contents_type:
-            raise VerifyException("The layout does not provide the expected contents type")
+            raise VerifyException(f"{self.name}: layout does not provide the expected contents type")
+        extents = {extent for element in layout_type.elements for dimension in element.dimensions for extent in dimension.extent.base_extents() if Stage.STATIC<extent.get_stage()<Stage.DYNAMIC}
+        for e in extents:
+            if e not in self.filled_extents:
+                raise VerifyException(f"{self.name}: filled base extents does not have expected extent: {e}")
 
 
 # @irdl_attr_definition
@@ -946,18 +1144,36 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class LayoutScopeOp(IRDLOperation):
     name = "dlt.layoutScope" # Be the point that all internal dlt operations use a reference and source for layout information
+    extent_names: ArrayAttr[ScopeDefinedExtentAttr] = attr_def(ArrayAttr[ScopeDefinedExtentAttr])
+    extent_values: ArrayAttr[IntegerAttr] = attr_def(ArrayAttr[IntegerAttr])
     body: Region = region_def("single_block")
     traits = frozenset(
         [
             NoTerminator(),
         ]
     )
-    def __init__(self, ops: list[Operation] | Region):
+
+    def __init__(self, scope_extents: Sequence[tuple[ScopeDefinedExtentAttr|StringAttr|str, IntegerAttr|int]], ops: list[Operation] | Block | Region):
+        extent_names = []
+        extent_values = []
+        for e, v in scope_extents:
+            if isinstance(e, StringAttr|str):
+                e = ScopeDefinedExtentAttr(e)
+            if isinstance(v, int):
+                v = IntegerAttr(v, IndexType())
+            extent_names.append(e)
+            extent_values.append(v)
+        extent_names = ArrayAttr(extent_names)
+        extent_values = ArrayAttr(extent_values)
+
         if isinstance(ops, Region):
             region = ops
+        elif isinstance(ops, Block):
+            region = Region(ops)
         else:
             region = Region(Block(ops))
-        super().__init__(regions=[region])
+
+        super().__init__(regions=[region], attributes={"extent_names":extent_names, "extent_values":extent_values})
 
     def get_function_map(self) -> dict[StringAttr, tuple[func.FuncOp, list[func.Call]]]:
         funcs: dict[StringAttr, tuple[func.FuncOp, list[func.Call]]] = {}
@@ -994,8 +1210,6 @@ class LayoutScopeOp(IRDLOperation):
                 if isinstance(parent, func.FuncOp):
                     call_map[call_op] = parent
         return call_map
-
-
 
     def verify_(self) -> None:
         function_map = self.get_function_map()
@@ -1034,6 +1248,13 @@ class LayoutScopeOp(IRDLOperation):
                                          "inputs and outputs to maintain correctness during layout generation",
                                          violations)
 
+        if len(self.extent_values) != len(self.extent_names):
+            raise VerifyException(f"{self.name}: lengths of extent names and extent values must match")
+        if len(self.body.block.args) != len(self.extent_values):
+            raise VerifyException(f"{self.name}: lengths of extents and number of body block arguments must match")
+        for arg, value in zip(self.body.block.args, self.extent_values):
+            if arg.type != value.type:
+                raise VerifyException(f"{self.name}: arg {arg.index} of body does not have the same type as Integer extent {value}")
 
 
 
@@ -1041,10 +1262,21 @@ class LayoutScopeOp(IRDLOperation):
 
 
 
+
+class DTLLayoutScopedOp(IRDLOperation):
+    traits = traits_def(
+        lambda: frozenset([HasAncestor(LayoutScopeOp)])
+    )
+
+    def get_scope(self) -> LayoutScopeOp:
+        parent = self.parent
+        while not isinstance(parent, LayoutScopeOp):
+            parent = parent.parent
+        return parent
 
 
 @irdl_op_definition
-class SelectOp(IRDLOperation):
+class SelectOp(DTLLayoutScopedOp):
     name = "dlt.select" # take a ptrType and constrain a member field or a dimension value.
     tree: Operand = operand_def(PtrType)
     members: SetAttr[MemberAttr] = attr_def(SetAttr[MemberAttr])
@@ -1052,10 +1284,6 @@ class SelectOp(IRDLOperation):
     values: VarOperand = var_operand_def(IndexType)
 
     res: OpResult = result_def(PtrType)
-
-    traits = traits_def(
-        lambda: frozenset([HasAncestor(LayoutScopeOp)])
-    )
 
     def __init__(
             self,
@@ -1150,7 +1378,7 @@ class SelectOp(IRDLOperation):
         new_content_type = new_content_type.select_members(current_filled_members).select_dimensions(current_filled_dimensions)
         assert new_content_type == new_type
 
-        return PtrType(new_type, input_type.layout, current_filled_members, current_filled_dimensions, input_type.is_base)
+        return PtrType(new_type, input_type.layout, current_filled_members, current_filled_dimensions, input_type.filled_extents, input_type.is_base)
 
 
     def print(self, printer: Printer):
@@ -1175,33 +1403,27 @@ class SelectOp(IRDLOperation):
 
 
 @irdl_op_definition
-class GetOp(IRDLOperation):
+class GetOp(DTLLayoutScopedOp):
     name = "dlt.get" # take a PtrType that points only to primitives (no member fields or dimensions) and get the value
-    tree: OperandDef = operand_def(PtrType)
-    get_type: AttributeDef = attr_def(AcceptedTypes)
+    tree: Operand = operand_def(PtrType)
+    get_type: AcceptedTypes = attr_def(AcceptedTypes)
     res: OpResult = result_def(AcceptedTypes)
 
-    traits = traits_def(
-        lambda: frozenset([HasAncestor(LayoutScopeOp)])
-    )
     #TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
 
 
 @irdl_op_definition
-class SetOp(IRDLOperation):
+class SetOp(DTLLayoutScopedOp):
     name = "dlt.set" # take a PtrType that points only to primitives (no member fields or dimensions) and set the value
     tree: OperandDef = operand_def(PtrType)
     value: OperandDef = operand_def(AcceptedTypes)
     set_type: AttributeDef = attr_def(AcceptedTypes)
 
-    traits = traits_def(
-        lambda: frozenset([HasAncestor(LayoutScopeOp)])
-    )
     # TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
 
 
 @irdl_op_definition
-class CopyOp(IRDLOperation):
+class CopyOp(DTLLayoutScopedOp):
     name = "dlt.copy" # take src and dst Ptrtypes and copy all values of the copy_type primitive from one to the other.
     src: OperandDef = operand_def(PtrType)
     dst: OperandDef = operand_def(PtrType)
@@ -1209,25 +1431,19 @@ class CopyOp(IRDLOperation):
     dst_dimensions: AttributeDef = attr_def(ArrayAttr[DimensionAttr])
     copy_type: AttributeDef = attr_def(AcceptedTypes)
 
-    traits = traits_def(
-        lambda: frozenset([HasAncestor(LayoutScopeOp)])
-    )
     # TODO Verify the tree layout types match perfectly
 
 
 @irdl_op_definition
-class ClearOp(IRDLOperation):
+class ClearOp(DTLLayoutScopedOp):
     name = "dlt.clear"  # take a Ptrtype and set all the values of clear_type to 0 - possibly changing the runtime sparsity
     tree: OperandDef = operand_def(PtrType)
     # dimensions: AttributeDef = attr_def(SetAttr[DimensionAttr])
     clear_type: AttributeDef = attr_def(AcceptedTypes)
 
-    traits = traits_def(
-        lambda: frozenset([HasAncestor(LayoutScopeOp)])
-    )
 
 @irdl_op_definition
-class IterateYieldOp(AbstractYieldOperation[Attribute]):
+class IterateYieldOp(AbstractYieldOperation[Attribute], DTLLayoutScopedOp):
     name = "dlt.iterateYield"
 
     traits = traits_def(
@@ -1235,10 +1451,10 @@ class IterateYieldOp(AbstractYieldOperation[Attribute]):
     )
 
 @irdl_op_definition
-class IterateOp(IRDLOperation):
+class IterateOp(DTLLayoutScopedOp):
     name = "dlt.iterate" # Iterate over a multiple dimension-extent pairs, given some context tensors that might be used inside.
     #TODO attribute for type of itteration - Non-zero vs whole space
-    extents: ArrayAttr[ExtentAttr] = attr_def(ArrayAttr[ExtentAttr]) # extents to iterate over.
+    extents: ArrayAttr[Extent] = attr_def(ArrayAttr[Extent]) # extents to iterate over.
     extent_args: VarOperand = var_operand_def(IndexType) # len(extent_args) == len([e in extents if !e.is_static()])
     dimensions: ArrayAttr[ArrayAttr[SetAttr[DimensionAttr]]] = attr_def(ArrayAttr[ArrayAttr[SetAttr[DimensionAttr]]])
     # for each tensor operand, store [{set of dimension where dimension.extent == e} for e in extents]
@@ -1260,7 +1476,7 @@ class IterateOp(IRDLOperation):
 
     def __init__(
         self,
-        extents: Sequence[ExtentAttr],
+        extents: Sequence[Extent],
         extent_args: Sequence[SSAValue | Operation],
         dimensions: Sequence[Sequence[Sequence[DimensionAttr]]],
         tensors: Sequence[SSAValue | PtrType],
@@ -1436,21 +1652,17 @@ class IterateOp(IRDLOperation):
 #TODO
 
 @irdl_op_definition
-class AllocOp(IRDLOperation):
+class AllocOp(DTLLayoutScopedOp):
     name = "dlt.alloc" # do the memory allocations etc to form a ptrType
 
     # layout: OperandDef = operand_def(TypeType)
     initialValues: VarOperand = var_operand_def(PtrType)
-    dynamic_sizes: VarOperand = var_operand_def(IndexType) # these do not mean unknown sizes that are static per dlt layout scope, but truely dynamic in that they can change within the layout scope.
-    dynamic_dimensions: AttributeDef = attr_def(ArrayAttr[StringAttr])
+    init_extent_sizes: VarOperand = var_operand_def(IndexType) # these do not mean unknown sizes that are static per dlt layout scope, but Init in that they can change within the layout scope.
+    init_extents: AttributeDef = attr_def(ArrayAttr[InitDefinedExtentAttr])
 
     res: OpResult = result_def(PtrType)
 
     irdl_options = [AttrSizedOperandSegments()]
-
-    traits = traits_def(
-        lambda: frozenset([HasAncestor(LayoutScopeOp)])
-    )
 
     def verify_(self) -> None:
         if not self.res.type.is_base:
@@ -1459,15 +1671,11 @@ class AllocOp(IRDLOperation):
 
 
 @irdl_op_definition
-class DeallocOp(IRDLOperation):
+class DeallocOp(DTLLayoutScopedOp):
     name = "dlt.dealloc" # take a dlt layout as a TypeType and do the memory allocations etc to form a ptrType
 
     # layout: OperandDef = operand_def(TypeType)
     tree: OperandDef = operand_def(PtrType)
-
-    traits = traits_def(
-        lambda: frozenset([HasAncestor(LayoutScopeOp)])
-    )
 
     def verify_(self) -> None:
         if not self.tree.type.is_base:
@@ -1479,12 +1687,9 @@ class DeallocOp(IRDLOperation):
 #TODO
 
 @irdl_op_definition
-class AssertLayoutOp(IRDLOperation):
+class AssertLayoutOp(DTLLayoutScopedOp):
     name = "dlt.assert" # take a dlt layout as a TypeType and assert that a given memref has the layout to form a ptrType
 
-    traits = traits_def(
-        lambda: frozenset([HasAncestor(LayoutScopeOp)])
-    )
 #TODO
 
 
@@ -1509,6 +1714,7 @@ DLT = Dialect("DLT",
         LayoutScopeOp,
         SelectOp,
         GetOp,
+        SetOp,
         CopyOp,
         ClearOp,
         IterateYieldOp,
@@ -1519,10 +1725,17 @@ DLT = Dialect("DLT",
     [#attrs
         SetAttr,
         MemberAttr,
+        StaticExtentAttr,
+        ScopeDefinedExtentAttr,
         DimensionAttr,
         ElementAttr,
         TypeType,
         IndexRangeType,
+        PrimitiveLayoutAttr,
+        NamedLayoutAttr,
+        AbstractLayoutAttr,
+        StructLayoutAttr,
+        DenseLayoutAttr,
         PtrType,
     ]
 )

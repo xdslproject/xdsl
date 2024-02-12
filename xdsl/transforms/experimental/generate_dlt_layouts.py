@@ -203,25 +203,25 @@ class DLTLayoutRewriter(RewritePattern):
                         uses_map.setdefault(layout_entry_point_operands.index(base), set()).add(ElementsUse(op, initialValue, ms, ds))
 
         use_traces: dict[int, TraceNode] = {}
-        def add_traces(operand: Operand, trace: TraceNode):
+        def add_traces(operand: Operand, trace: TraceNode, seen_funcs: set[func.FuncOp] = set()):
             for use in operand.uses:
                 if isinstance(use.operation, dlt.SelectOp):
                     child_node = trace.child_like(use.operation.members, use.operation.dimensions)
-                    add_traces(use.operation.res, child_node)
+                    add_traces(use.operation.res, child_node, seen_funcs)
                 elif isinstance(use.operation, dlt.IterateOp):
                     op: dlt.IterateOp = use.operation
                     block_arg, dims = op.get_block_arg_for_input_arg(use)
                     if dims is None:
                         # This is an Iter_arg
-                        add_traces(block_arg, trace)
+                        add_traces(block_arg, trace, seen_funcs)
                     else:
                         child_node = trace.child_like([], {dim for ds in dims for dim in ds})
-                        add_traces(block_arg, child_node)
+                        add_traces(block_arg, child_node, seen_funcs)
                 elif isinstance(use.operation, dlt.IterateYieldOp):
                     iter_op = use.operation.parent_op()
                     assert isinstance(iter_op, dlt.IterateOp)
                     res = iter_op.get_result_for_yield_use()
-                    add_traces(res, trace)
+                    add_traces(res, trace, seen_funcs)
                 elif isinstance(use.operation, dlt.GetOp | dlt.SetOp):
                     ms, ds = trace.constraints()
                     bases = _get_deep_base(operand, funcs)
@@ -235,9 +235,13 @@ class DLTLayoutRewriter(RewritePattern):
                     elem_use = ElementsUse(use.operation, operand, frozenset(ms), frozenset(ds))
                     trace.add_leaf(elem_use)
                 elif isinstance(use.operation, func.Call):
-                    op, calls = funcs[use.operation.callee.data]
+                    op, calls = funcs[use.operation.callee.root_reference]
+                    if op not in seen_funcs:
+                        new_seen_funcs = seen_funcs | {op}
+                        add_traces(op.body.block.args[use.index], trace, new_seen_funcs)
                 else:
-                    raise NotImplementedError()
+                    return
+                    raise NotImplementedError(f"Not implemented for type: {type(use.operation)} : {use.operation}")
 
         for i, operand in enumerate(layout_entry_point_operands):
             use_traces[i] = Trace.base_node()
@@ -306,7 +310,7 @@ class DLTLayoutRewriter(RewritePattern):
                     raise ValueError(f"New layout is incompatible with existing type. Expected type {op_res_type.contents_type} but got {new_contents} from {layout}")
                 new_ptr_type = op_res_type.with_new_layout(layout)
                 if op_res_type != new_ptr_type:
-                    new_alloc_op = dlt.AllocOp(operands=[op.initialValues, op.dynamic_sizes], attributes=op.attributes, result_types=[new_ptr_type])
+                    new_alloc_op = dlt.AllocOp(operands=[op.initialValues, op.init_extent_sizes], attributes=op.attributes, result_types=[new_ptr_type])
                     rewriter.replace_op(op, new_alloc_op)
                     propergate_operands(new_alloc_op.res)
             elif isinstance(op, func.FuncOp):

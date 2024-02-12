@@ -93,6 +93,11 @@ class UnknownVectorSpace(ParametrizedAttribute):
     name = "dtl.unknownVectorSpace"
     id: ParameterDef[StringAttr]
 
+    def __init__(self, id: str|StringAttr):
+        if isinstance(id, str):
+            id = StringAttr(id)
+        super().__init__((id,))
+
 
 VectorSpace: TypeAlias = UnknownVectorSpace | KnownVectorSpace
 
@@ -110,9 +115,7 @@ class IndexToVectorSpaceMap(ParametrizedAttribute):
     mapping: ParameterDef[ArrayAttr[IndexToVectorSpaceMapPair]]
 
     def __init__(self, params: list[Attribute]) -> None:
-        print(params)
-        print("==========\nNEW IndexToVectorSpaceMap!\n=============")
-        raise NotImplementedError
+        params = tuple(params)
         super().__init__(params)
 
     def verify(self):
@@ -540,13 +543,56 @@ class DenseExecuteTensorOp(IRDLOperation):
     # extent_args: VarOperand = var_operand_def(IndexType)
     # index_names: ArrayAttr[Index] = attr_def(ArrayAttr[Index])
     # index_values: VarOperand = var_operand_def(IndexType)
-    context = operand_def(ExecuteContextType)
-    args = operand_def(ExecuteArgsType)
-    outputs: ExecuteOutputOp = operand_def(ExecuteOutputType)
+
+    context_vector_spaces: ArrayAttr[UnknownVectorSpace] = attr_def(ArrayAttr[UnknownVectorSpace])
+    context_values: VarOperand = var_operand_def(builtin.IndexType)
+
+    arg_indices: ArrayAttr[Index] = attr_def(ArrayAttr[Index])
+    arg_values: VarOperand = var_operand_def(builtin.IndexType)
+
+    output_indices: ArrayAttr[ArrayAttr[dlt.DimensionAttr]] = attr_def(ArrayAttr[ArrayAttr[dlt.DimensionAttr]])
+    output_base_types: ArrayAttr[builtin.AnyFloat|builtin.IntegerType] = attr_def(ArrayAttr[builtin.AnyFloat|builtin.IntegerType])
+    outputs: VarOperand = var_operand_def(dlt.PtrType)
 
     tensor_arg_indices: ArrayAttr[ArrayAttr[dlt.DimensionAttr]] = attr_def(ArrayAttr[ArrayAttr[dlt.DimensionAttr]])
     tensor_arg_base_types: ArrayAttr[builtin.AnyFloat|builtin.IntegerType] = attr_def(ArrayAttr[builtin.AnyFloat|builtin.IntegerType])
     tensor_args: VarOperand = var_operand_def(dlt.PtrType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    def __init__(self, expr_region: Sequence[Operation] | Sequence[Block] | Region,
+                 context: Sequence[tuple[UnknownVectorSpace, SSAValue]],
+                 args: Sequence[tuple[Index, SSAValue]],
+                 outputs: Sequence[SSAValue],
+                 output_indices: ArrayAttr[ArrayAttr[dlt.DimensionAttr]],
+                 output_base_types: ArrayAttr[builtin.AnyFloat | builtin.IntegerType],
+                 tensor_args: Sequence[SSAValue],
+                 tensor_arg_indices: ArrayAttr[ArrayAttr[dlt.DimensionAttr]],
+                 tensor_arg_base_types: ArrayAttr[builtin.AnyFloat|builtin.IntegerType]
+                 ) -> None:
+
+        context_vector_space = []
+        context_values = []
+        for vs, v in context:
+            context_vector_space.append(vs)
+            context_values.append(v)
+
+        arg_indices = []
+        arg_values = []
+        for i, v in args:
+            arg_indices.append(i)
+            arg_values.append(v)
+        super().__init__(
+            regions=[expr_region],
+            operands=[context_values, arg_values, outputs, tensor_args],
+            attributes={"context_vector_spaces":ArrayAttr(context_vector_space),
+                        "arg_indices":ArrayAttr(arg_indices),
+                        "output_indices":output_indices,
+                        "output_base_types":output_base_types,
+                        "tensor_arg_indices":tensor_arg_indices,
+                        "tensor_arg_base_types":tensor_arg_base_types}
+        )
+
 
     # output_indices: ArrayAttr[ArrayAttr[StringAttr]] = attr_def(ArrayAttr[ArrayAttr[StringAttr]])
     # outputs: dlt.PtrType = operand_def(dlt.PtrType)
@@ -560,9 +606,9 @@ class DenseExecuteTensorOp(IRDLOperation):
         pass
 
     def get_extent(self, space: UnknownVectorSpace):
-        for i, s in enumerate(self.context.type.vectorSpaces):
+        for i, s in enumerate(self.context_vector_spaces):
             if space == s:
-                return self.context.op.extents[i]
+                return self.context_values[i]
         return None
 
     # @staticmethod
