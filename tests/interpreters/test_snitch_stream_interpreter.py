@@ -20,10 +20,10 @@ def test_indexing_map_constructor():
     assert indexing_map_from_bounds([2]) == AffineMap(
         1, 0, (AffineExpr.dimension(0) % 2,)
     )
-    assert indexing_map_from_bounds([2, 3]) == AffineMap(
+    assert indexing_map_from_bounds([3, 2]) == AffineMap(
         1, 0, (AffineExpr.dimension(0).floor_div(3) % 2, AffineExpr.dimension(0) % 3)
     )
-    assert indexing_map_from_bounds([2, 3, 4]) == AffineMap(
+    assert indexing_map_from_bounds([4, 3, 2]) == AffineMap(
         1,
         0,
         (
@@ -37,10 +37,10 @@ def test_indexing_map_constructor():
 def test_offset_map_constructor():
     assert offset_map_from_strides([]) == AffineMap(1, 0, ())
     assert offset_map_from_strides([2]) == AffineMap.from_callable(lambda i: (i * 2,))
-    assert offset_map_from_strides([2, 1]) == AffineMap.from_callable(
+    assert offset_map_from_strides([1, 2]) == AffineMap.from_callable(
         lambda i, j: (i * 2 + j * 1,)
     )
-    assert offset_map_from_strides([3, 2, 1]) == AffineMap.from_callable(
+    assert offset_map_from_strides([1, 2, 3]) == AffineMap.from_callable(
         lambda i, j, k: (i * 3 + j * 2 + k * 1,)
     )
 
@@ -54,12 +54,12 @@ def test_snitch_stream_interpreter():
     interpreter.register_implementations(RiscvSnitchFunctions())
 
     stride_pattern_op = snitch_stream.StridePatternOp(
-        ArrayAttr((IntAttr(2), IntAttr(3))),
-        ArrayAttr((IntAttr(24), IntAttr(8))),
+        ArrayAttr((IntAttr(3), IntAttr(2))),
+        ArrayAttr((IntAttr(8), IntAttr(24))),
         IntAttr(0),
     )
 
-    stride_pattern = StridePattern([2, 3], [24, 8])
+    stride_pattern = StridePattern([3, 2], [8, 24])
     assert interpreter.run_op(stride_pattern_op, ()) == (stride_pattern,)
 
     a = RawPtr.new_float64([2.0] * 6)
