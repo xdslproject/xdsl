@@ -29,8 +29,10 @@ from xdsl.dialects.builtin import (
     IntAttr,
 )
 from xdsl.ir import (
+    Attribute,
     Data,
     Dialect,
+    ParametrizedAttribute,
     Region,
     SSAValue,
     TypeAttribute,
@@ -38,6 +40,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParameterDef,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -48,6 +51,69 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import NoTerminator
+from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_attr_definition
+class StridePattern(ParametrizedAttribute):
+    """
+    Attribute representing the order and offsets in which elements will be read from or
+    written to a stream.
+
+    ```
+    // 2D access pattern
+    #pat = #snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>
+    // Corresponds to the following locations
+    // for i in range(16):
+    //   for j in range(8):
+    //     yield i * 8 + j * 128
+    // Note that the upper bounds and strides go from the innermost loop outwards
+    ```
+    """
+
+    name = "snitch_stream.stride_pattern"
+
+    ub: ParameterDef[ArrayAttr[IntAttr]]
+    strides: ParameterDef[ArrayAttr[IntAttr]]
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_identifier("ub")
+            parser.parse_punctuation("=")
+            ub = ArrayAttr(
+                IntAttr(i)
+                for i in parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+            )
+            parser.parse_punctuation(",")
+            parser.parse_identifier("strides")
+            parser.parse_punctuation("=")
+            strides = ArrayAttr(
+                IntAttr(i)
+                for i in parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+            )
+            return (ub, strides)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string("ub = [")
+            printer.print_list(self.ub, lambda attr: printer.print(attr.data))
+            printer.print_string("], strides = [")
+            printer.print_list(self.strides, lambda attr: printer.print(attr.data))
+            printer.print_string("]")
+
+    def rank(self):
+        return len(self.ub)
+
+    def verify(self) -> None:
+        if len(self.ub) != len(self.strides):
+            raise VerifyException(
+                f"Expect stride pattern upper bounds {self.ub} to be equal in length to strides {self.strides}"
+            )
 
 
 @irdl_attr_definition
@@ -165,6 +231,7 @@ SnitchStream = Dialect(
         StridePatternOp,
     ],
     [
+        StridePattern,
         StridePatternType,
     ],
 )
