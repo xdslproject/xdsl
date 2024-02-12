@@ -1,8 +1,10 @@
 """
 RISC-V SCF dialect
 """
+
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 
 from typing_extensions import Self
@@ -32,7 +34,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
+    ensure_terminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -40,13 +47,12 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ForOp, WhileOp)]))
+    traits = traits_def(
+        lambda: frozenset([IsTerminator(), HasParent(WhileOp, ForRofOperation)])
+    )
 
 
-@irdl_op_definition
-class ForOp(IRDLOperation):
-    name = "riscv_scf.for"
-
+class ForRofOperation(IRDLOperation, ABC):
     lb: Operand = operand_def(IntRegisterType)
     ub: Operand = operand_def(IntRegisterType)
     step: Operand = operand_def(IntRegisterType)
@@ -114,6 +120,15 @@ class ForOp(IRDLOperation):
                         f"variables types."
                     )
 
+    @abstractmethod
+    def _print_bounds(self, printer: Printer) -> None:
+        raise NotImplementedError()
+
+    @classmethod
+    @abstractmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        raise NotImplementedError()
+
     def print(self, printer: Printer):
         block = self.body.block
         index, *iter_args = block.args
@@ -122,9 +137,7 @@ class ForOp(IRDLOperation):
         printer.print(" : ")
         printer.print_attribute(index.type)
         printer.print_string(" = ")
-        printer.print_ssa_value(self.lb)
-        printer.print_string(" to ")
-        printer.print_ssa_value(self.ub)
+        self._print_bounds(printer)
         printer.print_string(" step ")
         printer.print_ssa_value(self.step)
         printer.print_string(" ")
@@ -137,33 +150,38 @@ class ForOp(IRDLOperation):
             printer.print_string(") -> (")
             printer.print_list((a.type for a in iter_args), printer.print_attribute)
             printer.print_string(") ")
+        yield_op = block.last_op
+        print_block_terminators = not isinstance(yield_op, YieldOp) or bool(
+            yield_op.operands
+        )
         printer.print_region(
-            self.body, print_entry_block_args=False, print_empty_block=False
+            self.body,
+            print_entry_block_args=False,
+            print_empty_block=False,
+            print_block_terminators=print_block_terminators,
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         # Parse bounds
-        index = parser.parse_argument(expect_type=False)
+        unresolved_index = parser.parse_argument(expect_type=False)
         parser.parse_characters(":")
         index_arg_type = parser.parse_type()
         parser.parse_characters("=")
-        lb = parser.parse_operand()
-        parser.parse_characters("to")
-        ub = parser.parse_operand()
+        lb, ub = cls._parse_bounds(parser)
         parser.parse_characters("step")
         step = parser.parse_operand()
 
         # Parse iteration arguments
         pos = parser.pos
-        iter_args: list[Parser.Argument] = []
+        unresolved_iter_args: list[Parser.UnresolvedArgument] = []
         iter_arg_unresolved_operands: list[UnresolvedOperand] = []
         iter_arg_types: list[Attribute] = []
         if parser.parse_optional_characters("iter_args"):
             for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
             ):
-                iter_args.append(iter_arg)
+                unresolved_iter_args.append(iter_arg)
                 iter_arg_unresolved_operands.append(iter_arg_operand)
             parser.parse_characters("->")
             iter_arg_types = parser.parse_comma_separated_list(
@@ -175,17 +193,73 @@ class ForOp(IRDLOperation):
         )
 
         # Set block argument types
-        index.type = index_arg_type
-        for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
-            iter_arg.type = iter_arg_type
+        index = unresolved_index.resolve(index_arg_type)
+        iter_args = [
+            u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
+        ]
 
         # Parse body
         body = parser.parse_region((index, *iter_args))
-        if not body.block.ops:
-            assert not iter_args, "Cannot create implicit yield with arguments"
-            body.block.add_op(YieldOp())
 
-        return cls(lb, ub, step, iter_arg_operands, body)
+        for_rof = cls(lb, ub, step, iter_arg_operands, body)
+
+        for trait in for_rof.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(for_rof, trait)
+
+        return for_rof
+
+
+@irdl_op_definition
+class ForOp(ForRofOperation):
+    """
+    A for loop, counting up from lb to ub by step each iteration.
+    """
+
+    name = "riscv_scf.for"
+
+    def _print_bounds(self, printer: Printer):
+        printer.print_ssa_value(self.lb)
+        printer.print_string(" to ")
+        printer.print_ssa_value(self.ub)
+
+    @classmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        lb = parser.parse_operand()
+        parser.parse_characters("to")
+        ub = parser.parse_operand()
+        return lb, ub
+
+
+@irdl_op_definition
+class RofOp(ForRofOperation):
+    """
+    Reverse Order For loop.
+
+    MLIR's for loops have the constraint of always executing from lb to ub,
+    so in order to express loops that count down from ub to lb, the rof op
+    is needed.
+
+    Rof has the semantics of going from ub to lb, decrementing by step each time.
+    The implicit constraints are that lb < ub, and step > 0.
+
+    In order to convert a for to a rof, one needs to switch lb and ub.
+    (for the normalized case that (ub - lb) % step == 0)
+    """
+
+    name = "riscv_scf.rof"
+
+    def _print_bounds(self, printer: Printer):
+        printer.print_ssa_value(self.ub)
+        printer.print_string(" down to ")
+        printer.print_ssa_value(self.lb)
+
+    @classmethod
+    def _parse_bounds(cls, parser: Parser) -> tuple[SSAValue, SSAValue]:
+        ub = parser.parse_operand()
+        parser.parse_characters("down")
+        parser.parse_characters("to")
+        lb = parser.parse_operand()
+        return lb, ub
 
 
 @irdl_op_definition
@@ -280,12 +354,8 @@ class WhileOp(IRDLOperation):
                 parser.pos,
             )
 
-        def resolve_argument(arg: parser.Argument, type: Attribute):
-            arg.type = type
-            return arg
-
         block_args = tuple(
-            resolve_argument(block_arg, t)
+            block_arg.resolve(t)
             for ((block_arg, _), t) in zip(
                 tuples, function_type.inputs.data, strict=True
             )
@@ -368,6 +438,7 @@ RISCV_Scf = Dialect(
     [
         YieldOp,
         ForOp,
+        RofOp,
         WhileOp,
         ConditionOp,
     ],

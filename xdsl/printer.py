@@ -12,10 +12,12 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
+    AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -34,7 +36,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
+    MemRefType,
     NoneAttr,
+    NoneType,
     OpaqueAttr,
     Signedness,
     StridedLayoutAttr,
@@ -42,12 +46,12 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
+    UnrankedMemrefType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
 )
-from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (
     Attribute,
     Block,
@@ -70,6 +74,7 @@ indentNumSpaces = 2
 class Printer:
     stream: Any | None = field(default=None)
     print_generic_format: bool = field(default=False)
+    print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
@@ -357,6 +362,18 @@ class Printer:
     def print_string_literal(self, string: str):
         self.print(json.dumps(string))
 
+    def print_bytes_literal(self, bytestring: bytes):
+        self.print('"')
+        for byte in bytestring:
+            match byte:
+                case 0x5C:  # ord("\\")
+                    self.print("\\\\")
+                case _ if 0x20 > byte or byte > 0x7E or byte == 0x22:
+                    self.print(f"\\{byte:02X}")
+                case _:
+                    self.print(chr(byte))
+        self.print('"')
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -396,6 +413,10 @@ class Printer:
 
         if isinstance(attribute, StringAttr):
             self.print_string_literal(attribute.data)
+            return
+
+        if isinstance(attribute, BytesAttr):
+            self.print_bytes_literal(attribute.data)
             return
 
         if isinstance(attribute, SymbolRefAttr):
@@ -457,11 +478,7 @@ class Printer:
             return
 
         if isinstance(attribute, DictionaryAttr):
-            self.print_string("{")
-            self.print_dictionary(
-                attribute.data, self.print_string_literal, self.print_attribute
-            )
-            self.print_string("}")
+            self.print_attr_dict(attribute.data)
             return
 
         if isinstance(attribute, FunctionType):
@@ -625,6 +642,10 @@ class Printer:
             self.print("index")
             return
 
+        if isinstance(attribute, NoneType):
+            self.print("none")
+            return
+
         if isinstance(attribute, OpaqueAttr):
             self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
             if not isinstance(attribute.type, NoneAttr):
@@ -674,6 +695,7 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
+
         return
 
     def print_successors(self, successors: list[Block]):
@@ -690,13 +712,18 @@ class Printer:
             self.print(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
+    def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
+        self.print_string("{")
+        self.print_list(attr_dict.items(), self._print_attr_string)
+        self.print_string("}")
+
     def _print_op_properties(self, properties: dict[str, Attribute]) -> None:
         if not properties:
             return
 
-        self.print(" <{")
-        self.print_list(properties.items(), self._print_attr_string)
-        self.print("}>")
+        self.print_string(" ")
+        with self.in_angle_brackets():
+            self.print_attr_dict(properties)
 
     def print_op_attributes(
         self,
@@ -721,18 +748,25 @@ class Printer:
         if print_keyword:
             self.print(" attributes")
 
-        self.print(" {")
-
-        self.print_list(attributes.items(), self._print_attr_string)
-
-        self.print("}")
+        self.print(" ")
+        self.print_attr_dict(attributes)
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
         self.print_successors(op.successors)
-        self._print_op_properties(op.properties)
+        if not self.print_properties_as_attributes:
+            self._print_op_properties(op.properties)
         self.print_regions(op.regions)
-        self.print_op_attributes(op.attributes)
+        if self.print_properties_as_attributes:
+            clashing_names = op.properties.keys() & op.attributes.keys()
+            if clashing_names:
+                raise ValueError(
+                    f"Properties {', '.join(clashing_names)} would overwrite the attributes of the same names."
+                )
+
+            self.print_op_attributes(op.attributes | op.properties)
+        else:
+            self.print_op_attributes(op.attributes)
         self.print(" : ")
         self.print_operation_type(op)
 

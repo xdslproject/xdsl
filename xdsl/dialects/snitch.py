@@ -9,12 +9,21 @@ that aims at generating.
 """
 
 from abc import ABC
+from collections.abc import Sequence
 from dataclasses import dataclass
 
+from xdsl.dialects import stream
 from xdsl.dialects.builtin import IntAttr
 from xdsl.dialects.riscv import IntRegisterType
-from xdsl.ir import Dialect, Operation, SSAValue
-from xdsl.irdl import IRDLOperation, Operand, attr_def, irdl_op_definition, operand_def
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.irdl import (
+    IRDLOperation,
+    Operand,
+    attr_def,
+    irdl_op_definition,
+    operand_def,
+    var_result_def,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -135,8 +144,10 @@ class SsrEnable(IRDLOperation):
 
     name = "snitch.ssr_enable"
 
-    def __init__(self):
-        super().__init__()
+    streams = var_result_def(stream.StreamType)
+
+    def __init__(self, stream_types: Sequence[Attribute]):
+        super().__init__(result_types=[stream_types])
 
 
 @irdl_op_definition

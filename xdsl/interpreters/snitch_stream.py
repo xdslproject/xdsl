@@ -10,12 +10,10 @@ from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
-    ReturnedValues,
     impl,
-    impl_terminator,
     register_impls,
 )
-from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
+from xdsl.interpreters.riscv import RawPtr
 from xdsl.interpreters.stream import (
     ReadableStream,
     WritableStream,
@@ -34,21 +32,23 @@ def indexing_map_from_bounds(bounds: Sequence[int]) -> AffineMap:
         for j in range(3):
             print(i, j) # -> (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)
 
-    map = indexing_map_from_bounds([2, 3])
+    map = indexing_map_from_bounds([3, 2])
 
     for k in range(6):
         print(map.eval(k)) # -> (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)
     ```
     """
-    divs = tuple(accumulate(reversed(bounds), mul, initial=1))[-2::-1]
+    divs = tuple(accumulate(bounds, mul, initial=1))[-2::-1]
     return AffineMap(
         1,
         0,
         tuple(
-            AffineExpr.dimension(0).floor_div(div) % bound
-            if div != 1
-            else AffineExpr.dimension(0) % bound
-            for bound, div in zip(bounds, divs)
+            (
+                AffineExpr.dimension(0).floor_div(div) % bound
+                if div != 1
+                else AffineExpr.dimension(0) % bound
+            )
+            for bound, div in zip(reversed(bounds), divs, strict=True)
         ),
     )
 
@@ -61,14 +61,14 @@ def offset_map_from_strides(strides: Sequence[int]) -> AffineMap:
     e.g.:
     ```
     my_list = [1, 2, 3, 4, 5, 6]
-    strides = [3, 1]
+    strides = [1, 3]
     for i in range(2):
         for j in range(3):
             k = i * 3 + j
             el = my_list[k]
             print(el) # -> 1, 2, 3, 4, 5, 6
 
-    map = offset_map_from_strides([3, 1])
+    map = offset_map_from_strides([1, 3])
 
     for i in range(2):
         for j in range(3):
@@ -87,7 +87,10 @@ def offset_map_from_strides(strides: Sequence[int]) -> AffineMap:
         (
             reduce(
                 lambda acc, m: acc + m,
-                (AffineExpr.dimension(i) * stride for i, stride in enumerate(strides)),
+                (
+                    AffineExpr.dimension(i) * stride
+                    for i, stride in enumerate(reversed(strides))
+                ),
             ),
         ),
     )
@@ -95,6 +98,11 @@ def offset_map_from_strides(strides: Sequence[int]) -> AffineMap:
 
 @dataclass
 class StridePattern:
+    """
+    Defines the upper bounds and strides for the stride pattern, conceptually from the
+    innermost loop outwards.
+    """
+
     ub: list[int]
     strides: list[int]
 
@@ -136,29 +144,43 @@ class StridedPointerOutputStream(WritableStream[float]):
 
 @register_impls
 class SnitchStreamFunctions(InterpreterFunctions):
-    @impl(snitch_stream.GenericOp)
-    def run_generic(
+    @impl(snitch_stream.StreamingRegionOp)
+    def run_streaming_region(
         self,
         interpreter: Interpreter,
-        op: snitch_stream.GenericOp,
+        op: snitch_stream.StreamingRegionOp,
         args: tuple[Any, ...],
     ) -> PythonValues:
-        repeat_count = args[0]
         input_stream_count = len(op.inputs)
-
-        input_streams: tuple[ReadableStream[Any], ...] = args[
-            1 : 1 + input_stream_count
+        output_stream_count = len(op.outputs)
+        input_pointers: tuple[RawPtr, ...] = args[:input_stream_count]
+        output_pointers: tuple[RawPtr, ...] = args[
+            input_stream_count : input_stream_count + output_stream_count
         ]
-        output_streams: tuple[WritableStream[Any], ...] = args[1 + input_stream_count :]
+        stride_patterns: tuple[StridePattern, ...] = args[
+            input_stream_count + output_stream_count :
+        ]
+        if len(stride_patterns) == 1:
+            pattern = stride_patterns[0]
+            input_stride_patterns = (pattern,) * input_stream_count
+            output_stride_patterns = (pattern,) * output_stream_count
+        else:
+            input_stride_patterns = stride_patterns[:input_stream_count]
+            output_stride_patterns = stride_patterns[input_stream_count:]
 
-        for _ in range(repeat_count):
-            loop_args = tuple(i.read() for i in input_streams)
-            loop_args = RiscvFunctions.set_reg_values(
-                interpreter, op.body.block.args, loop_args
-            )
-            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
-            for o, r in zip(output_streams, loop_results):
-                o.write(r)
+        input_streams = tuple(
+            StridedPointerInputStream(pat.offset_expr, ptr)
+            for pat, ptr in zip(input_stride_patterns, input_pointers, strict=True)
+        )
+
+        output_streams = tuple(
+            StridedPointerOutputStream(pat.offset_expr, ptr)
+            for pat, ptr in zip(output_stride_patterns, output_pointers, strict=True)
+        )
+
+        interpreter.run_ssacfg_region(
+            op.body, (*input_streams, *output_streams), "steraming_region"
+        )
 
         return ()
 
@@ -170,43 +192,3 @@ class SnitchStreamFunctions(InterpreterFunctions):
         args: PythonValues,
     ) -> PythonValues:
         return (StridePattern([b.data for b in op.ub], [s.data for s in op.strides]),)
-
-    @impl(snitch_stream.StridedReadOp)
-    def run_strided_read(
-        self,
-        interpreter: Interpreter,
-        op: snitch_stream.StridedReadOp,
-        args: tuple[Any, ...],
-    ) -> PythonValues:
-        (memref, pattern) = args
-        memref: RawPtr = memref
-        pattern: StridePattern = pattern
-
-        input_stream_factory = StridedPointerInputStream(
-            pattern.offset_expr,
-            memref,
-        )
-        return (input_stream_factory,)
-
-    @impl(snitch_stream.StridedWriteOp)
-    def run_strided_write(
-        self,
-        interpreter: Interpreter,
-        op: snitch_stream.StridedWriteOp,
-        args: tuple[Any, ...],
-    ) -> PythonValues:
-        (memref, pattern) = args
-        memref: RawPtr = memref
-        pattern: StridePattern = pattern
-
-        output_stream_factory = StridedPointerOutputStream(
-            pattern.offset_expr,
-            memref,
-        )
-        return (output_stream_factory,)
-
-    @impl_terminator(snitch_stream.YieldOp)
-    def run_br(
-        self, interpreter: Interpreter, op: snitch_stream.YieldOp, args: tuple[Any, ...]
-    ):
-        return ReturnedValues(args), ()

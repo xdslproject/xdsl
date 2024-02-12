@@ -1,6 +1,7 @@
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from contextlib import redirect_stdout
 from importlib.metadata import version
 from io import StringIO
 from typing import IO
@@ -148,6 +149,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--print-no-properties",
+            default=False,
+            action="store_true",
+            help="Print properties as if they were attributes for retrocompatibility.",
+        )
+
+        arg_parser.add_argument(
             "--print-debuginfo",
             default=False,
             action="store_true",
@@ -172,7 +180,7 @@ class xDSLOptMain(CommandLineTool):
 
         Add other/additional passes by overloading this function.
         """
-        for pass_name, pass_factory in get_all_passes():
+        for pass_name, pass_factory in get_all_passes().items():
             self.register_pass(pass_name, pass_factory)
 
     def register_all_targets(self):
@@ -186,6 +194,7 @@ class xDSLOptMain(CommandLineTool):
             printer = Printer(
                 stream=output,
                 print_generic_format=self.args.print_op_generic,
+                print_properties_as_attributes=self.args.print_no_properties,
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
@@ -197,14 +206,14 @@ class xDSLOptMain(CommandLineTool):
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
             try:
-                from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
+                from xdsl.interpreters.riscv_emulator import run_riscv
             except ImportError:
                 print("Please install optional dependencies to run riscv emulation")
                 return
 
             code = riscv_code(prog)
-            RV_Debug.stream = output
-            run_riscv(code, unlimited_regs=True, verbosity=0)
+            with redirect_stdout(output):
+                run_riscv(code, unlimited_regs=True, verbosity=0)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
@@ -216,11 +225,6 @@ class xDSLOptMain(CommandLineTool):
 
         Fails, if not all passes are registered.
         """
-        pipeline = list(parse_pipeline(self.args.passes))
-
-        for p in pipeline:
-            if p.name not in self.available_passes:
-                raise Exception(f"Unrecognized pass: {p.name}")
 
         def callback(
             previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
@@ -234,7 +238,12 @@ class xDSLOptMain(CommandLineTool):
                 print("\n\n\n")
 
         self.pipeline = PipelinePass(
-            [self.available_passes[p.name]().from_pass_spec(p) for p in pipeline],
+            list(
+                pass_type.from_pass_spec(spec)
+                for pass_type, spec in PipelinePass.build_pipeline_tuples(
+                    self.available_passes, parse_pipeline(self.args.passes)
+                )
+            ),
             callback,
         )
 

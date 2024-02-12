@@ -1,16 +1,45 @@
 from __future__ import annotations
 
+import textwrap
+from collections.abc import Callable
 from io import StringIO
+from typing import Annotated, Generic, TypeVar
 
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import Test
-from xdsl.ir import MLContext, Operation
-from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
+from xdsl.ir import (
+    Attribute,
+    MLContext,
+    Operation,
+    ParametrizedAttribute,
+    TypeAttribute,
+)
+from xdsl.irdl import (
+    AllOf,
+    AnyAttr,
+    AttrSizedOperandSegments,
+    ConstraintVar,
+    EqAttrConstraint,
+    IRDLOperation,
+    ParameterDef,
+    ParsePropInAttrDict,
+    VarOperand,
+    VarOpResult,
+    attr_def,
+    irdl_attr_definition,
+    irdl_op_definition,
+    operand_def,
+    opt_prop_def,
+    prop_def,
+    result_def,
+    var_operand_def,
+    var_result_def,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import PyRDLOpDefinitionError
+from xdsl.utils.exceptions import ParseError, PyRDLOpDefinitionError
 
 ################################################################################
 # Utils for this test file                                                     #
@@ -47,7 +76,10 @@ def check_equivalence(program1: str, program2: str, ctx: MLContext):
     while (op := parser.parse_optional_operation()) is not None:
         ops2.append(op)
 
-    assert ModuleOp(ops1).is_structurally_equivalent(ModuleOp(ops2))
+    mod1 = ModuleOp(ops1)
+    mod2 = ModuleOp(ops2)
+
+    assert mod1.is_structurally_equivalent(mod2), str(mod1) + "\n!=\n" + str(mod2)
 
 
 ################################################################################
@@ -192,6 +224,164 @@ def test_attr_dict(program: str, generic_program: str):
     check_equivalence(program, generic_program, ctx)
 
 
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ('test.prop {"prop" = true}', '"test.prop"() <{"prop" = true}> : () -> ()'),
+        (
+            'test.prop {"a" = 2 : i32, "prop" = true}',
+            '"test.prop"() <{"prop" = true}> {"a" = 2 : i32} : () -> ()',
+        ),
+    ],
+)
+def test_attr_dict_prop_fallack(program: str, generic_program: str):
+    @irdl_op_definition
+    class PropOp(IRDLOperation):
+        name = "test.prop"
+        prop = opt_prop_def(Attribute)
+        irdl_options = [ParsePropInAttrDict()]
+        assembly_format = "attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(PropOp)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+################################################################################
+# Attribute variables                                                          #
+################################################################################
+
+
+@irdl_op_definition
+class OpWithAttr(IRDLOperation):
+    name = "test.one_attr"
+
+    attr = attr_def(Attribute)
+    assembly_format = "$attr attr-dict"
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_attr i32", '"test.one_attr"() {"attr" = i32} : () -> ()'),
+        (
+            'test.one_attr i32 {"attr2" = i64}',
+            '"test.one_attr"() {"attr" = i32, "attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_standard_attr_directive(program: str, generic_program: str):
+    ctx = MLContext()
+    ctx.load_op(OpWithAttr)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
+def test_attr_variable_shadowed():
+    ctx = MLContext()
+    ctx.load_op(OpWithAttr)
+
+    parser = Parser(ctx, "test.one_attr i32 {attr = i64}")
+    with pytest.raises(
+        ParseError,
+        match="attributes attr are defined in other parts",
+    ):
+        parser.parse_operation()
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_attr i32", '"test.one_attr"() {"irdl" = i32} : () -> ()'),
+        (
+            'test.one_attr i32 {"attr2" = i64}',
+            '"test.one_attr"() {"irdl" = i32, "attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_attr_name(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithRenamedAttr(IRDLOperation):
+        name = "test.one_attr"
+
+        python = attr_def(Attribute, attr_name="irdl")
+        assembly_format = "$irdl attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithRenamedAttr)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
+def test_missing_property_error():
+    class OpWithMissingProp(IRDLOperation):
+        name = "test.missing_prop"
+
+        prop1 = prop_def(Attribute)
+        prop2 = prop_def(Attribute)
+        assembly_format = "$prop1 attr-dict"
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="prop2 properties are missing",
+    ):
+        irdl_op_definition(OpWithMissingProp)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_prop i32", '"test.one_prop"() <{"prop" = i32}> : () -> ()'),
+        (
+            'test.one_prop i32 {"attr2" = i64}',
+            '"test.one_prop"() <{"prop" = i32}> {"attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_standard_prop_directive(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithProp(IRDLOperation):
+        name = "test.one_prop"
+
+        prop = prop_def(Attribute)
+        assembly_format = "$prop attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithProp)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_prop i32", '"test.one_prop"() <{"irdl" = i32}> : () -> ()'),
+        (
+            'test.one_prop i32 {"attr2" = i64}',
+            '"test.one_prop"() <{"irdl" = i32}> {"attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_prop_name(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithRenamedProp(IRDLOperation):
+        name = "test.one_prop"
+
+        python = prop_def(Attribute, prop_name="irdl")
+        assembly_format = "$irdl attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithRenamedProp)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
 ################################################################################
 # Punctuations, keywords, and whitespaces                                      #
 ################################################################################
@@ -249,6 +439,30 @@ def test_punctuations_and_keywords(format: str, program: str):
     check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
 
 
+@pytest.mark.parametrize(
+    "variadic_def, format",
+    [
+        (var_operand_def, "$variadic `,` attr-dict"),
+        (var_operand_def, "type($variadic) `,` attr-dict"),
+        (var_result_def, "type($variadic) `,` attr-dict"),
+    ],
+)
+def test_variadic_comma_safeguard(
+    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic directive cannot be followed by a comma literal.",
+    ):
+
+        @irdl_op_definition
+        class CommaSafeguardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.comma_safeguard"
+
+            variadic = variadic_def()
+            assembly_format = format
+
+
 ################################################################################
 # Variables                                                                    #
 ################################################################################
@@ -288,7 +502,7 @@ def test_missing_operand():
 def test_operands_missing_type():
     """Test that operands should have their type parsed"""
     with pytest.raises(
-        PyRDLOpDefinitionError, match="type of operand 'operand' not found"
+        PyRDLOpDefinitionError, match="type of operand 'operand' cannot be inferred"
     ):
 
         @irdl_op_definition
@@ -361,6 +575,100 @@ def test_operands(format: str, program: str, generic_program: str):
 
 
 @pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "$args type($args) attr-dict",
+            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand  ",
+            '%0 = "test.op"() : () -> i32\n' '"test.variadic_operand"() : () -> ()',
+        ),
+        (
+            "$args type($args) attr-dict",
+            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand %0 i32",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.variadic_operand"(%0) : (i32) -> ()',
+        ),
+        (
+            "$args type($args) attr-dict",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.variadic_operand %0, %1 i32, i64",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.variadic_operand"(%0, %1) : (i32, i64) -> ()',
+        ),
+        (
+            "$args `:` type($args) attr-dict",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            "test.variadic_operand %0, %1, %2 : i32, i64, i128",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            '"test.variadic_operand"(%0, %1, %2) : (i32, i64, i128) -> ()',
+        ),
+    ],
+)
+def test_variadic_operand(format: str, program: str, generic_program: str):
+    """Test the parsing of variadic operands"""
+
+    @irdl_op_definition
+    class VariadicOperandOp(IRDLOperation):
+        name = "test.variadic_operand"
+        args = var_operand_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(VariadicOperandOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\n'
+            "test.variadic_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.variadic_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
+        ),
+        (
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.variadic_operands(%0, %1 : i32, i64) [%1, %0 : i64, i32]",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.variadic_operands"(%0, %1, %1, %0) {operandSegmentSizes = array<i32:2,2>} : (i32, i64, i64, i32) -> ()',
+        ),
+        (
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            "test.variadic_operands(%0, %1, %2 : i32, i64, i128) [%2, %1, %0 : i128, i64, i32]",
+            '%0, %1, %2 = "test.op"() : () -> (i32, i64, i128)\n'
+            '"test.variadic_operands"(%0, %1, %2, %2, %1, %0) {operandSegmentSizes = array<i32:3,3>} : (i32, i64, i128, i128, i64, i32) -> ()',
+        ),
+    ],
+)
+def test_multiple_variadic_operands(program: str, generic_program: str):
+    """Test the parsing of variadic operands"""
+
+    @irdl_op_definition
+    class VariadicOperandsOp(IRDLOperation):
+        name = "test.variadic_operands"
+        args1 = var_operand_def()
+        args2 = var_operand_def()
+
+        irdl_options = [AttrSizedOperandSegments()]
+
+        assembly_format = (
+            "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
+        )
+
+    ctx = MLContext()
+    ctx.load_op(VariadicOperandsOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
     "format, program",
     [
         (
@@ -395,7 +703,9 @@ def test_operands_graph_region(format: str, program: str):
 
 def test_missing_result_type():
     """Test that results should have their type parsed."""
-    with pytest.raises(PyRDLOpDefinitionError, match="result 'result' not found"):
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="result 'result' cannot be inferred"
+    ):
 
         @irdl_op_definition
         class NoResultTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
@@ -458,3 +768,212 @@ def test_results(format: str, program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "`:` type($res) attr-dict",
+            "test.variadic_result : ",
+            '"test.variadic_result"() : () -> ()',
+        ),
+        (
+            "`:` type($res) attr-dict",
+            "%0 = test.variadic_result : i32",
+            '%0 = "test.variadic_result"() : () -> i32',
+        ),
+        (
+            "`:` type($res) attr-dict",
+            "%0, %1 = test.variadic_result : i32, i64",
+            '%0, %1 = "test.variadic_result"() : () -> (i32, i64)',
+        ),
+        (
+            "`:` type($res) attr-dict",
+            "%0, %1, %2 = test.variadic_result : i32, i64, i128",
+            '%0, %1, %2 = "test.variadic_result"() : () -> (i32, i64, i128)',
+        ),
+    ],
+)
+def test_variadic_result(format: str, program: str, generic_program: str):
+    """Test the parsing of variadic results"""
+
+    @irdl_op_definition
+    class VariadicResultOp(IRDLOperation):
+        name = "test.variadic_result"
+        res = var_result_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(VariadicResultOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+################################################################################
+# Inference                                                                   #
+################################################################################
+
+_T = TypeVar("_T", bound=Attribute)
+
+
+@pytest.mark.parametrize(
+    "format",
+    [
+        "$lhs $rhs attr-dict `:` type($lhs)",
+        "$lhs $rhs attr-dict `:` type($rhs)",
+        "$lhs $rhs attr-dict `:` type($res)",
+    ],
+)
+def test_basic_inference(format: str):
+    """Check that we can infer the type of an operand when ConstraintVar are used."""
+
+    @irdl_op_definition
+    class TwoOperandsOneResultWithVarOp(IRDLOperation):
+        T = Annotated[Attribute, ConstraintVar("T")]
+
+        name = "test.two_operands_one_result_with_var"
+        res = result_def(T)
+        lhs = operand_def(T)
+        rhs = operand_def(T)
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandsOneResultWithVarOp)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0, %1 = "test.op"() : () -> (i32, i32)
+    %2 = test.two_operands_one_result_with_var %0 %1 : i32
+    "test.op"(%2) : (i32) -> ()"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_eq_attr_inference():
+    """Check that operands/results with a fixed type can be inferred."""
+
+    @irdl_attr_definition
+    class UnitType(ParametrizedAttribute, TypeAttribute):
+        name = "test.unit"
+
+    @irdl_op_definition
+    class OneOperandEqType(IRDLOperation):
+        name = "test.one_operand_eq_type"
+        index = operand_def(UnitType())
+        res = result_def(UnitType())
+
+        assembly_format = "attr-dict $index"
+
+    ctx = MLContext()
+    ctx.load_attr(UnitType)
+    ctx.load_op(OneOperandEqType)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> !test.unit
+    %1 = test.one_operand_eq_type %0
+    "test.op"(%1) : (!test.unit) -> ()"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_all_of_attr_inference():
+    """Check that AllOf still allows for inference."""
+
+    @irdl_attr_definition
+    class UnitType(ParametrizedAttribute, TypeAttribute):
+        name = "test.unit"
+
+    @irdl_op_definition
+    class OneOperandEqTypeAllOfNested(IRDLOperation):
+        name = "test.one_operand_eq_type_all_of_nested"
+        index = operand_def(AllOf([AnyAttr(), EqAttrConstraint(UnitType())]))
+
+        assembly_format = "attr-dict $index"
+
+    ctx = MLContext()
+    ctx.load_attr(UnitType)
+    ctx.load_op(OneOperandEqTypeAllOfNested)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> !test.unit
+    test.one_operand_eq_type_all_of_nested %0"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_nested_inference():
+    """Check that Param<T> infers correctly T."""
+
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
+        name = "test.param_one"
+
+        n: ParameterDef[Attribute]
+        p: ParameterDef[_T]
+        q: ParameterDef[Attribute]
+
+    @irdl_op_definition
+    class TwoOperandsNestedVarOp(IRDLOperation):
+        T = Annotated[Attribute, ConstraintVar("T")]
+
+        name = "test.two_operands_one_result_with_var"
+        res = result_def(T)
+        lhs = operand_def(ParamOne[T])
+        rhs = operand_def(T)
+
+        assembly_format = "$lhs $rhs attr-dict `:` type($lhs)"
+
+    ctx = MLContext()
+    ctx.load_op(TwoOperandsNestedVarOp)
+    ctx.load_attr(ParamOne)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0, %1 = "test.op"() : () -> (!test.param_one<f16, i32, i1>, i32)
+    %2 = test.two_operands_one_result_with_var %0 %1 : !test.param_one<f16, i32, i1>"""
+    )
+    check_roundtrip(program, ctx)
+
+
+def test_non_verifying_inference():
+    """
+    Check that non-verifying operands/results will
+    trigger a ParseError when inference is required.
+    """
+
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute, TypeAttribute, Generic[_T]):
+        name = "test.param_one"
+        p: ParameterDef[_T]
+
+    @irdl_op_definition
+    class OneOperandOneResultNestedOp(IRDLOperation):
+        T = Annotated[Attribute, ConstraintVar("T")]
+
+        name = "test.one_operand_one_result_nested"
+        res = result_def(T)
+        lhs = operand_def(ParamOne[T])
+
+        assembly_format = "$lhs attr-dict `:` type($lhs)"
+
+    ctx = MLContext()
+    ctx.load_op(OneOperandOneResultNestedOp)
+    ctx.load_attr(ParamOne)
+    ctx.load_dialect(Test)
+    program = textwrap.dedent(
+        """\
+    %0 = "test.op"() : () -> i32
+    %1 = test.one_operand_one_result_nested %0 : i32"""
+    )
+    with pytest.raises(
+        ParseError,
+        match="Verification error while inferring operation type: ",
+    ):
+        check_roundtrip(program, ctx)

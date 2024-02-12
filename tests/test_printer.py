@@ -699,7 +699,7 @@ def test_dictionary_attr():
     """Test that a DictionaryAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"arg_attrs" = {"key_one"="value_one", "key_two"="value_two", "key_three"=72 : i64}} : () -> ()
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"arg_attrs" = {"key_one" = "value_one", "key_two" = "value_two", "key_three" = 72 : i64, "unit_attr"}} : () -> ()
     """
 
     ctx = MLContext()
@@ -742,3 +742,48 @@ def test_print_function_type():
     printer.print_function_type((i32,), (FunctionType.from_lists((i32,), (i32,)),))
 
     assert io.getvalue() == "(i32) -> ((i32) -> i32)"
+
+
+def test_print_properties_as_attributes():
+    """Test that properties can be printed as attributes."""
+
+    prog = """
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"extra_attr"} : () -> ()
+    """
+
+    retro_prog = """
+"func.func"() {"extra_attr", "sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"} : () -> ()
+    """
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+
+    assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+
+
+def test_print_properties_as_attributes_safeguard():
+    """Test that properties can be printed as attributes."""
+
+    prog = """
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"}> {"extra_attr", "sym_name" = "this should be overriden by the property"} : () -> ()
+    """
+
+    retro_prog = """
+"func.func"() {"extra_attr", "sym_name" = "test", "function_type" = i64, "sym_visibility" = "private"} : () -> ()
+    """
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+    with pytest.raises(
+        ValueError,
+        match="Properties sym_name would overwrite the attributes of the same names.",
+    ):
+        assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)

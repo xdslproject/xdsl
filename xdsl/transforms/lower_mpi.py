@@ -4,8 +4,14 @@ from math import prod
 from typing import TypeVar, cast
 
 from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
-from xdsl.dialects.builtin import IndexType, IntegerType, Signedness, i32, i64
-from xdsl.dialects.memref import MemRefType
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerType,
+    MemRefType,
+    Signedness,
+    i32,
+    i64,
+)
 from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

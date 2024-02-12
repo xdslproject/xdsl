@@ -4,96 +4,278 @@ import sys
 from collections.abc import Callable
 from typing import IO
 
-from xdsl.dialects.affine import Affine
-from xdsl.dialects.arith import Arith
-from xdsl.dialects.builtin import Builtin, ModuleOp
-from xdsl.dialects.cf import Cf
-from xdsl.dialects.cmath import CMath
-from xdsl.dialects.comb import Comb
-from xdsl.dialects.experimental.dmp import DMP
-from xdsl.dialects.experimental.fir import FIR
-from xdsl.dialects.experimental.hls import HLS
-from xdsl.dialects.experimental.math import Math
-from xdsl.dialects.fsm import FSM
-from xdsl.dialects.func import Func
-from xdsl.dialects.gpu import GPU
-from xdsl.dialects.hw import HW
-from xdsl.dialects.irdl.irdl import IRDL
-from xdsl.dialects.linalg import Linalg
-from xdsl.dialects.llvm import LLVM
-from xdsl.dialects.ltl import LTL
-from xdsl.dialects.memref import MemRef
-from xdsl.dialects.mpi import MPI
-from xdsl.dialects.omp import OMP
-from xdsl.dialects.onnx import ONNX
-from xdsl.dialects.pdl import PDL
-from xdsl.dialects.printf import Printf
-from xdsl.dialects.riscv import RISCV
-from xdsl.dialects.riscv_func import RISCV_Func
-from xdsl.dialects.riscv_scf import RISCV_Scf
-from xdsl.dialects.riscv_snitch import RISCV_Snitch
-from xdsl.dialects.scf import Scf
-from xdsl.dialects.seq import Seq
-from xdsl.dialects.snitch import Snitch
-from xdsl.dialects.snitch_runtime import SnitchRuntime
-from xdsl.dialects.snitch_stream import SnitchStream
-from xdsl.dialects.stencil import Stencil
-from xdsl.dialects.stream import Stream
-from xdsl.dialects.test import Test
-from xdsl.dialects.vector import Vector
-from xdsl.frontend.symref import Symref
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import ParseError
 
 
-def get_all_dialects() -> list[Dialect]:
-    """Return the list of all available dialects."""
-    return [
-        Affine,
-        Arith,
-        Builtin,
-        Cf,
-        CMath,
-        Comb,
-        DMP,
-        FIR,
-        FSM,
-        Func,
-        GPU,
-        HLS,
-        HW,
-        Linalg,
-        IRDL,
-        LLVM,
-        LTL,
-        Math,
-        MemRef,
-        MPI,
-        OMP,
-        ONNX,
-        PDL,
-        Printf,
-        RISCV,
-        RISCV_Func,
-        RISCV_Scf,
-        RISCV_Snitch,
-        Scf,
-        Seq,
-        Snitch,
-        SnitchRuntime,
-        SnitchStream,
-        Stencil,
-        Stream,
-        Symref,
-        Test,
-        Vector,
-    ]
+def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
+    """Returns all available dialects."""
+
+    def get_affine():
+        from xdsl.dialects.affine import Affine
+
+        return Affine
+
+    def get_arith():
+        from xdsl.dialects.arith import Arith
+
+        return Arith
+
+    def get_builtin():
+        from xdsl.dialects.builtin import Builtin
+
+        return Builtin
+
+    def get_cf():
+        from xdsl.dialects.cf import Cf
+
+        return Cf
+
+    def get_cmath():
+        from xdsl.dialects.cmath import CMath
+
+        return CMath
+
+    def get_comb():
+        from xdsl.dialects.comb import Comb
+
+        return Comb
+
+    def get_dmp():
+        from xdsl.dialects.experimental.dmp import DMP
+
+        return DMP
+
+    def get_fir():
+        from xdsl.dialects.experimental.fir import FIR
+
+        return FIR
+
+    def get_fsm():
+        from xdsl.dialects.fsm import FSM
+
+        return FSM
+
+    def get_func():
+        from xdsl.dialects.func import Func
+
+        return Func
+
+    def get_gpu():
+        from xdsl.dialects.gpu import GPU
+
+        return GPU
+
+    def get_hls():
+        from xdsl.dialects.experimental.hls import HLS
+
+        return HLS
+
+    def get_hw():
+        from xdsl.dialects.hw import HW
+
+        return HW
+
+    def get_linalg():
+        from xdsl.dialects.linalg import Linalg
+
+        return Linalg
+
+    def get_irdl():
+        from xdsl.dialects.irdl.irdl import IRDL
+
+        return IRDL
+
+    def get_llvm():
+        from xdsl.dialects.llvm import LLVM
+
+        return LLVM
+
+    def get_ltl():
+        from xdsl.dialects.ltl import LTL
+
+        return LTL
+
+    def get_math():
+        from xdsl.dialects.experimental.math import Math
+
+        return Math
+
+    def get_memref():
+        from xdsl.dialects.memref import MemRef
+
+        return MemRef
+
+    def get_memref_stream():
+        from xdsl.dialects.memref_stream import MemrefStream
+
+        return MemrefStream
+
+    def get_mpi():
+        from xdsl.dialects.mpi import MPI
+
+        return MPI
+
+    def get_omp():
+        from xdsl.dialects.omp import OMP
+
+        return OMP
+
+    def get_onnx():
+        from xdsl.dialects.onnx import ONNX
+
+        return ONNX
+
+    def get_pdl():
+        from xdsl.dialects.pdl import PDL
+
+        return PDL
+
+    def get_printf():
+        from xdsl.dialects.printf import Printf
+
+        return Printf
+
+    def get_riscv_debug():
+        from xdsl.dialects.riscv_debug import RISCV_Debug
+
+        return RISCV_Debug
+
+    def get_riscv():
+        from xdsl.dialects.riscv import RISCV
+
+        return RISCV
+
+    def get_riscv_func():
+        from xdsl.dialects.riscv_func import RISCV_Func
+
+        return RISCV_Func
+
+    def get_riscv_scf():
+        from xdsl.dialects.riscv_scf import RISCV_Scf
+
+        return RISCV_Scf
+
+    def get_riscv_cf():
+        from xdsl.dialects.riscv_cf import RISCV_Cf
+
+        return RISCV_Cf
+
+    def get_riscv_snitch():
+        from xdsl.dialects.riscv_snitch import RISCV_Snitch
+
+        return RISCV_Snitch
+
+    def get_scf():
+        from xdsl.dialects.scf import Scf
+
+        return Scf
+
+    def get_seq():
+        from xdsl.dialects.seq import Seq
+
+        return Seq
+
+    def get_snitch():
+        from xdsl.dialects.snitch import Snitch
+
+        return Snitch
+
+    def get_snitch_runtime():
+        from xdsl.dialects.snitch_runtime import SnitchRuntime
+
+        return SnitchRuntime
+
+    def get_snitch_stream():
+        from xdsl.dialects.snitch_stream import SnitchStream
+
+        return SnitchStream
+
+    def get_stencil():
+        from xdsl.dialects.stencil import Stencil
+
+        return Stencil
+
+    def get_stream():
+        from xdsl.dialects.stream import Stream
+
+        return Stream
+
+    def get_symref():
+        from xdsl.frontend.symref import Symref
+
+        return Symref
+
+    def get_test():
+        from xdsl.dialects.test import Test
+
+        return Test
+
+    def get_vector():
+        from xdsl.dialects.vector import Vector
+
+        return Vector
+
+    return {
+        "affine": get_affine,
+        "arith": get_arith,
+        "builtin": get_builtin,
+        "cf": get_cf,
+        "cmath": get_cmath,
+        "comb": get_comb,
+        "dmp": get_dmp,
+        "fir": get_fir,
+        "fsm": get_fsm,
+        "func": get_func,
+        "gpu": get_gpu,
+        "hls": get_hls,
+        "hw": get_hw,
+        "linalg": get_linalg,
+        "irdl": get_irdl,
+        "llvm": get_llvm,
+        "ltl": get_ltl,
+        "math": get_math,
+        "memref": get_memref,
+        "memref_stream": get_memref_stream,
+        "mpi": get_mpi,
+        "omp": get_omp,
+        "onnx": get_onnx,
+        "pdl": get_pdl,
+        "printf": get_printf,
+        "riscv": get_riscv,
+        "riscv_debug": get_riscv_debug,
+        "riscv_func": get_riscv_func,
+        "riscv_scf": get_riscv_scf,
+        "riscv_cf": get_riscv_cf,
+        "riscv_snitch": get_riscv_snitch,
+        "scf": get_scf,
+        "seq": get_seq,
+        "snitch": get_snitch,
+        "snrt": get_snitch_runtime,
+        "snitch_stream": get_snitch_stream,
+        "stencil": get_stencil,
+        "stream": get_stream,
+        "symref": get_symref,
+        "test": get_test,
+        "vector": get_vector,
+    }
 
 
-def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
+def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     """Return the list of all available passes."""
+
+    def get_arith_add_fastmath():
+        from xdsl.transforms import arith_add_fastmath
+
+        return arith_add_fastmath.AddArithFastMathFlagsPass
+
+    def get_loop_hoist_memref():
+        from xdsl.transforms import loop_hoist_memref
+
+        return loop_hoist_memref.LoopHoistMemrefPass
 
     def get_canonicalize():
         from xdsl.transforms import canonicalize
@@ -105,15 +287,23 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
 
         return canonicalize_dmp.CanonicalizeDmpPass
 
+    def get_convert_linalg_to_loops():
+        from xdsl.transforms import convert_linalg_to_loops
+
+        return convert_linalg_to_loops.ConvertLinalgToLoopsPass
+
+    def get_convert_riscv_scf_for_to_frep():
+        from xdsl.transforms import convert_riscv_scf_for_to_frep
+
+        return convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass
+
     def get_convert_scf_to_openmp():
         from xdsl.transforms import convert_scf_to_openmp
 
         return convert_scf_to_openmp.ConvertScfToOpenMPPass
 
     def get_convert_snitch_stream_to_snitch():
-        from xdsl.backend.riscv.lowering import (
-            convert_snitch_stream_to_snitch,
-        )
+        from xdsl.backend.riscv.lowering import convert_snitch_stream_to_snitch
 
         return convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch
 
@@ -126,6 +316,13 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
         from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
 
         return convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass
+
+    def get_convert_riscv_scf_to_riscv_cf():
+        from xdsl.backend.riscv.lowering import (
+            convert_riscv_scf_to_riscv_cf,
+        )
+
+        return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
 
     def get_dce():
         from xdsl.transforms import dead_code_elimination
@@ -151,6 +348,11 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
         from xdsl.transforms.experimental.dmp import stencil_global_to_local
 
         return stencil_global_to_local.LowerHaloToMPI
+
+    def get_individual_rewrite():
+        from xdsl.transforms.individual_rewrite import IndividualRewrite
+
+        return IndividualRewrite
 
     def get_lower_affine():
         from xdsl.transforms import lower_affine
@@ -187,11 +389,6 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
 
         return printf_to_putchar.PrintfToPutcharPass
 
-    def get_reduce_register_pressure():
-        from xdsl.backend.riscv.lowering import reduce_register_pressure
-
-        return reduce_register_pressure.RiscvReduceRegisterPressurePass
-
     def get_riscv_register_allocation():
         from xdsl.transforms import riscv_register_allocation
 
@@ -221,6 +418,16 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
         from xdsl.backend.riscv.lowering import convert_memref_to_riscv
 
         return convert_memref_to_riscv.ConvertMemrefToRiscvPass
+
+    def get_convert_memref_stream_to_snitch():
+        from xdsl.transforms import convert_memref_stream_to_snitch_stream
+
+        return convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitch
+
+    def get_convert_print_format_to_riscv_debug():
+        from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
+
+        return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
 
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
@@ -272,43 +479,56 @@ def get_all_passes() -> list[tuple[str, Callable[[], type[ModulePass]]]]:
 
         return stencil_unroll.StencilUnrollPass
 
-    return [
-        ("canonicalize", get_canonicalize),
-        ("canonicalize-dmp", get_canonicalize_dmp),
-        ("convert-scf-to-openmp", get_convert_scf_to_openmp),
-        ("convert-snitch-stream-to-snitch", get_convert_snitch_stream_to_snitch),
-        ("constant-fold-interp", get_constant_fold_interp),
-        ("convert-stencil-to-ll-mlir", get_convert_stencil_to_ll_mlir),
-        ("dce", get_dce),
-        ("frontend-desymrefy", get_desymrefy),
-        ("gpu-map-parallel-loops", get_gpu_map_parallel_loops),
-        ("distribute-stencil", get_distribute_stencil),
-        ("dmp-to-mpi", get_lower_halo_to_mpi),
-        ("lower-affine", get_lower_affine),
-        ("lower-mpi", get_lower_mpi),
-        ("lower-riscv-func", get_lower_riscv_func),
-        ("lower-snitch", get_lower_snitch),
-        ("mlir-opt", get_mlir_opt),
-        ("printf-to-llvm", get_printf_to_llvm),
-        ("printf-to-putchar", get_printf_to_putchar),
-        ("riscv-reduce-register-pressure", get_reduce_register_pressure),
-        ("riscv-allocate-registers", get_riscv_register_allocation),
-        ("riscv-scf-loop-range-folding", get_riscv_scf_loop_range_folding),
-        ("snitch-allocate-registers", get_snitch_register_allocation),
-        ("convert-arith-to-riscv", get_convert_arith_to_riscv),
-        ("convert-func-to-riscv-func", get_convert_func_to_riscv_func),
-        ("convert-memref-to-riscv", get_convert_memref_to_riscv),
-        ("scf-parallel-loop-tiling", get_scf_parallel_loop_tiling),
-        ("convert-scf-to-riscv-scf", get_convert_scf_to_riscv_scf),
-        ("lower-riscv-scf-to-labels", get_lower_scf_for_to_labels),
-        ("stencil-shape-inference", get_stencil_shape_inference),
-        ("stencil-storage-materialization", get_stencil_storage_materialization),
-        ("reconcile-unrealized-casts", get_reconcile_unrealized_casts),
-        ("hls-convert-stencil-to-ll-mlir", get_hls_convert_stencil_to_ll_mlir),
-        ("lower-hls", get_lower_hls),
-        ("replace-incompatible-fpga", get_replace_incompatible_fpga),
-        ("stencil-unroll", get_stencil_unroll),
-    ]
+    def get_test_lower_linalg_to_snitch():
+        from xdsl.transforms import test_lower_linalg_to_snitch
+
+        return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
+
+    return {
+        "arith-add-fastmath": get_arith_add_fastmath,
+        "loop-hoist-memref": get_loop_hoist_memref,
+        "canonicalize-dmp": get_canonicalize_dmp,
+        "canonicalize": get_canonicalize,
+        "constant-fold-interp": get_constant_fold_interp,
+        "convert-arith-to-riscv": get_convert_arith_to_riscv,
+        "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
+        "convert-linalg-to-loops": get_convert_linalg_to_loops,
+        "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
+        "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
+        "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
+        "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
+        "convert-scf-to-openmp": get_convert_scf_to_openmp,
+        "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
+        "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
+        "dce": get_dce,
+        "distribute-stencil": get_distribute_stencil,
+        "dmp-to-mpi": get_lower_halo_to_mpi,
+        "frontend-desymrefy": get_desymrefy,
+        "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
+        "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
+        "apply-individual-rewrite": get_individual_rewrite,
+        "lower-affine": get_lower_affine,
+        "lower-hls": get_lower_hls,
+        "lower-mpi": get_lower_mpi,
+        "lower-riscv-func": get_lower_riscv_func,
+        "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
+        "lower-snitch": get_lower_snitch,
+        "mlir-opt": get_mlir_opt,
+        "printf-to-llvm": get_printf_to_llvm,
+        "printf-to-putchar": get_printf_to_putchar,
+        "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
+        "replace-incompatible-fpga": get_replace_incompatible_fpga,
+        "riscv-allocate-registers": get_riscv_register_allocation,
+        "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
+        "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
+        "snitch-allocate-registers": get_snitch_register_allocation,
+        "stencil-shape-inference": get_stencil_shape_inference,
+        "stencil-storage-materialization": get_stencil_storage_materialization,
+        "stencil-unroll": get_stencil_unroll,
+        "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+    }
 
 
 class CommandLineTool:
@@ -379,8 +599,8 @@ class CommandLineTool:
 
         Add other/additional dialects by overloading this function.
         """
-        for dialect in get_all_dialects():
-            self.ctx.load_dialect(dialect)
+        for dialect_name, dialect_factory in get_all_dialects().items():
+            self.ctx.register_dialect(dialect_name, dialect_factory)
 
     def register_all_frontends(self):
         """

@@ -52,8 +52,8 @@ class AffineFunctions(InterpreterFunctions):
         assert not args, "Arguments not supported yet"
         assert not op.results, "Results not supported yet"
 
-        lower_bound = op.lower_bound.data.eval([], [])
-        upper_bound = op.upper_bound.data.eval([], [])
+        lower_bound = op.lowerBoundMap.data.eval([], [])
+        upper_bound = op.upperBoundMap.data.eval([], [])
         assert len(lower_bound) == 1
         assert len(upper_bound) == 1
 
@@ -67,6 +67,12 @@ class AffineFunctions(InterpreterFunctions):
                 raise NotImplementedError("affine block results not supported yet")
 
         return ()
+
+    @impl(affine.ApplyOp)
+    def run_apply(
+        self, interpreter: Interpreter, op: affine.ApplyOp, args: tuple[Any, ...]
+    ):
+        return op.map.data.eval(args, ())
 
     @impl_terminator(affine.Yield)
     def run_yield(
