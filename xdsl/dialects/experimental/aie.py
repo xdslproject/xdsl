@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     MemRefType,
+    ModuleOp,
     NoneAttr,
     Region,
     Signedness,
@@ -31,11 +32,9 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.func import FuncOp
-from xdsl.dialects.gpu import ModuleOp
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
-    Data,
     Dialect,
     EnumAttribute,
     Operation,
@@ -58,12 +57,13 @@ from xdsl.irdl import (
     successor_def,
     var_operand_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
     NoTerminator,
+    SingleBlockImplicitTerminator,
     SymbolOpInterface,
     SymbolTable,
 )
@@ -97,8 +97,8 @@ class AIEDeviceAttr(EnumAttribute[AIEDeviceEnum]):
 
 
 class ObjectFifoPortEnum(StrEnum):
-    Produce = auto()
-    Consume = auto()
+    Produce = "Produce"
+    Consume = "Consume"
 
 
 @irdl_attr_definition
@@ -107,8 +107,8 @@ class ObjectFifoPortAttr(EnumAttribute[ObjectFifoPortEnum]):
 
 
 class DMAChannelDirEnum(StrEnum):
-    S2MM = auto()
-    MM2S = auto()
+    S2MM = "S2MM"
+    MM2S = "MM2S"
 
 
 @irdl_attr_definition
@@ -116,18 +116,53 @@ class DMAChannelDirAttr(EnumAttribute[DMAChannelDirEnum]):
     name = "aie.channel_dir"
 
 
+class WireBundleEnum(StrEnum):
+    Core = "Core"
+    DMA = "DMA"
+    FIFO = "FIFO"
+    South = "South"
+    West = "West"
+    North = "North"
+    East = "East"
+    PLIO = "PLIO"
+    NOC = "NOC"
+    Trace = "Trace"
+
+
 @irdl_attr_definition
-class WireBundleAttr(Data[str]):
+class WireBundleAttr(EnumAttribute[WireBundleEnum]):
     name = "aie.wire_bundle"
 
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        with parser.in_angle_brackets():
-            return parser.parse_str_literal()
 
-    def print_parameter(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string_literal(self.data)
+class LockActionEnum(StrEnum):
+    Acquire = "Acquire"
+    AcquireGreaterEqual = "AcquireGreaterEqual"
+    Release = "Release"
+
+
+@irdl_attr_definition
+class LockActionAttr(EnumAttribute[LockActionEnum]):
+    name = "aie.lock_action"
+
+
+class LockBlockingEnum(StrEnum):
+    NonBlocking = "NonBlocking"
+    Blocking = "Blocking"
+
+
+@irdl_attr_definition
+class LockBlockingAttr(EnumAttribute[LockActionEnum]):
+    name = "aie.lock_blocking"
+
+
+class BufferTypeEnum(StrEnum):
+    A = "A"
+    B = "B"
+
+
+@irdl_attr_definition
+class BufferTypeAttr(EnumAttribute[BufferTypeEnum]):
+    name = "aie.buffer_type"
 
 
 @irdl_attr_definition
@@ -229,6 +264,8 @@ class BufferOp(IRDLOperation):
             result_types=[buffer_type],
         )
 
+    assembly_format = "`(` $tile `)` attr-dict `:` type($buffer)"
+
 
 @irdl_op_definition
 class TileOp(IRDLOperation):
@@ -241,6 +278,23 @@ class TileOp(IRDLOperation):
         super().__init__(
             attributes={"col": col, "row": row}, result_types=[IndexType()]
         )
+
+    def print(self, printer: Printer):
+        printer.print("(")
+        printer.print(self.col.value.data)
+        printer.print(",")
+        printer.print(self.row.value.data)
+        printer.print(")")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> TileOp:
+        parser.parse_characters("(")
+        col = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(",")
+        row = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(")")
+
+        return TileOp(col, row)
 
 
 @irdl_op_definition
@@ -261,7 +315,7 @@ class ConnectOp(IRDLOperation):
     destBundle = attr_def(WireBundleAttr)
     destChannel = attr_def(AnyIntegerAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(SwitchboxOp, ShimMuxOp)])
+    traits = frozenset([HasParent(SwitchboxOp, ShimMuxOp)])
 
     def __init__(
         self,
@@ -351,10 +405,10 @@ class CoreOp(IRDLOperation):
 
 @irdl_op_definition
 class DMABDOp(IRDLOperation):
-    name = "aie.dmaBd"
+    name = "aie.dma_bd"
     offset = attr_def(IntegerAttr[IntegerType])
     length = attr_def(IntegerAttr[IntegerType])
-    ab = attr_def(IntegerAttr[IntegerType], attr_name="AB")
+    # ab = attr_def(BufferTypeAttr, attr_name="AB")
     buffer = operand_def(memref.MemRefType)
     dimensions = opt_attr_def(
         IntegerAttr[IntegerType]
@@ -364,13 +418,13 @@ class DMABDOp(IRDLOperation):
         self,
         offset: IntegerAttr[IntegerType],
         length: IntegerAttr[IntegerType],
-        AB: IntegerAttr[IntegerType],
+        # AB: BufferTypeAttr,
         dimensions: None | IntegerAttr[IntegerType],
         buffer: Operation | SSAValue,
     ):
         if dimensions is None:
             super().__init__(
-                attributes={"offset": offset, "length": length, "AB": AB},
+                attributes={"offset": offset, "length": length},  # "AB": AB},
                 operands=[buffer],
             )
         else:
@@ -378,14 +432,14 @@ class DMABDOp(IRDLOperation):
                 attributes={
                     "offset": offset,
                     "length": length,
-                    "AB": AB,
+                    # "AB": AB,
                     "dimensions": dimensions,
                 },
                 operands=[buffer],
             )
 
     def print(self, printer: Printer):
-        printer.print("(<")
+        printer.print("(")
         printer.print_operand(self.buffer)
         printer.print(
             ": ",
@@ -394,15 +448,30 @@ class DMABDOp(IRDLOperation):
             self.offset.value.data,
             ", ",
             self.length.value.data,
-            ">, ",
-            self.ab.value.data,
             ")",
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> DMABDOp:
+        parser.parse_characters("(")
+        buffer = parser.parse_operand()
+        parser.parse_characters(":")
+        parser.parse_type()
+        parser.parse_characters(",")
+        offset = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(",")
+        length = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        # parser.parse_characters(",")
+        # dimensions = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        # ab = BufferTypeAttr(BufferTypeAttr.parse_parameter(parser))
+        parser.parse_characters(")")
+
+        return DMABDOp(offset, length, None, buffer)
 
 
 @irdl_op_definition
 class DMABDPACKETOp(IRDLOperation):
-    name = "aie.dmaBdPacket"
+    name = "aie.dma_bd_packet"
     packet_type = attr_def(IntegerAttr[IntegerType])
     packet_id = attr_def(IntegerAttr[IntegerType])
 
@@ -414,13 +483,21 @@ class DMABDPACKETOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print(
-            "(",
-            f"0x{self.packet_type.value.data:X}",
-            ", ",
-            f"0x{self.packet_id.value.data:X}",
-            ")",
-        )
+        printer.print("(")
+        printer.print(self.packet_type.value.data)
+        printer.print(",")
+        printer.print(self.packet_id.value.data)
+        printer.print(")")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> DMABDPACKETOp:
+        parser.parse_characters("(")
+        packet_type = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(",")
+        packet_id = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(")")
+
+        return DMABDPACKETOp(packet_type, packet_id)
 
 
 @irdl_op_definition
@@ -433,6 +510,21 @@ class MemOp(IRDLOperation):
 
     def __init__(self, tile: Operation | SSAValue, region: Region):
         super().__init__(operands=[tile], result_types=[IndexType()], regions=[region])
+
+    def print(self, printer: Printer):
+        printer.print("(")
+        printer.print(self.tile)
+        printer.print(")")
+        printer.print_region(self.region)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> MemOp:
+        parser.parse_characters("(")
+        tile = parser.parse_operand()
+        parser.parse_characters(")")
+        region = parser.parse_region()
+
+        return MemOp(tile, region)
 
 
 @irdl_op_definition
@@ -458,7 +550,7 @@ class ShimDMAOp(IRDLOperation):
 @irdl_op_definition
 class DMAStartOp(IRDLOperation):
     name = "aie.dma_start"
-    channelDir = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
+    channelDir = attr_def(DMAChannelDirAttr)
     channelIndex = attr_def(IntegerAttr[IntegerType])
     dest = successor_def()
     chain = successor_def()
@@ -469,7 +561,7 @@ class DMAStartOp(IRDLOperation):
 
     def __init__(
         self,
-        channelDir: IntegerAttr[IntegerType],
+        channelDir: Attribute,
         channelIndex: IntegerAttr[IntegerType],
         dest: Block,
         chain: Block,
@@ -480,12 +572,26 @@ class DMAStartOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        direction = "MM2S" if self.channelDir.value.data == 0 else "S2MM"
+        direction = "MM2S" if self.channelDir.data == DMAChannelDirEnum.MM2S else "S2MM"
         printer.print("(", direction, ", ", self.channelIndex.value.data, ", ")
         printer.print_block_name(self.dest)
         printer.print(", ")
         printer.print_block_name(self.chain)
         printer.print(")")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> DMAStartOp:
+        parser.parse_characters("(")
+        channelDir = DMAChannelDirAttr(DMAChannelDirAttr.parse_parameter(parser))
+        parser.parse_characters(",")
+        channelIndex = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(",")
+        dest = parser.parse_successor()
+        parser.parse_characters(",")
+        chain = parser.parse_successor()
+        parser.parse_characters(")")
+
+        return DMAStartOp(channelDir, channelIndex, dest, chain)
 
 
 @irdl_op_definition
@@ -506,7 +612,7 @@ class DeviceOp(IRDLOperation):
     device = attr_def(AIEDeviceAttr)
     traits = frozenset([SymbolTable(), NoTerminator(), HasParent(ModuleOp)])
 
-    def __init__(self, device: Attribute, region: Region):
+    def __init__(self, device: AIEDeviceAttr, region: Region):
         super().__init__(attributes={"device": device}, regions=[region])
 
     def print(self, printer: Printer):
@@ -520,11 +626,8 @@ class DeviceOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> DeviceOp:
         parser.parse_characters("(")
-        device = parser.parse_str_literal()
 
-        device = AIEDeviceAttr(
-            AIEDeviceEnum.xcvc1902
-        )  # only one device supported for now
+        device = AIEDeviceAttr(AIEDeviceAttr.parse_parameter(parser))
         parser.parse_characters(")")
         region = parser.parse_region()
 
@@ -617,24 +720,56 @@ class GetStreamOp(IRDLOperation):
 class LockOp(IRDLOperation):
     name = "aie.lock"
 
-    lockID = attr_def(IntegerAttr[IntegerType])
-    init = attr_def(IntegerAttr[IntegerType])
     tile = operand_def(IndexType())
+    lockID = opt_attr_def(IntegerAttr[IntegerType])
+    init = opt_attr_def(IntegerAttr[IntegerType])
     result = result_def(IndexType())
-    sym_name = attr_def(StringAttr)
+    sym_name = opt_attr_def(StringAttr)
 
     def __init__(
         self,
         lockID: IntegerAttr[IntegerType],
-        init: IntegerAttr[IntegerType],
+        init: IntegerAttr[IntegerType] | None,
         tile: Operation | SSAValue,
-        sym_name: StringAttr,
+        sym_name: StringAttr | None,
     ):
         super().__init__(
             attributes={"lockID": lockID, "init": init, "sym_name": sym_name},
             operands=[tile],
             result_types=[IndexType()],
         )
+
+    def print(self, printer: Printer):
+        printer.print("(")
+        printer.print(self.tile)
+        if self.lockID:
+            printer.print(",")
+            printer.print(self.lockID.value.data)
+            printer.print(")")
+        if self.sym_name:
+            printer.print("{")
+            printer.print("sym_name = ")
+            printer.print(self.sym_name)
+            printer.print("}")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> LockOp:
+        parser.parse_characters("(")
+        tile = parser.parse_operand()
+        parser.parse_characters(",")
+        lockID = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        init = parser.parse_optional_integer()
+        parser.parse_characters(")")
+        sym_name = parser.parse_optional_attr_dict()
+
+        if init:
+            init = IntegerAttr.from_int_and_width(init, 32)
+
+        sym_name = parser.parse_optional_symbol_name()
+
+        return LockOp(
+            lockID, None, tile, sym_name
+        )  # TODO: argument should be init but Pyright fails
 
 
 @irdl_op_definition
@@ -662,14 +797,26 @@ class MasterSetOp(IRDLOperation):
 
 @irdl_op_definition
 class NextBDOp(IRDLOperation):
-    name = "aie.nextBd"
+    name = "aie.next_bd"
 
     dest = successor_def()
 
-    traits = frozenset([HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp)])
+    traits = frozenset(
+        [HasParent(MemOp, MemTileDMAOp, FuncOp, ShimDMAOp), IsTerminator()]
+    )
 
     def __init__(self, dest: Block):
         super().__init__(successors=[dest])
+
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_block_name(self.dest)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> NextBDOp:
+        dest = parser.parse_successor()
+
+        return NextBDOp(dest)
 
 
 @irdl_op_definition
@@ -684,7 +831,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
 
     def __init__(
         self,
-        port: Attribute,
+        port: ObjectFifoPortAttr,
         size: IntegerAttr[IntegerType],
         object_fifo: str | SymbolRefAttr,
         shape: Iterable[int | IntAttr],
@@ -702,9 +849,8 @@ class ObjectFifoAcquireOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        port = "Produce" if self.port.data == ObjectFifoPortEnum.Produce else "Consume"
         printer.print(f" @{self.object_fifo.root_reference.data}")
-        printer.print(f"( {port}, {self.size.value.data} )")
+        printer.print(f"( {self.port.data}, {self.size.value.data} )")
         printer.print(" : !aie.objectfifosubview<")
         assert isa(self.result.type, ObjectFIFOSubview[Attribute])
         printer.print(self.result.type.buffer)
@@ -714,13 +860,7 @@ class ObjectFifoAcquireOp(IRDLOperation):
     def parse(cls, parser: Parser) -> ObjectFifoAcquireOp:
         object_fifo = SymbolRefAttr(parser.parse_symbol_name())
         parser.parse_characters("(")
-        port_name = parser.parse_str_literal()
-
-        port = None
-        if port_name == "Produce":
-            port = ObjectFifoPortAttr(ObjectFifoPortEnum.Produce)
-        else:  # port_name == "Consume"
-            port = ObjectFifoPortAttr(ObjectFifoPortEnum.Consume)
+        port = ObjectFifoPortAttr(ObjectFifoPortAttr.parse_parameter(parser))
 
         parser.parse_characters(",")
         size = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
@@ -927,7 +1067,7 @@ class ObjectFIFOReleaseOp(IRDLOperation):
 
     def __init__(
         self,
-        port: Attribute,
+        port: ObjectFifoPortAttr,
         size: IntegerAttr[IntegerType],
         object_fifo: str | SymbolRefAttr,
     ):
@@ -953,12 +1093,7 @@ class ObjectFIFOReleaseOp(IRDLOperation):
     def parse(cls, parser: Parser) -> ObjectFIFOReleaseOp:
         object_fifo = SymbolRefAttr(parser.parse_symbol_name())
         parser.parse_characters("(")
-        port_name = parser.parse_str_literal()
-        if port_name == "Produce":
-            port = ObjectFifoPortAttr(ObjectFifoPortEnum.Produce)
-        else:  # port_name == "Consume"
-            port = ObjectFifoPortAttr(ObjectFifoPortEnum.Consume)
-
+        port = ObjectFifoPortAttr(ObjectFifoPortAttr.parse_parameter(parser))
         parser.parse_characters(",")
 
         size = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
@@ -979,11 +1114,25 @@ class PLIOOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EndOp(IRDLOperation):
+    name = "aie.end"
+
+    def __init__(self):
+        super().__init__()
+
+    traits = frozenset([IsTerminator()])
+
+    assembly_format = "attr-dict"
+
+
+@irdl_op_definition
 class PacketFlowOp(IRDLOperation):
     name = "aie.packet_flow"
 
     ID = attr_def(IntegerAttr[IntegerType])
     region = region_def()
+
+    traits = frozenset([SingleBlockImplicitTerminator(EndOp)])
 
     def __init__(self, ID: IntegerAttr[IntegerType], region: Region):
         super().__init__(attributes={"ID": ID}, regions=[region])
@@ -1023,7 +1172,27 @@ class PacketDestOp(IRDLOperation):
             attributes={"bundle": bundle, "channel": channel}, operands=[tile]
         )
 
-    assembly_format = "`<` $tile `,` $bundle `:` $channel `>` attr-dict"
+    def print(self, printer: Printer):
+        printer.print("<")
+        printer.print(self.tile)
+        printer.print(", ")
+        printer.print(self.bundle.data)
+        printer.print(" : ")
+        printer.print(self.channel.value.data)
+        printer.print(">")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> PacketDestOp:
+        parser.parse_characters("<")
+        tile = parser.parse_operand()
+        parser.parse_characters(",")
+        bundle_enum = WireBundleAttr.parse_parameter(parser)
+        bundle = WireBundleAttr(bundle_enum)
+        parser.parse_characters(":")
+        channel = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(">")
+
+        return PacketDestOp(bundle, channel, tile)
 
 
 @irdl_op_definition
@@ -1081,7 +1250,27 @@ class PacketSourceOp(IRDLOperation):
             attributes={"bundle": bundle, "channel": channel}, operands=[tile]
         )
 
-    assembly_format = "`<` $tile `,` $bundle `:` $channel `>` attr-dict"
+    def print(self, printer: Printer):
+        printer.print("<")
+        printer.print(self.tile)
+        printer.print(", ")
+        printer.print(self.bundle.data)
+        printer.print(" : ")
+        printer.print(self.channel.value.data)
+        printer.print(">")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> PacketSourceOp:
+        parser.parse_characters("<")
+        tile = parser.parse_operand()
+        parser.parse_characters(",")
+        bundle_enum = WireBundleAttr.parse_parameter(parser)
+        bundle = WireBundleAttr(bundle_enum)
+        parser.parse_characters(":")
+        channel = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(">")
+
+        return PacketSourceOp(bundle, channel, tile)
 
 
 @irdl_op_definition
@@ -1157,16 +1346,16 @@ class ShimSwitchBoxOp(IRDLOperation):
 class UseLockOp(IRDLOperation):
     name = "aie.use_lock"
 
-    value = attr_def(IntegerAttr[IntegerType])
-    action = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
-    blocking = attr_def(IntegerAttr[Annotated[IntegerType, i32]])
+    value = opt_attr_def(IntegerAttr[IntegerType])
+    action = attr_def(LockActionAttr)
+    blocking = opt_attr_def(LockBlockingAttr)
     lock = operand_def(IndexType())
 
     def __init__(
         self,
-        value: IntegerAttr[IntegerType],
-        action: IntegerAttr[IntegerType],
-        blocking: IntegerAttr[IntegerType],
+        value: IntegerAttr[IntegerType] | None,
+        action: LockActionAttr,
+        blocking: LockBlockingAttr | None,
         lock: Operation | SSAValue,
     ):
         super().__init__(
@@ -1177,13 +1366,11 @@ class UseLockOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print("(")
         printer.print_operand(self.lock)
-        action_str = (
-            '"Acquire"' if self.action.value.data == LOCK_ACQUIRE else '"Release"'
-        )
         printer.print(", ")
-        printer.print(action_str)
+        printer.print(self.action.data)
         printer.print(", ")
-        printer.print(self.value.value.data)
+        if self.value:
+            printer.print(self.value.value.data)
         printer.print(")")
 
     @classmethod
@@ -1191,17 +1378,16 @@ class UseLockOp(IRDLOperation):
         parser.parse_characters("(")
         lock = parser.parse_operand()
         parser.parse_characters(",")
-        action = parser.parse_str_literal()
-        action = (
-            IntegerAttr.from_int_and_width(LOCK_ACQUIRE, 32)
-            if action == "Acquire"
-            else IntegerAttr.from_int_and_width(LOCK_RELEASE, 32)
-        )
-        parser.parse_characters(",")
-        value = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
-        parser.parse_characters(")")
+        action = LockActionAttr(LockActionAttr.parse_parameter(parser))
 
-        blocking = IntegerAttr.from_int_and_width(BLOCKING, 32)
+        value = None
+        if parser.parse_optional_characters(","):
+            value = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+
+        blocking = None
+        if parser.parse_optional_characters(","):
+            blocking = LockBlockingAttr(LockBlockingAttr.parse_parameter(parser))
+        parser.parse_characters(")")
 
         return UseLockOp(value, action, blocking, lock)
 
@@ -1226,16 +1412,6 @@ class WireOp(IRDLOperation):
             attributes={"sourceBundle": sourceBundle, "destBundle": destBundle},
             operands=[source, dest],
         )
-
-
-@irdl_op_definition
-class EndOp(IRDLOperation):
-    name = "aie.end"
-
-    def __init__(self):
-        super().__init__()
-
-    traits = frozenset([IsTerminator()])
 
 
 AIE = Dialect(
