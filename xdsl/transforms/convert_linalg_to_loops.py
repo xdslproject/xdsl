@@ -149,6 +149,9 @@ class LowerGenericOpPattern(RewritePattern):
 
         # Inline generic body
 
+        while op.body.block.args:
+            rewriter.erase_block_argument(op.body.block.args[0])
+
         rewriter.inline_block_before(op.body.block, insertion_target)
 
         # Erase generic
