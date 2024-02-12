@@ -107,10 +107,10 @@ class InputApp(App[None]):
     """
 
     INITIAL_IR_TEXT = """
-        func.func @hello(%n : i32) -> i32 {
-          %two = arith.constant 0 : i32
-          %res = arith.addi %two, %n : i32
-          func.return %res : i32
+        func.func @hello(%n : index) -> index {
+          %two = arith.constant 2 : index
+          %res = arith.muli %n, %two : index
+          func.return %res : index
         }
         """
 
