@@ -693,7 +693,40 @@ class FlowOp(IRDLOperation):
             operands=[source, dest],
         )
 
-    assembly_format = "`(` $source `, ` $dest `)` `<` $sourceBundle `: ` $sourceChannel `, ` $destBundle `: ` $destChannel `>`  attr-dict"
+    def print(self, printer: Printer):
+        printer.print("(")
+        printer.print(self.source)
+        printer.print(",")
+        printer.print(self.sourceBundle)
+        printer.print(":")
+        printer.print(self.sourceChannel)
+        printer.print(",")
+        printer.print(self.dest)
+        printer.print(",")
+        printer.print(self.destBundle)
+        printer.print(":")
+        printer.print(self.destChannel)
+        printer.print(")")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> FlowOp:
+        parser.parse_characters("(")
+        source = parser.parse_operand()
+        parser.parse_characters(",")
+        sourceBundle = WireBundleAttr(WireBundleAttr.parse_parameter(parser))
+        parser.parse_characters(":")
+        sourceChannel = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(",")
+        dest = parser.parse_operand()
+        parser.parse_characters(",")
+        destBundle = WireBundleAttr(WireBundleAttr.parse_parameter(parser))
+        parser.parse_characters(":")
+        destChannel = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(")")
+
+        return FlowOp(
+            sourceBundle, sourceChannel, destBundle, destChannel, source, dest
+        )
 
 
 @irdl_op_definition
