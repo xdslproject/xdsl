@@ -40,22 +40,18 @@ class EmptyOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         pos = parser.pos
-        if parser.parse_punctuation("("):
-            if parser.parse_optional_punctuation(")"):
-                unresolved_dynamic_sizes = ()
-                unresolved_types = ()
-            else:
-                unresolved_dynamic_sizes = parser.parse_comma_separated_list(
-                    Parser.Delimiter.NONE, parser.parse_unresolved_operand
-                )
-                unresolved_types = (IndexType(),) * len(unresolved_dynamic_sizes)
-                parser.parse_punctuation(")")
+        parser.parse_punctuation("(")
+        if parser.parse_optional_punctuation(")"):
+            dynamic_sizes = ()
+        else:
+            unresolved_dynamic_sizes = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            unresolved_types = (IndexType(),) * len(unresolved_dynamic_sizes)
+            parser.parse_punctuation(")")
             dynamic_sizes = parser.resolve_operands(
                 unresolved_dynamic_sizes, unresolved_types, pos
             )
-        else:
-            dynamic_sizes = ()
-
         parser.parse_punctuation(":")
         result_type = parser.parse_attribute()
 
