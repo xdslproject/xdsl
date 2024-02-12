@@ -1,5 +1,3 @@
-import pytest
-
 from xdsl.dialects import test
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import MemRefType, i32
