@@ -49,6 +49,12 @@ def find_same_target_store(load: memref.Load):
 
 
 def is_loop_dependent(val: SSAValue, loop: scf.For):
+    """
+    Returns true if the SSA value is dependent by the induction varialbe of the loop.
+
+    This is achieved by traversing the SSA use-def chain of the SSA value; if the
+    induction variable contributes to the value, then it depends on it.
+    """
     worklist: set[SSAValue] = set()
     visited: set[SSAValue] = set()
 
