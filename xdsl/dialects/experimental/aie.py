@@ -390,7 +390,7 @@ class CoreOp(IRDLOperation):
         printer.print(") ")
         printer.print_region(self.region)
         if self.link_with is not None:
-            printer.print(' { link_with="', self.link_with, '" }')
+            printer.print(" { link_with=", self.link_with, " }")
 
     @classmethod
     def parse(cls, parser: Parser) -> CoreOp:
@@ -398,9 +398,15 @@ class CoreOp(IRDLOperation):
         tile = parser.parse_operand()
         parser.parse_characters(")")
         region = parser.parse_region()
+        attr_dict = parser.parse_optional_attr_dict()
+
+        link_with = None
+        if attr_dict:
+            assert isinstance(attr_dict["link_with"], StringAttr)
+            link_with = attr_dict["link_with"]
 
         stackSize = None
-        return CoreOp(stackSize, tile, region)
+        return CoreOp(stackSize, tile, region, link_with)
 
 
 @irdl_op_definition
