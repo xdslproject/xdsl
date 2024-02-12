@@ -760,12 +760,14 @@ class LockOp(IRDLOperation):
         lockID = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
         init = parser.parse_optional_integer()
         parser.parse_characters(")")
-        sym_name = parser.parse_optional_attr_dict()
+        sym_name = None
+        attr_dict = parser.parse_optional_attr_dict()
+        if attr_dict:
+            assert isinstance(attr_dict["sym_name"], StringAttr)
+            sym_name = attr_dict["sym_name"]
 
         if init:
             init = IntegerAttr.from_int_and_width(init, 32)
-
-        sym_name = parser.parse_optional_symbol_name()
 
         return LockOp(
             lockID, None, tile, sym_name
@@ -986,7 +988,7 @@ class createObjectFifo(IRDLOperation):
 
     elemNumber = attr_def(IntegerAttr[IntegerType])
     producerTile = operand_def(IndexType())
-    consumerTile = var_operand_def(IndexType())
+    consumerTiles = var_operand_def(IndexType())
     sym_name = attr_def(StringAttr)
     object_fifo = attr_def(ObjectFIFO[Attribute])
 
@@ -996,7 +998,7 @@ class createObjectFifo(IRDLOperation):
         self,
         elemNumber: IntegerAttr[IntegerType],
         producerTile: Operation | SSAValue,
-        consumerTile: Operation | SSAValue,
+        consumerTiles: list[Operation | SSAValue],
         referenced_type: Attribute,
         shape: Iterable[int | IntAttr],
         name: str,
@@ -1008,16 +1010,15 @@ class createObjectFifo(IRDLOperation):
                 "object_fifo": object_fifo,
                 "sym_name": StringAttr(name),
             },
-            operands=[producerTile, consumerTile],
+            operands=[producerTile, consumerTiles],
         )
 
     def print(self, printer: Printer):
         printer.print(" @", self.sym_name.data, "( ", self.producerTile, ", { ")
-        for i in range(len(self.consumerTile) - 1):
-            printer.print(self.consumerTile[i], ", ")
+        for i in range(len(self.consumerTiles) - 1):
+            printer.print(self.consumerTiles[i], ", ")
 
-        printer.print(self.consumerTile[-1], "}, ")
-        # printer.print_attribute(self.elemNumber)
+        printer.print(self.consumerTiles[-1], "}, ")
         printer.print(self.elemNumber)
 
         printer.print(
@@ -1033,8 +1034,12 @@ class createObjectFifo(IRDLOperation):
         producerTile = parser.parse_operand()
         parser.parse_characters(",")
         parser.parse_characters("{")
-        consumerTile = parser.parse_operand()
-        parser.parse_characters("}")
+        consumerTiles: list[Operation | SSAValue] = []
+        consumerTiles.append(parser.parse_operand())
+        while not parser.parse_optional_characters("}"):
+            parser.parse_characters(",")
+            consumerTiles.append(parser.parse_operand())
+
         parser.parse_characters(",")
         elemNumber = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
         parser.parse_characters(":")
@@ -1051,7 +1056,7 @@ class createObjectFifo(IRDLOperation):
         referenced_type = objectfifo_type.element_type
 
         object_fifo = createObjectFifo(
-            elemNumber, producerTile, consumerTile, referenced_type, shape, name
+            elemNumber, producerTile, consumerTiles, referenced_type, shape, name
         )
 
         return object_fifo
