@@ -1,4 +1,5 @@
 // RUN: xdsl-run %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-loops %s | xdsl-run | filecheck %s
 
 builtin.module {
     "memref.global"() {"sym_name" = "a", "type" = memref<4x2xf64>, "initial_value" = dense<[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]]> : tensor<4x2xf64>, "sym_visibility" = "public"} : () -> ()
