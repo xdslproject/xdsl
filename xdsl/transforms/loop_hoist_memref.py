@@ -76,6 +76,14 @@ class LoopHoistMemref(RewritePattern):
     of their enclosing scf.loop. The memref operation pair is considered for this rewrite
     if their memref target location is the same and it is constant w.r.t. the induction
     variable of the containing loop.
+
+    The functionality is intentionally very restricted and does not handle:
+
+    - Multiple loads from the same location
+    - Multiple stores of the same value and/or to same location
+    - Loads must precede stores (i.e., WAR-only dependence)
+    - Does not handle only loads or only stores
+    - There is no consideration of aliasing (restricted only to same location memrefs)
     """
 
     @op_type_rewrite_pattern
