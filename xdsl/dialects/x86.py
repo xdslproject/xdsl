@@ -667,7 +667,7 @@ class PopOp(ROperation[GeneralRegisterType]):
     name = "x86.pop"
 
 
-class RRROperation(TripleOperandInstruction):
+class RRROperation(Generic[R1InvT, R2InvT, R3InvT], TripleOperandInstruction):
     """
     A base class for x86 operations that have three registers.
     """
@@ -723,7 +723,7 @@ class RROffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
         result: R1InvT,
     ):
         if isinstance(offset, int):
-            offset = IntegerAttr(offset)
+            offset = IntegerAttr(offset, 12)  # I have no clue why that is 12
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -757,11 +757,11 @@ class vmovapd(RROffOperation[AVXRegisterType, GeneralRegisterType]):
 
     name = "x86.vmovapd"
 
-    def assembly_line_args(self) -> str | None:
+    def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
         destination = _assembly_arg_str(self.r1)
         source = _assembly_arg_str(self.r2)
-        offset = self.offset.data
+        offset = _assembly_arg_str(self.offset)
         return _assembly_line(
             instruction_name, f"{destination}, {offset}({source})", self.comment
         )
@@ -775,11 +775,11 @@ class vboradcastsd(RROffOperation[AVXRegisterType, GeneralRegisterType]):
 
     name = "x86.vboradcastsd"
 
-    def assembly_line_args(self) -> str | None:
+    def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
         destination = _assembly_arg_str(self.r1)
         source = _assembly_arg_str(self.r2)
-        offset = self.offset.data
+        offset = _assembly_arg_str(self.offset)
         return _assembly_line(
             instruction_name, f"{destination}, {offset}({source})", self.comment
         )
