@@ -769,7 +769,7 @@ class VmovapdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class VboradcastsdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
+class VbroadcastsdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Broadcast scalar double-precision floating-point element.
     """
@@ -809,8 +809,13 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg
     elif isinstance(arg, GeneralRegisterType):
         return arg.register_name
+    elif isinstance(arg, AVXRegisterType):
+        return arg.register_name
     else:
         if isinstance(arg.type, GeneralRegisterType):
+            reg = arg.type.register_name
+            return reg
+        elif isinstance(arg.type, AVXRegisterType):
             reg = arg.type.register_name
             return reg
         else:
@@ -861,7 +866,7 @@ X86 = Dialect(
         PopOp,
         Vfmadd231pdOp,
         VmovapdOp,
-        VboradcastsdOp,
+        VbroadcastsdOp,
     ],
     [
         GeneralRegisterType,

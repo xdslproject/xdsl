@@ -85,3 +85,28 @@ def test_pop_op():
     pop_op = x86.PopOp(destination=x86.Registers.RDX)
 
     print(pop_op.assembly_line())
+
+
+def test_vfmadd231pd_op():
+    r1 = TestSSAValue(x86.Registers.ZMM0)
+    r2 = TestSSAValue(x86.Registers.ZMM1)
+    r3 = TestSSAValue(x86.Registers.ZMM2)
+    vfmadd231pd_op = x86.Vfmadd231pdOp(r1, r2, r3, result=x86.Registers.ZMM0)
+
+    print(vfmadd231pd_op.assembly_line())
+
+
+def test_vmovapd_op():
+    r1 = TestSSAValue(x86.Registers.ZMM0)
+    r2 = TestSSAValue(x86.Registers.ZMM1)
+    vmovapd_op = x86.VmovapdOp(r1, r2, offset=0x10, result=x86.Registers.ZMM0)
+
+    print(vmovapd_op.assembly_line())
+
+
+def test_vbroadcastsd_op():
+    r1 = TestSSAValue(x86.Registers.ZMM0)
+    r2 = TestSSAValue(x86.Registers.ZMM1)
+    vbroadcastsd_op = x86.VbroadcastsdOp(r1, r2, offset=0x10, result=x86.Registers.ZMM0)
+
+    print(vbroadcastsd_op.assembly_line())
