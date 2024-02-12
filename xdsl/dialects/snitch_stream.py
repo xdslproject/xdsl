@@ -122,7 +122,7 @@ class StridePatternOp(IRDLOperation):
     `strides` specifies the strides in bytes of the iteration variables.
 
     For example, to read sequentially the elements of a 2x3xf32 matrix in row-major order:
-    `ub = [2,3], strides = [12, 4]`
+    `ub = [3, 2], strides = [4, 12]`
 
     The index for each iteration will be calculated like this:
     (0, 0) -> 0*12 + 0*4 = 0
