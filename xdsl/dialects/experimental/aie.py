@@ -58,7 +58,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, NoTerminator, SymbolOpInterface, SymbolTable
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    NoTerminator,
+    SymbolOpInterface,
+    SymbolTable,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -151,6 +157,8 @@ class AMSelOp(IRDLOperation):
     msel = attr_def(AnyIntegerAttr)
     result = result_def(IndexType())
 
+    traits = frozenset([HasParent()])
+
     def __init__(
         self, arbiterID: IntegerAttr[IntegerType], msel: IntegerAttr[IntegerType]
     ):
@@ -213,7 +221,7 @@ class ConnectOp(IRDLOperation):
     destBundle = attr_def(WireBundleAttr)
     destChannel = attr_def(AnyIntegerAttr)
 
-    traits = frozenset([IsTerminator()])
+    traits = frozenset([IsTerminator(), HasParent()])
 
     def __init__(
         self,
