@@ -214,6 +214,15 @@ class SwitchboxOp(IRDLOperation):
         printer.print(") ")
         printer.print_region(self.region)
 
+    @classmethod
+    def parse(cls, parser: Parser) -> SwitchboxOp:
+        parser.parse_characters("(")
+        tile = parser.parse_operand()
+        parser.parse_characters(")")
+        region = parser.parse_region()
+
+        return SwitchboxOp(tile, region)
+
 
 @irdl_op_definition
 class AMSelOp(IRDLOperation):
@@ -349,6 +358,20 @@ class ConnectOp(IRDLOperation):
             self.destChannel.value.data,
             ">",
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ConnectOp:
+        parser.parse_characters("<")
+        sourceBundle = WireBundleAttr(WireBundleAttr.parse_parameter(parser))
+        parser.parse_characters(":")
+        sourceChannel = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(",")
+        destBundle = WireBundleAttr(WireBundleAttr.parse_parameter(parser))
+        parser.parse_characters(":")
+        sourceChannel = IntegerAttr.from_int_and_width(parser.parse_integer(), 32)
+        parser.parse_characters(">")
+
+        return ConnectOp(sourceBundle, sourceChannel, destBundle, sourceChannel)
 
     def verify_(self) -> None:
         if self.sourceChannel.type != i32:
