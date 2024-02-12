@@ -774,7 +774,7 @@ class VbroadcastsdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
     Broadcast scalar double-precision floating-point element.
     """
 
-    name = "x86.vboradcastsd"
+    name = "x86.vbroadcastsd"
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
