@@ -29,10 +29,6 @@ class EmptyOp(IRDLOperation):
         if self.dynamic_sizes:
             printer.print_string("(")
             printer.print_list(self.dynamic_sizes, printer.print_ssa_value)
-            printer.print_string(" : ")
-            printer.print_list(
-                (i.type for i in self.dynamic_sizes), printer.print_attribute
-            )
             printer.print_string(")")
         else:
             printer.print_string("(")
@@ -44,7 +40,7 @@ class EmptyOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         pos = parser.pos
-        if parser.parse_optional_punctuation("("):
+        if parser.parse_punctuation("("):
             if parser.parse_optional_punctuation(")"):
                 unresolved_dynamic_sizes = ()
                 unresolved_types = ()
@@ -52,10 +48,7 @@ class EmptyOp(IRDLOperation):
                 unresolved_dynamic_sizes = parser.parse_comma_separated_list(
                     Parser.Delimiter.NONE, parser.parse_unresolved_operand
                 )
-                parser.parse_punctuation(":")
-                unresolved_types = parser.parse_comma_separated_list(
-                    Parser.Delimiter.NONE, parser.parse_type
-                )
+                unresolved_types = (IndexType(),) * len(unresolved_dynamic_sizes)
                 parser.parse_punctuation(")")
             dynamic_sizes = parser.resolve_operands(
                 unresolved_dynamic_sizes, unresolved_types, pos
