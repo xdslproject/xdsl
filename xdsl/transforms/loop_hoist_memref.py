@@ -13,19 +13,6 @@ from xdsl.pattern_rewriter import (
 )
 
 
-# TODO replace by functionality (when added) as described in https://github.com/xdslproject/xdsl/issues/2128
-def get_operation_at_index(block: Block, idx: int) -> Operation:
-    """Get an operation by its position in its parent block."""
-
-    for _idx, block_op in enumerate(block.ops):
-        if idx == _idx:
-            return block_op
-
-    raise ValueError(
-        f"Cannot get operation by out-of-bounds index {idx} in its parent block."
-    )
-
-
 def find_same_target_store(load: memref.Load):
     parent_block = load.parent_block()
 
@@ -127,36 +114,35 @@ class LoopHoistMemref(RewritePattern):
         new_loads = [load.clone() for load in load_store_pairs.keys()]
         rewriter.insert_op_before(new_loads, for_op)
 
-        ld_indices = [
-            parent_block.get_operation_index(load) for load in load_store_pairs.keys()
-        ]
-        st_indices = [
-            parent_block.get_operation_index(store)
-            for store in load_store_pairs.values()
-        ]
-
         new_body = Region()
         block_map: dict[Block, Block] = {}
         for_op.body.clone_into(new_body, None, None, block_map)
+
+        load_map = {
+            load: new_load
+            for load, new_load in zip(for_op.body.block.ops, new_body.block.ops)
+            if isinstance(load, memref.Load) and isinstance(new_load, memref.Load)
+        }
+        store_map = {
+            store: new_store
+            for store, new_store in zip(for_op.body.block.ops, new_body.block.ops)
+            if isinstance(store, memref.Store) and isinstance(new_store, memref.Store)
+        }
 
         new_block_args = [
             new_body.block.insert_arg(new_load.res.type, len(new_body.block.args))
             for new_load in new_loads
         ]
 
-        new_parent_block = block_map[parent_block]
-
         toerase_ops: list[Operation] = []
-        for new_block_arg, idx in zip(new_block_args, ld_indices):
-            interim_load = get_operation_at_index(new_parent_block, idx)
-            assert isinstance(interim_load, memref.Load)
+        for new_block_arg, load in zip(new_block_args, load_store_pairs.keys()):
+            interim_load = load_map[load]
             interim_load.res.replace_by(new_block_arg)
             toerase_ops.append(interim_load)
 
         new_yield_vals: list[Operand] = []
-        for idx in st_indices:
-            interim_store = get_operation_at_index(new_parent_block, idx)
-            assert isinstance(interim_store, memref.Store)
+        for store in load_store_pairs.values():
+            interim_store = store_map[store]
             new_yield_vals.append(interim_store.value)
             toerase_ops.append(interim_store)
 
