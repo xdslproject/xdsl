@@ -30,22 +30,19 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    Data,
     Dialect,
     ParametrizedAttribute,
     Region,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParameterDef,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    prop_def,
     region_def,
-    result_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser
@@ -106,6 +103,17 @@ class StridePattern(ParametrizedAttribute):
             printer.print_list(self.strides, lambda attr: printer.print(attr.data))
             printer.print_string("]")
 
+    @staticmethod
+    def from_bounds_and_strides(
+        ub: Sequence[int], strides: Sequence[int]
+    ) -> StridePattern:
+        return StridePattern(
+            (
+                ArrayAttr(IntAttr(i) for i in ub),
+                ArrayAttr(IntAttr(i) for i in strides),
+            )
+        )
+
     def rank(self):
         return len(self.ub)
 
@@ -114,20 +122,6 @@ class StridePattern(ParametrizedAttribute):
             raise VerifyException(
                 f"Expect stride pattern upper bounds {self.ub} to be equal in length to strides {self.strides}"
             )
-
-
-@irdl_attr_definition
-class StridePatternType(Data[int], TypeAttribute):
-    name = "snitch_stream.stride_pattern_type"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> int:
-        with parser.in_angle_brackets():
-            return parser.parse_integer()
-
-    def print_parameter(self, printer: Printer):
-        with printer.in_angle_brackets():
-            printer.print_string(str(self.data))
 
 
 @irdl_op_definition
@@ -154,7 +148,7 @@ class StreamingRegionOp(IRDLOperation):
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
     """
-    stride_patterns = var_operand_def(StridePatternType)
+    stride_patterns = prop_def(ArrayAttr[StridePattern])
     """
     Stride patterns that define the order of the input and output streams. If there is
     one stride pattern, and more inputs and outputs, the stride pattern is applied to all
@@ -171,55 +165,14 @@ class StreamingRegionOp(IRDLOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
-        stride_patterns: Sequence[SSAValue],
+        stride_patterns: ArrayAttr[StridePattern],
         body: Region,
     ) -> None:
         super().__init__(
-            operands=[inputs, outputs, stride_patterns],
+            operands=[inputs, outputs],
             regions=[body],
-        )
-
-
-@irdl_op_definition
-class StridePatternOp(IRDLOperation):
-    """
-    Specifies a stream access pattern reading from or writing to a pointer.
-    `ub` specifies the upper bounds of the iteration variables.
-    `strides` specifies the strides in bytes of the iteration variables.
-
-    For example, to read sequentially the elements of a 2x3xf32 matrix in row-major order:
-    `ub = [3, 2], strides = [4, 12]`
-
-    The index for each iteration will be calculated like this:
-    (0, 0) -> 0*12 + 0*4 = 0
-    (0, 1) -> 0*12 + 1*4 = 4
-    (0, 2) -> 0*12 + 2*4 = 8
-    (1, 0) -> 1*12 + 0*4 = 12
-    (1, 1) -> 1*12 + 1*4 = 16
-    (1, 2) -> 1*12 + 2*4 = 18
-    """
-
-    name = "snitch_stream.stride_pattern"
-
-    pattern = result_def(StridePatternType)
-    ub = attr_def(ArrayAttr[IntAttr])
-    strides = attr_def(ArrayAttr[IntAttr])
-    dm = attr_def(IntAttr)
-
-    def __init__(
-        self,
-        ub: ArrayAttr[IntAttr],
-        strides: ArrayAttr[IntAttr],
-        dm: IntAttr,
-    ):
-        rank = len(ub.data)
-        assert rank == len(strides.data)
-        super().__init__(
-            result_types=[StridePatternType(rank)],
-            attributes={
-                "ub": ub,
-                "strides": strides,
-                "dm": dm,
+            properties={
+                "stride_patterns": stride_patterns,
             },
         )
 
@@ -228,10 +181,8 @@ SnitchStream = Dialect(
     "snitch_stream",
     [
         StreamingRegionOp,
-        StridePatternOp,
     ],
     [
         StridePattern,
-        StridePatternType,
     ],
 )

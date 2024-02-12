@@ -22,10 +22,13 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
-    %stride_pattern_0 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<3>, #builtin.int<3>, #builtin.int<6>, #builtin.int<6>], "strides" = [#builtin.int<8>, #builtin.int<64>, #builtin.int<8>, #builtin.int<64>], "dm" = #builtin.int<0>} : () -> !snitch_stream.stride_pattern_type<4>
-    %stride_pattern_1 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<3>, #builtin.int<3>, #builtin.int<6>, #builtin.int<6>], "strides" = [#builtin.int<8>, #builtin.int<24>, #builtin.int<0>, #builtin.int<0>], "dm" = #builtin.int<1>} : () -> !snitch_stream.stride_pattern_type<4>
-
-    "snitch_stream.streaming_region"(%X_moved, %Y_moved, %stride_pattern_0, %stride_pattern_1) <{"operandSegmentSizes" = array<i32: 2, 0, 2>}> ({
+    "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
+      "stride_patterns" = [
+        #snitch_stream.stride_pattern<ub = [3, 3, 6, 6], strides = [8, 64, 8, 64]>,
+        #snitch_stream.stride_pattern<ub = [3, 3, 6, 6], strides = [8, 24, 0, 0]>
+      ],
+      "operandSegmentSizes" = array<i32: 2, 0>
+    }> ({
     ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
       %c288 = riscv.li 288 : () -> !riscv.reg<>
       riscv_scf.for %z_i : !riscv.reg<> = %c0 to %c288 step %c8 {
@@ -43,7 +46,7 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 
         riscv_scf.yield
       }
-    }) : (!riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<4>, !snitch_stream.stride_pattern_type<4>) -> ()
+    }) : (!riscv.reg<>, !riscv.reg<>) -> ()
 
     riscv_func.return
   }

@@ -7,11 +7,13 @@
       %0 = riscv.mv %arg0 : (!riscv.reg<a0>) -> !riscv.reg<>
       %1 = riscv.mv %arg1 : (!riscv.reg<a1>) -> !riscv.reg<>
       %2 = riscv.mv %arg2 : (!riscv.reg<a2>) -> !riscv.reg<>
-      %3 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<16>], "strides" = [#builtin.int<128>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type<2>
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c128 = riscv.li 128 : () -> !riscv.reg<>
-      "snitch_stream.streaming_region"(%0, %1, %2, %3) <{"operandSegmentSizes" = array<i32: 2, 1, 1>}> ({
+      "snitch_stream.streaming_region"(%0, %1, %2) <{
+        "stride_patterns" = [#snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>],
+        "operandSegmentSizes" = array<i32: 2, 1>
+      }> ({
       ^0(%5 : !stream.readable<!riscv.freg<ft0>>, %6 : !stream.readable<!riscv.freg<ft1>>, %7 : !stream.writable<!riscv.freg<ft2>>):
         riscv_scf.for %i : !riscv.reg<> = %c0 to %c128 step %c1 {
           %9 = riscv_snitch.read from %5 : !riscv.freg<ft0>
@@ -20,7 +22,7 @@
           riscv_snitch.write %11 to %7 : !riscv.freg<ft2>
           riscv_scf.yield
         }
-      }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> ()
+      }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
       %12 = riscv.mv %2 : (!riscv.reg<>) -> !riscv.reg<a0>
       riscv_func.return %12 : !riscv.reg<a0>
     }
