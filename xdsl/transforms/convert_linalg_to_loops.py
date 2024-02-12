@@ -26,6 +26,20 @@ def indices_for_map(
     affine_map: AffineMap,
     input_index_vals: Sequence[SSAValue],
 ) -> Sequence[SSAValue]:
+    """
+    Given an affine map mapping iteration indices to indices to a memref, return the
+    indices into the corresponding memref. The number of returned SSA values corresponds
+    to the number of results of the affine map. If the result is an affine dimension
+    expression, then return the corresponding input index. Otherwise, add an
+    `affine.apply` operation that calculates the indices, reducing the expression to only
+    the relevant dimensions.
+
+    For example, the map `(d0, d1, d2, d3) -> (d0 + d2)` when applied to indices
+    `(a, b, c, d)` is transformed to the map `(d0, d1) -> (d0 + d1)` when applied to
+    indices `(a, c)`.
+
+    The `affine.apply` operations are inserted before `target_op`.
+    """
     if affine_map.num_symbols:
         raise NotImplementedError("Cannot create indices for affine map with symbols")
     output_indices: list[SSAValue] = []
@@ -143,6 +157,10 @@ class LowerGenericOpPattern(RewritePattern):
 
 
 class ConvertLinalgToLoopsPass(ModulePass):
+    """
+    Converts a linalg generic to perfectly nested loops.
+    """
+
     name = "convert-linalg-to-loops"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
