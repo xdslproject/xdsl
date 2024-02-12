@@ -69,7 +69,14 @@ def is_loop_dependent(val: SSAValue, loop: scf.For):
 
 @dataclass
 class LoopHoistMemref(RewritePattern):
-    """Hoist pairs of memref.loads and memref.stores out of a loop."""
+    """
+    Hoist pairs of memref.loads and memref.stores out of a loop.
+
+    This rewrite hoists pairs of memref.load and memref.store operations outside
+    of their enclosing scf.loop. The memref operation pair is considered for this rewrite
+    if their memref target location is the same and it is constant w.r.t. the induction
+    variable of the containing loop.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
