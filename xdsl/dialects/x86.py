@@ -23,6 +23,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -709,7 +710,7 @@ class RROffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset: AnyIntegerAttr
+    offset: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
     result = result_def(R1InvT)
 
@@ -741,7 +742,7 @@ class RROffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
 
 
 @irdl_op_definition
-class vfmadd231pd(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]):
+class Vfmadd231pdOp(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]):
     """
     Multiply packed double-precision floating-point elements in r2 and r3, add the intermediate result to r1, and store the final result in r1.
     """
@@ -750,7 +751,7 @@ class vfmadd231pd(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType
 
 
 @irdl_op_definition
-class vmovapd(RROffOperation[AVXRegisterType, GeneralRegisterType]):
+class VmovapdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Move aligned packed double-precision floating-point elements.
     """
@@ -768,7 +769,7 @@ class vmovapd(RROffOperation[AVXRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class vboradcastsd(RROffOperation[AVXRegisterType, GeneralRegisterType]):
+class VboradcastsdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Broadcast scalar double-precision floating-point element.
     """
@@ -858,6 +859,9 @@ X86 = Dialect(
         MovOp,
         PushOp,
         PopOp,
+        Vfmadd231pdOp,
+        VmovapdOp,
+        VboradcastsdOp,
     ],
     [
         GeneralRegisterType,
