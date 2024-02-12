@@ -272,6 +272,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return arith_add_fastmath.AddArithFastMathFlagsPass
 
+    def get_loop_hoist_memref():
+        from xdsl.transforms import loop_hoist_memref
+
+        return loop_hoist_memref.LoopHoistMemrefPass
+
     def get_canonicalize():
         from xdsl.transforms import canonicalize
 
@@ -281,6 +286,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import canonicalize_dmp
 
         return canonicalize_dmp.CanonicalizeDmpPass
+
+    def get_convert_linalg_to_loops():
+        from xdsl.transforms import convert_linalg_to_loops
+
+        return convert_linalg_to_loops.ConvertLinalgToLoopsPass
 
     def get_convert_riscv_scf_for_to_frep():
         from xdsl.transforms import convert_riscv_scf_for_to_frep
@@ -476,11 +486,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
+        "loop-hoist-memref": get_loop_hoist_memref,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
+        "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
