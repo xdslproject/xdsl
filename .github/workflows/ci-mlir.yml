@@ -46,6 +46,8 @@ jobs:
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
         pip install -r requirements.txt
+        # install onnx dependencies
+        pip install -e ".[onnx]"
 
     - name: Cache binaries
       id: cache-binary

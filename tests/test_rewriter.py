@@ -182,7 +182,6 @@ def test_inline_block_before():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() : () -> !test.type<"int">
   "test.op"() ({
-  ^0:
   }) : () -> ()
 }) : () -> ()
 """

@@ -142,7 +142,13 @@ class FormatProgram:
                 "Single operand has no type or variadic/optional type"
                 operands.append(parser.resolve_operand(uo, ot))
 
-        properties = op_def.split_properties(state.attributes)
+        # Get the properties from the attribute dictionary if no properties are
+        # defined. This is necessary to be compatible with MLIR format, such as
+        # `memref.load`.
+        if state.properties:
+            properties = state.properties
+        else:
+            properties = op_def.split_properties(state.attributes)
         return op_type.build(
             result_types=result_types,
             operands=operands,
@@ -269,6 +275,12 @@ class AttrDictDirective(FormatDirective):
     printed twice otherwise.
     """
 
+    print_properties: bool
+    """
+    If this is set, also print properties as part of the attribute dictionary.
+    This is used to keep compatibility with MLIR which allows that.
+    """
+
     def parse(self, parser: Parser, state: ParsingState) -> None:
         if self.with_keyword:
             res = parser.parse_optional_attr_dict_with_keyword()
@@ -288,18 +300,32 @@ class AttrDictDirective(FormatDirective):
         state.attributes |= res
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if not op.attributes and not op.properties:
-            return
-        if any(name in op.attributes for name in op.properties):
-            raise ValueError(
-                "Cannot print attributes and properties with the same name"
-                "in a signle dictionary"
+        if self.print_properties:
+            if (
+                not (set(op.attributes.keys()) | set(op.properties.keys()))
+                - self.reserved_attr_names
+            ):
+                return
+            if any(name in op.attributes for name in op.properties):
+                raise ValueError(
+                    "Cannot print attributes and properties with the same name "
+                    "in a signle dictionary"
+                )
+            printer.print_op_attributes(
+                op.attributes | op.properties,
+                reserved_attr_names=self.reserved_attr_names,
+                print_keyword=self.with_keyword,
             )
-        printer.print_op_attributes(
-            op.attributes | op.properties,
-            reserved_attr_names=self.reserved_attr_names,
-            print_keyword=self.with_keyword,
-        )
+        else:
+            if not set(op.attributes.keys()) - self.reserved_attr_names:
+                return
+            printer.print_op_attributes(
+                op.attributes,
+                reserved_attr_names=self.reserved_attr_names,
+                print_keyword=self.with_keyword,
+            )
+
+        # This is changed only if something was printed
         state.last_was_punctuation = False
         state.should_emit_space = False
 
@@ -338,9 +364,11 @@ class VariadicOperandVariable(OperandVariable):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        operands = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        operands = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
         )
+        if operands is None:
+            operands = []
         state.operands[self.index] = cast(list[UnresolvedOperand | None], operands)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -385,9 +413,11 @@ class VariadicOperandTypeDirective(OperandTypeDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        operand_types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type
+        operand_types = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_type, parser.parse_type
         )
+        if operand_types is None:
+            operand_types = []
         state.operand_types[self.index] = cast(list[Attribute | None], operand_types)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -484,17 +514,25 @@ class AttributeVariable(FormatDirective):
 
     attr_name: str
     """The attribute name as it should be in the attribute or property dictionary."""
+    is_property: bool
+    """Should this attribute be put in the attribute or property dictionary."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         attribute = parser.parse_attribute()
-        state.attributes[self.attr_name] = attribute
+        if self.is_property:
+            state.properties[self.attr_name] = attribute
+        else:
+            state.attributes[self.attr_name] = attribute
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
         state.should_emit_space = True
         state.last_was_punctuation = False
-        printer.print_attribute(op.attributes[self.attr_name])
+        if self.is_property:
+            printer.print_attribute(op.properties[self.attr_name])
+        else:
+            printer.print_attribute(op.attributes[self.attr_name])
 
 
 @dataclass(frozen=True)
@@ -506,9 +544,11 @@ class VariadicResultTypeDirective(ResultTypeDirective):
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        result_types = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_type
+        result_types = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_type, parser.parse_type
         )
+        if result_types is None:
+            result_types = []
         state.result_types[self.index] = cast(list[Attribute | None], result_types)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:

@@ -37,6 +37,7 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     Operand,
+    ParsePropInAttrDict,
     VarOperand,
     irdl_op_definition,
     operand_def,
@@ -71,6 +72,7 @@ class Load(IRDLOperation):
     indices: VarOperand = var_operand_def(IndexType())
     res: OpResult = result_def(T)
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
 
     # TODO varargs for indexing, which must match the memref dimensions
@@ -109,6 +111,7 @@ class Store(IRDLOperation):
     memref: Operand = operand_def(MemRefType[T])
     indices: VarOperand = var_operand_def(IndexType())
 
+    irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
 
     def verify_(self):
@@ -283,6 +286,8 @@ class GetGlobal(IRDLOperation):
             result_types=[return_type], properties={"name": SymbolRefAttr(name)}
         )
 
+    assembly_format = "$name `:` type($memref) attr-dict"
+
     # TODO how to verify the types, as the global might be defined in another
     # compilation unit
 
@@ -369,6 +374,38 @@ class Rank(IRDLOperation):
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
         return Rank.build(operands=[memref], result_types=[IndexType()])
+
+
+ReassociationAttr = ArrayAttr[
+    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+]
+
+
+class AlterShapeOp(IRDLOperation):
+    src: Operand = operand_def(MemRefType)
+    result: OpResult = result_def(MemRefType)
+    reassociation = prop_def(ReassociationAttr)
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
+
+@irdl_op_definition
+class CollapseShapeOp(AlterShapeOp):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
+    """
+
+    name = "memref.collapse_shape"
+
+
+@irdl_op_definition
+class ExpandShapeOp(AlterShapeOp):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
+    """
+
+    name = "memref.expand_shape"
 
 
 @irdl_op_definition
@@ -665,6 +702,8 @@ MemRef = Dialect(
         AllocaScopeOp,
         AllocaScopeReturnOp,
         CopyOp,
+        CollapseShapeOp,
+        ExpandShapeOp,
         Dealloc,
         GetGlobal,
         Global,

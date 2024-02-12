@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -73,6 +74,7 @@ indentNumSpaces = 2
 class Printer:
     stream: Any | None = field(default=None)
     print_generic_format: bool = field(default=False)
+    print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
@@ -354,6 +356,18 @@ class Printer:
     def print_string_literal(self, string: str):
         self.print(json.dumps(string))
 
+    def print_bytes_literal(self, bytestring: bytes):
+        self.print('"')
+        for byte in bytestring:
+            match byte:
+                case 0x5C:  # ord("\\")
+                    self.print("\\\\")
+                case _ if 0x20 > byte or byte > 0x7E or byte == 0x22:
+                    self.print(f"\\{byte:02X}")
+                case _:
+                    self.print(chr(byte))
+        self.print('"')
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -393,6 +407,10 @@ class Printer:
 
         if isinstance(attribute, StringAttr):
             self.print_string_literal(attribute.data)
+            return
+
+        if isinstance(attribute, BytesAttr):
+            self.print_bytes_literal(attribute.data)
             return
 
         if isinstance(attribute, SymbolRefAttr):
@@ -730,9 +748,19 @@ class Printer:
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
         self.print_successors(op.successors)
-        self._print_op_properties(op.properties)
+        if not self.print_properties_as_attributes:
+            self._print_op_properties(op.properties)
         self.print_regions(op.regions)
-        self.print_op_attributes(op.attributes)
+        if self.print_properties_as_attributes:
+            clashing_names = op.properties.keys() & op.attributes.keys()
+            if clashing_names:
+                raise ValueError(
+                    f"Properties {', '.join(clashing_names)} would overwrite the attributes of the same names."
+                )
+
+            self.print_op_attributes(op.attributes | op.properties)
+        else:
+            self.print_op_attributes(op.attributes)
         self.print(" : ")
         self.print_operation_type(op)
 

@@ -24,6 +24,7 @@ from xdsl.irdl import (
     EqAttrConstraint,
     IRDLOperation,
     ParameterDef,
+    ParsePropInAttrDict,
     VarOperand,
     VarOpResult,
     attr_def,
@@ -31,6 +32,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_prop_def,
+    prop_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -237,6 +239,7 @@ def test_attr_dict_prop_fallack(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.prop"
         prop = opt_prop_def(Attribute)
+        irdl_options = [ParsePropInAttrDict()]
         assembly_format = "attr-dict"
 
     ctx = MLContext()
@@ -287,6 +290,96 @@ def test_attr_variable_shadowed():
         match="attributes attr are defined in other parts",
     ):
         parser.parse_operation()
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_attr i32", '"test.one_attr"() {"irdl" = i32} : () -> ()'),
+        (
+            'test.one_attr i32 {"attr2" = i64}',
+            '"test.one_attr"() {"irdl" = i32, "attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_attr_name(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithRenamedAttr(IRDLOperation):
+        name = "test.one_attr"
+
+        python = attr_def(Attribute, attr_name="irdl")
+        assembly_format = "$irdl attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithRenamedAttr)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
+def test_missing_property_error():
+    class OpWithMissingProp(IRDLOperation):
+        name = "test.missing_prop"
+
+        prop1 = prop_def(Attribute)
+        prop2 = prop_def(Attribute)
+        assembly_format = "$prop1 attr-dict"
+
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="prop2 properties are missing",
+    ):
+        irdl_op_definition(OpWithMissingProp)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_prop i32", '"test.one_prop"() <{"prop" = i32}> : () -> ()'),
+        (
+            'test.one_prop i32 {"attr2" = i64}',
+            '"test.one_prop"() <{"prop" = i32}> {"attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_standard_prop_directive(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithProp(IRDLOperation):
+        name = "test.one_prop"
+
+        prop = prop_def(Attribute)
+        assembly_format = "$prop attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithProp)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_prop i32", '"test.one_prop"() <{"irdl" = i32}> : () -> ()'),
+        (
+            'test.one_prop i32 {"attr2" = i64}',
+            '"test.one_prop"() <{"irdl" = i32}> {"attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_prop_name(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithRenamedProp(IRDLOperation):
+        name = "test.one_prop"
+
+        python = prop_def(Attribute, prop_name="irdl")
+        assembly_format = "$irdl attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithRenamedProp)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
 
 
 ################################################################################
@@ -486,6 +579,11 @@ def test_operands(format: str, program: str, generic_program: str):
     [
         (
             "$args type($args) attr-dict",
+            '%0 = "test.op"() : () -> i32\n' "test.variadic_operand  ",
+            '%0 = "test.op"() : () -> i32\n' '"test.variadic_operand"() : () -> ()',
+        ),
+        (
+            "$args type($args) attr-dict",
             '%0 = "test.op"() : () -> i32\n' "test.variadic_operand %0 i32",
             '%0 = "test.op"() : () -> i32\n'
             '"test.variadic_operand"(%0) : (i32) -> ()',
@@ -675,6 +773,11 @@ def test_results(format: str, program: str, generic_program: str):
 @pytest.mark.parametrize(
     "format, program, generic_program",
     [
+        (
+            "`:` type($res) attr-dict",
+            "test.variadic_result : ",
+            '"test.variadic_result"() : () -> ()',
+        ),
         (
             "`:` type($res) attr-dict",
             "%0 = test.variadic_result : i32",
