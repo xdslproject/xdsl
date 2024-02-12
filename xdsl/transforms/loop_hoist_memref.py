@@ -14,6 +14,11 @@ from xdsl.pattern_rewriter import (
 
 
 def find_same_target_store(load: memref.Load):
+    """
+    Find the corresponding store operation (same memeref target) for a load when there
+    is only a single one within a block.
+    """
+
     parent_block = load.parent_block()
 
     if parent_block is None:
