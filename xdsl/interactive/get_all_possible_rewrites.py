@@ -1,7 +1,6 @@
 from typing import NamedTuple
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 
 
@@ -19,7 +18,6 @@ class IndexedIndividualRewrite(NamedTuple):
     Type alias for a specific rewrite pattern, additionally consisting of its operation index.
     """
 
-    matched_op: Operation
     operation_index: int
     rewrite: IndividualRewrite
 
@@ -53,9 +51,7 @@ def get_all_possible_rewrites(
                     *res,
                     (
                         IndexedIndividualRewrite(
-                            matched_op,
-                            op_idx,
-                            IndividualRewrite(matched_op.name, pattern_name),
+                            op_idx, IndividualRewrite(matched_op.name, pattern_name)
                         )
                     ),
                 )
