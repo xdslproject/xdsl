@@ -1,17 +1,14 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
-riscv.assembly_section ".text" {
-  riscv.directive ".globl" "pooling_nchw_max_d1_s2_3x3"
-  riscv.directive ".p2align" "2"
 // x[ M x K ]
 // y[ K x N ]
 // g[ M x N ]
-riscv_func.func public @pooling_nchw_max_d1_s2_3x3(
-    %X: !riscv.reg<a0>,
-    %Y: !riscv.reg<a1>
+func.func public @pooling_nchw_max_d1_s2_3x3(
+    %X: memref<1x1x16x16xf64>,
+    %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
-    %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
+    %X_moved = builtin.unrealized_conversion_cast %X : memref<1x1x16x16xf64> to !riscv.reg<>
+    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<1x1x7x7xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
@@ -41,9 +38,9 @@ riscv_func.func public @pooling_nchw_max_d1_s2_3x3(
       }
     }) : (!riscv.reg<>) -> ()
 
-    riscv_func.return
+    func.return
   }
-}
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl pooling_nchw_max_d1_s2_3x3
