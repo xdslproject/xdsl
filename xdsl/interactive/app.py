@@ -30,7 +30,6 @@ from textual.widgets import (
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
-from xdsl.interactive.get_all_possible_rewrites import get_all_possible_rewrites
 from xdsl.interactive.get_condensed_passes import (
     ALL_PASSES,
     AvailablePass,
@@ -47,7 +46,6 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
-from xdsl.transforms import individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -251,37 +249,10 @@ class InputApp(App[None]):
             case Exception():
                 return ()
             case ModuleOp():
-                # transform rewrites into passes
-                rewrites = get_all_possible_rewrites(
-                    self.current_module,
-                    individual_rewrite.REWRITE_BY_NAMES,
-                )
-                rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
-                for op_idx, (op_name, pat_name) in rewrites:
-                    rewrite_pass = individual_rewrite.IndividualRewrite
-                    rewrite_spec_arg_str = f'matched_operation_index={op_idx} operation_name="{op_name}" pattern_name={pat_name}'
-                    rewrite_spec = list(
-                        parse_pipeline(f"{rewrite_pass.name}{{{rewrite_spec_arg_str}}}")
-                    )[0]
-                    op = list(self.current_module.walk())[op_idx]
-                    rewrites_as_pass_list = (
-                        *rewrites_as_pass_list,
-                        (
-                            AvailablePass(
-                                f"{op}:{op_name}:{pat_name}", rewrite_pass, rewrite_spec
-                            )
-                        ),
-                    )
-
-                # merge rewrite passes with "other" pass list
                 if self.condense_mode:
-                    pass_list = get_condensed_pass_list(self.current_module)
-                    return pass_list + rewrites_as_pass_list
+                    return get_condensed_pass_list(self.current_module)
                 else:
-                    pass_list = tuple(
-                        AvailablePass(p.name, p, None) for _, p in ALL_PASSES
-                    )
-                    return pass_list + rewrites_as_pass_list
+                    return tuple(AvailablePass(p.name, p, None) for _, p in ALL_PASSES)
 
     def watch_available_pass_list(
         self,
@@ -304,11 +275,7 @@ class InputApp(App[None]):
                     )
                 )
 
-    def get_pass_arguments(
-        self,
-        selected_pass_value: type[ModulePass],
-        selected_pass_spec: PipelinePassSpec | None,
-    ) -> None:
+    def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
         """
         This function facilitates user input of pass concatenated_arg_val by navigating
         to the AddArguments screen, and subsequently parses the returned string upon
@@ -339,7 +306,7 @@ class InputApp(App[None]):
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
         # if selected_pass_value has arguments, push screen
-        if fields(selected_pass_value) and selected_pass_spec is None:
+        if fields(selected_pass_value):
             # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
             self.push_screen(
                 AddArguments(
@@ -352,16 +319,10 @@ class InputApp(App[None]):
             )
         else:
             # add the selected pass to pass_pipeline
-            if selected_pass_spec is None:
-                self.pass_pipeline = (
-                    *self.pass_pipeline,
-                    (selected_pass_value, selected_pass_value().pipeline_pass_spec()),
-                )
-            else:
-                self.pass_pipeline = (
-                    *self.pass_pipeline,
-                    (selected_pass_value, selected_pass_spec),
-                )
+            self.pass_pipeline = (
+                *self.pass_pipeline,
+                (selected_pass_value, selected_pass_value().pipeline_pass_spec()),
+            )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
