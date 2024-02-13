@@ -1,16 +1,12 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
-
-riscv.assembly_section ".text" {
-  riscv.directive ".globl" "fill"
-  riscv.directive ".p2align" "2"
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
   // y[ 16 x 16 ]
-  riscv_func.func @fill(
-    %X : !riscv.freg<fa0>,
-    %Y : !riscv.reg<a0>
+  func.func @fill(
+    %X : f64,
+    %Y : memref<16x16xf64>
   ) {
-    %X_moved = riscv.fmv.d %X : (!riscv.freg<fa0>) -> !riscv.freg<>
-    %Y_moved = riscv.mv %Y : (!riscv.reg<a0>) -> !riscv.reg<>
+    %X_moved = builtin.unrealized_conversion_cast %X : f64 to !riscv.freg<>
+    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<16x16xf64> to !riscv.reg<>
 
     %x = riscv.fmv.d %X_moved : (!riscv.freg<>) -> !riscv.freg<>
 
@@ -28,9 +24,9 @@ riscv.assembly_section ".text" {
       }
     }) : (!riscv.reg<>) -> ()
 
-    riscv_func.return
+    func.return
   }
-}
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl fill
