@@ -106,10 +106,16 @@ class StreamOpLowering(RewritePattern):
             for map, shape in zip(op.indexing_maps, shapes, strict=True)
         )
         bounds = tuple(bound.data for bound in op.bounds)
+        # snitch_stream stride patterns are from innermost out
+        # TODO: make consistent
         stride_patterns = tuple(
-            snitch_stream.StridePattern.from_bounds_and_strides(bounds, strides)
+            snitch_stream.StridePattern.from_bounds_and_strides(
+                bounds[::-1], strides[::-1]
+            )
             for strides in all_strides
         )
+        if len(set(stride_patterns)) == 1:
+            stride_patterns = (stride_patterns[0],)
         new_operands = cast_operands_to_regs(rewriter)
         new_inputs = new_operands[: len(op.inputs)]
         new_outputs = new_operands[len(op.inputs) :]
@@ -193,7 +199,9 @@ def strides_for_affine_map(
     affine_map: AffineMap, shape: Sequence[int], factor: int
 ) -> list[int]:
     """
-    Given an affine map mapping an iteration space to a domain, and a shape
+    Given an iteration space represented as an affine map (for indexing) and a shape (for bounds), returns the corresponding iteration strides for each dimension.
+
+    The affine map must not have symbols.
     """
     if affine_map.num_symbols:
         raise ValueError("Cannot create strides for affine map with symbols")
