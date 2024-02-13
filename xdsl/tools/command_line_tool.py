@@ -411,6 +411,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return printf_to_putchar.PrintfToPutcharPass
 
+    def get_riscv_cse():
+        from xdsl.transforms import riscv_cse
+
+        return riscv_cse.RiscvConstantSubexpressionElimination
+
     def get_riscv_register_allocation():
         from xdsl.transforms import riscv_register_allocation
 
@@ -557,6 +562,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
+        "riscv-cse": get_riscv_cse,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
