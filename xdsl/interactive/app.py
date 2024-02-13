@@ -259,10 +259,14 @@ class InputApp(App[None]):
                 rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
                 for op_idx, (op_name, pat_name) in rewrites:
                     rewrite_pass = individual_rewrite.IndividualRewrite
-                    rewrite_spec_arg_str = f'matched_operation_index={op_idx} operation_name="{op_name}" pattern_name={pat_name}'
-                    rewrite_spec = list(
-                        parse_pipeline(f"{rewrite_pass.name}{{{rewrite_spec_arg_str}}}")
-                    )[0]
+                    rewrite_spec = PipelinePassSpec(
+                        name=rewrite_pass.name,
+                        args={
+                            "matched_operation_index": [op_idx],
+                            "operation_name": [op_name],
+                            "pattern_name": [pat_name],
+                        },
+                    )
                     op = list(self.current_module.walk())[op_idx]
                     rewrites_as_pass_list = (
                         *rewrites_as_pass_list,
@@ -353,15 +357,11 @@ class InputApp(App[None]):
         else:
             # add the selected pass to pass_pipeline
             if selected_pass_spec is None:
-                self.pass_pipeline = (
-                    *self.pass_pipeline,
-                    (selected_pass_value, selected_pass_value().pipeline_pass_spec()),
-                )
-            else:
-                self.pass_pipeline = (
-                    *self.pass_pipeline,
-                    (selected_pass_value, selected_pass_spec),
-                )
+                selected_pass_spec = selected_pass_value().pipeline_pass_spec()
+            self.pass_pipeline = (
+                *self.pass_pipeline,
+                (selected_pass_value, selected_pass_spec),
+            )
 
     @on(ListView.Selected)
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
