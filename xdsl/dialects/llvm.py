@@ -821,7 +821,7 @@ class ExtractValueOp(IRDLOperation):
     ):
         super().__init__(
             operands=[container],
-            attributes={
+            properties={
                 "position": position,
             },
             result_types=[result_type],
@@ -850,7 +850,7 @@ class InsertValueOp(IRDLOperation):
     ):
         super().__init__(
             operands=[container, value],
-            attributes={
+            properties={
                 "position": position,
             },
             result_types=[container.type],
