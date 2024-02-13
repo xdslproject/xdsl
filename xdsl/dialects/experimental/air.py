@@ -6,8 +6,13 @@ components and it can be lowered to the processor's assembly using the vendor's 
 of the original dialect can be found here https://xilinx.github.io/mlir-air/AIRDialect.html
 """
 
-from xdsl.ir import Dialect
-from xdsl.irdl import IRDLOperation, irdl_op_definition
+from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
+from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition
+
+
+@irdl_attr_definition
+class AsyncTokenAttr(ParametrizedAttribute, TypeAttribute):
+    name = "air.async.token"
 
 
 @irdl_op_definition
@@ -146,5 +151,5 @@ AIR = Dialect(
         SegmentTerminatorOp,
         WaitAllOp,
     ],
-    [],
+    [AsyncTokenAttr],
 )
