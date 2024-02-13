@@ -16,7 +16,7 @@ class IndividualRewrite(NamedTuple):
 
 class IndexedIndividualRewrite(NamedTuple):
     """
-    Type alias for a specific rewrite pattern, additionally consisting of the operation and its operation index.
+    Type alias for a specific rewrite pattern, additionally consisting of its operation index.
     """
 
     matched_op: Operation

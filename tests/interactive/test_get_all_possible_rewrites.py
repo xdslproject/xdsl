@@ -43,14 +43,11 @@ def test_get_all_possible_rewrite():
     expected_res = (
         (
             IndexedIndividualRewrite(
-                matched_op=TestOp(),
-                operation_index=1,
-                rewrite=IndividualRewrite(operation="test.op", pattern="TestRewrite"),
+                1, IndividualRewrite(operation="test.op", pattern="TestRewrite")
             )
         ),
         (
             IndexedIndividualRewrite(
-                matched_op=TestOp(),
                 operation_index=2,
                 rewrite=IndividualRewrite(operation="test.op", pattern="TestRewrite"),
             )
