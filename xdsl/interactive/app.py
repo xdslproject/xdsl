@@ -371,7 +371,7 @@ class InputApp(App[None]):
         """
         list_item = event.item
         assert isinstance(list_item, PassListItem)
-        self.get_pass_arguments(list_item.module_pass)
+        self.get_pass_arguments(list_item.module_pass, list_item.pass_spec)
 
     def watch_pass_pipeline(self) -> None:
         """
