@@ -28,9 +28,13 @@ from textual.widgets import (
     TextArea,
 )
 
-from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
+from xdsl.interactive.get_condensed_passes import (
+    ALL_PASSES,
+    AvailablePass,
+    get_condensed_pass_list,
+)
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
@@ -42,41 +46,10 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
-from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
 from ._pasteboard import pyclip_copy
-
-ALL_PASSES = tuple(sorted((p_name, p()) for (p_name, p) in get_all_passes().items()))
-"""Contains the list of xDSL passes."""
-
-
-def condensed_pass_list(input: builtin.ModuleOp) -> tuple[type[ModulePass], ...]:
-    """Returns a tuple of passes (pass name and pass instance) that modify the IR."""
-
-    ctx = MLContext(True)
-
-    for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
-
-    selections: list[type[ModulePass]] = []
-    for _, value in ALL_PASSES:
-        if value is MLIROptPass:
-            # Always keep MLIROptPass as an option in condensed list
-            selections.append(value)
-            continue
-        try:
-            cloned_module = input.clone()
-            cloned_ctx = ctx.clone()
-            value().apply(cloned_ctx, cloned_module)
-            if input.is_structurally_equivalent(cloned_module):
-                continue
-        except Exception:
-            pass
-        selections.append(value)
-
-    return tuple(selections)
 
 
 class OutputTextArea(TextArea):
@@ -124,7 +97,7 @@ class InputApp(App[None]):
 
     condense_mode = reactive(False, always_update=True)
     """Reactive boolean."""
-    available_pass_list = reactive(tuple[type[ModulePass], ...])
+    available_pass_list = reactive(tuple[AvailablePass, ...])
     """
     Reactive variable that saves the list of passes that have an effect on
     current_module.
@@ -265,26 +238,26 @@ class InputApp(App[None]):
         # initialize GUI with specified pass pipeline
         self.pass_pipeline = self.pre_loaded_pass_pipeline
 
-    def compute_available_pass_list(self) -> tuple[type[ModulePass], ...]:
+    def compute_available_pass_list(self) -> tuple[AvailablePass, ...]:
         """
         When any reactive variable is modified, this function (re-)computes the
         available_pass_list variable.
         """
         match self.current_module:
             case None:
-                return tuple(p for _, p in ALL_PASSES)
+                return tuple(AvailablePass(p.name, p, None) for _, p in ALL_PASSES)
             case Exception():
                 return ()
             case ModuleOp():
                 if self.condense_mode:
-                    return condensed_pass_list(self.current_module)
+                    return get_condensed_pass_list(self.current_module)
                 else:
-                    return tuple(p for _, p in ALL_PASSES)
+                    return tuple(AvailablePass(p.name, p, None) for _, p in ALL_PASSES)
 
     def watch_available_pass_list(
         self,
-        old_pass_list: tuple[type[ModulePass], ...],
-        new_pass_list: tuple[type[ModulePass], ...],
+        old_pass_list: tuple[AvailablePass, ...],
+        new_pass_list: tuple[AvailablePass, ...],
     ) -> None:
         """
         Function called when the reactive variable available_pass_list changes - updates
@@ -292,7 +265,7 @@ class InputApp(App[None]):
         """
         if old_pass_list != new_pass_list:
             self.passes_list_view.clear()
-            for value in new_pass_list:
+            for _, value, _ in new_pass_list:
                 self.passes_list_view.append(
                     PassListItem(Label(value.name), module_pass=value, name=value.name)
                 )
@@ -372,7 +345,7 @@ class InputApp(App[None]):
         input_text = self.input_text_area.text
         if (input_text) == "":
             self.current_module = None
-            self.current_condensed_pass_list = ()
+            self.current_get_condensed_list = ()
             self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
