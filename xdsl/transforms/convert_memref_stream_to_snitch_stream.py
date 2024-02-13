@@ -193,7 +193,10 @@ def strides_for_affine_map(
     affine_map: AffineMap, shape: Sequence[int], factor: int
 ) -> list[int]:
     """
-    Given an affine map mapping an iteration space to a domain, and a shape
+    Given an iteration space represented as an affine map (for indexing) and a shape (for
+    bounds), returns the corresponding iteration strides for each dimension.
+
+    The affine map must not have symbols.
     """
     if affine_map.num_symbols:
         raise ValueError("Cannot create strides for affine map with symbols")
