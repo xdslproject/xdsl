@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
 from xdsl.interactive.app import InputApp
+from xdsl.interactive.get_condensed_passes import AvailablePass
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
     individual_rewrite,
@@ -267,15 +268,51 @@ async def test_buttons():
 
         condensed_list = tuple(
             (
-                individual_rewrite.IndividualRewrite,
-                convert_arith_to_riscv.ConvertArithToRiscvPass,
-                convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                stencil_global_to_local.DistributeStencilPass,
-                hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
-                mlir_opt.MLIROptPass,
-                printf_to_llvm.PrintfToLLVM,
-                scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
-                stencil_unroll.StencilUnrollPass,
+                AvailablePass(
+                    display_name="apply-individual-rewrite",
+                    module_pass=individual_rewrite.IndividualRewrite,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="convert-arith-to-riscv",
+                    module_pass=convert_arith_to_riscv.ConvertArithToRiscvPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="convert-func-to-riscv-func",
+                    module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="distribute-stencil",
+                    module_pass=stencil_global_to_local.DistributeStencilPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="hls-convert-stencil-to-ll-mlir",
+                    module_pass=hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="mlir-opt",
+                    module_pass=mlir_opt.MLIROptPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="printf-to-llvm",
+                    module_pass=printf_to_llvm.PrintfToLLVM,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="scf-parallel-loop-tiling",
+                    module_pass=scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="stencil-unroll",
+                    module_pass=stencil_unroll.StencilUnrollPass,
+                    pass_spec=None,
+                ),
             )
         )
 
