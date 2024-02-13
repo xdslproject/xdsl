@@ -32,7 +32,7 @@ class ChannelPutOp(IRDLOperation):
 
 @irdl_op_definition
 class CustomOp(IRDLOperation):
-    name = ""  # the official specification for this is vague. Should we keep this operation?
+    name = "air.custom"
 
 
 @irdl_op_definition
