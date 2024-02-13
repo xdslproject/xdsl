@@ -257,7 +257,7 @@ class InputApp(App[None]):
                     individual_rewrite.REWRITE_BY_NAMES,
                 )
                 rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
-                for op_idx, (op_name, pat_name) in rewrites:
+                for op, op_idx, (op_name, pat_name) in rewrites:
                     rewrite_pass = individual_rewrite.IndividualRewrite
                     rewrite_spec = PipelinePassSpec(
                         name=rewrite_pass.name,
@@ -267,7 +267,6 @@ class InputApp(App[None]):
                             "pattern_name": [pat_name],
                         },
                     )
-                    op = list(self.current_module.walk())[op_idx]
                     rewrites_as_pass_list = (
                         *rewrites_as_pass_list,
                         (
