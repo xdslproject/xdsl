@@ -1,5 +1,3 @@
-from typing import cast
-
 from xdsl.dialects import (
     builtin,
     riscv,
@@ -9,7 +7,6 @@ from xdsl.dialects import (
 from xdsl.ir import MLContext, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -95,25 +92,13 @@ def insert_stride_pattern_ops(
     rewriter.insert_op_before(new_ops, target_op)
 
 
-class LowerStridePatternOp(RewritePattern):
-    """
-    Lower a stride pattern to snrt_ssr_loop_2d.
-    """
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: snitch_stream.StridePatternOp, rewriter: PatternRewriter, /
-    ):
-        insert_stride_pattern_ops(rewriter, op, op.ub, op.strides, op.dm)
-        rewriter.erase_matched_op()
-
-
 class LowerStreamingRegionOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: snitch_stream.StreamingRegionOp, rewriter: PatternRewriter, /
     ):
-        # Create strided reads and writes
+        # Set up stream stride patterns
+        # Set up stream pointers
         # Insert stream begin
         # Inline body
         # Insert stream end
@@ -122,11 +107,20 @@ class LowerStreamingRegionOp(RewritePattern):
         stream_count = input_count + output_count
 
         # If there is a single pattern specified, then it should be set for all streams
-        if len(op.stride_patterns) == 1:
-            pattern = op.stride_patterns[0]
+        if len(op.stride_patterns) == 1 and stream_count != 1:
+            pattern = op.stride_patterns.data[0]
             patterns = (pattern,) * stream_count
+            # Set same pattern for all data movers
+            insert_stride_pattern_ops(
+                rewriter, op, pattern.ub, pattern.strides, builtin.IntAttr(31)
+            )
         else:
-            patterns = op.stride_patterns
+            patterns = op.stride_patterns.data
+            # Set separate pattern per data mover
+            for dm, pattern in enumerate(patterns):
+                insert_stride_pattern_ops(
+                    rewriter, op, pattern.ub, pattern.strides, builtin.IntAttr(dm)
+                )
 
         dms = tuple(range(stream_count))
 
@@ -134,9 +128,7 @@ class LowerStreamingRegionOp(RewritePattern):
             snitch.SsrSetDimensionSourceOp(
                 input,
                 dm=builtin.IntAttr(dm),
-                dimension=builtin.IntAttr(
-                    cast(snitch_stream.StridePatternType, pattern.type).data - 1
-                ),
+                dimension=builtin.IntAttr(pattern.rank() - 1),
             )
             for input, pattern, dm in zip(
                 op.inputs, patterns[:input_count], dms[:input_count], strict=True
@@ -149,9 +141,7 @@ class LowerStreamingRegionOp(RewritePattern):
             snitch.SsrSetDimensionDestinationOp(
                 output,
                 dm=builtin.IntAttr(dm),
-                dimension=builtin.IntAttr(
-                    cast(snitch_stream.StridePatternType, pattern.type).data - 1
-                ),
+                dimension=builtin.IntAttr(pattern.rank() - 1),
             )
             for output, pattern, dm in zip(
                 op.outputs, patterns[input_count:], dms[input_count:], strict=True
@@ -184,11 +174,5 @@ class ConvertSnitchStreamToSnitch(ModulePass):
         # have to first lower the ops that use the results in `stream`, and then the ops
         # themselves.
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    LowerStreamingRegionOp(),
-                    LowerStridePatternOp(),
-                ]
-            ),
-            walk_reverse=True,
+            LowerStreamingRegionOp(), apply_recursively=False
         ).rewrite_module(op)

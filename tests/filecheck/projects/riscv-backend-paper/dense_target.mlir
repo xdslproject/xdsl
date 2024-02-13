@@ -26,13 +26,14 @@ riscv.assembly_section ".text" {
 
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
-    %stride_pattern_0 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<8>, #builtin.int<8>], "strides" = [#builtin.int<8>, #builtin.int<0>, #builtin.int<64>], "dm" = #builtin.int<0>} : () -> !snitch_stream.stride_pattern_type<3>
-
-    %stride_pattern_1 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<8>, #builtin.int<8>], "strides" = [#builtin.int<64>, #builtin.int<8>, #builtin.int<0>], "dm" = #builtin.int<1>} : () -> !snitch_stream.stride_pattern_type<3>
-
-    %stride_pattern_2 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<8>], "strides" = [#builtin.int<8>, #builtin.int<64>], "dm" = #builtin.int<2>} : () -> !snitch_stream.stride_pattern_type<2>
-
-    "snitch_stream.streaming_region"(%X_moved, %W_moved, %B_moved, %stride_pattern_0, %stride_pattern_1, %stride_pattern_2) <{"operandSegmentSizes" = array<i32: 3, 0, 3>}> ({
+    "snitch_stream.streaming_region"(%X_moved, %W_moved, %B_moved) <{
+      "stride_patterns" = [
+        #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 0, 64]>,
+        #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 8, 0]>,
+        #snitch_stream.stride_pattern<ub = [8, 8], strides = [8, 64]>
+      ],
+      "operandSegmentSizes" = array<i32: 3, 0>
+    }> ({
     ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %W_stream : !stream.readable<!riscv.freg<ft1>>, %B_stream : !stream.readable<!riscv.freg<ft2>>):
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c512 step %c8 {
         %Y_dest = riscv.add %Y_moved, %y_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
@@ -53,7 +54,7 @@ riscv.assembly_section ".text" {
 
         riscv_scf.yield
       }
-    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<3>, !snitch_stream.stride_pattern_type<3>, !snitch_stream.stride_pattern_type<2>) -> ()
+    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
     riscv_func.return
   }

@@ -1,8 +1,11 @@
 // RUN: xdsl-opt -p snitch-allocate-registers %s | filecheck %s
 
-%ptr0, %ptr1, %ptr2, %stride_pattern = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>)
+%ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
 
-"snitch_stream.streaming_region"(%ptr0, %ptr1, %ptr2, %stride_pattern) <{"operandSegmentSizes" = array<i32: 2, 1, 1>}> ({
+"snitch_stream.streaming_region"(%ptr0, %ptr1, %ptr2) <{
+    "stride_patterns" = [#snitch_stream.stride_pattern<ub = [], strides = []>],
+    "operandSegmentSizes" = array<i32: 2, 1>
+}> ({
 ^0(%s0 : !stream.readable<!riscv.freg<>>, %s1 : !stream.readable<!riscv.freg<>>, %s2 : !stream.writable<!riscv.freg<>>):
     %c5 = riscv.li 5 : () -> !riscv.reg<>
     riscv_snitch.frep_outer %c5 {
@@ -11,12 +14,12 @@
         %r = riscv.fadd.d %x, %y : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
         riscv_snitch.write %r to %s2 : !riscv.freg<>
     }
-}) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> ()
+}) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
 // CHECK: builtin.module {
 
-// CHECK-NEXT:    %ptr0, %ptr1, %ptr2, %stride_pattern = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>)
-// CHECK-NEXT:    "snitch_stream.streaming_region"(%ptr0, %ptr1, %ptr2, %stride_pattern) <{"operandSegmentSizes" = array<i32: 2, 1, 1>}> ({
+// CHECK-NEXT:    %ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%ptr0, %ptr1, %ptr2) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [], strides = []>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
 // CHECK-NEXT:    ^0(%s0 : !stream.readable<!riscv.freg<ft0>>, %s1 : !stream.readable<!riscv.freg<ft1>>, %s2 : !stream.writable<!riscv.freg<ft2>>):
 // CHECK-NEXT:      %c5 = riscv.li 5 : () -> !riscv.reg<>
 // CHECK-NEXT:      riscv_snitch.frep_outer %c5 {
@@ -25,6 +28,6 @@
 // CHECK-NEXT:        %r = riscv.fadd.d %x, %y : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 // CHECK-NEXT:        riscv_snitch.write %r to %s2 : !riscv.freg<ft2>
 // CHECK-NEXT:      }
-// CHECK-NEXT:    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> ()
+// CHECK-NEXT:    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
 // CHECK-NEXT: }
