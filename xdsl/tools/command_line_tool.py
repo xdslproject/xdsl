@@ -287,6 +287,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return canonicalize_dmp.CanonicalizeDmpPass
 
+    def get_convert_linalg_to_memref_stream():
+        from xdsl.transforms import convert_linalg_to_memref_stream
+
+        return convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass
+
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
 
@@ -492,6 +497,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "constant-fold-interp": get_constant_fold_interp,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
+        "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
