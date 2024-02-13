@@ -222,7 +222,7 @@ class InputApp(App[None]):
         # initialize ListView to contain the pass options
         for n, module_pass in ALL_PASSES:
             self.passes_list_view.append(
-                PassListItem(Label(n), module_pass=module_pass, name=n)
+                PassListItem(Label(n), module_pass=module_pass, pass_spec=None, name=n)
             )
 
         # initialize GUI with either specified input text or default example
@@ -265,9 +265,14 @@ class InputApp(App[None]):
         """
         if old_pass_list != new_pass_list:
             self.passes_list_view.clear()
-            for _, value, _ in new_pass_list:
+            for pass_name, value, value_spec in new_pass_list:
                 self.passes_list_view.append(
-                    PassListItem(Label(value.name), module_pass=value, name=value.name)
+                    PassListItem(
+                        Label(pass_name),
+                        module_pass=value,
+                        pass_spec=value_spec,
+                        name=value.name,
+                    )
                 )
 
     def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
@@ -327,7 +332,7 @@ class InputApp(App[None]):
         """
         list_item = event.item
         assert isinstance(list_item, PassListItem)
-        self.get_pass_arguments(list_item.module_pass)
+        self.get_pass_arguments(list_item.module_pass, list_item.pass_spec)
 
     def watch_pass_pipeline(self) -> None:
         """
