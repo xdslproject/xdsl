@@ -742,6 +742,70 @@ class RROffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
 
 
 @irdl_op_definition
+class DirectiveOp(IRDLOperation, X86Op):
+    """
+    The directive operation is used to represent a directive in the assembly code. (e.g. .globl; .type etc)
+    """
+
+    name = "x86.directive"
+
+    directive: StringAttr = attr_def(StringAttr)
+    value: StringAttr | None = opt_attr_def(StringAttr)
+
+    def __init__(
+        self,
+        directive: str | StringAttr,
+        value: str | StringAttr | None,
+    ):
+        if isinstance(directive, str):
+            directive = StringAttr(directive)
+        if isinstance(value, str):
+            value = StringAttr(value)
+
+        super().__init__(
+            attributes={
+                "directive": directive,
+                "value": value,
+            },
+        )
+
+    def assembly_line(self) -> str | None:
+        if self.value is not None and self.value.data:
+            arg_str = _assembly_arg_str(self.value.data)
+        else:
+            arg_str = ""
+
+        return _assembly_line(self.directive.data, arg_str, is_indented=False)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["directive"] = StringAttr(
+            parser.parse_str_literal("Expected directive")
+        )
+        if (value := parser.parse_optional_str_literal()) is not None:
+            attributes["value"] = StringAttr(value)
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print_string_literal(self.directive.data)
+        if self.value is not None:
+            printer.print(" ")
+            printer.print_string_literal(self.value.data)
+        return {"directive", "value"}
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
+
+
+@irdl_op_definition
 class Vfmadd231pdOp(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]):
     """
     Multiply packed double-precision floating-point elements in r2 and r3, add the intermediate result to r1, and store the final result in r1.
@@ -867,6 +931,7 @@ X86 = Dialect(
         Vfmadd231pdOp,
         VmovapdOp,
         VbroadcastsdOp,
+        DirectiveOp,
     ],
     [
         GeneralRegisterType,
