@@ -48,7 +48,6 @@ from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_ty
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
 from xdsl.transforms import individual_rewrite
-
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -283,7 +282,6 @@ class InputApp(App[None]):
                         AvailablePass(p.name, p, None) for _, p in ALL_PASSES
                     )
                     return pass_list + rewrites_as_pass_list
-
 
     def watch_available_pass_list(
         self,
