@@ -29,6 +29,7 @@ def get_all_possible_rewrites(
     """
     Function that takes a sequence of IndividualRewrite Patterns and a ModuleOp, and
     returns the possible rewrites.
+    Issue filed: https://github.com/xdslproject/xdsl/issues/2162
     """
     old_module = op.clone()
     num_ops = len(list(old_module.walk()))
