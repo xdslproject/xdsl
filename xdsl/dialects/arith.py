@@ -267,9 +267,15 @@ IntegerBinaryOp = BinaryOperation[IntegerType]
 class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
+        from xdsl.transforms.canonicalization_patterns.arith import (
+            AddImmediateZero,
+            AdditionOfSameVariablesToMultiplyByTwo,
+        )
 
-        return (AddImmediateZero(),)
+        return (
+            AddImmediateZero(),
+            AdditionOfSameVariablesToMultiplyByTwo(),
+        )
 
 
 @irdl_op_definition
