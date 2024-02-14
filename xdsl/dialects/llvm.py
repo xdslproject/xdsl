@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
+from dataclasses import dataclass
 from enum import Enum
 from types import EllipsisType
 from typing import Annotated, Generic, Literal, TypeVar
@@ -1118,8 +1119,8 @@ class FastMathFlag(Enum):
         return None
 
 
-@irdl_attr_definition
-class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
+@dataclass(frozen=True)
+class FastMathAttrBase(Data[tuple[FastMathFlag, ...]]):
     name = "llvm.fastmath"
 
     @property
@@ -1168,6 +1169,14 @@ class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
                 printer.print(
                     ",".join(flag.value for flag in FastMathFlag if flag in flags)
                 )
+
+
+@irdl_attr_definition
+class FastMathAttr(FastMathAttrBase):
+    name = "llvm.fastmath"
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        super().__init__(flags)
 
 
 @irdl_op_definition

@@ -11,6 +11,16 @@ C = TypeVar("C", bound=type)
 
 def final(cls: C) -> C:
     """Prevent a class from being subclassed at runtime."""
+
+    # It is safe to discard the previous __init_subclass__ method as anyway
+    # the new one will raise an error.
     setattr(cls, "__init_subclass__", classmethod(_init_subclass))
+
+    # This is a marker to check if a class is final or not.
     setattr(cls, "__final__", True)
     return cls
+
+
+def is_final(cls: type) -> bool:
+    """Check if a class is final."""
+    return hasattr(cls, "__final__")

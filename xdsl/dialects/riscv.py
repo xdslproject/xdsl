@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Annotated, ClassVar, Generic, TypeAlias, TypeVar
+from typing import IO, Annotated, ClassVar, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
@@ -18,7 +18,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
     i32,
 )
-from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
+from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
 from xdsl.ir import (
     Attribute,
     Block,
@@ -60,12 +60,16 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
-class FastMathFlagsAttr(LLVMFastMathAttr):
+@irdl_attr_definition
+class FastMathFlagsAttr(FastMathAttrBase):
     """
     riscv.fastmath is a mirror of LLVMs fastmath flags.
     """
 
     name = "riscv.fastmath"
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        super().__init__(flags)
 
 
 class RISCVRegisterType(Data[str], TypeAttribute, ABC):

@@ -43,6 +43,7 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
+from xdsl.utils.final import final
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -202,7 +203,7 @@ class BaseAttr(AttrConstraint):
 
 
 def attr_constr_coercion(
-    attr: (Attribute | type[Attribute] | AttrConstraint),
+    attr: Attribute | type[Attribute] | AttrConstraint,
 ) -> AttrConstraint:
     """
     Attributes are coerced into EqAttrConstraints,
@@ -533,20 +534,24 @@ class IRDLOperation(Operation):
     def __init__(
         self: IRDLOperation,
         *,
-        operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-        | None = None,
+        operands: (
+            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
+            | None
+        ) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
-        regions: Sequence[
-            Region
+        regions: (
+            Sequence[
+                Region
+                | None
+                | Sequence[Operation]
+                | Sequence[Block]
+                | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+            ]
             | None
-            | Sequence[Operation]
-            | Sequence[Block]
-            | Sequence[Region | Sequence[Operation] | Sequence[Block]]
-        ]
-        | None = None,
+        ) = None,
     ):
         if operands is None:
             operands = []
@@ -575,20 +580,24 @@ class IRDLOperation(Operation):
     def build(
         cls: type[IRDLOperationInvT],
         *,
-        operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-        | None = None,
+        operands: (
+            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
+            | None
+        ) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
-        regions: Sequence[
-            Region
+        regions: (
+            Sequence[
+                Region
+                | None
+                | Sequence[Operation]
+                | Sequence[Block]
+                | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+            ]
             | None
-            | Sequence[Operation]
-            | Sequence[Block]
-            | Sequence[Region | Sequence[Operation] | Sequence[Block]]
-        ]
-        | None = None,
+        ) = None,
     ) -> IRDLOperationInvT:
         """Create a new operation using builders."""
         op = cls.__new__(cls)
@@ -1342,10 +1351,9 @@ class OpDef:
 
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_constraint(
-                    pyrdl_constr: AttrConstraint
-                    | Attribute
-                    | type[Attribute]
-                    | TypeVar,
+                    pyrdl_constr: (
+                        AttrConstraint | Attribute | type[Attribute] | TypeVar
+                    ),
                 ) -> AttrConstraint:
                     return _irdl_list_to_attr_constraint(
                         (pyrdl_constr,),
@@ -2331,8 +2339,12 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
 
     new_fields["get_irdl_definition"] = get_irdl_definition
 
-    return dataclass(frozen=True, init=False)(
-        type.__new__(type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields})
+    return final(
+        dataclass(frozen=True, init=False)(
+            type.__new__(
+                type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields}
+            )
+        )
     )
 
 
@@ -2343,11 +2355,13 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
-            type(
-                cls.__name__,
-                (cls,),  # pyright: ignore[reportUnknownArgumentType]
-                dict(cls.__dict__),
+        return final(
+            dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
+                type(
+                    cls.__name__,
+                    (cls,),  # pyright: ignore[reportUnknownArgumentType]
+                    dict(cls.__dict__),
+                )
             )
         )
     raise TypeError(

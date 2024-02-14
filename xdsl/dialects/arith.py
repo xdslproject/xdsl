@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated, Generic, TypeVar, cast, overload
+from typing import Annotated, Generic, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -20,13 +20,14 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     VectorType,
 )
-from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
+from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AnyOf,
     ConstraintVar,
     IRDLOperation,
     Operand,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -80,12 +81,16 @@ CMPF_COMPARISON_OPERATIONS = [
 ]
 
 
-class FastMathFlagsAttr(LLVMFastMathAttr):
+@irdl_attr_definition
+class FastMathFlagsAttr(FastMathAttrBase):
     """
     arith.fastmath is a mirror of LLVMs fastmath flags.
     """
 
     name = "arith.fastmath"
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        super().__init__(flags)
 
 
 @irdl_op_definition
