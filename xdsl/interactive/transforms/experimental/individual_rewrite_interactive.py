@@ -1,43 +1,52 @@
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.transforms.canonicalization_patterns.arith import (
+    get_interactive_arith_rewrite_patterns,
+    operation_has_interactive_rewrite_pattern,
+)
 from xdsl.ir import MLContext
-from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.tools.command_line_tool import get_all_dialects
-from xdsl.traits import HasCanonicalisationPatternsTrait
+from xdsl.transforms import individual_rewrite
 
-REWRITE_BY_NAMES: dict[str, dict[str, RewritePattern]] = {
+INTERACTIVE_REWRITE_BY_NAMES: dict[str, dict[str, RewritePattern]] = {
     op.name: {
         pattern.__class__.__name__: pattern
-        for pattern in trait.get_canonicalization_patterns()
+        for pattern in get_interactive_arith_rewrite_patterns()
     }
     for dialect in get_all_dialects().values()
     for op in dialect().operations
-    if (trait := op.get_trait(HasCanonicalisationPatternsTrait)) is not None
+    if operation_has_interactive_rewrite_pattern(op)
 }
 """
-Returns a dictionary representing all possible rewrites. Keys are operation names, and
+Returns a dictionary representing all possible experimental interactive rewrites. Keys are operation names, and
 values are dictionaries. In the inner dictionary, the keys are names of patterns
 associated with each operation, and the values are the corresponding RewritePattern
 instances.
 """
 
+ALL_REWRITES: dict[str, dict[str, RewritePattern]] = {
+    op_name: {
+        **individual_rewrite.REWRITE_BY_NAMES.get(op_name, {}),
+        **INTERACTIVE_REWRITE_BY_NAMES.get(op_name, {}),
+    }
+    for op_name in set(individual_rewrite.REWRITE_BY_NAMES)
+    | set(INTERACTIVE_REWRITE_BY_NAMES)
+}
+"""
+Concatenates REWRITE_BY_NAMES and INTERACTIVE_REWRITE_BY_NAMES.
+"""
+
 
 @dataclass
-class IndividualRewrite(ModulePass):
+class IndividualRewriteInteractive(individual_rewrite.IndividualRewrite):
     """
-    Module pass representing the application of an individual rewrite pattern to a module.
+    Module pass representing the application of an interactive individual rewrite pattern to a module.
 
     Matches the operation at the provided index within the module and applies the rewrite
     pattern specified by the operation and pattern names.
     """
-
-    name = "apply-individual-rewrite"
-
-    matched_operation_index: int | None = None
-    operation_name: str | None = None
-    pattern_name: str | None = None
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         assert self.matched_operation_index is not None
@@ -51,7 +60,7 @@ class IndividualRewrite(ModulePass):
         matched_operation = list(op.walk())[self.matched_operation_index]
         rewriter = PatternRewriter(matched_operation)
 
-        rewrite_dictionary = REWRITE_BY_NAMES.get(self.operation_name)
+        rewrite_dictionary = ALL_REWRITES.get(self.operation_name)
         if rewrite_dictionary is None:
             raise ValueError(
                 f"Operation name {self.operation_name} not found in the rewrite dictionary."

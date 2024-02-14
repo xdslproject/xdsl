@@ -42,12 +42,12 @@ from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
 )
+from xdsl.interactive.transforms.experimental import individual_rewrite_interactive
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
-from xdsl.transforms import individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -254,13 +254,13 @@ class InputApp(App[None]):
                 # transform rewrites into passes
                 rewrites = get_all_possible_rewrites(
                     self.current_module,
-                    individual_rewrite.REWRITE_BY_NAMES,
-                ) + get_all_possible_rewrites(
-                    self.current_module, individual_rewrite.INTERACTIVE_REWRITE_BY_NAMES
+                    individual_rewrite_interactive.ALL_REWRITES,
                 )
                 rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
                 for op_idx, (op_name, pat_name) in rewrites:
-                    rewrite_pass = individual_rewrite.IndividualRewrite
+                    rewrite_pass = (
+                        individual_rewrite_interactive.IndividualRewriteInteractive
+                    )
                     rewrite_spec = PipelinePassSpec(
                         name=rewrite_pass.name,
                         args={

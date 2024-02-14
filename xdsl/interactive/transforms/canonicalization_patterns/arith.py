@@ -1,3 +1,9 @@
+"""
+Since we might not want to add "bad" arith rewrite patterns to be used outside of
+xdsl-gui, in this file, we define arith rewrite patterns that can only be used by xdsl-gui.
+"""
+
+
 from xdsl.dialects import arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
 from xdsl.ir import Operation
@@ -10,13 +16,22 @@ from xdsl.pattern_rewriter import (
 arith_operations_that_have_canonicalization_patterns: list[type[Operation]] = [
     arith.Addi
 ]
+"""
+Contains the list of arith operations that are the root of a defined rewrite pattern.
+"""
 
 
-def get_interactive_arith_canonicalization_patterns() -> tuple[RewritePattern, ...]:
+def get_interactive_arith_rewrite_patterns() -> tuple[RewritePattern, ...]:
+    """
+    Returns the list of experimental arith rewrite patterns.
+    """
     return (AdditionOfSameVariablesToMultiplyByTwo(),)
 
 
-def has_interactive_canonicalization_pattern(op: type[Operation]) -> bool:
+def operation_has_interactive_rewrite_pattern(op: type[Operation]) -> bool:
+    """
+    Function that checks if an operation has (one) or many interactive rewrite pattern.
+    """
     for op_type in arith_operations_that_have_canonicalization_patterns:
         if op == op_type:
             return True
