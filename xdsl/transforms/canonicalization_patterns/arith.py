@@ -5,7 +5,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.hints import isa
 
 
 class AddImmediateZero(RewritePattern):
@@ -23,11 +22,10 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.Addi, rewriter: PatternRewriter) -> None:
         if op.lhs == op.rhs:
-            rd = arith.cast(arith.IntegerType, op.lhs.type)
-            assert isa(op.lhs.type, IntegerType | IndexType)
+            assert isinstance(op.lhs.type, IntegerType | IndexType)
             rewriter.replace_matched_op(
                 [
                     li_op := arith.Constant(IntegerAttr(2, op.lhs.type)),
-                    arith.Muli(op.lhs, li_op, rd),
+                    arith.Muli(op.lhs, li_op),
                 ]
             )
