@@ -24,6 +24,7 @@ class Token:
         NUMBER = object()
         SPACE = object()
         STRING_LIT = object()
+        MLIR_PIPELINE = object()
         COMMA = ","
 
 
@@ -33,6 +34,7 @@ _lexer_rules: list[tuple[re.Pattern[str], Token.Kind]] = [
     (re.compile(r"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), Token.Kind.NUMBER),
     (re.compile(r"[A-Za-z0-9_-]+"), Token.Kind.IDENT),
     (re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), Token.Kind.STRING_LIT),
+    (re.compile(r'\[(\\[nfvtr"\\]|[^\n\f\v\r\]\\])*\]'), Token.Kind.MLIR_PIPELINE),
     (re.compile(r"\{"), Token.Kind.L_BRACE),
     (re.compile(r"}"), Token.Kind.R_BRACE),
     (re.compile(r"="), Token.Kind.EQUALS),
@@ -46,10 +48,10 @@ This is a list of lexer rules that should be tried in this specific order to get
 
 class PipelineLexer:
     """
-    This tokenizes a pass declaration string. Pass syntax is a subset
-    of MLIRs pass pipeline syntax:
+    This tokenizes a pass declaration string:
     pipeline          ::= pipeline-element (`,` pipeline-element)*
-    pipeline-element  ::= pass-name options?
+    pipeline-element  ::= MLIR_PIPELINE
+                        | pass-name options?
     options           ::= `{` options-element ( ` ` options-element)* `}`
     options-element   ::= key (`=` value (`,` value)* )?
 
@@ -177,6 +179,24 @@ def parse_pipeline(
         name = lexer.lex()
         if name.kind is Token.Kind.EOF:
             return
+        if name.kind is Token.Kind.MLIR_PIPELINE:
+            yield PipelinePassSpec(
+                "mlir-opt",
+                {
+                    "arguments": [
+                        "--mlir-print-op-generic",
+                        "--allow-unregistered-dialect",
+                        "-p",
+                        f"builtin.module({name.span.text[1:-1]})",
+                    ]
+                },
+            )
+            next = lexer.lex()
+            if next.kind is Token.Kind.COMMA:
+                continue
+            if next.kind is Token.Kind.EOF:
+                return
+            raise PassPipelineParseError(next, "Expected a comma here")
         if name.kind is not Token.Kind.IDENT:
             raise PassPipelineParseError(name, "Expected pass name here")
 
