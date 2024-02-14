@@ -2,8 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.transforms.canonicalization_patterns.arith import (
-    get_interactive_arith_rewrite_patterns,
-    operation_has_interactive_rewrite_pattern,
+    arith_op_to_rewrite_pattern,
 )
 from xdsl.ir import MLContext
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
@@ -13,11 +12,11 @@ from xdsl.transforms import individual_rewrite
 INTERACTIVE_REWRITE_BY_NAMES: dict[str, dict[str, RewritePattern]] = {
     op.name: {
         pattern.__class__.__name__: pattern
-        for pattern in get_interactive_arith_rewrite_patterns()
+        for pattern in arith_op_to_rewrite_pattern[op]
     }
     for dialect in get_all_dialects().values()
     for op in dialect().operations
-    if operation_has_interactive_rewrite_pattern(op)
+    if op in arith_op_to_rewrite_pattern
 }
 """
 Returns a dictionary representing all possible experimental interactive rewrites. Keys are operation names, and
@@ -47,6 +46,8 @@ class IndividualRewriteInteractive(individual_rewrite.IndividualRewrite):
     Matches the operation at the provided index within the module and applies the rewrite
     pattern specified by the operation and pattern names.
     """
+
+    name = "apply-interactive-individual-rewrite"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         assert self.matched_operation_index is not None

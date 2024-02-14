@@ -13,30 +13,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-arith_operations_that_have_canonicalization_patterns: list[type[Operation]] = [
-    arith.Addi
-]
-"""
-Contains the list of arith operations that are the root of a defined rewrite pattern.
-"""
-
-
-def get_interactive_arith_rewrite_patterns() -> tuple[RewritePattern, ...]:
-    """
-    Returns the list of experimental arith rewrite patterns.
-    """
-    return (AdditionOfSameVariablesToMultiplyByTwo(),)
-
-
-def operation_has_interactive_rewrite_pattern(op: type[Operation]) -> bool:
-    """
-    Function that checks if an operation has (one) or many interactive rewrite pattern.
-    """
-    for op_type in arith_operations_that_have_canonicalization_patterns:
-        if op == op_type:
-            return True
-    return False
-
 
 class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     @op_type_rewrite_pattern
@@ -49,3 +25,11 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
                     arith.Muli(op.lhs, li_op),
                 ]
             )
+
+
+arith_op_to_rewrite_pattern: dict[type[Operation], tuple[RewritePattern, ...]] = {
+    arith.Addi: tuple((AdditionOfSameVariablesToMultiplyByTwo(),))
+}
+"""
+Dictionary where the key is an Operation and the value is a tuple of rewrite pattern(s) associated with that operation.
+"""
