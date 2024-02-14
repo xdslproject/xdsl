@@ -255,6 +255,8 @@ class InputApp(App[None]):
                 rewrites = get_all_possible_rewrites(
                     self.current_module,
                     individual_rewrite.REWRITE_BY_NAMES,
+                ) + get_all_possible_rewrites(
+                    self.current_module, individual_rewrite.INTERACTIVE_REWRITE_BY_NAMES
                 )
                 rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
                 for op_idx, (op_name, pat_name) in rewrites:

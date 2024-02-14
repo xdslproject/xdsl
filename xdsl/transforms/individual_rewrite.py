@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.canonicalization_patterns.arith import (
+    get_interactive_arith_canonicalization_patterns,
+    has_interactive_canonicalization_pattern,
+)
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
@@ -22,6 +26,31 @@ values are dictionaries. In the inner dictionary, the keys are names of patterns
 associated with each operation, and the values are the corresponding RewritePattern
 instances.
 """
+
+
+INTERACTIVE_REWRITE_BY_NAMES: dict[str, dict[str, RewritePattern]] = {
+    op.name: {
+        pattern.__class__.__name__: pattern
+        for pattern in get_interactive_arith_canonicalization_patterns()
+    }
+    for dialect in get_all_dialects().values()
+    for op in dialect().operations
+    if has_interactive_canonicalization_pattern(op)
+}
+"""
+Returns a dictionary representing all possible experimental interactive rewrites. Keys are operation names, and
+values are dictionaries. In the inner dictionary, the keys are names of patterns
+associated with each operation, and the values are the corresponding RewritePattern
+instances.
+"""
+
+ALL_REWRITES: dict[str, dict[str, RewritePattern]] = {
+    op_name: {
+        **REWRITE_BY_NAMES.get(op_name, {}),
+        **INTERACTIVE_REWRITE_BY_NAMES.get(op_name, {}),
+    }
+    for op_name in set(REWRITE_BY_NAMES) | set(INTERACTIVE_REWRITE_BY_NAMES)
+}
 
 
 @dataclass
@@ -51,7 +80,7 @@ class IndividualRewrite(ModulePass):
         matched_operation = list(op.walk())[self.matched_operation_index]
         rewriter = PatternRewriter(matched_operation)
 
-        rewrite_dictionary = REWRITE_BY_NAMES.get(self.operation_name)
+        rewrite_dictionary = ALL_REWRITES.get(self.operation_name)
         if rewrite_dictionary is None:
             raise ValueError(
                 f"Operation name {self.operation_name} not found in the rewrite dictionary."
