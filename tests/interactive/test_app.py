@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.get_condensed_passes import AvailablePass
+from xdsl.interactive.transforms.experimental import individual_rewrite_interactive
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
     canonicalize,
@@ -413,10 +414,10 @@ async def test_rewrites():
                 ),
                 AvailablePass(
                     display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
-                    module_pass=individual_rewrite.IndividualRewrite,
+                    module_pass=individual_rewrite_interactive.IndividualRewriteInteractive,
                     pass_spec=list(
                         parse_pipeline(
-                            'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                            'apply-interactive-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
                         )
                     )[0],
                 ),
@@ -432,10 +433,10 @@ async def test_rewrites():
         app.pass_pipeline = (
             *app.pass_pipeline,
             (
-                individual_rewrite.IndividualRewrite,
+                individual_rewrite_interactive.IndividualRewriteInteractive,
                 list(
                     parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                        'apply-interactive-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
                     )
                 )[0],
             ),
