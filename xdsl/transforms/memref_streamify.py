@@ -90,7 +90,8 @@ class StreamifyGenericOpPattern(RewritePattern):
 @dataclass
 class MemrefStreamifyPass(ModulePass):
     """
-    Converts a linalg generic to perfectly nested loops.
+    Converts a memref generic on memrefs to a memref generic on streams, by moving it into
+    a streaming region.
     """
 
     name = "memref-streamify"
