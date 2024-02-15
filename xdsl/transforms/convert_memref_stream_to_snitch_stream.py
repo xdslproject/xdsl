@@ -199,7 +199,8 @@ def strides_for_affine_map(
     affine_map: AffineMap, shape: Sequence[int], factor: int
 ) -> list[int]:
     """
-    Given an iteration space represented as an affine map (for indexing) and a shape (for bounds), returns the corresponding iteration strides for each dimension.
+    Given an iteration space represented as an affine map (for indexing) and a shape (for
+    bounds), returns the corresponding iteration strides for each dimension.
 
     The affine map must not have symbols.
     """
