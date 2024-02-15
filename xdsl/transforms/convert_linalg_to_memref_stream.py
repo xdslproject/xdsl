@@ -22,8 +22,13 @@ class ConvertGenericOpPattern(RewritePattern):
                 "converting linalg.generic with results not supported"
             )
 
+        # The memref_stream.generic op may take as arguments memrefs, scalars, or streams,
+        # the latter of which does not carry shape information. linalg.generic constructs
+        # the nested loop bounds from the shapes of the inputs, so we need to cache that
+        # derived information here, as we may not be able to recover it later.
         ubs = op.get_static_loop_ranges()
         bounds = ArrayAttr(IntAttr(ub) for ub in ubs)
+
         rewriter.replace_matched_op(
             memref_stream.GenericOp(
                 op.inputs,
