@@ -1,15 +1,16 @@
 // RUN: xdsl-opt -p convert-scf-to-riscv-scf %s | filecheck %s
 
 builtin.module {
-  %0 = arith.constant 0 : index
-  %1 = arith.constant 10 : index
-  %2 = arith.constant 1 : index
-  %3 = arith.constant 0 : index
-  %4 = "scf.for"(%0, %1, %2, %3) ({
-  ^0(%5 : index, %6 : index):
-    %7 = arith.addi %5, %6 : index
-    "scf.yield"(%7) : (index) -> ()
-  }) : (index, index, index, index) -> index
+  %c0 = arith.constant 0 : index
+  %c10 = arith.constant 10 : index
+  %c1 = arith.constant 1 : index
+  %i_in = arith.constant 42 : index
+  %f_in = arith.constant 42.0 : f64
+
+  %i_out, %f_out = scf.for %idx = %c0 to %c10 step %c1 iter_args(%i_acc = %i_in, %f_acc = %f_in) -> (index, f64) {
+    %res = arith.addi %idx, %i_acc : index
+    scf.yield %res, %f_acc : index, f64
+  }
 }
 
 // CHECK:      builtin.module {
