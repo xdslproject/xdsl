@@ -18,6 +18,7 @@ where `n` is the number of streaming registers, have a restricted functionality.
 register is configured as a readable stream register, then it cannot be written to, and
 if the register is configured as a writable stream register, then it cannot be read from.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -27,45 +28,100 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
 )
-from xdsl.dialects.stream import (
-    ReadableStreamType,
-    WritableStreamType,
-)
 from xdsl.ir import (
-    Data,
+    Attribute,
     Dialect,
+    ParametrizedAttribute,
     Region,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    attr_def,
+    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
-    operand_def,
+    prop_def,
     region_def,
-    result_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import NoTerminator
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
-class StridePatternType(Data[int], TypeAttribute):
-    name = "snitch_stream.stride_pattern_type"
+class StridePattern(ParametrizedAttribute):
+    """
+    Attribute representing the order and offsets in which elements will be read from or
+    written to a stream.
+
+    ```
+    // 2D access pattern
+    #pat = #snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>
+    // Corresponds to the following locations
+    // for i in range(16):
+    //   for j in range(8):
+    //     yield i * 8 + j * 128
+    // Note that the upper bounds and strides go from the innermost loop outwards
+    ```
+    """
+
+    name = "snitch_stream.stride_pattern"
+
+    ub: ParameterDef[ArrayAttr[IntAttr]]
+    strides: ParameterDef[ArrayAttr[IntAttr]]
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> int:
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
-            return parser.parse_integer()
+            parser.parse_identifier("ub")
+            parser.parse_punctuation("=")
+            ub = ArrayAttr(
+                IntAttr(i)
+                for i in parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+            )
+            parser.parse_punctuation(",")
+            parser.parse_identifier("strides")
+            parser.parse_punctuation("=")
+            strides = ArrayAttr(
+                IntAttr(i)
+                for i in parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+            )
+            return (ub, strides)
 
-    def print_parameter(self, printer: Printer):
+    def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string(str(self.data))
+            printer.print_string("ub = [")
+            printer.print_list(self.ub, lambda attr: printer.print(attr.data))
+            printer.print_string("], strides = [")
+            printer.print_list(self.strides, lambda attr: printer.print(attr.data))
+            printer.print_string("]")
+
+    @staticmethod
+    def from_bounds_and_strides(
+        ub: Sequence[int], strides: Sequence[int]
+    ) -> StridePattern:
+        return StridePattern(
+            (
+                ArrayAttr(IntAttr(i) for i in ub),
+                ArrayAttr(IntAttr(i) for i in strides),
+            )
+        )
+
+    def rank(self):
+        return len(self.ub)
+
+    def verify(self) -> None:
+        if len(self.ub) != len(self.strides):
+            raise VerifyException(
+                f"Expect stride pattern upper bounds {self.ub} to be equal in length to strides {self.strides}"
+            )
 
 
 @irdl_op_definition
@@ -92,7 +148,7 @@ class StreamingRegionOp(IRDLOperation):
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
     """
-    stride_patterns = var_operand_def(StridePatternType)
+    stride_patterns = prop_def(ArrayAttr[StridePattern])
     """
     Stride patterns that define the order of the input and output streams. If there is
     one stride pattern, and more inputs and outputs, the stride pattern is applied to all
@@ -109,113 +165,14 @@ class StreamingRegionOp(IRDLOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
-        stride_patterns: Sequence[SSAValue],
+        stride_patterns: ArrayAttr[StridePattern],
         body: Region,
     ) -> None:
         super().__init__(
-            operands=[inputs, outputs, stride_patterns],
+            operands=[inputs, outputs],
             regions=[body],
-        )
-
-
-@irdl_op_definition
-class StridePatternOp(IRDLOperation):
-    """
-    Specifies a stream access pattern reading from or writing to a pointer.
-    `ub` specifies the upper bounds of the iteration variables.
-    `strides` specifies the strides in bytes of the iteration variables.
-
-    For example, to read sequentially the elements of a 2x3xf32 matrix in row-major order:
-    `ub = [2,3], strides = [12, 4]`
-
-    The index for each iteration will be calculated like this:
-    (0, 0) -> 0*12 + 0*4 = 0
-    (0, 1) -> 0*12 + 1*4 = 4
-    (0, 2) -> 0*12 + 2*4 = 8
-    (1, 0) -> 1*12 + 0*4 = 12
-    (1, 1) -> 1*12 + 1*4 = 16
-    (1, 2) -> 1*12 + 2*4 = 18
-    """
-
-    name = "snitch_stream.stride_pattern"
-
-    pattern = result_def(StridePatternType)
-    ub = attr_def(ArrayAttr[IntAttr])
-    strides = attr_def(ArrayAttr[IntAttr])
-    dm = attr_def(IntAttr)
-
-    def __init__(
-        self,
-        ub: ArrayAttr[IntAttr],
-        strides: ArrayAttr[IntAttr],
-        dm: IntAttr,
-    ):
-        rank = len(ub.data)
-        assert rank == len(strides.data)
-        super().__init__(
-            result_types=[StridePatternType(rank)],
-            attributes={
-                "ub": ub,
-                "strides": strides,
-                "dm": dm,
-            },
-        )
-
-
-@irdl_op_definition
-class StridedReadOp(IRDLOperation):
-    """
-    Generates a stream reading from a pointer according to the provided pattern.
-    """
-
-    name = "snitch_stream.strided_read"
-
-    pointer = operand_def(riscv.IntRegisterType)
-    pattern = operand_def(StridePatternType)
-    stream = result_def(ReadableStreamType[riscv.FloatRegisterType])
-    dm = attr_def(IntAttr)
-
-    def __init__(
-        self,
-        pointer: SSAValue,
-        pattern: SSAValue,
-        register: riscv.FloatRegisterType,
-        dm: IntAttr,
-    ):
-        super().__init__(
-            operands=[pointer, pattern],
-            result_types=[ReadableStreamType(register)],
-            attributes={
-                "dm": dm,
-            },
-        )
-
-
-@irdl_op_definition
-class StridedWriteOp(IRDLOperation):
-    """
-    Generates a stream writing to a pointer according to the provided pattern.
-    """
-
-    name = "snitch_stream.strided_write"
-
-    pointer = operand_def(riscv.IntRegisterType)
-    pattern = operand_def(StridePatternType)
-    stream = result_def(WritableStreamType[riscv.FloatRegisterType])
-    dm = attr_def(IntAttr)
-
-    def __init__(
-        self,
-        pointer: SSAValue,
-        pattern: SSAValue,
-        register: riscv.FloatRegisterType,
-        dm: IntAttr,
-    ):
-        super().__init__(
-            operands=[pointer, pattern],
-            result_types=[WritableStreamType(register)],
-            attributes={
-                "dm": dm,
+            properties={
+                "stride_patterns": stride_patterns,
             },
         )
 
@@ -224,11 +181,8 @@ SnitchStream = Dialect(
     "snitch_stream",
     [
         StreamingRegionOp,
-        StridedReadOp,
-        StridedWriteOp,
-        StridePatternOp,
     ],
     [
-        StridePatternType,
+        StridePattern,
     ],
 )

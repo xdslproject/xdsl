@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated, cast
+from typing import cast
 
 from typing_extensions import Self
 
@@ -30,7 +30,6 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
-    ConstraintVar,
     IRDLOperation,
     attr_def,
     irdl_op_definition,
@@ -125,74 +124,16 @@ class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
 
 
 @irdl_op_definition
-class ReadOp(IRDLOperation, RISCVOp):
+class ReadOp(stream.ReadOperation, RISCVOp):
     name = "riscv_snitch.read"
-
-    T = Annotated[riscv.FloatRegisterType, ConstraintVar("T")]
-
-    stream = operand_def(stream.ReadableStreamType[T])
-    res = result_def(T)
-
-    def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
-        if result_type is None:
-            assert isinstance(stream_type := stream_val.type, stream.ReadableStreamType)
-            stream_type = cast(stream.ReadableStreamType[Attribute], stream_type)
-            result_type = stream_type.element_type
-        super().__init__(operands=[stream_val], result_types=[result_type])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReadOp:
-        parser.parse_characters("from")
-        unresolved = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_attribute()
-        resolved = parser.resolve_operand(
-            unresolved, stream.ReadableStreamType(result_type)
-        )
-        return ReadOp(resolved, result_type)
-
-    def print(self, printer: Printer):
-        printer.print_string(" from ")
-        printer.print(self.stream)
-        printer.print_string(" : ")
-        printer.print_attribute(self.res.type)
 
     def assembly_line(self) -> str | None:
         return None
 
 
 @irdl_op_definition
-class WriteOp(IRDLOperation, RISCVOp):
+class WriteOp(stream.WriteOperation, RISCVOp):
     name = "riscv_snitch.write"
-
-    T = Annotated[riscv.FloatRegisterType, ConstraintVar("T")]
-
-    value = operand_def(T)
-    stream = operand_def(stream.WritableStreamType[T])
-
-    def __init__(self, value: SSAValue, stream: SSAValue):
-        super().__init__(operands=[value, stream])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> WriteOp:
-        unresolved_value = parser.parse_unresolved_operand()
-        parser.parse_characters("to")
-        unresolved_stream = parser.parse_unresolved_operand()
-        parser.parse_punctuation(":")
-        result_type = parser.parse_attribute()
-        resolved_value = parser.resolve_operand(unresolved_value, result_type)
-        resolved_stream = parser.resolve_operand(
-            unresolved_stream, stream.WritableStreamType(result_type)
-        )
-        return WriteOp(resolved_value, resolved_stream)
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.value)
-        printer.print_string(" to ")
-        printer.print_ssa_value(self.stream)
-        printer.print_string(" : ")
-        printer.print_attribute(self.value.type)
 
     def assembly_line(self) -> str | None:
         return None

@@ -8,6 +8,7 @@ from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
+from xdsl.transforms.convert_riscv_scf_for_to_frep import ConvertRiscvScfForToFrepPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
@@ -25,6 +26,7 @@ class TestLowerLinalgToSnitchPass(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PipelinePass(
             [
+                ConvertRiscvScfForToFrepPass(),
                 SnitchRegisterAllocation(),
                 ConvertSnitchStreamToSnitch(),
                 LowerSnitchPass(),

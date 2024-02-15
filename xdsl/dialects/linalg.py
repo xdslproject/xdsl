@@ -356,7 +356,14 @@ class Generic(IRDLOperation):
             res_types = ()
 
         generic = cls(
-            ins, outs, body, indexing_maps, iterator_types, res_types, doc, library_call
+            ins,
+            outs,
+            body,
+            indexing_maps,
+            iterator_types,
+            res_types,
+            doc,
+            library_call,
         )
         generic.attributes |= attrs
         generic.attributes |= extra_attrs
@@ -373,6 +380,12 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 
 @irdl_op_definition
 class AddOp(IRDLOperation):
+    """
+    Adds two tensors elementwise.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgadd-linalgaddop
+    """
+
     name = "linalg.add"
 
     inputs = var_operand_def()
