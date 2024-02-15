@@ -53,5 +53,6 @@ class MLIROptPass(ModulePass):
             rewriter = PatternRewriter(op)
             op.detach_region(op.body)
             op.add_region(rewriter.move_region_contents_to_new_regions(new_module.body))
+            op.attributes = new_module.attributes
         except Exception as e:
             raise DiagnosticException("Error executing mlir-opt pass") from e
