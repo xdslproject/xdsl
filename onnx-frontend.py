@@ -18,19 +18,19 @@ def __():
 
 @app.cell
 def __(mo):
-    a = mo.ui.slider(1, 4, value=2)
+    rank = mo.ui.slider(1, 4, value=2, label="Rank")
 
     mo.md(f"""
     For example, here is a slider, which can take on values from 1 to 4.
 
-    {a}
+    {rank}
     """)
-    return a,
+    return rank,
 
 
 @app.cell
-def __(a, mo):
-    shape = list(range(2, 2 + a.value))
+def __(mo, rank):
+    shape = list(range(2, 2 + rank.value))
 
     mo.md(f"""
     We use the slider to determine the shape of our inputs and outputs:
@@ -296,7 +296,7 @@ def __(CanonicalizePass, ctx, regalloc_module):
 def __(assembly_module, mo, riscv_code):
     assembly = riscv_code(assembly_module)
 
-    assembly
+    print(assembly)
 
     mo.md("""
     This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.
@@ -305,7 +305,71 @@ def __(assembly_module, mo, riscv_code):
 
 
 @app.cell
-def __(shape):
+def __(
+    CanonicalizePass,
+    PipelinePass,
+    bufferized_module,
+    convert_arith_to_riscv,
+    convert_func_to_riscv_func,
+    convert_memref_to_riscv,
+    convert_scf_to_riscv_scf,
+    ctx,
+    mo,
+    reconcile_unrealized_casts,
+):
+    from xdsl.transforms import convert_linalg_to_memref_stream, memref_streamify, convert_memref_stream_to_loops, convert_memref_stream_to_snitch_stream, arith_add_fastmath, loop_hoist_memref, lower_affine, convert_riscv_scf_for_to_frep, dead_code_elimination, test_lower_linalg_to_snitch
+
+    snitch_module = bufferized_module.clone()
+
+    pass_pipeline = PipelinePass([
+        convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
+        memref_streamify.MemrefStreamifyPass(),
+        convert_memref_stream_to_loops.ConvertMemrefStreamToLoopsPass(),
+        convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitch(),
+        arith_add_fastmath.AddArithFastMathFlagsPass(),
+        loop_hoist_memref.LoopHoistMemrefPass(),
+        lower_affine.LowerAffinePass(),
+        convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
+        convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
+        convert_arith_to_riscv.ConvertArithToRiscvPass(),
+        CanonicalizePass(),
+        convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
+        dead_code_elimination.DeadCodeElimination(),
+        reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
+        convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
+    ])
+
+    pass_pipeline.apply(ctx, snitch_module)
+
+    print(snitch_module)
+
+
+
+    mo.md("""
+    ### Compiling to Snitch
+
+    xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation:
+    """)
+    return (
+        arith_add_fastmath,
+        convert_linalg_to_memref_stream,
+        convert_memref_stream_to_loops,
+        convert_memref_stream_to_snitch_stream,
+        convert_riscv_scf_for_to_frep,
+        dead_code_elimination,
+        loop_hoist_memref,
+        lower_affine,
+        memref_streamify,
+        pass_pipeline,
+        snitch_module,
+        test_lower_linalg_to_snitch,
+    )
+
+
+@app.cell
+def __(ctx, mo, rank, riscv_module, shape):
+    from xdsl.interpreter import Interpreter, OpCounter
+    from xdsl.interpreters import register_implementations
     from math import prod
 
     from xdsl.interpreters.riscv import RawPtr
@@ -316,35 +380,144 @@ def __(shape):
     rhs = RawPtr.new_float64([(i + 1) / 100 for i in range(n)])
 
     lhs.float64.get_list(n), rhs.float64.get_list(n)
-    return RawPtr, lhs, n, prod, rhs
 
+    riscv_op_counter = OpCounter()
+    riscv_interpreter = Interpreter(riscv_module, listener=riscv_op_counter)
 
-@app.cell
-def __(a, ctx, lhs, mo, n, rhs, riscv_module, shape):
-    from xdsl.interpreter import Interpreter
-    from xdsl.interpreters import register_implementations
+    register_implementations(riscv_interpreter, ctx, include_wgpu=False)
 
-    interpreter = Interpreter(riscv_module)
-
-    register_implementations(interpreter, ctx, include_wgpu=False)
-
-    (res,) = interpreter.call_op("main_graph", (lhs, rhs))
-
-    res.float64.get_list(n)
+    (riscv_res,) = riscv_interpreter.call_op("main_graph", (lhs, rhs))
 
     mo.md(f"""
     One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
 
-    Rank: {a}
-    Shape: {shape}
+    {rank}
 
     ```
+    Shape:  {shape}
     LHS:    {lhs.float64.get_list(n)}
     RHS:    {rhs.float64.get_list(n)}
-    Result: {res.float64.get_list(n)}
+    Result: {riscv_res.float64.get_list(n)}
     ```
     """)
-    return Interpreter, interpreter, register_implementations, res
+    return (
+        Interpreter,
+        OpCounter,
+        RawPtr,
+        lhs,
+        n,
+        prod,
+        register_implementations,
+        rhs,
+        riscv_interpreter,
+        riscv_op_counter,
+        riscv_res,
+    )
+
+
+@app.cell
+def __(
+    Interpreter,
+    OpCounter,
+    ctx,
+    lhs,
+    mo,
+    n,
+    register_implementations,
+    rhs,
+    snitch_module,
+):
+    snitch_op_counter = OpCounter()
+    snitch_interpreter = Interpreter(snitch_module, listener=snitch_op_counter)
+
+    register_implementations(snitch_interpreter, ctx, include_wgpu=False)
+
+    (snitch_res,) = snitch_interpreter.call_op("main_graph", (lhs, rhs))
+
+    mo.md(f"""
+    We can also interpret the Snitch version of the code to compare the results:
+
+    Snitch result: {snitch_res.float64.get_list(n)}
+    """)
+    return snitch_interpreter, snitch_op_counter, snitch_res
+
+
+@app.cell
+def __(mo, rank, riscv_op_counter, snitch_op_counter):
+    rv_dict = dict(riscv_op_counter.ops)
+    sn_dict = dict(snitch_op_counter.ops)
+
+    all_keys = sorted(set(rv_dict) | set(sn_dict))
+    max_len_key = max(len(k) for k in all_keys)
+    max_len_value = max(len(str(val)) for val in (*rv_dict.values(), *sn_dict.values()))
+
+    def format_row(key: str, *values: str):
+        paddings = tuple(" " * (max_len_value - len(val)) for val in values)
+        vals = "".join(f"\t{padding}{val}" for padding, val in zip(paddings, values))
+        return f"{key}{' ' * (max_len_key - len(key))}{vals}\n"
+
+    rows = " " * max_len_key + "\trv\tsn\tdiff\n"
+
+    ZERO_VAL = "."
+
+    for key in all_keys:
+        rv_val = rv_dict.get(key, 0)
+        sn_val = sn_dict.get(key, 0)
+        diff_val = sn_val - rv_val
+        
+        rv_str = str(rv_val) if rv_val else ZERO_VAL
+        sn_str = str(sn_val) if sn_val else ZERO_VAL
+        diff_str = (f"+{diff_val}" if diff_val > 0 else f"{diff_val}") if diff_val else "="
+        
+        rows += key
+        rows += " " * (max_len_key - len(key))
+        rows += "\t"
+        rows += " " * (max_len_value - len(rv_str))
+        rows += rv_str
+        rows += "\t"
+        rows += " " * (max_len_value - len(sn_str))
+        rows += sn_str
+        rows += "\t"
+        rows += " " * (max_len_value - len(diff_str))
+        rows += diff_str
+        rows += "\n"
+
+    rv_sum = sum(rv_dict.values())
+    sn_sum = sum(sn_dict.values())
+    total_diff = sn_sum - rv_sum
+
+    rows += format_row("total", str(rv_sum), str(sn_sum), str(total_diff))
+
+
+    mo.md(f"""
+    We can also compare the number of instructions executed in our interpreter runs:
+
+    {rank}
+
+    ```
+    {rows}
+    ```
+    """)
+    return (
+        ZERO_VAL,
+        all_keys,
+        diff_str,
+        diff_val,
+        format_row,
+        key,
+        max_len_key,
+        max_len_value,
+        rows,
+        rv_dict,
+        rv_str,
+        rv_sum,
+        rv_val,
+        sn_dict,
+        sn_str,
+        sn_sum,
+        sn_val,
+        total_diff,
+    )
 
 
 if __name__ == "__main__":
