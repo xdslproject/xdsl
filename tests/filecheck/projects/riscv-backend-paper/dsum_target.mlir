@@ -1,12 +1,14 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
-  riscv.assembly_section ".text" {
-    riscv.directive ".globl" "dsum"
-    riscv.directive ".p2align" "2"
-    riscv_func.func @dsum(%arg0 : !riscv.reg<a0>, %arg1 : !riscv.reg<a1>, %arg2 : !riscv.reg<a2>) -> !riscv.reg<a0> {
-      %0 = riscv.mv %arg0 : (!riscv.reg<a0>) -> !riscv.reg<>
-      %1 = riscv.mv %arg1 : (!riscv.reg<a1>) -> !riscv.reg<>
-      %2 = riscv.mv %arg2 : (!riscv.reg<a2>) -> !riscv.reg<>
+    func.func @dsum(
+      %arg0 : memref<8x16xf64>,
+      %arg1 : memref<8x16xf64>,
+      %arg2 : memref<8x16xf64>
+    ) -> memref<8x16xf64> {
+      %0 = builtin.unrealized_conversion_cast %arg0 : memref<8x16xf64> to !riscv.reg<>
+      %1 = builtin.unrealized_conversion_cast %arg1 : memref<8x16xf64> to !riscv.reg<>
+      %2 = builtin.unrealized_conversion_cast %arg2 : memref<8x16xf64> to !riscv.reg<>
+
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c128 = riscv.li 128 : () -> !riscv.reg<>
@@ -23,10 +25,11 @@
           riscv_scf.yield
         }
       }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
-      %12 = riscv.mv %2 : (!riscv.reg<>) -> !riscv.reg<a0>
-      riscv_func.return %12 : !riscv.reg<a0>
+
+      %res = builtin.unrealized_conversion_cast %2 : !riscv.reg<> to memref<8x16xf64>
+      func.return %res : memref<8x16xf64>
     }
-  }
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl dsum
