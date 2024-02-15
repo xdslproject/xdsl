@@ -3,7 +3,7 @@ import pytest
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import arith, func, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp, i1, i32
-from xdsl.interpreter import Interpreter
+from xdsl.interpreter import Interpreter, OpCounter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.scf import ScfFunctions
@@ -77,3 +77,21 @@ def test_if():
 
     assert scf_interp(module_op, "indicator", True) == 1
     assert scf_interp(module_op, "indicator", False) == 0
+
+
+def test_tracer():
+    tracer = OpCounter()
+    interpreter = Interpreter(sum_to_for_op.clone(), watcher=tracer)
+    interpreter.register_implementations(ScfFunctions())
+    interpreter.register_implementations(FuncFunctions())
+    interpreter.register_implementations(ArithFunctions())
+    (result,) = interpreter.call_op("sum_to", (5,))
+
+    assert result == 10
+    assert dict(tracer.ops) == {
+        "arith.constant": 3,
+        "scf.for": 1,
+        "scf.yield": 5,
+        "arith.addi": 5,
+        "func.return": 1,
+    }
