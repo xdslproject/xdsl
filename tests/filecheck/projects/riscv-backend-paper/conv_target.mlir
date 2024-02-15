@@ -1,19 +1,16 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
-riscv.assembly_section ".text" {
-  riscv.directive ".globl" "conv_2d_nchw_fchw_d1_s1_3x3"
-  riscv.directive ".p2align" "2"
 // x[ M x K ]
 // y[ K x N ]
 // g[ M x N ]
-riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
-    %X: !riscv.reg<a0>,
-    %Y: !riscv.reg<a1>,
-    %Z: !riscv.reg<a2>
+func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
+    %X: memref<1x1x8x8xf64>,
+    %Y: memref<1x1x3x3xf64>,
+    %Z: memref<1x1x6x6xf64>
 ) -> () {
-    %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
-    %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
-    %Z_moved = riscv.mv %Z : (!riscv.reg<a2>) -> !riscv.reg<>
+    %X_moved = builtin.unrealized_conversion_cast %X : memref<1x1x8x8xf64> to !riscv.reg<>
+    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<1x1x3x3xf64> to !riscv.reg<>
+    %Z_moved = builtin.unrealized_conversion_cast %Z : memref<1x1x6x6xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
@@ -48,9 +45,9 @@ riscv_func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       }
     }) : (!riscv.reg<>, !riscv.reg<>) -> ()
 
-    riscv_func.return
+    func.return
   }
-}
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl conv_2d_nchw_fchw_d1_s1_3x3

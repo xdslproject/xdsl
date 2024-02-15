@@ -47,7 +47,7 @@ class StreamingRegionOp(IRDLOperation):
     read from and write to within the body of the operation.
 
     Within the loop body, memrefs that are streamed must not be otherwise accessed
-    via memref.load, memref.store or any other access mean, including extraction (e.g.: memref.view).
+    via memref.load, memref.store or any other access means, including extraction (e.g.: memref.view).
     """
 
     name = "memref_stream.streaming_region"
