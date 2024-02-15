@@ -70,10 +70,15 @@ class LowerFuncCallOp(RewritePattern):
             raise ValueError("Cannot lower func.call with more than 2 results")
 
         cast_operand_ops, register_operands = cast_to_regs(op.arguments)
-        move_operand_ops, moved_operands = move_to_a_regs(register_operands)
+        operand_types = tuple(arg.type for arg in op.arguments)
+        move_operand_ops, moved_operands = move_to_a_regs(
+            register_operands, operand_types
+        )
         new_result_types = list(a_regs(op.results))
         new_op = riscv_func.CallOp(op.callee, moved_operands, new_result_types)
-        move_result_ops, moved_results = move_to_unallocated_regs(new_op.results)
+        move_result_ops, moved_results = move_to_unallocated_regs(
+            new_op.results, operand_types
+        )
         cast_result_ops = [
             UnrealizedConversionCastOp.get((moved_result,), (old_result.type,))
             for moved_result, old_result in zip(moved_results, op.results)
@@ -101,7 +106,9 @@ class LowerReturnOp(RewritePattern):
             raise ValueError("Cannot lower func.return with more than 2 arguments")
 
         cast_ops, register_values = cast_to_regs(op.arguments)
-        move_ops, moved_values = move_to_a_regs(register_values)
+        move_ops, moved_values = move_to_a_regs(
+            register_values, tuple(arg.type for arg in op.arguments)
+        )
 
         rewriter.insert_op_before_matched_op(cast_ops)
         rewriter.insert_op_before_matched_op(move_ops)
