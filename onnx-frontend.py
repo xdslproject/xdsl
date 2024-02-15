@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.1.77"
+__generated_with = "0.2.5"
 app = marimo.App()
 
 
@@ -8,34 +8,49 @@ app = marimo.App()
 def __():
     import marimo as mo
 
-    return (mo,)
+    mo.md("""
+    # ONNX to Snitch
+
+    This notebook uses Marimo, a Jupyter-like notebook with interactive UI elements and reactive state. 
+    """)
+    return mo,
 
 
 @app.cell
 def __(mo):
     a = mo.ui.slider(1, 4, value=2)
-    a
-    return (a,)
+
+    mo.md(f"""
+    For example, here is a slider, which can take on values from 1 to 4.
+
+    {a}
+    """)
+    return a,
 
 
 @app.cell
-def __(a):
-    dims = list(range(2, 2 + a.value))
-    dims
-    return (dims,)
+def __(a, mo):
+    shape = list(range(2, 2 + a.value))
+
+    mo.md(f"""
+    We use the slider to determine the shape of our inputs and outputs:
+
+    {shape}
+    """)
+    return shape,
 
 
 @app.cell
-def __(dims):
+def __(mo, shape):
     import onnx
     from onnx import AttributeProto, GraphProto, TensorProto, ValueInfoProto, helper
 
     # Create one input (ValueInfoProto)
-    X1 = helper.make_tensor_value_info("X1", TensorProto.DOUBLE, dims)
-    X2 = helper.make_tensor_value_info("X2", TensorProto.DOUBLE, dims)
+    X1 = helper.make_tensor_value_info("X1", TensorProto.DOUBLE, shape)
+    X2 = helper.make_tensor_value_info("X2", TensorProto.DOUBLE, shape)
 
     # Create one output (ValueInfoProto)
-    Y = helper.make_tensor_value_info("Y", TensorProto.DOUBLE, dims)
+    Y = helper.make_tensor_value_info("Y", TensorProto.DOUBLE, shape)
 
     # Create a node (NodeProto) - This is based on Pad-11
     node_def = helper.make_node(
@@ -64,6 +79,12 @@ def __(dims):
     onnx.checker.check_model(model_def)
     # onnx.save(model_def, "add.onnx")
     print("The model is checked!")
+
+    mo.md(f"""
+    ### The ONNX model
+
+    We use the ONNX API to build a simple function, one that returns the elementwise sum of two arrays of shape {shape}
+    """)
     return (
         AttributeProto,
         GraphProto,
@@ -82,24 +103,31 @@ def __(dims):
 
 
 @app.cell
-def __():
+def __(mo):
     from xdsl.ir import Attribute, SSAValue
 
+    mo.md("""
+    We then convert the ONNX Graph to the xDSL representation, in the onnx dialect.
+    """)
     return Attribute, SSAValue
 
 
 @app.cell
-def __(model_def):
+def __(mo, model_def):
     from xdsl.frontend.onnx import build_module
 
-    init_module = build_module(model_def.graph)
+    init_module = build_module(model_def.graph).clone()
 
-    str(init_module)
+    print(init_module)
+
+    mo.md("""
+    Here is the same function, it takes two `tensor` values of our chosen shape, passes them as operands to the `onnx.Add` operation, and returns it.
+    """)
     return build_module, init_module
 
 
 @app.cell
-def __(init_module):
+def __(init_module, mo):
     from xdsl.ir import MLContext
     from xdsl.tools.command_line_tool import get_all_dialects
     from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
@@ -109,11 +137,15 @@ def __(init_module):
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
 
-    linalg_module = init_module
+    linalg_module = init_module.clone()
 
     ConvertOnnxToLinalgPass().apply(ctx, linalg_module)
 
-    str(linalg_module)
+    print(linalg_module)
+
+    mo.md("""
+    We can use a pass implemented in xDSL to convert the ONNX operations to builtin operations, here we can use the `tensor.empty` op to create our output buffer, and `linalg.add` to represent the addition in destination-passing style.
+    """)
     return (
         ConvertOnnxToLinalgPass,
         MLContext,
@@ -126,22 +158,26 @@ def __(init_module):
 
 
 @app.cell
-def __(ctx, linalg_module):
+def __(ctx, linalg_module, mo):
     from xdsl.transforms.mlir_opt import MLIROptPass
 
-    generalized_module = linalg_module
+    generalized_module = linalg_module.clone()
 
     MLIROptPass(arguments=["--linalg-generalize-named-ops"]).apply(
         ctx, generalized_module
     )
 
-    str(generalized_module)
+    print(generalized_module)
+
+    mo.md("""
+    We can also call into MLIR, here to convert `linalg.add` to `linalg.generic`, a representation of Einstein summation.
+    """)
     return MLIROptPass, generalized_module
 
 
 @app.cell
-def __(MLIROptPass, ctx, generalized_module):
-    bufferized_module = generalized_module
+def __(MLIROptPass, ctx, generalized_module, mo):
+    bufferized_module = generalized_module.clone()
 
     MLIROptPass(
         arguments=[
@@ -150,20 +186,24 @@ def __(MLIROptPass, ctx, generalized_module):
         ]
     ).apply(ctx, bufferized_module)
 
-    str(bufferized_module)
-    return (bufferized_module,)
+    print(bufferized_module)
+
+    mo.md("""
+    We then use MLIR to bufferize our function.
+    """)
+    return bufferized_module,
 
 
 @app.cell
 def __(MLIROptPass, bufferized_module, ctx):
-    scf_module = bufferized_module
+    scf_module = bufferized_module.clone()
 
     MLIROptPass(
         arguments=["--convert-linalg-to-loops", "--lower-affine", "--canonicalize"]
     ).apply(ctx, scf_module)
 
-    str(scf_module)
-    return (scf_module,)
+    print(scf_module)
+    return scf_module,
 
 
 @app.cell
@@ -177,7 +217,7 @@ def __(ctx, scf_module):
     from xdsl.passes import PipelinePass
     from xdsl.transforms import reconcile_unrealized_casts
 
-    riscv_module = scf_module
+    riscv_module = scf_module.clone()
 
     lower_to_riscv = PipelinePass(
         [
@@ -189,7 +229,7 @@ def __(ctx, scf_module):
         ]
     ).apply(ctx, riscv_module)
 
-    str(riscv_module)
+    print(riscv_module)
     return (
         PipelinePass,
         convert_arith_to_riscv,
@@ -224,7 +264,7 @@ def __(PipelinePass, ctx, riscv_module):
         ]
     ).apply(ctx, regalloc_module)
 
-    str(regalloc_module)
+    print(regalloc_module)
     return (
         CanonicalizePass,
         ConvertSnitchStreamToSnitch,
@@ -253,20 +293,24 @@ def __(CanonicalizePass, ctx, regalloc_module):
 
 
 @app.cell
-def __(assembly_module, riscv_code):
+def __(assembly_module, mo, riscv_code):
     assembly = riscv_code(assembly_module)
 
     assembly
-    return (assembly,)
+
+    mo.md("""
+    This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.
+    """)
+    return assembly,
 
 
 @app.cell
-def __(dims):
+def __(shape):
     from math import prod
 
     from xdsl.interpreters.riscv import RawPtr
 
-    n = prod(dims)
+    n = prod(shape)
 
     lhs = RawPtr.new_float64([i + 1 for i in range(n)])
     rhs = RawPtr.new_float64([(i + 1) / 100 for i in range(n)])
@@ -276,7 +320,7 @@ def __(dims):
 
 
 @app.cell
-def __(ctx, lhs, n, rhs, riscv_module):
+def __(a, ctx, lhs, mo, n, rhs, riscv_module, shape):
     from xdsl.interpreter import Interpreter
     from xdsl.interpreters import register_implementations
 
@@ -287,13 +331,20 @@ def __(ctx, lhs, n, rhs, riscv_module):
     (res,) = interpreter.call_op("main_graph", (lhs, rhs))
 
     res.float64.get_list(n)
+
+    mo.md(f"""
+    One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
+
+    Rank: {a}
+    Shape: {shape}
+
+    ```
+    LHS:    {lhs.float64.get_list(n)}
+    RHS:    {rhs.float64.get_list(n)}
+    Result: {res.float64.get_list(n)}
+    ```
+    """)
     return Interpreter, interpreter, register_implementations, res
-
-
-@app.cell
-def __(a):
-    a
-    return
 
 
 if __name__ == "__main__":
