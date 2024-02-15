@@ -19,9 +19,7 @@ memref.store %v0, %m[%i0, %i1] {"nontemporal" = true} : memref<2x3xi32>
 %v2 = memref.load %m[%i0, %i1] {"nontemporal" = false} : memref<2x3xi32>
 %v3 = memref.load %m[%i0, %i1] {"nontemporal" = true} : memref<2x3xi32>
 %r1 = memref.expand_shape %r [[0, 1], [2]] : memref<10x3xi32> into memref<5x2x3xi32>
-%r2 = memref.collapse_shape %r [[0, 1]] : memref<10x3xi32> into memref<30xi32>
-
-%bla = tensor.empty() : tensor<2x3xf32>
+%r2 = memref.collapse_shape %r [[0, 1]] : memref<10x3xi32> into memref<30xi32> 
 
 // CHECK:       module {
 // CHECK-NEXT:    func.func @memref_alloca_scope() {
@@ -41,5 +39,5 @@ memref.store %v0, %m[%i0, %i1] {"nontemporal" = true} : memref<2x3xi32>
 // CHECK-NEXT:   %{{.*}} = memref.load %3[%1, %2] : memref<2x3xi32>
 // CHECK-NEXT:   %{{.*}} = memref.load %3[%1, %2] {nontemporal = true} : memref<2x3xi32>
 // CHECK-NEXT:   %{{.*}} = memref.expand_shape %4 [[0, 1], [2]] : memref<10x3xi32> into memref<5x2x3xi32>
-// CHECK-NEXT:   %{{.*}} = memref.collapse_shape %4 [[0, 1]] : memref<10x3xi32> into memref<30xi32>
+// CHECK-NEXT:   %{{.*}} = memref.collapse_shape %4 [[0, 1]] : memref<10x3xi32> into memref<30xi32> 
 // CHECK-NEXT: }

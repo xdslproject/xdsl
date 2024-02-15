@@ -23,6 +23,7 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
     linalg.yield %acc : f32
 } -> tensor<2x3xf32>
 
+
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:  module {
