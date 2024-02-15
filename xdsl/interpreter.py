@@ -414,7 +414,7 @@ class Interpreter:
     the `register_functions` method.
     """
 
-    class Watcher:
+    class Listener:
         """
         Base class for observing the operations that are interpreted during a run.
         """
@@ -438,7 +438,7 @@ class Interpreter:
     """
     Runtime data associated with an interpreter functions implementation.
     """
-    watcher: Watcher = field(default=Watcher())
+    listener: Listener = field(default=Listener())
 
     @property
     def symbol_table(self) -> dict[str, Operation]:
@@ -496,9 +496,9 @@ class Interpreter:
         self._impls.register_from(impls, override=override)
 
     def _run_op(self, op: Operation, inputs: PythonValues) -> OpImplResult:
-        self.watcher.will_interpret_op(op, inputs)
+        self.listener.will_interpret_op(op, inputs)
         result = self._impls.run(self, op, inputs)
-        self.watcher.did_interpret_op(op, result.values)
+        self.listener.did_interpret_op(op, result.values)
         return result
 
     def run_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
@@ -641,7 +641,7 @@ class Interpreter:
 
 
 @dataclass
-class OpCounter(Interpreter.Watcher):
+class OpCounter(Interpreter.Listener):
     """
     Counts the number of times that an op has been run by the interpreter.
     """
