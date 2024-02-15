@@ -19,13 +19,12 @@ class AddOpLowering(RewritePattern):
     def match_and_rewrite(self, add: onnx.Add, rewriter: PatternRewriter, /):
         lhs_type = add.lhs.type
         rhs_type = add.rhs.type
-
         if isinstance(lhs_type, TensorType) and isinstance(rhs_type, TensorType):
             lhs_shape = lhs_type.get_shape()
             rhs_shape = rhs_type.get_shape()
 
-        if 1 in lhs_shape or 1 in rhs_shape:
-            raise NotImplementedError()
+            if 1 in lhs_shape or 1 in rhs_shape:
+                raise NotImplementedError()
 
         rewriter.replace_matched_op(
             (
