@@ -1,8 +1,9 @@
-from onnx import GraphProto, NodeProto, TensorShapeProto, TypeProto, ValueInfoProto
+from onnx import GraphProto, NodeProto, TypeProto, ValueInfoProto
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, onnx
-from xdsl.dialects.builtin import ModuleOp, TensorType, f32, f64
+from xdsl.dialects.builtin import ModuleOp
+from xdsl.frontend.onnx.shape_type import get_tensor_type
 from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import IRDLOperation
 
@@ -14,29 +15,6 @@ class Ctx:
     def __init__(self):
         self.type_by_name = {}
         self.value_by_name = {}
-
-
-ELEM_TYPE = {
-    1: f32,
-    11: f64,
-}
-
-
-def get_elem_type(code: int) -> Attribute:
-    if code in ELEM_TYPE:
-        return ELEM_TYPE[code]
-    else:
-        raise ValueError(f"Unknown elem_type: {code}")
-
-
-def get_shape(s: TensorShapeProto) -> tuple[int, ...]:
-    return tuple(dim.dim_value for dim in s.dim)
-
-
-def get_tensor_type(tensor: TypeProto.Tensor) -> TensorType[Attribute]:
-    elem_type = get_elem_type(tensor.elem_type)
-    shape = get_shape(tensor.shape)
-    return TensorType(elem_type, shape)
 
 
 def _get_type(type: TypeProto) -> Attribute:
