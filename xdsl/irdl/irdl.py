@@ -48,7 +48,7 @@ from xdsl.utils.hints import (
     get_type_var_from_generic_class,
     get_type_var_mapping,
 )
-from xdsl.utils.runtime_final import runtime_final
+from xdsl.utils.runtime_final import is_runtime_final, runtime_final
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -212,7 +212,9 @@ class BaseAttr(AttrConstraint):
             )
 
     def get_unique_base(self) -> type[Attribute] | None:
-        return self.attr
+        if is_runtime_final(self.attr):
+            return self.attr
+        return None
 
 
 def attr_constr_coercion(
@@ -374,7 +376,9 @@ class ParamAttrConstraint(AttrConstraint):
         }
 
     def get_unique_base(self) -> type[Attribute] | None:
-        return self.base_attr
+        if is_runtime_final(self.base_attr):
+            return self.base_attr
+        return None
 
 
 def _irdl_list_to_attr_constraint(
