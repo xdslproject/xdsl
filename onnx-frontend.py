@@ -317,9 +317,9 @@ def __(
     mo,
     reconcile_unrealized_casts,
 ):
-    from xdsl.transforms import convert_linalg_to_memref_stream, memref_streamify, convert_memref_stream_to_loops, convert_memref_stream_to_snitch_stream, arith_add_fastmath, loop_hoist_memref, lower_affine, convert_riscv_scf_for_to_frep, dead_code_elimination, test_lower_linalg_to_snitch
+    from xdsl.transforms import convert_linalg_to_memref_stream, memref_streamify, convert_memref_stream_to_loops, convert_memref_stream_to_snitch_stream, arith_add_fastmath, loop_hoist_memref, lower_affine, convert_riscv_scf_for_to_frep, dead_code_elimination
 
-    snitch_module = bufferized_module.clone()
+    snitch_stream_module = bufferized_module.clone()
 
     pass_pipeline = PipelinePass([
         convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
@@ -339,16 +339,16 @@ def __(
         convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
     ])
 
-    pass_pipeline.apply(ctx, snitch_module)
+    pass_pipeline.apply(ctx, snitch_stream_module)
 
-    print(snitch_module)
+    print(snitch_stream_module)
 
 
 
     mo.md("""
     ### Compiling to Snitch
 
-    xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation:
+    xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation to represent a high-level, structured, but Snitch-specific representation of the code:
     """)
     return (
         arith_add_fastmath,
@@ -361,9 +361,25 @@ def __(
         lower_affine,
         memref_streamify,
         pass_pipeline,
-        snitch_module,
-        test_lower_linalg_to_snitch,
+        snitch_stream_module,
     )
+
+
+@app.cell
+def __(ctx, mo, riscv_code, snitch_stream_module):
+    from xdsl.transforms import test_lower_linalg_to_snitch
+
+    snitch_asm_module = snitch_stream_module.clone()
+
+
+    test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass().apply(ctx, snitch_asm_module)
+
+    print(riscv_code(snitch_asm_module))
+
+    mo.md("""
+    We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:
+    """)
+    return snitch_asm_module, test_lower_linalg_to_snitch
 
 
 @app.cell
@@ -425,10 +441,10 @@ def __(
     n,
     register_implementations,
     rhs,
-    snitch_module,
+    snitch_stream_module,
 ):
     snitch_op_counter = OpCounter()
-    snitch_interpreter = Interpreter(snitch_module, listener=snitch_op_counter)
+    snitch_interpreter = Interpreter(snitch_stream_module, listener=snitch_op_counter)
 
     register_implementations(snitch_interpreter, ctx, include_wgpu=False)
 
@@ -464,11 +480,11 @@ def __(mo, rank, riscv_op_counter, snitch_op_counter):
         rv_val = rv_dict.get(key, 0)
         sn_val = sn_dict.get(key, 0)
         diff_val = sn_val - rv_val
-        
+
         rv_str = str(rv_val) if rv_val else ZERO_VAL
         sn_str = str(sn_val) if sn_val else ZERO_VAL
         diff_str = (f"+{diff_val}" if diff_val > 0 else f"{diff_val}") if diff_val else "="
-        
+
         rows += key
         rows += " " * (max_len_key - len(key))
         rows += "\t"
