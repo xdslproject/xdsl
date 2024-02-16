@@ -387,6 +387,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = (args[0] + immediate,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.SubOp)
+    def run_sub(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SubOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] - args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.SlliOp)
     def run_shift_left(
         self,
