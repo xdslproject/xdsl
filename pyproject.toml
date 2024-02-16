@@ -33,7 +33,7 @@ platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
 
 [tool.setuptools.package-data]
-xdsl = ["py.typed", "interactive/*.tcss", "_version.py", "interactive/*.tcss"]
+xdsl = ["py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
