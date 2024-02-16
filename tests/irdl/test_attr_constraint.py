@@ -41,6 +41,7 @@ class AttrB(Base):
         (BaseAttr(Base), None),
         (BaseAttr(AttrA), AttrA),
         (AnyAttr(), None),
+        (AnyOf([EqAttrConstraint(AttrB([AttrA()])), AnyAttr()]), None),
         (AnyOf([EqAttrConstraint(AttrB([AttrA()])), BaseAttr(AttrA)]), None),
         (AnyOf([EqAttrConstraint(AttrB([AttrA()])), BaseAttr(AttrB)]), AttrB),
         (AllOf([AnyAttr(), BaseAttr(Base)]), None),
