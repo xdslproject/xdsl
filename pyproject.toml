@@ -31,7 +31,9 @@ xdsl-gui = "xdsl.interactive.app:main"
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
-package-data = { "xdsl" = ["py.typed"] }
+
+[tool.setuptools.package-data]
+xdsl = ["py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
