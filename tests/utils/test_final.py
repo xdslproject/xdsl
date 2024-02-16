@@ -1,21 +1,21 @@
 import pytest
 
-from xdsl.utils.final import final, is_final
+from xdsl.utils.runtime_final import is_runtime_final, runtime_final
 
 
 class NotFinal:
     """A non-Final class."""
 
 
-@final
+@runtime_final
 class Final:
     """A Final class."""
 
 
-def test_is_final():
-    """Check that `is_final` returns the correct value."""
-    assert not is_final(NotFinal)
-    assert is_final(Final)
+def test_is_runtime_final():
+    """Check that `is_runtime_final` returns the correct value."""
+    assert not is_runtime_final(NotFinal)
+    assert is_runtime_final(Final)
 
 
 def test_final_inheritance_error():

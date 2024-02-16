@@ -43,12 +43,12 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.final import final
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
     get_type_var_mapping,
 )
+from xdsl.utils.runtime_final import runtime_final
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -2339,7 +2339,7 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
 
     new_fields["get_irdl_definition"] = get_irdl_definition
 
-    return final(
+    return runtime_final(
         dataclass(frozen=True, init=False)(
             type.__new__(
                 type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields}
@@ -2355,7 +2355,7 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return final(
+        return runtime_final(
             dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
                 type(
                     cls.__name__,

@@ -9,7 +9,7 @@ def _init_subclass(cls: type, *args: Any, **kwargs: Any) -> None:
 C = TypeVar("C", bound=type)
 
 
-def final(cls: C) -> C:
+def runtime_final(cls: C) -> C:
     """Prevent a class from being subclassed at runtime."""
 
     # It is safe to discard the previous __init_subclass__ method as anyway
@@ -21,6 +21,6 @@ def final(cls: C) -> C:
     return cls
 
 
-def is_final(cls: type) -> bool:
+def is_runtime_final(cls: type) -> bool:
     """Check if a class is final."""
     return hasattr(cls, "__final__")
