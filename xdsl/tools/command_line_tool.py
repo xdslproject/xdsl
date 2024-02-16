@@ -391,6 +391,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return lower_snitch.LowerSnitchPass
 
+    def get_memref_streamify():
+        from xdsl.transforms import memref_streamify
+
+        return memref_streamify.MemrefStreamifyPass
+
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
 
@@ -539,6 +544,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lower-riscv-func": get_lower_riscv_func,
         "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
         "lower-snitch": get_lower_snitch,
+        "memref-streamify": get_memref_streamify,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,
