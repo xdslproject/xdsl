@@ -1,5 +1,0 @@
-include versioneer.py
-include xdsl/_version.py
-include requirements.txt requirements-optional.txt
-include xdsl/py.typed
-include xdsl/interactive/*.tcss
