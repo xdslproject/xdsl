@@ -288,7 +288,7 @@ def __(CanonicalizePass, ctx, regalloc_module):
     ConvertRiscvScfToRiscvCfPass().apply(ctx, assembly_module)
     CanonicalizePass().apply(ctx, assembly_module)
 
-    str(assembly_module)
+    print(assembly_module)
     return ConvertRiscvScfToRiscvCfPass, assembly_module, riscv_code
 
 
