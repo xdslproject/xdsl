@@ -79,6 +79,33 @@ class RawPtr:
         return RawPtr.new("<i", [(el,) for el in els])
 
     @property
+    def int64(self) -> TypedPtr[int]:
+        return TypedPtr(self, "<I")
+
+    @staticmethod
+    def new_int64(els: Sequence[int]) -> RawPtr:
+        return RawPtr.new("<I", [(el,) for el in els])
+
+    @staticmethod
+    def index_format_for_bitwidth(index_bitwidth: int) -> str:
+        match index_bitwidth:
+            case 32:
+                return "<i"
+            case 64:
+                return "<I"
+            case _:
+                raise ValueError(f"Unsupported index bitwidth {index_bitwidth}")
+
+    def index(self, index_bitwidth: int) -> TypedPtr[int]:
+        return TypedPtr(self, RawPtr.index_format_for_bitwidth(index_bitwidth))
+
+    @staticmethod
+    def new_index(els: Sequence[int], index_bitwidth: int) -> RawPtr:
+        return RawPtr.new(
+            RawPtr.index_format_for_bitwidth(index_bitwidth), [(el,) for el in els]
+        )
+
+    @property
     def float32(self) -> TypedPtr[float]:
         return TypedPtr(self, "<f")
 
@@ -112,3 +139,28 @@ class TypedPtr(Generic[_T]):
 
     def __setitem__(self, index: int, value: _T):
         (self.raw + index * self.size).set(self.format, value)
+
+    @staticmethod
+    def zeros(count: int, format: str) -> TypedPtr[Any]:
+        size = struct.calcsize(format)
+        return TypedPtr(RawPtr.zeros(size * count), format)
+
+    @staticmethod
+    def new(els: Sequence[Any], format: str) -> TypedPtr[Any]:
+        return TypedPtr(RawPtr.new(format, tuple((el,) for el in els)), format)
+
+    @staticmethod
+    def new_float32(els: Sequence[float]) -> TypedPtr[float]:
+        return TypedPtr(RawPtr.new_float32(els), "<f")
+
+    @staticmethod
+    def new_float64(els: Sequence[float]) -> TypedPtr[float]:
+        return TypedPtr(RawPtr.new_float64(els), "<d")
+
+    @staticmethod
+    def new_int32(els: Sequence[int]) -> TypedPtr[int]:
+        return TypedPtr(RawPtr.new_int32(els), "<i")
+
+    @staticmethod
+    def new_index(els: Sequence[int], index_bitwidth: int) -> TypedPtr[int]:
+        return TypedPtr.new(els, RawPtr.index_format_for_bitwidth(index_bitwidth))
