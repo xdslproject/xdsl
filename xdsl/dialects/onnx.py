@@ -145,9 +145,7 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
     res = result_def(TensorType[T])
     assembly_format = "`(` $lhs `,` $rhs `)` attr-dict `:` `(` type($lhs) `,` type($rhs) `)` `->` type($res)"
 
-    def __init__(self, lhs: SSAValue, rhs: SSAValue, res_type: Attribute | None = None):
-        if res_type is None:
-            res_type = lhs.type
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, res_type: Attribute):
         super().__init__(
             operands=[lhs, rhs],
             result_types=[res_type],
