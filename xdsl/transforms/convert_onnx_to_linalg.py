@@ -41,14 +41,11 @@ class ReluOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
         body = Region(Block(arg_types=(f64, f64)))
-        zero = arith.Constant(FloatAttr(0, f64))
-        with ImplicitBuilder(body.blocks[0]):
-            max_op = arith.Maximumf(body.blocks[0].args[0], zero.result)
-            linalg.YieldOp(max_op.result)
         affine_map = AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0, d1)))
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), relu.res.type),
+                zero := arith.Constant(FloatAttr(0, f64)),
                 linalg.Generic(
                     (relu.operand,),
                     (empty.tensor,),
@@ -65,6 +62,9 @@ class ReluOpLowering(RewritePattern):
                 ),
             )
         )
+        with ImplicitBuilder(body) as (a, b):
+            max_op = arith.Maximumf(a, zero.result)
+            linalg.YieldOp(max_op.result)
 
 
 @dataclass
