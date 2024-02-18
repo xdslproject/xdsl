@@ -21,3 +21,4 @@
 // CHECK-NEXT:       linalg.yield %2 : f64
 // CHECK-NEXT:    } -> tensor<3x4xf64>
 // CHECK-NEXT:  }
+
