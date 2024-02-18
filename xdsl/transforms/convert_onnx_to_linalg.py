@@ -62,7 +62,7 @@ class ReluOpLowering(RewritePattern):
                 ),
             )
         )
-        with ImplicitBuilder(body) as (a, b):
+        with ImplicitBuilder(body) as (a, _):
             max_op = arith.Maximumf(a, zero.result)
             linalg.YieldOp(max_op.result)
 
