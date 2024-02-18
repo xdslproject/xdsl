@@ -55,7 +55,7 @@ def sum_to_op():
 
 
 def sum_to_interp(n: int) -> int:
-    interpreter = Interpreter(sum_to_op)
+    interpreter = Interpreter(sum_to_op, index_bitwidth=32)
     interpreter.register_implementations(CfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())

@@ -16,7 +16,7 @@ def test_riscv_interpreter():
     riscv_functions = RiscvFunctions()
     riscv_debug_functions = RiscvDebugFunctions()
     file = StringIO()
-    interpreter = Interpreter(module_op, file=file)
+    interpreter = Interpreter(module_op, index_bitwidth=32, file=file)
     interpreter.register_implementations(riscv_functions)
     interpreter.register_implementations(riscv_debug_functions)
 

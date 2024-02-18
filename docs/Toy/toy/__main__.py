@@ -96,7 +96,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
         printer.print(module_op)
         return
 
-    interpreter = Interpreter(module_op)
+    interpreter = Interpreter(module_op, index_bitwidth=32)
     if emit in ("toy", "toy-opt", "toy-inline", "toy-infer-shapes"):
         interpreter.register_implementations(ToyFunctions())
     if emit in ("affine"):

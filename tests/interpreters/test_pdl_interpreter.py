@@ -247,7 +247,7 @@ def add_zero_pdl():
 
 
 def test_interpreter_functions():
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
 
     c0 = TestSSAValue(i32)
@@ -311,7 +311,7 @@ def change_constant_value_pdl():
 
 
 def test_interpreter_attribute_rewrite():
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
 
     input_module = constant_zero()
@@ -344,7 +344,7 @@ class OnePropOp(IRDLOperation):
 
 
 def test_property_rewrite():
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(PDLRewriteFunctions(MLContext()))
 
     @ModuleOp

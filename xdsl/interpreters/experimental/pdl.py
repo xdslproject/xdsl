@@ -223,7 +223,7 @@ class PDLRewritePattern(RewritePattern):
         pdl_module = pdl_pattern.parent_op()
         assert isinstance(pdl_module, ModuleOp)
         self.functions = PDLRewriteFunctions(ctx)
-        self.interpreter = Interpreter(pdl_module, file=file)
+        self.interpreter = Interpreter(pdl_module, index_bitwidth=32, file=file)
         self.interpreter.register_implementations(self.functions)
         self.pdl_rewrite_op = pdl_rewrite_op
 

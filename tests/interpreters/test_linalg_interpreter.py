@@ -19,7 +19,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 
 def test_unimplemented_inputs():
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(LinalgFunctions())
 
     with pytest.raises(
@@ -39,7 +39,7 @@ def test_unimplemented_inputs():
 
 
 def test_linalg_generic():
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
 
@@ -85,7 +85,7 @@ def test_linalg_generic():
 
 
 def test_linalg_generic_scalar():
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
 
@@ -131,7 +131,7 @@ def test_linalg_generic_scalar():
 
 
 def test_linalg_generic_reduction():
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
 

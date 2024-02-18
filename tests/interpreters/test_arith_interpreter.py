@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, Signedness
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 
-interpreter = Interpreter(ModuleOp([]))
+interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
 interpreter.register_implementations(ArithFunctions())
 
 lhs_op = test.TestOp(result_types=[IndexType()])

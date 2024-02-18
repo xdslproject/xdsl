@@ -29,7 +29,7 @@ def test_import_functions():
     class B(InterpreterFunctions):
         pass
 
-    i = Interpreter(ModuleOp([]))
+    i = Interpreter(ModuleOp([]), index_bitwidth=32)
 
     i.register_implementations(B())
 
@@ -64,7 +64,7 @@ def test_cast():
     # Dummy module
     module = ModuleOp([])
 
-    interpreter = Interpreter(module)
+    interpreter = Interpreter(module, index_bitwidth=32)
 
     interpreter.register_implementations(CastImpls())
 
@@ -105,7 +105,10 @@ def test_external_func():
             self.a = args[0]
             return tuple()
 
-    i = Interpreter(ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]))
+    i = Interpreter(
+        ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]),
+        index_bitwidth=32,
+    )
     funcs = TestFunc(0)
 
     i.register_implementations(funcs)
@@ -121,7 +124,7 @@ def test_interpreter_data():
     class Funcs1(InterpreterFunctions):
         ...
 
-    interpreter = Interpreter(ModuleOp([]))
+    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
 
     obj1 = interpreter.get_data(Funcs0, "a", lambda: {"b": 2})
     assert obj1 == {"b": 2}

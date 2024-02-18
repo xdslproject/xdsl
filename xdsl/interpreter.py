@@ -426,6 +426,10 @@ class Interpreter:
             ...
 
     module: ModuleOp
+    index_bitwidth: int = field(kw_only=True)
+    """
+    Number of bits in the binary representation of the index
+    """
     _impls: _InterpreterFunctionImpls = field(default_factory=_InterpreterFunctionImpls)
     _ctx: InterpreterContext = field(
         default_factory=lambda: InterpreterContext(name="root")

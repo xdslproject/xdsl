@@ -43,7 +43,7 @@ def test_riscv_interpreter():
     riscv_functions = RiscvFunctions(
         custom_instructions={"my_custom_instruction": my_custom_instruction},
     )
-    interpreter = Interpreter(module_op)
+    interpreter = Interpreter(module_op, index_bitwidth=32)
     interpreter.register_implementations(riscv_functions)
 
     assert interpreter.run_op(riscv.LiOp("label0"), ()) == (RawPtr.new_int32((42,)),)
@@ -293,7 +293,7 @@ def test_cast():
     fregister = riscv.FloatRegisterType.unallocated()
 
     riscv_functions = RiscvFunctions()
-    interpreter = Interpreter(module_op)
+    interpreter = Interpreter(module_op, index_bitwidth=32)
     interpreter.register_implementations(riscv_functions)
 
     assert interpreter.cast_value(fregister, f64, 42.0) == 42.0
@@ -303,7 +303,7 @@ def test_register_contents():
     module_op = ModuleOp([])
 
     riscv_functions = RiscvFunctions()
-    interpreter = Interpreter(module_op)
+    interpreter = Interpreter(module_op, index_bitwidth=32)
     interpreter.register_implementations(riscv_functions)
 
     assert RiscvFunctions.registers(interpreter) == {

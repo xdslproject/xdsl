@@ -3,7 +3,6 @@ A pass that applies the interpreter to operations with no side effects where all
 inputs are constant, replacing the computation with a constant value.
 """
 
-
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -80,7 +79,7 @@ class ConstantFoldInterpPass(ModulePass):
     name = "constant-fold-interp"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        interpreter = Interpreter(op)
+        interpreter = Interpreter(op, index_bitwidth=32)
         # Do not call wgpu interpreter functions for this pass
         register_implementations(interpreter, ctx, include_wgpu=False)
         pattern = ConstantFoldInterpPattern(interpreter)
