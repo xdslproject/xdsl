@@ -414,7 +414,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_riscv_cse():
         from xdsl.transforms import riscv_cse
 
-        return riscv_cse.RiscvConstantSubexpressionElimination
+        return riscv_cse.RiscvCommonSubexpressionElimination
 
     def get_riscv_register_allocation():
         from xdsl.transforms import riscv_register_allocation
