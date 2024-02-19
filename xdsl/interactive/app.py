@@ -41,16 +41,16 @@ from xdsl.interactive.passes import (
     AvailablePass,
     apply_passes_to_module,
     get_condensed_pass_list,
+    get_new_registered_context,
 )
 from xdsl.interactive.rewrites import (
     convert_indexed_individual_rewrites_to_available_pass,
     get_all_possible_rewrites,
 )
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.tools.command_line_tool import get_all_passes
 from xdsl.transforms import individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
@@ -382,9 +382,7 @@ class InputApp(App[None]):
             self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
-            ctx = MLContext(True)
-            for dialect_name, dialect_factory in get_all_dialects().items():
-                ctx.register_dialect(dialect_name, dialect_factory)
+            ctx = get_new_registered_context()
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
