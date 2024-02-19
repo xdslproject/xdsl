@@ -8,9 +8,11 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AnyFloat,
     AnyShapedType,
     AnyTensorType,
     ArrayAttr,
+    IntegerType,
     ShapedType,
     StringAttr,
 )
@@ -36,6 +38,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
 
 
 class IteratorType(Enum):
@@ -453,9 +456,14 @@ class FillOp(IRDLOperation):
             operands=(inputs, outputs),
             result_types=result_types,
         )
-        # Numeric casting is performed on the value operand, promoting it to the same data type as the output.
-        if outputs:
-            self.inputs = [cast(outputs[0].type, operand) for operand in inputs]
+
+    def verify_(self) -> None:
+        # Check the that the inputs are of scalar type (f32, f64, etc)
+        for value in self.inputs:
+            if not isinstance(value.type, AnyFloat | IntegerType):
+                raise VerifyException(
+                    f"Input type is {value.type} but must be an instance of AnyFloat or IntegerType."
+                )
 
 
 Linalg = Dialect(
