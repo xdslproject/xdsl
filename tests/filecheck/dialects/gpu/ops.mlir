@@ -84,7 +84,7 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:             %{{.*}} = arith.constant {"proc" = #gpu<processor thread_x>} 13 : index
 // CHECK-NEXT:             %{{.*}} = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
 
-// CHECK-NEXT:             %{{.*}} = "memref.alloc"() <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<10x10xi32>
+// CHECK-NEXT:             %{{.*}} = memref.alloc() {"alignment" = 0 : i64} : memref<10x10xi32>
 // CHECK-NEXT:             %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x10xi32>) -> memref<*xi32>
 // CHECK-NEXT:             "gpu.host_register"(%{{.*}}) : (memref<*xi32>) -> ()
 // CHECK-NEXT:             "gpu.host_unregister"(%{{.*}}) : (memref<*xi32>) -> ()

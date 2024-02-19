@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect --mlir-print-local-scope | filecheck %s
 
 func.func @memref_alloca_scope() {
 "memref.alloca_scope"() ({
@@ -19,7 +19,9 @@ memref.store %v0, %m[%i0, %i1] {"nontemporal" = true} : memref<2x3xi32>
 %v2 = memref.load %m[%i0, %i1] {"nontemporal" = false} : memref<2x3xi32>
 %v3 = memref.load %m[%i0, %i1] {"nontemporal" = true} : memref<2x3xi32>
 %r1 = memref.expand_shape %r [[0, 1], [2]] : memref<10x3xi32> into memref<5x2x3xi32>
-%r2 = memref.collapse_shape %r [[0, 1]] : memref<10x3xi32> into memref<30xi32> 
+%r2 = memref.collapse_shape %r [[0, 1]] : memref<10x3xi32> into memref<30xi32>
+%a1 = memref.alloc() : memref<2x3xf32>
+%a2 = memref.alloc()[%i1] {alignment = 8}: memref<2x3xf32, affine_map<(d0, d1)[s0] -> (d0 + s0, d1)>, 1>
 
 // CHECK:       module {
 // CHECK-NEXT:    func.func @memref_alloca_scope() {
@@ -39,5 +41,7 @@ memref.store %v0, %m[%i0, %i1] {"nontemporal" = true} : memref<2x3xi32>
 // CHECK-NEXT:   %{{.*}} = memref.load %3[%1, %2] : memref<2x3xi32>
 // CHECK-NEXT:   %{{.*}} = memref.load %3[%1, %2] {nontemporal = true} : memref<2x3xi32>
 // CHECK-NEXT:   %{{.*}} = memref.expand_shape %4 [[0, 1], [2]] : memref<10x3xi32> into memref<5x2x3xi32>
-// CHECK-NEXT:   %{{.*}} = memref.collapse_shape %4 [[0, 1]] : memref<10x3xi32> into memref<30xi32> 
+// CHECK-NEXT:   %{{.*}} = memref.collapse_shape %4 [[0, 1]] : memref<10x3xi32> into memref<30xi32>
+// CHECK-NEXT:   %{{.*}} = memref.alloc() : memref<2x3xf32>
+// CHECK-NEXT:   %{{.*}} = memref.alloc()[%{{.*}}] {alignment = 8 : i64} : memref<2x3xf32, affine_map<(d0, d1)[s0] -> (d0 + s0, d1)>, 1>
 // CHECK-NEXT: }
