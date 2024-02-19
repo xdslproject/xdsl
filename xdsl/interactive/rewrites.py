@@ -1,7 +1,10 @@
 from typing import NamedTuple
 
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.interactive.get_condensed_passes import AvailablePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
+from xdsl.transforms import individual_rewrite
+from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
 class IndividualRewrite(NamedTuple):
@@ -20,6 +23,31 @@ class IndexedIndividualRewrite(NamedTuple):
 
     operation_index: int
     rewrite: IndividualRewrite
+
+
+def convert_indexed_individual_rewrites_to_available_pass(
+    rewrites: tuple[IndexedIndividualRewrite, ...], current_module: ModuleOp
+) -> tuple[AvailablePass, ...]:
+    """
+    Function that takes a tuple of rewrites, converts each rewrite into an IndividualRewrite pass and returns the tuple of AvailablePass.
+    """
+    rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
+    for op_idx, (op_name, pat_name) in rewrites:
+        rewrite_pass = individual_rewrite.IndividualRewrite
+        rewrite_spec = PipelinePassSpec(
+            name=rewrite_pass.name,
+            args={
+                "matched_operation_index": [op_idx],
+                "operation_name": [op_name],
+                "pattern_name": [pat_name],
+            },
+        )
+        op = list(current_module.walk())[op_idx]
+        rewrites_as_pass_list = (
+            *rewrites_as_pass_list,
+            (AvailablePass(f"{op}:{op_name}:{pat_name}", rewrite_pass, rewrite_spec)),
+        )
+    return rewrites_as_pass_list
 
 
 def get_all_possible_rewrites(
