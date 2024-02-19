@@ -2,7 +2,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.interactive.get_all_possible_rewrites import (
+from xdsl.interactive.rewrites import (
     IndexedIndividualRewrite,
     IndividualRewrite,
     get_all_possible_rewrites,
