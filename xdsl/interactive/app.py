@@ -30,16 +30,17 @@ from textual.widgets import (
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
-from xdsl.interactive.get_condensed_passes import (
-    ALL_PASSES,
-    AvailablePass,
-    get_condensed_pass_list,
-)
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
+)
+from xdsl.interactive.passes import (
+    ALL_PASSES,
+    AvailablePass,
+    apply_passes_to_module,
+    get_condensed_pass_list,
 )
 from xdsl.interactive.rewrites import (
     convert_indexed_individual_rewrites_to_available_pass,
@@ -265,7 +266,6 @@ class InputApp(App[None]):
                         rewrites, self.current_module
                     )
                 )
-
                 # merge rewrite passes with "other" pass list
                 if self.condense_mode:
                     pass_list = get_condensed_pass_list(self.current_module)
@@ -388,14 +388,9 @@ class InputApp(App[None]):
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
-            pipeline = PipelinePass(
-                passes=[
-                    module_pass.from_pass_spec(pipeline_pass_spec)
-                    for module_pass, pipeline_pass_spec in self.pass_pipeline
-                ]
+            self.current_module = apply_passes_to_module(
+                module, ctx, self.pass_pipeline
             )
-            pipeline.apply(ctx, module)
-            self.current_module = module
         except Exception as e:
             self.current_module = e
             self.update_input_operation_count_tuple(ModuleOp([], None))
