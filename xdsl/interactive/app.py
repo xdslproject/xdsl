@@ -30,10 +30,6 @@ from textual.widgets import (
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
-from xdsl.interactive.get_all_possible_rewrites import (
-    convert_indexed_individual_rewrites_to_available_pass,
-    get_all_possible_rewrites,
-)
 from xdsl.interactive.get_condensed_passes import (
     ALL_PASSES,
     AvailablePass,
@@ -44,6 +40,10 @@ from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
+)
+from xdsl.interactive.rewrites import (
+    convert_indexed_individual_rewrites_to_available_pass,
+    get_all_possible_rewrites,
 )
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
