@@ -68,6 +68,18 @@ class ReluOpLowering(RewritePattern):
 
 
 @dataclass
+class ConstantOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, constant: onnx.Constant, rewriter: PatternRewriter, /):
+        rewriter.replace_matched_op(
+            (
+                empty := tensor.EmptyOp((), constant.output.type),
+                linalg.FillOp((), (empty.tensor,), res=(constant.output.type,)),
+            )
+        )
+
+
+@dataclass
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
 
@@ -77,6 +89,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
                 [
                     AddOpLowering(),
                     ReluOpLowering(),
+                    ConstantOpLowering(),
                 ]
             ),
             apply_recursively=False,
