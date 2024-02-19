@@ -2,7 +2,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.interactive.get_condensed_passes import AvailablePass
+from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import (
     IndexedIndividualRewrite,
     IndividualRewrite,
