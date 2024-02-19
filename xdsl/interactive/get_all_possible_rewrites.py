@@ -25,7 +25,7 @@ class IndexedIndividualRewrite(NamedTuple):
     rewrite: IndividualRewrite
 
 
-def convert_indexed_individual_rewrites_to_pass(
+def convert_indexed_individual_rewrites_to_available_pass(
     rewrites: tuple[IndexedIndividualRewrite, ...], current_module: ModuleOp
 ) -> tuple[AvailablePass, ...]:
     """
