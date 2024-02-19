@@ -46,5 +46,5 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-NEXT:      linalg.yield %4 : f32
 // CHECK-NEXT:    } -> tensor<2x3xf32>
 // CHECK-NEXT:    %5 = arith.constant 0.000000e+00  : f32
-// CHECK-NEXT:    %6 = linalg.fill ins(%5 : f32) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %6 = linalg.fill ins(%5 : f32) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:  }
