@@ -22,6 +22,16 @@ class AvailablePass(NamedTuple):
     pass_spec: PipelinePassSpec | None
 
 
+def get_new_registered_context() -> MLContext:
+    """
+    Generates a new MLContext, registers it and returns it.
+    """
+    ctx = MLContext(True)
+    for dialect_name, dialect_factory in get_all_dialects().items():
+        ctx.register_dialect(dialect_name, dialect_factory)
+    return ctx
+
+
 def apply_passes_to_module(
     module: builtin.ModuleOp,
     ctx: MLContext,
