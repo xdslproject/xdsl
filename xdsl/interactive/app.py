@@ -30,7 +30,10 @@ from textual.widgets import (
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
-from xdsl.interactive.get_all_possible_rewrites import get_all_possible_rewrites
+from xdsl.interactive.get_all_possible_rewrites import (
+    convert_indexed_individual_rewrites_to_available_pass,
+    get_all_possible_rewrites,
+)
 from xdsl.interactive.get_condensed_passes import (
     ALL_PASSES,
     AvailablePass,
@@ -251,31 +254,17 @@ class InputApp(App[None]):
             case Exception():
                 return ()
             case ModuleOp():
-                # transform rewrites into passes
+                # get all rewrites
                 rewrites = get_all_possible_rewrites(
                     self.current_module,
                     individual_rewrite.REWRITE_BY_NAMES,
                 )
-                rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
-                for op_idx, (op_name, pat_name) in rewrites:
-                    rewrite_pass = individual_rewrite.IndividualRewrite
-                    rewrite_spec = PipelinePassSpec(
-                        name=rewrite_pass.name,
-                        args={
-                            "matched_operation_index": [op_idx],
-                            "operation_name": [op_name],
-                            "pattern_name": [pat_name],
-                        },
+                # transform rewrites into passes
+                rewrites_as_pass_list = (
+                    convert_indexed_individual_rewrites_to_available_pass(
+                        rewrites, self.current_module
                     )
-                    op = list(self.current_module.walk())[op_idx]
-                    rewrites_as_pass_list = (
-                        *rewrites_as_pass_list,
-                        (
-                            AvailablePass(
-                                f"{op}:{op_name}:{pat_name}", rewrite_pass, rewrite_spec
-                            )
-                        ),
-                    )
+                )
 
                 # merge rewrite passes with "other" pass list
                 if self.condense_mode:
