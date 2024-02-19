@@ -25,7 +25,7 @@
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
 
 // CHECK-NEXT: %t3 = "test.op"() : () -> tensor<1xi64>
-// CHECK-NEXT: %res_constant_1 = linalg.fill ins() outs(%tres_constant : tensor<1xi64>) -> tensor<1xi64>
+// CHECK-NEXT: %res_constant_1 = linalg.fill ins( : ) outs(%tres_constant : tensor<1xi64>) -> tensor<1xi64>
 // CHECK-NEXT:  }
 
 
