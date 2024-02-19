@@ -23,6 +23,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     attr_def,
     irdl_attr_definition,
@@ -31,6 +32,12 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
     var_result_def,
+)
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    SingleBlockImplicitTerminator,
 )
 
 
@@ -82,6 +89,8 @@ class ChannelGetOp(IRDLOperation):
     indices = var_operand_def(AsyncTokenAttr)
     dst = operand_def(MemRefType[Attribute])
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def __init__(
         self,
         chan_name: SymbolRefAttr,
@@ -107,6 +116,8 @@ class ChannelPutOp(IRDLOperation):
     src_offsets = var_operand_def(IndexType)
     src_sizes = var_operand_def(IndexType)
     src_strides = var_operand_def(IndexType)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
@@ -140,6 +151,8 @@ class CustomOp(IRDLOperation):
     custom_operands = var_operand_def(Attribute)
 
     async_token = result_def(AsyncTokenAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
@@ -189,6 +202,8 @@ class DmaMemcpyNdOp(IRDLOperation):
 
     async_token = result_def(AsyncTokenAttr)
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def __init__(
         self,
         async_dependencies: list[Operation | SSAValue],
@@ -225,6 +240,8 @@ class ExecuteOp(IRDLOperation):
     async_token = result_def(AsyncTokenAttr)
     results = var_result_def(Attribute)
 
+    # traits = frozenset([SingleBlockImplicitTerminator(ExecuteTerminatorOp), Terminator]) # TODO: solve dependency
+
     def __init__(
         self, async_dependencies: list[Operation | SSAValue], result_types: Attribute
     ):
@@ -239,8 +256,15 @@ class ExecuteTerminatorOp(IRDLOperation):
 
     results = var_result_def(Attribute)
 
+    traits = frozenset([HasParent(ExecuteOp)])
+
     def __init__(self):
         super().__init__(result_types=[Attribute()])
+
+
+@irdl_op_definition
+class HerdTerminatorOp(IRDLOperation):
+    name = "air.herd_terminator"
 
 
 @irdl_op_definition
@@ -252,6 +276,12 @@ class HerdOp(IRDLOperation):
     sizes = var_operand_def(IndexType)
     herd_operands = var_operand_def(Attribute)
     async_token = result_def(AsyncTokenAttr)
+
+    traits = frozenset(
+        [IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)]
+    )
+
+    irdl_options = [AttrSizedOperandSegments]
 
     def __init__(
         self,
@@ -268,8 +298,10 @@ class HerdOp(IRDLOperation):
 
 
 @irdl_op_definition
-class HerdTerminatorOp(IRDLOperation):
-    name = "air.herd_terminator"
+class LaunchTerminatorOp(IRDLOperation):
+    name = "air.launch_terminator"
+
+    # traits = frozenset(HasParent(LaunchOp)) # TODO: solve dependency
 
 
 @irdl_op_definition
@@ -281,6 +313,12 @@ class LaunchOp(IRDLOperation):
     sizes = var_operand_def(IndexType())
     launch_operands = var_operand_def(Attribute)
     async_token = result_def(AsyncTokenAttr)
+
+    traits = frozenset(
+        [IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)]
+    )
+
+    irdl_options = [AttrSizedOperandSegments]
 
     def __init__(
         self,
@@ -297,13 +335,10 @@ class LaunchOp(IRDLOperation):
 
 
 @irdl_op_definition
-class LaunchTerminatorOp(IRDLOperation):
-    name = "air.launch_terminator"
-
-
-@irdl_op_definition
 class HerdPipelineOp(IRDLOperation):
     name = "air.pipeline"
+
+    traits = frozenset([HasParent(HerdOp)])
 
 
 @irdl_op_definition
@@ -347,6 +382,8 @@ class PipelineStageOp(IRDLOperation):
     opers = var_operand_def(Attribute)
     results = var_result_def(Attribute)
 
+    traits = frozenset([HasParent(HerdPipelineOp)])
+
     def __init__(
         self, opers: list[Operation | SSAValue], result_types: list[Attribute]
     ):
@@ -359,6 +396,8 @@ class PipelineTerminatorOp(IRDLOperation):
 
     opers = var_operand_def(Attribute)
 
+    traits = frozenset([HasParent(HerdPipelineOp), IsTerminator()])
+
     def __init__(self, opers: list[Operation | SSAValue]):
         super().__init__(operands=[opers])
 
@@ -369,8 +408,17 @@ class PipelineYieldOp(IRDLOperation):
 
     opers = var_operand_def(Attribute)
 
+    traits = frozenset([HasParent(PipelineStageOp), IsTerminator()])
+
     def __init__(self, opers: list[Operation | SSAValue]):
         super().__init__(operands=[opers])
+
+
+@irdl_op_definition
+class SegmentTerminatorOp(IRDLOperation):
+    name = "air.segment_terminator"
+
+    # traits = frozenset([HasParent(SegmentOp), IsTerminator()]) # TODO: solve dependency
 
 
 @irdl_op_definition
@@ -382,6 +430,10 @@ class SegmentOp(IRDLOperation):
     sizes = var_operand_def(IndexType)
     segment_operands = var_operand_def(Attribute)
     async_token = result_def(AsyncTokenAttr)
+
+    traits = frozenset(
+        [IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)]
+    )
 
     def __init__(
         self,
@@ -395,11 +447,6 @@ class SegmentOp(IRDLOperation):
             operands=[async_dependencies, sizes, segment_operands],
             result_types=[AsyncTokenAttr()],
         )
-
-
-@irdl_op_definition
-class SegmentTerminatorOp(IRDLOperation):
-    name = "air.segment_terminator"
 
 
 @irdl_op_definition
