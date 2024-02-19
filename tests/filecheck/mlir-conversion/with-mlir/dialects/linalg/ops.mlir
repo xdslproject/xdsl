@@ -47,7 +47,7 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-NEXT:    %2 = linalg.add ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#1 : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:    %cst = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:    %3 = linalg.fill ins(%cst : f32) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
-// CHECK-NEXT:    %4 = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) {
+// CHECK-NEXT:    %{{.*}} = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) {
 // CHECK-NEXT:    ^bb0(%in: f32, %in_0: f32, %out: f32):
 // CHECK-NEXT:      %%{{.*}} = arith.addf %in, %in_0 : f32
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
