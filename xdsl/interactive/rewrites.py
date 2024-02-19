@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.interactive.get_condensed_passes import AvailablePass
+from xdsl.interactive.passes import AvailablePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.transforms import individual_rewrite
 from xdsl.utils.parse_pipeline import PipelinePassSpec
