@@ -229,7 +229,17 @@ def test_inner_symbol_table_collection():
         attributes={"sym_name": StringAttr("circuit")}, regions=[[mod1, mod2]]
     )
 
-    inner_sym_tables = InnerSymbolTableCollection(op=circuit)
+    with pytest.raises(
+        VerifyException, match="Operation wire should have InnerRefNamespaceTrait trait"
+    ):
+        inner_sym_tables = InnerSymbolTableCollection(wire1)
+
+    inner_sym_tables = InnerSymbolTableCollection(circuit)
+
+    with pytest.raises(
+        VerifyException, match=r"Trying to insert the same op twice in symbol tables:"
+    ):
+        inner_sym_tables.populate_and_verify_tables(circuit)
 
     with pytest.raises(
         VerifyException, match="Operation wire should have InnerSymbolTableTrait trait"

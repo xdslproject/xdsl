@@ -194,7 +194,7 @@ class InnerSymbolTableCollection:
         for op in inner_sym_table_ops:
             if op in self.symbol_tables:
                 raise VerifyException(
-                    f"Trying to insert the same op {op} twice in symbol tables"
+                    f"Trying to insert the same op twice in symbol tables: {op}"
                 )
             self.symbol_tables[op] = InnerSymbolTable(op)
 
@@ -220,11 +220,8 @@ class InnerRefNamespaceTrait(OpTrait):
                 f"Operation {op.name} must have trait {trait.__name__}"
             )
 
-        # These 2 checks are in fact redundant, as already checked as a SymbolTable
-        if len(op.regions) != 1:
-            raise VerifyException(f"Operation {op.name} must have a single region")
-        if len(op.regions[0].blocks) != 1:
-            raise VerifyException(f"Operation {op.name} must have a single block")
+        # Upstreams verifies that len(op.regions) == 1 and len(op.regions[0].blocks) == 1
+        # however this is already checked as part of SymbolTable, so would be redundant to re-check here
 
         namespace = InnerRefNamespace(op)
 
