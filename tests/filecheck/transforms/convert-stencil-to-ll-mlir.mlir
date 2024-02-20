@@ -335,7 +335,7 @@ builtin.module {
 // CHECK:         func.func @stencil_buffer(%121 : memref<72xf64>, %122 : memref<72xf64>) {
 // CHECK-NEXT:      %123 = "memref.subview"(%122) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:      %124 = "memref.subview"(%121) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
-// CHECK-NEXT:      %125 = "memref.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<64xf64>
+// CHECK-NEXT:      %125 = memref.alloc() : memref<64xf64>
 // CHECK-NEXT:      %126 = "memref.subview"(%125) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<64xf64>) -> memref<64xf64, strided<[1], offset: -1>>
 // CHECK-NEXT:      %127 = arith.constant 1 : index
 // CHECK-NEXT:      %128 = arith.constant 1 : index
