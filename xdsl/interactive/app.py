@@ -47,11 +47,11 @@ from xdsl.interactive.rewrites import (
     convert_indexed_individual_rewrites_to_available_pass,
     get_all_possible_rewrites,
 )
+from xdsl.interactive.transforms.experimental import individual_rewrite_interactive
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import get_all_passes
-from xdsl.transforms import individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -258,7 +258,7 @@ class InputApp(App[None]):
                 # get all rewrites
                 rewrites = get_all_possible_rewrites(
                     self.current_module,
-                    individual_rewrite.REWRITE_BY_NAMES,
+                    individual_rewrite_interactive.ALL_REWRITES,
                 )
                 # transform rewrites into passes
                 rewrites_as_pass_list = (

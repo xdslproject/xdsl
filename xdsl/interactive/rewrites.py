@@ -2,8 +2,8 @@ from typing import NamedTuple
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.passes import AvailablePass
+from xdsl.interactive.transforms.experimental import individual_rewrite_interactive
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
-from xdsl.transforms import individual_rewrite
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
@@ -33,7 +33,7 @@ def convert_indexed_individual_rewrites_to_available_pass(
     """
     rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
     for op_idx, (op_name, pat_name) in rewrites:
-        rewrite_pass = individual_rewrite.IndividualRewrite
+        rewrite_pass = individual_rewrite_interactive.IndividualRewriteInteractive
         rewrite_spec = PipelinePassSpec(
             name=rewrite_pass.name,
             args={
