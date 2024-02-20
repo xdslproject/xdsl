@@ -8,9 +8,11 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AnyFloat,
     AnyShapedType,
     AnyTensorType,
     ArrayAttr,
+    IntegerType,
     ShapedType,
     StringAttr,
 )
@@ -36,6 +38,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
 
 
 class IteratorType(Enum):
@@ -416,12 +419,60 @@ class AddOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class FillOp(IRDLOperation):
+    """
+    Fills the output tensor with the given value.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgfill-linalgfillop
+    """
+
+    name = "linalg.fill"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+    def verify_(self) -> None:
+        # Check the that the inputs are of scalar type (f32, f64, etc)
+        for value in self.inputs:
+            if not isinstance(value.type, AnyFloat | IntegerType):
+                raise VerifyException(
+                    f"Input type is {value.type} but must be an instance of AnyFloat or IntegerType."
+                )
+
+
 Linalg = Dialect(
     "linalg",
     [
         Generic,
         YieldOp,
         AddOp,
+        FillOp,
     ],
     [
         IteratorTypeAttr,

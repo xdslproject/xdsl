@@ -21,6 +21,7 @@ class MLIROptPass(ModulePass):
 
     name = "mlir-opt"
 
+    generic: bool = field(default=True)
     arguments: list[str] = field(default_factory=list)
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
@@ -28,7 +29,7 @@ class MLIROptPass(ModulePass):
             raise ValueError("mlir-opt is not available")
 
         stream = StringIO()
-        printer = Printer(print_generic_format=True, stream=stream)
+        printer = Printer(print_generic_format=self.generic, stream=stream)
         printer.print(op)
 
         my_string = stream.getvalue()
@@ -53,5 +54,6 @@ class MLIROptPass(ModulePass):
             rewriter = PatternRewriter(op)
             op.detach_region(op.body)
             op.add_region(rewriter.move_region_contents_to_new_regions(new_module.body))
+            op.attributes = new_module.attributes
         except Exception as e:
             raise DiagnosticException("Error executing mlir-opt pass") from e

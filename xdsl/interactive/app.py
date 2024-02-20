@@ -30,24 +30,28 @@ from textual.widgets import (
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
-from xdsl.interactive.get_all_possible_rewrites import get_all_possible_rewrites
-from xdsl.interactive.get_condensed_passes import (
-    ALL_PASSES,
-    AvailablePass,
-    get_condensed_pass_list,
-)
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
 )
-from xdsl.interactive.transforms.experimental import individual_rewrite_interactive
-from xdsl.ir import MLContext
+from xdsl.interactive.passes import (
+    ALL_PASSES,
+    AvailablePass,
+    apply_passes_to_module,
+    get_condensed_pass_list,
+    get_new_registered_context,
+)
+from xdsl.interactive.rewrites import (
+    convert_indexed_individual_rewrites_to_available_pass,
+    get_all_possible_rewrites,
+)
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.tools.command_line_tool import get_all_passes
+from xdsl.transforms import individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -251,34 +255,17 @@ class InputApp(App[None]):
             case Exception():
                 return ()
             case ModuleOp():
-                # transform rewrites into passes
+                # get all rewrites
                 rewrites = get_all_possible_rewrites(
                     self.current_module,
-                    individual_rewrite_interactive.ALL_REWRITES,
+                    individual_rewrite.REWRITE_BY_NAMES,
                 )
-                rewrites_as_pass_list: tuple[AvailablePass, ...] = ()
-                for op_idx, (op_name, pat_name) in rewrites:
-                    rewrite_pass = (
-                        individual_rewrite_interactive.IndividualRewriteInteractive
+                # transform rewrites into passes
+                rewrites_as_pass_list = (
+                    convert_indexed_individual_rewrites_to_available_pass(
+                        rewrites, self.current_module
                     )
-                    rewrite_spec = PipelinePassSpec(
-                        name=rewrite_pass.name,
-                        args={
-                            "matched_operation_index": [op_idx],
-                            "operation_name": [op_name],
-                            "pattern_name": [pat_name],
-                        },
-                    )
-                    op = list(self.current_module.walk())[op_idx]
-                    rewrites_as_pass_list = (
-                        *rewrites_as_pass_list,
-                        (
-                            AvailablePass(
-                                f"{op}:{op_name}:{pat_name}", rewrite_pass, rewrite_spec
-                            )
-                        ),
-                    )
-
+                )
                 # merge rewrite passes with "other" pass list
                 if self.condense_mode:
                     pass_list = get_condensed_pass_list(self.current_module)
@@ -395,20 +382,13 @@ class InputApp(App[None]):
             self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
-            ctx = MLContext(True)
-            for dialect_name, dialect_factory in get_all_dialects().items():
-                ctx.register_dialect(dialect_name, dialect_factory)
+            ctx = get_new_registered_context()
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
-            pipeline = PipelinePass(
-                passes=[
-                    module_pass.from_pass_spec(pipeline_pass_spec)
-                    for module_pass, pipeline_pass_spec in self.pass_pipeline
-                ]
+            self.current_module = apply_passes_to_module(
+                module, ctx, self.pass_pipeline
             )
-            pipeline.apply(ctx, module)
-            self.current_module = module
         except Exception as e:
             self.current_module = e
             self.update_input_operation_count_tuple(ModuleOp([], None))

@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
 from xdsl.interactive.app import InputApp
-from xdsl.interactive.get_condensed_passes import AvailablePass
+from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.transforms.experimental import individual_rewrite_interactive
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
