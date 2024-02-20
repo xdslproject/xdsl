@@ -14,7 +14,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.13.2", "textual==0.50.1", "pyclip==0.7"]
+extras = ["riscemu==2.2.5", "wgpu==0.14.1", "textual==0.52.0", "pyclip==0.7"]
 onnx = ["onnx-weekly"]
 
 [project.urls]
@@ -31,7 +31,9 @@ xdsl-gui = "xdsl.interactive.app:main"
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
-package-data = { "xdsl" = ["py.typed"] }
+
+[tool.setuptools.package-data]
+xdsl = ["py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
