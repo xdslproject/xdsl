@@ -179,24 +179,6 @@ def parse_pipeline(
         name = lexer.lex()
         if name.kind is Token.Kind.EOF:
             return
-        if name.kind is Token.Kind.MLIR_PIPELINE:
-            yield PipelinePassSpec(
-                "mlir-opt",
-                {
-                    "arguments": [
-                        "--mlir-print-op-generic",
-                        "--allow-unregistered-dialect",
-                        "-p",
-                        f"builtin.module({name.span.text[1:-1]})",
-                    ]
-                },
-            )
-            next = lexer.lex()
-            if next.kind is Token.Kind.COMMA:
-                continue
-            if next.kind is Token.Kind.EOF:
-                return
-            raise PassPipelineParseError(next, "Expected a comma here")
         if name.kind is not Token.Kind.IDENT:
             raise PassPipelineParseError(name, "Expected pass name here")
 
@@ -213,6 +195,23 @@ def parse_pipeline(
             case Token(kind=Token.Kind.L_BRACE):
                 # `{` indicates start of args dict, so we parse that next
                 yield PipelinePassSpec(name.span.text, _parse_pass_args(lexer))
+            case Token(span, Token.Kind.MLIR_PIPELINE):
+                if name.span.text != "mlir":
+                    raise PassPipelineParseError(
+                        name,
+                        "Expected `mlir` to mark an MLIR pipeline here",
+                    )
+                yield PipelinePassSpec(
+                    "mlir-opt",
+                    {
+                        "arguments": [
+                            "--mlir-print-op-generic",
+                            "--allow-unregistered-dialect",
+                            "-p",
+                            f"builtin.module({span.text[1:-1]})",
+                        ]
+                    },
+                )
             case invalid:
                 # every other token is invalid
                 raise PassPipelineParseError(

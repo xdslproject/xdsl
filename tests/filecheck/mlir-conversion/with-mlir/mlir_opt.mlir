@@ -1,5 +1,5 @@
 // RUN: xdsl-opt %s -p mlir-opt{arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
-// RUN: xdsl-opt %s -p [cse] --print-op-generic | filecheck %s
+// RUN: xdsl-opt %s -p mlir[cse] --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({

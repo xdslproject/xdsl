@@ -1,5 +1,5 @@
 // RUN: xdsl-opt %s -p mlir-opt{arguments='--hello','--mlir-print-op-generic'} --print-op-generic --verify-diagnostics | filecheck %s
-// RUN: xdsl-opt %s -p [this-probably-will-never-be-an-MLIR-pass-name] --print-op-generic --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt %s -p mlir[this-probably-will-never-be-an-MLIR-pass-name] --print-op-generic --verify-diagnostics | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
