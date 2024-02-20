@@ -90,6 +90,8 @@ class FastMathFlagsAttr(FastMathAttrBase):
     name = "arith.fastmath"
 
     def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        # irdl_attr_definition defines an __init__ if none is defined, so we need to
+        # explicitely define one here.
         super().__init__(flags)
 
 
