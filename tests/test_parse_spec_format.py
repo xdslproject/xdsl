@@ -10,8 +10,8 @@ from xdsl.utils.parse_pipeline import (
 def test_pass_parser():
     passes = list(
         parse_pipeline(
-            'mlir[cse],pass-1,pass-2{arg1=1 arg2=test,test2,3 arg3="test-str,2,3" '
-            "arg-4=-34.4e-12 no-val-arg},mlir[cse],pass-3{thing=2d-grid},mlir[cse]"
+            'mlir-opt[cse],pass-1,pass-2{arg1=1 arg2=test,test2,3 arg3="test-str,2,3" '
+            "arg-4=-34.4e-12 no-val-arg},mlir-opt[cse],pass-3{thing=2d-grid},mlir-opt[cse]"
         )
     )
 
@@ -100,6 +100,7 @@ def test_spec_printer(spec: PipelinePassSpec):
 
 def test_invalid_mlir_pipeline():
     with pytest.raises(
-        PassPipelineParseError, match="Expected `mlir` to mark an MLIR pipeline here"
+        PassPipelineParseError,
+        match="Expected `mlir-opt` to mark an MLIR pipeline here",
     ):
         list(parse_pipeline("canonicalize[cse]"))

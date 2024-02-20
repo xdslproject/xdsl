@@ -196,10 +196,10 @@ def parse_pipeline(
                 # `{` indicates start of args dict, so we parse that next
                 yield PipelinePassSpec(name.span.text, _parse_pass_args(lexer))
             case Token(span, Token.Kind.MLIR_PIPELINE):
-                if name.span.text != "mlir":
+                if name.span.text != "mlir-opt":
                     raise PassPipelineParseError(
                         name,
-                        "Expected `mlir` to mark an MLIR pipeline here",
+                        "Expected `mlir-opt` to mark an MLIR pipeline here",
                     )
                 yield PipelinePassSpec(
                     "mlir-opt",
