@@ -138,6 +138,10 @@ class FormatParser(BaseParser):
         return FormatProgram(elements)
 
     def verify_directives(self, elements: list[FormatDirective]):
+        """
+        Check correctness of the declarative format; e.g, chaining variadiclike operand
+        directives leads to ambiguous parsing, and should raise an error here.
+        """
         for a, b in pairwise(elements):
             match a, b:
                 case VariadicLikeFormatDirective(), PunctuationDirective(","):
