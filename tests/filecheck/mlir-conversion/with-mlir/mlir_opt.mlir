@@ -1,5 +1,9 @@
-// RUN: xdsl-opt %s -p mlir-opt{arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
+// Shorthand to use mlir-opt within an xDSL pipeline: will use
+// mlir-opt --allow-unregistered-dialect --mlir-print-op-generic -p builtin.pipeline(<input-pipeline>)
 // RUN: xdsl-opt %s -p mlir-opt[cse] --print-op-generic | filecheck %s
+// The explicit syntax for the MLIROptPass, allowing full control over the used arguments
+// Here, using --mlir-disable-threading to disable threading in mlir-opt
+// RUN: xdsl-opt %s -p mlir-opt{arguments='--cse','--mlir-disable-threading','--mlir-print-op-generic'} --print-op-generic | filecheck %s
 
 "builtin.module"() ({
   "func.func"() ({
