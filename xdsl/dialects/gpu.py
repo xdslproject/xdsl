@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     i32,
+    i64,
 )
 from xdsl.ir import (
     Attribute,
@@ -32,6 +33,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyOf,
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
@@ -595,15 +597,15 @@ class LaunchFuncOp(IRDLOperation):
 
     name = "gpu.launch_func"
     asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
-    gridSizeX: Operand = operand_def(IndexType)
-    gridSizeY: Operand = operand_def(IndexType)
-    gridSizeZ: Operand = operand_def(IndexType)
-    blockSizeX: Operand = operand_def(IndexType)
-    blockSizeY: Operand = operand_def(IndexType)
-    blockSizeZ: Operand = operand_def(IndexType)
-    clusterSizeX: OptOperand = opt_operand_def(IndexType)
-    clusterSizeY: OptOperand = opt_operand_def(IndexType)
-    clusterSizeZ: OptOperand = opt_operand_def(IndexType)
+    gridSizeX: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    gridSizeY: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    gridSizeZ: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    blockSizeX: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    blockSizeY: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    blockSizeZ: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    clusterSizeX: OptOperand = opt_operand_def(AnyOf((IndexType, i32, i64)))
+    clusterSizeY: OptOperand = opt_operand_def(AnyOf((IndexType, i32, i64)))
+    clusterSizeZ: OptOperand = opt_operand_def(AnyOf((IndexType, i32, i64)))
     dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     kernelOperands: VarOperand = var_operand_def()
     asyncObject: OptOperand = opt_operand_def()
