@@ -225,10 +225,12 @@ class MLContext:
 
         # Otherwise, check if the attribute dialect is registered.
         dialect_name, _ = name.split(".", 1)
-        if dialect_name in self._registered_dialects:
-            if dialect_name not in self._loaded_dialects:
-                self.load_registered_dialect(dialect_name)
-                return self.get_optional_attr(name)
+        if (
+            dialect_name in self._registered_dialects
+            and dialect_name not in self._loaded_dialects
+        ):
+            self.load_registered_dialect(dialect_name)
+            return self.get_optional_attr(name)
 
         # If the dialect is unregistered, but the context allows unregistered
         # attributes, return an UnregisteredOp.
