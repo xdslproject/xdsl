@@ -86,11 +86,14 @@ class InputApp(App[None]):
     """
 
     INITIAL_IR_TEXT = """
-        func.func @hello(%n : i32) -> i32 {
-          %two = arith.constant 0 : i32
-          %res = arith.addi %two, %n : i32
-          func.return %res : i32
-        }
+        builtin.module {
+  func.func @hello(%n : i32) -> i32 {
+    %b = arith.addi %n, %n : i32
+    %two = arith.constant 2 : i32
+    %res = arith.divui %b, %two : i32
+    func.return %res : i32
+  }
+}
         """
 
     current_module = reactive[ModuleOp | Exception | None](None)
