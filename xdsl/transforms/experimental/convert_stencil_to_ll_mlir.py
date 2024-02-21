@@ -1,10 +1,10 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import product
-from typing import Literal, TypeVar, cast
+from typing import TypeVar, cast
 from warnings import warn
 
-from xdsl.dialects import arith, builtin, gpu, memref, scf
+from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import MemRefType
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.stencil import (
@@ -60,8 +60,6 @@ def StencilToMemRefType(
 
 @dataclass
 class CastOpToMemref(RewritePattern):
-    target: Literal["cpu", "gpu"] = "cpu"
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
         assert isa(op.result.type, FieldType[Attribute])
@@ -71,13 +69,6 @@ class CastOpToMemref(RewritePattern):
 
         cast = memref.Cast.get(op.field, result_type)
 
-        if self.target == "gpu":
-            unranked = memref.Cast.get(
-                cast.dest,
-                memref.UnrankedMemrefType.from_type(op.result.type.element_type),
-            )
-            register = gpu.HostRegisterOp(unranked.dest)
-            rewriter.insert_op_after_matched_op([unranked, register])
         rewriter.replace_matched_op(cast)
 
 
@@ -113,8 +104,6 @@ def update_return_target(
 class ReturnOpToMemref(RewritePattern):
     return_target: dict[ReturnOp, list[SSAValue | None]]
 
-    target: Literal["cpu", "gpu"] = "cpu"
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
         unroll_factor = op.unroll_factor
@@ -134,8 +123,6 @@ class ReturnOpToMemref(RewritePattern):
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 assert (block := op.parent_block()) is not None
-                if self.target == "gpu":
-                    offset = tuple(reversed(offset))
                 args = cast(list[SSAValue], collectBlockArguments(dims, block))
 
                 for i in range(dims):
@@ -147,9 +134,6 @@ class ReturnOpToMemref(RewritePattern):
                         args[i] = add_op.results[0]
                         store_list.append(constant_op)
                         store_list.append(add_op)
-
-                if self.target == "gpu":
-                    args = list(reversed(args))
 
                 store_list.append(
                     memref.Store.get(op.arg[j * unroll_factor + k], target, args)
@@ -248,8 +232,6 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter, dim: int):
 class ApplyOpToParallel(RewritePattern):
     return_targets: dict[ReturnOp, list[SSAValue | None]]
 
-    target: Literal["cpu", "gpu"]
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         res_type = op.res[0].type
@@ -277,7 +259,6 @@ class ApplyOpToParallel(RewritePattern):
                     for x in res_type.bounds.lb
                 ]
             ),
-            one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
             *(
                 steps := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
@@ -295,36 +276,15 @@ class ApplyOpToParallel(RewritePattern):
         # Generate an outer parallel loop as well as two inner sequential
         # loops. The inner sequential loops ensure that the computational
         # kernel itself is not slowed down by the OpenMP runtime.
-        match self.target:
-            case "cpu":
-                tiled_steps = steps
-                p = scf.ParallelOp(
-                    lower_bounds=lowerBounds,
-                    upper_bounds=upperBounds,
-                    steps=tiled_steps,
-                    body=Region(),
-                )
+        tiled_steps = steps
+        p = scf.ParallelOp(
+            lower_bounds=lowerBounds,
+            upper_bounds=upperBounds,
+            steps=tiled_steps,
+            body=Region(),
+        )
 
-                p.body.insert_block(body.detach_block(0), 0)
-
-            case "gpu":
-                stencil_rank = len(upperBounds)
-                boilerplate_ops.insert(
-                    1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
-                )
-                assert isa(lowerBounds, list[arith.Constant])
-                assert isa(steps, list[arith.Constant])
-
-                p = scf.ParallelOp(
-                    lower_bounds=list(reversed(lowerBounds))
-                    + [zero] * (3 - stencil_rank),
-                    upper_bounds=list(reversed(upperBounds))
-                    + [one] * (3 - stencil_rank),
-                    steps=list(reversed(steps)) + [one] * (3 - stencil_rank),
-                    body=body,
-                )
-                for _ in range(3 - dim):
-                    rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
+        p.body.insert_block(body.detach_block(0), 0)
 
         # Handle returnd values
         for result in op.res:
@@ -384,8 +344,6 @@ class ApplyOpToParallel(RewritePattern):
 
 @dataclass
 class AccessOpToMemref(RewritePattern):
-    target: Literal["cpu", "gpu"] = "cpu"
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
@@ -409,9 +367,6 @@ class AccessOpToMemref(RewritePattern):
             args.reverse()
         else:
             args = collectBlockArguments(len(memref_offset), block)
-
-        if self.target == "gpu":
-            args.reverse()
 
         off_const_ops: list[Operation] = []
         memref_load_args: list[BlockArgument | OpResult] = []
@@ -542,8 +497,6 @@ class StencilTypeConversion(TypeConversionPattern):
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
-    target: Literal["cpu", "gpu"] = "cpu"
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         return_targets: dict[ReturnOp, list[SSAValue | None]] = return_target_analysis(
             op
@@ -552,12 +505,12 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ApplyOpToParallel(return_targets, self.target),
+                    ApplyOpToParallel(return_targets),
                     StencilStoreToSubview(return_targets),
-                    CastOpToMemref(self.target),
+                    CastOpToMemref(),
                     LoadOpToMemref(),
-                    AccessOpToMemref(self.target),
-                    ReturnOpToMemref(return_targets, self.target),
+                    AccessOpToMemref(),
+                    ReturnOpToMemref(return_targets),
                     IndexOpToLoopSSA(),
                     TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
