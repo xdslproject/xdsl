@@ -179,6 +179,8 @@ class InputApp(App[None]):
         with Horizontal(id="top_container"):
             yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
+                with ScrollableContainer(id="selected_passes"):
+                    yield self.selected_query_label
                 with ScrollableContainer(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
@@ -191,8 +193,6 @@ class InputApp(App[None]):
                     yield Button(
                         "Remove Operation Count", id="remove_operation_count_button"
                     )
-                with ScrollableContainer(id="selected_passes"):
-                    yield self.selected_query_label
         with Horizontal(id="bottom_container"):
             with Horizontal(id="input_horizontal_container"):
                 with Vertical(id="input_container"):
