@@ -50,11 +50,7 @@ def apply_passes_to_module(
     return module
 
 
-def iter_condensed_pass_list(input: builtin.ModuleOp):
-    """
-    Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that
-    change the ModuleOp.
-    """
+def iter_condensed_passes(input: builtin.ModuleOp):
     ctx = MLContext(True)
 
     for dialect_name, dialect_factory in get_all_dialects().items():
@@ -72,9 +68,9 @@ def iter_condensed_pass_list(input: builtin.ModuleOp):
             value().apply(cloned_ctx, cloned_module)
             if input.is_structurally_equivalent(cloned_module):
                 continue
-            yield AvailablePass(value.name, value, None), cloned_module
+            yield AvailablePass(value.name, value, None), cloned_ctx
         except Exception:
-            continue
+            pass
 
 
 def get_condensed_pass_list(input: builtin.ModuleOp) -> tuple[AvailablePass, ...]:
