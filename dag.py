@@ -58,6 +58,8 @@ def __(input):
 def __(G, mo, nx, root):
     import plotly.graph_objects as go
 
+    assert nx.is_directed_acyclic_graph(G), "topo sort breaks otherwise"
+
     all_nodes = tuple(G.nodes())
     node_index_by_node = {n:i for i, n in enumerate(all_nodes)}
 
@@ -77,6 +79,10 @@ def __(G, mo, nx, root):
             node_x[node_index_by_node[node]] = x
             node_y[node_index_by_node[node]] = y
             print(node_index_by_node[node], x, y, node)
+
+    for i, node in enumerate(nx.topological_sort(G)):
+        node_index = node_index_by_node[node]
+        node_x[node_index] = (i + 1.0) / (len(all_nodes) + 2.0)
 
     print(node_x)
 
@@ -162,6 +168,7 @@ def __(G, mo, nx, root):
         edge_y,
         fig,
         go,
+        i,
         layer_index,
         layers,
         module,
