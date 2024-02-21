@@ -76,4 +76,10 @@ def iter_condensed_pass_list(input: builtin.ModuleOp):
         except Exception:
             continue
 
-    return tuple(selections)
+
+def get_condensed_pass_list(input: builtin.ModuleOp) -> tuple[AvailablePass, ...]:
+    """
+    Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that
+    change the ModuleOp.
+    """
+    return tuple(ap for ap, _ in iter_condensed_passes(input))
