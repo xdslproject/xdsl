@@ -215,7 +215,7 @@ class DmaMemcpyNdOp(IRDLOperation):
 
     def __init__(
         self,
-        async_dependencies: list[Operation | SSAValue],
+        async_dependencies: list[Operation | SSAValue] | None,
         dst: Operation | SSAValue,
         dst_offsets: list[Operation | SSAValue],
         dst_sizes: list[Operation | SSAValue],
@@ -238,6 +238,94 @@ class DmaMemcpyNdOp(IRDLOperation):
                 src_strides,
             ],
             result_types=[AsyncTokenAttr()],
+        )
+
+    def print(self, printer: Printer):
+        if self.async_dependencies:
+            printer.print(self.async_dependencies)
+        printer.print("(")
+        printer.print(self.dst)
+        printer.print("[")
+        printer.print(self.dst_offsets)
+        printer.print("]")
+        printer.print("[")
+        printer.print(self.dst_sizes)
+        printer.print("]")
+        printer.print(self.dst_strides)
+        printer.print(", ")
+        printer.print(self.src)
+        printer.print("[")
+        printer.print(self.src_offsets)
+        printer.print("]")
+        printer.print("[")
+        printer.print(self.src_sizes)
+        printer.print("]")
+        printer.print("[")
+        printer.print(self.src_strides)
+        printer.print("]")
+        printer.print(")")
+        printer.print(" : ")
+        printer.print("(")
+        printer.print(self.dst.type)
+        printer.print(", ")
+        printer.print(self.src.type)
+        printer.print(")")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> DmaMemcpyNdOp:
+        parser.parse_characters("(")
+        dst = parser.parse_operand()
+        parser.parse_characters("[")
+        dst_offsets: list[Operation | SSAValue] = []
+        while not parser.parse_optional_characters("]"):
+            dst_offsets.append(parser.parse_operand())
+            parser.parse_optional_characters(",")
+        parser.parse_characters("[")
+        dst_sizes: list[Operation | SSAValue] = []
+        while not parser.parse_optional_characters("]"):
+            dst_sizes.append(parser.parse_operand())
+            parser.parse_optional_characters(",")
+        parser.parse_characters("[")
+        dst_strides: list[Operation | SSAValue] = []
+        while not parser.parse_optional_characters("]"):
+            dst_strides.append(parser.parse_operand())
+            parser.parse_optional_characters(",")
+        parser.parse_characters(",")
+        src = parser.parse_operand()
+        parser.parse_characters("[")
+        src_offsets: list[Operation | SSAValue] = []
+        while not parser.parse_optional_characters("]"):
+            src_offsets.append(parser.parse_operand())
+            parser.parse_optional_characters(",")
+        parser.parse_characters("[")
+        src_sizes: list[Operation | SSAValue] = []
+        while not parser.parse_optional_characters("]"):
+            src_sizes.append(parser.parse_operand())
+            parser.parse_optional_characters(",")
+        parser.parse_characters("[")
+        src_strides: list[Operation | SSAValue] = []
+        while not parser.parse_optional_characters("]"):
+            src_strides.append(parser.parse_operand())
+            parser.parse_optional_characters(",")
+        parser.parse_characters(")")
+        parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        parser.parse_characters("(")
+        parser.parse_type()
+        parser.parse_characters(",")
+        parser.parse_type()
+        parser.parse_characters(")")
+
+        return DmaMemcpyNdOp(
+            None,
+            dst,
+            dst_offsets,
+            dst_sizes,
+            dst_strides,
+            src,
+            src_offsets,
+            src_sizes,
+            src_strides,
         )
 
 
@@ -278,6 +366,10 @@ class ExecuteTerminatorOp(IRDLOperation):
 @irdl_op_definition
 class HerdTerminatorOp(IRDLOperation):
     name = "air.herd_terminator"
+
+    traits = traits_def(lambda: frozenset([HasParent(HerdOp), IsTerminator()]))
+
+    assembly_format = "attr-dict"
 
 
 @irdl_op_definition
@@ -370,25 +462,27 @@ class HerdOp(IRDLOperation):
         parser.parse_characters("(")
         tile_size_lst: list[Operation | SSAValue] = []
         for n_arg in range(len(arg_list)):
-            print("BEFORE TILESIZE")
-            tile_size_ref = parser.parse_optional_argument(False)
-            print("TILE SIZE REF: ", tile_size_ref)
+            parser.parse_optional_argument(False)
             parser.parse_characters("=")
             tile_size = parser.parse_operand()
             tile_size_lst.append(tile_size)
             if n_arg < len(arg_list) - 1:
                 parser.parse_characters(",")
-            print("TILE SIZE REF: ", tile_size_ref, "TILE SIZE: ", tile_size)
 
         parser.parse_characters(")")
+        arguments_lst: list[Parser.Argument] = []
 
         operands_lst: list[Operation | SSAValue] = []
         if parser.parse_optional_keyword("args"):
             parser.parse_characters("(")
             while True:
-                parser.parse_optional_argument(False)
+                argument = parser.parse_argument(expect_type=False)
                 parser.parse_characters("=")
                 operand = parser.parse_operand()
+
+                # The type of the block argument is not known until the operand has been parsed, e.g. %ext0 = %arg0
+                argument = argument.resolve(operand.type)
+                arguments_lst.append(argument)
                 operands_lst.append(operand)
 
                 if not parser.parse_optional_characters(","):
@@ -405,7 +499,7 @@ class HerdOp(IRDLOperation):
 
         parser.parse_keyword("attributes")
         parser.parse_optional_attr_dict()
-        region = parser.parse_optional_region()
+        region = parser.parse_optional_region(arguments_lst)
 
         return HerdOp(sym_name, None, tile_size_lst, operands_lst, region)
 
