@@ -1,11 +1,12 @@
 """
 This is a stub of CIRCT’s hw dialect.
-It currently implements minimal types and operations used by other dialects.
+It currently implements minimal types and operations for the symbols and inner symbols used by other dialects.
 
 [1] https://circt.llvm.org/docs/Dialects/HW/
+[2] https://circt.llvm.org/docs/RationaleSymbols/
 """
 
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 
 from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
@@ -24,6 +25,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import (
+    OpTrait,
+    SymbolOpInterface,
+    SymbolTable,
+)
+from xdsl.utils.exceptions import VerifyException
 
 
 @dataclass
@@ -110,6 +117,135 @@ class InnerRefAttr(ParametrizedAttribute):
         printer.print_string("::@")
         printer.print_string(self.sym_name.data)
         printer.print_string(">")
+
+
+@dataclass(frozen=True)
+class InnerSymbolTableTrait(OpTrait):
+    """A trait for inner symbol table functionality on an operation."""
+
+    def verify(self, op: Operation):
+        # Insist that ops with InnerSymbolTable's provide a Symbol, this is
+        # essential to how InnerRef's work.
+        if not op.has_trait(trait := SymbolOpInterface):
+            raise VerifyException(
+                f"Operation {op.name} must have trait {trait.__name__}"
+            )
+
+        # InnerSymbolTable's must be directly nested within an InnerRefNamespaceTrait,
+        # however don’t test InnerRefNamespace’s symbol lookups
+        parent = op.parent_op()
+        if (
+            parent is None
+            or len(parent.get_traits_of_type(trait := InnerRefNamespaceTrait)) != 1
+        ):
+            raise VerifyException(
+                f"Operation {op.name} with trait {type(self).__name__} must have a parent with trait {trait.__name__}"
+            )
+
+
+@dataclass
+class InnerSymbolTable:
+    """A class for lookups in inner symbol tables. Called InnerSymbolTable in upstream (name clash with trait)."""
+
+    op: InitVar[Operation | None] = None
+    symbol_table: dict[StringAttr, InnerSymTarget] = field(default_factory=dict)
+
+    def __post_init__(self, op: Operation | None = None) -> None:
+        pass
+        # Here will populate self.symbol_table
+
+
+@dataclass
+class InnerSymbolTableCollection:
+    """This class represents a collection of InnerSymbolTable."""
+
+    symbol_tables: dict[Operation, InnerSymbolTable] = field(
+        default_factory=dict, init=False
+    )
+    op: InitVar[Operation | None] = None
+
+    def __post_init__(self, op: Operation | None = None) -> None:
+        if op is None:
+            return
+        if not op.has_trait(trait := InnerRefNamespaceTrait):
+            raise VerifyException(
+                f"Operation {op.name} should have {trait.__name__} trait"
+            )
+        self.populate_and_verify_tables(op)
+
+    def get_inner_symbol_table(self, op: Operation) -> InnerSymbolTable:
+        """Returns the InnerSymolTable trait, ensuring `op` is in the collection"""
+        if not op.has_trait(trait := InnerSymbolTableTrait):
+            raise VerifyException(
+                f"Operation {op.name} should have {trait.__name__} trait"
+            )
+        if op not in self.symbol_tables:
+            self.symbol_tables[op] = InnerSymbolTable(op)
+        return self.symbol_tables[op]
+
+    def populate_and_verify_tables(self, inner_ref_ns_op: Operation):
+        """Populate tables for all InnerSymbolTable operations in the given InnerRefNamespace operation, verifying each."""
+        # Gather top-level operations that have the InnerSymbolTable trait.
+        inner_sym_table_ops = (
+            op for op in inner_ref_ns_op.walk() if op.has_trait(InnerSymbolTableTrait)
+        )
+
+        # Construct the tables
+        for op in inner_sym_table_ops:
+            if op in self.symbol_tables:
+                raise VerifyException(
+                    f"Trying to insert the same op twice in symbol tables: {op}"
+                )
+            self.symbol_tables[op] = InnerSymbolTable(op)
+
+
+class InnerRefUserOpInterfaceTrait(OpTrait):
+    """This interface describes an operation that may use a `InnerRef`. This
+    interface allows for users of inner symbols to hook into verification and
+    other inner symbol related utilities that are either costly or otherwise
+    disallowed within a traditional operation."""
+
+    def verify_inner_refs(self, op: Operation, namespace: "InnerRefNamespace"):
+        """Verify the inner ref uses held by this operation."""
+        ...
+
+
+@dataclass(frozen=True)
+class InnerRefNamespaceTrait(OpTrait):
+    """Trait for operations defining a new scope for InnerRef’s. Operations with this trait must be a SymbolTable."""
+
+    def verify(self, op: Operation):
+        if not op.has_trait(trait := SymbolTable):
+            raise VerifyException(
+                f"Operation {op.name} must have trait {trait.__name__}"
+            )
+
+        # Upstreams verifies that len(op.regions) == 1 and len(op.regions[0].blocks) == 1
+        # however this is already checked as part of SymbolTable, so would be redundant to re-check here
+
+        namespace = InnerRefNamespace(op)
+
+        for inner_op in op.walk():
+            inner_ref_user_op_trait = inner_op.get_trait(InnerRefUserOpInterfaceTrait)
+            if inner_ref_user_op_trait is not None:
+                inner_ref_user_op_trait.verify_inner_refs(inner_op, namespace)
+
+
+@dataclass
+class InnerRefNamespace:
+    """Class to perform symbol lookups within a InnerRef namespace, used during verification.
+    Combines InnerSymbolTableCollection with a SymbolTable for resolution of InnerRefAttrs.
+
+    Inner symbols are more costly than normal symbols, with tricker verification. For this reason,
+    verification is driven as a trait verifier on InnerRefNamespace which constructs and verifies InnerSymbolTables in parallel.
+    See: https://circt.llvm.org/docs/RationaleSymbols/#innerrefnamespace
+    """
+
+    inner_sym_tables: InnerSymbolTableCollection = field(init=False)
+    inner_ref_ns_op: InitVar[Operation]
+
+    def __init__(self, inner_ref_ns_op: Operation):
+        self.inner_sym_tables = InnerSymbolTableCollection(inner_ref_ns_op)
 
 
 HW = Dialect(
