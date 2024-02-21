@@ -305,6 +305,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return canonicalize_dmp.CanonicalizeDmpPass
 
+    def get_convert_linalg_to_memref_stream():
+        from xdsl.transforms import convert_linalg_to_memref_stream
+
+        return convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass
+
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
 
@@ -392,6 +397,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return lower_snitch.LowerSnitchPass
 
+    def get_memref_streamify():
+        from xdsl.transforms import memref_streamify
+
+        return memref_streamify.MemrefStreamifyPass
+
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
 
@@ -436,6 +446,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.backend.riscv.lowering import convert_memref_to_riscv
 
         return convert_memref_to_riscv.ConvertMemrefToRiscvPass
+
+    def get_convert_memref_stream_to_loops():
+        from xdsl.transforms import convert_memref_stream_to_loops
+
+        return convert_memref_stream_to_loops.ConvertMemrefStreamToLoopsPass
+
+    def get_convert_onnx_to_linalg():
+        from xdsl.transforms import convert_onnx_to_linalg
+
+        return convert_onnx_to_linalg.ConvertOnnxToLinalgPass
 
     def get_convert_memref_stream_to_snitch():
         from xdsl.transforms import convert_memref_stream_to_snitch_stream
@@ -510,8 +530,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "constant-fold-interp": get_constant_fold_interp,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
+        "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
+        "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
@@ -533,6 +556,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lower-riscv-func": get_lower_riscv_func,
         "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
         "lower-snitch": get_lower_snitch,
+        "memref-streamify": get_memref_streamify,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,

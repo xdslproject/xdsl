@@ -24,6 +24,7 @@ class Token:
         NUMBER = object()
         SPACE = object()
         STRING_LIT = object()
+        MLIR_PIPELINE = object()
         COMMA = ","
 
 
@@ -33,6 +34,7 @@ _lexer_rules: list[tuple[re.Pattern[str], Token.Kind]] = [
     (re.compile(r"[-+]?[0-9]+(\.[0-9]*([eE][-+]?[0-9]+)?)?"), Token.Kind.NUMBER),
     (re.compile(r"[A-Za-z0-9_-]+"), Token.Kind.IDENT),
     (re.compile(r'"(\\[nfvtr"\\]|[^\n\f\v\r"\\])*"'), Token.Kind.STRING_LIT),
+    (re.compile(r'\[(\\[nfvtr"\\]|[^\n\f\v\r\]\\])*\]'), Token.Kind.MLIR_PIPELINE),
     (re.compile(r"\{"), Token.Kind.L_BRACE),
     (re.compile(r"}"), Token.Kind.R_BRACE),
     (re.compile(r"="), Token.Kind.EQUALS),
@@ -46,10 +48,10 @@ This is a list of lexer rules that should be tried in this specific order to get
 
 class PipelineLexer:
     """
-    This tokenizes a pass declaration string. Pass syntax is a subset
-    of MLIRs pass pipeline syntax:
+    This tokenizes a pass declaration string:
     pipeline          ::= pipeline-element (`,` pipeline-element)*
-    pipeline-element  ::= pass-name options?
+    pipeline-element  ::= MLIR_PIPELINE
+                        | pass-name options?
     options           ::= `{` options-element ( ` ` options-element)* `}`
     options-element   ::= key (`=` value (`,` value)* )?
 
@@ -193,6 +195,23 @@ def parse_pipeline(
             case Token(kind=Token.Kind.L_BRACE):
                 # `{` indicates start of args dict, so we parse that next
                 yield PipelinePassSpec(name.span.text, _parse_pass_args(lexer))
+            case Token(span, Token.Kind.MLIR_PIPELINE):
+                if name.span.text != "mlir-opt":
+                    raise PassPipelineParseError(
+                        name,
+                        "Expected `mlir-opt` to mark an MLIR pipeline here",
+                    )
+                yield PipelinePassSpec(
+                    "mlir-opt",
+                    {
+                        "arguments": [
+                            "--mlir-print-op-generic",
+                            "--allow-unregistered-dialect",
+                            "-p",
+                            f"builtin.module({span.text[1:-1]})",
+                        ]
+                    },
+                )
             case invalid:
                 # every other token is invalid
                 raise PassPipelineParseError(

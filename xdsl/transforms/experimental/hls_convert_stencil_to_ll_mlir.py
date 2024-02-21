@@ -368,11 +368,11 @@ def add_read_write_ops(
 def transform_apply_into_loop(
     op: ApplyOp, rewriter: PatternRewriter, ndim: int, boilerplate: list[Operation]
 ):
-    body = prepare_apply_body(op, rewriter)
-
-    body.block.add_op(scf.Yield())
     dim: int = ndim
     assert dim == 3
+    body = prepare_apply_body(op, rewriter, dim)
+
+    body.block.add_op(scf.Yield())
 
     assert isinstance(op.attributes["shape_x"], builtin.IntegerAttr)
     assert isinstance(op.attributes["shape_y"], builtin.IntegerAttr)

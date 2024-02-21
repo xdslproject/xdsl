@@ -21,6 +21,11 @@ builtin.module {
         %fres0, %res0 = "test.op"(%arg0, %farg0) : (i32, f32) -> (f32, i32)
         func.return %fres0, %res0 : f32, i32
     }
+
+    func.func @foo_int_double(%arg0 : i32, %farg0 : f64) -> (f64, i32) {
+        %fres0, %res0 = "test.op"(%arg0, %farg0) : (i32, f64) -> (f64, i32)
+        func.return %fres0, %res0 : f64, i32
+    }
 }
 
 // CHECK:       builtin.module {
@@ -85,6 +90,22 @@ builtin.module {
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %fres0_1 : f32 to !riscv.freg<>
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %res0_1 : i32 to !riscv.reg<>
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<fa0>
+// CHECK-NEXT:        %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:        riscv_func.return %{{.*}}, %{{.*}} : !riscv.freg<fa0>, !riscv.reg<a0>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+// CHECK-NEXT:    riscv.assembly_section ".text" {
+// CHECK-NEXT:      riscv.directive ".globl" "foo_int_double"
+// CHECK-NEXT:      riscv.directive ".p2align" "2"
+// CHECK-NEXT:      riscv_func.func @foo_int_double(%arg0_4 : !riscv.reg<a0>, %farg0_4 : !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) {
+// CHECK-NEXT:        %{{.*}} = riscv.mv %arg0_4 : (!riscv.reg<a0>) -> !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %30 : !riscv.reg<> to i32
+// CHECK-NEXT:        %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<fa0>) -> !riscv.freg<>
+// CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg<> to f64
+// CHECK-NEXT:        %{{.*}}, %{{.*}} = "test.op"(%{{.*}}, %{{.*}}) : (i32, f64) -> (f64, i32)
+// CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f64 to !riscv.freg<>
+// CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : i32 to !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<>) -> !riscv.freg<fa0>
 // CHECK-NEXT:        %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:        riscv_func.return %{{.*}}, %{{.*}} : !riscv.freg<fa0>, !riscv.reg<a0>
 // CHECK-NEXT:      }

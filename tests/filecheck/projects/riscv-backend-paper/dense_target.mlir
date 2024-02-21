@@ -1,23 +1,20 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
-riscv.assembly_section ".text" {
-  riscv.directive ".globl" "dense"
-  riscv.directive ".p2align" "2"
 
   // * Inputs:  x[ M x K ]
   // * Weights: w[ K x N ]
   // * Biases:  b[ M x N ]
   // * Outputs: y[ M x N ]
-  riscv_func.func @dense(
-    %X : !riscv.reg<a0>,
-    %W : !riscv.reg<a1>,
-    %B : !riscv.reg<a2>,
-    %Y : !riscv.reg<a3>
+  func.func @dense(
+    %X : memref<8x8xf64>,
+    %W : memref<8x8xf64>,
+    %B : memref<8x8xf64>,
+    %Y : memref<8x8xf64>
   ) {
-    %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
-    %W_moved = riscv.mv %W : (!riscv.reg<a1>) -> !riscv.reg<>
-    %B_moved = riscv.mv %B : (!riscv.reg<a2>) -> !riscv.reg<>
-    %Y_moved = riscv.mv %Y : (!riscv.reg<a3>) -> !riscv.reg<>
+    %X_moved = builtin.unrealized_conversion_cast %X : memref<8x8xf64> to !riscv.reg<>
+    %W_moved = builtin.unrealized_conversion_cast %W : memref<8x8xf64> to !riscv.reg<>
+    %B_moved = builtin.unrealized_conversion_cast %B : memref<8x8xf64> to !riscv.reg<>
+    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<8x8xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
@@ -56,9 +53,9 @@ riscv.assembly_section ".text" {
       }
     }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
-    riscv_func.return
+    func.return
   }
-}
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl dense
