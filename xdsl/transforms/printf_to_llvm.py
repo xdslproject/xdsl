@@ -1,6 +1,6 @@
 import hashlib
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from xdsl.dialects import arith, builtin, llvm, printf
 from xdsl.ir import Attribute, MLContext, Operation, SSAValue
@@ -8,6 +8,7 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
+    PatternRewriterListener,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -145,9 +146,21 @@ class PrintfToLLVM(ModulePass):
     name = "printf-to-llvm"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        has_done_action = False
+
+        def handler(op: Operation, new_results: Sequence[SSAValue | None]):
+            nonlocal has_done_action
+            has_done_action = True
+
         add_printf_call = PrintlnOpToPrintfCall()
 
-        PatternRewriteWalker(add_printf_call).rewrite_module(op)
+        PatternRewriteWalker(
+            add_printf_call,
+            listener=PatternRewriterListener(operation_replacement_handler=[handler]),
+        ).rewrite_module(op)
+
+        if not has_done_action:
+            return
 
         op.body.block.add_ops(
             [
