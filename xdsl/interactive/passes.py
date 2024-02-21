@@ -1,3 +1,4 @@
+import warnings
 from typing import NamedTuple
 
 from xdsl.dialects import builtin
@@ -57,20 +58,22 @@ def iter_condensed_passes(input: builtin.ModuleOp):
         ctx.register_dialect(dialect_name, dialect_factory)
 
     selections: list[AvailablePass] = []
-    for _, value in ALL_PASSES:
-        if value is MLIROptPass:
-            # Always keep MLIROptPass as an option in condensed list
-            selections.append(AvailablePass(value.name, value, None))
-            continue
-        try:
-            cloned_module = input.clone()
-            cloned_ctx = ctx.clone()
-            value().apply(cloned_ctx, cloned_module)
-            if input.is_structurally_equivalent(cloned_module):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # Convert all warnings to exceptions
+        for _, value in ALL_PASSES:
+            if value is MLIROptPass:
+                # Always keep MLIROptPass as an option in condensed list
+                selections.append(AvailablePass(value.name, value, None))
                 continue
-            yield AvailablePass(value.name, value, None), cloned_module
-        except Exception:
-            pass
+            try:
+                cloned_module = input.clone()
+                cloned_ctx = ctx.clone()
+                value().apply(cloned_ctx, cloned_module)
+                if input.is_structurally_equivalent(cloned_module):
+                    continue
+                yield AvailablePass(value.name, value, None), cloned_module
+            except Exception:
+                pass
 
 
 def get_condensed_pass_list(input: builtin.ModuleOp) -> tuple[AvailablePass, ...]:
