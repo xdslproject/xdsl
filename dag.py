@@ -175,13 +175,14 @@ def __(input_module, nx):
             bla.add_edge(source, target, available_pass.display_name)
             if target not in visited:
                 queue.append(target)
-                print(target.module)
 
 
     for n in bla.nodes:
         print(n.module)
-        print(nx.shortest_path(bla, root, n))
-
+        paths = nx.all_simple_edge_paths(bla, root, n)
+        
+        for path in paths:
+           print("Path :: " + ','.join(e[2] for e in path))
     str(bla)
     return (
         HashableModule,
@@ -189,6 +190,8 @@ def __(input_module, nx):
         bla,
         iter_condensed_passes,
         n,
+        path,
+        paths,
         queue,
         root,
         source,
