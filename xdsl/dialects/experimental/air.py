@@ -6,6 +6,8 @@ components and it can be lowered to the processor's assembly using the vendor's 
 of the original dialect can be found here https://xilinx.github.io/mlir-air/AIRDialect.html
 """
 
+from __future__ import annotations
+
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
@@ -19,21 +21,27 @@ from xdsl.ir import (
     Dialect,
     Operation,
     ParametrizedAttribute,
+    Region,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
+    opt_region_def,
     result_def,
     traits_def,
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
@@ -276,30 +284,130 @@ class HerdTerminatorOp(IRDLOperation):
 class HerdOp(IRDLOperation):
     name = "air.herd"
 
-    sym_name = attr_def(StringAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    sizes = var_operand_def(IndexType)
-    herd_operands = var_operand_def(Attribute)
+    sym_name = opt_attr_def(StringAttr)
+    async_dependencies = var_operand_def(AsyncTokenAttr())
+    sizes = var_operand_def(IndexType())
+    herd_operands = var_operand_def(AnyAttr())
     async_token = result_def(AsyncTokenAttr)
+    region = opt_region_def()
 
     traits = frozenset(
         [IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)]
     )
 
-    irdl_options = [AttrSizedOperandSegments]
+    irdl_options = [AttrSizedOperandSegments()]
 
     def __init__(
         self,
-        sym_name: StringAttr,
-        async_dependencies: list[Operation | SSAValue],
+        sym_name: StringAttr | None,
+        async_dependencies: list[Operation | SSAValue] | None,
         sizes: list[Operation | SSAValue],
-        herd_operands: list[Operation | SSAValue],
+        herd_operands: list[Operation | SSAValue] | None,
+        region: Region | None,
     ):
         super().__init__(
             attributes={"sym_name": sym_name},
             operands=[async_dependencies, sizes, herd_operands],
             result_types=[AsyncTokenAttr()],
+            regions=[region],
         )
+
+    def print(self, printer: Printer):
+        printer.print(" tile")
+        printer.print("(")
+        if len(self.sizes) == 1:
+            printer.print("%tx")
+        if len(self.sizes) == 2:
+            printer.print("%tx, %ty")
+        if len(self.sizes) == 3:
+            printer.print("%tx, %ty, %tz")
+        printer.print(")")
+        printer.print(" in ")
+        printer.print("(")
+        if len(self.sizes) == 1:
+            printer.print("%\\size_x = ")
+        if len(self.sizes) == 2:
+            printer.print("%size_x = ")
+            printer.print(self.sizes[0])
+            printer.print(", ")
+            printer.print("%size_y = ")
+            printer.print(self.sizes[1])
+        if len(self.sizes) == 3:
+            printer.print("%\\size_x, %\\size_y, %\\size_z")
+        printer.print(")")
+
+        if self.herd_operands:
+            printer.print(" args")
+            printer.print("(")
+            if len(self.sizes) == 1:
+                printer.print("%\\ext0 = ")
+            if len(self.sizes) == 2:
+                printer.print("%ext0 = ")
+                printer.print(self.herd_operands[0])
+                printer.print(", ")
+                printer.print("ext1 = ")
+                printer.print(self.herd_operands[1])
+            if len(self.sizes) == 3:
+                printer.print("%ext0 = ")
+
+        printer.print(" : ")
+        for n_arg in range(len(self.herd_operands)):
+            printer.print(self.herd_operands[n_arg].type)
+            if n_arg < len(self.herd_operands) - 1:
+                printer.print(",")
+
+        printer.print(")")
+        if self.region:
+            printer.print_region(self.region)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> HerdOp:
+        sym_name = parser.parse_optional_symbol_name()
+        parser.parse_keyword("tile")
+        arg_list = parser.parse_op_args_list()
+        parser.parse_keyword("in")
+
+        parser.parse_characters("(")
+        tile_size_lst: list[Operation | SSAValue] = []
+        for n_arg in range(len(arg_list)):
+            print("BEFORE TILESIZE")
+            tile_size_ref = parser.parse_optional_argument(False)
+            print("TILE SIZE REF: ", tile_size_ref)
+            parser.parse_characters("=")
+            tile_size = parser.parse_operand()
+            tile_size_lst.append(tile_size)
+            if n_arg < len(arg_list) - 1:
+                parser.parse_characters(",")
+            print("TILE SIZE REF: ", tile_size_ref, "TILE SIZE: ", tile_size)
+
+        parser.parse_characters(")")
+
+        operands_lst: list[Operation | SSAValue] = []
+        if parser.parse_optional_keyword("args"):
+            parser.parse_characters("(")
+            while True:
+                parser.parse_optional_argument(False)
+                parser.parse_characters("=")
+                operand = parser.parse_operand()
+                operands_lst.append(operand)
+
+                if not parser.parse_optional_characters(","):
+                    break
+
+        parser.parse_characters(")")
+
+        parser.parse_characters(":")
+
+        for n_arg in range(len(arg_list)):
+            parser.parse_type()
+            if n_arg < len(arg_list) - 1:
+                parser.parse_characters(",")
+
+        parser.parse_keyword("attributes")
+        parser.parse_optional_attr_dict()
+        region = parser.parse_optional_region()
+
+        return HerdOp(sym_name, None, tile_size_lst, operands_lst, region)
 
 
 @irdl_op_definition
@@ -314,16 +422,16 @@ class LaunchOp(IRDLOperation):
     name = "air.launch"
 
     sym_name = attr_def(StringAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr)
+    async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
-    launch_operands = var_operand_def(Attribute)
+    launch_operands = var_operand_def(AnyAttr())
     async_token = result_def(AsyncTokenAttr)
 
     traits = frozenset(
         [IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)]
     )
 
-    irdl_options = [AttrSizedOperandSegments]
+    irdl_options = [AttrSizedOperandSegments()]
 
     def __init__(
         self,
@@ -431,14 +539,16 @@ class SegmentOp(IRDLOperation):
     name = "air.segment"
 
     sym_name = attr_def(StringAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    sizes = var_operand_def(IndexType)
-    segment_operands = var_operand_def(Attribute)
+    async_dependencies = var_operand_def(AsyncTokenAttr())
+    sizes = var_operand_def(IndexType())
+    segment_operands = var_operand_def(AnyAttr())
     async_token = result_def(AsyncTokenAttr)
 
     traits = frozenset(
         [IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)]
     )
+
+    irdl_options = [AttrSizedOperandSegments()]
 
     def __init__(
         self,
