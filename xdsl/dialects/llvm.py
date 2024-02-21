@@ -713,6 +713,25 @@ class IntToPtrOp(IRDLOperation):
 
 
 @irdl_op_definition
+class InlineAsmOp(IRDLOperation):
+    name = "llvm.inline_asm"
+
+    # operands_, because is already defined?
+    operands_: VarOperand = var_operand_def()
+
+    res: OptOpResult = opt_result_def()
+
+    # note: in MLIR upstream this is implemented as AsmDialectAttr;
+    # which is an instantiation of an LLVM_EnumAttr
+    asm_dialect = opt_prop_def(IntegerAttr[IntegerType])
+
+    asm_string: StringAttr = prop_def(StringAttr)
+    constraints: StringAttr = prop_def(StringAttr)
+    has_side_effects: UnitAttr | None = opt_prop_def(UnitAttr)
+    is_align_stack: UnitAttr | None = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
 class PtrToIntOp(IRDLOperation):
     name = "llvm.ptrtoint"
 
@@ -1271,6 +1290,7 @@ LLVM = Dialect(
         AShrOp,
         ExtractValueOp,
         InsertValueOp,
+        InlineAsmOp,
         UndefOp,
         AllocaOp,
         GEPOp,
