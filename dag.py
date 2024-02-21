@@ -156,7 +156,7 @@ def __(mo):
 
 @app.cell
 def __(input_module, nx):
-    from xdsl.interactive.passes import iter_condensed_pass_list
+    from xdsl.interactive.passes import iter_condensed_passes
     from xdsl.utils.hashable_module import HashableModule
 
     bla = nx.MultiDiGraph()
@@ -170,7 +170,7 @@ def __(input_module, nx):
         if source in visited:
             continue
         visited.add(source)
-        for available_pass, t in iter_condensed_pass_list(source.module):
+        for available_pass, t in iter_condensed_passes(source.module):
             target = HashableModule(t)
             bla.add_edge(source, target, available_pass.display_name)
             if target not in visited:
@@ -187,7 +187,7 @@ def __(input_module, nx):
         HashableModule,
         available_pass,
         bla,
-        iter_condensed_pass_list,
+        iter_condensed_passes,
         n,
         queue,
         root,
