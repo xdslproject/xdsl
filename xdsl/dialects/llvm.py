@@ -714,6 +714,13 @@ class IntToPtrOp(IRDLOperation):
 
 @irdl_op_definition
 class InlineAsmOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop
+
+    To see what each field means, have a look at:
+    https://llvm.org/docs/LangRef.html#inline-assembler-expressions
+    """
+
     name = "llvm.inline_asm"
 
     # operands_, because is already defined?
@@ -723,6 +730,9 @@ class InlineAsmOp(IRDLOperation):
 
     # note: in MLIR upstream this is implemented as AsmDialectAttr;
     # which is an instantiation of an LLVM_EnumAttr
+    # 0 for AT&T inline assembly dialect
+    # 1 for Intel inline assembly dialect
+    # In this context dialect does not refer to an MLIR dialect
     asm_dialect = opt_prop_def(IntegerAttr[IntegerType])
 
     asm_string: StringAttr = prop_def(StringAttr)
