@@ -11,7 +11,7 @@ from xdsl.interactive.rewrites import (
 )
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.transforms import individual_rewrite
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
@@ -19,10 +19,10 @@ def get_available_pass_list(
     input_text: str,
     pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
     condense_mode: bool,
+    rewrite_by_names_dict: dict[str, dict[str, RewritePattern]],
 ) -> tuple[AvailablePass, ...]:
     """
-    When any reactive variable is modified, this function (re-)computes the
-    available_pass_list variable.
+    This function returns the available pass list file based on an input text string, pass_pipeline and condense_mode.
     """
     ctx = get_new_registered_context()
     parser = Parser(ctx, input_text)
@@ -33,7 +33,7 @@ def get_available_pass_list(
     # get all rewrites
     rewrites = get_all_possible_rewrites(
         current_module,
-        individual_rewrite.REWRITE_BY_NAMES,
+        rewrite_by_names_dict,
     )
     # transform rewrites into passes
     rewrites_as_pass_list = convert_indexed_individual_rewrites_to_available_pass(
