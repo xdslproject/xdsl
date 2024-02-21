@@ -12,7 +12,13 @@ def __():
 
 @app.cell
 def __(mo):
-    input = mo.ui.text_area()
+    input = mo.ui.code_editor(value="""\
+    func.func @hello(%n : i32) -> i32 {
+        %two = arith.constant 0 : i32
+        %res = arith.addi %two, %n : i32
+        func.return %res : i32
+    }
+    """)
     input
     return input,
 
