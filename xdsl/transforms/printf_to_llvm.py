@@ -7,8 +7,8 @@ from xdsl.ir import Attribute, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
-    PatternRewriteWalker,
     PatternRewriterListener,
+    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )

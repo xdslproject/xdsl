@@ -1207,6 +1207,7 @@ class TrivialCleanUpAuxAttributes(RewritePattern):
 @dataclass
 class QualifyInterfacesPass(RewritePattern):
     module: builtin.ModuleOp
+    declared_coeff_func: bool = False
     called_coeff_func: bool = False
     interface_coeff_func_name = "_maxi_coeff"
 
@@ -1242,7 +1243,7 @@ class QualifyInterfacesPass(RewritePattern):
 
                 arg_idx += 1
 
-        if self.called_coeff_func:
+        if self.called_coeff_func and not self.declared_coeff_func:
             interface_coeff_func_type = llvm.LLVMFunctionType([], None, True)
             interface_coeff_func = llvm.FuncOp(
                 self.interface_coeff_func_name,
@@ -1250,6 +1251,7 @@ class QualifyInterfacesPass(RewritePattern):
                 llvm.LinkageAttr("external"),
             )
             self.module.body.block.add_op(interface_coeff_func)
+            self.declared_coeff_func = True
 
 
 @dataclass
