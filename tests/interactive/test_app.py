@@ -21,13 +21,9 @@ from xdsl.transforms import (
     canonicalize,
     individual_rewrite,
     mlir_opt,
-    printf_to_llvm,
     scf_parallel_loop_tiling,
     stencil_unroll,
     test_lower_linalg_to_snitch,
-)
-from xdsl.transforms.experimental import (
-    hls_convert_stencil_to_ll_mlir,
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
@@ -291,18 +287,8 @@ async def test_buttons():
                     pass_spec=None,
                 ),
                 AvailablePass(
-                    display_name="hls-convert-stencil-to-ll-mlir",
-                    module_pass=hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
                     display_name="mlir-opt",
                     module_pass=mlir_opt.MLIROptPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="printf-to-llvm",
-                    module_pass=printf_to_llvm.PrintfToLLVM,
                     pass_spec=None,
                 ),
                 AvailablePass(
@@ -382,18 +368,8 @@ async def test_rewrites():
                     pass_spec=None,
                 ),
                 AvailablePass(
-                    display_name="hls-convert-stencil-to-ll-mlir",
-                    module_pass=hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
                     display_name="mlir-opt",
                     module_pass=mlir_opt.MLIROptPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="printf-to-llvm",
-                    module_pass=printf_to_llvm.PrintfToLLVM,
                     pass_spec=None,
                 ),
                 AvailablePass(
