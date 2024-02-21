@@ -27,7 +27,9 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         lower = op.lowerBound
         upper = op.upperBound
         step = op.step
-
+        # The pass is meant to work on any parallel loop with any nu;ber of tile sizes.
+        # For a loop of dimension N, either use the N first tile sizes or use them all
+        # and fill the rest with 1.
         tile_sizes_v = self.tile_sizes[: len(lower)] + (1,) * (
             len(lower) - len(self.tile_sizes)
         )
