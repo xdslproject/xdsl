@@ -226,7 +226,7 @@ class LoadOpToMemref(RewritePattern):
         subview.result.name_hint = name
 
 
-def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
+def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter, dim: int):
     # First replace all current arguments by their definition
     # and erase them from the block. (We are changing the op
     # to a loop, which has access to them either way)
@@ -238,7 +238,8 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
             use.operation.operands[use.index] = op.args[idx]
         entry.erase_arg(arg)
 
-    rewriter.insert_block_argument(entry, 0, builtin.IndexType())
+    for _ in range(dim):
+        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
 
     return rewriter.move_region_contents_to_new_regions(op.region)
 
@@ -248,8 +249,6 @@ class ApplyOpToParallel(RewritePattern):
     return_targets: dict[ReturnOp, list[SSAValue | None]]
 
     target: Literal["cpu", "gpu"]
-
-    tile_sizes: list[int] | None
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -262,9 +261,9 @@ class ApplyOpToParallel(RewritePattern):
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
         unroll = return_op.unroll
 
-        body = prepare_apply_body(op, rewriter)
-        body.block.add_op(scf.Yield())
         dim = res_type.get_num_dims()
+        body = prepare_apply_body(op, rewriter, dim)
+        body.block.add_op(scf.Yield())
         if unroll is None:
             unroll = [1] * dim
         else:
@@ -273,23 +272,23 @@ class ApplyOpToParallel(RewritePattern):
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
             *(
-                lowerBounds := list[arith.Constant | BlockArgument | None](
+                lowerBounds := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.lb
-                )
+                ]
             ),
             one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
             *(
-                steps := list[arith.Constant | BlockArgument | None](
+                steps := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in unroll
-                )
+                ]
             ),
             *(
-                upperBounds := list[arith.Constant | arith.Select](
+                upperBounds := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.ub
-                )
+                ]
             ),
         ]
 
@@ -299,65 +298,14 @@ class ApplyOpToParallel(RewritePattern):
         match self.target:
             case "cpu":
                 tiled_steps = steps
-                total_upper_bounds = upperBounds.copy()
-                cst_tile_sizes: list[arith.Constant] = []
-                if self.tile_sizes:
-                    tiled_dim = min(dim, len(self.tile_sizes))
-                    for i in range(tiled_dim):
-                        cst_tile_size = arith.Constant.from_int_and_width(
-                            self.tile_sizes[i], builtin.IndexType()
-                        )
-                        tiled_steps.insert(i, cst_tile_size)
-                        boilerplate_ops.insert(-1, cst_tile_size)
-                        lowerBounds.insert(tiled_dim + i, None)
-                        upperBounds.insert(tiled_dim + i, cst_tile_size)
-                        cst_tile_sizes.append(cst_tile_size)
-                    dim += tiled_dim
-
-                assert lowerBounds[0] is not None
-                assert tiled_steps[0] is not None
                 p = scf.ParallelOp(
-                    lower_bounds=[lowerBounds[0]],
-                    upper_bounds=[upperBounds[0]],
-                    steps=[tiled_steps[0]],
-                    body=Region(Block([scf.Yield()], arg_types=[builtin.IndexType()])),
+                    lower_bounds=lowerBounds,
+                    upper_bounds=upperBounds,
+                    steps=tiled_steps,
+                    body=Region(),
                 )
-                loops: list[scf.ParallelOp | scf.For] = [p]
-                current_loop = p
-                tiled_index = 0
 
-                for i in range(1, dim):
-                    block = current_loop.body.block
-                    last = block.last_op
-                    assert last is not None
-                    if lowerBounds[i] is None:
-                        lb = loops[tiled_index].body.block.args[0]
-                        lowerBounds[i] = lb
-                        add = arith.Addi(lb, cst_tile_sizes[tiled_index])
-                        cmpi = arith.Cmpi(add, total_upper_bounds[tiled_index], "ult")
-                        minop = arith.Select(cmpi, add, total_upper_bounds[tiled_index])
-                        upperBounds[i] = minop
-
-                        block.insert_ops_before([add, cmpi, minop], last)
-                        tiled_index += 1
-                    assert (lb := lowerBounds[i]) is not None
-                    assert (st := tiled_steps[i]) is not None
-                    loop = scf.For(
-                        lb=lb,
-                        ub=upperBounds[i],
-                        step=st,
-                        iter_args=[],
-                        body=Region(
-                            Block([scf.Yield()], arg_types=[builtin.IndexType()])
-                        ),
-                    )
-                    block.insert_op_before(loop, last)
-                    current_loop = loop
-                    loops.append(loop)
-
-                current_loop.body.detach_block(current_loop.body.block)
-
-                current_loop.body.insert_block(body.detach_block(0), 0)
+                p.body.insert_block(body.detach_block(0), 0)
 
             case "gpu":
                 stencil_rank = len(upperBounds)
@@ -375,7 +323,7 @@ class ApplyOpToParallel(RewritePattern):
                     steps=list(reversed(steps)) + [one] * (3 - stencil_rank),
                     body=body,
                 )
-                for _ in range(3 - 1):
+                for _ in range(3 - dim):
                     rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
 
         # Handle returnd values
@@ -595,7 +543,6 @@ class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
     target: Literal["cpu", "gpu"] = "cpu"
-    tile_sizes: list[int] | None = None
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         return_targets: dict[ReturnOp, list[SSAValue | None]] = return_target_analysis(
@@ -605,7 +552,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ApplyOpToParallel(return_targets, self.target, self.tile_sizes),
+                    ApplyOpToParallel(return_targets, self.target),
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(self.target),
                     LoadOpToMemref(),
