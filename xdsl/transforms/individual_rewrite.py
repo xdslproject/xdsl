@@ -42,18 +42,6 @@ class DivisionOfSameVariableToOne(RewritePattern):
             and value.value.data != 0
         ):
             rewriter.replace_matched_op([], [mul_op.lhs])
-            assert isinstance(mul_op.rhs.owner, Operation)
-            try:
-                rewriter.erase_op(mul_op)
-                rewriter.erase_op(mul_op.rhs.owner)
-            except Exception as e:
-                # would not allow bare except, whats the g
-                print(e)
-
-            try:
-                rewriter.erase_op(op.rhs.owner)
-            except Exception as e:
-                print(e)
 
 
 INDIVIDUAL_REWRITE_PATTERNS_BY_OP_CLASS: dict[
