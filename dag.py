@@ -107,7 +107,7 @@ def __(mo):
     node_text = []
     for node, adjacencies in enumerate(G.adjacency()):
         node_adjacencies.append(len(adjacencies[1]))
-        node_text.append('# of connections: '+str(len(adjacencies[1])))
+        node_text.append(f"pos: { G.nodes[node]['pos']}"+str(len(adjacencies[1])))
 
     node_trace.marker.color = node_adjacencies
     node_trace.text = node_text
@@ -180,7 +180,7 @@ def __(input_module, nx):
     for n in bla.nodes:
         print(n.module)
         paths = nx.all_simple_edge_paths(bla, root, n)
-        
+
         for path in paths:
            print("Path :: " + ','.join(e[2] for e in path))
     str(bla)
