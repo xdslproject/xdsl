@@ -30,6 +30,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -240,7 +241,11 @@ class ExecuteOp(IRDLOperation):
     async_token = result_def(AsyncTokenAttr)
     results = var_result_def(Attribute)
 
-    # traits = frozenset([SingleBlockImplicitTerminator(ExecuteTerminatorOp), Terminator]) # TODO: solve dependency
+    traits = traits_def(
+        lambda: frozenset(
+            [SingleBlockImplicitTerminator(ExecuteTerminatorOp), IsTerminator()]
+        )
+    )  # TODO: solve dependency
 
     def __init__(
         self, async_dependencies: list[Operation | SSAValue], result_types: Attribute
@@ -301,7 +306,7 @@ class HerdOp(IRDLOperation):
 class LaunchTerminatorOp(IRDLOperation):
     name = "air.launch_terminator"
 
-    # traits = frozenset(HasParent(LaunchOp)) # TODO: solve dependency
+    traits = traits_def(lambda: frozenset([HasParent(LaunchOp)]))
 
 
 @irdl_op_definition
@@ -418,7 +423,7 @@ class PipelineYieldOp(IRDLOperation):
 class SegmentTerminatorOp(IRDLOperation):
     name = "air.segment_terminator"
 
-    # traits = frozenset([HasParent(SegmentOp), IsTerminator()]) # TODO: solve dependency
+    traits = traits_def(lambda: frozenset([HasParent(SegmentOp), IsTerminator()]))
 
 
 @irdl_op_definition
