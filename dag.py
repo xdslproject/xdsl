@@ -193,5 +193,42 @@ def __(mo):
     )
 
 
+@app.cell
+def __(ModuleStructure, input_module, nx):
+    from xdsl.interactive.passes import iter_condensed_pass_list
+
+    bla = nx.MultiDiGraph()
+
+    root = ModuleStructure(input_module)
+    queue = [root]
+
+    while queue:
+        source = queue.pop()
+        if source in bla:
+            continue
+        for available_pass, t in iter_condensed_pass_list(source.module):
+            target = ModuleStructure(t)
+            bla.add_edge(source, target, available_pass.display_name)
+            queue.append(target)
+
+
+    for n in bla.nodes:
+        print(n.module)
+        print(nx.shortest_path(bla, root, n))
+
+    str(bla)
+    return (
+        available_pass,
+        bla,
+        iter_condensed_pass_list,
+        n,
+        queue,
+        root,
+        source,
+        t,
+        target,
+    )
+
+
 if __name__ == "__main__":
     app.run()

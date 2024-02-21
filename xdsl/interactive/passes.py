@@ -50,7 +50,7 @@ def apply_passes_to_module(
     return module
 
 
-def get_condensed_pass_list(input: builtin.ModuleOp) -> tuple[AvailablePass, ...]:
+def iter_condensed_pass_list(input: builtin.ModuleOp):
     """
     Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that
     change the ModuleOp.
@@ -72,8 +72,8 @@ def get_condensed_pass_list(input: builtin.ModuleOp) -> tuple[AvailablePass, ...
             value().apply(cloned_ctx, cloned_module)
             if input.is_structurally_equivalent(cloned_module):
                 continue
+            yield AvailablePass(value.name, value, None), cloned_module
         except Exception:
-            pass
-        selections.append(AvailablePass(value.name, value, None))
+            continue
 
     return tuple(selections)
