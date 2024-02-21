@@ -26,18 +26,11 @@ def test_get_all_available_passes():
         """
 
     # Select two passes
-    pass_pipeline = ()
-
     pass_pipeline = (
-        *pass_pipeline,
         (
             convert_arith_to_riscv.ConvertArithToRiscvPass,
             PipelinePassSpec(name="convert-arith-to-riscv", args={}),
         ),
-    )
-
-    pass_pipeline = (
-        *pass_pipeline,
         (
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
             PipelinePassSpec(name="convert-func-to-riscv-func", args={}),
