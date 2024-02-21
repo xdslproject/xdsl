@@ -49,42 +49,36 @@ def __():
 
 
 @app.cell
-def __(mo):
+def __(input):
+    input
+    return
+
+
+@app.cell
+def __(G, mo, nx, root):
     import plotly.graph_objects as go
 
-    import networkx as nx
+    all_nodes = tuple(G.nodes())
+    node_index_by_node = {n:i for i, n in enumerate(all_nodes)}
 
-    G = nx.random_geometric_graph(200, 0.125)
-    while not nx.is_connected(G):
-        G = nx.random_geometric_graph(200, 0.125)
-
-
-    node_x = [-1] * len(G.nodes())
-    node_y = [-1] * len(G.nodes())
-    for i, node in enumerate(G.nodes()):
-        x, y = G.nodes[node]['pos']
-        node_x[i] = (x)
-        node_y[i] = (y)
-
-        
-    node_index_by_node = {n:i for i, n in enumerate(G.nodes())}
-
-    # g_root = G.nodes()[0]
-
-    node_x[node_index_by_node[0]] = 0.0
-    node_y[node_index_by_node[0]] = 0.5
-
-    layers = dict(enumerate(nx.bfs_layers(G, 0)))
+    layers = dict(enumerate(nx.bfs_layers(G, root)))
     x_scale = len(layers) + 2.0
     y_scales = tuple(len(layers[i]) + 2.0 for i in range(len(layers)))
+
+    node_x = [-1] * len(all_nodes)
+    node_y = [-1] * len(all_nodes)
 
     for layer_index, nodes in layers.items():
         x = (layer_index + 1.0) / x_scale
         y_scale = y_scales[layer_index]
         for node_index, node in enumerate(nodes):
             y = (node_index + 1.0) / y_scale
-            node_x[node] = x
-            node_y[node] = y
+            
+            node_x[node_index_by_node[node]] = x
+            node_y[node_index_by_node[node]] = y
+            print(node_index_by_node[node], x, y, node)
+
+    print(node_x)
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
@@ -102,7 +96,7 @@ def __(mo):
             size=10,
             colorbar=dict(
                 thickness=15,
-                title='Node Connections',
+                title='Number of ops',
                 xanchor='left',
                 titleside='right'
             ),
@@ -132,21 +126,25 @@ def __(mo):
     node_adjacencies = []
     node_text = []
     for node, adjacencies in enumerate(G.adjacency()):
-        node_adjacencies.append(len(adjacencies[1]))
-        node_text.append(f"pos: { G.nodes[node]['pos']}"+str(len(adjacencies[1])))
+        module = all_nodes[node].module
+        num_ops = 0
+        for op in module.walk():
+            num_ops += 1
+        node_adjacencies.append(num_ops)
+        node_text.append(str(module).replace("\n", "<br>"))
 
     node_trace.marker.color = node_adjacencies
     node_trace.text = node_text
 
     fig = go.Figure(data=[edge_trace, node_trace],
                  layout=go.Layout(
-                    title='Network graph made with Python',
+                    title=str(G), # 'Network graph made with Python',
                     titlefont_size=16,
                     showlegend=False,
                     hovermode='closest',
                     margin=dict(b=20,l=5,r=5,t=40),
                     annotations=[ dict(
-                        text="Python code: <a href='https://plotly.com/ipython-notebooks/network-graphs/'> https://plotly.com/ipython-notebooks/network-graphs/</a>",
+                        # text="Python code: <a href='https://plotly.com/ipython-notebooks/network-graphs/'> https://plotly.com/ipython-notebooks/network-graphs/</a>",
                         showarrow=False,
                         xref="paper", yref="paper",
                         x=0.005, y=-0.002 ) ],
@@ -156,17 +154,17 @@ def __(mo):
 
     mo.ui.plotly(fig)
     return (
-        G,
         adjacencies,
+        all_nodes,
         edge,
         edge_trace,
         edge_x,
         edge_y,
         fig,
         go,
-        i,
         layer_index,
         layers,
+        module,
         n0,
         n1,
         node,
@@ -178,7 +176,8 @@ def __(mo):
         node_x,
         node_y,
         nodes,
-        nx,
+        num_ops,
+        op,
         x,
         x0,
         x1,
@@ -192,11 +191,13 @@ def __(mo):
 
 
 @app.cell
-def __(input_module, nx):
+def __(input_module):
     from xdsl.interactive.passes import iter_condensed_passes
     from xdsl.utils.hashable_module import HashableModule
 
-    bla = nx.MultiDiGraph()
+    import networkx as nx
+
+    G = nx.MultiDiGraph()
 
     root = HashableModule(input_module)
     queue = [root]
@@ -209,14 +210,15 @@ def __(input_module, nx):
         visited.add(source)
         for available_pass, t in iter_condensed_passes(source.module):
             target = HashableModule(t)
-            bla.add_edge(source, target, available_pass.display_name)
+            G.add_edge(source, target, available_pass.display_name)
             if target not in visited:
                 queue.append(target)
     return (
+        G,
         HashableModule,
         available_pass,
-        bla,
         iter_condensed_passes,
+        nx,
         queue,
         root,
         source,
@@ -227,22 +229,22 @@ def __(input_module, nx):
 
 
 @app.cell
-def __(bla):
-    node_index_by_module = {n: i for i, n in enumerate(bla.nodes())}
+def __(G):
+    node_index_by_module = {n: i for i, n in enumerate(G.nodes())}
 
 
     return node_index_by_module,
 
 
 @app.cell
-def __(bla, nx, root):
-    for n in bla.nodes:
+def __(G, nx, root):
+    for n in G.nodes:
         print(n.module)
-        paths = nx.all_simple_edge_paths(bla, root, n)
+        paths = nx.all_simple_edge_paths(G, root, n)
 
         for path in paths:
            print("Path :: " + ','.join(e[2] for e in path))
-    str(bla)
+    str(G)
     return n, path, paths
 
 
