@@ -27,11 +27,12 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         lower = op.lowerBound
         upper = op.upperBound
         step = op.step
-
-        # fill the tile sizes with ones
-        tile_sizes_v = list(self.tile_sizes)
-        for _ in range(len(tile_sizes_v), len(lower)):
-            tile_sizes_v.append(1)
+        # The pass is meant to work on any parallel loop with any nu;ber of tile sizes.
+        # For a loop of dimension N, either use the N first tile sizes or use them all
+        # and fill the rest with 1.
+        tile_sizes_v = self.tile_sizes[: len(lower)] + (1,) * (
+            len(lower) - len(self.tile_sizes)
+        )
 
         zero = arith.Constant(IntegerAttr.from_index_int_value(0))
         tile_sizes_v = {i: s for i, s in enumerate(tile_sizes_v) if s != 0}
@@ -40,6 +41,8 @@ class ScfParallelLoopTilingPattern(RewritePattern):
             for i, s in tile_sizes_v.items()
         }
         tiled_dims = sorted(tile_sizes.keys())
+        if not tiled_dims:
+            return
         outter_lower = [lower[d] for d in tiled_dims]
         outter_upper = [upper[d] for d in tiled_dims]
         outter_step = [arith.Muli(step[d], tile_sizes[d]) for d in tiled_dims]
