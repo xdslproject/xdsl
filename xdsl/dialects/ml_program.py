@@ -95,7 +95,6 @@ class GlobalLoadConstant(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_attribute(self.global_attr)
-        printer.print_string(" ")
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
