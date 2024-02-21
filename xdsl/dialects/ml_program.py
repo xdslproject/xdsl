@@ -60,7 +60,37 @@ class Global(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        pass
+        attrs = parser.parse_optional_attr_dict()
+        if parser.parse_optional_keyword("public"):
+            visibility = "public"
+        elif parser.parse_optional_keyword("nested"):
+            visibility = "nested"
+        elif parser.parse_optional_keyword("private"):
+            visibility = "private"
+        else:
+            visibility = None
+        if parser.parse_optional_keyword("mutable"):
+            mutability = "mutable"
+        else:
+            mutability = None
+        sym_name = parser.parse_attribute()
+        if parser.parse_optional_punctuation("("):
+            value = parser.parse_attribute()
+            parser.parse_punctuation(")")
+        else:
+            value = None
+        parser.parse_punctuation(":")
+        parser.parse_attribute()
+
+        global_op = cls(
+            sym_name,
+            mutability,
+            value,
+            visibility,
+        )
+
+        global_op.attributes |= attrs
+        return global_op
 
     def _verify(self) -> None:
         if not (self.is_mutuable and self.value):
