@@ -372,7 +372,10 @@ class InputApp(App[None]):
                 )
 
                 child_pass_list = get_available_pass_list(
-                    self.input_text_area.text, child_pass_pipeline, self.condense_mode
+                    self.input_text_area.text,
+                    child_pass_pipeline,
+                    self.condense_mode,
+                    individual_rewrite.REWRITE_BY_NAMES,
                 )
 
                 for pass_name, value, value_spec in child_pass_list:
@@ -435,7 +438,10 @@ class InputApp(App[None]):
             )
 
             child_pass_list = get_available_pass_list(
-                self.input_text_area.text, child_pass_pipeline, self.condense_mode
+                self.input_text_area.text,
+                child_pass_pipeline,
+                self.condense_mode,
+                individual_rewrite.REWRITE_BY_NAMES,
             )
 
             for pass_name, value, value_spec in child_pass_list:
