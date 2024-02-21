@@ -49,45 +49,6 @@ def __():
 
 
 @app.cell
-def __(Hashable, Hasher, ModuleOp, dataclass):
-    @dataclass(frozen=True)
-    class ModuleStructure(Hashable):
-        module: ModuleOp
-
-        def __eq__(self, other: object) -> bool:
-            return isinstance(other, ModuleStructure) and self.module.is_structurally_equivalent(other.module)
-
-        def __hash__(self) -> int:
-            hasher = Hasher()
-            for op in self.module.walk():
-                hasher.combine(op.name)
-            return hasher.hash
-
-    assert ModuleStructure(ModuleOp([])) == ModuleStructure(ModuleOp([]))
-    assert hash(ModuleStructure(ModuleOp([]))) == hash(ModuleStructure(ModuleOp([])))
-    return ModuleStructure,
-
-
-@app.cell
-def __():
-    from xdsl.utils.hasher import Hasher
-    return Hasher,
-
-
-@app.cell
-def __(Hasher):
-    h = Hasher()
-    h.combine(1)
-    h.combine(2)
-    print(h.hash)
-
-    j = Hasher(seed=2654435770)
-    j.combine(2)
-    print(j.hash)
-    return h, j
-
-
-@app.cell
 def __(mo):
     import plotly.graph_objects as go
 
@@ -194,22 +155,27 @@ def __(mo):
 
 
 @app.cell
-def __(ModuleStructure, input_module, nx):
+def __(input_module, nx):
     from xdsl.interactive.passes import iter_condensed_pass_list
+    from xdsl.utils.hashable_module import HashableModule
 
     bla = nx.MultiDiGraph()
 
-    root = ModuleStructure(input_module)
+    root = HashableModule(input_module)
     queue = [root]
+    visited = set()
 
     while queue:
         source = queue.pop()
-        if source in bla:
+        if source in visited:
             continue
+        visited.add(source)
         for available_pass, t in iter_condensed_pass_list(source.module):
-            target = ModuleStructure(t)
+            target = HashableModule(t)
             bla.add_edge(source, target, available_pass.display_name)
-            queue.append(target)
+            if target not in visited:
+                queue.append(target)
+                print(target.module)
 
 
     for n in bla.nodes:
@@ -218,6 +184,7 @@ def __(ModuleStructure, input_module, nx):
 
     str(bla)
     return (
+        HashableModule,
         available_pass,
         bla,
         iter_condensed_pass_list,
@@ -227,6 +194,7 @@ def __(ModuleStructure, input_module, nx):
         source,
         t,
         target,
+        visited,
     )
 
 
