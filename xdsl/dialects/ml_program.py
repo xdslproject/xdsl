@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
@@ -8,6 +10,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
@@ -31,7 +34,7 @@ class Global(IRDLOperation):
     name = "ml_program.global"
 
     sym_name = attr_def(StringAttr)
-    type = attr_def()
+    type = attr_def(TypeAttribute)
     is_mutuable = attr_def(UnitAttr)
     value = attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
@@ -56,7 +59,7 @@ class Global(IRDLOperation):
         pass
 
     @classmethod
-    def parse(cls, parser: Parser) -> None:
+    def parse(cls, parser: Parser) -> Self:
         pass
 
     def _verify(self) -> None:
@@ -90,11 +93,25 @@ class GlobalLoadConstant(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        pass
+        printer.print_string(" ")
+        printer.print_attribute(self.global_attr)
+        printer.print_string(" ")
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
     @classmethod
-    def parse(cls, parser: Parser) -> None:
-        pass
+    def parse(cls, parser: Parser) -> Self:
+        attrs = parser.parse_optional_attr_dict()
+        global_attr = parser.parse_attribute()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_attribute()
+
+        global_const = cls(
+            global_attr,
+            result_type,
+        )
+        global_const.attributes |= attrs
+        return global_const
 
 
 MLProgram = Dialect(
