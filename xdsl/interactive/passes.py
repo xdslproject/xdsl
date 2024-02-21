@@ -68,7 +68,7 @@ def iter_condensed_passes(input: builtin.ModuleOp):
             value().apply(cloned_ctx, cloned_module)
             if input.is_structurally_equivalent(cloned_module):
                 continue
-            yield AvailablePass(value.name, value, None), cloned_ctx
+            yield AvailablePass(value.name, value, None), cloned_module
         except Exception:
             pass
 
