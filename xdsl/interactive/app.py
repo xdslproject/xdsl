@@ -126,11 +126,6 @@ class InputApp(App[None]):
     text areas.
     """
 
-    current_argument_pass: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = ()
-    """
-    Saves a tuple containing the constructed ModulePass, PipelinePassSpec tuple of a pass with arguments requiring user input.
-    """
-
     pre_loaded_input_text: str
     current_file_path: str
     pre_loaded_pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
@@ -294,7 +289,9 @@ class InputApp(App[None]):
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
                     )
                 )[0]
-                self.current_argument_pass = (
+
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
                     (selected_pass_value, new_pass_with_arguments),
                 )
             except PassPipelineParseError as e:
@@ -331,10 +328,6 @@ class InputApp(App[None]):
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
             self.get_pass_arguments(selected_pass_value, selected_pass_spec)
-            self.pass_pipeline = (
-                *self.pass_pipeline,
-                *self.current_argument_pass,
-            )
         else:
             # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
             if selected_pass_spec is None:
@@ -344,21 +337,6 @@ class InputApp(App[None]):
                 *self.pass_pipeline,
                 (selected_pass_value, selected_pass_spec),
             )
-
-    @on(Tree.NodeSelected, "#passes_tree")
-    def update_pass_pipeline(
-        self, event: Tree.NodeSelected[tuple[type[ModulePass], PipelinePassSpec | None]]
-    ) -> None:
-        """
-        When a new selection is made, the reactive variable storing the list of selected
-        passes is updated.
-        """
-        selected_pass = event.node
-        if selected_pass.data is None:
-            return
-
-        module_pass, pass_spec = selected_pass.data
-        self.get_pass_arguments(module_pass, pass_spec)
 
     def watch_pass_pipeline(self) -> None:
         """
