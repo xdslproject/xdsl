@@ -29,6 +29,7 @@ from textual.widgets import (
     TextArea,
     Tree,
 )
+from textual.widgets.tree import TreeNode
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
@@ -265,21 +266,19 @@ class InputApp(App[None]):
         """
         if old_pass_list != new_pass_list:
             self.passes_tree.clear()
-            for pass_name, value, value_spec in new_pass_list:
-                self.passes_tree.root.add(
-                    label=pass_name,
-                    data=(value, value_spec),
-                )
+            self.expand_node(self.passes_tree.root, new_pass_list)
 
     def update_selected_passes_list_view(self) -> None:
         """
         Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
         """
         self.selected_passes_list_view.clear()
-        if self.pass_pipeline != ():
+        if len(self.pass_pipeline) >= 1:
             self.selected_passes_list_view.append(ListItem(Label("."), name="."))
 
-        for pass_value, value_spec in self.pass_pipeline:
+        # last element is the node of the tree
+        pass_pipeline = self.pass_pipeline[:-1]
+        for pass_value, value_spec in pass_pipeline:
             self.selected_passes_list_view.append(
                 PassListItem(
                     Label(str(value_spec)),
@@ -288,6 +287,39 @@ class InputApp(App[None]):
                     name=pass_value.name,
                 )
             )
+
+    def expand_node(
+        self,
+        expanded_pass: TreeNode[tuple[type[ModulePass], PipelinePassSpec | None]],
+        child_pass_list: tuple[AvailablePass, ...],
+    ) -> None:
+        """
+        Helper function that adds a subtree to a node, i.e. adds a sub-tree containing the child_pass_list with expanded_pass as the root.
+        """
+
+        for pass_name, value, value_spec in child_pass_list:
+            expanded_pass.add(
+                label=pass_name,
+                data=(value, value_spec),
+            )
+
+    def update_root_of_passes_tree(self) -> None:
+        """
+        Helper function that updates the passes_tree by first resetting the root (to be
+        either the "." root if the pass_pipeline is empty or to the last selected pass) and
+        updates the subtree of the root.
+        """
+        # reset rootnode  of tree
+        if self.pass_pipeline == ():
+            self.passes_tree.reset(".")
+        else:
+            value, value_spec = self.pass_pipeline[-1]
+            self.passes_tree.reset(
+                label=str(value_spec),
+                data=(value, value_spec),
+            )
+        # expand the node
+        self.expand_node(self.passes_tree.root, self.available_pass_list)
 
     def get_pass_arguments(
         self,
@@ -368,6 +400,7 @@ class InputApp(App[None]):
         label to display the respective generated query in the Label.
         """
         self.update_selected_passes_list_view()
+        self.update_root_of_passes_tree()
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
