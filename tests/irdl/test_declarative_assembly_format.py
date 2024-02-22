@@ -293,6 +293,31 @@ def test_attr_variable_shadowed():
         parser.parse_operation()
 
 
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_attr i32", '"test.one_attr"() {"irdl" = i32} : () -> ()'),
+        (
+            'test.one_attr i32 {"attr2" = i64}',
+            '"test.one_attr"() {"irdl" = i32, "attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_attr_name(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithRenamedAttr(IRDLOperation):
+        name = "test.one_attr"
+
+        python = attr_def(Attribute, attr_name="irdl")
+        assembly_format = "$irdl attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithRenamedAttr)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
 def test_missing_property_error():
     class OpWithMissingProp(IRDLOperation):
         name = "test.missing_prop"
@@ -328,6 +353,31 @@ def test_standard_prop_directive(program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(OpWithProp)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        ("test.one_prop i32", '"test.one_prop"() <{"irdl" = i32}> : () -> ()'),
+        (
+            'test.one_prop i32 {"attr2" = i64}',
+            '"test.one_prop"() <{"irdl" = i32}> {"attr2" = i64} : () -> ()',
+        ),
+    ],
+)
+def test_prop_name(program: str, generic_program: str):
+    @irdl_op_definition
+    class OpWithRenamedProp(IRDLOperation):
+        name = "test.one_prop"
+
+        python = prop_def(Attribute, prop_name="irdl")
+        assembly_format = "$irdl attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OpWithRenamedProp)
 
     check_equivalence(program, generic_program, ctx)
     check_roundtrip(program, ctx)

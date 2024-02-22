@@ -1,21 +1,19 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
-riscv.assembly_section ".text" {
-  riscv.directive ".globl" "ddot"
-  riscv.directive ".p2align" "2"
 
-  riscv_func.func @ddot(
-    %X : !riscv.reg<a0>,
-    %Y : !riscv.reg<a1>,
-    %G : !riscv.reg<a2>
+  func.func @ddot(
+    %X : memref<128xf64>,
+    %Y : memref<128xf64>,
+    %G : memref<f64>
   ) {
-    %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
-    %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
-    %G_moved = riscv.mv %G : (!riscv.reg<a2>) -> !riscv.reg<>
+    %X_moved = builtin.unrealized_conversion_cast %X : memref<128xf64> to !riscv.reg<>
+    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<128xf64> to !riscv.reg<>
+    %G_moved = builtin.unrealized_conversion_cast %G : memref<f64> to !riscv.reg<>
 
-    %stride_pattern = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<128>], "strides" = [#builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type<1>
-
-    "snitch_stream.streaming_region"(%X_moved, %Y_moved, %stride_pattern) <{"operandSegmentSizes" = array<i32: 2, 0, 1>}> ({
+    "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
+      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [128], strides = [8]>],
+      "operandSegmentSizes" = array<i32: 2, 0>
+    }> ({
     ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
         %init = riscv.fld %G_moved, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
@@ -30,11 +28,11 @@ riscv.assembly_section ".text" {
         }
 
         riscv.fsd %G_moved, %g, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
-    }) : (!riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<1>) -> ()
+    }) : (!riscv.reg<>, !riscv.reg<>) -> ()
 
-    riscv_func.return
+    func.return
   }
-}
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl ddot

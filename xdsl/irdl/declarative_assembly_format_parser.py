@@ -305,9 +305,15 @@ class FormatParser(BaseParser):
             else:
                 return ResultVariable(variable_name, idx)
 
+        attr_or_prop_by_name = {
+            attr_name: attr_or_prop
+            for attr_name, attr_or_prop in self.op_def.accessor_names.values()
+        }
+
         # Check if the variable is an attribute
-        if variable_name in self.op_def.accessor_names:
-            (attr_name, attr_or_prop) = self.op_def.accessor_names[variable_name]
+        if variable_name in attr_or_prop_by_name:
+            attr_name = variable_name
+            attr_or_prop = attr_or_prop_by_name[attr_name]
             if self.context == ParsingContext.TopLevel:
                 if attr_or_prop == "property":
                     if attr_name in self.seen_properties:

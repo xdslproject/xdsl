@@ -80,6 +80,15 @@ def test_riscv_interpreter():
     ) == (3,)
 
     assert interpreter.run_op(
+        riscv.SubOp(
+            TestSSAValue(register),
+            TestSSAValue(register),
+            rd=riscv.IntRegisterType.unallocated(),
+        ),
+        (1, 2),
+    ) == (-1,)
+
+    assert interpreter.run_op(
         riscv.MulOp(
             TestSSAValue(register),
             TestSSAValue(register),

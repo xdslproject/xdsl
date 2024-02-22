@@ -48,7 +48,9 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
+from xdsl.printer import Printer
 from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
     HasParent,
@@ -147,15 +149,29 @@ class Alloc(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    @staticmethod
+    def __init__(
+        self,
+        dynamic_sizes: Sequence[SSAValue],
+        symbol_operands: Sequence[SSAValue],
+        result_type: Attribute,
+        alignment: Attribute | None = None,
+    ):
+        super().__init__(
+            operands=(dynamic_sizes, symbol_operands),
+            result_types=(result_type,),
+            properties={"alignment": alignment},
+        )
+
+    @classmethod
     def get(
+        cls,
         return_type: Attribute,
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
-    ) -> Alloc:
+    ) -> Self:
         if shape is None:
             shape = [1]
 
@@ -165,12 +181,11 @@ class Alloc(IRDLOperation):
         if isinstance(alignment, int):
             alignment = IntegerAttr.from_int_and_width(alignment, 64)
 
-        return Alloc.build(
-            operands=[dynamic_sizes, []],
-            result_types=[MemRefType(return_type, shape, layout, memory_space)],
-            properties={
-                "alignment": alignment,
-            },
+        return cls(
+            tuple(SSAValue.get(ds) for ds in dynamic_sizes),
+            (),
+            MemRefType(return_type, shape, layout, memory_space),
+            alignment,
         )
 
     def verify_(self) -> None:
@@ -184,6 +199,67 @@ class Alloc(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+
+    def print(self, printer: Printer):
+        printer.print_string("(")
+        printer.print_list(self.dynamic_sizes, printer.print_ssa_value)
+        printer.print_string(")")
+        if self.symbol_operands:
+            printer.print_string("[")
+            printer.print_list(self.symbol_operands, printer.print_ssa_value)
+            printer.print_string("]")
+
+        printer.print_op_attributes(
+            self.properties | self.attributes,
+            print_keyword=False,
+            reserved_attr_names="operandSegmentSizes",
+        )
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.memref.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        #  %alloc = memref.alloc(%a)[%s] {alignment = 64 : i64} : memref<3x2xf32>
+
+        unresolved_dynamic_sizes = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_unresolved_operand
+        )
+        unresolved_symbol_operands = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+        )
+        if unresolved_symbol_operands is None:
+            unresolved_symbol_operands = []
+
+        attrs = parser.parse_optional_attr_dict()
+
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+
+        index = IndexType()
+        dynamic_sizes = tuple(
+            parser.resolve_operand(uop, index) for uop in unresolved_dynamic_sizes
+        )
+        symbol_operands = tuple(
+            parser.resolve_operand(uop, index) for uop in unresolved_symbol_operands
+        )
+
+        if "alignment" in attrs:
+            alignment = attrs["alignment"]
+            del attrs["alignment"]
+        else:
+            alignment = None
+
+        op = cls(
+            dynamic_sizes,
+            symbol_operands,
+            res_type,
+            alignment,
+        )
+
+        op.attributes |= attrs
+
+        return op
 
 
 @irdl_op_definition
@@ -285,6 +361,8 @@ class GetGlobal(IRDLOperation):
         return GetGlobal.build(
             result_types=[return_type], properties={"name": SymbolRefAttr(name)}
         )
+
+    assembly_format = "$name `:` type($memref) attr-dict"
 
     # TODO how to verify the types, as the global might be defined in another
     # compilation unit

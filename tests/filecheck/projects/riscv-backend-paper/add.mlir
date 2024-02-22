@@ -1,4 +1,5 @@
 // RUN: xdsl-run %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-loops %s | xdsl-run | filecheck %s
 
 builtin.module {
     "memref.global"() {"sym_name" = "a", "type" = memref<2x3xf64>, "initial_value" = dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64>, "sym_visibility" = "public"} : () -> ()
@@ -6,7 +7,7 @@ builtin.module {
     "memref.global"() {"sym_name" = "c", "type" = memref<2x3xf64>, "initial_value" = dense<[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]> : tensor<2x3xf64>, "sym_visibility" = "public"} : () -> ()
 
     func.func @main() {
-        %A = "memref.get_global"() {"name" = @a} : () -> memref<2x3xf64>
+        %A = memref.get_global @a : memref<2x3xf64>
         %B = "memref.get_global"() {"name" = @b} : () -> memref<2x3xf64>
         %C = "memref.get_global"() {"name" = @c} : () -> memref<2x3xf64>
         linalg.generic {

@@ -1,23 +1,20 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
-riscv.assembly_section ".text" {
-  riscv.directive ".globl" "dense"
-  riscv.directive ".p2align" "2"
 
   // * Inputs:  x[ M x K ]
   // * Weights: w[ K x N ]
   // * Biases:  b[ M x N ]
   // * Outputs: y[ M x N ]
-  riscv_func.func @dense(
-    %X : !riscv.reg<a0>,
-    %W : !riscv.reg<a1>,
-    %B : !riscv.reg<a2>,
-    %Y : !riscv.reg<a3>
+  func.func @dense(
+    %X : memref<8x8xf64>,
+    %W : memref<8x8xf64>,
+    %B : memref<8x8xf64>,
+    %Y : memref<8x8xf64>
   ) {
-    %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
-    %W_moved = riscv.mv %W : (!riscv.reg<a1>) -> !riscv.reg<>
-    %B_moved = riscv.mv %B : (!riscv.reg<a2>) -> !riscv.reg<>
-    %Y_moved = riscv.mv %Y : (!riscv.reg<a3>) -> !riscv.reg<>
+    %X_moved = builtin.unrealized_conversion_cast %X : memref<8x8xf64> to !riscv.reg<>
+    %W_moved = builtin.unrealized_conversion_cast %W : memref<8x8xf64> to !riscv.reg<>
+    %B_moved = builtin.unrealized_conversion_cast %B : memref<8x8xf64> to !riscv.reg<>
+    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<8x8xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
@@ -26,13 +23,14 @@ riscv.assembly_section ".text" {
 
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
-    %stride_pattern_0 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<8>, #builtin.int<8>], "strides" = [#builtin.int<8>, #builtin.int<0>, #builtin.int<64>], "dm" = #builtin.int<0>} : () -> !snitch_stream.stride_pattern_type<3>
-
-    %stride_pattern_1 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<8>, #builtin.int<8>], "strides" = [#builtin.int<64>, #builtin.int<8>, #builtin.int<0>], "dm" = #builtin.int<1>} : () -> !snitch_stream.stride_pattern_type<3>
-
-    %stride_pattern_2 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<8>, #builtin.int<8>], "strides" = [#builtin.int<8>, #builtin.int<64>], "dm" = #builtin.int<2>} : () -> !snitch_stream.stride_pattern_type<2>
-
-    "snitch_stream.streaming_region"(%X_moved, %W_moved, %B_moved, %stride_pattern_0, %stride_pattern_1, %stride_pattern_2) <{"operandSegmentSizes" = array<i32: 3, 0, 3>}> ({
+    "snitch_stream.streaming_region"(%X_moved, %W_moved, %B_moved) <{
+      "stride_patterns" = [
+        #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 0, 64]>,
+        #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 8, 0]>,
+        #snitch_stream.stride_pattern<ub = [8, 8], strides = [8, 64]>
+      ],
+      "operandSegmentSizes" = array<i32: 3, 0>
+    }> ({
     ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %W_stream : !stream.readable<!riscv.freg<ft1>>, %B_stream : !stream.readable<!riscv.freg<ft2>>):
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c512 step %c8 {
         %Y_dest = riscv.add %Y_moved, %y_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
@@ -53,11 +51,11 @@ riscv.assembly_section ".text" {
 
         riscv_scf.yield
       }
-    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<3>, !snitch_stream.stride_pattern_type<3>, !snitch_stream.stride_pattern_type<2>) -> ()
+    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
-    riscv_func.return
+    func.return
   }
-}
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl dense

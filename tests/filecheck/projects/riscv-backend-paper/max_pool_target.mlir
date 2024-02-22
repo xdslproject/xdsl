@@ -1,17 +1,14 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
-riscv.assembly_section ".text" {
-  riscv.directive ".globl" "pooling_nchw_max_d1_s2_3x3"
-  riscv.directive ".p2align" "2"
 // x[ M x K ]
 // y[ K x N ]
 // g[ M x N ]
-riscv_func.func public @pooling_nchw_max_d1_s2_3x3(
-    %X: !riscv.reg<a0>,
-    %Y: !riscv.reg<a1>
+func.func public @pooling_nchw_max_d1_s2_3x3(
+    %X: memref<1x1x16x16xf64>,
+    %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
-    %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
+    %X_moved = builtin.unrealized_conversion_cast %X : memref<1x1x16x16xf64> to !riscv.reg<>
+    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<1x1x7x7xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
@@ -19,9 +16,10 @@ riscv_func.func public @pooling_nchw_max_d1_s2_3x3(
     %c9 = riscv.li 9 : () -> !riscv.reg<>
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
-    %stride_pattern_0 = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<3>, #builtin.int<3>, #builtin.int<7>, #builtin.int<7>], "strides" = [#builtin.int<8>, #builtin.int<128>, #builtin.int<16>, #builtin.int<256>], "dm" = #builtin.int<0>} : () -> !snitch_stream.stride_pattern_type<4>
-
-    "snitch_stream.streaming_region"(%X_moved, %stride_pattern_0) <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> ({
+    "snitch_stream.streaming_region"(%X_moved) <{
+      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [3, 3, 7, 7], strides = [8, 128, 16, 256]>],
+      "operandSegmentSizes" = array<i32: 1, 0>
+    }> ({
     ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
       %c392 = riscv.li 392 : () -> !riscv.reg<>
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c392 step %c8 {
@@ -38,11 +36,11 @@ riscv_func.func public @pooling_nchw_max_d1_s2_3x3(
 
         riscv_scf.yield
       }
-    }) : (!riscv.reg<>, !snitch_stream.stride_pattern_type<4>) -> ()
+    }) : (!riscv.reg<>) -> ()
 
-    riscv_func.return
+    func.return
   }
-}
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl pooling_nchw_max_d1_s2_3x3

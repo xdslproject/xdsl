@@ -14,7 +14,8 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.13.2", "textual==0.47.1", "pyclip==0.7"]
+extras = ["riscemu==2.2.5", "wgpu==0.14.1", "textual==0.52.1", "pyclip==0.7"]
+onnx = ["onnx-weekly"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -30,7 +31,9 @@ xdsl-gui = "xdsl.interactive.app:main"
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
-package-data = { "xdsl" = ["py.typed"] }
+
+[tool.setuptools.package-data]
+xdsl = ["py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
@@ -44,8 +47,10 @@ typeCheckingMode = "strict"
 "exclude" = [
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
+    "tests/frontend/onnx/test_tensor_type.py",
     "tests/dialects/test_memref.py",
     "xdsl/interpreters/experimental/wgpu.py",
+    "xdsl/frontend/onnx/shape_type.py",
 ]
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",

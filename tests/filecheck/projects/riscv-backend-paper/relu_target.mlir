@@ -1,18 +1,16 @@
-// RUN: xdsl-opt -p test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
-riscv.assembly_section ".text" {
-  riscv.directive ".globl" "relu"
-  riscv.directive ".p2align" "2"
-  riscv_func.func @relu(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>) {
-    %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
-    %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
+  func.func public @relu(%X: memref<16x16xf64>, %Y: memref<16x16xf64>) {
+    %X_moved = builtin.unrealized_conversion_cast %X : memref<16x16xf64> to !riscv.reg<>
+    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<16x16xf64> to !riscv.reg<>
 
     %zero_int = riscv.get_register : () -> !riscv.reg<zero>
     %zero_float = riscv.fcvt.d.w %zero_int : (!riscv.reg<zero>) -> !riscv.freg<>
 
-    %stride_pattern = "snitch_stream.stride_pattern"() {"ub" = [#builtin.int<16>, #builtin.int<16>], "strides" = [#builtin.int<128>, #builtin.int<8>], "dm" = #builtin.int<31>} : () -> !snitch_stream.stride_pattern_type<2>
-
-    "snitch_stream.streaming_region"(%X_moved, %Y_moved, %stride_pattern) <{"operandSegmentSizes" = array<i32: 1, 1, 1>}> ({
+    "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
+      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [16, 16], strides = [128, 8]>],
+      "operandSegmentSizes" = array<i32: 1, 1>
+    }> ({
     ^0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.writable<!riscv.freg<ft1>>):
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
@@ -22,11 +20,11 @@ riscv.assembly_section ".text" {
         %y = riscv.fmax.d %x, %zero_float : (!riscv.freg<ft0>, !riscv.freg<>) -> !riscv.freg<ft1>
         riscv_snitch.write %y to %Y_stream : !riscv.freg<ft1>
       }
-    }) : (!riscv.reg<>, !riscv.reg<>, !snitch_stream.stride_pattern_type<2>) -> ()
+    }) : (!riscv.reg<>, !riscv.reg<>) -> ()
 
-    riscv_func.return
+    func.return
   }
-}
+
 
 // CHECK:       .text
 // CHECK-NEXT:  .globl relu
