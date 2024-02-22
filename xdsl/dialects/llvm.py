@@ -723,7 +723,6 @@ class InlineAsmOp(IRDLOperation):
 
     name = "llvm.inline_asm"
 
-    # operands_, because is already defined?
     operands_: VarOperand = var_operand_def()
 
     res: OptOpResult = opt_result_def()
@@ -733,7 +732,7 @@ class InlineAsmOp(IRDLOperation):
     # 0 for AT&T inline assembly dialect
     # 1 for Intel inline assembly dialect
     # In this context dialect does not refer to an MLIR dialect
-    asm_dialect = opt_prop_def(IntegerAttr[IntegerType])
+    asm_dialect = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
 
     asm_string: StringAttr = prop_def(StringAttr)
     constraints: StringAttr = prop_def(StringAttr)
