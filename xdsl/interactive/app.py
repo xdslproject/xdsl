@@ -302,6 +302,27 @@ class InputApp(App[None]):
                 )
             )
 
+    def update_root_of_passes_tree(self) -> None:
+        """
+        Helper function that updates the passes_tree by first resetting the root (to be
+        either the "." root if the pass_pipeline is empty or to the last selected pass) and
+        updates the subtree of the root.
+        """
+        # reset root of tree
+        if self.pass_pipeline == ():
+            self.passes_tree.reset(".")
+        else:
+            value, value_spec = self.pass_pipeline[-1]
+            self.passes_tree.reset(
+                label=str(value_spec),
+                data=PassListItem(
+                    Label(value.name),
+                    module_pass=value,
+                    pass_spec=value_spec,
+                    name=value.name,
+                ),
+            )
+
     def get_pass_arguments(
         self,
         selected_pass_value: type[ModulePass],
