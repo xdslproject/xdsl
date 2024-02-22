@@ -26,6 +26,8 @@ builtin.module {
         %fres0, %res0 = "test.op"(%arg0, %farg0) : (i32, f64) -> (f64, i32)
         func.return %fres0, %res0 : f64, i32
     }
+
+    func.func @external(%arg0 : i32, %farg0 : f64) -> (f64, i32)
 }
 
 // CHECK:       builtin.module {
@@ -109,5 +111,10 @@ builtin.module {
 // CHECK-NEXT:        %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<a0>
 // CHECK-NEXT:        riscv_func.return %{{.*}}, %{{.*}} : !riscv.freg<fa0>, !riscv.reg<a0>
 // CHECK-NEXT:      }
+// CHECK-NEXT:    }
+// CHECK-NEXT:    riscv.assembly_section ".text" {
+// CHECK-NEXT:      riscv.directive ".globl" "external"
+// CHECK-NEXT:      riscv.directive ".p2align" "2"
+// CHECK-NEXT:      riscv_func.func @external(!riscv.reg<a0>, !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>)
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
