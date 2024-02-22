@@ -114,7 +114,7 @@ class InputApp(App[None]):
     """Output TextArea."""
     selected_passes_list_view: ListView
     """"ListView displaying the selected passes."""
-    passes_tree: Tree[PassListItem]
+    passes_tree: Tree[tuple[type[ModulePass], PipelinePassSpec | None]]
     """Tree displaying the passes available to apply."""
 
     input_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
@@ -226,9 +226,7 @@ class InputApp(App[None]):
         for n, module_pass in ALL_PASSES:
             self.passes_tree.root.add(
                 label=n,
-                data=PassListItem(
-                    Label(n), module_pass=module_pass, pass_spec=None, name=n
-                ),
+                data=(module_pass, None),
             )
 
         # initialize GUI with either specified input text or default example
@@ -310,12 +308,7 @@ class InputApp(App[None]):
         for pass_name, value, value_spec in child_pass_list:
             expanded_pass.add(
                 label=pass_name,
-                data=PassListItem(
-                    Label(pass_name),
-                    module_pass=value,
-                    pass_spec=value_spec,
-                    name=value.name,
-                ),
+                data=(value, value_spec),
             )
 
     def update_root_of_passes_tree(self) -> None:
@@ -331,12 +324,7 @@ class InputApp(App[None]):
             value, value_spec = self.pass_pipeline[-1]
             self.passes_tree.reset(
                 label=str(value_spec),
-                data=PassListItem(
-                    Label(value.name),
-                    module_pass=value,
-                    pass_spec=value_spec,
-                    name=value.name,
-                ),
+                data=(value, value_spec),
             )
         # expand the node
         self.expand_node(self.passes_tree.root, self.available_pass_list)
@@ -388,7 +376,9 @@ class InputApp(App[None]):
         )
 
     @on(Tree.NodeSelected, "#passes_tree")
-    def update_pass_pipeline(self, event: Tree.NodeSelected[PassListItem]) -> None:
+    def update_pass_pipeline(
+        self, event: Tree.NodeSelected[tuple[type[ModulePass], PipelinePassSpec | None]]
+    ) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
@@ -396,11 +386,9 @@ class InputApp(App[None]):
         selected_pass = event.node
         if selected_pass.data is None:
             return
-        assert isinstance(selected_pass.data, PassListItem)
 
         # get instance
-        selected_pass_value = selected_pass.data.module_pass
-        selected_pass_spec = selected_pass.data.pass_spec
+        selected_pass_value, selected_pass_spec = selected_pass.data
 
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
