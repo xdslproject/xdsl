@@ -290,7 +290,8 @@ class InputApp(App[None]):
         Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
         """
         self.selected_passes_list_view.clear()
-        self.selected_passes_list_view.append(ListItem(Label("."), name="."))
+        if pass_pipeline != ():
+            self.selected_passes_list_view.append(ListItem(Label("."), name="."))
 
         for pass_value, value_spec in pass_pipeline:
             self.selected_passes_list_view.append(
