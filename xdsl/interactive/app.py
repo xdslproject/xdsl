@@ -269,25 +269,33 @@ class InputApp(App[None]):
             self.expand_node(self.passes_tree.root, new_pass_list)
 
     def get_root_to_child_pass_list(
-        self, expanded_node: TreeNode[PassListItem]
+        self, expanded_node: TreeNode[tuple[type[ModulePass], PipelinePassSpec | None]]
     ) -> tuple[tuple[type[ModulePass], PipelinePassSpec], ...]:
         """
         Helper function that returns a pass_pipeline consisiting of the list of nodes
         from the root of the tree to the expanded_node child.
         """
-        assert isinstance(expanded_node.data, PassListItem)
-        pass_list_items: list[PassListItem] = []
+        assert expanded_node.data is not None
+
+        # get instance
+        pass_list_items: tuple[
+            tuple[type[ModulePass], PipelinePassSpec | None], ...
+        ] = ()
         current = expanded_node
 
         while current is not None and current.data is not None and not current.is_root:
-            pass_list_items.append(current.data)
+            selected_pass_value, selected_pass_spec = current.data
+            pass_list_items = (
+                *pass_list_items,
+                (selected_pass_value, selected_pass_spec),
+            )
             current = current.parent
 
         root_to_child_pass_list = tuple(
-            (data.module_pass, data.module_pass().pipeline_pass_spec())
-            if data.pass_spec is None
-            else (data.module_pass, data.pass_spec)
-            for data in reversed(pass_list_items)
+            (selected_pass_value, selected_pass_value().pipeline_pass_spec())
+            if selected_pass_spec is None
+            else (selected_pass_value, selected_pass_spec)
+            for (selected_pass_value, selected_pass_spec) in reversed(pass_list_items)
         )
 
         return root_to_child_pass_list
