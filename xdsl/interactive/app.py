@@ -431,9 +431,9 @@ class InputApp(App[None]):
             if self.current_argument_pass == ():
                 return
             # remove_last bool set to True as we want to add the current_argument_pass with the user-defined arguments to the pass_pipeline
-            root_to_child_pass_list = self.get_root_to_child_pass_list(
-                expanded_pass, True
-            )
+            root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_pass)[
+                :-1
+            ]
 
             child_pass_pipeline = (
                 *self.pass_pipeline,
@@ -443,9 +443,7 @@ class InputApp(App[None]):
 
         else:
             # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
-            root_to_child_pass_list = self.get_root_to_child_pass_list(
-                expanded_pass, False
-            )
+            root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_pass)
 
             child_pass_pipeline = (
                 *self.pass_pipeline,
