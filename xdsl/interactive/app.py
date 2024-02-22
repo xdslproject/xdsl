@@ -280,7 +280,6 @@ class InputApp(App[None]):
             In case of parsing failure, the AddArguments Screen is pushed, revealing the
             Parse Error.
             """
-            # reset pass
             try:
                 new_pass_with_arguments = list(
                     parse_pipeline(
