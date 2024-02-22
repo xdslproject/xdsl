@@ -296,26 +296,16 @@ class InputApp(App[None]):
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
-        # if selected_pass_value has arguments, push screen
-        if fields(selected_pass_value) and selected_pass_spec is None:
-            # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
-            self.push_screen(
-                AddArguments(
-                    TextArea(
-                        get_pass_argument_names_and_types(selected_pass_value),
-                        id="argument_text_area",
-                    )
-                ),
-                add_pass_with_arguments_to_pass_pipeline,
-            )
-        else:
-            # add the selected pass to pass_pipeline
-            if selected_pass_spec is None:
-                selected_pass_spec = selected_pass_value().pipeline_pass_spec()
-            self.pass_pipeline = (
-                *self.pass_pipeline,
-                (selected_pass_value, selected_pass_spec),
-            )
+        # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
+        self.push_screen(
+            AddArguments(
+                TextArea(
+                    get_pass_argument_names_and_types(selected_pass_value),
+                    id="argument_text_area",
+                )
+            ),
+            add_pass_with_arguments_to_pass_pipeline,
+        )
 
     @on(Tree.NodeSelected, "#passes_tree")
     def update_pass_pipeline(
@@ -329,8 +319,21 @@ class InputApp(App[None]):
         if selected_pass.data is None:
             return
 
-        module_pass, pass_spec = selected_pass.data
-        self.get_pass_arguments(module_pass, pass_spec)
+        # get instance
+        selected_pass_value, selected_pass_spec = selected_pass.data
+
+        # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
+        if fields(selected_pass_value) and selected_pass_spec is None:
+            self.get_pass_arguments(selected_pass_value, selected_pass_spec)
+        else:
+            # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
+            if selected_pass_spec is None:
+                selected_pass_spec = selected_pass_value().pipeline_pass_spec()
+            # selected_pass_value is an "individual_rewrite", add the selected pass to pass_pipeline
+            self.pass_pipeline = (
+                *self.pass_pipeline,
+                (selected_pass_value, selected_pass_spec),
+            )
 
     def watch_pass_pipeline(self) -> None:
         """
