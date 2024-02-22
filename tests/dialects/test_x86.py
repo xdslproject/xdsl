@@ -98,15 +98,21 @@ def test_vfmadd231pd_op():
 
 def test_vmovapd_op():
     r1 = TestSSAValue(x86.Registers.ZMM0)
-    r2 = TestSSAValue(x86.Registers.ZMM1)
+    r2 = TestSSAValue(x86.Registers.RAX)
     vmovapd_op = x86.VmovapdOp(r1, r2, offset=0x10, result=x86.Registers.ZMM0)
 
-    print(vmovapd_op.assembly_line())
+    print(vmovapd_op)
 
 
 def test_vbroadcastsd_op():
     r1 = TestSSAValue(x86.Registers.ZMM0)
-    r2 = TestSSAValue(x86.Registers.ZMM1)
+    r2 = TestSSAValue(x86.Registers.RAX)
     vbroadcastsd_op = x86.VbroadcastsdOp(r1, r2, offset=0x10, result=x86.Registers.ZMM0)
 
     print(vbroadcastsd_op.assembly_line())
+
+
+def test_directive():
+    directive = x86.DirectiveOp(".text", None)
+
+    print(directive.assembly_line())

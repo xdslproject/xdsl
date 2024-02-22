@@ -914,6 +914,36 @@ def x86_code(module: ModuleOp) -> str:
     return stream.getvalue()
 
 
+class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
+    """
+    This instruction allows us to create an SSAValue with for a given register name. This
+    is useful for bridging the x86 convention that stores the result of function calls
+    in `eax` into SSA form.
+
+    """
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        register_type: R1InvT,
+    ):
+        super().__init__(result_types=[register_type])
+
+    def assembly_line(self) -> str | None:
+        return None
+
+
+@irdl_op_definition
+class GetRegisterOp(GetAnyRegisterOperation[GeneralRegisterType]):
+    name = "x86.get_register"
+
+
+@irdl_op_definition
+class GetAVXRegisterOp(GetAnyRegisterOperation[AVXRegisterType]):
+    name = "x86.get_avx_register"
+
+
 X86 = Dialect(
     "x86",
     [
@@ -932,6 +962,8 @@ X86 = Dialect(
         VmovapdOp,
         VbroadcastsdOp,
         DirectiveOp,
+        GetRegisterOp,
+        GetAVXRegisterOp,
     ],
     [
         GeneralRegisterType,
