@@ -282,18 +282,17 @@ class InputApp(App[None]):
             Parse Error.
             """
             # reset pass
-            self.current_argument_pass = ()
             try:
                 new_pass_with_arguments = list(
                     parse_pipeline(
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
                     )
                 )[0]
-
                 self.pass_pipeline = (
                     *self.pass_pipeline,
                     (selected_pass_value, new_pass_with_arguments),
                 )
+
             except PassPipelineParseError as e:
                 res = f"PassPipelineParseError: {e}"
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
