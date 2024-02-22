@@ -275,17 +275,16 @@ class InputApp(App[None]):
             self.passes_tree.clear()
             self.expand_node(self.passes_tree.root, new_pass_list)
 
-    def update_selected_passes_list_view(
-        self, pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
-    ) -> None:
+    def update_selected_passes_list_view(self) -> None:
         """
         Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
         """
         self.selected_passes_list_view.clear()
-        # reactive variable used to check the length of the current pass_pipeline
-        if self.pass_pipeline != ():
+        if len(self.pass_pipeline) >= 1:
             self.selected_passes_list_view.append(ListItem(Label("."), name="."))
 
+        # last element is the node of the tree
+        pass_pipeline = self.pass_pipeline[:-1]
         for pass_value, value_spec in pass_pipeline:
             self.selected_passes_list_view.append(
                 PassListItem(
@@ -425,7 +424,7 @@ class InputApp(App[None]):
         Function called when the reactive variable pass_pipeline changes - updates the
         label to display the respective generated query in the Label.
         """
-        self.update_selected_passes_list_view(self.pass_pipeline[:-1])
+        self.update_selected_passes_list_view()
         self.update_root_of_passes_tree()
         self.update_current_module()
 
