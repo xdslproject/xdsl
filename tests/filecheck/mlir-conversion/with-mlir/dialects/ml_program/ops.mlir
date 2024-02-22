@@ -10,4 +10,3 @@ ml_program.global private mutable @global_mutable_undef : tensor<?xi32>
 // CHECK-NEXT:    ml_program.global private mutable @global_mutable_undef : tensor<?xi32>
 // CHECK-NEXT:    %global_same_type = ml_program.global_load_const @global_same_type : tensor<4xi32>
 // CHECK-NEXT:  }
-
