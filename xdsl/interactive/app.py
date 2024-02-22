@@ -19,14 +19,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
-from textual.widgets import (
-    Button,
-    DataTable,
-    Footer,
-    Label,
-    ListView,
-    TextArea,
-)
+from textual.widgets import Button, DataTable, Footer, Label, ListView, TextArea, Tree
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
@@ -111,8 +104,8 @@ class InputApp(App[None]):
     """Output TextArea."""
     selected_passes_list_view: ListView
     """"ListView displaying the selected passes."""
-    passes_list_view: ListView
-    """ListView displaying the passes available to apply."""
+    passes_tree: Tree[tuple[type[ModulePass], PipelinePassSpec | None]]
+    """Tree displaying the passes available to apply."""
 
     input_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
     """
@@ -164,7 +157,7 @@ class InputApp(App[None]):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.selected_passes_list_view = ListView(id="selected_passes_list_view")
-        self.passes_list_view = ListView(id="passes_list_view")
+        self.passes_tree = Tree(label=".", id="passes_tree")
         self.input_operation_count_datatable = DataTable(
             id="input_operation_count_datatable"
         )
@@ -173,22 +166,19 @@ class InputApp(App[None]):
         )
 
         with Horizontal(id="top_container"):
-            yield self.passes_list_view
-            with Horizontal(id="button_and_selected_horziontal"):
-                with ScrollableContainer(id="selected_passes"):
-                    yield self.selected_passes_list_view
-                with ScrollableContainer(id="buttons"):
-                    yield Button("Copy Query", id="copy_query_button")
-                    yield Button("Clear Passes", id="clear_passes_button")
-                    yield Button("Condense", id="condense_button")
-                    yield Button("Uncondense", id="uncondense_button")
-                    yield Button("Remove Last Pass", id="remove_last_pass_button")
-                    yield Button(
-                        "Show Operation Count", id="show_operation_count_button"
-                    )
-                    yield Button(
-                        "Remove Operation Count", id="remove_operation_count_button"
-                    )
+            with Vertical(id="veritcal_tree_selected_passes_list_view"):
+                yield self.selected_passes_list_view
+                yield self.passes_tree
+            with ScrollableContainer(id="buttons"):
+                yield Button("Copy Query", id="copy_query_button")
+                yield Button("Clear Passes", id="clear_passes_button")
+                yield Button("Condense", id="condense_button")
+                yield Button("Uncondense", id="uncondense_button")
+                yield Button("Remove Last Pass", id="remove_last_pass_button")
+                yield Button("Show Operation Count", id="show_operation_count_button")
+                yield Button(
+                    "Remove Operation Count", id="remove_operation_count_button"
+                )
         with Horizontal(id="bottom_container"):
             with Horizontal(id="input_horizontal_container"):
                 with Vertical(id="input_container"):
@@ -216,15 +206,12 @@ class InputApp(App[None]):
         # add titles for various widgets
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
-        self.query_one(
-            "#passes_list_view"
-        ).border_title = "Choose a pass or multiple passes to be applied."
-        self.query_one("#selected_passes").border_title = "Selected passes/query"
 
-        # initialize ListView to contain the pass options
+        # initialize Tree to contain the pass options
         for n, module_pass in ALL_PASSES:
-            self.passes_list_view.append(
-                PassListItem(Label(n), module_pass=module_pass, pass_spec=None, name=n)
+            self.passes_tree.root.add(
+                label=n,
+                data=(module_pass, None),
             )
 
         # initialize GUI with either specified input text or default example
@@ -268,15 +255,11 @@ class InputApp(App[None]):
         the ListView to display the latest pass options.
         """
         if old_pass_list != new_pass_list:
-            self.passes_list_view.clear()
+            self.passes_tree.clear()
             for pass_name, value, value_spec in new_pass_list:
-                self.passes_list_view.append(
-                    PassListItem(
-                        Label(pass_name),
-                        module_pass=value,
-                        pass_spec=value_spec,
-                        name=value.name,
-                    )
+                self.passes_tree.root.add(
+                    label=pass_name,
+                    data=(value, value_spec),
                 )
 
     def get_pass_arguments(
@@ -334,15 +317,20 @@ class InputApp(App[None]):
                 (selected_pass_value, selected_pass_spec),
             )
 
-    @on(ListView.Selected, "#passes_list_view")
-    def update_pass_pipeline(self, event: ListView.Selected) -> None:
+    @on(Tree.NodeSelected, "#passes_tree")
+    def update_pass_pipeline(
+        self, event: Tree.NodeSelected[tuple[type[ModulePass], PipelinePassSpec | None]]
+    ) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
         """
-        list_item = event.item
-        assert isinstance(list_item, PassListItem)
-        self.get_pass_arguments(list_item.module_pass, list_item.pass_spec)
+        selected_pass = event.node
+        if selected_pass.data is None:
+            return
+
+        module_pass, pass_spec = selected_pass.data
+        self.get_pass_arguments(module_pass, pass_spec)
 
     def watch_pass_pipeline(self) -> None:
         """
