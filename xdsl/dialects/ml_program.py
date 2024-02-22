@@ -56,39 +56,35 @@ class Global(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        pass
+        if self.sym_visibility:
+            printer.print(self.sym_visibility.data)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         attrs = parser.parse_optional_attr_dict()
         if parser.parse_optional_keyword("public"):
-            visibility = "public"
+            sym_visibility = "public"
         elif parser.parse_optional_keyword("nested"):
-            visibility = "nested"
+            sym_visibility = "nested"
         elif parser.parse_optional_keyword("private"):
-            visibility = "private"
-        else:
-            visibility = None
+            sym_visibility = "private"
         if parser.parse_optional_keyword("mutable"):
             mutability = "mutable"
         else:
-            mutability = None
-        sym_name = parser.parse_attribute()
-        if parser.parse_optional_punctuation("("):
+            mutability = ()
+        sym_name = parser.parse_attribute().root_reference
+        if parser.parse_punctuation("("):
             value = parser.parse_attribute()
             parser.parse_punctuation(")")
-        else:
-            value = None
         parser.parse_punctuation(":")
-        parser.parse_attribute()
+        parser.parse_type()
 
         global_op = cls(
             sym_name,
-            mutability,
+            UnitAttr(mutability),
             value,
-            visibility,
+            StringAttr(sym_visibility),
         )
-
         global_op.attributes |= attrs
         return global_op
 
