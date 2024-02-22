@@ -35,6 +35,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_region_def,
+    opt_result_def,
     result_def,
     traits_def,
     var_operand_def,
@@ -209,7 +210,7 @@ class DmaMemcpyNdOp(IRDLOperation):
     src_sizes = var_operand_def(IndexType)
     src_strides = var_operand_def(IndexType)
 
-    async_token = result_def(AsyncTokenAttr)
+    async_token = opt_result_def(AsyncTokenAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
