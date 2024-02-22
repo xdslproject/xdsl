@@ -333,7 +333,7 @@ class InputApp(App[None]):
         Helper function that adds a subtree to a node, i.e. adds a sub-tree containing the child_pass_list with expanded_pass as the root.
         """
         # remove potential children nodes in case expand node has been clicked multiple times on the same node
-        expanded_pass.remove_children
+        expanded_pass.remove_children()
 
         for pass_name, value, value_spec in child_pass_list:
             expanded_pass.add(
@@ -455,8 +455,9 @@ class InputApp(App[None]):
         to the pass selection tree. Allow's multi-level tree traversal.
         """
         expanded_node = event.node
-        assert expanded_node.data is not None
-        assert not expanded_node.is_root
+        if expanded_node.data is None:
+            self.expand_node(expanded_node, self.available_pass_list)
+            return
 
         # get instance
         selected_pass_value, selected_pass_spec = expanded_node.data
