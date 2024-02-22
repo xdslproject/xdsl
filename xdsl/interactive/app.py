@@ -273,16 +273,7 @@ class InputApp(App[None]):
         """
         if old_pass_list != new_pass_list:
             self.passes_tree.clear()
-            for pass_name, value, value_spec in new_pass_list:
-                self.passes_tree.root.add(
-                    label=pass_name,
-                    data=PassListItem(
-                        Label(pass_name),
-                        module_pass=value,
-                        pass_spec=value_spec,
-                        name=value.name,
-                    ),
-                )
+            self.expand_node(self.passes_tree.root, new_pass_list)
 
     def update_selected_passes_list_view(
         self, pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
