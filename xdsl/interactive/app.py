@@ -136,11 +136,6 @@ class InputApp(App[None]):
     text areas.
     """
 
-    current_argument_pass: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = ()
-    """
-    Saves a tuple containing the constructed ModulePass, PipelinePassSpec tuple of a pass with arguments requiring user input.
-    """
-
     pre_loaded_input_text: str
     current_file_path: str
     pre_loaded_pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
@@ -375,16 +370,17 @@ class InputApp(App[None]):
             Parse Error.
             """
             # reset pass
-            self.current_argument_pass = ()
             try:
                 new_pass_with_arguments = list(
                     parse_pipeline(
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
                     )
                 )[0]
-                self.current_argument_pass = (
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
                     (selected_pass_value, new_pass_with_arguments),
                 )
+
             except PassPipelineParseError as e:
                 res = f"PassPipelineParseError: {e}"
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
@@ -419,10 +415,6 @@ class InputApp(App[None]):
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
             self.get_pass_arguments(selected_pass_value, selected_pass_spec)
-            self.pass_pipeline = (
-                *self.pass_pipeline,
-                *self.current_argument_pass,
-            )
         else:
             # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
             if selected_pass_spec is None:
