@@ -92,7 +92,10 @@ class Global(IRDLOperation):
         elif parser.parse_optional_keyword("private"):
             sym_visibility = StringAttr("private")
         else:
-            raise VerifyException("Expected 'public', 'private', or 'nested'")
+            parser.raise_error(
+                "Expected 'public', 'private', or 'nested'",
+            )
+
         if parser.parse_optional_keyword("mutable"):
             is_mutable = UnitAttr()
         else:
