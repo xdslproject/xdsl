@@ -273,16 +273,16 @@ class InputApp(App[None]):
     ) -> tuple[tuple[type[ModulePass], PipelinePassSpec], ...]:
         """
         Helper function that returns a pass_pipeline consisiting of the list of nodes
-        from the root of the tree to the expanded_node child.
+        from the root of the tree to and including the expanded_node child.
         """
         assert expanded_node.data is not None
 
-        # get instance
         pass_list_items: tuple[
             tuple[type[ModulePass], PipelinePassSpec | None], ...
         ] = ()
         current = expanded_node
 
+        # traverse the path starting from the child node until we reach the root
         while current is not None and current.data is not None and not current.is_root:
             selected_pass_value, selected_pass_spec = current.data
             pass_list_items = (
