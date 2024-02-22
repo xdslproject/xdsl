@@ -30,6 +30,7 @@ from textual.widgets import (
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
+from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
@@ -40,12 +41,7 @@ from xdsl.interactive.passes import (
     ALL_PASSES,
     AvailablePass,
     apply_passes_to_module,
-    get_condensed_pass_list,
     get_new_registered_context,
-)
-from xdsl.interactive.rewrites import (
-    convert_indexed_individual_rewrites_to_available_pass,
-    get_all_possible_rewrites,
 )
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
@@ -113,8 +109,8 @@ class InputApp(App[None]):
     """Input TextArea."""
     output_text_area: OutputTextArea
     """Output TextArea."""
-    selected_query_label: Label
-    """Display selected passes."""
+    selected_passes_list_view: ListView
+    """"ListView displaying the selected passes."""
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
@@ -167,8 +163,8 @@ class InputApp(App[None]):
         """
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
+        self.selected_passes_list_view = ListView(id="selected_passes_list_view")
         self.passes_list_view = ListView(id="passes_list_view")
-        self.selected_query_label = Label("", id="selected_passes_label")
         self.input_operation_count_datatable = DataTable(
             id="input_operation_count_datatable"
         )
@@ -179,6 +175,8 @@ class InputApp(App[None]):
         with Horizontal(id="top_container"):
             yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
+                with ScrollableContainer(id="selected_passes"):
+                    yield self.selected_passes_list_view
                 with ScrollableContainer(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
@@ -191,8 +189,6 @@ class InputApp(App[None]):
                     yield Button(
                         "Remove Operation Count", id="remove_operation_count_button"
                     )
-                with ScrollableContainer(id="selected_passes"):
-                    yield self.selected_query_label
         with Horizontal(id="bottom_container"):
             with Horizontal(id="input_horizontal_container"):
                 with Vertical(id="input_container"):
@@ -255,26 +251,12 @@ class InputApp(App[None]):
             case Exception():
                 return ()
             case ModuleOp():
-                # get all rewrites
-                rewrites = get_all_possible_rewrites(
-                    self.current_module,
+                return get_available_pass_list(
+                    self.input_text_area.text,
+                    self.pass_pipeline,
+                    self.condense_mode,
                     individual_rewrite.REWRITE_BY_NAMES,
                 )
-                # transform rewrites into passes
-                rewrites_as_pass_list = (
-                    convert_indexed_individual_rewrites_to_available_pass(
-                        rewrites, self.current_module
-                    )
-                )
-                # merge rewrite passes with "other" pass list
-                if self.condense_mode:
-                    pass_list = get_condensed_pass_list(self.current_module)
-                    return pass_list + rewrites_as_pass_list
-                else:
-                    pass_list = tuple(
-                        AvailablePass(p.name, p, None) for _, p in ALL_PASSES
-                    )
-                    return pass_list + rewrites_as_pass_list
 
     def watch_available_pass_list(
         self,
@@ -352,7 +334,7 @@ class InputApp(App[None]):
                 (selected_pass_value, selected_pass_spec),
             )
 
-    @on(ListView.Selected)
+    @on(ListView.Selected, "#passes_list_view")
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
@@ -367,7 +349,16 @@ class InputApp(App[None]):
         Function called when the reactive variable pass_pipeline changes - updates the
         label to display the respective generated query in the Label.
         """
-        self.selected_query_label.update(self.get_query_string())
+        self.selected_passes_list_view.clear()
+        for pass_value, value_spec in self.pass_pipeline:
+            self.selected_passes_list_view.append(
+                PassListItem(
+                    Label(pass_value.name),
+                    module_pass=pass_value,
+                    pass_spec=value_spec,
+                    name=pass_value.name,
+                )
+            )
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
@@ -564,7 +555,6 @@ class InputApp(App[None]):
                         file_contents = file.read()
                         self.input_text_area.load_text(file_contents)
                     self.current_file_path = file_path
-                    self.selected_query_label.update(self.get_query_string())
                 else:
                     self.input_text_area.load_text(
                         f"The file '{file_path}' does not exist."
