@@ -283,17 +283,15 @@ class InputApp(App[None]):
                     ),
                 )
 
-    def update_selected_passes_list_view(
-        self, pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
-    ) -> None:
+    def update_selected_passes_list_view(self) -> None:
         """
         Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
         """
         self.selected_passes_list_view.clear()
-        if pass_pipeline != ():
+        if self.pass_pipeline != ():
             self.selected_passes_list_view.append(ListItem(Label("."), name="."))
 
-        for pass_value, value_spec in pass_pipeline:
+        for pass_value, value_spec in self.pass_pipeline:
             self.selected_passes_list_view.append(
                 PassListItem(
                     Label(str(value_spec)),
@@ -386,7 +384,7 @@ class InputApp(App[None]):
         Function called when the reactive variable pass_pipeline changes - updates the
         label to display the respective generated query in the Label.
         """
-        self.update_selected_passes_list_view(self.pass_pipeline)
+        self.update_selected_passes_list_view()
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
