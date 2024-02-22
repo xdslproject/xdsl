@@ -67,9 +67,9 @@ class Global(IRDLOperation):
         printer.print_string(" ")
         if self.sym_visibility:
             printer.print_string(self.sym_visibility.data)
+            printer.print_string(" ")
         if self.is_mutable:
-            printer.print_string("mutable")
-        printer.print_string(" ")
+            printer.print_string("mutable ")
         printer.print_string("@")
         printer.print_string(self.sym_name.data)
         if self.value:
