@@ -321,6 +321,24 @@ class InputApp(App[None]):
         # expand the node
         self.expand_node(self.passes_tree.root, self.available_pass_list)
 
+    def update_selected_passes_list_view(self) -> None:
+        """
+        Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
+        """
+        self.selected_passes_list_view.clear()
+        if self.pass_pipeline != ():
+            self.selected_passes_list_view.append(ListItem(Label("."), name="."))
+
+        for pass_value, value_spec in self.pass_pipeline:
+            self.selected_passes_list_view.append(
+                PassListItem(
+                    Label(str(value_spec)),
+                    module_pass=pass_value,
+                    pass_spec=value_spec,
+                    name=pass_value.name,
+                )
+            )
+
     def get_pass_arguments(
         self,
         selected_pass_value: type[ModulePass],
