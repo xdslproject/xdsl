@@ -381,8 +381,6 @@ class InputApp(App[None]):
             In case of parsing failure, the AddArguments Screen is pushed, revealing the
             Parse Error.
             """
-            # reset pass
-            self.current_argument_pass = ()
             try:
                 new_pass_with_arguments = list(
                     parse_pipeline(
@@ -396,6 +394,9 @@ class InputApp(App[None]):
                 res = f"PassPipelineParseError: {e}"
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
+
+            # reset pass
+            self.current_argument_pass = ()
 
         # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
         self.push_screen(
@@ -430,7 +431,8 @@ class InputApp(App[None]):
             # if screen was exited, do not continue with
             if self.current_argument_pass == ():
                 return
-            # remove_last bool set to True as we want to add the current_argument_pass with the user-defined arguments to the pass_pipeline
+
+            # remove current event node from root_to_child_pass_list
             root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_pass)[
                 :-1
             ]
@@ -474,17 +476,27 @@ class InputApp(App[None]):
         selected_pass_value = selected_pass.data.module_pass
         selected_pass_spec = selected_pass.data.pass_spec
 
-        root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass, True)
-
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
             self.get_pass_arguments(selected_pass_value, selected_pass_spec)
+            if self.current_argument_pass == ():
+                return
+
+            # get intermediate node path from root to current selected node and remove current event node from root_to_child_pass_list
+            root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass)[
+                :-1
+            ]
+
             self.pass_pipeline = (
                 *self.pass_pipeline,
                 *root_to_child_pass_list,
                 *self.current_argument_pass,
             )
         else:
+            # get intermediate node path from root to current selected node and remove current event node from root_to_child_pass_list
+            root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass)[
+                :-1
+            ]
             # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
             if selected_pass_spec is None:
                 selected_pass_spec = selected_pass_value().pipeline_pass_spec()
