@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    NoneType,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
@@ -16,6 +17,7 @@ from xdsl.irdl import (
     IRDLOperation,
     attr_def,
     irdl_op_definition,
+    opt_attr_def,
     result_def,
 )
 from xdsl.parser import Parser
@@ -35,16 +37,16 @@ class Global(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
     type = attr_def(TypeAttribute)
-    is_mutable = attr_def(UnitAttr)
-    value = attr_def(Attribute)
+    is_mutable = opt_attr_def(UnitAttr)
+    value = opt_attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
 
     def __init__(
         self,
         sym_name: Attribute,
         type: Attribute,
-        is_mutable: Attribute,
-        value: Attribute,
+        is_mutable: Attribute | None,
+        value: Attribute | None,
         sym_visibility: Attribute,
     ):
         super().__init__(
@@ -57,16 +59,23 @@ class Global(IRDLOperation):
             },
         )
 
+    def _verify(self) -> None:
+        if isinstance(self.is_mutable, NoneType) and isinstance(self.value, NoneType):
+            raise VerifyException("Immutable global must have an initial value")
+
     def print(self, printer: Printer):
         printer.print_string(" ")
         if self.sym_visibility:
             printer.print_string(self.sym_visibility.data)
+        if self.is_mutable:
+            printer.print_string("mutable")
         printer.print_string(" ")
         printer.print_string("@")
         printer.print_string(self.sym_name.data)
-        printer.print_string("(")
-        printer.print_attribute(self.value)
-        printer.print_string(")")
+        if self.value:
+            printer.print_string("(")
+            printer.print_attribute(self.value)
+            printer.print_string(")")
         printer.print_string(" : ")
         printer.print_attribute(self.type)
 
@@ -81,11 +90,16 @@ class Global(IRDLOperation):
             sym_visibility = StringAttr("private")
         else:
             sym_visibility = StringAttr("")
-        is_mutable = UnitAttr()
+        if parser.parse_optional_keyword("mutable"):
+            is_mutable = UnitAttr()
+        else:
+            is_mutable = None
         sym_name = parser.parse_symbol_name().data
         if parser.parse_optional_punctuation("("):
             value = parser.parse_attribute()
             parser.parse_punctuation(")")
+        else:
+            value = None
         parser.parse_punctuation(":")
         type = parser.parse_type()
         global_op = cls(
@@ -97,10 +111,6 @@ class Global(IRDLOperation):
         )
         global_op.attributes |= attrs
         return global_op
-
-    def _verify(self) -> None:
-        if not (self.is_mutuable and self.value):
-            raise VerifyException("Immutable global must have an initial value")
 
 
 @irdl_op_definition
