@@ -298,7 +298,7 @@ class InputApp(App[None]):
         return root_to_child_pass_list
 
     def update_selected_passes_list_view(
-        self, pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...]
+        self,
     ) -> None:
         """
         Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
