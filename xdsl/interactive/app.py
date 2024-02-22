@@ -429,8 +429,7 @@ class InputApp(App[None]):
         Function called when the reactive variable pass_pipeline changes - updates the
         label to display the respective generated query in the Label.
         """
-        self.update_selected_passes_list_view(self.pass_pipeline)
-        self.update_root_of_passes_tree()
+        self.update_selected_passes_list_view(self.pass_pipeline[:-1])
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
