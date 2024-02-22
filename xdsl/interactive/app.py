@@ -291,7 +291,8 @@ class InputApp(App[None]):
         Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
         """
         self.selected_passes_list_view.clear()
-        if pass_pipeline != ():
+        # reactive variable used to check the length of the current pass_pipeline
+        if self.pass_pipeline != ():
             self.selected_passes_list_view.append(ListItem(Label("."), name="."))
 
         for pass_value, value_spec in pass_pipeline:
@@ -430,6 +431,7 @@ class InputApp(App[None]):
         label to display the respective generated query in the Label.
         """
         self.update_selected_passes_list_view(self.pass_pipeline[:-1])
+        self.update_root_of_passes_tree()
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
