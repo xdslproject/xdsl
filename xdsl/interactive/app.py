@@ -113,7 +113,7 @@ class InputApp(App[None]):
     """Output TextArea."""
     selected_passes_list_view: ListView
     """"ListView displaying the selected passes."""
-    passes_tree: Tree[PassListItem]
+    passes_tree: Tree[tuple[type[ModulePass], PipelinePassSpec | None]]
     """Tree displaying the passes available to apply."""
 
     input_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
@@ -225,9 +225,7 @@ class InputApp(App[None]):
         for n, module_pass in ALL_PASSES:
             self.passes_tree.root.add(
                 label=n,
-                data=PassListItem(
-                    Label(n), module_pass=module_pass, pass_spec=None, name=n
-                ),
+                data=(module_pass, None),
             )
 
         # initialize GUI with either specified input text or default example
@@ -275,12 +273,7 @@ class InputApp(App[None]):
             for pass_name, value, value_spec in new_pass_list:
                 self.passes_tree.root.add(
                     label=pass_name,
-                    data=PassListItem(
-                        Label(pass_name),
-                        module_pass=value,
-                        pass_spec=value_spec,
-                        name=value.name,
-                    ),
+                    data=(value, value_spec),
                 )
 
     def update_selected_passes_list_view(self) -> None:
@@ -348,7 +341,9 @@ class InputApp(App[None]):
         )
 
     @on(Tree.NodeSelected, "#passes_tree")
-    def update_pass_pipeline(self, event: Tree.NodeSelected[PassListItem]) -> None:
+    def update_pass_pipeline(
+        self, event: Tree.NodeSelected[tuple[type[ModulePass], PipelinePassSpec | None]]
+    ) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
@@ -356,11 +351,9 @@ class InputApp(App[None]):
         selected_pass = event.node
         if selected_pass.data is None:
             return
-        assert isinstance(selected_pass.data, PassListItem)
 
         # get instance
-        selected_pass_value = selected_pass.data.module_pass
-        selected_pass_spec = selected_pass.data.pass_spec
+        selected_pass_value, selected_pass_spec = selected_pass.data
 
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
