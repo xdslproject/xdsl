@@ -1,4 +1,28 @@
-// RUN: xdsl-opt -p riscv-cse %s | filecheck %s
+// RUN: xdsl-opt -p riscv-cse --split-input-file %s | filecheck %s
+
+%a8 = riscv.li 8 : () -> !riscv.reg<>
+%b8 = riscv.li 8 : () -> !riscv.reg<>
+%c8 = riscv.li 8 : () -> !riscv.reg<>
+
+%a7 = riscv.li 7 : () -> !riscv.reg<>
+%b7 = riscv.li 7 : () -> !riscv.reg<>
+
+riscv.assembly_section ".text" {
+    %d8 = riscv.li 8 : () -> !riscv.reg<>
+    %e8 = riscv.li 8 : () -> !riscv.reg<>
+}
+
+%f8 = riscv.li 8 : () -> !riscv.reg<>
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %a8 = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:    %a7 = riscv.li 7 : () -> !riscv.reg<>
+// CHECK-NEXT:    riscv.assembly_section ".text" {
+// CHECK-NEXT:      %d8 = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
+
+// -----
 
 %0, %1, %2 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
 
