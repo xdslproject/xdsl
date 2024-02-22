@@ -1,4 +1,5 @@
 // RUN: xdsl-run --verbose %s | filecheck %s
+// RUN: xdsl-run --verbose --symbol="sum_to" --args="6" %s | filecheck %s --check-prefix=CHECK-ARGS
 
 builtin.module {
   func.func @sum_to(%0 : !riscv.reg<>) -> !riscv.reg<> {
@@ -19,3 +20,4 @@ builtin.module {
 }
 
 // CHECK: result: (10,)
+// CHECK-ARGS: result: (15,)
