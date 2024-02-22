@@ -163,7 +163,7 @@ def __(ctx, linalg_module, mo):
 
     generalized_module = linalg_module.clone()
 
-    MLIROptPass(arguments=["--linalg-generalize-named-ops"]).apply(
+    MLIROptPass(generic=False, arguments=["--linalg-generalize-named-ops"]).apply(
         ctx, generalized_module
     )
 

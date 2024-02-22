@@ -30,22 +30,24 @@ from textual.widgets import (
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
-from xdsl.interactive.get_condensed_passes import (
-    ALL_PASSES,
-    AvailablePass,
-    get_condensed_pass_list,
-)
+from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.load_file_screen import LoadFile
 from xdsl.interactive.pass_list_item import PassListItem
 from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
 )
-from xdsl.ir import MLContext
+from xdsl.interactive.passes import (
+    ALL_PASSES,
+    AvailablePass,
+    apply_passes_to_module,
+    get_new_registered_context,
+)
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.tools.command_line_tool import get_all_passes
+from xdsl.transforms import individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -107,8 +109,8 @@ class InputApp(App[None]):
     """Input TextArea."""
     output_text_area: OutputTextArea
     """Output TextArea."""
-    selected_query_label: Label
-    """Display selected passes."""
+    selected_passes_list_view: ListView
+    """"ListView displaying the selected passes."""
     passes_list_view: ListView
     """ListView displaying the passes available to apply."""
 
@@ -161,8 +163,8 @@ class InputApp(App[None]):
         """
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
+        self.selected_passes_list_view = ListView(id="selected_passes_list_view")
         self.passes_list_view = ListView(id="passes_list_view")
-        self.selected_query_label = Label("", id="selected_passes_label")
         self.input_operation_count_datatable = DataTable(
             id="input_operation_count_datatable"
         )
@@ -173,6 +175,8 @@ class InputApp(App[None]):
         with Horizontal(id="top_container"):
             yield self.passes_list_view
             with Horizontal(id="button_and_selected_horziontal"):
+                with ScrollableContainer(id="selected_passes"):
+                    yield self.selected_passes_list_view
                 with ScrollableContainer(id="buttons"):
                     yield Button("Copy Query", id="copy_query_button")
                     yield Button("Clear Passes", id="clear_passes_button")
@@ -185,8 +189,6 @@ class InputApp(App[None]):
                     yield Button(
                         "Remove Operation Count", id="remove_operation_count_button"
                     )
-                with ScrollableContainer(id="selected_passes"):
-                    yield self.selected_query_label
         with Horizontal(id="bottom_container"):
             with Horizontal(id="input_horizontal_container"):
                 with Vertical(id="input_container"):
@@ -249,10 +251,12 @@ class InputApp(App[None]):
             case Exception():
                 return ()
             case ModuleOp():
-                if self.condense_mode:
-                    return get_condensed_pass_list(self.current_module)
-                else:
-                    return tuple(AvailablePass(p.name, p, None) for _, p in ALL_PASSES)
+                return get_available_pass_list(
+                    self.input_text_area.text,
+                    self.pass_pipeline,
+                    self.condense_mode,
+                    individual_rewrite.REWRITE_BY_NAMES,
+                )
 
     def watch_available_pass_list(
         self,
@@ -275,7 +279,11 @@ class InputApp(App[None]):
                     )
                 )
 
-    def get_pass_arguments(self, selected_pass_value: type[ModulePass]) -> None:
+    def get_pass_arguments(
+        self,
+        selected_pass_value: type[ModulePass],
+        selected_pass_spec: PipelinePassSpec | None,
+    ) -> None:
         """
         This function facilitates user input of pass concatenated_arg_val by navigating
         to the AddArguments screen, and subsequently parses the returned string upon
@@ -306,7 +314,7 @@ class InputApp(App[None]):
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
         # if selected_pass_value has arguments, push screen
-        if fields(selected_pass_value):
+        if fields(selected_pass_value) and selected_pass_spec is None:
             # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
             self.push_screen(
                 AddArguments(
@@ -319,12 +327,14 @@ class InputApp(App[None]):
             )
         else:
             # add the selected pass to pass_pipeline
+            if selected_pass_spec is None:
+                selected_pass_spec = selected_pass_value().pipeline_pass_spec()
             self.pass_pipeline = (
                 *self.pass_pipeline,
-                (selected_pass_value, selected_pass_value().pipeline_pass_spec()),
+                (selected_pass_value, selected_pass_spec),
             )
 
-    @on(ListView.Selected)
+    @on(ListView.Selected, "#passes_list_view")
     def update_pass_pipeline(self, event: ListView.Selected) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
@@ -332,14 +342,23 @@ class InputApp(App[None]):
         """
         list_item = event.item
         assert isinstance(list_item, PassListItem)
-        self.get_pass_arguments(list_item.module_pass)
+        self.get_pass_arguments(list_item.module_pass, list_item.pass_spec)
 
     def watch_pass_pipeline(self) -> None:
         """
         Function called when the reactive variable pass_pipeline changes - updates the
         label to display the respective generated query in the Label.
         """
-        self.selected_query_label.update(self.get_query_string())
+        self.selected_passes_list_view.clear()
+        for pass_value, value_spec in self.pass_pipeline:
+            self.selected_passes_list_view.append(
+                PassListItem(
+                    Label(pass_value.name),
+                    module_pass=pass_value,
+                    pass_spec=value_spec,
+                    name=pass_value.name,
+                )
+            )
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")
@@ -354,20 +373,13 @@ class InputApp(App[None]):
             self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
-            ctx = MLContext(True)
-            for dialect_name, dialect_factory in get_all_dialects().items():
-                ctx.register_dialect(dialect_name, dialect_factory)
+            ctx = get_new_registered_context()
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
-            pipeline = PipelinePass(
-                passes=[
-                    module_pass.from_pass_spec(pipeline_pass_spec)
-                    for module_pass, pipeline_pass_spec in self.pass_pipeline
-                ]
+            self.current_module = apply_passes_to_module(
+                module, ctx, self.pass_pipeline
             )
-            pipeline.apply(ctx, module)
-            self.current_module = module
         except Exception as e:
             self.current_module = e
             self.update_input_operation_count_tuple(ModuleOp([], None))
@@ -543,7 +555,6 @@ class InputApp(App[None]):
                         file_contents = file.read()
                         self.input_text_area.load_text(file_contents)
                     self.current_file_path = file_path
-                    self.selected_query_label.update(self.get_query_string())
                 else:
                     self.input_text_area.load_text(
                         f"The file '{file_path}' does not exist."

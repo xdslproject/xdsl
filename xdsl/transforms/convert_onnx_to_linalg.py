@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
-from xdsl.dialects import linalg, onnx, tensor
-from xdsl.dialects.builtin import ModuleOp, TensorType
-from xdsl.ir import MLContext
+from xdsl.builder import ImplicitBuilder
+from xdsl.dialects import arith, linalg, onnx, tensor
+from xdsl.dialects.builtin import AffineMapAttr, FloatAttr, ModuleOp, TensorType, f64
+from xdsl.ir import Block, MLContext, Region
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -35,6 +37,37 @@ class AddOpLowering(RewritePattern):
 
 
 @dataclass
+class ReluOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
+        body = Region(Block(arg_types=(f64, f64)))
+        affine_map = AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0, d1)))
+        rewriter.replace_matched_op(
+            (
+                empty := tensor.EmptyOp((), relu.res.type),
+                zero := arith.Constant(FloatAttr(0, f64)),
+                linalg.Generic(
+                    (relu.operand,),
+                    (empty.tensor,),
+                    body,
+                    (
+                        affine_map,
+                        affine_map,
+                    ),
+                    (
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                    ),
+                    (relu.res.type,),
+                ),
+            )
+        )
+        with ImplicitBuilder(body) as (a, _):
+            max_op = arith.Maximumf(a, zero.result)
+            linalg.YieldOp(max_op.result)
+
+
+@dataclass
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
 
@@ -43,6 +76,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     AddOpLowering(),
+                    ReluOpLowering(),
                 ]
             ),
             apply_recursively=False,
