@@ -34,31 +34,41 @@ class Global(IRDLOperation):
     name = "ml_program.global"
 
     sym_name = attr_def(StringAttr)
-    type_attr = attr_def(TypeAttribute)
-    is_mutuable = attr_def(UnitAttr)
+    type = attr_def(TypeAttribute)
+    is_mutable = attr_def(UnitAttr)
     value = attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
 
     def __init__(
         self,
         sym_name: Attribute,
-        type_attr: Attribute,
-        is_mutuable: Attribute,
+        type: Attribute,
+        is_mutable: Attribute,
         value: Attribute,
         sym_visibility: Attribute,
     ):
         super().__init__(
             attributes={
                 "sym_name": sym_name,
-                "type": type_attr,
-                "is_mutable": is_mutuable,
+                "type": type,
+                "is_mutable": is_mutable,
                 "value": value,
                 "sym_visibility": sym_visibility,
             },
         )
 
     def print(self, printer: Printer):
-        pass
+        printer.print_string(" ")
+        if self.sym_visibility:
+            printer.print_string(self.sym_visibility.data)
+        printer.print_string(" ")
+        printer.print_string("@")
+        printer.print_string(self.sym_name.data)
+        printer.print_string("(")
+        printer.print_attribute(self.value)
+        printer.print_string(")")
+        printer.print_string(" : ")
+        printer.print_attribute(self.type)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -71,21 +81,19 @@ class Global(IRDLOperation):
             sym_visibility = StringAttr("private")
         else:
             sym_visibility = StringAttr("")
-        if parser.parse_optional_keyword("mutable"):
-            mutability = UnitAttr()
-        sym_name = parser.parse_attribute()
+        is_mutable = UnitAttr()
+        sym_name = parser.parse_symbol_name().data
         if parser.parse_optional_punctuation("("):
             value = parser.parse_attribute()
             parser.parse_punctuation(")")
         parser.parse_punctuation(":")
-        parser.parse_type()
-
+        type = parser.parse_type()
         global_op = cls(
-            sym_name=sym_name,
-            type_attr=value.type,
-            is_mutuable=mutability,
-            value=value,
-            sym_visibility=sym_visibility,
+            StringAttr(sym_name),
+            type,
+            is_mutable,
+            value,
+            sym_visibility,
         )
         global_op.attributes |= attrs
         return global_op
