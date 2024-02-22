@@ -41,9 +41,11 @@ def cse(rewriter: Rewriter, block: Block) -> None:
 @dataclass
 class RiscvCommonSubexpressionElimination(ModulePass):
     """
-    Eliminates common sub-expressions on unallocated registers.
-    Runs per-block. `li` operations with the same attribute are reused, and `Pure`
-    with the same operands are reused.
+    Eliminates common sub-expressions on unallocated registers per block.
+    
+    Currently, the following operations are reused:
+    - `li` operations with the same attribute
+    - `Pure` operations with the same operands
     """
 
     name = "riscv-cse"
