@@ -417,6 +417,59 @@ class InputApp(App[None]):
             add_pass_with_arguments_to_pass_pipeline,
         )
 
+    @on(Tree.NodeExpanded, "#passes_tree")
+    def expand_tree_node(self, event: Tree.NodeExpanded[PassListItem]) -> None:
+        """
+        Function called when a user expands a node (i.e. a pass) and adds another level
+        to the pass selection tree. Allow's multi-level tree traversal.
+        """
+        expanded_pass = event.node
+        if expanded_pass.data is None:
+            return
+        assert isinstance(expanded_pass.data, PassListItem)
+
+        # if expanded_pass has arguments, call get_arguments_function to push screen for user input
+        if (
+            fields(expanded_pass.data.module_pass)
+            and expanded_pass.data.pass_spec is None
+        ):
+            self.get_pass_arguments(
+                expanded_pass.data.module_pass, expanded_pass.data.pass_spec
+            )
+            # if screen was exited, do not continue with
+            if self.current_argument_pass == ():
+                return
+            # remove_last bool set to True as we want to add the current_argument_pass with the user-defined arguments to the pass_pipeline
+            root_to_child_pass_list = self.get_root_to_child_pass_list(
+                expanded_pass, True
+            )
+
+            child_pass_pipeline = (
+                *self.pass_pipeline,
+                *root_to_child_pass_list,
+                *self.current_argument_pass,
+            )
+
+        else:
+            # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
+            root_to_child_pass_list = self.get_root_to_child_pass_list(
+                expanded_pass, False
+            )
+
+            child_pass_pipeline = (
+                *self.pass_pipeline,
+                *root_to_child_pass_list,
+            )
+
+        child_pass_list = get_available_pass_list(
+            self.input_text_area.text,
+            child_pass_pipeline,
+            self.condense_mode,
+            individual_rewrite.REWRITE_BY_NAMES,
+        )
+
+        self.expand_node(expanded_pass, child_pass_list)
+
     @on(Tree.NodeSelected, "#passes_tree")
     def update_pass_pipeline(self, event: Tree.NodeSelected[PassListItem]) -> None:
         """
@@ -432,11 +485,14 @@ class InputApp(App[None]):
         selected_pass_value = selected_pass.data.module_pass
         selected_pass_spec = selected_pass.data.pass_spec
 
+        root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass, True)
+
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
             self.get_pass_arguments(selected_pass_value, selected_pass_spec)
             self.pass_pipeline = (
                 *self.pass_pipeline,
+                *root_to_child_pass_list,
                 *self.current_argument_pass,
             )
         else:
@@ -446,6 +502,7 @@ class InputApp(App[None]):
             # selected_pass_value is an "individual_rewrite", add the selected pass to pass_pipeline
             self.pass_pipeline = (
                 *self.pass_pipeline,
+                *root_to_child_pass_list,
                 (selected_pass_value, selected_pass_spec),
             )
 
