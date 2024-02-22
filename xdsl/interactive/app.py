@@ -295,7 +295,7 @@ class InputApp(App[None]):
 
     def expand_node(
         self,
-        expanded_pass: TreeNode[PassListItem],
+        expanded_pass: TreeNode[tuple[type[ModulePass], PipelinePassSpec | None]],
         child_pass_list: tuple[AvailablePass, ...],
     ) -> None:
         """
