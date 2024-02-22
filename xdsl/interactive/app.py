@@ -345,6 +345,21 @@ class InputApp(App[None]):
                 (selected_pass_value, selected_pass_spec),
             )
 
+    @on(Tree.NodeSelected, "#passes_tree")
+    def update_pass_pipeline(
+        self, event: Tree.NodeSelected[tuple[type[ModulePass], PipelinePassSpec | None]]
+    ) -> None:
+        """
+        When a new selection is made, the reactive variable storing the list of selected
+        passes is updated.
+        """
+        selected_pass = event.node
+        if selected_pass.data is None:
+            return
+
+        module_pass, pass_spec = selected_pass.data
+        self.get_pass_arguments(module_pass, pass_spec)
+
     def watch_pass_pipeline(self) -> None:
         """
         Function called when the reactive variable pass_pipeline changes - updates the
