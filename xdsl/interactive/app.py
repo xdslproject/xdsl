@@ -297,8 +297,7 @@ class InputApp(App[None]):
         """
         This function facilitates user input of pass concatenated_arg_val by navigating
         to the AddArguments screen, and subsequently parses the returned string upon
-        screen dismissal and updates the reactive variable current_argument_pass to hold
-        the constructed pass in a form ready to append to the pass_pipeline.
+        screen dismissal and appends the pass to the pass_pipeline variable.
         """
 
         def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
@@ -308,7 +307,6 @@ class InputApp(App[None]):
             In case of parsing failure, the AddArguments Screen is pushed, revealing the
             Parse Error.
             """
-            # reset pass
             try:
                 new_pass_with_arguments = list(
                     parse_pipeline(
