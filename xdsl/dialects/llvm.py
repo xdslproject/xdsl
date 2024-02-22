@@ -713,6 +713,60 @@ class IntToPtrOp(IRDLOperation):
 
 
 @irdl_op_definition
+class InlineAsmOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop
+
+    To see what each field means, have a look at:
+    https://llvm.org/docs/LangRef.html#inline-assembler-expressions
+    """
+
+    name = "llvm.inline_asm"
+
+    operands_: VarOperand = var_operand_def()
+
+    res: OptOpResult = opt_result_def()
+
+    # note: in MLIR upstream this is implemented as AsmDialectAttr;
+    # which is an instantiation of an LLVM_EnumAttr
+    # 0 for AT&T inline assembly dialect
+    # 1 for Intel inline assembly dialect
+    # In this context dialect does not refer to an MLIR dialect
+    asm_dialect = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
+
+    asm_string: StringAttr = prop_def(StringAttr)
+    constraints: StringAttr = prop_def(StringAttr)
+    has_side_effects: UnitAttr | None = opt_prop_def(UnitAttr)
+    is_align_stack: UnitAttr | None = opt_prop_def(UnitAttr)
+
+    def __init__(
+        self,
+        operands_: list[SSAValue | Operation],
+        res_types: list[Attribute],
+        asm_string: str,
+        constraints: str,
+        asm_dialect: int = 0,
+        has_side_effects: bool = False,
+        is_align_stack: bool = False,
+    ):
+        props: dict[str, Attribute] = {
+            "asm_string": StringAttr(asm_string),
+            "constraints": StringAttr(constraints),
+            "asm_dialect": IntegerAttr.from_int_and_width(asm_dialect, 64),
+        }
+        if has_side_effects:
+            props["has_side_effects"] = UnitAttr()
+        if is_align_stack:
+            props["is_align_stack"] = UnitAttr()
+
+        super().__init__(
+            operands=operands_,
+            properties=props,
+            result_types=res_types,
+        )
+
+
+@irdl_op_definition
 class PtrToIntOp(IRDLOperation):
     name = "llvm.ptrtoint"
 
@@ -1271,6 +1325,7 @@ LLVM = Dialect(
         AShrOp,
         ExtractValueOp,
         InsertValueOp,
+        InlineAsmOp,
         UndefOp,
         AllocaOp,
         GEPOp,
