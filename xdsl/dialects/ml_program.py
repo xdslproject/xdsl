@@ -22,6 +22,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -40,6 +41,8 @@ class Global(IRDLOperation):
     is_mutable = opt_attr_def(UnitAttr)
     value = opt_attr_def(Attribute)
     sym_visibility = attr_def(StringAttr)
+
+    traits = frozenset([SymbolOpInterface()])
 
     def __init__(
         self,
@@ -67,9 +70,9 @@ class Global(IRDLOperation):
         printer.print_string(" ")
         if self.sym_visibility:
             printer.print_string(self.sym_visibility.data)
+            printer.print_string(" ")
         if self.is_mutable:
-            printer.print_string("mutable")
-        printer.print_string(" ")
+            printer.print_string("mutable ")
         printer.print_string("@")
         printer.print_string(self.sym_name.data)
         if self.value:
@@ -89,7 +92,7 @@ class Global(IRDLOperation):
         elif parser.parse_optional_keyword("private"):
             sym_visibility = StringAttr("private")
         else:
-            sym_visibility = StringAttr("")
+            raise VerifyException("Expected 'public', 'private', or 'nested'")
         if parser.parse_optional_keyword("mutable"):
             is_mutable = UnitAttr()
         else:
