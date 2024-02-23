@@ -9,6 +9,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from itertools import pairwise
 
 from xdsl.ir import Attribute
 from xdsl.irdl import AttrSizedOperandSegments, OpDef, ParsePropInAttrDict, VariadicDef
@@ -24,6 +25,8 @@ from xdsl.irdl.declarative_assembly_format import (
     PunctuationDirective,
     ResultTypeDirective,
     ResultVariable,
+    VariadicLikeFormatDirective,
+    VariadicLikeTypeDirective,
     VariadicOperandTypeDirective,
     VariadicOperandVariable,
     VariadicResultTypeDirective,
@@ -124,29 +127,37 @@ class FormatParser(BaseParser):
         elements: list[FormatDirective] = []
         while self._current_token.kind != Token.Kind.EOF:
             elements.append(self.parse_directive())
-            last = elements[-1]
-            if (
-                len(elements) >= 2
-                and isinstance(last, PunctuationDirective)
-                and last.punctuation == ","
-                and isinstance(
-                    elements[-2],
-                    VariadicOperandTypeDirective
-                    | VariadicResultTypeDirective
-                    | VariadicOperandVariable,
-                )
-            ):
-                self.raise_error(
-                    "A variadic directive cannot be followed by a comma literal."
-                )
 
         self.add_reserved_attrs_to_directive(elements)
         seen_variables = self.resolve_types()
+        self.verify_directives(elements)
         self.verify_attr_dict()
         self.verify_properties()
         self.verify_operands(seen_variables)
         self.verify_results(seen_variables)
         return FormatProgram(elements)
+
+    def verify_directives(self, elements: list[FormatDirective]):
+        """
+        Check correctness of the declarative format; e.g, chaining variadiclike operand
+        directives leads to ambiguous parsing, and should raise an error here.
+        """
+        for a, b in pairwise(elements):
+            match a, b:
+                case VariadicLikeFormatDirective(), PunctuationDirective(","):
+                    self.raise_error(
+                        "A variadic directive cannot be followed by a comma literal."
+                    )
+                case VariadicLikeTypeDirective(), VariadicLikeTypeDirective():
+                    self.raise_error(
+                        "A variadic type directive cannot be followed by another variadic type directive."
+                    )
+                case VariadicOperandVariable(), VariadicOperandVariable():
+                    self.raise_error(
+                        "A variadic operand variable cannot be followed by another variadic operand variable."
+                    )
+                case _:
+                    pass
 
     def add_reserved_attrs_to_directive(self, elements: list[FormatDirective]):
         """

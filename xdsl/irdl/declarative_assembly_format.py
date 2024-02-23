@@ -255,6 +255,28 @@ class FormatDirective(ABC):
         ...
 
 
+class VariadicLikeFormatDirective(FormatDirective, ABC):
+    """
+    Baseclass to help keep typechecking simple.
+    VariadicLike is mostly Variadic or Optional: Whatever directive that can accept
+    having nothing to parse.
+    """
+
+    pass
+
+
+class TypeDirective(FormatDirective, ABC):
+    """
+    Base class for Directive meant to parse types.
+    """
+
+    pass
+
+
+class VariadicLikeTypeDirective(TypeDirective, VariadicLikeFormatDirective, ABC):
+    pass
+
+
 @dataclass(frozen=True)
 class AttrDictDirective(FormatDirective):
     """
@@ -356,7 +378,7 @@ class OperandVariable(FormatDirective):
 
 
 @dataclass(frozen=True)
-class VariadicOperandVariable(OperandVariable):
+class VariadicOperandVariable(OperandVariable, VariadicLikeFormatDirective):
     """
     A variadic operand variable, with the following format:
       operand-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -380,7 +402,7 @@ class VariadicOperandVariable(OperandVariable):
 
 
 @dataclass(frozen=True)
-class OperandTypeDirective(FormatDirective):
+class OperandTypeDirective(TypeDirective):
     """
     An operand variable type directive, with the following format:
       operand-type-directive ::= type(dollar-ident)
@@ -405,7 +427,7 @@ class OperandTypeDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
-class VariadicOperandTypeDirective(OperandTypeDirective):
+class VariadicOperandTypeDirective(OperandTypeDirective, VariadicLikeTypeDirective):
     """
     A variadic operand variable, with the following format:
       operand-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -458,7 +480,7 @@ class ResultVariable(FormatDirective):
 
 
 @dataclass(frozen=True)
-class VariadicResultVariable(ResultVariable):
+class VariadicResultVariable(ResultVariable, VariadicLikeFormatDirective):
     """
     A variadic result variable, with the following format:
       result-directive ::= percent-ident (( `,` percent-id )* )?
@@ -480,7 +502,7 @@ class VariadicResultVariable(ResultVariable):
 
 
 @dataclass(frozen=True)
-class ResultTypeDirective(FormatDirective):
+class ResultTypeDirective(TypeDirective):
     """
     A result variable type directive, with the following format:
       result-type-directive ::= type(dollar-ident)
@@ -536,7 +558,7 @@ class AttributeVariable(FormatDirective):
 
 
 @dataclass(frozen=True)
-class VariadicResultTypeDirective(ResultTypeDirective):
+class VariadicResultTypeDirective(ResultTypeDirective, VariadicLikeTypeDirective):
     """
     A variadic result variable type directive, with the following format:
       variadic-result-type-directive ::= ( percent-ident ( `,` percent-id )* )?
