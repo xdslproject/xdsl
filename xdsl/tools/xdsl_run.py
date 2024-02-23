@@ -53,8 +53,9 @@ class xDSLRunMain(CommandLineTool):
         )
         arg_parser.add_argument(
             "--index-bitwidth",
-            default=32,
+            choices=(32, 64),
             type=int,
+            nargs="?",
             help="Bitwidth of the index type representation.",
         )
         return super().register_all_arguments(arg_parser)
