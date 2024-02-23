@@ -247,12 +247,12 @@ class FormatDirective(ABC):
     """A format directive for operation format."""
 
     @abstractmethod
-    def parse(self, parser: Parser, state: ParsingState) -> None: ...
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        ...
 
     @abstractmethod
-    def print(
-        self, printer: Printer, state: PrintingState, op: IRDLOperation
-    ) -> None: ...
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        ...
 
 
 class VariadicLikeFormatDirective(FormatDirective, ABC):
@@ -273,13 +273,10 @@ class TypeDirective(FormatDirective, ABC):
     pass
 
 
-<<<<<<< HEAD
 class VariadicLikeVariable(VariadicLikeFormatDirective, FormatDirective, ABC):
     pass
 
 
-=======
->>>>>>> 7feedf7f (ABCs, docstrings.)
 class VariadicLikeTypeDirective(TypeDirective, VariadicLikeFormatDirective, ABC):
     pass
 
