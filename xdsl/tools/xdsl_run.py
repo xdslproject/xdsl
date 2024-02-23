@@ -53,6 +53,13 @@ class xDSLRunMain(CommandLineTool):
             help="Name of function to call.",
         )
         arg_parser.add_argument(
+            "--index-bitwidth",
+            choices=(32, 64),
+            type=int,
+            nargs="?",
+            help="Bitwidth of the index type representation.",
+        )
+        arg_parser.add_argument(
             "--args",
             default="",
             type=str,
@@ -69,7 +76,9 @@ class xDSLRunMain(CommandLineTool):
             module = self.parse_chunk(input, file_extension)
             if module is not None:
                 module.verify()
-                interpreter = Interpreter(module)
+                interpreter = Interpreter(
+                    module, index_bitwidth=self.args.index_bitwidth
+                )
                 self.register_implementations(interpreter)
                 symbol = self.args.symbol
                 assert isinstance(symbol, str)
