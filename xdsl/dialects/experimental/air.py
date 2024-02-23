@@ -593,7 +593,7 @@ class HerdOp(IRDLOperation):
             for n_arg in range(len(operands_lst)):
                 parser.parse_type()
                 if n_arg < len(arg_list) - 1:
-                    parser.parse_characters(",")
+                    parser.parse_optional_characters(",")
 
         parser.parse_keyword("attributes")
         parser.parse_optional_attr_dict()
