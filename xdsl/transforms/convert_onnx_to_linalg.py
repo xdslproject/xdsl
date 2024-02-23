@@ -1,8 +1,16 @@
 from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import arith, linalg, onnx, tensor
-from xdsl.dialects.builtin import AffineMapAttr, FloatAttr, ModuleOp, TensorType, f64
+from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
+from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    FloatAttr,
+    ModuleOp,
+    StringAttr,
+    SymbolRefAttr,
+    TensorType,
+    f64,
+)
 from xdsl.ir import Block, MLContext, Region
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
@@ -71,10 +79,20 @@ class ReluOpLowering(RewritePattern):
 class ConstantOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, constant: onnx.Constant, rewriter: PatternRewriter, /):
+        attr_value = list(constant.attributes.values())[1]
         rewriter.replace_matched_op(
             (
-                empty := tensor.EmptyOp((), constant.output.type),
-                linalg.FillOp((), (empty.tensor,), res=(constant.output.type,)),
+                global_op := ml_program.Global(
+                    StringAttr("global_constant"),
+                    attr_value.type,
+                    None,
+                    attr_value,
+                    StringAttr("private"),
+                ),
+                ml_program.GlobalLoadConstant(
+                    SymbolRefAttr(global_op.sym_name),
+                    global_op.type,
+                ),
             )
         )
 
