@@ -73,7 +73,7 @@ builtin.module attributes {gpu.container_module} {
     module = parser.parse_module()
 
     f = StringIO("")
-    interpreter = Interpreter(module, index_bitwidth=32, file=f)
+    interpreter = Interpreter(module, file=f)
     interpreter.register_implementations(ArithFunctions())
     interpreter.register_implementations(MemrefFunctions())
     interpreter.register_implementations(WGPUFunctions())

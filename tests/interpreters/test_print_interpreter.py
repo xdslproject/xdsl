@@ -11,7 +11,7 @@ from xdsl.interpreters.printf import PrintfFunctions
 
 def _print(module: ModuleOp) -> str:
     output = StringIO()
-    interpreter = Interpreter(module, file=output, index_bitwidth=32)
+    interpreter = Interpreter(module, file=output)
     interpreter.register_implementations(PrintfFunctions())
     interpreter.register_implementations(ArithFunctions())
     interpreter.run_ssacfg_region(module.body, ())

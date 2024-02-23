@@ -87,7 +87,7 @@ def sum_to_while_op():
 
 def interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     module_op.verify()
-    interpreter = Interpreter(module_op, index_bitwidth=32)
+    interpreter = Interpreter(module_op)
     interpreter.register_implementations(RiscvScfFunctions())
     interpreter.register_implementations(RiscvFunctions())
     interpreter.register_implementations(FuncFunctions())

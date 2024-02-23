@@ -42,7 +42,7 @@ def sum_to_for_op():
 
 def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     module_op.verify()
-    interpreter = Interpreter(module_op, index_bitwidth=32)
+    interpreter = Interpreter(module_op)
     interpreter.register_implementations(ScfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())
@@ -81,7 +81,7 @@ def test_if():
 
 def test_tracer():
     tracer = OpCounter()
-    interpreter = Interpreter(sum_to_for_op.clone(), index_bitwidth=32, listener=tracer)
+    interpreter = Interpreter(sum_to_for_op.clone(), listener=tracer)
     interpreter.register_implementations(ScfFunctions())
     interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(ArithFunctions())

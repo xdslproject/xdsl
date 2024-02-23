@@ -29,7 +29,7 @@ class Acc(WritableStream[int]):
 
 
 def test_read_write():
-    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
+    interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(StreamFunctions())
 
     input_stream = Nats()

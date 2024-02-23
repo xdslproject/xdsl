@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import platform
 from collections import Counter
 from collections.abc import Callable, Generator, Iterable
 from dataclasses import dataclass, field
 from typing import (
     IO,
     Any,
+    ClassVar,
     NamedTuple,
     ParamSpec,
     TypeAlias,
@@ -425,8 +427,13 @@ class Interpreter:
         def did_interpret_op(self, op: Operation, results: PythonValues) -> None:
             ...
 
+    SYSTEM_BITWIDTH: ClassVar[int | None] = {"64bit": 64, "32bit": 32}.get(
+        platform.architecture()[0]
+    )
+    DEFAULT_BITWIDTH: ClassVar[int] = 32 if SYSTEM_BITWIDTH is None else SYSTEM_BITWIDTH
+
     module: ModuleOp
-    index_bitwidth: int = field(kw_only=True)
+    index_bitwidth: int = field(default=DEFAULT_BITWIDTH)
     """
     Number of bits in the binary representation of the index
     """

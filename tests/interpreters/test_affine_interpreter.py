@@ -72,7 +72,7 @@ def module_op():
 def test_functions():
     module_op.verify()
 
-    interpreter = Interpreter(module_op, index_bitwidth=32)
+    interpreter = Interpreter(module_op)
     interpreter.register_implementations(ArithFunctions())
     interpreter.register_implementations(MemrefFunctions())
     interpreter.register_implementations(AffineFunctions())
@@ -87,7 +87,7 @@ def test_functions():
 
 
 def test_apply():
-    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
+    interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(AffineFunctions())
 
     assert interpreter.run_op(

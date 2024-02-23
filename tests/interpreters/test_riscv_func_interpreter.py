@@ -24,7 +24,7 @@ def my_module():
 
 def scf_interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     module_op.verify()
-    interpreter = Interpreter(module_op, index_bitwidth=32)
+    interpreter = Interpreter(module_op)
     interpreter.register_implementations(RiscvFuncFunctions())
     (result,) = interpreter.call_op(func_name, (n,))
     return result

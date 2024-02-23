@@ -10,7 +10,7 @@ module_op = ModuleOp([])
 
 
 def test_j_op():
-    interpreter = Interpreter(module_op, index_bitwidth=32)
+    interpreter = Interpreter(module_op)
     riscv_cf_functions = RiscvCfFunctions()
     interpreter.register_implementations(riscv_cf_functions)
 
@@ -31,7 +31,7 @@ def test_j_op():
 
 
 def test_branch_op():
-    interpreter = Interpreter(module_op, index_bitwidth=32)
+    interpreter = Interpreter(module_op)
     riscv_cf_functions = RiscvCfFunctions()
     interpreter.register_implementations(riscv_cf_functions)
 
@@ -52,7 +52,7 @@ def test_branch_op():
 
 
 def test_beq_op():
-    interpreter = Interpreter(module_op, index_bitwidth=32)
+    interpreter = Interpreter(module_op)
     riscv_cf_functions = RiscvCfFunctions()
     interpreter.register_implementations(riscv_cf_functions)
 

@@ -12,7 +12,7 @@ from .test_stream_interpreter import Acc, Nats
 
 
 def test_read_write():
-    interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
+    interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(RiscvSnitchFunctions())
 
     a0 = riscv.Registers.A0
@@ -80,7 +80,7 @@ def test_frep_carried_vars():
             result = riscv_snitch.FrepOuter(count, for_loop_region, (initial,)).res
             func.Return(*result)
 
-    interpreter = Interpreter(sum_to_for_op, index_bitwidth=32)
+    interpreter = Interpreter(sum_to_for_op)
     interpreter.register_implementations(RiscvSnitchFunctions())
     interpreter.register_implementations(RiscvFunctions())
     interpreter.register_implementations(FuncFunctions())
