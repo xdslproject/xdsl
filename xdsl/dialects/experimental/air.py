@@ -36,6 +36,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_region_def,
     opt_result_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
@@ -81,13 +82,17 @@ class AllocOp(IRDLOperation):
 class ChannelOp(IRDLOperation):
     name = "air.channel"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolRefAttr)
     size = attr_def(ArrayAttr)
 
     def __init__(
-        self, sym_name: StringAttr, size: ArrayAttr[AnyIntegerAttr]
+        self, sym_name: StringAttr | SymbolRefAttr, size: ArrayAttr[AnyIntegerAttr]
     ):  # TODO: add verify to check 64-bit integer array attribute
+        if isinstance(sym_name, StringAttr):
+            sym_name = SymbolRefAttr(sym_name)
         super().__init__(attributes={"sym_name": sym_name, "size": size})
+
+    assembly_format = "$sym_name $size attr-dict"
 
 
 @irdl_op_definition
@@ -127,6 +132,8 @@ class ChannelPutOp(IRDLOperation):
     src_sizes = var_operand_def(IndexType)
     src_strides = var_operand_def(IndexType)
 
+    async_token = opt_result_def(AsyncTokenAttr)
+
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
@@ -149,6 +156,56 @@ class ChannelPutOp(IRDLOperation):
                 src_sizes,
                 src_strides,
             ],
+            result_types=[AsyncTokenAttr()],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ChannelPutOp:
+        parser.parse_keyword("async")
+        async_dependencies: list[Operation | SSAValue] = []
+        if parser.parse_optional_characters("["):
+            while not parser.parse_optional_characters("]"):
+                parser.parse_operand()
+                parser.parse_optional_characters(",")
+        chan_name = SymbolRefAttr(parser.parse_symbol_name())
+        indices: list[Operation | SSAValue] = []
+        if parser.parse_optional_characters("["):
+            while not parser.parse_optional_characters("]"):
+                indices.append(parser.parse_operand())
+                parser.parse_optional_characters(",")
+        parser.parse_characters("(")
+        src = parser.parse_operand()
+        src_offsets: list[Operation | SSAValue] = []
+        if parser.parse_optional_characters("["):
+            while not parser.parse_optional_characters("]"):
+                src_offsets.append(parser.parse_operand())
+                parser.parse_optional_characters(",")
+        src_sizes: list[Operation | SSAValue] = []
+        if parser.parse_optional_characters("["):
+            while not parser.parse_optional_characters("]"):
+                src_sizes.append(parser.parse_operand())
+                parser.parse_optional_characters(",")
+        src_strides: list[Operation | SSAValue] = []
+        if parser.parse_optional_characters("["):
+            while not parser.parse_optional_characters("]"):
+                src_strides.append(parser.parse_operand())
+                parser.parse_optional_characters(",")
+
+        parser.parse_characters(")")
+        parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        parser.parse_characters("(")
+        parser.parse_type()
+        parser.parse_characters(")")
+
+        return ChannelPutOp(
+            chan_name,
+            async_dependencies,
+            indices,
+            src,
+            src_offsets,
+            src_sizes,
+            src_strides,
         )
 
 
@@ -336,32 +393,67 @@ class ExecuteOp(IRDLOperation):
 
     async_dependencies = var_operand_def(AsyncTokenAttr)
     async_token = result_def(AsyncTokenAttr)
-    results = var_result_def(Attribute)
+    results_ = var_result_def(Attribute)
+    body = region_def()
 
     traits = traits_def(
-        lambda: frozenset(
-            [SingleBlockImplicitTerminator(ExecuteTerminatorOp), IsTerminator()]
-        )
+        lambda: frozenset([SingleBlockImplicitTerminator(ExecuteTerminatorOp)])
     )  # TODO: solve dependency
 
     def __init__(
-        self, async_dependencies: list[Operation | SSAValue], result_types: Attribute
+        self,
+        async_dependencies: list[Operation | SSAValue],
+        result_types: list[Attribute] | None,
+        body: Region,
     ):
         super().__init__(
-            operands=[async_dependencies], result_types=[AsyncTokenAttr(), result_types]
+            operands=[async_dependencies],
+            result_types=[AsyncTokenAttr(), result_types],
+            regions=[body],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ExecuteOp:
+        async_dependencies: list[Operation | SSAValue] = []
+        if parser.parse_optional_characters("["):
+            while not parser.parse_optional_characters("]"):
+                async_dependencies.append(parser.parse_operand())
+                parser.parse_optional_characters(",")
+
+        result_types: list[Attribute] = []
+        if parser.parse_optional_characters("->"):
+            parser.parse_characters("(")
+            while not parser.parse_optional_characters(")"):
+                result_types.append(parser.parse_type())
+                parser.parse_optional_characters(",")
+
+        body = parser.parse_region()
+
+        return ExecuteOp(async_dependencies, result_types, body)
 
 
 @irdl_op_definition
 class ExecuteTerminatorOp(IRDLOperation):
     name = "air.execute_terminator"
 
-    results = var_result_def(Attribute)
+    results_op = var_operand_def(
+        AnyAttr()
+    )  # even though this is an operand they decided to name it "result" in the original specification
 
-    traits = frozenset([HasParent(ExecuteOp)])
+    traits = frozenset([HasParent(ExecuteOp), IsTerminator()])
 
-    def __init__(self):
-        super().__init__(result_types=[Attribute()])
+    def __init__(self, results_op: list[Operation | SSAValue]):
+        super().__init__(operands=[results_op])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ExecuteTerminatorOp:
+        results_op: list[Operation | SSAValue] = []
+        while not parser.parse_optional_characters(":"):
+            results_op.append(parser.parse_operand())
+        while parser.parse_optional_type():
+            parser.parse_optional_characters(",")
+
+        return ExecuteTerminatorOp(results_op)
 
 
 @irdl_op_definition
@@ -381,14 +473,14 @@ class HerdOp(IRDLOperation):
     async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
     herd_operands = var_operand_def(AnyAttr())
-    async_token = result_def(AsyncTokenAttr)
+    async_token = opt_result_def(AsyncTokenAttr)
     region = opt_region_def()
 
     traits = frozenset(
         [IsolatedFromAbove(), SingleBlockImplicitTerminator(HerdTerminatorOp)]
     )
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
@@ -456,6 +548,12 @@ class HerdOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> HerdOp:
         sym_name = parser.parse_optional_symbol_name()
+        async_dependencies: list[Operation | SSAValue] = []
+        if parser.parse_optional_keyword("async"):
+            parser.parse_optional_characters("[")
+            while not parser.parse_optional_characters("]"):
+                async_dependencies.append(parser.parse_operand())
+                parser.parse_optional_characters(",")
         parser.parse_keyword("tile")
         arg_list = parser.parse_op_args_list()
         parser.parse_keyword("in")
@@ -501,7 +599,7 @@ class HerdOp(IRDLOperation):
         parser.parse_optional_attr_dict()
         region = parser.parse_optional_region(arguments_lst)
 
-        return HerdOp(sym_name, None, tile_size_lst, operands_lst, region)
+        return HerdOp(sym_name, async_dependencies, tile_size_lst, operands_lst, region)
 
 
 @irdl_op_definition
@@ -665,8 +763,21 @@ class WaitAllOp(IRDLOperation):
     async_dependencies = var_operand_def(AsyncTokenAttr)
     async_token = result_def(AsyncTokenAttr)
 
-    def __init__(self, async_dependencies: list[Operation | SSAValue]):
+    def __init__(self, async_dependencies: list[Operation | SSAValue | None]):
         super().__init__(operands=async_dependencies, result_types=[AsyncTokenAttr()])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> WaitAllOp:
+        parser.parse_keyword("async")
+        async_dependencies: list[Operation | SSAValue | None] = []
+        if parser.parse_optional_characters("["):
+            while parser.parse_optional_characters("]"):
+                async_dependencies.append(parser.parse_operand())
+                parser.parse_optional_characters(",")
+        else:
+            async_dependencies = [None]
+
+        return WaitAllOp(async_dependencies)
 
 
 AIR = Dialect(
