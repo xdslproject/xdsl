@@ -5,14 +5,7 @@ from xdsl.backend.riscv.lowering import (
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import individual_rewrite
-from xdsl.transforms import (
-    mlir_opt,
-    printf_to_llvm,
-    reconcile_unrealized_casts,
-    scf_parallel_loop_tiling,
-    stencil_unroll,
-)
-from xdsl.transforms.experimental.dmp import stencil_global_to_local
+from xdsl.transforms import printf_to_llvm, reconcile_unrealized_casts
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
@@ -40,21 +33,6 @@ def test_get_all_available_passes():
     expected_res = tuple(
         (
             AvailablePass(
-                display_name="apply-individual-rewrite",
-                module_pass=individual_rewrite.IndividualRewrite,
-                pass_spec=None,
-            ),
-            AvailablePass(
-                display_name="distribute-stencil",
-                module_pass=stencil_global_to_local.DistributeStencilPass,
-                pass_spec=None,
-            ),
-            AvailablePass(
-                display_name="mlir-opt",
-                module_pass=mlir_opt.MLIROptPass,
-                pass_spec=None,
-            ),
-            AvailablePass(
                 display_name="printf-to-llvm",
                 module_pass=printf_to_llvm.PrintfToLLVM,
                 pass_spec=None,
@@ -62,16 +40,6 @@ def test_get_all_available_passes():
             AvailablePass(
                 display_name="reconcile-unrealized-casts",
                 module_pass=reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
-                pass_spec=None,
-            ),
-            AvailablePass(
-                display_name="scf-parallel-loop-tiling",
-                module_pass=scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
-                pass_spec=None,
-            ),
-            AvailablePass(
-                display_name="stencil-unroll",
-                module_pass=stencil_unroll.StencilUnrollPass,
                 pass_spec=None,
             ),
         )

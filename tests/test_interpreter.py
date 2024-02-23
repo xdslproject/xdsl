@@ -105,7 +105,10 @@ def test_external_func():
             self.a = args[0]
             return tuple()
 
-    i = Interpreter(ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]))
+    i = Interpreter(
+        ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]),
+        index_bitwidth=32,
+    )
     funcs = TestFunc(0)
 
     i.register_implementations(funcs)

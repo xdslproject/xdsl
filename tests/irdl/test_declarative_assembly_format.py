@@ -20,6 +20,7 @@ from xdsl.irdl import (
     AllOf,
     AnyAttr,
     AttrSizedOperandSegments,
+    AttrSizedResultSegments,
     ConstraintVar,
     EqAttrConstraint,
     IRDLOperation,
@@ -31,7 +32,9 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_operand_def,
     opt_prop_def,
+    opt_result_def,
     prop_def,
     result_def,
     var_operand_def,
@@ -439,30 +442,6 @@ def test_punctuations_and_keywords(format: str, program: str):
     check_equivalence(program, '"test.punctuation"() : () -> ()', ctx)
 
 
-@pytest.mark.parametrize(
-    "variadic_def, format",
-    [
-        (var_operand_def, "$variadic `,` attr-dict"),
-        (var_operand_def, "type($variadic) `,` attr-dict"),
-        (var_result_def, "type($variadic) `,` attr-dict"),
-    ],
-)
-def test_variadic_comma_safeguard(
-    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
-):
-    with pytest.raises(
-        PyRDLOpDefinitionError,
-        match="A variadic directive cannot be followed by a comma literal.",
-    ):
-
-        @irdl_op_definition
-        class CommaSafeguardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
-            name = "test.comma_safeguard"
-
-            variadic = variadic_def()
-            assembly_format = format
-
-
 ################################################################################
 # Variables                                                                    #
 ################################################################################
@@ -623,6 +602,40 @@ def test_variadic_operand(format: str, program: str, generic_program: str):
 
 
 @pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "$args type($args) attr-dict",
+            '%0 = "test.op"() : () -> i32\n' "test.optional_operand  ",
+            '%0 = "test.op"() : () -> i32\n' '"test.optional_operand"() : () -> ()',
+        ),
+        (
+            "$args type($args) attr-dict",
+            '%0 = "test.op"() : () -> i32\n' "test.optional_operand %0 i32",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.optional_operand"(%0) : (i32) -> ()',
+        ),
+    ],
+)
+def test_optional_operand(format: str, program: str, generic_program: str):
+    """Test the parsing of optional operands"""
+
+    @irdl_op_definition
+    class OptionalOperandOp(IRDLOperation):
+        name = "test.optional_operand"
+        args = opt_operand_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(OptionalOperandOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
     "program, generic_program",
     [
         (
@@ -662,6 +675,44 @@ def test_multiple_variadic_operands(program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(VariadicOperandsOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.optional_operands(: ) [: ]",
+            '"test.optional_operands"() {operandSegmentSizes = array<i32:0,0>} : () -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i32\n'
+            "test.optional_operands(%0 : i32) [%0 : i32]",
+            '%0 = "test.op"() : () -> i32\n'
+            '"test.optional_operands"(%0, %0) {operandSegmentSizes = array<i32:1,1>} : (i32,i32) -> ()',
+        ),
+    ],
+)
+def test_multiple_optional_operands(program: str, generic_program: str):
+    """Test the parsing of variadic operands"""
+
+    @irdl_op_definition
+    class OptionalOperandsOp(IRDLOperation):
+        name = "test.optional_operands"
+        arg1 = opt_operand_def()
+        arg2 = opt_operand_def()
+
+        irdl_options = [AttrSizedOperandSegments()]
+
+        assembly_format = (
+            "`(` $arg1 `:` type($arg1) `)` `[` $arg2 `:` type($arg2) `]` attr-dict"
+        )
+
+    ctx = MLContext()
+    ctx.load_op(OptionalOperandsOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
@@ -807,6 +858,39 @@ def test_variadic_result(format: str, program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(VariadicResultOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, program, generic_program",
+    [
+        (
+            "`:` type($res) attr-dict",
+            "test.optional_result : ",
+            '"test.optional_result"() : () -> ()',
+        ),
+        (
+            "`:` type($res) attr-dict",
+            "%0 = test.optional_result : i32",
+            '%0 = "test.optional_result"() : () -> i32',
+        ),
+    ],
+)
+def test_optional_result(format: str, program: str, generic_program: str):
+    """Test the parsing of variadic results"""
+
+    @irdl_op_definition
+    class OptionalResultOp(IRDLOperation):
+        name = "test.optional_result"
+        res = opt_result_def()
+
+        assembly_format = format
+
+    ctx = MLContext()
+    ctx.load_op(OptionalResultOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
@@ -977,3 +1061,85 @@ def test_non_verifying_inference():
         match="Verification error while inferring operation type: ",
     ):
         check_roundtrip(program, ctx)
+
+
+################################################################################
+# Declarative Format Verification                                              #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "variadic_def, format",
+    [
+        (var_operand_def, "$variadic `,` type($variadic) attr-dict"),
+        (var_operand_def, "type($variadic) `,` attr-dict"),
+        (var_result_def, "type($variadic) `,` attr-dict"),
+        (opt_operand_def, "$variadic `,` type($variadic) attr-dict"),
+        (opt_operand_def, "type($variadic) `,` attr-dict"),
+        (opt_result_def, "type($variadic) `,` attr-dict"),
+    ],
+)
+def test_variadic_comma_safeguard(
+    variadic_def: Callable[[], VarOperand | VarOpResult], format: str
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic directive cannot be followed by a comma literal.",
+    ):
+
+        @irdl_op_definition
+        class CommaSafeguardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.comma_safeguard"
+
+            variadic = variadic_def()
+            assembly_format = format
+
+
+@pytest.mark.parametrize(
+    "variadic_def_one",
+    [var_operand_def, var_result_def, opt_operand_def, opt_result_def],
+)
+@pytest.mark.parametrize(
+    "variadic_def_two",
+    [var_operand_def, var_result_def, opt_operand_def, opt_result_def],
+)
+def test_chained_variadic_types_safeguard(
+    variadic_def_one: Callable[[], VarOperand | VarOpResult],
+    variadic_def_two: Callable[[], VarOperand | VarOpResult],
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic type directive cannot be followed by another variadic type directive.",
+    ):
+
+        @irdl_op_definition
+        class VarTypeGuardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.variadic_type_safeguard"
+
+            variadic_one = variadic_def_one()
+            variadic_two = variadic_def_two()
+            assembly_format = "type($variadic_one) type($variadic_two) attr-dict"
+
+            irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
+
+
+@pytest.mark.parametrize("variadic_def_one", [var_operand_def, opt_operand_def])
+@pytest.mark.parametrize("variadic_def_two", [var_operand_def, opt_operand_def])
+def test_chained_variadic_operands_safeguard(
+    variadic_def_one: Callable[[], VarOperand | VarOpResult],
+    variadic_def_two: Callable[[], VarOperand | VarOpResult],
+):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="A variadic operand variable cannot be followed by another variadic operand variable.",
+    ):
+
+        @irdl_op_definition
+        class VarOpGuardOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.variadic_operand_safeguard"
+
+            variadic_one = variadic_def_one()
+            variadic_two = variadic_def_two()
+            assembly_format = "$variadic_one $variadic_two `:` type($variadic_one) `<` type($variadic_two) `>` attr-dict"
+
+            irdl_options = [AttrSizedOperandSegments()]
