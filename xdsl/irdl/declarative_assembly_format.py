@@ -273,10 +273,13 @@ class TypeDirective(FormatDirective, ABC):
     pass
 
 
+<<<<<<< HEAD
 class VariadicLikeVariable(VariadicLikeFormatDirective, FormatDirective, ABC):
     pass
 
 
+=======
+>>>>>>> 7feedf7f (ABCs, docstrings.)
 class VariadicLikeTypeDirective(TypeDirective, VariadicLikeFormatDirective, ABC):
     pass
 
