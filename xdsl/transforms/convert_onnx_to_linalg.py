@@ -84,7 +84,7 @@ class ConstantOpLowering(RewritePattern):
             (
                 global_op := ml_program.Global(
                     StringAttr("global_constant"),
-                    attr_value.type,
+                    constant.output.type,
                     None,
                     attr_value,
                     StringAttr("private"),
