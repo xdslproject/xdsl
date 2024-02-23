@@ -255,15 +255,25 @@ class FormatDirective(ABC):
         ...
 
 
-class VariadicLikeFormatDirective(FormatDirective):
+class VariadicLikeFormatDirective(FormatDirective, ABC):
+    """
+    Baseclass to help keep typechecking simple.
+    VariadicLike is mostly Variadic or Optional: Whatever directive that can accept
+    having nothing to parse.
+    """
+
     pass
 
 
-class TypeDirective(FormatDirective):
+class TypeDirective(FormatDirective, ABC):
+    """
+    Base class for Directive meant to parse types.
+    """
+
     pass
 
 
-class VariadicLikeTypeDirective(TypeDirective, VariadicLikeFormatDirective):
+class VariadicLikeTypeDirective(TypeDirective, VariadicLikeFormatDirective, ABC):
     pass
 
 
