@@ -23,7 +23,6 @@
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
 
-// CHECK-NEXT: ml_program.global private @global_constant(dense<1> : tensor<1xi64>) : tensor<1xi64>
 // CHECK-NEXT: ml_program.global_load_const @global_constant : tensor<1xi64>
 // CHECK-NEXT:  }
 

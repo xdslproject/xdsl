@@ -80,15 +80,15 @@ class ConstantOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, constant: onnx.Constant, rewriter: PatternRewriter, /):
         attr_value = list(constant.attributes.values())[1]
+        global_op = ml_program.Global(
+            StringAttr("global_constant"),
+            constant.output.type,
+            None,
+            attr_value,
+            StringAttr("private"),
+        )
         rewriter.replace_matched_op(
             (
-                global_op := ml_program.Global(
-                    StringAttr("global_constant"),
-                    constant.output.type,
-                    None,
-                    attr_value,
-                    StringAttr("private"),
-                ),
                 ml_program.GlobalLoadConstant(
                     SymbolRefAttr(global_op.sym_name),
                     global_op.type,
