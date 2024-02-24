@@ -281,18 +281,13 @@ class InputApp(App[None]):
         """
         assert expanded_node.data is not None
 
-        pass_list_items: tuple[
-            tuple[type[ModulePass], PipelinePassSpec | None], ...
-        ] = ()
+        pass_list_items: list[tuple[type[ModulePass], PipelinePassSpec | None]] = []
+
         current = expanded_node
 
         # traverse the path starting from the child node until we reach the root
         while current is not None and current.data is not None and not current.is_root:
-            selected_pass_value, selected_pass_spec = current.data
-            pass_list_items = (
-                *pass_list_items,
-                (selected_pass_value, selected_pass_spec),
-            )
+            pass_list_items.append(current.data)
             current = current.parent
 
         root_to_child_pass_list = tuple(
