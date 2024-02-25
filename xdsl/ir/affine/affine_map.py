@@ -44,9 +44,12 @@ class AffineMap:
         return AffineMap(0, 0, tuple(AffineExpr.constant(value) for value in values))
 
     @staticmethod
-    def identity(rank: int) -> AffineMap:
+    def identity(rank: int, symbolic_rank: int = 0) -> AffineMap:
         return AffineMap(
-            rank, 0, tuple(AffineExpr.dimension(dim) for dim in range(rank))
+            rank,
+            symbolic_rank,
+            tuple(AffineExpr.dimension(dim) for dim in range(rank))
+            + tuple(AffineExpr.symbol(dim) for dim in range(symbolic_rank)),
         )
 
     @staticmethod

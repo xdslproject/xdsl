@@ -20,12 +20,8 @@ from xdsl.ir import Block, Region
 from xdsl.transforms import (
     canonicalize,
     individual_rewrite,
-    mlir_opt,
-    scf_parallel_loop_tiling,
-    stencil_unroll,
     test_lower_linalg_to_snitch,
 )
-from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -267,11 +263,6 @@ async def test_buttons():
         condensed_list = tuple(
             (
                 AvailablePass(
-                    display_name="apply-individual-rewrite",
-                    module_pass=individual_rewrite.IndividualRewrite,
-                    pass_spec=None,
-                ),
-                AvailablePass(
                     display_name="convert-arith-to-riscv",
                     module_pass=convert_arith_to_riscv.ConvertArithToRiscvPass,
                     pass_spec=None,
@@ -279,26 +270,6 @@ async def test_buttons():
                 AvailablePass(
                     display_name="convert-func-to-riscv-func",
                     module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="distribute-stencil",
-                    module_pass=stencil_global_to_local.DistributeStencilPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="mlir-opt",
-                    module_pass=mlir_opt.MLIROptPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="scf-parallel-loop-tiling",
-                    module_pass=scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="stencil-unroll",
-                    module_pass=stencil_unroll.StencilUnrollPass,
                     pass_spec=None,
                 ),
             )
@@ -343,11 +314,6 @@ async def test_rewrites():
         condensed_list = tuple(
             (
                 AvailablePass(
-                    display_name="apply-individual-rewrite",
-                    module_pass=individual_rewrite.IndividualRewrite,
-                    pass_spec=None,
-                ),
-                AvailablePass(
                     display_name="canonicalize",
                     module_pass=canonicalize.CanonicalizePass,
                     pass_spec=None,
@@ -360,26 +326,6 @@ async def test_rewrites():
                 AvailablePass(
                     display_name="convert-func-to-riscv-func",
                     module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="distribute-stencil",
-                    module_pass=stencil_global_to_local.DistributeStencilPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="mlir-opt",
-                    module_pass=mlir_opt.MLIROptPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="scf-parallel-loop-tiling",
-                    module_pass=scf_parallel_loop_tiling.ScfParallelLoopTilingPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="stencil-unroll",
-                    module_pass=stencil_unroll.StencilUnrollPass,
                     pass_spec=None,
                 ),
                 AvailablePass(

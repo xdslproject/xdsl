@@ -132,16 +132,29 @@ def test_compose_map():
 
 
 def test_helpers():
-    m0 = AffineMap.constant_map(0)
-    assert m0 == AffineMap(0, 0, (AffineExpr.constant(0),))
-    m1 = AffineMap.point_map(0, 1)
-    assert m1 == AffineMap(0, 0, (AffineExpr.constant(0), AffineExpr.constant(1)))
-    m2 = AffineMap.identity(2)
-    assert m2 == AffineMap(2, 0, (AffineExpr.dimension(0), AffineExpr.dimension(1)))
-    m2 = AffineMap.transpose_map()
-    assert m2 == AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
-    m3 = AffineMap.empty()
-    assert m3 == AffineMap(0, 0, ())
+    m = AffineMap.constant_map(0)
+    assert m == AffineMap(0, 0, (AffineExpr.constant(0),))
+    m = AffineMap.point_map(0, 1)
+    assert m == AffineMap(0, 0, (AffineExpr.constant(0), AffineExpr.constant(1)))
+    m = AffineMap.identity(2)
+    assert m == AffineMap(2, 0, (AffineExpr.dimension(0), AffineExpr.dimension(1)))
+    m = AffineMap.identity(0, 2)
+    assert m == AffineMap(0, 2, (AffineExpr.symbol(0), AffineExpr.symbol(1)))
+    m = AffineMap.identity(2, 2)
+    assert m == AffineMap(
+        2,
+        2,
+        (
+            AffineExpr.dimension(0),
+            AffineExpr.dimension(1),
+            AffineExpr.symbol(0),
+            AffineExpr.symbol(1),
+        ),
+    )
+    m = AffineMap.transpose_map()
+    assert m == AffineMap(2, 0, (AffineExpr.dimension(1), AffineExpr.dimension(0)))
+    m = AffineMap.empty()
+    assert m == AffineMap(0, 0, ())
 
 
 def test_from_callable():
