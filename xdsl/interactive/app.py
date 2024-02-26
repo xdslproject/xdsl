@@ -323,6 +323,8 @@ class InputApp(App[None]):
         """
         Helper function that adds a subtree to a node, i.e. adds a sub-tree containing the child_pass_list with expanded_pass as the root.
         """
+        # remove potential children nodes in case expand node has been clicked multiple times on the same node
+        expanded_pass.remove_children()
 
         for pass_name, value, value_spec in child_pass_list:
             expanded_pass.add(
@@ -352,6 +354,7 @@ class InputApp(App[None]):
         self,
         selected_pass_value: type[ModulePass],
         selected_pass_spec: PipelinePassSpec | None,
+        root_to_child_pass_list: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
     ) -> None:
         """
         This function facilitates user input of pass concatenated_arg_val by navigating
@@ -374,6 +377,7 @@ class InputApp(App[None]):
                 )[0]
                 self.pass_pipeline = (
                     *self.pass_pipeline,
+                    *root_to_child_pass_list,
                     (selected_pass_value, new_pass_with_arguments),
                 )
 
@@ -408,9 +412,14 @@ class InputApp(App[None]):
         # get instance
         selected_pass_value, selected_pass_spec = selected_pass.data
 
+        # get root to child passes due to tree traversal possibility
+        root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass)
+
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
-            self.get_pass_arguments(selected_pass_value, selected_pass_spec)
+            self.get_pass_arguments(
+                selected_pass_value, selected_pass_spec, root_to_child_pass_list
+            )
         else:
             # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
             if selected_pass_spec is None:
@@ -418,8 +427,46 @@ class InputApp(App[None]):
             # selected_pass_value is an "individual_rewrite", add the selected pass to pass_pipeline
             self.pass_pipeline = (
                 *self.pass_pipeline,
+                *root_to_child_pass_list,
                 (selected_pass_value, selected_pass_spec),
             )
+
+    @on(Tree.NodeExpanded, "#passes_tree")
+    def expand_tree_node(
+        self, event: Tree.NodeExpanded[tuple[type[ModulePass], PipelinePassSpec | None]]
+    ) -> None:
+        """
+        Function called when a user expands a node (i.e. a pass) and adds another level
+        to the pass selection tree. Allow's multi-level tree traversal.
+        """
+        expanded_node = event.node
+        if expanded_node.data is None:
+            self.expand_node(expanded_node, self.available_pass_list)
+            return
+
+        # get instance
+        selected_pass_value, selected_pass_spec = expanded_node.data
+
+        # if expanded_pass requires arguments, do not allow node expansion
+        if fields(selected_pass_value) and selected_pass_spec is None:
+            return
+
+        # if selected_pass_value requires no arguments add the selected pass to pass_pipeline
+        root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_node)
+
+        child_pass_pipeline = (
+            *self.pass_pipeline,
+            *root_to_child_pass_list,
+        )
+
+        child_pass_list = get_available_pass_list(
+            self.input_text_area.text,
+            child_pass_pipeline,
+            self.condense_mode,
+            individual_rewrite.REWRITE_BY_NAMES,
+        )
+
+        self.expand_node(expanded_node, child_pass_list)
 
     def watch_pass_pipeline(self) -> None:
         """
