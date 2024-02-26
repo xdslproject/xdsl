@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import platform
+from collections import Counter
 from collections.abc import Callable, Generator, Iterable
 from dataclasses import dataclass, field
 from typing import (
     IO,
     Any,
+    ClassVar,
     NamedTuple,
     ParamSpec,
     TypeAlias,
@@ -413,7 +416,27 @@ class Interpreter:
     the `register_functions` method.
     """
 
+    class Listener:
+        """
+        Base class for observing the operations that are interpreted during a run.
+        """
+
+        def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
+            ...
+
+        def did_interpret_op(self, op: Operation, results: PythonValues) -> None:
+            ...
+
+    SYSTEM_BITWIDTH: ClassVar[int | None] = {"64bit": 64, "32bit": 32}.get(
+        platform.architecture()[0]
+    )
+    DEFAULT_BITWIDTH: ClassVar[int] = 32 if SYSTEM_BITWIDTH is None else SYSTEM_BITWIDTH
+
     module: ModuleOp
+    index_bitwidth: int = field(default=DEFAULT_BITWIDTH)
+    """
+    Number of bits in the binary representation of the index
+    """
     _impls: _InterpreterFunctionImpls = field(default_factory=_InterpreterFunctionImpls)
     _ctx: InterpreterContext = field(
         default_factory=lambda: InterpreterContext(name="root")
@@ -426,6 +449,7 @@ class Interpreter:
     """
     Runtime data associated with an interpreter functions implementation.
     """
+    listener: Listener = field(default=Listener())
 
     @property
     def symbol_table(self) -> dict[str, Operation]:
@@ -482,6 +506,12 @@ class Interpreter:
         """
         self._impls.register_from(impls, override=override)
 
+    def _run_op(self, op: Operation, inputs: PythonValues) -> OpImplResult:
+        self.listener.will_interpret_op(op, inputs)
+        result = self._impls.run(self, op, inputs)
+        self.listener.did_interpret_op(op, result.values)
+        return result
+
     def run_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
         """
         Calls the implementation for the given operation.
@@ -489,8 +519,7 @@ class Interpreter:
         if isinstance(op, str):
             op = self.get_op_for_symbol(op)
 
-        result = self._impls.run(self, op, inputs)
-        return result.values
+        return self._run_op(op, inputs).values
 
     def call_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
         """
@@ -545,7 +574,7 @@ class Interpreter:
 
             while op is not None:
                 inputs = self.get_values(op.operands)
-                result = self._impls.run(self, op, inputs)
+                result = self._run_op(op, inputs)
                 self.interpreter_assert(
                     len(op.results) == len(result.values),
                     f"Incorrect number of results for op {op.name}, expected {len(op.results)} but got {len(result.values)}",
@@ -620,6 +649,18 @@ class Interpreter:
         """Raise InterpretationError if condition is not satisfied."""
         if not condition:
             raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
+
+
+@dataclass
+class OpCounter(Interpreter.Listener):
+    """
+    Counts the number of times that an op has been run by the interpreter.
+    """
+
+    ops: Counter[str] = field(default_factory=Counter)
+
+    def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
+        self.ops[op.name] += 1
 
 
 PythonValues: TypeAlias = tuple[Any, ...]

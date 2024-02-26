@@ -5,6 +5,8 @@ from itertools import accumulate
 from operator import mul
 from typing import Any
 
+from typing_extensions import Self
+
 from xdsl.dialects import snitch_stream
 from xdsl.interpreter import (
     Interpreter,
@@ -117,6 +119,13 @@ class StridePattern:
         result_map = offset_map.compose(indexing_map)
         return result_map.results[0]
 
+    @classmethod
+    def from_attr(cls, attr: snitch_stream.StridePattern) -> Self:
+        return cls(
+            [ub.data for ub in attr.ub],
+            [stride.data for stride in attr.strides],
+        )
+
 
 @dataclass
 class StridedPointerInputStream(ReadableStream[float]):
@@ -157,9 +166,10 @@ class SnitchStreamFunctions(InterpreterFunctions):
         output_pointers: tuple[RawPtr, ...] = args[
             input_stream_count : input_stream_count + output_stream_count
         ]
-        stride_patterns: tuple[StridePattern, ...] = args[
-            input_stream_count + output_stream_count :
-        ]
+
+        stride_patterns = tuple(
+            StridePattern.from_attr(pattern) for pattern in op.stride_patterns
+        )
         if len(stride_patterns) == 1:
             pattern = stride_patterns[0]
             input_stride_patterns = (pattern,) * input_stream_count
@@ -183,12 +193,3 @@ class SnitchStreamFunctions(InterpreterFunctions):
         )
 
         return ()
-
-    @impl(snitch_stream.StridePatternOp)
-    def run_stride_pattern(
-        self,
-        interpreter: Interpreter,
-        op: snitch_stream.StridePatternOp,
-        args: PythonValues,
-    ) -> PythonValues:
-        return (StridePattern([b.data for b in op.ub], [s.data for s in op.strides]),)

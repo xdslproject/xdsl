@@ -42,24 +42,36 @@ def cast_to_regs(values: Iterable[SSAValue]) -> tuple[list[Operation], list[SSAV
 
 
 def move_ops_for_value(
-    value: SSAValue, rd: riscv.RISCVRegisterType
+    value: SSAValue, value_type: Attribute, rd: riscv.RISCVRegisterType
 ) -> tuple[Operation, SSAValue]:
     """
     Returns the operation that moves the value from the input to a new register.
+    In order to disambiguate which floating point move should be used (fmv.s vs fmv.d),
+    the floating point type in question must be passed
     """
 
     if isinstance(rd, riscv.IntRegisterType):
         mv_op = riscv.MVOp(value, rd=rd)
         return mv_op, mv_op.rd
     elif isinstance(rd, riscv.FloatRegisterType):
-        mv_op = riscv.FMVOp(value, rd=rd)
+        match value_type:
+            case builtin.Float64Type():
+                mv_op = riscv.FMvDOp(value, rd=rd)
+            case builtin.Float32Type():
+                mv_op = riscv.FMVOp(value, rd=rd)
+            case _:
+                raise NotImplementedError(
+                    f"Move operation for float register containing value of type {value.type} is not implemented"
+                )
         return mv_op, mv_op.rd
     else:
         raise NotImplementedError(f"Unsupported register type for move op: {rd}")
 
 
 def move_to_regs(
-    values: Iterable[SSAValue], reg_types: Iterable[riscv.RISCVRegisterType]
+    values: Iterable[SSAValue],
+    value_types: Iterable[Attribute],
+    reg_types: Iterable[riscv.RISCVRegisterType],
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
@@ -68,8 +80,10 @@ def move_to_regs(
     new_ops = list[Operation]()
     new_values = list[SSAValue]()
 
-    for value, register_type in zip(values, reg_types):
-        move_op, new_value = move_ops_for_value(value, register_type)
+    for value, value_type, register_type in zip(
+        values, value_types, reg_types, strict=True
+    ):
+        move_op, new_value = move_ops_for_value(value, value_type, register_type)
         new_ops.append(move_op)
         new_values.append(new_value)
 
@@ -97,15 +111,17 @@ def a_regs(values: Iterable[SSAValue]) -> Iterator[riscv.RISCVRegisterType]:
 
 def move_to_a_regs(
     values: Iterable[SSAValue],
+    value_types: Iterable[Attribute],
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
     """
-    return move_to_regs(values, a_regs(values))
+    return move_to_regs(values, value_types, a_regs(values))
 
 
 def move_to_unallocated_regs(
     values: Iterable[SSAValue],
+    value_types: Iterable[Attribute],
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
@@ -114,9 +130,11 @@ def move_to_unallocated_regs(
     new_ops = list[Operation]()
     new_values = list[SSAValue]()
 
-    for value in values:
+    for value, value_type in zip(values, value_types, strict=True):
         register_type = register_type_for_type(value.type)
-        move_op, new_value = move_ops_for_value(value, register_type.unallocated())
+        move_op, new_value = move_ops_for_value(
+            value, value_type, register_type.unallocated()
+        )
         new_ops.append(move_op)
         new_values.append(new_value)
 
@@ -194,7 +212,9 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
 
     for arg in block.args:
         register_type = register_type_for_type(arg.type)
-        move_op, new_value = move_ops_for_value(arg, register_type.unallocated())
+        move_op, new_value = move_ops_for_value(
+            arg, arg.type, register_type.unallocated()
+        )
         cast_op = builtin.UnrealizedConversionCastOp.get((new_value,), (arg.type,))
         new_ops.append(move_op)
         new_ops.append(cast_op)

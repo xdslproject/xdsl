@@ -368,11 +368,11 @@ def add_read_write_ops(
 def transform_apply_into_loop(
     op: ApplyOp, rewriter: PatternRewriter, ndim: int, boilerplate: list[Operation]
 ):
-    body = prepare_apply_body(op, rewriter)
-
-    body.block.add_op(scf.Yield())
     dim: int = ndim
     assert dim == 3
+    body = prepare_apply_body(op, rewriter, dim)
+
+    body.block.add_op(scf.Yield())
 
     assert isinstance(op.attributes["shape_x"], builtin.IntegerAttr)
     assert isinstance(op.attributes["shape_y"], builtin.IntegerAttr)
@@ -1208,23 +1208,13 @@ class TrivialCleanUpAuxAttributes(RewritePattern):
 class QualifyInterfacesPass(RewritePattern):
     module: builtin.ModuleOp
     declared_coeff_func: bool = False
+    called_coeff_func: bool = False
     interface_coeff_func_name = "_maxi_coeff"
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         bundle_idx = 1
         arg_idx = 0
-
-        if not self.declared_coeff_func:
-            interface_coeff_func_type = llvm.LLVMFunctionType([], None, True)
-            interface_coeff_func = llvm.FuncOp(
-                self.interface_coeff_func_name,
-                interface_coeff_func_type,
-                llvm.LinkageAttr("external"),
-            )
-            self.module.body.block.add_op(interface_coeff_func)
-
-            self.declared_coeff_func = True
 
         if "kernel" in op.attributes:
             del op.attributes["kernel"]
@@ -1250,8 +1240,19 @@ class QualifyInterfacesPass(RewritePattern):
                         self.interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
                     )
                     rewriter.insert_op_at_start(call_interface_func, op.body.blocks[0])
+                    self.called_coeff_func = True
 
                 arg_idx += 1
+
+        if self.called_coeff_func and not self.declared_coeff_func:
+            interface_coeff_func_type = llvm.LLVMFunctionType([], None, True)
+            interface_coeff_func = llvm.FuncOp(
+                self.interface_coeff_func_name,
+                interface_coeff_func_type,
+                llvm.LinkageAttr("external"),
+            )
+            self.module.body.block.add_op(interface_coeff_func)
+            self.declared_coeff_func = True
 
 
 @dataclass

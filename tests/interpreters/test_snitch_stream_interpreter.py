@@ -1,12 +1,11 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
-from xdsl.dialects.builtin import ArrayAttr, IntAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.snitch_stream import (
     SnitchStreamFunctions,
-    StridePattern,
     indexing_map_from_bounds,
     offset_map_from_strides,
 )
@@ -53,15 +52,6 @@ def test_snitch_stream_interpreter():
     interpreter.register_implementations(SnitchStreamFunctions())
     interpreter.register_implementations(RiscvSnitchFunctions())
 
-    stride_pattern_op = snitch_stream.StridePatternOp(
-        ArrayAttr((IntAttr(3), IntAttr(2))),
-        ArrayAttr((IntAttr(8), IntAttr(24))),
-        IntAttr(0),
-    )
-
-    stride_pattern = StridePattern([3, 2], [8, 24])
-    assert interpreter.run_op(stride_pattern_op, ()) == (stride_pattern,)
-
     a = RawPtr.new_float64([2.0] * 6)
     b = RawPtr.new_float64([3.0] * 6)
     c = RawPtr.new_float64([4.0] * 6)
@@ -94,10 +84,16 @@ def test_snitch_stream_interpreter():
             snitch_stream.StreamingRegionOp(
                 (TestSSAValue(register), TestSSAValue(register)),
                 (TestSSAValue(register),),
-                (stride_pattern_op.pattern,),
+                ArrayAttr(
+                    (
+                        snitch_stream.StridePattern.from_bounds_and_strides(
+                            [3, 2], [8, 24]
+                        ),
+                    )
+                ),
                 streaming_region_body,
             ),
-            (a, b, c, stride_pattern),
+            (a, b, c),
         )
         == ()
     )

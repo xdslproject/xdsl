@@ -1358,7 +1358,6 @@ class UnregisteredOp(Operation, ABC):
         return UnregisteredOpWithName
 
 
-@irdl_attr_definition
 class UnregisteredAttr(ParametrizedAttribute, ABC):
     """
     An unregistered attribute or type.
@@ -1409,6 +1408,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
         `MLContext` to get an `UnregisteredAttr` type.
         """
 
+        @irdl_attr_definition
         class UnregisteredAttrWithName(UnregisteredAttr):
             def verify(self):
                 if self.attr_name.data != name:
@@ -1416,6 +1416,7 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
                 if self.is_type.data != int(is_type):
                     raise VerifyException("Unregistered attribute is_type mismatch")
 
+        @irdl_attr_definition
         class UnregisteredAttrTypeWithName(UnregisteredAttr, TypeAttribute):
             def verify(self):
                 if self.attr_name.data != name:
