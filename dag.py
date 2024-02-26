@@ -75,16 +75,16 @@ def __(G, mo, nx, root):
         y_scale = y_scales[layer_index]
         for node_index, node in enumerate(nodes):
             y = (node_index + 1.0) / y_scale
-            
+
             node_x[node_index_by_node[node]] = x
             node_y[node_index_by_node[node]] = y
-            print(node_index_by_node[node], x, y, node)
+            # print(node_index_by_node[node], x, y, node)
 
     for i, node in enumerate(nx.topological_sort(G)):
         node_index = node_index_by_node[node]
         node_x[node_index] = (i + 1.0) / (len(all_nodes) + 2.0)
 
-    print(node_x)
+    # print(node_x)
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
@@ -210,7 +210,7 @@ def __(input_module):
     queue = [root]
     visited = set()
 
-    while queue:
+    while queue and len(visited) < 500:
         source = queue.pop()
         if source in visited:
             continue
@@ -238,8 +238,6 @@ def __(input_module):
 @app.cell
 def __(G):
     node_index_by_module = {n: i for i, n in enumerate(G.nodes())}
-
-
     return node_index_by_module,
 
 
