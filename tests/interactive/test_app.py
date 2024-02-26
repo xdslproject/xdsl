@@ -20,11 +20,7 @@ from xdsl.ir import Block, Region
 from xdsl.transforms import (
     canonicalize,
     individual_rewrite,
-    printf_to_llvm,
     test_lower_linalg_to_snitch,
-)
-from xdsl.transforms.experimental import (
-    hls_convert_stencil_to_ll_mlir,
 )
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
@@ -276,16 +272,6 @@ async def test_buttons():
                     module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
                     pass_spec=None,
                 ),
-                AvailablePass(
-                    display_name="hls-convert-stencil-to-ll-mlir",
-                    module_pass=hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="printf-to-llvm",
-                    module_pass=printf_to_llvm.PrintfToLLVM,
-                    pass_spec=None,
-                ),
             )
         )
 
@@ -340,16 +326,6 @@ async def test_rewrites():
                 AvailablePass(
                     display_name="convert-func-to-riscv-func",
                     module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="hls-convert-stencil-to-ll-mlir",
-                    module_pass=hls_convert_stencil_to_ll_mlir.HLSConvertStencilToLLMLIRPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="printf-to-llvm",
-                    module_pass=printf_to_llvm.PrintfToLLVM,
                     pass_spec=None,
                 ),
                 AvailablePass(
