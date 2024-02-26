@@ -135,10 +135,6 @@ class InputApp(App[None]):
     DataTable displaying the diff of operation names and counts of the input and output
     text areas.
     """
-    current_argument_pass: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = ()
-    """
-    Saves a tuple containing the constructed ModulePass, PipelinePassSpec tuple of a pass with arguments requiring user input.
-    """
 
     pre_loaded_input_text: str
     current_file_path: str
@@ -358,12 +354,12 @@ class InputApp(App[None]):
         self,
         selected_pass_value: type[ModulePass],
         selected_pass_spec: PipelinePassSpec | None,
+        root_to_child_pass_list: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
     ) -> None:
         """
         This function facilitates user input of pass concatenated_arg_val by navigating
         to the AddArguments screen, and subsequently parses the returned string upon
-        screen dismissal and updates the reactive variable current_argument_pass to hold
-        the constructed pass in a form ready to append to the pass_pipeline.
+        screen dismissal.
         """
 
         def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
@@ -379,11 +375,9 @@ class InputApp(App[None]):
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
                     )
                 )[0]
-                # self.pass_pipeline = (
-                #     *self.pass_pipeline,
-                #     (selected_pass_value, new_pass_with_arguments),
-                # )
-                self.current_argument_pass = (
+                self.pass_pipeline = (
+                    *self.pass_pipeline,
+                    *root_to_child_pass_list,
                     (selected_pass_value, new_pass_with_arguments),
                 )
             except PassPipelineParseError as e:
@@ -391,8 +385,6 @@ class InputApp(App[None]):
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
-        # clear global temporary variable
-        self.current_argument_pass = ()
         # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
         self.push_screen(
             AddArguments(
@@ -424,11 +416,8 @@ class InputApp(App[None]):
 
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
-            self.get_pass_arguments(selected_pass_value, selected_pass_spec)
-            self.pass_pipeline = (
-                *self.pass_pipeline,
-                *root_to_child_pass_list,
-                *self.current_argument_pass,
+            self.get_pass_arguments(
+                selected_pass_value, selected_pass_spec, root_to_child_pass_list
             )
         else:
             # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
@@ -457,22 +446,9 @@ class InputApp(App[None]):
         # get instance
         selected_pass_value, selected_pass_spec = expanded_node.data
 
-        # if expanded_pass has arguments, call get_arguments_function to push screen for user input
+        # if expanded_pass has arguments, do not allow node expansion
         if fields(selected_pass_value) and selected_pass_spec is None:
-            self.get_pass_arguments(selected_pass_value, selected_pass_spec)
-            # if arguments were not successfully entered, do not continue with tree expansion
-            if self.current_argument_pass == ():
-                return
-
-            # remove current event node from root_to_child_pass_list
-            root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_node)[
-                :-1
-            ]
-            child_pass_pipeline = (
-                *self.pass_pipeline,
-                *root_to_child_pass_list,
-                *self.current_argument_pass,
-            )
+            return
 
         else:
             # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
