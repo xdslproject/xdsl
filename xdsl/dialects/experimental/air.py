@@ -613,11 +613,12 @@ class LaunchTerminatorOp(IRDLOperation):
 class LaunchOp(IRDLOperation):
     name = "air.launch"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = opt_attr_def(StringAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
     launch_operands = var_operand_def(AnyAttr())
     async_token = result_def(AsyncTokenAttr)
+    body = opt_region_def()
 
     traits = frozenset(
         [IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)]
@@ -627,28 +628,38 @@ class LaunchOp(IRDLOperation):
 
     def __init__(
         self,
-        sym_name: StringAttr,
+        sym_name: StringAttr | None,
         async_dependencies: list[Operation | SSAValue],
         sizes: list[Operation | SSAValue],
         launch_operands: list[Operation | SSAValue],
+        body: Region | None,
     ):
         super().__init__(
             attributes={"sym_name": sym_name},
             operands=[async_dependencies, sizes, launch_operands],
             result_types=[AsyncTokenAttr()],
+            regions=[body],
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> LaunchOp:
-        parser.parse_optional_symbol_name()
-        args = parser.parse_op_args_list()
-        print("ARGS: ", args)
+        sym_name = parser.parse_optional_symbol_name()
+
+        async_dependencies: list[Operation | SSAValue] = []
+        if parser.parse_optional_keyword("async"):
+            if parser.parse_optional_characters("["):
+                while not parser.parse_optional_characters("]"):
+                    async_dependencies.append(parser.parse_operand())
+                    parser.parse_optional_characters(",")
+                parser.parse_characters("[")
+
+        parser.parse_op_args_list()
         parser.parse_keyword("in")
         parser.parse_characters("(")
 
         arguments_lst: list[Parser.Argument] = []
 
-        operands_lst: list[Operation | SSAValue] = []
+        sizes_operands_lst: list[Operation | SSAValue] = []
         while not parser.parse_optional_characters(")"):
             argument = parser.parse_argument(expect_type=False)
             parser.parse_characters("=")
@@ -656,11 +667,37 @@ class LaunchOp(IRDLOperation):
 
             argument = argument.resolve(operand.type)
             arguments_lst.append(argument)
-            operands_lst.append(operand)
+            sizes_operands_lst.append(operand)
 
             parser.parse_optional_characters(",")
 
-        parser.parse_characters("args")
+        arguments_lst: list[Parser.Argument] = []
+        launch_operands_lst: list[Operation | SSAValue] = []
+        if parser.parse_optional_keyword("args"):
+            parser.parse_characters("(")
+            while True:
+                argument = parser.parse_argument(expect_type=False)
+                parser.parse_characters("=")
+                operand = parser.parse_operand()
+
+                argument = argument.resolve(operand.type)
+                arguments_lst.append(argument)
+                launch_operands_lst.append(operand)
+
+                if not parser.parse_optional_characters(","):
+                    break
+            parser.parse_characters(")")
+
+            parser.parse_characters(":")
+            for _ in range(len(launch_operands_lst)):
+                parser.parse_type()
+                parser.parse_optional_characters(",")
+
+        body = parser.parse_optional_region()
+
+        return LaunchOp(
+            sym_name, async_dependencies, sizes_operands_lst, launch_operands_lst, body
+        )
 
 
 @irdl_op_definition
