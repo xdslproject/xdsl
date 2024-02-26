@@ -468,6 +468,12 @@ class ROperation(Generic[R1InvT], SingleOperandInstruction):
             result_types=[destination],
         )
 
+    def verify_(self) -> None:
+        if self.source is None and self.destination is None:
+            raise VerifyException("Either source or destination must be specified")
+        if self.source is not None and self.destination is not None:
+            raise VerifyException("Cannot specify both source and destination")
+
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return (self.destination,) if self.destination else (self.source,)
 
@@ -661,6 +667,12 @@ class PushOp(ROperation[GeneralRegisterType]):
 
     name = "x86.push"
 
+    def verify_(self) -> None:
+        if self.source is None:
+            raise VerifyException("Source register must be specified")
+        else:
+            return super().verify_()
+
 
 @irdl_op_definition
 class PopOp(ROperation[GeneralRegisterType]):
@@ -669,6 +681,12 @@ class PopOp(ROperation[GeneralRegisterType]):
     """
 
     name = "x86.pop"
+
+    def verify_(self) -> None:
+        if self.destination is None:
+            raise VerifyException("Destination register must be specified")
+        else:
+            return super().verify_()
 
 
 class RRROperation(Generic[R1InvT, R2InvT, R3InvT], TripleOperandInstruction):

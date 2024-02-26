@@ -1,4 +1,7 @@
+import pytest
+
 from xdsl.dialects import x86
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -76,13 +79,28 @@ def test_not_op():
 
 def test_push_op():
     r1 = TestSSAValue(x86.Registers.RDX)
-    push_op = x86.PushOp(r1)
+    push_op_wrong = x86.PushOp(destination=x86.Registers.RDX)
+    with pytest.raises(VerifyException):
+        push_op_wrong.verify()
+    push_op_wrong2 = x86.PushOp(source=r1, destination=x86.Registers.RAX)
+    with pytest.raises(VerifyException):
+        push_op_wrong2.verify()
+    push_op = x86.PushOp(source=r1)
+    push_op.verify()
 
     print(push_op.assembly_line())
 
 
 def test_pop_op():
+    r1 = TestSSAValue(x86.Registers.RAX)
+    pop_op_wrong = x86.PopOp(source=r1)
+    with pytest.raises(VerifyException):
+        pop_op_wrong.verify()
+    pop_op_wrong2 = x86.PopOp(r1, destination=x86.Registers.RDX)
+    with pytest.raises(VerifyException):
+        pop_op_wrong2.verify()
     pop_op = x86.PopOp(destination=x86.Registers.RDX)
+    pop_op.verify()
 
     print(pop_op.assembly_line())
 
