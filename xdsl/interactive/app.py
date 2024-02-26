@@ -380,6 +380,7 @@ class InputApp(App[None]):
                     *root_to_child_pass_list,
                     (selected_pass_value, new_pass_with_arguments),
                 )
+
             except PassPipelineParseError as e:
                 res = f"PassPipelineParseError: {e}"
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
@@ -446,18 +447,17 @@ class InputApp(App[None]):
         # get instance
         selected_pass_value, selected_pass_spec = expanded_node.data
 
-        # if expanded_pass has arguments, do not allow node expansion
+        # if expanded_pass requires arguments, do not allow node expansion
         if fields(selected_pass_value) and selected_pass_spec is None:
             return
 
-        else:
-            # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
-            root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_node)
+        # if selected_pass_value requires no arguments add the selected pass to pass_pipeline
+        root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_node)
 
-            child_pass_pipeline = (
-                *self.pass_pipeline,
-                *root_to_child_pass_list,
-            )
+        child_pass_pipeline = (
+            *self.pass_pipeline,
+            *root_to_child_pass_list,
+        )
 
         child_pass_list = get_available_pass_list(
             self.input_text_area.text,
