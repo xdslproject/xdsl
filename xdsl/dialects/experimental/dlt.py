@@ -505,7 +505,6 @@ class ElementAttr(ParametrizedAttribute):
             names.append(dim.dimensionName)
         return names
 
-
     def select_members(self, members: Iterable[MemberAttr]) -> ElementAttr:
         return  ElementAttr(self.member_specifiers.difference(members), self.dimensions, self.base_type)
 
@@ -614,12 +613,22 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
         dimensions = list(dimensions)
         return TypeType([e for e in self.elements if e.has_members(members) and e.has_dimensions(dimensions) and (base_type is None or e.base_type == base_type)])
 
+    def has_selectable(self, members: Iterable[MemberAttr], dimensions: Iterable[DimensionAttr], base_type: AcceptedTypes = None) -> int:
+        members = list(members)
+        dimensions = list(dimensions)
+        return len([e for e in self.elements if e.has_members(members) and e.has_dimensions(dimensions) and (base_type is None or e.base_type == base_type)])
 
     def get_single_element(self) -> None | ElementAttr:
         if len(self.elements) == 1:
             return list(self.elements)[0]
         else:
             return None
+
+    def all_member_attributes(self)-> set[MemberAttr]:
+        return {m for elem in self.elements for m in elem.member_specifiers}
+
+    def all_dimension_attributes(self) -> set[DimensionAttr]:
+        return {d for elem in self.elements for d in elem.dimensions}
 
     def get_dimension(self, dimension: DimensionAttr) -> DimensionAttr:
         # for elem in self.elements:
@@ -938,7 +947,7 @@ class StructLayoutAttr(Layout):
     def __init__(self, children: Iterable[Layout]):
         if not isinstance(children, ArrayAttr):
             children = ArrayAttr(children)
-        super().__init__((children))
+        super().__init__((children,))
         assert self.contents_type
 
 
@@ -1012,8 +1021,24 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
                        self.filled_extents,
                        base=self.is_base)
 
-    def with_new_layout(self, layout: Layout) -> PtrType:
-        return PtrType(self.contents_type, layout, self.filled_members, self.filled_dimensions, self.filled_extents, base=self.is_base)
+    def with_new_layout(self, layout: Layout, remove_bloat = False) -> PtrType:
+        filled_members = set(self.filled_members)
+        filled_dimensions = list(self.filled_dimensions)
+        filled_extents = list(self.filled_extents)
+        if remove_bloat:
+            layout_contents_type = layout.contents_type
+            all_members = layout_contents_type.all_member_attributes()
+            filled_members = filled_members.intersection(all_members)
+            contents_type = layout_contents_type.select_members(filled_members)
+            useful_dims = contents_type.all_dimension_attributes()
+            filled_dimensions = [d for d in filled_dimensions if d in useful_dims]
+            contents_type = contents_type.select_dimensions(filled_dimensions)
+            useful_extents = {extent for element in contents_type.elements
+                                     for dimension in element.dimensions
+                                     for extent in dimension.extent.base_extents()
+                                     if Stage.STATIC < extent.get_stage() < Stage.DYNAMIC}
+            filled_extents = [e for e in filled_extents if e in useful_extents]
+        return PtrType(self.contents_type, layout, SetAttr(filled_members), ArrayAttr(filled_dimensions), ArrayAttr(filled_extents), base=self.is_base)
 
     def verify(self) -> None:
         layout_type: TypeType = self.layout.contents_type
@@ -1409,15 +1434,20 @@ class GetOp(DTLLayoutScopedOp):
     get_type: AcceptedTypes = attr_def(AcceptedTypes)
     res: OpResult = result_def(AcceptedTypes)
 
+    def __init__(self, tree: SSAValue, get_type: AcceptedTypes):
+        super().__init__(operands=[tree], result_types=[get_type],
+                         attributes={"get_type":get_type})
+
+
     #TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
 
 
 @irdl_op_definition
 class SetOp(DTLLayoutScopedOp):
     name = "dlt.set" # take a PtrType that points only to primitives (no member fields or dimensions) and set the value
-    tree: OperandDef = operand_def(PtrType)
-    value: OperandDef = operand_def(AcceptedTypes)
-    set_type: AttributeDef = attr_def(AcceptedTypes)
+    tree: Operand = operand_def(PtrType)
+    value: Operand = operand_def(AcceptedTypes)
+    set_type: AcceptedTypes = attr_def(AcceptedTypes)
 
     # TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
 
@@ -1425,8 +1455,8 @@ class SetOp(DTLLayoutScopedOp):
 @irdl_op_definition
 class CopyOp(DTLLayoutScopedOp):
     name = "dlt.copy" # take src and dst Ptrtypes and copy all values of the copy_type primitive from one to the other.
-    src: OperandDef = operand_def(PtrType)
-    dst: OperandDef = operand_def(PtrType)
+    src: Operand = operand_def(PtrType)
+    dst: Operand = operand_def(PtrType)
     src_dimensions: AttributeDef = attr_def(ArrayAttr[DimensionAttr])
     dst_dimensions: AttributeDef = attr_def(ArrayAttr[DimensionAttr])
     copy_type: AttributeDef = attr_def(AcceptedTypes)
@@ -1437,7 +1467,7 @@ class CopyOp(DTLLayoutScopedOp):
 @irdl_op_definition
 class ClearOp(DTLLayoutScopedOp):
     name = "dlt.clear"  # take a Ptrtype and set all the values of clear_type to 0 - possibly changing the runtime sparsity
-    tree: OperandDef = operand_def(PtrType)
+    tree: Operand = operand_def(PtrType)
     # dimensions: AttributeDef = attr_def(SetAttr[DimensionAttr])
     clear_type: AttributeDef = attr_def(AcceptedTypes)
 
@@ -1658,15 +1688,22 @@ class AllocOp(DTLLayoutScopedOp):
     # layout: OperandDef = operand_def(TypeType)
     initialValues: VarOperand = var_operand_def(PtrType)
     init_extent_sizes: VarOperand = var_operand_def(IndexType) # these do not mean unknown sizes that are static per dlt layout scope, but Init in that they can change within the layout scope.
-    init_extents: AttributeDef = attr_def(ArrayAttr[InitDefinedExtentAttr])
+    init_extents: ArrayAttr[InitDefinedExtentAttr] = attr_def(ArrayAttr[InitDefinedExtentAttr])
 
     res: OpResult = result_def(PtrType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
     def verify_(self) -> None:
-        if not self.res.type.is_base:
+        res_type = cast(PtrType, self.res.type)
+        if not res_type.is_base:
             raise VerifyException("PtrType result of AllocOp must have 'base' attribute set to \"Y\"")
+        if len(res_type.filled_dimensions.data) != 0:
+            raise VerifyException(f"{self.name}: result of Alloc cannot have prefilled dimension selectors")
+
+        extents = [e for e in cast(PtrType, self.res.type).layout.get_all_extents() if cast(Extent, e).is_init_time()]
+        if not all(e in self.init_extents for e in extents):
+            raise VerifyException("When allocating a layout with InitDefinedExtents, these must be provided")
 
 
 

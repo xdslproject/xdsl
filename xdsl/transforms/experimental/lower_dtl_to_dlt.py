@@ -595,8 +595,9 @@ class DTLDenseRewriter(RewritePattern):
             raise ValueError(f"Cannot get scalar from dlt.Ptr: {ssa.type} - dimensions")
         if len(expr.dims) != 0:
             raise ValueError(f"Cannot get scalar from ExprResult: {expr}")
-
-        get = dlt.GetOp(operands=[ssa], attributes={"get_type": expr.base_type}, result_types=[expr.base_type])
+        assert isinstance(expr.base_type, dlt.AcceptedTypes)
+        base_type = cast(dlt.AcceptedTypes, expr.base_type)
+        get = dlt.GetOp(ssa, base_type)
         return [get], SSAValue.get(get)
 
     @_get_expression.register
