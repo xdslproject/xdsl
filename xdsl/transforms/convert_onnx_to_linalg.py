@@ -11,7 +11,7 @@ from xdsl.dialects.builtin import (
     TensorType,
     f64,
 )
-from xdsl.ir import Block, MLContext, Region
+from xdsl.ir import Block, MLContext, Operation, Region
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -21,6 +21,14 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import SymbolTable
+
+
+def get_root_op(op: Operation | None) -> Operation | None:
+    """
+    Recursively finds and returns the root operation associated with the given operation.
+    """
+    return op if op is None or op.parent_op() is None else get_root_op(op.parent_op())
 
 
 @dataclass
@@ -87,6 +95,9 @@ class ConstantOpLowering(RewritePattern):
             attr_value,
             StringAttr("private"),
         )
+        root_op = get_root_op(constant)
+        if root_op is not None and root_op.has_trait(SymbolTable):
+            SymbolTable.insert_or_update(root_op, global_op)
         rewriter.replace_matched_op(
             (
                 ml_program.GlobalLoadConstant(
