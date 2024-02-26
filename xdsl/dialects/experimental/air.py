@@ -302,24 +302,24 @@ class DmaMemcpyNdOp(IRDLOperation):
         if self.async_dependencies:
             printer.print(self.async_dependencies)
         printer.print("(")
-        printer.print(self.dst)
+        printer.print_operand(self.dst)
         printer.print("[")
-        printer.print(self.dst_offsets)
+        printer.print_list(self.dst_offsets, printer.print_operand)
         printer.print("]")
         printer.print("[")
-        printer.print(self.dst_sizes)
+        printer.print_list(self.dst_sizes, printer.print_operand)
         printer.print("]")
-        printer.print(self.dst_strides)
+        printer.print_list(self.dst_strides, printer.print_operand)
         printer.print(", ")
-        printer.print(self.src)
+        printer.print_operand(self.src)
         printer.print("[")
-        printer.print(self.src_offsets)
+        printer.print_list(self.src_offsets, printer.print_operand)
         printer.print("]")
         printer.print("[")
-        printer.print(self.src_sizes)
+        printer.print_list(self.src_sizes, printer.print_operand)
         printer.print("]")
         printer.print("[")
-        printer.print(self.src_strides)
+        printer.print_list(self.src_strides, printer.print_operand)
         printer.print("]")
         printer.print(")")
         printer.print(" : ")
@@ -637,6 +637,30 @@ class LaunchOp(IRDLOperation):
             operands=[async_dependencies, sizes, launch_operands],
             result_types=[AsyncTokenAttr()],
         )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> LaunchOp:
+        parser.parse_optional_symbol_name()
+        args = parser.parse_op_args_list()
+        print("ARGS: ", args)
+        parser.parse_keyword("in")
+        parser.parse_characters("(")
+
+        arguments_lst: list[Parser.Argument] = []
+
+        operands_lst: list[Operation | SSAValue] = []
+        while not parser.parse_optional_characters(")"):
+            argument = parser.parse_argument(expect_type=False)
+            parser.parse_characters("=")
+            operand = parser.parse_operand()
+
+            argument = argument.resolve(operand.type)
+            arguments_lst.append(argument)
+            operands_lst.append(operand)
+
+            parser.parse_optional_characters(",")
+
+        parser.parse_characters("args")
 
 
 @irdl_op_definition
