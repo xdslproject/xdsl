@@ -14,7 +14,7 @@ from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 
-interpreter = Interpreter(ModuleOp([]))
+interpreter = Interpreter(ModuleOp([]), index_bitwidth=32)
 interpreter.register_implementations(ArithFunctions())
 interpreter.register_implementations(MemrefFunctions())
 
@@ -62,7 +62,7 @@ def test_memref_get_global():
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
             fetch = memref.GetGlobal.get("my_global", memref_type)
 
-    interpreter = Interpreter(module)
+    interpreter = Interpreter(module, index_bitwidth=32)
     interpreter.register_implementations(MemrefFunctions())
 
     (result,) = interpreter.run_op(fetch, ())
