@@ -85,11 +85,18 @@ class ReluOpLowering(RewritePattern):
 
 @dataclass
 class ConstantOpLowering(RewritePattern):
+    constant_count: int = 0
+
+    def make_unique_name(self):
+        self.constant_count += 1
+        return f"onnx_constant_{self.constant_count}"
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, constant: onnx.Constant, rewriter: PatternRewriter, /):
         attr_value = list(constant.attributes.values())[1]
+        constant_name = self.make_unique_name()
         global_op = ml_program.Global(
-            StringAttr("global_constant"),
+            StringAttr(constant_name),
             constant.output.type,
             None,
             attr_value,
