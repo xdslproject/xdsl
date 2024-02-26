@@ -27,10 +27,13 @@ class LowerFuncOp(RewritePattern):
         if len(op.function_type.outputs.data) > 2:
             raise ValueError("Cannot lower func.func with more than 2 outputs")
 
-        first_block = op.body.blocks[0]
-        cast_block_args_from_a_regs(first_block, rewriter)
+        if op.body.blocks:
+            first_block = op.body.blocks[0]
+            cast_block_args_from_a_regs(first_block, rewriter)
 
-        input_types = [arg.type for arg in first_block.args]
+            input_types = [arg.type for arg in first_block.args]
+        else:
+            input_types = tuple(a_regs_for_types(op.function_type.inputs.data))
         result_types = list(a_regs_for_types(op.function_type.outputs.data))
 
         new_func = riscv_func.FuncOp(
