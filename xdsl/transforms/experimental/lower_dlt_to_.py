@@ -71,9 +71,10 @@ class PtrCarriedGetter(IndexGetter, ExtentGetter):
         else:
             assert False
         pos = DenseArrayBase.from_list(i64, [index])
-        op = llvm.ExtractValueOp(pos, self.input, IndexType())
+        op = llvm.ExtractValueOp(pos, self.input, i64)
         # cast_ops, res = get_as_i64(op.res)
-        return [op], op.res
+        cast_ops, res = get_as_index(op.res)
+        return [op] + cast_ops, res
 
 
 class ExtentResolver:
@@ -200,11 +201,18 @@ def get_as_i64(value: SSAValue) -> tuple[list[Operation], SSAValue]:
     return [op := UnrealizedConversionCastOp.get([value], [i64])], op.outputs[0]
 
 
+def get_as_index(value: SSAValue) -> tuple[list[Operation], SSAValue]:
+    assert isinstance(value.type, IndexType | IntegerType)
+    if isinstance(value.type, IntegerType):
+        assert value.type.width.data <= i64.width.data, f"Expected {i64.width.data} got {value.type.width.data}"
+    return [op := UnrealizedConversionCastOp.get([value], [IndexType()])], op.outputs[0]
+
+
 def get_llvm_type_from_dlt_ptr(ptr_type: dlt.PtrType)->llvm.LLVMStructType:
     return llvm.LLVMStructType.from_type_list(
             [llvm.LLVMPointerType.opaque()]
-            + len(ptr_type.filled_dimensions.data) * [IndexType()]
-            + len(ptr_type.filled_extents.data) * [IndexType()]
+            + len(ptr_type.filled_dimensions.data) * [i64]
+            + len(ptr_type.filled_extents.data) * [i64]
     )
 
 
@@ -221,12 +229,16 @@ def generate_ptr_struct_in_llvm(output_type: dlt.PtrType, allocated_ptr: SSAValu
     for dim in output_type.filled_dimensions:
         dim_ops, dim_result = dim_map[dim].get()
         ops.extend(dim_ops)
+        as_i64_ops, dim_result = get_as_i64(dim_result)
+        ops.extend(as_i64_ops)
         ops.append(insert_op := llvm.InsertValueOp(DenseArrayBase.from_list(i64, [idx]), ptr_struct_result, dim_result))
         idx += 1
         ptr_struct_result = insert_op.res
     for extent in output_type.filled_extents:
         extent_ops, extent_result = from_int_to_ssa(extent_resolver.resolve(extent))
         ops.extend(extent_ops)
+        as_i64_ops, extent_result = get_as_i64(extent_result)
+        ops.extend(as_i64_ops)
         ops.append(
             insert_op := llvm.InsertValueOp(DenseArrayBase.from_list(i64, [idx]), ptr_struct_result, extent_result))
         idx += 1
@@ -674,6 +686,13 @@ class DLTPtrTypeRewriter(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(self, typ: dlt.PtrType, /) -> Attribute | None:
         return get_llvm_type_from_dlt_ptr(typ)
+
+
+@dataclass
+class DLTIndexTypeRewriter(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: builtin.IndexType, /) -> Attribute | None:
+        return builtin.i64
 
 
 
