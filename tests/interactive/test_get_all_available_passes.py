@@ -5,7 +5,7 @@ from xdsl.backend.riscv.lowering import (
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import individual_rewrite
-from xdsl.transforms import printf_to_llvm, reconcile_unrealized_casts
+from xdsl.transforms import reconcile_unrealized_casts
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
@@ -32,11 +32,6 @@ def test_get_all_available_passes():
 
     expected_res = tuple(
         (
-            AvailablePass(
-                display_name="printf-to-llvm",
-                module_pass=printf_to_llvm.PrintfToLLVM,
-                pass_spec=None,
-            ),
             AvailablePass(
                 display_name="reconcile-unrealized-casts",
                 module_pass=reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
