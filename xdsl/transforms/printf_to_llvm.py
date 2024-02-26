@@ -162,6 +162,9 @@ class PrintfToLLVM(ModulePass):
         if not has_done_action:
             return
 
+        if not add_printf_call.collected_global_symbs:
+            return
+
         op.body.block.add_ops(
             [
                 llvm.FuncOp(

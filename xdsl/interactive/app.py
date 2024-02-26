@@ -24,9 +24,12 @@ from textual.widgets import (
     DataTable,
     Footer,
     Label,
+    ListItem,
     ListView,
     TextArea,
+    Tree,
 )
+from textual.widgets.tree import TreeNode
 
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
@@ -111,8 +114,8 @@ class InputApp(App[None]):
     """Output TextArea."""
     selected_passes_list_view: ListView
     """"ListView displaying the selected passes."""
-    passes_list_view: ListView
-    """ListView displaying the passes available to apply."""
+    passes_tree: Tree[tuple[type[ModulePass], PipelinePassSpec | None]]
+    """Tree displaying the passes available to apply."""
 
     input_operation_count_tuple = reactive(tuple[tuple[str, int], ...])
     """
@@ -164,7 +167,7 @@ class InputApp(App[None]):
         self.input_text_area = TextArea(id="input")
         self.output_text_area = OutputTextArea(id="output")
         self.selected_passes_list_view = ListView(id="selected_passes_list_view")
-        self.passes_list_view = ListView(id="passes_list_view")
+        self.passes_tree = Tree(label=".", id="passes_tree")
         self.input_operation_count_datatable = DataTable(
             id="input_operation_count_datatable"
         )
@@ -173,22 +176,19 @@ class InputApp(App[None]):
         )
 
         with Horizontal(id="top_container"):
-            yield self.passes_list_view
-            with Horizontal(id="button_and_selected_horziontal"):
-                with ScrollableContainer(id="selected_passes"):
-                    yield self.selected_passes_list_view
-                with ScrollableContainer(id="buttons"):
-                    yield Button("Copy Query", id="copy_query_button")
-                    yield Button("Clear Passes", id="clear_passes_button")
-                    yield Button("Condense", id="condense_button")
-                    yield Button("Uncondense", id="uncondense_button")
-                    yield Button("Remove Last Pass", id="remove_last_pass_button")
-                    yield Button(
-                        "Show Operation Count", id="show_operation_count_button"
-                    )
-                    yield Button(
-                        "Remove Operation Count", id="remove_operation_count_button"
-                    )
+            with Vertical(id="veritcal_tree_selected_passes_list_view"):
+                yield self.selected_passes_list_view
+                yield self.passes_tree
+            with ScrollableContainer(id="buttons"):
+                yield Button("Copy Query", id="copy_query_button")
+                yield Button("Clear Passes", id="clear_passes_button")
+                yield Button("Condense", id="condense_button")
+                yield Button("Uncondense", id="uncondense_button")
+                yield Button("Remove Last Pass", id="remove_last_pass_button")
+                yield Button("Show Operation Count", id="show_operation_count_button")
+                yield Button(
+                    "Remove Operation Count", id="remove_operation_count_button"
+                )
         with Horizontal(id="bottom_container"):
             with Horizontal(id="input_horizontal_container"):
                 with Vertical(id="input_container"):
@@ -216,15 +216,12 @@ class InputApp(App[None]):
         # add titles for various widgets
         self.query_one("#input_container").border_title = "Input xDSL IR"
         self.query_one("#output_container").border_title = "Output xDSL IR"
-        self.query_one(
-            "#passes_list_view"
-        ).border_title = "Choose a pass or multiple passes to be applied."
-        self.query_one("#selected_passes").border_title = "Selected passes/query"
 
-        # initialize ListView to contain the pass options
+        # initialize Tree to contain the pass options
         for n, module_pass in ALL_PASSES:
-            self.passes_list_view.append(
-                PassListItem(Label(n), module_pass=module_pass, pass_spec=None, name=n)
+            self.passes_tree.root.add(
+                label=n,
+                data=(module_pass, None),
             )
 
         # initialize GUI with either specified input text or default example
@@ -268,21 +265,96 @@ class InputApp(App[None]):
         the ListView to display the latest pass options.
         """
         if old_pass_list != new_pass_list:
-            self.passes_list_view.clear()
-            for pass_name, value, value_spec in new_pass_list:
-                self.passes_list_view.append(
-                    PassListItem(
-                        Label(pass_name),
-                        module_pass=value,
-                        pass_spec=value_spec,
-                        name=value.name,
-                    )
+            self.passes_tree.clear()
+            self.expand_node(self.passes_tree.root, new_pass_list)
+
+    def get_root_to_child_pass_list(
+        self, expanded_node: TreeNode[tuple[type[ModulePass], PipelinePassSpec | None]]
+    ) -> tuple[tuple[type[ModulePass], PipelinePassSpec], ...]:
+        """
+        Helper function that returns a pass_pipeline consisiting of the list of nodes
+        from the root of the tree to and including the expanded_node child.
+        """
+        assert expanded_node.data is not None
+
+        pass_list_items: list[tuple[type[ModulePass], PipelinePassSpec | None]] = []
+
+        current = expanded_node
+
+        # traverse the path starting from the child node until we reach the root
+        while current is not None and current.data is not None and not current.is_root:
+            pass_list_items.append(current.data)
+            current = current.parent
+
+        root_to_child_pass_list = tuple(
+            (selected_pass_value, selected_pass_value().pipeline_pass_spec())
+            if selected_pass_spec is None
+            else (selected_pass_value, selected_pass_spec)
+            for (selected_pass_value, selected_pass_spec) in reversed(pass_list_items)
+        )
+
+        return root_to_child_pass_list
+
+    def update_selected_passes_list_view(self) -> None:
+        """
+        Helper function that updates the selected passes ListView to display the passes in pass_pipeline.
+        """
+        self.selected_passes_list_view.clear()
+        if len(self.pass_pipeline) >= 1:
+            self.selected_passes_list_view.append(ListItem(Label("."), name="."))
+
+        # last element is the node of the tree
+        pass_pipeline = self.pass_pipeline[:-1]
+        for pass_value, value_spec in pass_pipeline:
+            self.selected_passes_list_view.append(
+                PassListItem(
+                    Label(str(value_spec)),
+                    module_pass=pass_value,
+                    pass_spec=value_spec,
+                    name=pass_value.name,
                 )
+            )
+
+    def expand_node(
+        self,
+        expanded_pass: TreeNode[tuple[type[ModulePass], PipelinePassSpec | None]],
+        child_pass_list: tuple[AvailablePass, ...],
+    ) -> None:
+        """
+        Helper function that adds a subtree to a node, i.e. adds a sub-tree containing the child_pass_list with expanded_pass as the root.
+        """
+        # remove potential children nodes in case expand node has been clicked multiple times on the same node
+        expanded_pass.remove_children()
+
+        for pass_name, value, value_spec in child_pass_list:
+            expanded_pass.add(
+                label=pass_name,
+                data=(value, value_spec),
+            )
+
+    def update_root_of_passes_tree(self) -> None:
+        """
+        Helper function that updates the passes_tree by first resetting the root (to be
+        either the "." root if the pass_pipeline is empty or to the last selected pass) and
+        updates the subtree of the root.
+        """
+        # reset rootnode  of tree
+        if self.pass_pipeline == ():
+            self.passes_tree.reset(".")
+        else:
+            value, value_spec = self.pass_pipeline[-1]
+            self.passes_tree.reset(
+                label=str(value_spec),
+                data=(value, value_spec),
+            )
+        # expand the node
+        self.expand_node(self.passes_tree.root, self.available_pass_list)
 
     def get_pass_arguments(
         self,
         selected_pass_value: type[ModulePass],
         selected_pass_spec: PipelinePassSpec | None,
+        root_to_child_pass_list: tuple[tuple[type[ModulePass], PipelinePassSpec], ...],
     ) -> None:
         """
         This function facilitates user input of pass concatenated_arg_val by navigating
@@ -305,6 +377,7 @@ class InputApp(App[None]):
                 )[0]
                 self.pass_pipeline = (
                     *self.pass_pipeline,
+                    *root_to_child_pass_list,
                     (selected_pass_value, new_pass_with_arguments),
                 )
 
@@ -313,52 +386,95 @@ class InputApp(App[None]):
                 screen = AddArguments(TextArea(res, id="argument_text_area"))
                 self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
-        # if selected_pass_value has arguments, push screen
-        if fields(selected_pass_value) and selected_pass_spec is None:
-            # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
-            self.push_screen(
-                AddArguments(
-                    TextArea(
-                        get_pass_argument_names_and_types(selected_pass_value),
-                        id="argument_text_area",
-                    )
-                ),
-                add_pass_with_arguments_to_pass_pipeline,
-            )
-        else:
-            # add the selected pass to pass_pipeline
-            if selected_pass_spec is None:
-                selected_pass_spec = selected_pass_value().pipeline_pass_spec()
-            self.pass_pipeline = (
-                *self.pass_pipeline,
-                (selected_pass_value, selected_pass_spec),
-            )
+        # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
+        self.push_screen(
+            AddArguments(
+                TextArea(
+                    get_pass_argument_names_and_types(selected_pass_value),
+                    id="argument_text_area",
+                )
+            ),
+            add_pass_with_arguments_to_pass_pipeline,
+        )
 
-    @on(ListView.Selected, "#passes_list_view")
-    def update_pass_pipeline(self, event: ListView.Selected) -> None:
+    @on(Tree.NodeSelected, "#passes_tree")
+    def update_pass_pipeline(
+        self, event: Tree.NodeSelected[tuple[type[ModulePass], PipelinePassSpec | None]]
+    ) -> None:
         """
         When a new selection is made, the reactive variable storing the list of selected
         passes is updated.
         """
-        list_item = event.item
-        assert isinstance(list_item, PassListItem)
-        self.get_pass_arguments(list_item.module_pass, list_item.pass_spec)
+        selected_pass = event.node
+        if selected_pass.data is None:
+            return
+
+        # get instance
+        selected_pass_value, selected_pass_spec = selected_pass.data
+
+        # get root to child passes due to tree traversal possibility
+        root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass)
+
+        # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
+        if fields(selected_pass_value) and selected_pass_spec is None:
+            self.get_pass_arguments(
+                selected_pass_value, selected_pass_spec, root_to_child_pass_list
+            )
+        else:
+            # if selected_pass_value contains no arguments add the selected pass to pass_pipeline
+            if selected_pass_spec is None:
+                selected_pass_spec = selected_pass_value().pipeline_pass_spec()
+            # selected_pass_value is an "individual_rewrite", add the selected pass to pass_pipeline
+            self.pass_pipeline = (
+                *self.pass_pipeline,
+                *root_to_child_pass_list,
+                (selected_pass_value, selected_pass_spec),
+            )
+
+    @on(Tree.NodeExpanded, "#passes_tree")
+    def expand_tree_node(
+        self, event: Tree.NodeExpanded[tuple[type[ModulePass], PipelinePassSpec | None]]
+    ) -> None:
+        """
+        Function called when a user expands a node (i.e. a pass) and adds another level
+        to the pass selection tree. Allow's multi-level tree traversal.
+        """
+        expanded_node = event.node
+        if expanded_node.data is None:
+            self.expand_node(expanded_node, self.available_pass_list)
+            return
+
+        # get instance
+        selected_pass_value, selected_pass_spec = expanded_node.data
+
+        # if expanded_pass requires arguments, do not allow node expansion
+        if fields(selected_pass_value) and selected_pass_spec is None:
+            return
+
+        # if selected_pass_value requires no arguments add the selected pass to pass_pipeline
+        root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_node)
+
+        child_pass_pipeline = (
+            *self.pass_pipeline,
+            *root_to_child_pass_list,
+        )
+
+        child_pass_list = get_available_pass_list(
+            self.input_text_area.text,
+            child_pass_pipeline,
+            self.condense_mode,
+            individual_rewrite.REWRITE_BY_NAMES,
+        )
+
+        self.expand_node(expanded_node, child_pass_list)
 
     def watch_pass_pipeline(self) -> None:
         """
         Function called when the reactive variable pass_pipeline changes - updates the
         label to display the respective generated query in the Label.
         """
-        self.selected_passes_list_view.clear()
-        for pass_value, value_spec in self.pass_pipeline:
-            self.selected_passes_list_view.append(
-                PassListItem(
-                    Label(pass_value.name),
-                    module_pass=pass_value,
-                    pass_spec=value_spec,
-                    name=pass_value.name,
-                )
-            )
+        self.update_selected_passes_list_view()
+        self.update_root_of_passes_tree()
         self.update_current_module()
 
     @on(TextArea.Changed, "#input")

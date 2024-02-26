@@ -1240,6 +1240,7 @@ class QualifyInterfacesPass(RewritePattern):
                         self.interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
                     )
                     rewriter.insert_op_at_start(call_interface_func, op.body.blocks[0])
+                    self.called_coeff_func = True
 
                 arg_idx += 1
 
