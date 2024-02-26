@@ -359,7 +359,7 @@ class InputApp(App[None]):
         """
         This function facilitates user input of pass concatenated_arg_val by navigating
         to the AddArguments screen, and subsequently parses the returned string upon
-        screen dismissal.
+        screen dismissal and appends the pass to the pass_pipeline variable.
         """
 
         def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
