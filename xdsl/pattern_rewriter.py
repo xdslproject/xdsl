@@ -681,17 +681,17 @@ class PatternRewriteWalker:
             block_creation_handler=self.listener.block_creation_handler,
         )
 
-    def rewrite_module(self, module: ModuleOp) -> None:
+    def rewrite_module(self, module: ModuleOp) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
         pattern.
         """
-        self.rewrite_op(module)
+        return self.rewrite_op(module)
 
-    def rewrite_op(self, op: Operation) -> None:
+    def rewrite_op(self, op: Operation) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
-        pattern.
+        pattern. Returns `True` if an operation was inserted, deleted, or rewritten.
         """
         pattern_listener = self._get_rewriter_listener()
 
@@ -699,11 +699,15 @@ class PatternRewriteWalker:
         op_was_modified = self._process_worklist(pattern_listener)
 
         if not self.apply_recursively:
-            return
+            return op_was_modified
+
+        result = op_was_modified
 
         while op_was_modified:
             self._populate_worklist(op)
             op_was_modified = self._process_worklist(pattern_listener)
+
+        return result
 
     def _populate_worklist(self, op: Operation) -> None:
         """Populate the worklist with all nested operations."""

@@ -1,5 +1,7 @@
 from collections.abc import Sequence
 
+import pytest
+
 from conftest import assert_print_op
 
 from xdsl.dialects import test
@@ -39,6 +41,7 @@ def rewrite_and_compare(
     op_modified: int = 0,
     op_replaced: int = 0,
     block_created: int = 0,
+    expect_rewrite: bool = True,
 ):
     ctx = MLContext(allow_unregistered=True)
     ctx.load_dialect(Builtin)
@@ -82,7 +85,7 @@ def rewrite_and_compare(
     module = parser.parse_module()
 
     walker.listener = listener
-    walker.rewrite_module(module)
+    did_rewrite = walker.rewrite_module(module)
 
     assert_print_op(module, expected_prog, None)
 
@@ -91,6 +94,7 @@ def rewrite_and_compare(
     assert num_op_modified == op_modified
     assert num_op_replaced == op_replaced
     assert num_block_created == block_created
+    assert did_rewrite == expect_rewrite
 
 
 def test_non_recursive_rewrite():
@@ -573,11 +577,11 @@ def test_operation_deletion_failure():
     walker = PatternRewriteWalker(Rewrite())
 
     # Check that the rewrite fails
-    try:
+    with pytest.raises(
+        Exception,
+        match="Attempting to delete SSA value that still has uses of result of operation",
+    ):
         walker.rewrite_module(module)
-        assert False
-    except Exception:
-        pass
 
 
 def test_delete_inner_op():
@@ -1496,4 +1500,30 @@ def test_type_conversion():
         op_removed=4,
         op_replaced=4,
         op_modified=4,
+    )
+
+
+def test_no_change():
+    """Test that doing nothing successfully does not report doing something."""
+
+    prog = """\
+"builtin.module"() ({
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
+            return
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        expect_rewrite=False,
     )
