@@ -23,7 +23,9 @@
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
 // CHECK-NEXT:  %res_constant = ml_program.global_load_const @global_constant : tensor<1xi64>
-// CHECK-NEXT:  ml_program.global private @global_constant(dense<1> : tensor<1xi64>) : tensor<1xi64>
-// CHECK-NEXT:  }
 
+%res_constant_2 = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<2.0> : tensor<1x5xf32>} : () -> tensor<1x5xf32>
+// CHECK-NEXT:    %res_constant_2 = ml_program.global_load_const @global_constant : tensor<1x5xf32>
+// CHECK-NEXT:    ml_program.global private @global_constant(dense<2.000000e+00> : tensor<1x5xf32>) : tensor<1x5xf32>
+// CHECK-NEXT:  }
 
