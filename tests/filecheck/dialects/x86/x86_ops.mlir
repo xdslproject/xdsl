@@ -35,4 +35,9 @@
 
     %vfmadd231 = x86.vfmadd231pd %2, %3, %4 : (!x86.avxreg<>, !x86.avxreg<>, !x86.avxreg<>) -> !x86.avxreg<>
     // CHECK: %{{.*}} = x86.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avxreg<>, !x86.avxreg<>, !x86.avxreg<>) -> !x86.avxreg<>
+    %vmovapd = x86.vmovapd %2, %0, 1 : (!x86.avxreg<>, !x86.reg<>) -> !x86.avxreg<>
+    // CHECK-NEXT: %{{.*}} = x86.vmovapd %{{.*}}, %{{.*}}, 1 : (!x86.avxreg<>, !x86.reg<>) -> !x86.avxreg<>
+    %vbroadcastsd = x86.vbroadcastsd %2, %0, 1 : (!x86.avxreg<>, !x86.reg<>) -> !x86.avxreg<>
+    // CHECK-NEXT: %{{.*}} = x86.vbroadcastsd %{{.*}}, %{{.*}}, 1 : (!x86.avxreg<>, !x86.reg<>) -> !x86.avxreg<>
+
 }) : () -> ()

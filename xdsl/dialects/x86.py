@@ -9,8 +9,11 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    IndexType,
     IntegerAttr,
+    IntegerType,
     ModuleOp,
+    Signedness,
     StringAttr,
 )
 from xdsl.ir import (
@@ -703,7 +706,7 @@ class RRROperation(Generic[R1InvT, R2InvT, R3InvT], TripleOperandInstruction):
         return self.r1, self.r2, self.r3
 
 
-class RROffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
+class RMOffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
     """
     A base class for x86 operations that have two registers and an offset.
     """
@@ -739,6 +742,19 @@ class RROffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.r1, self.r2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["offset"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.offset)
+        return {"offset"}
 
 
 @irdl_op_definition
@@ -815,7 +831,7 @@ class Vfmadd231pdOp(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterTy
 
 
 @irdl_op_definition
-class VmovapdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
+class VmovapdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Move aligned packed double-precision floating-point elements.
     """
@@ -833,7 +849,7 @@ class VmovapdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class VbroadcastsdOp(RROffOperation[AVXRegisterType, GeneralRegisterType]):
+class VbroadcastsdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Broadcast scalar double-precision floating-point element.
     """
@@ -912,6 +928,35 @@ def x86_code(module: ModuleOp) -> str:
     stream = StringIO()
     print_assembly(module, stream)
     return stream.getvalue()
+
+
+def _parse_optional_immediate_value(
+    parser: Parser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
+    """
+    Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
+    """
+    if (immediate := parser.parse_optional_integer()) is not None:
+        return IntegerAttr(immediate, integer_type)
+    if (immediate := parser.parse_optional_str_literal()) is not None:
+        return LabelAttr(immediate)
+
+
+def _parse_immediate_value(
+    parser: Parser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
+    return parser.expect(
+        lambda: _parse_optional_immediate_value(parser, integer_type),
+        "Expected immediate",
+    )
+
+
+def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
+    match immediate:
+        case IntegerAttr():
+            printer.print(immediate.value.data)
+        case LabelAttr():
+            printer.print_string_literal(immediate.data)
 
 
 class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):

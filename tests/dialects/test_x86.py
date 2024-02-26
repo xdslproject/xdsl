@@ -101,7 +101,7 @@ def test_vmovapd_op():
     r2 = TestSSAValue(x86.Registers.RAX)
     vmovapd_op = x86.VmovapdOp(r1, r2, offset=0x10, result=x86.Registers.ZMM0)
 
-    print(vmovapd_op)
+    print(vmovapd_op.assembly_line())
 
 
 def test_vbroadcastsd_op():
