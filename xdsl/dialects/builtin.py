@@ -1509,7 +1509,7 @@ _UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit", bound=Att
 class NoneType(ParametrizedAttribute, TypeAttribute):
     name = "none_type"
 
-
+# In MemRefType's shape parameter a '-1' means an unknown - runtime/dynamic - dimension.
 @irdl_attr_definition
 class MemRefType(
     Generic[_MemRefTypeElement],

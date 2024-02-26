@@ -37,7 +37,7 @@ class Pure(OpTrait):
     """A trait that signals that an operation has no side effects."""
 
 
-class ConstantLike(OpTrait):
+class ConstantLike(Pure):
     """
     Operation known to be constant-like.
 
