@@ -60,9 +60,9 @@ builtin.module {
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"alignment" = 0 : i64, "operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = arith.constant 42 : index
 // CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}] : memref<1xindex>
-// CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}] {"nontemporal" = true}: memref<1xindex>
+// CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}] {"nontemporal" = true} : memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] : memref<1xindex>
-// CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] {"nontemporal" = false}: memref<1xindex>
+// CHECK-NEXT:     %{{.*}} = memref.load %{{.*}}[%{{.*}}] {"nontemporal" = false} : memref<1xindex>
 // CHECK-NEXT:     %{{.*}} = memref.alloc() {"alignment" = 0 : i64} : memref<10x2xindex>
 // CHECK-NEXT:     memref.store %{{.*}}, %{{.*}}[%{{.*}}, %{{.*}}] : memref<10x2xindex>
 // CHECK-NEXT:     %{{.*}} = "memref.subview"(%5) <{"static_offsets" = array<i64: 0, 0>, "static_sizes" = array<i64: 1, 1>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<10x2xindex>) -> memref<1x1xindex>
