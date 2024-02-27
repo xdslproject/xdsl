@@ -357,17 +357,26 @@ class AttrDictDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
-class OperandVariable(FormatDirective):
+class VariableDirective(FormatDirective, ABC):
+    """
+    A variable directive, with the following format:
+      variable-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    name: str
+    """The variable name. This is only used for error message reporting."""
+    index: int
+    """Index of the variable(operand or result) definition."""
+
+
+@dataclass(frozen=True)
+class OperandVariable(VariableDirective):
     """
     An operand variable, with the following format:
       operand-directive ::= dollar-ident
     The directive will request a space to be printed after.
     """
-
-    name: str
-    """The operand name. This is only used for error message reporting."""
-    index: int
-    """Index of the operand definition."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         operand = parser.parse_unresolved_operand()
@@ -431,17 +440,12 @@ class OptionalOperandVariable(OperandVariable, VariadicLikeVariable):
 
 
 @dataclass(frozen=True)
-class OperandTypeDirective(TypeDirective):
+class OperandTypeDirective(TypeDirective, VariableDirective):
     """
     An operand variable type directive, with the following format:
       operand-type-directive ::= type(dollar-ident)
     The directive will request a space to be printed right after.
     """
-
-    name: str
-    """The operand name. This is only used for error message reporting."""
-    index: int
-    """Index of the operand definition."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         type = parser.parse_type()
@@ -505,18 +509,13 @@ class OptionalOperandTypeDirective(OperandTypeDirective, VariadicLikeTypeDirecti
 
 
 @dataclass(frozen=True)
-class ResultVariable(FormatDirective):
+class ResultVariable(VariableDirective):
     """
     An result variable, with the following format:
       result-directive ::= dollar-ident
     This directive can not be used for parsing and printing directly, as result
     parsing is not handled by the custom operation parser.
     """
-
-    name: str
-    """The result name. This is only used for error message reporting."""
-    index: int
-    """Index of the result definition."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         assert (
@@ -575,17 +574,12 @@ class OptionalResultVariable(ResultVariable, VariadicLikeVariable):
 
 
 @dataclass(frozen=True)
-class ResultTypeDirective(TypeDirective):
+class ResultTypeDirective(TypeDirective, VariableDirective):
     """
     A result variable type directive, with the following format:
       result-type-directive ::= type(dollar-ident)
     The directive will request a space to be printed right after.
     """
-
-    name: str
-    """The result name. This is only used for error message reporting."""
-    index: int
-    """Index of the result definition."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         type = parser.parse_type()
