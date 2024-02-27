@@ -8,7 +8,7 @@
 %t9, %t10, %t11 = "test.op"(): () -> (tensor<2x2xf32>, tensor<2x2xf32>, tensor<2x2xf32>)
 %t12, %t13, %t14 = "test.op"(): () -> (tensor<5x3xf32>, tensor<3x2xf32>, tensor<5x2xf32>)
 %t15,%t16 = "test.op"(): () -> (tensor<48x256x64xf32>, tensor<3xi64>)
-%t17,%t18 = "test.op"(): () -> (tensor<0x1x2x3x4x5xf32>, tensor<6xi64>)
+%t17,%t18 = "test.op"(): () -> (tensor<1x2x3x4x5xf32>, tensor<5xi64>)
 %t19 = "test.op"(): () -> (tensor<10x10xf32>)
 %t20,%t21,%t22 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
 %t23,%t24,%t25 = "test.op"(): () ->  (tensor<1x1x7x5xf32>, tensor<1x1x3x3xf32>, none)
@@ -38,8 +38,8 @@
 %res_reshape = "onnx.Reshape"(%t15, %t16) {onnx_node_name = "/Reshape", "allowzero" = 1 : i64}: (tensor<48x256x64xf32>, tensor<3xi64>) -> tensor<48x256x64xf32>
 //CHECK: res_reshape = onnx.Reshape(%t15, %t16) {"onnx_node_name" = "/Reshape", "allowzero" = 1 : i64} : (tensor<48x256x64xf32>, tensor<3xi64>) -> tensor<48x256x64xf32>
 
-%res_reshape_2 = "onnx.Reshape"(%t17, %t18) {onnx_node_name = "/Reshape"}: (tensor<0x1x2x3x4x5xf32>, tensor<6xi64>) -> tensor<0x1x2x3x4x5xf32>
-//CHECK: %res_reshape_2 = onnx.Reshape(%t17, %t18) {"onnx_node_name" = "/Reshape"} : (tensor<0x1x2x3x4x5xf32>, tensor<6xi64>) -> tensor<0x1x2x3x4x5xf32>
+%res_reshape_2 = "onnx.Reshape"(%t17, %t18) {onnx_node_name = "/Reshape"}: (tensor<1x2x3x4x5xf32>, tensor<5xi64>) -> tensor<1x120xf32>
+//CHECK: %res_reshape_2 = onnx.Reshape(%t17, %t18) {"onnx_node_name" = "/Reshape"} : (tensor<1x2x3x4x5xf32>, tensor<5xi64>) -> tensor<1x120xf32>
 
 %res_abs = "onnx.Abs"(%t19) {onnx_node_name = "/Abs"}: (tensor<10x10xf32>) -> tensor<10x10xf32>
 // CHECK: %res_abs = onnx.Abs(%t19) {"onnx_node_name" = "/Abs"} : (tensor<10x10xf32>) -> tensor<10x10xf32>
