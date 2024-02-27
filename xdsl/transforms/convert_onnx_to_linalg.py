@@ -116,6 +116,35 @@ class ConstantOpLowering(RewritePattern):
 
 
 @dataclass
+class ReshapeOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, reshape: onnx.Reshape, rewriter: PatternRewriter, /):
+        # Dynamic shapes not currently supported
+        source_type = reshape.data.type
+        shape_type = reshape.shape.type
+        if isinstance(source_type, TensorType) and isinstance(shape_type, TensorType):
+            source_shape = source_type.get_shape()
+            shape_shape = shape_type.get_shape()
+
+            if -1 in source_shape or -1 in shape_shape:
+                raise NotImplementedError()
+
+        # Lowering with `allowzero = 1` attribute not supported"
+        if reshape.allow_zero is not None and reshape.allow_zero.value.data == 1:
+            raise NotImplementedError()
+
+        rewriter.replace_matched_op(
+            (
+                tensor.ReshapeOp(
+                    reshape.data,
+                    reshape.shape,
+                    reshape.reshaped.type,
+                ),
+            )
+        )
+
+
+@dataclass
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
 
@@ -126,6 +155,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
                     AddOpLowering(),
                     ReluOpLowering(),
                     ConstantOpLowering(),
+                    ReshapeOpLowering(),
                 ]
             ),
             apply_recursively=False,
