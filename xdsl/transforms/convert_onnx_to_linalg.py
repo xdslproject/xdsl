@@ -122,15 +122,15 @@ class ReshapeOpLowering(RewritePattern):
         # Dynamic shapes not currently supported
         source_type = reshape.data.type
         shape_type = reshape.shape.type
-        print(shape_type.get_shape())
         if isinstance(source_type, TensorType) and isinstance(shape_type, TensorType):
             source_shape = source_type.get_shape()
             shape_shape = shape_type.get_shape()
+
             if -1 in source_shape or -1 in shape_shape:
                 raise NotImplementedError()
 
         # Lowering with `allowzero = 1` attribute not supported"
-        if "allowzero" in reshape.attributes and reshape.attributes["allowzero"] == 1:
+        if reshape.allow_zero is not None and reshape.allow_zero.value.data == 1:
             raise NotImplementedError()
 
         rewriter.replace_matched_op(
