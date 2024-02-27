@@ -123,7 +123,7 @@ class ReshapeOp(IRDLOperation):
         reshape.attributes |= attrs
         return reshape
 
-    def _verify(self) -> None:
+    def verify_(self) -> None:
         if (
             not isinstance(source_type := self.source.type, TensorType)
             or not isinstance(shape_type := self.shape.type, TensorType)
