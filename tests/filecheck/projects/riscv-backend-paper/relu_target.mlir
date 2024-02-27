@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
   func.func public @relu(%X: memref<16x16xf64>, %Y: memref<16x16xf64>) {
     %X_moved = builtin.unrealized_conversion_cast %X : memref<16x16xf64> to !riscv.reg<>
