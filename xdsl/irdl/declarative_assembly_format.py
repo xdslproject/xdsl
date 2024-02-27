@@ -255,7 +255,19 @@ class FormatDirective(ABC):
         ...
 
 
-class VariadicLikeFormatDirective(FormatDirective, ABC):
+class AnchorableDirective(FormatDirective, ABC):
+    """
+    Base class for Directive usable as anchors to optional groups.
+    """
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        """
+        Check if the directive is present in the input.
+        """
+        ...
+
+
+class VariadicLikeFormatDirective(AnchorableDirective, ABC):
     """
     Baseclass to help keep typechecking simple.
     VariadicLike is mostly Variadic or Optional: Whatever directive that can accept
@@ -265,7 +277,21 @@ class VariadicLikeFormatDirective(FormatDirective, ABC):
     pass
 
 
-class TypeDirective(FormatDirective, ABC):
+@dataclass(frozen=True)
+class VariableDirective(FormatDirective, ABC):
+    """
+    A variable directive, with the following format:
+      variable-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    name: str
+    """The variable name. This is only used for error message reporting."""
+    index: int
+    """Index of the variable(operand or result) definition."""
+
+
+class TypeDirective(VariableDirective, ABC):
     """
     Base class for Directive meant to parse types.
     """
@@ -273,11 +299,29 @@ class TypeDirective(FormatDirective, ABC):
     pass
 
 
-class VariadicLikeVariable(VariadicLikeFormatDirective, FormatDirective, ABC):
+class VariadicLikeVariable(VariadicLikeFormatDirective, VariableDirective, ABC):
     pass
 
 
-class VariadicLikeTypeDirective(TypeDirective, VariadicLikeFormatDirective, ABC):
+class VariadicVariable(VariadicLikeVariable, ABC):
+    def is_present(self, op: IRDLOperation) -> bool:
+        return len(getattr(op, self.name)) > 0
+
+
+class OptionalVariable(VariadicLikeVariable, ABC):
+    def is_present(self, op: IRDLOperation) -> bool:
+        return getattr(op, self.name) is not None
+
+
+class VariadicLikeTypeDirective(VariadicLikeFormatDirective, VariableDirective, ABC):
+    pass
+
+
+class VariadicTypeDirective(VariadicLikeTypeDirective, VariadicVariable, ABC):
+    pass
+
+
+class OptionalTypeDirective(VariadicLikeTypeDirective, OptionalVariable, ABC):
     pass
 
 
@@ -357,20 +401,6 @@ class AttrDictDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
-class VariableDirective(FormatDirective, ABC):
-    """
-    A variable directive, with the following format:
-      variable-directive ::= dollar-ident
-    The directive will request a space to be printed after.
-    """
-
-    name: str
-    """The variable name. This is only used for error message reporting."""
-    index: int
-    """Index of the variable(operand or result) definition."""
-
-
-@dataclass(frozen=True)
 class OperandVariable(VariableDirective):
     """
     An operand variable, with the following format:
@@ -391,7 +421,7 @@ class OperandVariable(VariableDirective):
 
 
 @dataclass(frozen=True)
-class VariadicOperandVariable(OperandVariable, VariadicLikeVariable):
+class VariadicOperandVariable(OperandVariable, VariadicVariable):
     """
     A variadic operand variable, with the following format:
       operand-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -416,7 +446,7 @@ class VariadicOperandVariable(OperandVariable, VariadicLikeVariable):
             state.should_emit_space = True
 
 
-class OptionalOperandVariable(OperandVariable, VariadicLikeVariable):
+class OptionalOperandVariable(OperandVariable, OptionalVariable):
     """
     An optional operand variable, with the following format:
       operand-directive ::= ( percent-ident )?
@@ -440,7 +470,7 @@ class OptionalOperandVariable(OperandVariable, VariadicLikeVariable):
 
 
 @dataclass(frozen=True)
-class OperandTypeDirective(TypeDirective, VariableDirective):
+class OperandTypeDirective(TypeDirective):
     """
     An operand variable type directive, with the following format:
       operand-type-directive ::= type(dollar-ident)
@@ -460,7 +490,7 @@ class OperandTypeDirective(TypeDirective, VariableDirective):
 
 
 @dataclass(frozen=True)
-class VariadicOperandTypeDirective(OperandTypeDirective, VariadicLikeTypeDirective):
+class VariadicOperandTypeDirective(OperandTypeDirective, VariadicTypeDirective):
     """
     A variadic operand variable, with the following format:
       operand-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -485,7 +515,7 @@ class VariadicOperandTypeDirective(OperandTypeDirective, VariadicLikeTypeDirecti
         state.should_emit_space = True
 
 
-class OptionalOperandTypeDirective(OperandTypeDirective, VariadicLikeTypeDirective):
+class OptionalOperandTypeDirective(OperandTypeDirective, OptionalTypeDirective):
     """
     An optional operand variable type directive, with the following format:
       operand-type-directive ::= ( type(dollar-ident) )?
@@ -531,7 +561,7 @@ class ResultVariable(VariableDirective):
 
 
 @dataclass(frozen=True)
-class VariadicResultVariable(ResultVariable, VariadicLikeVariable):
+class VariadicResultVariable(ResultVariable, VariadicVariable):
     """
     A variadic result variable, with the following format:
       result-directive ::= percent-ident (( `,` percent-id )* )?
@@ -552,7 +582,7 @@ class VariadicResultVariable(ResultVariable, VariadicLikeVariable):
         )
 
 
-class OptionalResultVariable(ResultVariable, VariadicLikeVariable):
+class OptionalResultVariable(ResultVariable, OptionalVariable):
     """
     An optional result variable, with the following format:
       result-directive ::= ( percent-ident )?
@@ -574,7 +604,7 @@ class OptionalResultVariable(ResultVariable, VariadicLikeVariable):
 
 
 @dataclass(frozen=True)
-class ResultTypeDirective(TypeDirective, VariableDirective):
+class ResultTypeDirective(TypeDirective):
     """
     A result variable type directive, with the following format:
       result-type-directive ::= type(dollar-ident)
@@ -594,7 +624,7 @@ class ResultTypeDirective(TypeDirective, VariableDirective):
 
 
 @dataclass(frozen=True)
-class VariadicResultTypeDirective(ResultTypeDirective, VariadicLikeTypeDirective):
+class VariadicResultTypeDirective(ResultTypeDirective, VariadicTypeDirective):
     """
     A variadic result variable type directive, with the following format:
       variadic-result-type-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -619,7 +649,7 @@ class VariadicResultTypeDirective(ResultTypeDirective, VariadicLikeTypeDirective
         state.should_emit_space = True
 
 
-class OptionalResultTypeDirective(ResultTypeDirective, VariadicLikeTypeDirective):
+class OptionalResultTypeDirective(ResultTypeDirective, OptionalTypeDirective):
     """
     An optional result variable type directive, with the following format:
       result-type-directive ::= ( type(dollar-ident) )?

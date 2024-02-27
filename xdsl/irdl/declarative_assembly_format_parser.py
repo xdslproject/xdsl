@@ -39,6 +39,7 @@ from xdsl.irdl.declarative_assembly_format import (
     PunctuationDirective,
     ResultTypeDirective,
     ResultVariable,
+    TypeDirective,
     VariadicLikeFormatDirective,
     VariadicLikeTypeDirective,
     VariadicLikeVariable,
@@ -167,7 +168,9 @@ class FormatParser(BaseParser):
                     self.raise_error(
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
-                case VariadicLikeVariable(), VariadicLikeVariable():
+                case VariadicLikeVariable(), VariadicLikeVariable() if not (
+                    isinstance(a, TypeDirective) or isinstance(b, TypeDirective)
+                ):
                     self.raise_error(
                         "A variadic operand variable cannot be followed by another variadic operand variable."
                     )
