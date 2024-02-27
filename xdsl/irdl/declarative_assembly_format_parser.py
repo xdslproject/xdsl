@@ -79,7 +79,7 @@ class FormatLexer(Lexer):
 
         # We parse '`', `\\` and '$' as a BARE_IDENT.
         # This is a hack to reuse the MLIR lexer.
-        if current_char in ("`", "$", "\\"):
+        if current_char in ("`", "$", "\\", "^"):
             self._consume_chars()
             return self._form_token(Token.Kind.BARE_IDENT, start_pos)
         return super().lex()
