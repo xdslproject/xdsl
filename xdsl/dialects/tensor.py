@@ -1,14 +1,23 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
+from typing import cast
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import IndexType, TensorType
+from xdsl.dialects.builtin import AnySignlessIntegerOrIndexType, IndexType, TensorType
 from xdsl.ir import Attribute, Dialect, SSAValue
-from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def, var_operand_def
+from xdsl.irdl import (
+    IRDLOperation,
+    irdl_op_definition,
+    operand_def,
+    result_def,
+    var_operand_def,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
@@ -60,10 +69,104 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
+@irdl_op_definition
+class ReshapeOp(IRDLOperation):
+    name = "tensor.reshape"
+
+    source = operand_def(TensorType[Attribute])
+    shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
+    result = result_def(TensorType[Attribute])
+
+    def __init__(self, source: SSAValue, shape: SSAValue, result_type: Attribute):
+        super().__init__(
+            operands=(
+                source,
+                shape,
+            ),
+            result_types=(result_type,),
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.source)
+        printer.print_string("(")
+        printer.print_ssa_value(self.shape)
+        printer.print_string(")")
+        printer.print_string(" : ")
+        printer.print_string("(")
+        printer.print_attribute(self.source.type)
+        printer.print_string(", ")
+        printer.print_attribute(self.shape.type)
+        printer.print_string(")")
+        printer.print_string(" -> ")
+        printer.print_attribute(self.result.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        attrs = parser.parse_optional_attr_dict()
+        source = parser.parse_operand()
+        parser.parse_punctuation("(")
+        shape = parser.parse_operand()
+        parser.parse_punctuation(")")
+        parser.parse_punctuation(":")
+        parser.parse_punctuation("(")
+        parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
+        parser.parse_punctuation(")")
+        parser.parse_optional_punctuation("->")
+        result_type = parser.parse_attribute()
+
+        reshape = cls(
+            source,
+            shape,
+            result_type,
+        )
+        reshape.attributes |= attrs
+        return reshape
+
+    def _verify(self) -> None:
+        if (
+            not isinstance(source_type := self.source.type, TensorType)
+            or not isinstance(shape_type := self.shape.type, TensorType)
+            or not isinstance(res_type := self.result.type, TensorType)
+        ):
+            assert (
+                False
+            ), "tensor elementwise operation operands and result must be of type TensorType"
+
+        source_type = cast(TensorType[Attribute], source_type)
+        shape_type = cast(TensorType[Attribute], shape_type)
+        res_type = cast(TensorType[Attribute], res_type)
+
+        if source_type.element_type != res_type.element_type:
+            raise VerifyException(
+                "Element types of source and result tensor types should be the same"
+            )
+
+        source_type = source_type.get_shape()
+        shape_type = shape_type.get_shape()
+        res_type = res_type.get_shape()
+
+        if len(shape_type) != 1:
+            raise VerifyException("Shape tensor must have a rank one")
+
+        # concerns the case of static reshaping
+        if math.prod(source_type) != math.prod(res_type):
+            raise VerifyException(
+                "Source and result tensor should have the same number of elements"
+            )
+
+        shape_size = shape_type[0]
+        if shape_size != len(res_type):
+            raise VerifyException(
+                "Length of shape operand differs from the result's tensor rank"
+            )
+
+
 Tensor = Dialect(
     "tensor",
     [
         EmptyOp,
+        ReshapeOp,
     ],
     [],
 )
