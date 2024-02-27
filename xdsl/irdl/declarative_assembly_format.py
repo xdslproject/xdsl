@@ -267,7 +267,25 @@ class AnchorableDirective(FormatDirective, ABC):
         ...
 
 
-class VariadicLikeFormatDirective(AnchorableDirective, ABC):
+class OptionallyParsableDirective(FormatDirective):
+    """
+    Base class for Directive that can be optionally parsed.
+    Those are the ones usable as first element of an optional group.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        """
+        Try parsing the directive and return if it was present.
+        """
+        ...
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        self.parse_optional(parser, state)
+
+
+class VariadicLikeFormatDirective(
+    AnchorableDirective, OptionallyParsableDirective, ABC
+):
     """
     Baseclass to help keep typechecking simple.
     VariadicLike is mostly Variadic or Optional: Whatever directive that can accept
@@ -726,7 +744,7 @@ class WhitespaceDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
-class PunctuationDirective(FormatDirective):
+class PunctuationDirective(OptionallyParsableDirective):
     """
     A punctuation directive, with the following format:
       punctuation-directive ::= punctuation
@@ -739,6 +757,9 @@ class PunctuationDirective(FormatDirective):
 
     punctuation: Token.PunctuationSpelling
     """The punctuation that should be printed/parsed."""
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        return parser.parse_optional_punctuation(self.punctuation) is not None
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         parser.parse_punctuation(self.punctuation)
@@ -762,7 +783,7 @@ class PunctuationDirective(FormatDirective):
 
 
 @dataclass(frozen=True)
-class KeywordDirective(FormatDirective):
+class KeywordDirective(OptionallyParsableDirective):
     """
     A keyword directive, with the following format:
       keyword-directive ::= bare-ident
@@ -773,6 +794,9 @@ class KeywordDirective(FormatDirective):
     keyword: str
     """The identifier that should be printed."""
 
+    def parse_optional(self, parser: Parser, state: ParsingState):
+        return parser.parse_optional_keyword(self.keyword) is not None
+
     def parse(self, parser: Parser, state: ParsingState):
         parser.parse_keyword(self.keyword)
 
@@ -782,3 +806,34 @@ class KeywordDirective(FormatDirective):
         printer.print(self.keyword)
         state.should_emit_space = True
         state.last_was_punctuation = False
+
+
+@dataclass(frozen=True)
+class OptionalGroupDirective(FormatDirective):
+    anchor: AnchorableDirective
+    then_first: OptionallyParsableDirective
+    then_elements: tuple[FormatDirective, ...]
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        # If the first element was parsed, parse the then-elements as usual
+        if self.then_first.parse_optional(parser, state):
+            for element in self.then_elements:
+                element.parse(parser, state)
+        # Otherwise, just explicitly set the variadic/optional variables and
+        # type to empty
+        else:
+            for element in self.then_elements:
+                match element:
+                    case OperandVariable(_, index):
+                        state.operands[index] = list[UnresolvedOperand | None]()
+                    case OperandTypeDirective(_, index):
+                        state.operand_types[index] = list[Attribute | None]()
+                    case ResultTypeDirective(_, index):
+                        state.result_types[index] = list[Attribute | None]()
+                    case _:
+                        pass
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if self.anchor.is_present(op):
+            for element in (self.then_first, *self.then_elements):
+                element.print(printer, state, op)

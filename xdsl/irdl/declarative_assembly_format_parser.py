@@ -24,6 +24,7 @@ from xdsl.irdl import (
     VarResultDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
+    AnchorableDirective,
     AttrDictDirective,
     AttributeVariable,
     FormatDirective,
@@ -32,6 +33,8 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandOrResult,
     OperandTypeDirective,
     OperandVariable,
+    OptionalGroupDirective,
+    OptionallyParsableDirective,
     OptionalOperandTypeDirective,
     OptionalOperandVariable,
     OptionalResultTypeDirective,
@@ -414,6 +417,37 @@ class FormatParser(BaseParser):
         self.context = previous_context
         return res
 
+    def parse_optional_group(self) -> FormatDirective:
+        """
+        Parse an optional group, with the following format:
+          group ::= `(` then-elements `)` `?`
+        """
+        then_elements: tuple[FormatDirective, ...] = ()
+        anchor: FormatDirective | None = None
+
+        while not self.parse_optional_punctuation(")"):
+            then_elements += (self.parse_directive(),)
+            if self.parse_optional_keyword("^"):
+                if anchor is not None:
+                    self.raise_error("multiple anchors in a group")
+                anchor = then_elements[-1]
+        self.parse_punctuation("?")
+
+        if anchor is None:
+            self.raise_error("no anchor in a group")
+        if not then_elements:
+            self.raise_error("empty group")
+        # TODO: allow attribute and region variables when implemented.
+        if not isinstance(then_elements[0], OptionallyParsableDirective):
+            self.raise_error(
+                "first then-element of a group must be a litteral, operand, region or"
+                "attribute"
+            )
+        if not isinstance(anchor, AnchorableDirective):
+            self.raise_error("anchor must be an anchorable directive")
+
+        return OptionalGroupDirective(anchor, then_elements[0], then_elements[1:])
+
     def parse_keyword_or_punctuation(self) -> FormatDirective:
         """
         Parse a keyword or a punctuation directive, with the following format:
@@ -472,6 +506,8 @@ class FormatParser(BaseParser):
             return self.parse_type_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
+        if self.parse_optional_punctuation("("):
+            return self.parse_optional_group()
         if variable := self.parse_optional_variable():
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
