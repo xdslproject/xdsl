@@ -353,7 +353,7 @@ class AttrDictDirective(FormatDirective):
 
         # This is changed only if something was printed
         state.last_was_punctuation = False
-        state.should_emit_space = False
+        state.should_emit_space = True
 
 
 @dataclass(frozen=True)
