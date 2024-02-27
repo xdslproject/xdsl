@@ -1310,7 +1310,7 @@ def test_optional_group_checkers(format: str, error: str):
     ):
 
         @irdl_op_definition
-        class WrongOptionalGroupOp(IRDLOperation):
+        class WrongOptionalGroupOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.wrong_optional_group"
 
             args = var_operand_def()
