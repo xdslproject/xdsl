@@ -129,7 +129,7 @@ class ReshapeOpLowering(RewritePattern):
                 raise NotImplementedError()
 
         # Lowering with `allowzero = 1` attribute not supported"
-        if "allowzero" in reshape.attributes and reshape.attributes["allowzero"]:
+        if "allowzero" in reshape.attributes and reshape.attributes["allowzero"] == 1:
             raise NotImplementedError()
 
         rewriter.replace_matched_op(
