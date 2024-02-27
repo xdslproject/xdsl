@@ -16,5 +16,5 @@
 // CHECK-NEXT:  %3 = tensor.empty(%2) : tensor<?xf32>
 // CHECK-NEXT:  %4 = "test.op"() {value = dense<1.000000e-01> : tensor<4x1xf32>} : () -> tensor<4x1xf32>
 // CHECK-NEXT:  %5 = "test.op"() : () -> tensor<1xi32>
-// CHECK-NEXT:  %6 = tensor.reshape %4(%5) : (tensor<4x1xf32>, tensor<1xi32>) -> tensor<4xf32>
+// CHECK-NEXT:  %reshape = tensor.reshape %4(%5) : (tensor<4x1xf32>, tensor<1xi32>) -> tensor<4xf32>
 // CHECK-NEXT: }
