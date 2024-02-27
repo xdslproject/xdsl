@@ -1285,3 +1285,36 @@ def test_optional_group_variadic_result_anchor(
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, error",
+    (
+        ("()?", "An optional group cannot be empty"),
+        ("(`keyword`)?", "Every optional group must have an anchor."),
+        (
+            "($args^ type($rets)^)?",
+            "An optional group can only have one anchor.",
+        ),
+        ("(`keyword`^)?", "An optional group's anchor must be an achorable directive."),
+        (
+            "($mandatory_arg^)?",
+            "First element of an optional group must be optionally parsable.",
+        ),
+    ),
+)
+def test_optional_group_checkers(format: str, error: str):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=error,
+    ):
+
+        @irdl_op_definition
+        class WrongOptionalGroupOp(IRDLOperation):
+            name = "test.wrong_optional_group"
+
+            args = var_operand_def()
+            rets = var_result_def()
+            mandatory_arg = operand_def()
+
+            assembly_format = format

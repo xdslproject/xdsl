@@ -429,22 +429,23 @@ class FormatParser(BaseParser):
             then_elements += (self.parse_directive(),)
             if self.parse_optional_keyword("^"):
                 if anchor is not None:
-                    self.raise_error("multiple anchors in a group")
+                    self.raise_error("An optional group can only have one anchor.")
                 anchor = then_elements[-1]
         self.parse_punctuation("?")
 
-        if anchor is None:
-            self.raise_error("no anchor in a group")
         if not then_elements:
-            self.raise_error("empty group")
+            self.raise_error("An optional group cannot be empty")
+        if anchor is None:
+            self.raise_error("Every optional group must have an anchor.")
         # TODO: allow attribute and region variables when implemented.
         if not isinstance(then_elements[0], OptionallyParsableDirective):
             self.raise_error(
-                "first then-element of a group must be a litteral, operand, region or"
-                "attribute"
+                "First element of an optional group must be optionally parsable."
             )
         if not isinstance(anchor, AnchorableDirective):
-            self.raise_error("anchor must be an anchorable directive")
+            self.raise_error(
+                "An optional group's anchor must be an achorable directive."
+            )
 
         return OptionalGroupDirective(anchor, then_elements[0], then_elements[1:])
 
