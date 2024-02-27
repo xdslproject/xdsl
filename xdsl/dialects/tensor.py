@@ -139,7 +139,7 @@ class ReshapeOp(IRDLOperation):
 
         if source_type.element_type != res_type.element_type:
             raise VerifyException(
-                "Element types of source and result tensor types should be the same"
+                "element types of source and result tensor types should be the same"
             )
 
         source_type = source_type.get_shape()
@@ -147,18 +147,18 @@ class ReshapeOp(IRDLOperation):
         res_type = res_type.get_shape()
 
         if len(shape_type) != 1:
-            raise VerifyException("Shape tensor must have a rank one")
+            raise VerifyException("shape tensor must have a rank one")
 
         # concerns the case of static reshaping
         if math.prod(source_type) != math.prod(res_type):
             raise VerifyException(
-                "Source and result tensor should have the same number of elements"
+                "source and result tensor should have the same number of elements"
             )
 
         shape_size = shape_type[0]
         if shape_size != len(res_type):
             raise VerifyException(
-                "Length of shape operand differs from the result's tensor rank"
+                "length of shape operand differs from the result's tensor rank"
             )
 
 
