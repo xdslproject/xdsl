@@ -1143,3 +1143,73 @@ def test_chained_variadic_operands_safeguard(
             assembly_format = "$variadic_one $variadic_two `:` type($variadic_one) `<` type($variadic_two) `>` attr-dict"
 
             irdl_options = [AttrSizedOperandSegments()]
+
+
+@pytest.mark.parametrize("variadic_def", [var_operand_def, opt_operand_def])
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\n' "test.optional_group(%0 : i32)",
+            '%0 = "test.op"() : () -> i32\n' '"test.optional_group"(%0) : (i32) -> ()',
+        ),
+        (
+            "test.optional_group",
+            '"test.optional_group"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_group_operand_anchor(
+    variadic_def: Callable[[], VarOperand | VarOpResult],
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalGroupOp(IRDLOperation):
+        name = "test.optional_group"
+
+        args = variadic_def()
+
+        assembly_format = "(`(` $args^ `:` type($args) `)`)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize("variadic_def", [var_result_def, opt_result_def])
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "%0 = test.optional_group(i32)",
+            '%0 = "test.optional_group"() : () -> (i32)',
+        ),
+        (
+            "test.optional_group",
+            '"test.optional_group"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_group_result_anchor(
+    variadic_def: Callable[[], VarOperand | VarOpResult],
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalGroupOp(IRDLOperation):
+        name = "test.optional_group"
+
+        res = variadic_def()
+
+        assembly_format = "(`(` type($res)^ `)`)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
