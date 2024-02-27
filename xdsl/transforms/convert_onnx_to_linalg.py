@@ -41,7 +41,7 @@ class AddOpLowering(RewritePattern):
             lhs_shape = lhs_type.get_shape()
             rhs_shape = rhs_type.get_shape()
 
-            if 1 in lhs_shape or 1 in rhs_shape:
+            if -1 in lhs_shape or -1 in rhs_shape:
                 raise NotImplementedError()
 
         rewriter.replace_matched_op(
