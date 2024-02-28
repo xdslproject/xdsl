@@ -24,6 +24,7 @@ from xdsl.irdl import (
     VarResultDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
+    AnchorableDirective,
     AttrDictDirective,
     AttributeVariable,
     FormatDirective,
@@ -32,6 +33,8 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandOrResult,
     OperandTypeDirective,
     OperandVariable,
+    OptionalGroupDirective,
+    OptionallyParsableDirective,
     OptionalOperandTypeDirective,
     OptionalOperandVariable,
     OptionalResultTypeDirective,
@@ -39,6 +42,7 @@ from xdsl.irdl.declarative_assembly_format import (
     PunctuationDirective,
     ResultTypeDirective,
     ResultVariable,
+    TypeDirective,
     VariadicLikeFormatDirective,
     VariadicLikeTypeDirective,
     VariadicLikeVariable,
@@ -75,7 +79,7 @@ class FormatLexer(Lexer):
 
         # We parse '`', `\\` and '$' as a BARE_IDENT.
         # This is a hack to reuse the MLIR lexer.
-        if current_char in ("`", "$", "\\"):
+        if current_char in ("`", "$", "\\", "^"):
             self._consume_chars()
             return self._form_token(Token.Kind.BARE_IDENT, start_pos)
         return super().lex()
@@ -167,7 +171,9 @@ class FormatParser(BaseParser):
                     self.raise_error(
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
-                case VariadicLikeVariable(), VariadicLikeVariable():
+                case VariadicLikeVariable(), VariadicLikeVariable() if not (
+                    isinstance(a, TypeDirective) or isinstance(b, TypeDirective)
+                ):
                     self.raise_error(
                         "A variadic operand variable cannot be followed by another variadic operand variable."
                     )
@@ -411,6 +417,38 @@ class FormatParser(BaseParser):
         self.context = previous_context
         return res
 
+    def parse_optional_group(self) -> FormatDirective:
+        """
+        Parse an optional group, with the following format:
+          group ::= `(` then-elements `)` `?`
+        """
+        then_elements: tuple[FormatDirective, ...] = ()
+        anchor: FormatDirective | None = None
+
+        while not self.parse_optional_punctuation(")"):
+            then_elements += (self.parse_directive(),)
+            if self.parse_optional_keyword("^"):
+                if anchor is not None:
+                    self.raise_error("An optional group can only have one anchor.")
+                anchor = then_elements[-1]
+        self.parse_punctuation("?")
+
+        if not then_elements:
+            self.raise_error("An optional group cannot be empty")
+        if anchor is None:
+            self.raise_error("Every optional group must have an anchor.")
+        # TODO: allow attribute and region variables when implemented.
+        if not isinstance(then_elements[0], OptionallyParsableDirective):
+            self.raise_error(
+                "First element of an optional group must be optionally parsable."
+            )
+        if not isinstance(anchor, AnchorableDirective):
+            self.raise_error(
+                "An optional group's anchor must be an achorable directive."
+            )
+
+        return OptionalGroupDirective(anchor, then_elements[0], then_elements[1:])
+
     def parse_keyword_or_punctuation(self) -> FormatDirective:
         """
         Parse a keyword or a punctuation directive, with the following format:
@@ -469,6 +507,8 @@ class FormatParser(BaseParser):
             return self.parse_type_directive()
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
+        if self.parse_optional_punctuation("("):
+            return self.parse_optional_group()
         if variable := self.parse_optional_variable():
             return variable
         self.raise_error(f"unexpected token '{self._current_token.text}'")
