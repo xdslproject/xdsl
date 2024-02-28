@@ -33,7 +33,7 @@ memref_stream.streaming_region {
 // CHECK-NEXT:  %{{.*}} = builtin.unrealized_conversion_cast %A : memref<2xf64> to !riscv.reg<>
 // CHECK-NEXT:  %{{.*}} = builtin.unrealized_conversion_cast %B : memref<3xf64> to !riscv.reg<>
 // CHECK-NEXT:  %{{.*}} = builtin.unrealized_conversion_cast %C : memref<3x2xf64> to !riscv.reg<>
-// CHECK-NEXT:    "snitch_stream.streaming_region"(%2, %3, %4) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [2, 3], strides = [0, 8]>, #snitch_stream.stride_pattern<ub = [2, 3], strides = [8, 0]>, #snitch_stream.stride_pattern<ub = [2, 3], strides = [8, 16]>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%2, %3, %4) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [2, 3], strides = [0, 8]>, #snitch_stream.stride_pattern<ub = [2, 3], strides = [8, 0]>, #snitch_stream.stride_pattern<ub = [6], strides = [8]>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
 // CHECK-NEXT:  ^0(%a : !stream.readable<!riscv.freg<>>, %b : !stream.readable<!riscv.freg<>>, %c : !stream.writable<!riscv.freg<>>):
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %a : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %b : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
@@ -54,7 +54,7 @@ memref_stream.streaming_region {
 
 // CHECK-NEXT:  %{{.*}} = builtin.unrealized_conversion_cast %C : memref<3x2xf64> to !riscv.reg<>
 // CHECK-NEXT:  %{{.*}} = builtin.unrealized_conversion_cast %C : memref<3x2xf64> to !riscv.reg<>
-// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [2, 3], strides = [8, 16]>], "operandSegmentSizes" = array<i32: 2, 0>}> ({
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [6], strides = [8]>], "operandSegmentSizes" = array<i32: 2, 0>}> ({
 // CHECK-NEXT:  ^{{.*}}(%c0 : !stream.readable<!riscv.freg<>>, %c1 : !stream.readable<!riscv.freg<>>):
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %c0 : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %c1 : !stream.readable<!riscv.freg<>> to !stream.readable<f64>

@@ -24,6 +24,25 @@ def test_stride_pattern_offsets():
     ).offsets() == tuple(range(24))
 
 
+def test_simplify_stride_pattern():
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (4, 3, 2), (1, 4, 12)
+    ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides((24,), (1,))
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (2, 3), (8, 16)
+    ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides((6,), (8,))
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (2, 3), (0, 8)
+    ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides(
+        (2, 3), (0, 8)
+    )
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (2, 3), (8, 0)
+    ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides(
+        (2, 3), (8, 0)
+    )
+
+
 def test_snitch_stream_interpreter():
     register = riscv.IntRegisterType.unallocated()
 

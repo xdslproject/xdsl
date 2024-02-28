@@ -137,6 +137,43 @@ class StridePattern(ParametrizedAttribute):
     def offsets(self) -> tuple[int, ...]:
         return tuple(self.offset_iter())
 
+    def simplified(self) -> StridePattern:
+        """
+        Return a stride pattern that specifies the same iteration space, but with folded
+        perfectly nested outermost loops.
+
+        e.g.
+
+        ```
+        stride_pattern<ub = [4, 3, 2], strides = [1, 4, 12]>
+        ->
+        stride_pattern<ub = [24], strides = [1]
+        ```
+        """
+        if len(self.ub) < 2:
+            return self
+        d = -2
+        # Outermost bound and stride
+        ub0 = self.ub.data[-1].data
+        s0 = self.strides.data[-1].data
+        for d in range(-2, -len(self.strides) - 1, -1):
+            # Next bound and stride to fold into outermost
+            ubd = self.ub.data[d].data
+            sd = self.strides.data[d].data
+            if s0 == ubd * sd:
+                # The second outermost loop is perfectly nested in outermost
+                ub0 = ub0 * ubd
+                s0 = sd
+            else:
+                # The second outermost loop does not match, do not try to further simplify
+                d += 1
+                break
+
+        ub = (*(bound.data for bound in self.ub.data[:d]), ub0)
+        s = (*(stride.data for stride in self.strides.data[:d]), s0)
+
+        return StridePattern.from_bounds_and_strides(ub, s)
+
 
 @irdl_op_definition
 class StreamingRegionOp(IRDLOperation):
