@@ -21,7 +21,8 @@ if the register is configured as a writable stream register, then it cannot be r
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
+from itertools import product
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
@@ -122,6 +123,19 @@ class StridePattern(ParametrizedAttribute):
             raise VerifyException(
                 f"Expect stride pattern upper bounds {self.ub} to be equal in length to strides {self.strides}"
             )
+
+    def offset_iter(self) -> Iterator[int]:
+        for indices in product(
+            *(range(bound.data) for bound in reversed(self.ub.data))
+        ):
+            indices: tuple[int, ...] = indices
+            yield sum(
+                index * stride.data
+                for (index, stride) in zip(indices, reversed(self.strides.data))
+            )
+
+    def offsets(self) -> tuple[int, ...]:
+        return tuple(self.offset_iter())
 
 
 @irdl_op_definition

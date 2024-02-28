@@ -4,44 +4,24 @@ from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
-from xdsl.interpreters.snitch_stream import (
-    SnitchStreamFunctions,
-    indexing_map_from_bounds,
-    offset_map_from_strides,
-)
+from xdsl.interpreters.snitch_stream import SnitchStreamFunctions
 from xdsl.ir import Block, Region
-from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
 
-def test_indexing_map_constructor():
-    assert indexing_map_from_bounds([]) == AffineMap(1, 0, ())
-    assert indexing_map_from_bounds([2]) == AffineMap(
-        1, 0, (AffineExpr.dimension(0) % 2,)
-    )
-    assert indexing_map_from_bounds([3, 2]) == AffineMap(
-        1, 0, (AffineExpr.dimension(0).floor_div(3) % 2, AffineExpr.dimension(0) % 3)
-    )
-    assert indexing_map_from_bounds([4, 3, 2]) == AffineMap(
-        1,
-        0,
-        (
-            AffineExpr.dimension(0).floor_div(12) % 2,
-            AffineExpr.dimension(0).floor_div(4) % 3,
-            AffineExpr.dimension(0) % 4,
-        ),
-    )
-
-
-def test_offset_map_constructor():
-    assert offset_map_from_strides([]) == AffineMap(1, 0, ())
-    assert offset_map_from_strides([2]) == AffineMap.from_callable(lambda i: (i * 2,))
-    assert offset_map_from_strides([1, 2]) == AffineMap.from_callable(
-        lambda i, j: (i * 2 + j * 1,)
-    )
-    assert offset_map_from_strides([1, 2, 3]) == AffineMap.from_callable(
-        lambda i, j, k: (i * 3 + j * 2 + k * 1,)
-    )
+def test_stride_pattern_offsets():
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (6,), (1,)
+    ).offsets() == tuple(range(6))
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (6,), (2,)
+    ).offsets() == tuple(range(0, 12, 2))
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (2, 3), (1, 2)
+    ).offsets() == tuple(range(6))
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (2, 3, 4), (1, 2, 6)
+    ).offsets() == tuple(range(24))
 
 
 def test_snitch_stream_interpreter():
@@ -67,7 +47,7 @@ def test_snitch_stream_interpreter():
     )
 
     with ImplicitBuilder(streaming_region_body) as (a_stream, b_stream, c_stream):
-        count_reg = riscv.LiOp(6).rd
+        count_reg = riscv.LiOp(5).rd
 
         frep_body = Region(Block())
 
