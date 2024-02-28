@@ -72,7 +72,7 @@ class InnerSymTarget:
 class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
-    name = "hw.inner_name_ref"
+    name = "hw.innerNameRef"
     module_ref: ParameterDef[FlatSymbolRefAttr]
     # NB. upstream defines as “name” which clashes with Attribute.name
     sym_name: ParameterDef[StringAttr]
