@@ -78,7 +78,7 @@ class AllocateRiscvSnitchWriteRegisters(RewritePattern):
         op.value.type = stream_type.element_type
 
 
-@dataclass
+@dataclass(frozen=True)
 class SnitchRegisterAllocation(ModulePass):
     """
     Allocates unallocated registers for snitch operations.

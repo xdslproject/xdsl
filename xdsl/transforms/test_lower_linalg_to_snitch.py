@@ -26,7 +26,7 @@ class TestLowerLinalgToSnitchPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PipelinePass(
-            [
+            (
                 RiscvCommonSubexpressionElimination(),
                 ConvertRiscvScfForToFrepPass(),
                 SnitchRegisterAllocation(),
@@ -39,5 +39,5 @@ class TestLowerLinalgToSnitchPass(ModulePass):
                 CanonicalizePass(),
                 ConvertRiscvScfToRiscvCfPass(),
                 CanonicalizePass(),
-            ]
+            )
         ).apply(ctx, op)

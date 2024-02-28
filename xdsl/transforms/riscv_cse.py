@@ -38,7 +38,7 @@ def cse(rewriter: Rewriter, block: Block) -> None:
                 op_by_operands[operands] = op
 
 
-@dataclass
+@dataclass(frozen=True)
 class RiscvCommonSubexpressionElimination(ModulePass):
     """
     Eliminates common sub-expressions on unallocated registers per block.

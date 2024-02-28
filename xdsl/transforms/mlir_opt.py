@@ -12,7 +12,7 @@ from xdsl.printer import Printer
 from xdsl.utils.exceptions import DiagnosticException
 
 
-@dataclass
+@dataclass(frozen=True)
 class MLIROptPass(ModulePass):
     """
     A pass for calling the `mlir-opt` tool with specified parameters. Will fail if
@@ -22,7 +22,7 @@ class MLIROptPass(ModulePass):
     name = "mlir-opt"
 
     generic: bool = field(default=True)
-    arguments: list[str] = field(default_factory=list)
+    arguments: tuple[str, ...] = field(default=())
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         if not shutil.which("mlir-opt"):
