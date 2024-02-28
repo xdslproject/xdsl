@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
 )
-from xdsl.ir import Attribute, Data, Dialect, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, EnumAttribute, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -51,7 +51,7 @@ class IteratorType(StrEnum):
 
 
 @irdl_attr_definition
-class IteratorTypeAttr(Data[IteratorType]):
+class IteratorTypeAttr(EnumAttribute[IteratorType]):
     name = "linalg.iterator_type"
 
     @classmethod
@@ -69,24 +69,11 @@ class IteratorTypeAttr(Data[IteratorType]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
         with parser.in_angle_brackets():
-            if parser.parse_optional_keyword("parallel") is not None:
-                return IteratorType.PARALLEL
-            if parser.parse_optional_keyword("reduction") is not None:
-                return IteratorType.REDUCTION
-            if parser.parse_optional_keyword("window") is not None:
-                return IteratorType.WINDOW
-            parser.raise_error("`parallel`, `reduction` or `window` expected")
+            return super().parse_parameter(parser)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            data = self.data
-            match data:
-                case IteratorType.PARALLEL:
-                    printer.print_string("parallel")
-                case IteratorType.REDUCTION:
-                    printer.print_string("reduction")
-                case IteratorType.WINDOW:
-                    printer.print_string("window")
+            super().print_parameter(printer)
 
 
 @irdl_op_definition

@@ -15,7 +15,6 @@ from typing import (
     Protocol,
     TypeVar,
     cast,
-    final,
     get_args,
     get_origin,
     overload,
@@ -594,11 +593,9 @@ class EnumAttribute(Data[EnumType]):
 
         cls.enum_type = enum_type
 
-    @final
     def print_parameter(self, printer: Printer) -> None:
         printer.print(self.data.value)
 
-    @final
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
         enum_type = cls.enum_type
