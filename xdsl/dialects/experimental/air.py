@@ -37,6 +37,7 @@ from xdsl.irdl import (
     opt_prop_def,
     opt_region_def,
     opt_result_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -83,15 +84,13 @@ class AllocOp(IRDLOperation):
 class ChannelOp(IRDLOperation):
     name = "air.channel"
 
-    sym_name = attr_def(SymbolRefAttr)
-    size = attr_def(ArrayAttr)
+    sym_name = prop_def(StringAttr)
+    size = prop_def(ArrayAttr)
 
     def __init__(
-        self, sym_name: StringAttr | SymbolRefAttr, size: ArrayAttr[AnyIntegerAttr]
+        self, sym_name: StringAttr, size: ArrayAttr[AnyIntegerAttr]
     ):  # TODO: add verify to check 64-bit integer array attribute
-        if isinstance(sym_name, StringAttr):
-            sym_name = SymbolRefAttr(sym_name)
-        super().__init__(attributes={"sym_name": sym_name, "size": size})
+        super().__init__(properties={"sym_name": sym_name, "size": size})
 
     assembly_format = "$sym_name $size attr-dict"
 
@@ -124,7 +123,7 @@ class ChannelGetOp(IRDLOperation):
 class ChannelPutOp(IRDLOperation):
     name = "air.channel.put"
 
-    chan_name = attr_def(SymbolRefAttr)
+    chan_name = prop_def(SymbolRefAttr)
 
     async_dependencies = var_operand_def(AsyncTokenAttr)
     indices = var_operand_def(IndexType)
