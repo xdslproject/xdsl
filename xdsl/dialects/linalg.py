@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from enum import Enum
+from enum import auto
 from typing import cast
 
 from typing_extensions import Self
@@ -39,14 +39,15 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
-class IteratorType(Enum):
+class IteratorType(StrEnum):
     "Iterator type for linalg trait"
 
-    PARALLEL = "parallel"
-    REDUCTION = "reduction"
-    WINDOW = "window"
+    PARALLEL = auto()
+    REDUCTION = auto()
+    WINDOW = auto()
 
 
 @irdl_attr_definition
@@ -200,9 +201,7 @@ class Generic(IRDLOperation):
         printer.print_string(", iterator_types = [")
         printer.print_list(
             self.iterator_types,
-            lambda iterator_type: printer.print_string_literal(
-                iterator_type.data.value
-            ),
+            lambda iterator_type: printer.print_string_literal(iterator_type.data),
         )
         printer.print_string("]")
         if self.doc:
