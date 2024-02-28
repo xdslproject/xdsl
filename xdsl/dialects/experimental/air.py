@@ -34,6 +34,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     opt_region_def,
     opt_result_def,
     region_def,
@@ -469,7 +470,7 @@ class HerdTerminatorOp(IRDLOperation):
 class HerdOp(IRDLOperation):
     name = "air.herd"
 
-    sym_name = opt_attr_def(StringAttr)
+    sym_name = opt_prop_def(StringAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
     herd_operands = var_operand_def(AnyAttr())
@@ -491,7 +492,7 @@ class HerdOp(IRDLOperation):
         region: Region | None,
     ):
         super().__init__(
-            attributes={"sym_name": sym_name},
+            properties={"sym_name": sym_name},
             operands=[async_dependencies, sizes, herd_operands],
             result_types=[AsyncTokenAttr()],
             regions=[region],
@@ -524,16 +525,24 @@ class HerdOp(IRDLOperation):
         if self.herd_operands:
             printer.print(" args")
             printer.print("(")
-            if len(self.sizes) == 1:
-                printer.print("%\\ext0 = ")
-            if len(self.sizes) == 2:
+            if len(self.herd_operands) == 1:
+                printer.print("%ext0 = ")
+                printer.print(self.herd_operands[0])
+            if len(self.herd_operands) == 2:
                 printer.print("%ext0 = ")
                 printer.print(self.herd_operands[0])
                 printer.print(", ")
                 printer.print("ext1 = ")
                 printer.print(self.herd_operands[1])
-            if len(self.sizes) == 3:
+            if len(self.herd_operands) == 3:
                 printer.print("%ext0 = ")
+                printer.print(self.herd_operands[0])
+                printer.print(", ")
+                printer.print("%ext1 = ")
+                printer.print(self.herd_operands[1])
+                printer.print(", ")
+                printer.print("%ext2 = ")
+                printer.print(self.herd_operands[2])
 
         printer.print(" : ")
         for n_arg in range(len(self.herd_operands)):
