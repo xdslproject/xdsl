@@ -26,6 +26,9 @@ def test_stride_pattern_offsets():
 
 def test_simplify_stride_pattern():
     assert snitch_stream.StridePattern.from_bounds_and_strides(
+        (24,), (1,)
+    ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides((24,), (1,))
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
         (4, 3, 2), (1, 4, 12)
     ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides((24,), (1,))
     assert snitch_stream.StridePattern.from_bounds_and_strides(
