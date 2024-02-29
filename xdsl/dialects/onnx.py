@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from abc import ABC
 from typing import Annotated, cast
 
@@ -391,7 +392,7 @@ class Reshape(IRDLOperation):
             raise VerifyException("Shape tensor must have a rank one")
 
         # The input tensor's shape and the output tensor's shape are required to have the same number of elements.
-        if len(data_type) != len(reshaped_type):
+        if math.prod(data_type) != math.prod(reshaped_type):
             raise VerifyException(
                 "Input tensor's shape and output tensor's shape must have the same number of elements"
             )
