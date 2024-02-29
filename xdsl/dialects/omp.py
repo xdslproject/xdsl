@@ -10,7 +10,13 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Attribute, Dialect, EnumAttribute, OpaqueSyntaxAttribute, StrEnum
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    SpacedOpaqueSyntaxAttribute,
+    StrEnum,
+)
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -42,17 +48,19 @@ class OrderKind(StrEnum):
 
 
 @irdl_attr_definition
-class ScheduleKindAttr(EnumAttribute[ScheduleKind], OpaqueSyntaxAttribute):
+class ScheduleKindAttr(EnumAttribute[ScheduleKind], SpacedOpaqueSyntaxAttribute):
     name = "omp.schedulekind"
 
 
 @irdl_attr_definition
-class ScheduleModifierAttr(EnumAttribute[ScheduleModifier], OpaqueSyntaxAttribute):
+class ScheduleModifierAttr(
+    EnumAttribute[ScheduleModifier], SpacedOpaqueSyntaxAttribute
+):
     name = "omp.sched_mod"
 
 
 @irdl_attr_definition
-class OrderKindAttr(EnumAttribute[OrderKind], OpaqueSyntaxAttribute):
+class OrderKindAttr(EnumAttribute[OrderKind], SpacedOpaqueSyntaxAttribute):
     name = "omp.orderkind"
 
 
@@ -91,7 +99,7 @@ class ProcBindKindEnum(StrEnum):
     Spread = auto()
 
 
-class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], OpaqueSyntaxAttribute):
+class ProcBindKindAttr(EnumAttribute[ProcBindKindEnum], SpacedOpaqueSyntaxAttribute):
     name = "omp.procbindkind"
 
 

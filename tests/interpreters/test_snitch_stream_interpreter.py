@@ -1,47 +1,51 @@
+import pytest
+
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
-from xdsl.interpreters.snitch_stream import (
-    SnitchStreamFunctions,
-    indexing_map_from_bounds,
-    offset_map_from_strides,
-)
+from xdsl.interpreters.snitch_stream import SnitchStreamFunctions
 from xdsl.ir import Block, Region
-from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
 
-def test_indexing_map_constructor():
-    assert indexing_map_from_bounds([]) == AffineMap(1, 0, ())
-    assert indexing_map_from_bounds([2]) == AffineMap(
-        1, 0, (AffineExpr.dimension(0) % 2,)
-    )
-    assert indexing_map_from_bounds([3, 2]) == AffineMap(
-        1, 0, (AffineExpr.dimension(0).floor_div(3) % 2, AffineExpr.dimension(0) % 3)
-    )
-    assert indexing_map_from_bounds([4, 3, 2]) == AffineMap(
-        1,
-        0,
-        (
-            AffineExpr.dimension(0).floor_div(12) % 2,
-            AffineExpr.dimension(0).floor_div(4) % 3,
-            AffineExpr.dimension(0) % 4,
-        ),
+@pytest.mark.parametrize(
+    "ub, strides, offsets",
+    [
+        ((6,), (1,), tuple(range(6))),
+        ((6,), (2,), tuple(range(0, 12, 2))),
+        ((2, 3), (1, 2), tuple(range(6))),
+        ((2, 3, 4), (1, 2, 6), tuple(range(24))),
+    ],
+)
+def test_stride_pattern_offsets(
+    ub: tuple[int, ...], strides: tuple[int, ...], offsets: tuple[int, ...]
+):
+    assert (
+        snitch_stream.StridePattern.from_bounds_and_strides(ub, strides).offsets()
+        == offsets
     )
 
 
-def test_offset_map_constructor():
-    assert offset_map_from_strides([]) == AffineMap(1, 0, ())
-    assert offset_map_from_strides([2]) == AffineMap.from_callable(lambda i: (i * 2,))
-    assert offset_map_from_strides([1, 2]) == AffineMap.from_callable(
-        lambda i, j: (i * 2 + j * 1,)
-    )
-    assert offset_map_from_strides([1, 2, 3]) == AffineMap.from_callable(
-        lambda i, j, k: (i * 3 + j * 2 + k * 1,)
-    )
+@pytest.mark.parametrize(
+    "inputs, outputs",
+    [
+        (((24,), (1,)), ((24,), (1,))),
+        (((4, 3, 2), (1, 4, 12)), ((24,), (1,))),
+        (((2, 3), (8, 16)), ((6,), (8,))),
+        (((2, 3), (0, 8)), ((2, 3), (0, 8))),
+        (((2, 3), (8, 0)), ((2, 3), (8, 0))),
+    ],
+)
+def test_simplify_stride_pattern(
+    inputs: tuple[tuple[int, ...], tuple[int, ...]],
+    outputs: tuple[tuple[int, ...], tuple[int, ...]],
+):
+    assert snitch_stream.StridePattern.from_bounds_and_strides(
+        *inputs
+    ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides(*outputs)
 
 
 def test_snitch_stream_interpreter():
@@ -67,7 +71,7 @@ def test_snitch_stream_interpreter():
     )
 
     with ImplicitBuilder(streaming_region_body) as (a_stream, b_stream, c_stream):
-        count_reg = riscv.LiOp(6).rd
+        count_reg = riscv.LiOp(5).rd
 
         frep_body = Region(Block())
 

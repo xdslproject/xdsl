@@ -349,6 +349,8 @@ class Dealloc(IRDLOperation):
     def get(operand: Operation | SSAValue) -> Dealloc:
         return Dealloc.build(operands=[operand])
 
+    assembly_format = "$memref attr-dict `:` type($memref)"
+
 
 @irdl_op_definition
 class GetGlobal(IRDLOperation):

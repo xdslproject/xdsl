@@ -413,7 +413,7 @@ class InputApp(App[None]):
         selected_pass_value, selected_pass_spec = selected_pass.data
 
         # get root to child passes due to tree traversal possibility
-        root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass)
+        root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass)[:-1]
 
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
