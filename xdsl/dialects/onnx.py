@@ -4,6 +4,8 @@ import math
 from abc import ABC
 from typing import Annotated, cast
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
@@ -34,6 +36,8 @@ from xdsl.irdl import (
     opt_attr_def,
     result_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -614,18 +618,16 @@ class Constant(IRDLOperation):
     value_string = opt_attr_def(StringAttr)
     value_strings = opt_attr_def(ArrayAttr[StringAttr])
 
-    assembly_format = "`(``)` attr-dict `:` `(``)` `->` type($output) "
-
     def __init__(
         self,
-        value: Attribute,
-        value_float: Attribute,
-        value_floats: Attribute,
-        value_int: Attribute,
-        value_ints: Attribute,
-        value_string: Attribute,
-        value_strings: Attribute,
-        output_type: Attribute,
+        value: Attribute | None,
+        value_float: Attribute | None,
+        value_floats: Attribute | None,
+        value_int: Attribute | None,
+        value_ints: Attribute | None,
+        value_string: Attribute | None,
+        value_strings: Attribute | None,
+        output_type: Attribute | None,
     ):
         super().__init__(
             attributes={
@@ -672,6 +674,82 @@ class Constant(IRDLOperation):
             raise VerifyException(
                 f"Only one value attribute must be provided, but {used_attrs} were specified"
             )
+
+    def print(self, printer: Printer):
+        if self.value:
+            printer.print_string(" ")
+            printer.print_attribute(self.value)
+        printer.print_string(" ")
+        printer.print_string("{")
+        if self.value_float:
+            printer.print_string("value_float")
+            printer.print_string(" = ")
+            printer.print_attribute(self.value_float)
+        elif self.value_floats:
+            pass
+        elif self.value_int:
+            printer.print_string("value_int")
+            printer.print_string(" = ")
+            printer.print_attribute(self.value_int)
+        elif self.value_ints:
+            printer.print_string("value_ints")
+            printer.print_string(" = ")
+            arr: list[int] = [value.value.data for value in self.value_ints]
+            printer.print(arr)
+        elif self.value_string:
+            pass
+        elif self.value_strings:
+            pass
+        printer.print_string("}")
+        printer.print_string(" : ")
+        printer.print_attribute(self.output.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        value_float = (
+            value_floats
+        ) = (
+            value_int
+        ) = value_ints = value_string = value_strings = value = output_type = None
+        if parser.parse_optional_punctuation("{"):
+            if parser.parse_optional_keyword("value_float"):
+                parser.parse_punctuation("=")
+                value_float = parser.parse_attribute()
+            elif parser.parse_optional_keyword("value_floats"):
+                parser.parse_punctuation("=")
+                value_floats = parser.parse_attribute()
+            elif parser.parse_optional_keyword("value_int"):
+                parser.parse_punctuation("=")
+                value_int = parser.parse_attribute()
+            elif parser.parse_optional_keyword("value_ints"):
+                parser.parse_punctuation("=")
+                value_ints = parser.parse_attribute()
+            elif parser.parse_optional_keyword("value_string"):
+                parser.parse_punctuation("=")
+                value_string = parser.parse_attribute()
+            elif parser.parse_optional_keyword("value_strings"):
+                parser.parse_punctuation("=")
+                value_strings = parser.parse_attribute()
+            parser.parse_punctuation("}")
+            parser.parse_punctuation(":")
+            output_type = parser.parse_type()
+        else:
+            value = parser.parse_attribute()
+            if isinstance(value, DenseIntOrFPElementsAttr):
+                output_type = value.type
+
+        constant = cls(
+            value,
+            value_float,
+            value_floats,
+            value_int,
+            value_ints,
+            value_string,
+            value_strings,
+            output_type,
+        )
+
+        return constant
 
 
 @irdl_op_definition
