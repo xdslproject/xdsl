@@ -353,10 +353,13 @@ class InnerSymAttr(
             syms = ArrayAttr(syms)
         super().__init__([syms])
 
-    def get_sym_if_exists(self, field_id: int) -> StringAttr | None:
+    def get_sym_if_exists(self, field_id: IntAttr | int) -> StringAttr | None:
         """Get the inner sym name for field_id, if it exists."""
+        if not isinstance(field_id, IntAttr):
+            field_id = IntAttr(field_id)
+
         for prop in self.props:
-            if field_id == prop.field_id.data:
+            if field_id == prop.field_id:
                 return prop.sym_name
 
     def get_sym_name(self) -> StringAttr | None:
@@ -371,8 +374,10 @@ class InnerSymAttr(
         """Iterator for all the InnerSymPropertiesAttr."""
         return iter(self.props)
 
-    def erase(self, field_id: int) -> "InnerSymAttr":
+    def erase(self, field_id: IntAttr | int) -> "InnerSymAttr":
         """Return an InnerSymAttr with the inner symbol for the specified field_id removed."""
+        if not isinstance(field_id, IntAttr):
+            field_id = IntAttr(field_id)
         return InnerSymAttr([prop for prop in self.props if prop.field_id != field_id])
 
     @classmethod
