@@ -61,6 +61,7 @@ from xdsl.ir import (
     Operation,
     ParametrizedAttribute,
     Region,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
@@ -678,7 +679,8 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(attribute.name.replace(".", "<", 1))
-            self.print(" ")
+            if isinstance(attribute, SpacedOpaqueSyntaxAttribute):
+                self.print(" ")
         else:
             self.print(attribute.name)
 
