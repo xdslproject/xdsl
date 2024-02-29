@@ -192,6 +192,9 @@ def __(Parser, ctx, mo):
     imperfect_nest_m = Parser(ctx, imperfect_nest_ir).parse_module()
 
     mo.md(f"""
+
+    **TODO 1**
+
     But what if we had imperfect nest loop lowering? The code would look something like this, with the output manipulation done outside of the inner loop:
 
     ``` mlir
@@ -202,7 +205,7 @@ def __(Parser, ctx, mo):
 
 
 @app.cell
-def __(ReconcileUnrealizedCastsPass, apply, ctx, imperfect_nest_m, mo):
+def __(apply, ctx, imperfect_nest_m, mo):
     from xdsl.backend.riscv.lowering import (
         convert_arith_to_riscv,
         convert_func_to_riscv_func,
@@ -211,6 +214,7 @@ def __(ReconcileUnrealizedCastsPass, apply, ctx, imperfect_nest_m, mo):
     )
     from xdsl.passes import PipelinePass
     from xdsl.transforms.convert_memref_stream_to_snitch_stream import ConvertMemrefStreamToSnitch
+    from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 
     to_riscv_pipeline = PipelinePass([
         convert_arith_to_riscv.ConvertArithToRiscvPass(),
@@ -233,6 +237,7 @@ def __(ReconcileUnrealizedCastsPass, apply, ctx, imperfect_nest_m, mo):
     return (
         ConvertMemrefStreamToSnitch,
         PipelinePass,
+        ReconcileUnrealizedCastsPass,
         convert_arith_to_riscv,
         convert_func_to_riscv_func,
         convert_memref_to_riscv,
@@ -261,6 +266,111 @@ def __(apply, ctx, mo, rv_loops_m):
 
 
 @app.cell
+def __(apply, ctx, mo, rv_loops_cse_m):
+    from xdsl.transforms.canonicalize import CanonicalizePass
+    from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
+
+    rv_canonicalized_m = apply(CanonicalizePass(), rv_loops_cse_m, ctx)
+    rv_loops_folded_m = apply(RiscvScfLoopRangeFoldingPass(), rv_canonicalized_m, ctx)
+    rv_loops_folded_m = apply(CanonicalizePass(), rv_loops_folded_m, ctx)
+
+    mo.md(f"""
+    We can then simplify the loop logic with {RiscvScfLoopRangeFoldingPass.name}, and some canonicalization:
+
+    ``` mlir
+    {str(rv_loops_folded_m)}
+    ```
+    """)
+    return (
+        CanonicalizePass,
+        RiscvScfLoopRangeFoldingPass,
+        rv_canonicalized_m,
+        rv_loops_folded_m,
+    )
+
+
+@app.cell
+def __(Parser, ctx, mo):
+    fused_ir = """
+      riscv.assembly_section ".text" {
+        riscv.directive ".globl" "matmul"
+        riscv.directive ".p2align" "2"
+        riscv_func.func @matmul(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, %2 : !riscv.reg<a2>) {
+          %3 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<>
+          %4 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<>
+          %5 = riscv.mv %2 : (!riscv.reg<a2>) -> !riscv.reg<>
+          "snitch_stream.streaming_region"(%3, %4) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [8, 64], strides = [0, 8]>, #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 64, 0]>], "operandSegmentSizes" = array<i32: 2, 0>}> ({
+          ^0(%6 : !stream.readable<!riscv.freg<>>, %7 : !stream.readable<!riscv.freg<>>):
+            %8 = riscv.li 8 : () -> !riscv.reg<>
+            %9 = riscv.get_register : () -> !riscv.reg<zero>
+            %10 = riscv.mv %9 : (!riscv.reg<zero>) -> !riscv.reg<>
+            %11 = riscv.li 1 : () -> !riscv.reg<>
+            %12 = riscv.get_register : () -> !riscv.reg<zero>
+            %13 = riscv.mv %12 : (!riscv.reg<zero>) -> !riscv.reg<>
+            %14 = riscv.li 64 : () -> !riscv.reg<>
+            %15 = riscv.li 8 : () -> !riscv.reg<>
+            riscv_scf.for %16 : !riscv.reg<> = %13 to %14 step %11 {
+                %17 = riscv.li 8 : () -> !riscv.reg<>
+                %20 = riscv.mul %16, %17 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+                %21 = riscv.add %5, %20 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+                %22 = riscv.fld %21, 0 {"comment" = "load double from memref of shape (8, 8)"} : (!riscv.reg<>) -> !riscv.freg<>
+                %23 = riscv.fmv.d %22 : (!riscv.freg<>) -> !riscv.freg<>
+                %24 = riscv_scf.for %25 : !riscv.reg<> = %10 to %8 step %11 iter_args(%26 = %23) -> (!riscv.freg<>) {
+                  %27 = riscv_snitch.read from %6 : !riscv.freg<>
+                  %28 = riscv_snitch.read from %7 : !riscv.freg<>
+                  %29 = riscv.fadd.d %22, %27 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+                  riscv_scf.yield %29 : !riscv.freg<>
+                }
+                riscv.fsd %21, %24, 0 {"comment" = "store double value to memref of shape (8, 8)"} : (!riscv.reg<>, !riscv.freg<>) -> ()
+              }
+          }) : (!riscv.reg<>, !riscv.reg<>) -> ()
+          riscv_func.return
+        }
+      }
+    """
+
+    fused_m = Parser(ctx, fused_ir).parse_module()
+
+
+    mo.md(f"""
+
+    **TODO 2**
+
+    The key pattern to spot there is the nested loop, where the inner loop index iterates until the step of the outer loop.
+    These loops can be fused, to give something like this:
+
+    ``` mlir
+    {str(fused_m)}
+    ```
+    """)
+    return fused_ir, fused_m
+
+
+@app.cell
+def __(
+    CanonicalizePass,
+    RiscvScfLoopRangeFoldingPass,
+    apply,
+    ctx,
+    fused_m,
+    mo,
+):
+    rv_canonicalized_2_m = apply(CanonicalizePass(), fused_m, ctx)
+    rv_loops_folded_2_m = apply(RiscvScfLoopRangeFoldingPass(), rv_canonicalized_2_m, ctx)
+    rv_loops_folded_2_m = apply(CanonicalizePass(), rv_loops_folded_2_m, ctx)
+
+
+    mo.md(f"""
+    We can then do some loop range folding to eliminate the rest of the unnecessary code in the for loop:
+
+    ``` mlir
+    {str(rv_loops_folded_2_m)}
+    ```
+    """)
+    return rv_canonicalized_2_m, rv_loops_folded_2_m
+
+
+@app.cell
 def __(mo):
     mo.md("""
     ## Bottom-up
@@ -271,104 +381,11 @@ def __(mo):
 
 
 @app.cell
-def __(Parser, ctx, mo):
-    b_u_ir = """\
-      func.func @matmul(
-        %X : memref<8x8xf64>,
-        %Y : memref<8x8xf64>,
-        %G : memref<8x8xf64>
-      ) {
-        %X_moved = builtin.unrealized_conversion_cast %X : memref<8x8xf64> to !riscv.reg<>
-        %Y_moved = builtin.unrealized_conversion_cast %Y : memref<8x8xf64> to !riscv.reg<>
-        %G_moved = builtin.unrealized_conversion_cast %G : memref<8x8xf64> to !riscv.reg<>
-
-
-        %c0 = riscv.li 0 : () -> !riscv.reg<>
-        %c1 = riscv.li 1 : () -> !riscv.reg<>
-        %c8 = riscv.li 8 : () -> !riscv.reg<>
-        %c512 = riscv.li 512 : () -> !riscv.reg<>
-
-        "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
-          "stride_patterns" = [
-            #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 0, 64]>,
-            #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 8, 0]>
-          ],
-          "operandSegmentSizes" = array<i32: 2, 0>
-        }> ({
-        ^bb0(%X_stream : !stream.readable<!riscv.freg<>>, %Y_stream : !stream.readable<!riscv.freg<>>):
-          riscv_scf.for %g_i : !riscv.reg<> = %c0 to %c512 step %c8 {
-            %G_dest = riscv.add %G_moved, %g_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-            %init = riscv.fld %G_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
-
-            %g = riscv_scf.for %i : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-              %x = riscv_snitch.read from %X_stream : !riscv.freg<>
-              %y = riscv_snitch.read from %Y_stream : !riscv.freg<>
-              %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-              riscv_scf.yield %res : !riscv.freg<>
-            }
-
-            riscv.fsd %G_dest, %g, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
-
-            riscv_scf.yield
-          }
-        }) : (!riscv.reg<>, !riscv.reg<>) -> ()
-
-        func.return
-      }
-    """
-
-    b_u_m = Parser(ctx, b_u_ir).parse_module()
-
-    mo.md(f"""
-    Here is our partially lowered IR:
-
-    ```
-    {str(b_u_m)}
-    ```
-    """)
-    return b_u_ir, b_u_m
-
-
-@app.cell
-def __(apply, b_u_m, ctx, mo):
-    from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import ConvertFuncToRiscvFuncPass
-
-    riscv_func_m = apply(ConvertFuncToRiscvFuncPass(), b_u_m, ctx)
-
-    mo.md(f"""
-
-    convert-func-to-riscv-func
-
-    ```
-    {str(riscv_func_m)}
-    ```
-    """)
-    return ConvertFuncToRiscvFuncPass, riscv_func_m
-
-
-@app.cell
-def __(apply, ctx, mo, riscv_func_m):
-    from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
-
-    riscv_m = apply(ReconcileUnrealizedCastsPass(), riscv_func_m, ctx)
-
-    mo.md(f"""
-
-    With our lowering to riscv complete, we can remove the casts with `reconcile-unrealized-casts
-
-    ```
-    {str(riscv_m)}
-    ```
-    """)
-    return ReconcileUnrealizedCastsPass, riscv_m
-
-
-@app.cell
-def __(apply, ctx, mo, riscv_m):
+def __(apply, ctx, mo, rv_loops_folded_2_m):
     from xdsl.transforms.test_lower_linalg_to_snitch import TEST_LOWER_LINALG_TO_SNITCH_PASSES
 
     pass_results = ""
-    remaining_m = riscv_m
+    remaining_m = rv_loops_folded_2_m
 
     for p_class in TEST_LOWER_LINALG_TO_SNITCH_PASSES:
         p = p_class()
