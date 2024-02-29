@@ -53,6 +53,27 @@ class AddOpLowering(RewritePattern):
 
 
 @dataclass
+class SubOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, sub: onnx.Sub, rewriter: PatternRewriter, /):
+        lhs_type = sub.lhs.type
+        rhs_type = sub.rhs.type
+        if isinstance(lhs_type, TensorType) and isinstance(rhs_type, TensorType):
+            lhs_shape = lhs_type.get_shape()
+            rhs_shape = rhs_type.get_shape()
+
+            if -1 in lhs_shape or -1 in rhs_shape:
+                raise NotImplementedError()
+
+        rewriter.replace_matched_op(
+            (
+                empty := tensor.EmptyOp((), sub.res.type),
+                linalg.SubOp((sub.lhs, sub.rhs), (empty.tensor,), res=(sub.res.type,)),
+            )
+        )
+
+
+@dataclass
 class ReluOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
@@ -153,6 +174,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     AddOpLowering(),
+                    SubOpLowering(),
                     ReluOpLowering(),
                     ConstantOpLowering(),
                     ReshapeOpLowering(),

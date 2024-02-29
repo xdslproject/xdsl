@@ -54,7 +54,7 @@ def __(mo, shape):
 
     # Create a node (NodeProto) - This is based on Pad-11
     node_def = helper.make_node(
-        "Add",  # node name
+        "Sub",  # node name
         ["X1", "X2"],  # inputs
         ["Y"],  # outputs
     )

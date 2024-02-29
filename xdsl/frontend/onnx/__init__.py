@@ -31,6 +31,7 @@ def _visit_value_info(i: ValueInfoProto, ctx: Ctx) -> Attribute:
 
 OP_BY_OP_TYPE: dict[str, type[IRDLOperation]] = {
     "Add": onnx.Add,
+    "Sub": onnx.Sub,
 }
 
 
