@@ -329,8 +329,8 @@ async def test_rewrites():
                     pass_spec=None,
                 ),
                 AvailablePass(
-                    display_name="test-lower-linalg-to-snitch",
-                    module_pass=test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass,
+                    display_name="test-lower-snitch-stream-to-asm",
+                    module_pass=test_lower_linalg_to_snitch.TestLowerSnitchStreamToAsm,
                     pass_spec=None,
                 ),
                 AvailablePass(
