@@ -24,21 +24,20 @@ class HoistIndexTimesConstant(RewritePattern):
 
             user = next(iter(index.uses)).operation
 
+            if not isinstance(user, riscv.AddOp | riscv.MulOp):
+                return
+
+            if user.rs1 is index:
+                if (imm := get_constant_value(user.rs2)) is None:
+                    return
+            else:
+                if (imm := get_constant_value(user.rs1)) is None:
+                    return
+
+            constant = imm.value.data
+
             match user:
                 case riscv.AddOp():
-                    add_op = user
-
-                    if add_op.rs1 is index:
-                        if (imm := get_constant_value(add_op.rs2)) is None:
-                            # One of the uses is not a addition with constant, bail
-                            return
-                    else:
-                        if (imm := get_constant_value(add_op.rs1)) is None:
-                            # One of the uses is not a addition with constant, bail
-                            return
-
-                    constant = imm.value.data
-
                     # All the uses are multiplications by a constant, we can fold
                     rewriter.insert_op_before_matched_op(
                         [
@@ -51,23 +50,7 @@ class HoistIndexTimesConstant(RewritePattern):
                             ),
                         ]
                     )
-
-                    op.operands[0] = new_lb.rd
-                    op.operands[1] = new_ub.rd
                 case riscv.MulOp():
-                    mul_op = user
-
-                    if mul_op.rs1 is index:
-                        if (imm := get_constant_value(mul_op.rs2)) is None:
-                            # One of the uses is not a multiplication by constant, bail
-                            return
-                    else:
-                        if (imm := get_constant_value(mul_op.rs1)) is None:
-                            # One of the uses is not a multiplication by constant, bail
-                            return
-
-                    constant = imm.value.data
-
                     # All the uses are multiplications by a constant, we can fold
                     rewriter.insert_op_before_matched_op(
                         [
@@ -84,13 +67,10 @@ class HoistIndexTimesConstant(RewritePattern):
                         ]
                     )
 
-                    op.operands[0] = new_lb.rd
-                    op.operands[1] = new_ub.rd
                     op.operands[2] = new_step.rd
 
-                case _:
-                    return
-
+            op.operands[0] = new_lb.rd
+            op.operands[1] = new_ub.rd
             rewriter.replace_op(user, [], [index])
 
 
