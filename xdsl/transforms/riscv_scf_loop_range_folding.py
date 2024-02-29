@@ -29,11 +29,9 @@ class HoistIndexTimesConstant(RewritePattern):
 
             if user.rs1 is index:
                 if (imm := get_constant_value(user.rs2)) is None:
-                    # One of the uses is not a addition with constant, bail
                     return
             else:
                 if (imm := get_constant_value(user.rs1)) is None:
-                    # One of the uses is not a addition with constant, bail
                     return
 
             constant = imm.value.data
