@@ -1,3 +1,5 @@
+import pytest
+
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
@@ -9,19 +11,41 @@ from xdsl.ir import Block, Region
 from xdsl.utils.test_value import TestSSAValue
 
 
-def test_stride_pattern_offsets():
+@pytest.mark.parametrize(
+    "ub, strides, offsets",
+    [
+        ((6,), (1,), tuple(range(6))),
+        ((6,), (2,), tuple(range(0, 12, 2))),
+        ((2, 3), (1, 2), tuple(range(6))),
+        ((2, 3, 4), (1, 2, 6), tuple(range(24))),
+    ],
+)
+def test_stride_pattern_offsets(
+    ub: tuple[int, ...], strides: tuple[int, ...], offsets: tuple[int, ...]
+):
+    assert (
+        snitch_stream.StridePattern.from_bounds_and_strides(ub, strides).offsets()
+        == offsets
+    )
+
+
+@pytest.mark.parametrize(
+    "inputs, outputs",
+    [
+        (((24,), (1,)), ((24,), (1,))),
+        (((4, 3, 2), (1, 4, 12)), ((24,), (1,))),
+        (((2, 3), (8, 16)), ((6,), (8,))),
+        (((2, 3), (0, 8)), ((2, 3), (0, 8))),
+        (((2, 3), (8, 0)), ((2, 3), (8, 0))),
+    ],
+)
+def test_simplify_stride_pattern(
+    inputs: tuple[tuple[int, ...], tuple[int, ...]],
+    outputs: tuple[tuple[int, ...], tuple[int, ...]],
+):
     assert snitch_stream.StridePattern.from_bounds_and_strides(
-        (6,), (1,)
-    ).offsets() == tuple(range(6))
-    assert snitch_stream.StridePattern.from_bounds_and_strides(
-        (6,), (2,)
-    ).offsets() == tuple(range(0, 12, 2))
-    assert snitch_stream.StridePattern.from_bounds_and_strides(
-        (2, 3), (1, 2)
-    ).offsets() == tuple(range(6))
-    assert snitch_stream.StridePattern.from_bounds_and_strides(
-        (2, 3, 4), (1, 2, 6)
-    ).offsets() == tuple(range(24))
+        *inputs
+    ).simplified() == snitch_stream.StridePattern.from_bounds_and_strides(*outputs)
 
 
 def test_snitch_stream_interpreter():
