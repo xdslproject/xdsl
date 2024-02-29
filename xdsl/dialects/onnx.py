@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from abc import ABC
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 
 from typing_extensions import Self
 
@@ -675,31 +675,34 @@ class Constant(IRDLOperation):
                 f"Only one value attribute must be provided, but {used_attrs} were specified"
             )
 
+    def get_value(self) -> tuple[Any | None, str]:
+        if self.value_float:
+            return self.value_float, "value_float"
+        elif self.value_int:
+            return self.value_int, "value_int"
+        elif self.value_ints:
+            arr: list[int] = [value.value.data for value in self.value_ints]
+            return arr, "value_ints"
+        else:
+            # This is for the value_string and value_strings, value_floats (TODO)
+            return None, ""
+
     def print(self, printer: Printer):
         if self.value:
             printer.print_string(" ")
             printer.print_attribute(self.value)
         printer.print_string(" ")
         printer.print_string("{")
-        if self.value_float:
-            printer.print_string("value_float")
-            printer.print_string(" = ")
-            printer.print_attribute(self.value_float)
-        elif self.value_floats:
-            pass
-        elif self.value_int:
-            printer.print_string("value_int")
-            printer.print_string(" = ")
-            printer.print_attribute(self.value_int)
-        elif self.value_ints:
-            printer.print_string("value_ints")
-            printer.print_string(" = ")
-            arr: list[int] = [value.value.data for value in self.value_ints]
-            printer.print(arr)
-        elif self.value_string:
-            pass
-        elif self.value_strings:
-            pass
+        value, value_type = self.get_value()
+        if value is not None:
+            if value_type == "value_ints":
+                printer.print_string(value_type)
+                printer.print_string(" = ")
+                printer.print(value)
+            else:
+                printer.print_string(value_type)
+                printer.print_string(" = ")
+                printer.print_attribute(value)
         printer.print_string("}")
         printer.print_string(" : ")
         printer.print_attribute(self.output.type)
