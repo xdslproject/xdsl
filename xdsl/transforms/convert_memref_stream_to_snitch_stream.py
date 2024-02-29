@@ -111,7 +111,7 @@ class StreamOpLowering(RewritePattern):
         stride_patterns = tuple(
             snitch_stream.StridePattern.from_bounds_and_strides(
                 bounds[::-1], strides[::-1]
-            )
+            ).simplified()
             for strides in all_strides
         )
         if len(set(stride_patterns)) == 1:
