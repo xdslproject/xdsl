@@ -68,6 +68,20 @@
 "onnx.EntryPoint"() {onnx_node_name = "/EntryPoint", "func" = @main_graph} : () -> ()
 //CHECK: "onnx.EntryPoint"() {"onnx_node_name" = "/EntryPoint", "func" = @main_graph} : () -> ()
 
-%res_constant = onnx.Constant dense<1> : tensor<1xi64>
-//CHECK: %res_constant = onnx.Constant dense<1> : tensor<1xi64>
+%res_constant = onnx.Constant {value_ints = [1, 2, 3]} : tensor<3xi64>
+//CHECK: %res_constant = onnx.Constant {value_ints = [1, 2, 3]} : tensor<3xi64>
+
+%res_constant_1 = onnx.Constant dense<1> : tensor<1xi64>
+//CHECK: %res_constant_1 = onnx.Constant dense<1> : tensor<1xi64>
+
+%res_constant_2 = onnx.Constant dense<[5, 5, 16, 2]> : tensor<4xi64>
+//CHECK: %res_constant_2 = onnx.Constant dense<[5, 5, 16, 2]> : tensor<4xi64>
+
+%res_constant_3 = onnx.Constant {value_float = 2.000000e+00 : f32} : tensor<f32>
+//CHECK: %res_constant_3 = onnx.Constant {value_float = 2.000000e+00 : f32} : tensor<f32>
+
+%res_constant_4 = onnx.Constant {value_int = 1 : si64} : tensor<i64>
+//CHECK: %res_constant_4 = onnx.Constant {value_int = 1 : si64} : tensor<i64>
+
+
 
