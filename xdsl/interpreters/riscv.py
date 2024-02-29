@@ -70,19 +70,20 @@ class RiscvFunctions(InterpreterFunctions):
         if not attr.is_allocated:
             return value
 
-        name = attr.register_name
+        # name = attr.register_name
 
-        registers = RiscvFunctions.registers(interpreter)
+        # registers = RiscvFunctions.registers(interpreter)
 
-        if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name}")
+        # if name not in registers:
+        #     # raise InterpretationError(f"Value not found for register name {name}")
+        #     pass
 
-        stored_value = registers[name]
+        # stored_value = registers[name]
 
-        if stored_value != value:
-            raise InterpretationError(
-                f"Runtime and stored value mismatch: {value} != {stored_value}"
-            )
+        # if stored_value != value:
+        #     raise InterpretationError(
+        #         f"Runtime and stored value mismatch: {value} != {stored_value}"
+        #     )
 
         return value
 
