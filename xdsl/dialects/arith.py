@@ -906,9 +906,10 @@ class Minnumf(FloatingPointLikeBinaryOp):
 @irdl_op_definition
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
+
     input: Operand = operand_def()
+
     result: OpResult = result_def()
-    traits = frozenset((Pure(),))
 
     def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
         return super().__init__(operands=[input_arg], result_types=[target_type])
@@ -917,6 +918,7 @@ class IndexCastOp(IRDLOperation):
 @irdl_op_definition
 class FPToSIOp(IRDLOperation):
     name = "arith.fptosi"
+
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(IntegerType)
     traits = frozenset((Pure(),))
@@ -928,6 +930,7 @@ class FPToSIOp(IRDLOperation):
 @irdl_op_definition
 class SIToFPOp(IRDLOperation):
     name = "arith.sitofp"
+
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
     traits = frozenset((Pure(),))
@@ -939,6 +942,7 @@ class SIToFPOp(IRDLOperation):
 @irdl_op_definition
 class ExtFOp(IRDLOperation):
     name = "arith.extf"
+
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
     traits = frozenset((Pure(),))
