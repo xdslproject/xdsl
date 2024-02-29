@@ -15,6 +15,21 @@ from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
 
+TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[type[ModulePass], ...] = (
+    RiscvCommonSubexpressionElimination,
+    ConvertRiscvScfForToFrepPass,
+    SnitchRegisterAllocation,
+    ConvertSnitchStreamToSnitch,
+    LowerSnitchPass,
+    CanonicalizePass,
+    RiscvScfLoopRangeFoldingPass,
+    CanonicalizePass,
+    RISCVRegisterAllocation,
+    CanonicalizePass,
+    ConvertRiscvScfToRiscvCfPass,
+    CanonicalizePass,
+)
+
 
 class TestLowerSnitchStreamToAsm(ModulePass):
     """
@@ -25,19 +40,4 @@ class TestLowerSnitchStreamToAsm(ModulePass):
     name = "test-lower-snitch-stream-to-asm"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PipelinePass(
-            [
-                RiscvCommonSubexpressionElimination(),
-                ConvertRiscvScfForToFrepPass(),
-                SnitchRegisterAllocation(),
-                ConvertSnitchStreamToSnitch(),
-                LowerSnitchPass(),
-                CanonicalizePass(),
-                RiscvScfLoopRangeFoldingPass(),
-                CanonicalizePass(),
-                RISCVRegisterAllocation(),
-                CanonicalizePass(),
-                ConvertRiscvScfToRiscvCfPass(),
-                CanonicalizePass(),
-            ]
-        ).apply(ctx, op)
+        PipelinePass([p() for p in TEST_LOWER_LINALG_TO_SNITCH_PASSES]).apply(ctx, op)
