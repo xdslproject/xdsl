@@ -678,7 +678,6 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(attribute.name.replace(".", "<", 1))
-            self.print(" ")
         else:
             self.print(attribute.name)
 

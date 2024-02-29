@@ -596,7 +596,7 @@ class EnumAttribute(Data[EnumType]):
 
     @final
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(self.data.value)
+        printer.print(" ", self.data.value)
 
     @final
     @classmethod
