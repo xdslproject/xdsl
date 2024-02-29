@@ -497,6 +497,16 @@ class OpaqueSyntaxAttribute(Attribute):
     pass
 
 
+class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
+    """
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the opaque form,
+    as described at https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.
+    """
+
+    pass
+
+
 DataElement = TypeVar("DataElement", covariant=True)
 
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
@@ -554,7 +564,7 @@ class EnumAttribute(Data[EnumType]):
         First = auto()
         Second = auto()
 
-    class MyEnumAttribute(EnumAttribute[MyEnum], OpaqueSyntaxAttribute):
+    class MyEnumAttribute(EnumAttribute[MyEnum], SpacedOpaqueSyntaxAttribute):
         name = "example.my_enum"
     ```
     To use this attribute suffices to have a textual representation
