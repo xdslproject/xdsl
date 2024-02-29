@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
     func.func @dsum(
       %arg0 : memref<8x16xf64>,
