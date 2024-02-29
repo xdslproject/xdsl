@@ -85,5 +85,6 @@ def get_all_possible_rewrites(
                     ),
                 )
                 current_module = old_module.clone()
+                matched_op = list(current_module.walk())[op_idx]
 
     return res
