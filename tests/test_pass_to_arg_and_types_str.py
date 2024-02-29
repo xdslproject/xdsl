@@ -52,6 +52,18 @@ class SimplePass(ModulePass):
         pass
 
 
+@dataclass
+class DefaultValuePass(ModulePass):
+    name = "simple"
+
+    a: int | float = field(default=1)
+    b: int | None = field(default=None)
+    c: int = 5
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        pass
+
+
 @pytest.mark.parametrize(
     "str_arg, pass_arg",
     (
@@ -61,6 +73,7 @@ class SimplePass(ModulePass):
         ),
         ("", EmptyPass),
         ("""a=int|float b=int|None c=5""", SimplePass),
+        ("""a=1 b c=5""", DefaultValuePass),
     ),
 )
 def test_pass_to_arg_and_type_str(str_arg: str, pass_arg: type[ModulePass]):
