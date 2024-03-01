@@ -16,8 +16,8 @@ from xdsl.ir import (
     Attribute,
     Data,
     EnumAttribute,
-    OpaqueSyntaxAttribute,
     ParametrizedAttribute,
+    SpacedOpaqueSyntaxAttribute,
     StrEnum,
 )
 from xdsl.irdl import (
@@ -158,7 +158,7 @@ class TestNonIdentifierEnum(StrEnum):
 
 
 @irdl_attr_definition
-class EnumData(EnumAttribute[TestEnum], OpaqueSyntaxAttribute):
+class EnumData(EnumAttribute[TestEnum], SpacedOpaqueSyntaxAttribute):
     name = "test.enum"
 
 
