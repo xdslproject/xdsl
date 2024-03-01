@@ -684,7 +684,7 @@ class Constant(IRDLOperation):
             arr: list[int] = [value.value.data for value in self.value_ints]
             return arr, "value_ints"
         else:
-            # This is for the value_string and value_strings, value_floats (TODO)
+            # TODO: value_string, value_strings, value_floats
             return None, ""
 
     def print(self, printer: Printer):
