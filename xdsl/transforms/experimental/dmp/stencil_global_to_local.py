@@ -416,11 +416,13 @@ class MpiLoopInvariantCodeMotion:
 
     def rewrite(
         self,
-        op: memref.Alloc
-        | mpi.CommRank
-        | mpi.AllocateTypeOp
-        | mpi.UnwrapMemrefOp
-        | mpi.Init,
+        op: (
+            memref.Alloc
+            | mpi.CommRank
+            | mpi.AllocateTypeOp
+            | mpi.UnwrapMemrefOp
+            | mpi.Init
+        ),
         rewriter: Rewriter,
         /,
     ):

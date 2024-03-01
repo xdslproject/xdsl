@@ -421,11 +421,9 @@ class Interpreter:
         Base class for observing the operations that are interpreted during a run.
         """
 
-        def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
-            ...
+        def will_interpret_op(self, op: Operation, args: PythonValues) -> None: ...
 
-        def did_interpret_op(self, op: Operation, results: PythonValues) -> None:
-            ...
+        def did_interpret_op(self, op: Operation, results: PythonValues) -> None: ...
 
     SYSTEM_BITWIDTH: ClassVar[int | None] = {"64bit": 64, "32bit": 32}.get(
         platform.architecture()[0]

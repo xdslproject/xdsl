@@ -48,8 +48,7 @@ class ModulePass(ABC):
     name: ClassVar[str]
 
     @abstractmethod
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        ...
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None: ...
 
     @classmethod
     def from_pass_spec(cls: type[ModulePassT], spec: PipelinePassSpec) -> ModulePassT:
@@ -64,9 +63,9 @@ class ModulePass(ABC):
             )
 
         # normalize spec arg names:
-        spec_arguments_dict: dict[
-            str, PassArgListType
-        ] = spec.normalize_arg_names().args
+        spec_arguments_dict: dict[str, PassArgListType] = (
+            spec.normalize_arg_names().args
+        )
 
         # get all dataclass fields
         fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
@@ -143,9 +142,11 @@ def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
 
     return " ".join(
         [
-            f"{field.name}={type_repr(field.type)}"
-            if not hasattr(arg, field.name)
-            else f"{field.name}={str(getattr(arg, field.name)).lower()}"
+            (
+                f"{field.name}={type_repr(field.type)}"
+                if not hasattr(arg, field.name)
+                else f"{field.name}={str(getattr(arg, field.name)).lower()}"
+            )
             for field in dataclasses.fields(arg)
         ]
     )

@@ -59,7 +59,7 @@ def test_pass_instantiation():
                 "number": [2],
                 "int-list": [1, 2, 3],
                 "str-thing": ["hello world"],
-                "literal": ["maybe"]
+                "literal": ["maybe"],
                 # "optional" was left out here, as it is optional
             },
         )
