@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from abc import ABC
-from typing import Annotated, Any, cast
+from typing import Annotated, cast
 
 from typing_extensions import Self
 
@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     DenseIntOrFPElementsAttr,
-    DictionaryAttr,
     Float32Type,
     FloatAttr,
     IntegerAttr,
@@ -676,72 +675,17 @@ class Constant(IRDLOperation):
                 f"Only one value attribute must be provided, but {used_attrs} were specified"
             )
 
-    def get_value(self) -> tuple[Any | None, str]:
-        if self.value_float:
-            return self.value_float, "value_float"
-        elif self.value_int:
-            return self.value_int, "value_int"
-        elif self.value_ints:
-            return self.value_ints, "value_ints"
-        else:
-            # TODO: value_string, value_strings, value_floats
-            raise NotImplementedError()
-
     def print(self, printer: Printer):
-        try:
-            value, value_type = self.get_value()
-        except NotImplementedError:
-            # handle the case where get_value() is not implemented
-            value, value_type = None, None
-        printer.print_string(" ")
         if self.value is not None:
+            printer.print(" ")
             printer.print(self.value)
-        # In the ONNX-MLIR format, integer types are abstracted, so only the integer data is extracted
-        # for printing purposes.
-        elif self.value_ints is not None:
-            printer.print_string("{")
-            printer.print(value_type)
-            printer.print_string(" = ")
-            values = [v.value.data for v in value]
-            printer.print(values)
-        else:
-            printer.print_string("{")
-            printer.print(value_type)
-            printer.print_string(" = ")
-            printer.print(value)
-        printer.print_string("}")
-        printer.print_string(" : ")
-        printer.print_attribute(self.output.type)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        value = None
-        value_float = None
-        value_floats = None
-        value_int = None
-        value_ints = None
-        value_string = None
-        value_strings = None
-        v = parser.parse_optional_attribute()
-        if isinstance(v, DictionaryAttr):
-            attr_value = list(v.data.values())[0]
-            # needs fixing
-            value_ints = attr_value
-            parser.parse_punctuation(":")
-            output_type = parser.parse_type()
-        else:
-            value = v
-            output_type = v.type
-        constant = cls(
-            value,
-            value_float,
-            value_floats,
-            value_int,
-            value_ints,
-            value_string,
-            value_strings,
-            output_type,
-        )
+        v = parser.parse_attribute()
+        if not isinstance(v, DenseIntOrFPElementsAttr):
+            raise NotImplementedError()
+        constant = cls(v, None, None, None, None, None, None, v.type)
         return constant
 
 

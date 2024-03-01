@@ -68,9 +68,6 @@
 "onnx.EntryPoint"() {onnx_node_name = "/EntryPoint", "func" = @main_graph} : () -> ()
 //CHECK: "onnx.EntryPoint"() {"onnx_node_name" = "/EntryPoint", "func" = @main_graph} : () -> ()
 
-%res_constant = onnx.Constant {value_ints = [1, 2, 3]} : tensor<3xi64>
-//CHECK: %res_constant = onnx.Constant {value_ints = [1, 2, 3]} : tensor<3xi64>
-
 %res_constant_1 = onnx.Constant dense<1> : tensor<1xi64>
 //CHECK: %res_constant_1 = onnx.Constant dense<1> : tensor<1xi64>
 
