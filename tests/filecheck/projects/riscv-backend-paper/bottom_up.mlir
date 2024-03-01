@@ -331,16 +331,12 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t0, a2
 // CHECK-NEXT:      li t3, 8
-// CHECK-NEXT:      li t5, 15
-// CHECK-NEXT:      li t4, 15
-// CHECK-NEXT:      scfgwi t5, 95
-// CHECK-NEXT:      scfgwi t4, 127
+// CHECK-NEXT:      li t4, 255
+// CHECK-NEXT:      scfgwi t4, 95
 // CHECK-NEXT:      scfgwi t3, 223
-// CHECK-NEXT:      li t3, 8
-// CHECK-NEXT:      scfgwi t3, 255
-// CHECK-NEXT:      scfgwi t2, 800
-// CHECK-NEXT:      scfgwi t1, 801
-// CHECK-NEXT:      scfgwi t0, 930
+// CHECK-NEXT:      scfgwi t2, 768
+// CHECK-NEXT:      scfgwi t1, 769
+// CHECK-NEXT:      scfgwi t0, 898
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t0, 127
 // CHECK-NEXT:      frep.o t0, 1, 0, 0
@@ -614,15 +610,11 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      mv t0, a1
 // CHECK-NEXT:      fcvt.d.w ft3, zero
 // CHECK-NEXT:      li t2, 8
-// CHECK-NEXT:      li t4, 15
-// CHECK-NEXT:      li t3, 15
-// CHECK-NEXT:      scfgwi t4, 95
-// CHECK-NEXT:      scfgwi t3, 127
+// CHECK-NEXT:      li t3, 255
+// CHECK-NEXT:      scfgwi t3, 95
 // CHECK-NEXT:      scfgwi t2, 223
-// CHECK-NEXT:      li t2, 8
-// CHECK-NEXT:      scfgwi t2, 255
-// CHECK-NEXT:      scfgwi t1, 800
-// CHECK-NEXT:      scfgwi t0, 929
+// CHECK-NEXT:      scfgwi t1, 768
+// CHECK-NEXT:      scfgwi t0, 897
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t0, 255
 // CHECK-NEXT:      frep.o t0, 1, 0, 0
