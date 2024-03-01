@@ -27,8 +27,6 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
-      %X_stream = builtin.unrealized_conversion_cast %x_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
-      %Y_stream = builtin.unrealized_conversion_cast %y_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
 
       %c288 = riscv.li 288 : () -> !riscv.reg<>
       riscv_scf.for %z_i : !riscv.reg<> = %c0 to %c288 step %c8 {
@@ -36,8 +34,10 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         %c = riscv.fld %Z_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %z = riscv_scf.for %i : !riscv.reg<> = %c0 to %c9 step %c1 iter_args(%acc = %c) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<>
-          %y = riscv_snitch.read from %Y_stream : !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %y_val = memref_stream.read from %y_stream : f64
+          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
           %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
@@ -122,16 +122,16 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } ins(%X, %Y : memref<128xf64>, memref<128xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
-      %X_stream = builtin.unrealized_conversion_cast %x_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
-      %Y_stream = builtin.unrealized_conversion_cast %y_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
         %init = riscv.fld %G_moved, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %c0 = riscv.li 0: () -> !riscv.reg<>
         %c1 = riscv.li 1: () -> !riscv.reg<>
         %c128 = riscv.li 128: () -> !riscv.reg<>
         %g = riscv_scf.for %i : !riscv.reg<> = %c0 to %c128 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<>
-          %y = riscv_snitch.read from %Y_stream : !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %y_val = memref_stream.read from %y_stream : f64
+          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
           %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
@@ -194,17 +194,16 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } ins(%X, %W, %B : memref<8x8xf64>, memref<8x8xf64>, memref<8x8xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %w_stream : !stream.readable<f64>, %b_stream : !stream.readable<f64>):
-      %X_stream = builtin.unrealized_conversion_cast %x_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
-      %W_stream = builtin.unrealized_conversion_cast %w_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
-      %B_stream = builtin.unrealized_conversion_cast %b_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
 
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c512 step %c8 {
         %Y_dest = riscv.add %Y_moved, %y_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %c = riscv.fld %Y_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %dot = riscv_scf.for %i : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%acc = %c) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<>
-          %w = riscv_snitch.read from %W_stream : !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %w_val = memref_stream.read from %w_stream : f64
+          %w = builtin.unrealized_conversion_cast %w_val : f64 to !riscv.freg<>
           %res = riscv.fmadd.d %x, %w, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
@@ -300,15 +299,15 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         ]
       } ins(%X, %Y : memref<8x16xf64>, memref<8x16xf64>) outs(%Z : memref<8x16xf64>) {
       ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %z_stream : !stream.writable<f64>):
-        %X_stream = builtin.unrealized_conversion_cast %x_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
-        %Y_stream = builtin.unrealized_conversion_cast %y_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
-        %Z_stream = builtin.unrealized_conversion_cast %z_stream : !stream.writable<f64> to !stream.writable<!riscv.freg<>>
 
         riscv_scf.for %i : !riscv.reg<> = %c0 to %c128 step %c1 {
-          %9 = riscv_snitch.read from %X_stream : !riscv.freg<>
-          %10 = riscv_snitch.read from %Y_stream : !riscv.freg<>
-          %11 = riscv.fadd.d %9, %10 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-          riscv_snitch.write %11 to %Z_stream : !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %y_val = memref_stream.read from %y_stream : f64
+          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
+          %z = riscv.fadd.d %x, %y : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+          %z_val = builtin.unrealized_conversion_cast %z : !riscv.freg<> to f64
+          memref_stream.write %z_val to %z_stream : f64
           riscv_scf.yield
         }
       }
@@ -355,14 +354,14 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } outs(%Y : memref<16x16xf64>) {
     ^0(%y_stream : !stream.writable<f64>):
-      %Y_stream = builtin.unrealized_conversion_cast %y_stream : !stream.writable<f64> to !stream.writable<!riscv.freg<>>
 
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c256 = riscv.li 256 : () -> !riscv.reg<>
       riscv_scf.for %i : !riscv.reg<> = %c0 to %c256 step %c1 {
         %y = riscv.fmv.d %x : (!riscv.freg<>) -> !riscv.freg<>
-        riscv_snitch.write %y to %Y_stream : !riscv.freg<>
+        %y_val = builtin.unrealized_conversion_cast %y : !riscv.freg<> to f64
+        memref_stream.write %y_val to %y_stream : f64
       }
     }
 
@@ -412,15 +411,15 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
-      %X_stream = builtin.unrealized_conversion_cast %x_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
-      %Y_stream = builtin.unrealized_conversion_cast %y_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
       riscv_scf.for %g_i : !riscv.reg<> = %c0 to %c512 step %c8 {
         %G_dest = riscv.add %G_moved, %g_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %init = riscv.fld %G_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %g = riscv_scf.for %i : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<>
-          %y = riscv_snitch.read from %Y_stream : !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %y_val = memref_stream.read from %y_stream : f64
+          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
           %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
@@ -507,7 +506,6 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       ]
     } ins(%X : memref<1x1x16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>):
-      %X_stream = builtin.unrealized_conversion_cast %x_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
 
       %c392 = riscv.li 392 : () -> !riscv.reg<>
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c392 step %c8 {
@@ -515,7 +513,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
         %init = riscv.fld %Y_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %y = riscv_scf.for %i : !riscv.reg<> = %c0 to %c9 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
           %res = riscv.fmax.d %x, %acc : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
@@ -584,15 +583,15 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       ]
     } ins(%X : memref<16x16xf64>) outs(%Y : memref<16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
-      %X_stream = builtin.unrealized_conversion_cast %x_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
-      %Y_stream = builtin.unrealized_conversion_cast %y_stream : !stream.writable<f64> to !stream.writable<!riscv.freg<>>
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c256 = riscv.li 256 : () -> !riscv.reg<>
       riscv_scf.for %i : !riscv.reg<> = %c0 to %c256 step %c1 {
-        %x = riscv_snitch.read from %X_stream : !riscv.freg<>
+        %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
         %y = riscv.fmax.d %x, %zero_float : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-        riscv_snitch.write %y to %Y_stream : !riscv.freg<>
+        %y_val = builtin.unrealized_conversion_cast %y : !riscv.freg<> to f64
+        memref_stream.write %y_val to %y_stream : f64
       }
     }
 
@@ -628,7 +627,6 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %X_moved = builtin.unrealized_conversion_cast %X : memref<1x1x16x16xf64> to !riscv.reg<>
     %Y_moved = builtin.unrealized_conversion_cast %Y : memref<1x1x7x7xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
@@ -644,7 +642,6 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
       ]
     } ins(%X : memref<1x1x16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>):
-      %X_stream = builtin.unrealized_conversion_cast %x_stream : !stream.readable<f64> to !stream.readable<!riscv.freg<>>
 
       %c392 = riscv.li 392 : () -> !riscv.reg<>
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c392 step %c8 {
@@ -652,7 +649,8 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
         %init = riscv.fld %Y_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %y = riscv_scf.for %i : !riscv.reg<> = %c0 to %c9 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
           %res = riscv.fadd.d %x, %acc : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
