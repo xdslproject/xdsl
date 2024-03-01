@@ -17,7 +17,7 @@ from xdsl.utils.parse_pipeline import (
 ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
 
 
-@dataclass
+@dataclass(frozen=True)
 class ModulePass(ABC):
     """
     A Pass is a named rewrite pass over an IR module that can accept arguments.
@@ -31,18 +31,19 @@ class ModulePass(ABC):
     In order to make a pass accept arguments, it must be a dataclass. Furthermore,
     only the following types are supported as argument types:
 
-    Base types:             int | float | bool | string
-    Lists of base types:    list[int], list[int|float], list[int] | list[float]
-    Top-level optional:      ... | None
+    Base types:                int | float | bool | string
+    N-tuples of base types:
+        tuple[int, ...], tuple[int|float, ...], tuple[int, ...] | tuple[float, ...]
+    Top-level optional:        ... | None
 
     Pass arguments on the CLI are formatted as follows:
 
     CLI arg                             Mapped to class field
     -------------------------           ------------------------------
-    my-pass{arg-1=1}                    arg_1: int = 1
-    my-pass{arg-1}                      arg_1: int | None = None
-    my-pass{arg-1=1,2,3}                arg_1: list[int] = [1, 2, 3]
-    my-pass{arg-1=true}                 arg_1: bool | None = True
+    my-pass{arg-1=1}                    arg_1: int             = 1
+    my-pass{arg-1}                      arg_1: int | None      = None
+    my-pass{arg-1=1,2,3}                arg_1: tuple[int, ...] = (1, 2, 3)
+    my-pass{arg-1=true}                 arg_1: bool | None     = True
     """
 
     name: ClassVar[str]
@@ -123,9 +124,9 @@ class ModulePass(ABC):
 
             val = getattr(self, op_field.name)
             if val is None:
-                arg_dict.update({op_field.name: []})
+                arg_dict.update({op_field.name: ()})
             elif isinstance(val, PassArgElementType):
-                arg_dict.update({op_field.name: [getattr(self, op_field.name)]})
+                arg_dict.update({op_field.name: (getattr(self, op_field.name),)})
             else:
                 arg_dict.update({op_field.name: getattr(self, op_field.name)})
 
@@ -158,9 +159,9 @@ def _empty_callback(
     return
 
 
-@dataclass
+@dataclass(frozen=True)
 class PipelinePass(ModulePass):
-    passes: list[ModulePass]
+    passes: tuple[ModulePass, ...]
     callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] = field(
         default=_empty_callback
     )
@@ -201,8 +202,8 @@ def _convert_pass_arg_to_type(
     value,      dest_type,      result
     []          int | None      None
     [1]         int | None      1
-    [1]         list[int]       [1]
-    [1,2]       list[int]       [1,2]
+    [1]         tuple[int, ...] (1,)
+    [1,2]       tuple[int, ...] (1,2)
     [1,2]       int | None      Error
     []          int             Error
 
@@ -222,7 +223,7 @@ def _convert_pass_arg_to_type(
     if len(value) == 1 and isa(value[0], dest_type):
         return value[0]
 
-    # then check if array value is okay
+    # then check if n-tuple value is okay
     if isa(value, dest_type):
         return value
 
