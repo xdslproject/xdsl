@@ -301,18 +301,17 @@ class Gemm(IRDLOperation):
 
         if tensor_b_type.get_num_dims() != 2:
             raise VerifyException("tensor B should be a 2D tensor")
+        if self.trans_a is not None and self.trans_a.value.data == 1:
+            tensor_a_shape = tuple(reversed(tensor_a_shape))
 
-        if self.trans_a is not None:
-            list(tensor_a_shape).reverse()
+        if self.trans_b is not None and self.trans_b.value.data == 1:
+            tensor_b_shape = tuple(reversed(tensor_b_shape))
 
-        if self.trans_b is not None:
-            list(tensor_b_shape).reverse()
-
-        if self.beta is not None:
+        if self.beta is not None and self.beta.value.data != 0:
             c_dims = tensor_c_type.get_num_dims()
             if c_dims > 2:
                 raise VerifyException("tensor C should be a 1D tensor or 2D tensor")
-
+        #
         if tensor_a_shape[1] != tensor_b_shape[0]:
             raise VerifyException(
                 f"operands have incompatible shapes: {tensor_a_shape} and {tensor_b_shape}"
