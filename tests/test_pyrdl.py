@@ -1,4 +1,5 @@
 """Unit tests for IRDL."""
+
 from dataclasses import dataclass
 
 import pytest

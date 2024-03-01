@@ -151,13 +151,11 @@ class StringLiteral(Span):
 
     @overload
     @classmethod
-    def from_span(cls, span: Span) -> StringLiteral:
-        ...
+    def from_span(cls, span: Span) -> StringLiteral: ...
 
     @overload
     @classmethod
-    def from_span(cls, span: None) -> None:
-        ...
+    def from_span(cls, span: None) -> None: ...
 
     @classmethod
     def from_span(cls, span: Span | None) -> StringLiteral | None:
