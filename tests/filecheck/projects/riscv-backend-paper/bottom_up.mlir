@@ -208,7 +208,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
           riscv_scf.yield %res : !riscv.freg<>
         }
 
-        %b = riscv.get_float_register : () -> !riscv.freg<>
+        %b_val = memref_stream.read from %b_stream : f64
+        %b = builtin.unrealized_conversion_cast %b_val : f64 to !riscv.freg<>
         %y_0 = riscv.fadd.d %b, %dot : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
         %y_1 = riscv.fmax.d %y_0, %zero_float : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
@@ -268,11 +269,11 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d+}}_for:
 // CHECK-NEXT:      add t4, t0, t1
-// CHECK-NEXT:      fld ft5, 0(t4)
+// CHECK-NEXT:      fld ft4, 0(t4)
 // CHECK-NEXT:      li t5, 7
 // CHECK-NEXT:      frep.o t5, 1, 0, 0
-// CHECK-NEXT:      fmadd.d ft5, ft0, ft1, ft5
-// CHECK-NEXT:      fadd.d ft4, ft4, ft5
+// CHECK-NEXT:      fmadd.d ft4, ft0, ft1, ft4
+// CHECK-NEXT:      fadd.d ft4, ft2, ft4
 // CHECK-NEXT:      fmax.d ft4, ft4, ft3
 // CHECK-NEXT:      fsd ft4, 0(t4)
 // CHECK-NEXT:      addi t1, t1, 8
@@ -291,7 +292,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       %c128 = riscv.li 128 : () -> !riscv.reg<>
 
       memref_stream.streaming_region {
-        bounds = [16, 16],
+        bounds = [8, 16],
         indexing_maps = [
           affine_map<(d0, d1) -> (d0, d1)>,
           affine_map<(d0, d1) -> (d0, d1)>,
@@ -324,7 +325,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t0, a2
 // CHECK-NEXT:      li t3, 8
-// CHECK-NEXT:      li t4, 255
+// CHECK-NEXT:      li t4, 127
 // CHECK-NEXT:      scfgwi t4, 95
 // CHECK-NEXT:      scfgwi t3, 223
 // CHECK-NEXT:      scfgwi t2, 768
