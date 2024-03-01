@@ -351,24 +351,26 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<16x16xf64>
   ) {
     %X_moved = builtin.unrealized_conversion_cast %X : f64 to !riscv.freg<>
-    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<16x16xf64> to !riscv.reg<>
 
     %x = riscv.fmv.d %X_moved : (!riscv.freg<>) -> !riscv.freg<>
 
-    // need to simplify stride pattern first
-    "snitch_stream.streaming_region"(%Y_moved) <{
-      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [256], strides=[8]>],
-      "operandSegmentSizes" = array<i32: 0, 1>
-    }> ({
-    ^bb0(%Y_stream : !stream.writable<!riscv.freg<ft0>>):
+    memref_stream.streaming_region {
+      bounds = [16, 16],
+      indexing_maps = [
+          affine_map<(d0, d1) -> (d0, d1)>
+      ]
+    } outs(%Y : memref<16x16xf64>) {
+    ^0(%y_stream : !stream.writable<f64>):
+      %Y_stream = builtin.unrealized_conversion_cast %y_stream : !stream.writable<f64> to !stream.writable<!riscv.freg<>>
+
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c256 = riscv.li 256 : () -> !riscv.reg<>
       riscv_scf.for %i : !riscv.reg<> = %c0 to %c256 step %c1 {
-        %y = riscv.fmv.d %x : (!riscv.freg<>) -> !riscv.freg<ft0>
-        riscv_snitch.write %y to %Y_stream : !riscv.freg<ft0>
+        %y = riscv.fmv.d %x : (!riscv.freg<>) -> !riscv.freg<>
+        riscv_snitch.write %y to %Y_stream : !riscv.freg<>
       }
-    }) : (!riscv.reg<>) -> ()
+    }
 
     func.return
   }
