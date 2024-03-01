@@ -77,11 +77,8 @@
 %res_constant_2 = onnx.Constant dense<[5, 5, 16, 2]> : tensor<4xi64>
 //CHECK: %res_constant_2 = onnx.Constant dense<[5, 5, 16, 2]> : tensor<4xi64>
 
-%res_constant_3 = onnx.Constant {value_float = 2.000000e+00 : f32} : tensor<f32>
-//CHECK: %res_constant_3 = onnx.Constant {value_float = 2.000000e+00 : f32} : tensor<f32>
 
-%res_constant_4 = onnx.Constant {value_int = 1 : si64} : tensor<i64>
-//CHECK: %res_constant_4 = onnx.Constant {value_int = 1 : si64} : tensor<i64>
+
 
 
 

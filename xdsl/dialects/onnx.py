@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     DenseIntOrFPElementsAttr,
+    DictionaryAttr,
     Float32Type,
     FloatAttr,
     IntegerAttr,
@@ -681,34 +682,33 @@ class Constant(IRDLOperation):
         elif self.value_int:
             return self.value_int, "value_int"
         elif self.value_ints:
-            # In the ONNX-MLIR format, integer types are abstracted, so only the integer data is extracted
-            # for printing purposes.
-            arr: list[int] = [value.value.data for value in self.value_ints]
-            return arr, "value_ints"
+            return self.value_ints, "value_ints"
         else:
             # TODO: value_string, value_strings, value_floats
             raise NotImplementedError()
 
     def print(self, printer: Printer):
-        if self.value is not None:
-            printer.print_string(" ")
-            printer.print_attribute(self.value)
-        printer.print_string(" ")
-        printer.print_string("{")
         try:
             value, value_type = self.get_value()
         except NotImplementedError:
             # handle the case where get_value() is not implemented
             value, value_type = None, None
-        if value and value_type:
-            if value_type == "value_ints":
-                printer.print_string(value_type)
-                printer.print_string(" = ")
-                printer.print(value)
-            else:
-                printer.print_string(value_type)
-                printer.print_string(" = ")
-                printer.print_attribute(value)
+        printer.print_string(" ")
+        if self.value is not None:
+            printer.print(self.value)
+        # In the ONNX-MLIR format, integer types are abstracted, so only the integer data is extracted
+        # for printing purposes.
+        elif self.value_ints is not None:
+            printer.print_string("{")
+            printer.print(value_type)
+            printer.print_string(" = ")
+            values = [v.value.data for v in value]
+            printer.print(values)
+        else:
+            printer.print_string("{")
+            printer.print(value_type)
+            printer.print_string(" = ")
+            printer.print(value)
         printer.print_string("}")
         printer.print_string(" : ")
         printer.print_attribute(self.output.type)
@@ -722,34 +722,16 @@ class Constant(IRDLOperation):
         value_ints = None
         value_string = None
         value_strings = None
-        output_type = None
-        if parser.parse_optional_punctuation("{"):
-            if parser.parse_optional_keyword("value_float"):
-                parser.parse_punctuation("=")
-                value_float = parser.parse_attribute()
-            elif parser.parse_optional_keyword("value_floats"):
-                parser.parse_punctuation("=")
-                value_floats = parser.parse_attribute()
-            elif parser.parse_optional_keyword("value_int"):
-                parser.parse_punctuation("=")
-                value_int = parser.parse_attribute()
-            elif parser.parse_optional_keyword("value_ints"):
-                parser.parse_punctuation("=")
-                value_ints = parser.parse_attribute()
-            elif parser.parse_optional_keyword("value_string"):
-                parser.parse_punctuation("=")
-                value_string = parser.parse_attribute()
-            elif parser.parse_optional_keyword("value_strings"):
-                parser.parse_punctuation("=")
-                value_strings = parser.parse_attribute()
-            parser.parse_punctuation("}")
+        v = parser.parse_optional_attribute()
+        if isinstance(v, DictionaryAttr):
+            attr_value = list(v.data.values())[0]
+            # needs fixing
+            value_ints = attr_value
             parser.parse_punctuation(":")
             output_type = parser.parse_type()
         else:
-            value = parser.parse_attribute()
-            if isinstance(value, DenseIntOrFPElementsAttr):
-                output_type = value.type
-
+            value = v
+            output_type = v.type
         constant = cls(
             value,
             value_float,
@@ -760,7 +742,6 @@ class Constant(IRDLOperation):
             value_strings,
             output_type,
         )
-
         return constant
 
 
