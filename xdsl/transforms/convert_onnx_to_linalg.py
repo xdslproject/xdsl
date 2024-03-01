@@ -97,13 +97,16 @@ class ConstantOpLowering(RewritePattern):
         self.constant_count += 1
         return f"onnx_constant_{self.constant_count}"
 
+    def get_value(self, Attribute):
+        pass
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, constant: onnx.Constant, rewriter: PatternRewriter, /):
         attr_value = list(constant.attributes.values())[1]
         constant_name = self.make_unique_name()
         global_op = ml_program.Global(
             StringAttr(constant_name),
-            constant.output.type,
+            attr_value.type,
             None,
             attr_value,
             StringAttr("private"),
