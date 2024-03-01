@@ -93,7 +93,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      li t2, 288
 // CHECK-NEXT:      mv t1, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
-// CHECK-NEXT:  scf_body_0_for:
+// CHECK-NEXT:  scf_body_{{\d+}}_for:
 // CHECK-NEXT:      add t4, t0, t1
 // CHECK-NEXT:      fld ft3, 0(t4)
 // CHECK-NEXT:      li t5, 8
@@ -101,8 +101,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      fmadd.d ft3, ft0, ft1, ft3
 // CHECK-NEXT:      fsd ft3, 0(t4)
 // CHECK-NEXT:      addi t1, t1, 8
-// CHECK-NEXT:      blt t1, t2, scf_body_0_for
-// CHECK-NEXT:  scf_body_end_0_for:
+// CHECK-NEXT:      blt t1, t2, scf_body_{{\d+}}_for
+// CHECK-NEXT:  scf_body_end_{{\d+}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret
 
@@ -266,7 +266,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      mv t1, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
-// CHECK-NEXT:  scf_body_1_for:
+// CHECK-NEXT:  scf_body_{{\d+}}_for:
 // CHECK-NEXT:      add t4, t0, t1
 // CHECK-NEXT:      fld ft5, 0(t4)
 // CHECK-NEXT:      li t5, 7
@@ -276,8 +276,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      fmax.d ft4, ft4, ft3
 // CHECK-NEXT:      fsd ft4, 0(t4)
 // CHECK-NEXT:      addi t1, t1, 8
-// CHECK-NEXT:      blt t1, t2, scf_body_1_for
-// CHECK-NEXT:  scf_body_end_1_for:
+// CHECK-NEXT:      blt t1, t2, scf_body_{{\d+}}_for
+// CHECK-NEXT:  scf_body_end_{{\d+}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret
 
