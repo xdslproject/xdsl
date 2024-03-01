@@ -681,20 +681,26 @@ class Constant(IRDLOperation):
         elif self.value_int:
             return self.value_int, "value_int"
         elif self.value_ints:
+            # In the ONNX-MLIR format, integer types are abstracted, so only the integer data is extracted
+            # for printing purposes.
             arr: list[int] = [value.value.data for value in self.value_ints]
             return arr, "value_ints"
         else:
             # TODO: value_string, value_strings, value_floats
-            return None, ""
+            raise NotImplementedError()
 
     def print(self, printer: Printer):
-        if self.value:
+        if self.value is not None:
             printer.print_string(" ")
             printer.print_attribute(self.value)
         printer.print_string(" ")
         printer.print_string("{")
-        value, value_type = self.get_value()
-        if value is not None:
+        try:
+            value, value_type = self.get_value()
+        except NotImplementedError:
+            # handle the case where get_value() is not implemented
+            value, value_type = None, None
+        if value and value_type:
             if value_type == "value_ints":
                 printer.print_string(value_type)
                 printer.print_string(" = ")
@@ -709,11 +715,14 @@ class Constant(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        value_float = (
-            value_floats
-        ) = (
-            value_int
-        ) = value_ints = value_string = value_strings = value = output_type = None
+        value = None
+        value_float = None
+        value_floats = None
+        value_int = None
+        value_ints = None
+        value_string = None
+        value_strings = None
+        output_type = None
         if parser.parse_optional_punctuation("{"):
             if parser.parse_optional_keyword("value_float"):
                 parser.parse_punctuation("=")
