@@ -133,11 +133,11 @@ class ScfParallelLoopTilingPattern(RewritePattern):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ScfParallelLoopTilingPass(ModulePass):
     name = "scf-parallel-loop-tiling"
 
-    parallel_loop_tile_sizes: list[int]
+    parallel_loop_tile_sizes: tuple[int, ...]
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
