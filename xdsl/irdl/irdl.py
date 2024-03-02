@@ -1811,8 +1811,7 @@ def irdl_build_arg_list(
     args: Sequence[SSAValue | Sequence[SSAValue] | None],
     arg_defs: Sequence[tuple[str, OperandDef]],
     error_prefix: str,
-) -> tuple[list[SSAValue], list[int]]:
-    ...
+) -> tuple[list[SSAValue], list[int]]: ...
 
 
 @overload
@@ -1821,8 +1820,7 @@ def irdl_build_arg_list(
     args: Sequence[Attribute | Sequence[Attribute] | None],
     arg_defs: Sequence[tuple[str, ResultDef]],
     error_prefix: str,
-) -> tuple[list[Attribute], list[int]]:
-    ...
+) -> tuple[list[Attribute], list[int]]: ...
 
 
 @overload
@@ -1831,8 +1829,7 @@ def irdl_build_arg_list(
     args: Sequence[Region | Sequence[Region] | None],
     arg_defs: Sequence[tuple[str, RegionDef]],
     error_prefix: str,
-) -> tuple[list[Region], list[int]]:
-    ...
+) -> tuple[list[Region], list[int]]: ...
 
 
 @overload
@@ -1841,8 +1838,7 @@ def irdl_build_arg_list(
     args: Sequence[Successor | Sequence[Successor] | None],
     arg_defs: Sequence[tuple[str, SuccessorDef]],
     error_prefix: str,
-) -> tuple[list[Successor], list[int]]:
-    ...
+) -> tuple[list[Successor], list[int]]: ...
 
 
 _T = TypeVar("_T")
@@ -2019,24 +2015,24 @@ def irdl_op_init(
                 container = built_properties if option.as_property else built_attributes
                 match option:
                     case AttrSizedOperandSegments():
-                        container[
-                            AttrSizedOperandSegments.attribute_name
-                        ] = DenseArrayBase.from_list(i32, operand_sizes)
+                        container[AttrSizedOperandSegments.attribute_name] = (
+                            DenseArrayBase.from_list(i32, operand_sizes)
+                        )
 
                     case AttrSizedResultSegments():
-                        container[
-                            AttrSizedResultSegments.attribute_name
-                        ] = DenseArrayBase.from_list(i32, result_sizes)
+                        container[AttrSizedResultSegments.attribute_name] = (
+                            DenseArrayBase.from_list(i32, result_sizes)
+                        )
 
                     case AttrSizedRegionSegments():
-                        container[
-                            AttrSizedRegionSegments.attribute_name
-                        ] = DenseArrayBase.from_list(i32, region_sizes)
+                        container[AttrSizedRegionSegments.attribute_name] = (
+                            DenseArrayBase.from_list(i32, region_sizes)
+                        )
 
                     case AttrSizedSuccessorSegments():
-                        container[
-                            AttrSizedSuccessorSegments.attribute_name
-                        ] = DenseArrayBase.from_list(i32, successor_sizes)
+                        container[AttrSizedSuccessorSegments.attribute_name] = (
+                            DenseArrayBase.from_list(i32, successor_sizes)
+                        )
                     case _:
                         raise ValueError(
                             f"Unexpected option {option} in operation definition {op_def}."

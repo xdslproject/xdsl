@@ -231,10 +231,12 @@ class StencilType(
 
     def __init__(
         self,
-        bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]
-        | int
-        | IntAttr
-        | StencilBoundsAttr,
+        bounds: (
+            Iterable[tuple[int | IntAttr, int | IntAttr]]
+            | int
+            | IntAttr
+            | StencilBoundsAttr
+        ),
         element_type: _FieldTypeElement,
     ) -> None:
         """

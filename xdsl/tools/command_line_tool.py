@@ -417,6 +417,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return printf_to_putchar.PrintfToPutcharPass
 
+    def get_riscv_cse():
+        from xdsl.transforms import riscv_cse
+
+        return riscv_cse.RiscvCommonSubexpressionElimination
+
     def get_riscv_register_allocation():
         from xdsl.transforms import riscv_register_allocation
 
@@ -520,7 +525,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_test_lower_linalg_to_snitch():
         from xdsl.transforms import test_lower_linalg_to_snitch
 
-        return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
+        return test_lower_linalg_to_snitch.TestLowerSnitchStreamToAsm
 
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -563,13 +568,14 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
+        "riscv-cse": get_riscv_cse,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-unroll": get_stencil_unroll,
-        "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-lower-snitch-stream-to-asm": get_test_lower_linalg_to_snitch,
     }
 
 

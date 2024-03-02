@@ -149,6 +149,9 @@ class PrintfToLLVM(ModulePass):
 
         PatternRewriteWalker(add_printf_call).rewrite_module(op)
 
+        if not add_printf_call.collected_global_symbs:
+            return
+
         op.body.block.add_ops(
             [
                 llvm.FuncOp(

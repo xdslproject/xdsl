@@ -16,9 +16,9 @@ from xdsl.pattern_rewriter import (
 _FASTMATH_NAMES_TO_ENUM = {str(member.value): member for member in llvm.FastMathFlag}
 
 
-def _get_flag_list(flags: list[str]):
+def _get_flag_list(flags: tuple[str, ...]):
     try:
-        return [_FASTMATH_NAMES_TO_ENUM[flag] for flag in flags]
+        return tuple(_FASTMATH_NAMES_TO_ENUM[flag] for flag in flags)
     except KeyError as e:
         raise ValueError(f"{e} is not a valid fastmath flag.")
 
@@ -32,18 +32,20 @@ class AddArithFastMathFlags(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        op: arith.Addf
-        | arith.Subf
-        | arith.Mulf
-        | arith.Divf
-        | arith.Minimumf
-        | arith.Maximumf,
+        op: (
+            arith.Addf
+            | arith.Subf
+            | arith.Mulf
+            | arith.Divf
+            | arith.Minimumf
+            | arith.Maximumf
+        ),
         rewriter: PatternRewriter,
     ) -> None:
         op.fastmath = self.fastmath_op_attr
 
 
-@dataclass
+@dataclass(frozen=True)
 class AddArithFastMathFlagsPass(ModulePass):
     """Module pass that adds fastmath flags to FP binary operations from arith dialect.
     It currently does not preserve any existing fastmath flags that may already be part
@@ -58,7 +60,7 @@ class AddArithFastMathFlagsPass(ModulePass):
 
     name = "arith-add-fastmath"
 
-    flags: Literal["fast", "none"] | list[str] = "fast"
+    flags: Literal["fast", "none"] | tuple[str, ...] = "fast"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         fm_flags = arith.FastMathFlagsAttr("fast")

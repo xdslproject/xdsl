@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from enum import Enum
+from enum import auto
 from typing import cast
 
 from typing_extensions import Self
@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
 )
-from xdsl.ir import Attribute, Data, Dialect, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, EnumAttribute, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -39,18 +39,19 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
-class IteratorType(Enum):
+class IteratorType(StrEnum):
     "Iterator type for linalg trait"
 
-    PARALLEL = "parallel"
-    REDUCTION = "reduction"
-    WINDOW = "window"
+    PARALLEL = auto()
+    REDUCTION = auto()
+    WINDOW = auto()
 
 
 @irdl_attr_definition
-class IteratorTypeAttr(Data[IteratorType]):
+class IteratorTypeAttr(EnumAttribute[IteratorType]):
     name = "linalg.iterator_type"
 
     @classmethod
@@ -68,24 +69,11 @@ class IteratorTypeAttr(Data[IteratorType]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
         with parser.in_angle_brackets():
-            if parser.parse_optional_keyword("parallel") is not None:
-                return IteratorType.PARALLEL
-            if parser.parse_optional_keyword("reduction") is not None:
-                return IteratorType.REDUCTION
-            if parser.parse_optional_keyword("window") is not None:
-                return IteratorType.WINDOW
-            parser.raise_error("`parallel`, `reduction` or `window` expected")
+            return super().parse_parameter(parser)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            data = self.data
-            match data:
-                case IteratorType.PARALLEL:
-                    printer.print_string("parallel")
-                case IteratorType.REDUCTION:
-                    printer.print_string("reduction")
-                case IteratorType.WINDOW:
-                    printer.print_string("window")
+            super().print_parameter(printer)
 
 
 @irdl_op_definition
@@ -200,9 +188,7 @@ class Generic(IRDLOperation):
         printer.print_string(", iterator_types = [")
         printer.print_list(
             self.iterator_types,
-            lambda iterator_type: printer.print_string_literal(
-                iterator_type.data.value
-            ),
+            lambda iterator_type: printer.print_string_literal(iterator_type.data),
         )
         printer.print_string("]")
         if self.doc:
@@ -466,6 +452,44 @@ class FillOp(IRDLOperation):
                 )
 
 
+@irdl_op_definition
+class MulOp(IRDLOperation):
+    """
+    Multiplies two tensors elementwise.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmul-linalgmulop
+    """
+
+    name = "linalg.mul"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -473,6 +497,7 @@ Linalg = Dialect(
         YieldOp,
         AddOp,
         FillOp,
+        MulOp,
     ],
     [
         IteratorTypeAttr,

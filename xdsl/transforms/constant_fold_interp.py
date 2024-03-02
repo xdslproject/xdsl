@@ -3,7 +3,6 @@ A pass that applies the interpreter to operations with no side effects where all
 inputs are constant, replacing the computation with a constant value.
 """
 
-
 from dataclasses import dataclass
 from typing import Any, cast
 

@@ -112,7 +112,12 @@ class InterpreterFunctions:
     @classmethod
     def _attr_impls(
         cls,
-    ) -> Iterable[tuple[type[Attribute], AttrImpl[InterpreterFunctions, Attribute],]]:
+    ) -> Iterable[
+        tuple[
+            type[Attribute],
+            AttrImpl[InterpreterFunctions, Attribute],
+        ]
+    ]:
         try:
             impl_dict = getattr(cls, _ATTR_IMPL_DICT)
             return impl_dict.items()
@@ -233,7 +238,10 @@ def impl_cast(
 
 def impl_attr(
     input_type: type[AttributeInvT],
-) -> Callable[[AttrImpl[_FT, AttributeInvT]], AttrImpl[_FT, AttributeInvT],]:
+) -> Callable[
+    [AttrImpl[_FT, AttributeInvT]],
+    AttrImpl[_FT, AttributeInvT],
+]:
     """
     Marks the conversion from an attribute to a Python value. The
     `value_for_attribute` method on `Interpreter` will call into this implementation for
@@ -490,11 +498,9 @@ class Interpreter:
         Base class for observing the operations that are interpreted during a run.
         """
 
-        def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
-            ...
+        def will_interpret_op(self, op: Operation, args: PythonValues) -> None: ...
 
-        def did_interpret_op(self, op: Operation, results: PythonValues) -> None:
-            ...
+        def did_interpret_op(self, op: Operation, results: PythonValues) -> None: ...
 
     SYSTEM_BITWIDTH: ClassVar[int | None] = {"64bit": 64, "32bit": 32}.get(
         platform.architecture()[0]

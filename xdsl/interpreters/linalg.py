@@ -40,9 +40,11 @@ class LinalgFunctions(InterpreterFunctions):
 
         for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
             loop_args = tuple(
-                (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
-                if isinstance(i, ShapedArray)
-                else i
+                (
+                    (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
+                    if isinstance(i, ShapedArray)
+                    else i
+                )
                 for i, indexing_map in zip(args, indexing_maps, strict=True)
             )
             loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
