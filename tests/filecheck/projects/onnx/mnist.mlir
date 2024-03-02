@@ -1,4 +1,5 @@
-// RUN: xdsl-run %s | filecheck %s
+// RUN: xdsl-run --verbose %s | filecheck %s
+// RUN: xdsl-run %s --symbol main_graph --args "tensor<1x1x28x28xf32>" --verbose | filecheck %s
 // RUN: xdsl-opt -p convert-onnx-to-linalg %s | xdsl-run | filecheck %s
 
 
