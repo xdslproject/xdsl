@@ -51,7 +51,7 @@ linalg.transpose ins(%5:tensor<16x64xf32>) outs(%6:tensor<64x16xf32>) permutatio
 // CHECK-NEXT:    %cst = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:    %3 = linalg.fill ins(%cst : f32) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:    %4 = linalg.mul  ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#1 : tensor<2x3xf32>) -> tensor<2x3xf32>
-// CHECK-NEXT:    %2:2 = "test.op"() : () -> (tensor<16x64xf32>, tensor<64x16xf32>)
+// CHECK-NEXT:    %5:2 = "test.op"() : () -> (tensor<16x64xf32>, tensor<64x16xf32>)
 // CHECK-NEXT:    linalg.transpose ins(%5 : tensor<16x64xf32>) outs(%6 : tensor<64x16xf32>) permutation = [1, 0]
 // CHECK-NEXT:    %{{.*}} = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) {
 // CHECK-NEXT:    ^bb0(%in: f32, %in_0: f32, %out: f32):
