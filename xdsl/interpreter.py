@@ -112,7 +112,12 @@ class InterpreterFunctions:
     @classmethod
     def _attr_impls(
         cls,
-    ) -> Iterable[tuple[type[Attribute], AttrImpl[InterpreterFunctions, Attribute],]]:
+    ) -> Iterable[
+        tuple[
+            type[Attribute],
+            AttrImpl[InterpreterFunctions, Attribute],
+        ]
+    ]:
         try:
             impl_dict = getattr(cls, _ATTR_IMPL_DICT)
             return impl_dict.items()
@@ -233,7 +238,10 @@ def impl_cast(
 
 def impl_attr(
     input_type: type[AttributeInvT],
-) -> Callable[[AttrImpl[_FT, AttributeInvT]], AttrImpl[_FT, AttributeInvT],]:
+) -> Callable[
+    [AttrImpl[_FT, AttributeInvT]],
+    AttrImpl[_FT, AttributeInvT],
+]:
     """
     Marks the conversion from an attribute to a Python value. The
     `value_for_attribute` method on `Interpreter` will call into this implementation for
