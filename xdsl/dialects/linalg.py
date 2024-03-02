@@ -455,7 +455,7 @@ class FillOp(IRDLOperation):
 @irdl_op_definition
 class MulOp(IRDLOperation):
     """
-    Multiple two tensors elementwise.
+    Multiplies two tensors elementwise.
 
     See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmul-linalgmulop
     """
