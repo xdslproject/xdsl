@@ -549,8 +549,8 @@ class TransposeOp(IRDLOperation):
         permutation_shape = tuple(i.data for i in self.permutation.data.data)
 
         for i in range(len(input_shape)):
-            input_dimension = input_shape[permutation_shape[i]]
-            init_dimension = init_shape[i]
+            input_dimension: int = input_shape[permutation_shape[i]]
+            init_dimension: int = init_shape[i]
 
             if input_dimension != init_dimension:
                 raise VerifyException(
