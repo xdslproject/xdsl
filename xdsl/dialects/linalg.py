@@ -585,7 +585,6 @@ class TransposeOp(IRDLOperation):
         parser.parse_punctuation("(")
         init = parser.parse_operand()
         parser.parse_punctuation(":")
-        # result type the same type as init
         result = parser.parse_type()
         parser.parse_punctuation(")")
         parser.parse_keyword("permutation")
