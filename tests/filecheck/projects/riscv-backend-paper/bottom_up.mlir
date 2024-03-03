@@ -22,7 +22,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
       "stride_patterns" = [
         #snitch_stream.stride_pattern<ub = [3, 3, 6, 6], strides = [8, 64, 8, 64]>,
-        #snitch_stream.stride_pattern<ub = [3, 3, 6, 6], strides = [8, 24, 0, 0]>
+        #snitch_stream.stride_pattern<ub = [3, 3, 36], strides = [8, 24, 0]>
       ],
       "operandSegmentSizes" = array<i32: 2, 0>
     }> ({
@@ -57,14 +57,14 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t2, a1
 // CHECK-NEXT:      mv t0, a2
 // CHECK-NEXT:      li t5, 8
+// CHECK-NEXT:      li a5, 2
 // CHECK-NEXT:      li t6, 2
-// CHECK-NEXT:      li a3, 2
+// CHECK-NEXT:      li a3, 5
 // CHECK-NEXT:      li a4, 5
-// CHECK-NEXT:      li a5, 5
-// CHECK-NEXT:      scfgwi t6, 64
-// CHECK-NEXT:      scfgwi a3, 96
-// CHECK-NEXT:      scfgwi a4, 128
-// CHECK-NEXT:      scfgwi a5, 160
+// CHECK-NEXT:      scfgwi a5, 64
+// CHECK-NEXT:      scfgwi t6, 96
+// CHECK-NEXT:      scfgwi a3, 128
+// CHECK-NEXT:      scfgwi a4, 160
 // CHECK-NEXT:      scfgwi t5, 192
 // CHECK-NEXT:      li t5, 48
 // CHECK-NEXT:      scfgwi t5, 224
@@ -73,23 +73,19 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      li t5, -120
 // CHECK-NEXT:      scfgwi t5, 288
 // CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      li a5, 2
 // CHECK-NEXT:      li a4, 2
-// CHECK-NEXT:      li a3, 5
-// CHECK-NEXT:      li t6, 5
-// CHECK-NEXT:      scfgwi a5, 65
-// CHECK-NEXT:      scfgwi a4, 97
-// CHECK-NEXT:      scfgwi a3, 129
-// CHECK-NEXT:      scfgwi t6, 161
+// CHECK-NEXT:      li a3, 2
+// CHECK-NEXT:      li t6, 35
+// CHECK-NEXT:      scfgwi a4, 65
+// CHECK-NEXT:      scfgwi a3, 97
+// CHECK-NEXT:      scfgwi t6, 129
 // CHECK-NEXT:      scfgwi t5, 193
 // CHECK-NEXT:      li t5, 8
 // CHECK-NEXT:      scfgwi t5, 225
 // CHECK-NEXT:      li t5, -64
 // CHECK-NEXT:      scfgwi t5, 257
-// CHECK-NEXT:      li t5, -64
-// CHECK-NEXT:      scfgwi t5, 289
 // CHECK-NEXT:      scfgwi t4, 864
-// CHECK-NEXT:      scfgwi t2, 865
+// CHECK-NEXT:      scfgwi t2, 833
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t2, 288
 // CHECK-NEXT:      mv t1, zero
@@ -190,7 +186,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       "stride_patterns" = [
         #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 0, 64]>,
         #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 8, 0]>,
-        #snitch_stream.stride_pattern<ub = [8, 8], strides = [8, 64]>
+        #snitch_stream.stride_pattern<ub = [64], strides = [8]>
       ],
       "operandSegmentSizes" = array<i32: 3, 0>
     }> ({
@@ -206,7 +202,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
           riscv_scf.yield %res : !riscv.freg<>
         }
 
-        %b = riscv.get_float_register : () -> !riscv.freg<ft2>
+        %b = riscv_snitch.read from %B_stream : !riscv.freg<ft2>
         %y_0 = riscv.fadd.d %b, %dot : (!riscv.freg<ft2>, !riscv.freg<>) -> !riscv.freg<>
         %y_1 = riscv.fmax.d %y_0, %zero_float : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
@@ -231,11 +227,11 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      li t2, 512
 // CHECK-NEXT:      fcvt.d.w ft3, zero
 // CHECK-NEXT:      li a4, 8
-// CHECK-NEXT:      li a6, 7
 // CHECK-NEXT:      li a5, 7
+// CHECK-NEXT:      li a6, 7
 // CHECK-NEXT:      li a7, 7
-// CHECK-NEXT:      scfgwi a6, 64
-// CHECK-NEXT:      scfgwi a5, 96
+// CHECK-NEXT:      scfgwi a5, 64
+// CHECK-NEXT:      scfgwi a6, 96
 // CHECK-NEXT:      scfgwi a7, 128
 // CHECK-NEXT:      scfgwi a4, 192
 // CHECK-NEXT:      li a4, -56
@@ -244,27 +240,23 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      scfgwi a4, 256
 // CHECK-NEXT:      li a4, 64
 // CHECK-NEXT:      li a7, 7
-// CHECK-NEXT:      li a5, 7
 // CHECK-NEXT:      li a6, 7
+// CHECK-NEXT:      li a5, 7
 // CHECK-NEXT:      scfgwi a7, 65
-// CHECK-NEXT:      scfgwi a5, 97
-// CHECK-NEXT:      scfgwi a6, 129
+// CHECK-NEXT:      scfgwi a6, 97
+// CHECK-NEXT:      scfgwi a5, 129
 // CHECK-NEXT:      scfgwi a4, 193
 // CHECK-NEXT:      li a4, -440
 // CHECK-NEXT:      scfgwi a4, 225
 // CHECK-NEXT:      li a4, -504
 // CHECK-NEXT:      scfgwi a4, 257
 // CHECK-NEXT:      li a4, 8
-// CHECK-NEXT:      li a6, 7
-// CHECK-NEXT:      li a5, 7
-// CHECK-NEXT:      scfgwi a6, 66
-// CHECK-NEXT:      scfgwi a5, 98
+// CHECK-NEXT:      li a5, 63
+// CHECK-NEXT:      scfgwi a5, 66
 // CHECK-NEXT:      scfgwi a4, 194
-// CHECK-NEXT:      li a4, 8
-// CHECK-NEXT:      scfgwi a4, 226
 // CHECK-NEXT:      scfgwi t6, 832
 // CHECK-NEXT:      scfgwi t5, 833
-// CHECK-NEXT:      scfgwi t4, 802
+// CHECK-NEXT:      scfgwi t4, 770
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      mv t1, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
@@ -287,7 +279,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       %arg0 : memref<8x16xf64>,
       %arg1 : memref<8x16xf64>,
       %arg2 : memref<8x16xf64>
-    ) -> memref<8x16xf64> {
+    ) {
       %0 = builtin.unrealized_conversion_cast %arg0 : memref<8x16xf64> to !riscv.reg<>
       %1 = builtin.unrealized_conversion_cast %arg1 : memref<8x16xf64> to !riscv.reg<>
       %2 = builtin.unrealized_conversion_cast %arg2 : memref<8x16xf64> to !riscv.reg<>
@@ -296,7 +288,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c128 = riscv.li 128 : () -> !riscv.reg<>
       "snitch_stream.streaming_region"(%0, %1, %2) <{
-        "stride_patterns" = [#snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>],
+        "stride_patterns" = [#snitch_stream.stride_pattern<ub = [128], strides = [8]>],
         "operandSegmentSizes" = array<i32: 2, 1>
       }> ({
       ^0(%5 : !stream.readable<!riscv.freg<ft0>>, %6 : !stream.readable<!riscv.freg<ft1>>, %7 : !stream.writable<!riscv.freg<ft2>>):
@@ -309,8 +301,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         }
       }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
-      %res = builtin.unrealized_conversion_cast %2 : !riscv.reg<> to memref<8x16xf64>
-      func.return %res : memref<8x16xf64>
+      func.return
     }
 
 
@@ -321,23 +312,18 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t0, a2
-// CHECK-NEXT:      li t3, 128
-// CHECK-NEXT:      li t5, 7
-// CHECK-NEXT:      li t4, 15
-// CHECK-NEXT:      scfgwi t5, 95
-// CHECK-NEXT:      scfgwi t4, 127
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      li t4, 127
+// CHECK-NEXT:      scfgwi t4, 95
 // CHECK-NEXT:      scfgwi t3, 223
-// CHECK-NEXT:      li t3, -888
-// CHECK-NEXT:      scfgwi t3, 255
-// CHECK-NEXT:      scfgwi t2, 800
-// CHECK-NEXT:      scfgwi t1, 801
-// CHECK-NEXT:      scfgwi t0, 930
+// CHECK-NEXT:      scfgwi t2, 768
+// CHECK-NEXT:      scfgwi t1, 769
+// CHECK-NEXT:      scfgwi t0, 898
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      li t1, 127
-// CHECK-NEXT:      frep.o t1, 1, 0, 0
+// CHECK-NEXT:      li t0, 127
+// CHECK-NEXT:      frep.o t0, 1, 0, 0
 // CHECK-NEXT:      fadd.d ft2, ft0, ft1
 // CHECK-NEXT:      csrrci zero, 1984, 1
-// CHECK-NEXT:      mv a0, t0
 // CHECK-NEXT:      ret
 
 
@@ -576,7 +562,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %zero_float = riscv.fcvt.d.w %zero_int : (!riscv.reg<zero>) -> !riscv.freg<>
 
     "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
-      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [16, 16], strides = [128, 8]>],
+      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [256], strides = [8]>],
       "operandSegmentSizes" = array<i32: 1, 1>
     }> ({
     ^0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.writable<!riscv.freg<ft1>>):
@@ -601,16 +587,12 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
 // CHECK-NEXT:      fcvt.d.w ft3, zero
-// CHECK-NEXT:      li t2, 128
-// CHECK-NEXT:      li t4, 15
-// CHECK-NEXT:      li t3, 15
-// CHECK-NEXT:      scfgwi t4, 95
-// CHECK-NEXT:      scfgwi t3, 127
+// CHECK-NEXT:      li t2, 8
+// CHECK-NEXT:      li t3, 255
+// CHECK-NEXT:      scfgwi t3, 95
 // CHECK-NEXT:      scfgwi t2, 223
-// CHECK-NEXT:      li t2, -1912
-// CHECK-NEXT:      scfgwi t2, 255
-// CHECK-NEXT:      scfgwi t1, 800
-// CHECK-NEXT:      scfgwi t0, 929
+// CHECK-NEXT:      scfgwi t1, 768
+// CHECK-NEXT:      scfgwi t0, 897
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t0, 255
 // CHECK-NEXT:      frep.o t0, 1, 0, 0
