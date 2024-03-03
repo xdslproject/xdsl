@@ -198,7 +198,7 @@ class StreamingRegionOp(IRDLOperation):
 class GenericOp(IRDLOperation):
     name = "memref_stream.generic"
 
-    inputs = var_operand_def(memref.MemRefType | stream.ReadableStreamType)
+    inputs = var_operand_def()
     """
     Pointers to memory buffers or streams to be operated on. The corresponding stride
     pattern defines the order in which the elements of the input buffers will be read.
@@ -256,9 +256,7 @@ class GenericOp(IRDLOperation):
         printer.print_string(", iterator_types = [")
         printer.print_list(
             self.iterator_types,
-            lambda iterator_type: printer.print_string_literal(
-                iterator_type.data.value
-            ),
+            lambda iterator_type: printer.print_string_literal(iterator_type.data),
         )
         printer.print_string("]")
         printer.print_string("}")

@@ -70,12 +70,10 @@ if TYPE_CHECKING:
 
 class ShapedType(ABC):
     @abstractmethod
-    def get_num_dims(self) -> int:
-        ...
+    def get_num_dims(self) -> int: ...
 
     @abstractmethod
-    def get_shape(self) -> tuple[int, ...]:
-        ...
+    def get_shape(self) -> tuple[int, ...]: ...
 
     def element_count(self) -> int:
         return prod(self.get_shape())
@@ -430,14 +428,12 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
         self: IntegerAttr[_IntegerAttrType],
         value: int | IntAttr,
         value_type: _IntegerAttrType,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
         self: IntegerAttr[IntegerType], value: int | IntAttr, value_type: int
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self, value: int | IntAttr, value_type: int | IntegerType | IndexType
@@ -564,12 +560,10 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
     type: ParameterDef[_FloatAttrType]
 
     @overload
-    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None:
-        ...
+    def __init__(self, data: float | FloatData, type: _FloatAttrType) -> None: ...
 
     @overload
-    def __init__(self, data: float | FloatData, type: int) -> None:
-        ...
+    def __init__(self, data: float | FloatData, type: int) -> None: ...
 
     def __init__(
         self, data: float | FloatData, type: int | _FloatAttrType | AnyFloat
@@ -977,16 +971,14 @@ class DenseIntOrFPElementsAttr(
             | Sequence[IntegerAttr[IndexType]]
             | Sequence[IntegerAttr[IntegerType]]
         ),
-    ) -> DenseIntOrFPElementsAttr:
-        ...
+    ) -> DenseIntOrFPElementsAttr: ...
 
     @overload
     @staticmethod
     def from_list(
         type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
         data: Sequence[int | float] | Sequence[AnyFloatAttr],
-    ) -> DenseIntOrFPElementsAttr:
-        ...
+    ) -> DenseIntOrFPElementsAttr: ...
 
     @staticmethod
     def from_list(
@@ -1099,15 +1091,13 @@ class DenseArrayBase(ParametrizedAttribute):
     @staticmethod
     def from_list(
         data_type: IntegerType | IndexType, data: Sequence[int] | Sequence[IntAttr]
-    ) -> DenseArrayBase:
-        ...
+    ) -> DenseArrayBase: ...
 
     @overload
     @staticmethod
     def from_list(
         data_type: Attribute, data: Sequence[int | float] | Sequence[FloatData]
-    ) -> DenseArrayBase:
-        ...
+    ) -> DenseArrayBase: ...
 
     @staticmethod
     def from_list(

@@ -2323,7 +2323,7 @@ class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.mul"
 
-    traits = frozenset((MulOpHasCanonicalizationPatternsTrait(),))
+    traits = frozenset((MulOpHasCanonicalizationPatternsTrait(), Pure()))
 
 
 @irdl_op_definition
