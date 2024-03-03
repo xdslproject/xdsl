@@ -77,7 +77,7 @@ class ShapedArray(Generic[_T]):
         old_list = self.data
         new_data = type(self.data_ptr)(
             RawPtr.new(self.data_ptr.format, tuple((el,) for el in old_list)),
-            self.data_ptr.format,
+            self.data_ptr.xtype,
         )
 
         result = type(self)(new_data, new_shape)

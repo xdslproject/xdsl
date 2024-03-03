@@ -4,7 +4,7 @@ import itertools
 import struct
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar, final
 
 _T = TypeVar("_T")
 
@@ -64,7 +64,7 @@ class RawPtr:
 
     @property
     def int32(self) -> TypedPtr[int]:
-        return TypedPtr(self, "<i")
+        return TypedPtr(self, int32)
 
     @staticmethod
     def new_int32(els: Sequence[int]) -> RawPtr:
@@ -72,7 +72,7 @@ class RawPtr:
 
     @property
     def int64(self) -> TypedPtr[int]:
-        return TypedPtr(self, "<I")
+        return TypedPtr(self, int64)
 
     @staticmethod
     def new_int64(els: Sequence[int]) -> RawPtr:
@@ -89,7 +89,11 @@ class RawPtr:
                 raise ValueError(f"Unsupported index bitwidth {index_bitwidth}")
 
     def index(self, index_bitwidth: int) -> TypedPtr[int]:
-        return TypedPtr(self, RawPtr.index_format_for_bitwidth(index_bitwidth))
+        if index_bitwidth != 32 and index_bitwidth != 64:
+            raise ValueError(
+                f"Invalid index bitwidth {index_bitwidth} monly 32 or 64 allowed"
+            )
+        return TypedPtr(self, index(index_bitwidth))
 
     @staticmethod
     def new_index(els: Sequence[int], index_bitwidth: int) -> RawPtr:
@@ -99,7 +103,7 @@ class RawPtr:
 
     @property
     def float32(self) -> TypedPtr[float]:
-        return TypedPtr(self, "<f")
+        return TypedPtr(self, float32)
 
     @staticmethod
     def new_float32(els: Sequence[float]) -> RawPtr:
@@ -107,17 +111,39 @@ class RawPtr:
 
     @property
     def float64(self) -> TypedPtr[float]:
-        return TypedPtr(self, "<d")
+        return TypedPtr(self, float64)
 
     @staticmethod
     def new_float64(els: Sequence[float]) -> RawPtr:
         return RawPtr.new("<d", [(el,) for el in els])
 
 
+@final
+@dataclass
+class XType(Generic[_T]):
+
+    type: type[_T]
+    format: str
+
+
+int32 = XType(int, "<i")
+int64 = XType(int, "<I")
+float32 = XType(float, "<f")
+float64 = XType(float, "<d")
+
+
+def index(bitwidth: Literal[32] | Literal[64]) -> XType[int]:
+    return int32 if bitwidth == 32 else int64
+
+
 @dataclass
 class TypedPtr(Generic[_T]):
     raw: RawPtr
-    format: str
+    xtype: XType[_T]
+
+    @property
+    def format(self) -> str:
+        return self.xtype.format
 
     @property
     def size(self) -> int:
@@ -133,26 +159,30 @@ class TypedPtr(Generic[_T]):
         (self.raw + index * self.size).set(self.format, value)
 
     @staticmethod
-    def zeros(count: int, format: str) -> TypedPtr[Any]:
-        size = struct.calcsize(format)
-        return TypedPtr(RawPtr.zeros(size * count), format)
+    def zeros(count: int, xtype: XType[_T]) -> TypedPtr[_T]:
+        size = struct.calcsize(xtype.format)
+        return TypedPtr(RawPtr.zeros(size * count), xtype)
 
     @staticmethod
-    def new(els: Sequence[Any], format: str) -> TypedPtr[Any]:
-        return TypedPtr(RawPtr.new(format, tuple((el,) for el in els)), format)
+    def new(els: Sequence[_T], xtype: XType[_T]) -> TypedPtr[_T]:
+        return TypedPtr(RawPtr.new(xtype.format, tuple((el,) for el in els)), xtype)
 
     @staticmethod
     def new_float32(els: Sequence[float]) -> TypedPtr[float]:
-        return TypedPtr(RawPtr.new_float32(els), "<f")
+        return TypedPtr.new(els, float32)
 
     @staticmethod
     def new_float64(els: Sequence[float]) -> TypedPtr[float]:
-        return TypedPtr(RawPtr.new_float64(els), "<d")
+        return TypedPtr.new(els, float64)
 
     @staticmethod
     def new_int32(els: Sequence[int]) -> TypedPtr[int]:
-        return TypedPtr(RawPtr.new_int32(els), "<i")
+        return TypedPtr.new(els, int32)
 
     @staticmethod
     def new_index(els: Sequence[int], index_bitwidth: int) -> TypedPtr[int]:
-        return TypedPtr.new(els, RawPtr.index_format_for_bitwidth(index_bitwidth))
+        if index_bitwidth != 32 and index_bitwidth != 64:
+            raise ValueError(
+                f"Invalid index bitwidth {index_bitwidth} monly 32 or 64 allowed"
+            )
+        return TypedPtr.new(els, index(index_bitwidth))

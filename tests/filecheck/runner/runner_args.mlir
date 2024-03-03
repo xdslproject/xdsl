@@ -12,8 +12,8 @@ module {
     }
 }
 
-// CHECK-ONE: result: (1,)
-// CHECK-ONE-NOT: result: (2,)
-// CHECK-TWO: result: (2,)
-// CHECK-TWO-NOT: result: (1,)
+// CHECK-ONE:      result: 1
+// CHECK-ONE-NOT:  result: 2
+// CHECK-TWO:      result: 2
+// CHECK-TWO-NOT:  result: 1
 
