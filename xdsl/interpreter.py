@@ -484,7 +484,7 @@ class InterpreterContext:
         return "/".join(c.name for c in self.stack())
 
 
-def _get_system_bitwidth() -> Literal[32] | Literal[64] | None:
+def _get_system_bitwidth() -> Literal[32, 64] | None:
     match platform.architecture()[0]:
         case "64bit":
             return 64
@@ -519,7 +519,7 @@ class Interpreter:
     )
 
     module: ModuleOp
-    index_bitwidth: Literal[32] | Literal[64] = field(default=DEFAULT_BITWIDTH)
+    index_bitwidth: Literal[32, 64] = field(default=DEFAULT_BITWIDTH)
     """
     Number of bits in the binary representation of the index
     """

@@ -22,7 +22,7 @@ from xdsl.ir import Attribute
 
 
 def xtype_for_el_type(
-    el_type: Attribute, index_bitwidth: Literal[32] | Literal[64]
+    el_type: Attribute, index_bitwidth: Literal[32, 64]
 ) -> ptr.XType[Any]:
     match el_type:
         case builtin.i32:

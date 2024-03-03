@@ -132,7 +132,7 @@ float32 = XType(float, "<f")
 float64 = XType(float, "<d")
 
 
-def index(bitwidth: Literal[32] | Literal[64]) -> XType[int]:
+def index(bitwidth: Literal[32, 64]) -> XType[int]:
     return int32 if bitwidth == 32 else int64
 
 
