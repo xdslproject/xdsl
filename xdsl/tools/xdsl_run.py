@@ -97,9 +97,9 @@ class xDSLRunMain(CommandLineTool):
                         if len(result) == 1:
                             print(f"result: {result[0]}")
                         else:
-                            print("result:")
-                            for res in result:
-                                print(f"    {res}")
+                            print("result: (")
+                            print(",\n".join(f"    {res}" for res in result))
+                            print(")")
                     else:
                         print("result: ()")
         finally:
