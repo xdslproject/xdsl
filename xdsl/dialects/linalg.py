@@ -546,11 +546,11 @@ class TransposeOp(IRDLOperation):
                 f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
             )
 
-        permutation_shape = tuple(i.data for i in self.permutation.data.data)
+        permutation_shape = cast(list[int], self.permutation.as_tuple())
 
         for i in range(len(input_shape)):
-            input_dimension: int = input_shape[permutation_shape[i]]
-            init_dimension: int = init_shape[i]
+            input_dimension = input_shape[permutation_shape[i]]
+            init_dimension = init_shape[i]
 
             if input_dimension != init_dimension:
                 raise VerifyException(
@@ -571,7 +571,7 @@ class TransposeOp(IRDLOperation):
         printer.print_string(") ")
         printer.print_string("permutation")
         printer.print_string(" = ")
-        printer.print([i.data for i in self.permutation.data.data])
+        printer.print(list(self.permutation.as_tuple()))
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -590,12 +590,15 @@ class TransposeOp(IRDLOperation):
         parser.parse_punctuation(")")
         parser.parse_keyword("permutation")
         parser.parse_punctuation("=")
-        parser.parse_punctuation("[")
         permutation = parser.parse_comma_separated_list(
-            Parser.Delimiter.NONE, parser.parse_integer
+            parser.Delimiter.SQUARE, parser.parse_integer
         )
-        parser.parse_punctuation("]")
-        transpose = cls(input, init, DenseArrayBase.from_list(i64, permutation), result)
+        transpose = cls(
+            input,
+            init,
+            DenseArrayBase.create_dense_int_or_index(i64, permutation),
+            result,
+        )
         return transpose
 
 
