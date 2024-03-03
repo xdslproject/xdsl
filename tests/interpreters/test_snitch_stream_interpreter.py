@@ -4,7 +4,8 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
+from xdsl.interpreters.ptr import TypedPtr
+from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_snitch import RiscvSnitchFunctions
 from xdsl.interpreters.snitch_stream import SnitchStreamFunctions
 from xdsl.ir import Block, Region
@@ -56,9 +57,9 @@ def test_snitch_stream_interpreter():
     interpreter.register_implementations(SnitchStreamFunctions())
     interpreter.register_implementations(RiscvSnitchFunctions())
 
-    a = RawPtr.new_float64([2.0] * 6)
-    b = RawPtr.new_float64([3.0] * 6)
-    c = RawPtr.new_float64([4.0] * 6)
+    a = TypedPtr.new_float64([2.0] * 6)
+    b = TypedPtr.new_float64([3.0] * 6)
+    c = TypedPtr.new_float64([4.0] * 6)
 
     streaming_region_body = Region(
         Block(
@@ -97,9 +98,9 @@ def test_snitch_stream_interpreter():
                 ),
                 streaming_region_body,
             ),
-            (a, b, c),
+            (a.raw, b.raw, c.raw),
         )
         == ()
     )
 
-    assert c.float64.get_list(6) == [5.0] * 6
+    assert c.get_list(6) == [5.0] * 6
