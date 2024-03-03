@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout xDSL
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           path: xdsl
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -34,7 +34,7 @@ jobs:
 
       - name: Restore cached Pyodide tree
         id: cache-pyodide
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: pyodide
           key: pyodide

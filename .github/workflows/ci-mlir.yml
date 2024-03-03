@@ -25,7 +25,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         path: xdsl
-        
+
     - name: Install native dependencies
       uses: awalsh128/cache-apt-pkgs-action@latest
       with:
@@ -33,7 +33,7 @@ jobs:
         version: 1.0
 
     - name: Python Setup
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -51,7 +51,7 @@ jobs:
 
     - name: Cache binaries
       id: cache-binary
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: llvm-project/build
         key: binaries-${{ runner.os }}-${{ env.MLIR-Version }}
