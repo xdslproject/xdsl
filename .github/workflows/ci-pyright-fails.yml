@@ -22,7 +22,7 @@ jobs:
       PYRIGHT_VERSION: 1.0
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
