@@ -12,9 +12,13 @@ from xdsl.dialects.builtin import (
     AnyShapedType,
     AnyTensorType,
     ArrayAttr,
+    DenseArrayBase,
     IntegerType,
+    MemRefType,
     ShapedType,
     StringAttr,
+    TensorType,
+    i64,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -27,8 +31,10 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     VarOperand,
     VarOpResult,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     opt_attr_def,
     prop_def,
     region_def,
@@ -452,6 +458,149 @@ class FillOp(IRDLOperation):
                 )
 
 
+@irdl_op_definition
+class MulOp(IRDLOperation):
+    """
+    Multiplies two tensors elementwise.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmul-linalgmulop
+    """
+
+    name = "linalg.mul"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
+@irdl_op_definition
+class TransposeOp(IRDLOperation):
+    """
+    Transpose operator
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgtranspose-linalgtransposeop
+    """
+
+    name = "linalg.transpose"
+
+    input = operand_def(MemRefType | AnyTensorType)
+    init = operand_def(MemRefType | AnyTensorType)
+    result = var_result_def(AnyTensorType)
+
+    permutation = attr_def(DenseArrayBase)
+
+    def __init__(
+        self,
+        input: SSAValue,
+        init: SSAValue,
+        permutation: Attribute,
+        result: Attribute | None = None,
+    ):
+        super().__init__(
+            attributes={
+                "permutation": permutation,
+            },
+            operands=(input, init),
+            result_types=(result,),
+        )
+
+    def verify_(self) -> None:
+
+        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
+        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+
+        input_shape = input_type.get_shape()
+        init_shape = init_type.get_shape()
+
+        if (input_rank := len(input_shape)) != (init_rank := len(init_shape)):
+            raise VerifyException(
+                f"Input rank ({input_rank}) does not match output rank ({init_rank})"
+            )
+        if (input_rank := len(input_shape)) != (
+            permutation_size := len(self.permutation.data)
+        ):
+            raise VerifyException(
+                f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
+            )
+
+        permutation_shape = cast(list[int], self.permutation.as_tuple())
+
+        for i in range(len(input_shape)):
+            input_dimension = input_shape[permutation_shape[i]]
+            init_dimension = init_shape[i]
+
+            if input_dimension != init_dimension:
+                raise VerifyException(
+                    f"dim(result, {i}) = {init_dimension} "
+                    f"doesn't match dim(input, permutation[{i}]) = {input_dimension}"
+                )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ins(")
+        printer.print(self.input)
+        printer.print_string(":")
+        printer.print(self.input.type)
+        printer.print_string(")")
+        printer.print_string(" outs(")
+        printer.print(self.init)
+        printer.print_string(":")
+        printer.print(self.init.type)
+        printer.print_string(") ")
+        printer.print_string("permutation")
+        printer.print_string(" = ")
+        printer.print(list(self.permutation.as_tuple()))
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_characters("ins")
+        parser.parse_punctuation("(")
+        input = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_characters("outs")
+        parser.parse_punctuation("(")
+        init = parser.parse_operand()
+        parser.parse_punctuation(":")
+        result = parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_keyword("permutation")
+        parser.parse_punctuation("=")
+        permutation = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        transpose = cls(
+            input,
+            init,
+            DenseArrayBase.create_dense_int_or_index(i64, permutation),
+            result,
+        )
+        return transpose
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -459,6 +608,8 @@ Linalg = Dialect(
         YieldOp,
         AddOp,
         FillOp,
+        MulOp,
+        TransposeOp,
     ],
     [
         IteratorTypeAttr,

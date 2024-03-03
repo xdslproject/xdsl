@@ -247,12 +247,12 @@ class FormatDirective(ABC):
     """A format directive for operation format."""
 
     @abstractmethod
-    def parse(self, parser: Parser, state: ParsingState) -> None:
-        ...
+    def parse(self, parser: Parser, state: ParsingState) -> None: ...
 
     @abstractmethod
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        ...
+    def print(
+        self, printer: Printer, state: PrintingState, op: IRDLOperation
+    ) -> None: ...
 
 
 class AnchorableDirective(FormatDirective, ABC):

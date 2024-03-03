@@ -156,27 +156,33 @@ class StridePattern(ParametrizedAttribute):
         tuples = tuple(
             (bound.data, stride.data)
             for bound, stride in zip(self.ub.data, self.strides.data)
-            # Exclude singe iteration bounds
+            # Exclude single iteration bounds
             if bound.data != 1
         )
 
-        d = len(tuples) - 2
         # Outermost bound and stride
         ub0, s0 = tuples[-1]
-        while 0 <= d:
+
+        # Start with the second outermost loop bounds
+        second_outermost_dim = len(tuples) - 2
+        while 0 <= second_outermost_dim:
             # Next bound and stride to fold into outermost
-            ubd, sd = tuples[d]
+            ubd, sd = tuples[second_outermost_dim]
             if s0 == ubd * sd:
                 # The second outermost loop is perfectly nested in outermost
                 ub0 = ub0 * ubd
                 s0 = sd
-                d -= 1
+                # Decrement the index into tuples for what the new second outermost loop
+                # bound is
+                second_outermost_dim -= 1
             else:
                 # The second outermost loop does not match, do not try to further simplify
                 break
 
-        ub = (*(bound for bound, _ in tuples[: d + 1]), ub0)
-        s = (*(stride for _, stride in tuples[: d + 1]), s0)
+        # ub and s include all the tuples up to and including the second outermost dim,
+        # followed by the new outermost bound and stride
+        ub = (*(bound for bound, _ in tuples[: second_outermost_dim + 1]), ub0)
+        s = (*(stride for _, stride in tuples[: second_outermost_dim + 1]), s0)
 
         return StridePattern.from_bounds_and_strides(ub, s)
 
