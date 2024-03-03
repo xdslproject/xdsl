@@ -22,7 +22,7 @@ jobs:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       MLIR-Version: 98e674c9f16d677d95c67bc130e267fae331e43c
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         path: xdsl
 
@@ -59,7 +59,7 @@ jobs:
 
     - name: Checkout MLIR
       if: steps.cache-binary.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: llvm/llvm-project.git
         path: llvm-project
