@@ -537,7 +537,7 @@ class TransposeOp(IRDLOperation):
 
         if (input_rank := len(input_shape)) != (init_rank := len(init_shape)):
             raise VerifyException(
-                f"Input rank ({input_rank}) does not match init rank ({init_rank})"
+                f"Input rank ({input_rank}) does not match output rank ({init_rank})"
             )
         if (input_rank := len(input_shape)) != (
             permutation_size := len(self.permutation.data)
