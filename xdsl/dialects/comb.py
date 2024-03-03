@@ -6,6 +6,7 @@ higher level dialects mixed into it.
 
 [1] https://circt.llvm.org/docs/Dialects/Comb/
 """
+
 from abc import ABC
 from collections.abc import Sequence
 from typing import Annotated

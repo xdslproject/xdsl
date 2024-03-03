@@ -4,6 +4,8 @@ import math
 from abc import ABC
 from typing import Annotated, cast
 
+from typing_extensions import Self
+
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
@@ -34,6 +36,8 @@ from xdsl.irdl import (
     opt_attr_def,
     result_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -614,18 +618,16 @@ class Constant(IRDLOperation):
     value_string = opt_attr_def(StringAttr)
     value_strings = opt_attr_def(ArrayAttr[StringAttr])
 
-    assembly_format = "`(``)` attr-dict `:` `(``)` `->` type($output) "
-
     def __init__(
         self,
-        value: Attribute,
-        value_float: Attribute,
-        value_floats: Attribute,
-        value_int: Attribute,
-        value_ints: Attribute,
-        value_string: Attribute,
-        value_strings: Attribute,
-        output_type: Attribute,
+        value: Attribute | None,
+        value_float: Attribute | None,
+        value_floats: Attribute | None,
+        value_int: Attribute | None,
+        value_ints: Attribute | None,
+        value_string: Attribute | None,
+        value_strings: Attribute | None,
+        output_type: Attribute | None,
     ):
         super().__init__(
             attributes={
@@ -672,6 +674,19 @@ class Constant(IRDLOperation):
             raise VerifyException(
                 f"Only one value attribute must be provided, but {used_attrs} were specified"
             )
+
+    def print(self, printer: Printer):
+        if self.value is not None:
+            printer.print(" ")
+            printer.print(self.value)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        v = parser.parse_attribute()
+        if not isinstance(v, DenseIntOrFPElementsAttr):
+            raise NotImplementedError()
+        constant = cls(v, None, None, None, None, None, None, v.type)
+        return constant
 
 
 @irdl_op_definition
