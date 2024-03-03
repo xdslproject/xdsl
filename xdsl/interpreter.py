@@ -8,6 +8,7 @@ from typing import (
     IO,
     Any,
     ClassVar,
+    Literal,
     NamedTuple,
     ParamSpec,
     TypeAlias,
@@ -414,14 +415,14 @@ class _InterpreterFunctionImpls:
         ft, impl = self._cast_impl_dict[types]
         return impl(ft, input_type, output_type, value)
 
-    def attr_value(self, attr: Attribute) -> Any:
+    def attr_value(self, interpreter: Interpreter, attr: Attribute) -> Any:
         attr_type = type(attr)
         if attr_type not in self._attr_impl_dict:
             raise InterpretationError(
                 f"Could not find Python value implementation for types {attr_type}"
             )
         ft, impl = self._attr_impl_dict[attr_type]
-        return impl(ft, attr)
+        return impl(ft, interpreter, attr)
 
     def call_external(
         self, interpreter: Interpreter, sym_name: str, op: Operation, args: PythonValues
@@ -483,6 +484,16 @@ class InterpreterContext:
         return "/".join(c.name for c in self.stack())
 
 
+def _get_system_bitwidth() -> Literal[32, 64] | None:
+    match platform.architecture()[0]:
+        case "64bit":
+            return 64
+        case "32bit":
+            return 32
+        case _:
+            return None
+
+
 @dataclass
 class Interpreter:
     """
@@ -502,13 +513,13 @@ class Interpreter:
 
         def did_interpret_op(self, op: Operation, results: PythonValues) -> None: ...
 
-    SYSTEM_BITWIDTH: ClassVar[int | None] = {"64bit": 64, "32bit": 32}.get(
-        platform.architecture()[0]
+    SYSTEM_BITWIDTH: ClassVar[Literal[32, 64] | None] = _get_system_bitwidth()
+    DEFAULT_BITWIDTH: ClassVar[Literal[32, 64]] = (
+        32 if SYSTEM_BITWIDTH is None else SYSTEM_BITWIDTH
     )
-    DEFAULT_BITWIDTH: ClassVar[int] = 32 if SYSTEM_BITWIDTH is None else SYSTEM_BITWIDTH
 
     module: ModuleOp
-    index_bitwidth: int = field(default=DEFAULT_BITWIDTH)
+    index_bitwidth: Literal[32, 64] = field(default=DEFAULT_BITWIDTH)
     """
     Number of bits in the binary representation of the index
     """
@@ -686,7 +697,7 @@ class Interpreter:
         return self._impls.cast(o, r, value)
 
     def value_for_attribute(self, attr: Attribute) -> Any:
-        return self._impls.attr_value(attr)
+        return self._impls.attr_value(self, attr)
 
     def get_op_for_symbol(self, symbol: str) -> Operation:
         if symbol in self.symbol_table:
@@ -786,7 +797,7 @@ CastImpl: TypeAlias = Callable[
     Any,
 ]
 AttrImpl: TypeAlias = Callable[
-    [_FT, AttributeInvT],
+    [_FT, Interpreter, AttributeInvT],
     Any,
 ]
 

@@ -33,16 +33,18 @@ class BuiltinFunctions(InterpreterFunctions):
         )
 
     @impl_attr(FloatAttr)
-    def float_attr_value(self, attr: AnyFloatAttr) -> float:
+    def float_attr_value(self, interpreter: Interpreter, attr: AnyFloatAttr) -> float:
         return attr.value.data
 
     @impl_attr(IntegerAttr)
-    def integer_attr_value(self, attr: AnyIntegerAttr) -> float:
+    def integer_attr_value(
+        self, interpreter: Interpreter, attr: AnyIntegerAttr
+    ) -> float:
         return attr.value.data
 
     @impl_attr(DenseIntOrFPElementsAttr)
     def dense_int_or_fp_elements_value(
-        self, attr: DenseIntOrFPElementsAttr
+        self, interpreter: Interpreter, attr: DenseIntOrFPElementsAttr
     ) -> ShapedArray[Any]:
         shape = attr.get_shape()
         data = [el.value.data for el in attr.data]
