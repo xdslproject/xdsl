@@ -93,7 +93,15 @@ class xDSLRunMain(CommandLineTool):
                 )
                 result = interpreter.call_op(symbol, args)
                 if self.args.verbose:
-                    print(f"result: {result}")
+                    if result:
+                        if len(result) == 1:
+                            print(f"result: {result[0]}")
+                        else:
+                            print("result: (")
+                            print(",\n".join(f"    {res}" for res in result))
+                            print(")")
+                    else:
+                        print("result: ()")
         finally:
             if input is not sys.stdin:
                 input.close()
