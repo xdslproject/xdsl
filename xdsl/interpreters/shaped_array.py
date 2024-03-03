@@ -9,7 +9,7 @@ from typing import Generic, TypeVar
 
 from typing_extensions import Self
 
-from xdsl.interpreters.ptr import RawPtr, TypedPtr
+from xdsl.interpreters.ptr import TypedPtr
 
 _T = TypeVar("_T")
 
@@ -75,10 +75,7 @@ class ShapedArray(Generic[_T]):
         new_shape = list(self.shape)
         new_shape[dim0], new_shape[dim1] = new_shape[dim1], new_shape[dim0]
         old_list = self.data
-        new_data = type(self.data_ptr)(
-            RawPtr.new(self.data_ptr.format, tuple((el,) for el in old_list)),
-            self.data_ptr.xtype,
-        )
+        new_data = type(self.data_ptr).new(old_list, xtype=self.data_ptr.xtype)
 
         result = type(self)(new_data, new_shape)
 

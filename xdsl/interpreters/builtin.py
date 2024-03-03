@@ -71,6 +71,8 @@ class BuiltinFunctions(InterpreterFunctions):
         data = [el.value.data for el in attr.data]
         data_ptr = ptr.TypedPtr.new(
             data,
-            xtype_for_el_type(attr.get_element_type(), interpreter.index_bitwidth),
+            xtype=xtype_for_el_type(
+                attr.get_element_type(), interpreter.index_bitwidth
+            ),
         )
         return ShapedArray(data_ptr, list(shape) if shape is not None else [])

@@ -27,4 +27,4 @@ def test_values():
         DenseIntOrFPElementsAttr.create_dense_int(
             TensorType(i32, [2, 3]), list(range(6))
         )
-    ) == ShapedArray(ptr.TypedPtr.new(list(range(6)), ptr.int32), [2, 3])
+    ) == ShapedArray(ptr.TypedPtr.new_int32(list(range(6))), [2, 3])
