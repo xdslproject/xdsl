@@ -1255,7 +1255,7 @@ class QualifyInterfacesPass(RewritePattern):
             self.declared_coeff_func = True
 
 
-@dataclass
+@dataclass(frozen=True)
 class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
 

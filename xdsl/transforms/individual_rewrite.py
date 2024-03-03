@@ -83,7 +83,7 @@ instances.
 """
 
 
-@dataclass
+@dataclass(frozen=True)
 class IndividualRewrite(ModulePass):
     """
     Module pass representing the application of an individual rewrite pattern to a module.

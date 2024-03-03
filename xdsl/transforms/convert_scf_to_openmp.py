@@ -92,7 +92,7 @@ class ConvertParallel(RewritePattern):
         rewriter.replace_matched_op(parallel)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConvertScfToOpenMPPass(ModulePass):
     """
     Convert `scf.parallel` loops to `omp.wsloop` constructs for parallel execution.

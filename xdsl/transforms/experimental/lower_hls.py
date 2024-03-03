@@ -484,7 +484,7 @@ class GetHLSStreamInDataflow(RewritePattern):
         dataflow.body.blocks[0].insert_op_before(op, hls_yield)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LowerHLSPass(ModulePass):
     name = "lower-hls"
 

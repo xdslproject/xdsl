@@ -439,20 +439,17 @@ class Parser(AttrParser):
     @overload
     def parse_optional_argument(
         self, expect_type: Literal[True] = True
-    ) -> Argument | None:
-        ...
+    ) -> Argument | None: ...
 
     @overload
     def parse_optional_argument(
         self, expect_type: Literal[False]
-    ) -> UnresolvedArgument | None:
-        ...
+    ) -> UnresolvedArgument | None: ...
 
     @overload
     def parse_optional_argument(
         self, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument | None:
-        ...
+    ) -> UnresolvedArgument | Argument | None: ...
 
     def parse_optional_argument(
         self, expect_type: bool = True
@@ -477,18 +474,15 @@ class Parser(AttrParser):
             return self.UnresolvedArgument(name_token.span)
 
     @overload
-    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument:
-        ...
+    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument: ...
 
     @overload
-    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument:
-        ...
+    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument: ...
 
     @overload
     def parse_argument(
         self, *, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument:
-        ...
+    ) -> UnresolvedArgument | Argument: ...
 
     def parse_argument(
         self, *, expect_type: bool = True
