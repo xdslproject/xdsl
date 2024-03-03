@@ -105,7 +105,7 @@ class PipelineLexer:
 
 
 PassArgElementType = str | int | bool | float
-PassArgListType = list[PassArgElementType]
+PassArgListType = tuple[PassArgElementType, ...]
 
 
 def _pass_arg_element_type_str(arg: PassArgElementType) -> str:
@@ -204,12 +204,12 @@ def parse_pipeline(
                 yield PipelinePassSpec(
                     "mlir-opt",
                     {
-                        "arguments": [
+                        "arguments": (
                             "--mlir-print-op-generic",
                             "--allow-unregistered-dialect",
                             "-p",
                             f"builtin.module({span.text[1:-1]})",
-                        ]
+                        )
                     },
                 )
             case invalid:
@@ -261,12 +261,12 @@ def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
         match lexer.lex():
             case Token(kind=Token.Kind.SPACE):
                 # space means zero-length argument, store empty list
-                args[name.span.text] = []
+                args[name.span.text] = ()
                 # then continue parsing args list
                 continue
             case Token(kind=Token.Kind.R_BRACE):
                 # `}` means zero-length argument with no further arg
-                args[name.span.text] = []
+                args[name.span.text] = ()
                 # stop parsing args
                 return args
             case Token(kind=Token.Kind.EQUALS):
@@ -302,7 +302,7 @@ def _parse_arg_value(lexer: PipelineLexer) -> PassArgListType:
     while lexer.peek().kind is Token.Kind.COMMA:
         lexer.lex()
         elms.append(_parse_arg_value_element(lexer))
-    return elms
+    return tuple(elms)
 
 
 def _parse_arg_value_element(lexer: PipelineLexer) -> PassArgElementType:

@@ -70,7 +70,7 @@ class ReplaceAbsOpByXilinxMath(RewritePattern):
         rewriter.replace_matched_op([call])
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReplaceIncompatibleFPGA(ModulePass):
     name = "replace-incompatible-fpga"
 

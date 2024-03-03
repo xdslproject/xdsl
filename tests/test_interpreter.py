@@ -118,11 +118,9 @@ def test_external_func():
 
 
 def test_interpreter_data():
-    class Funcs0(InterpreterFunctions):
-        ...
+    class Funcs0(InterpreterFunctions): ...
 
-    class Funcs1(InterpreterFunctions):
-        ...
+    class Funcs1(InterpreterFunctions): ...
 
     interpreter = Interpreter(ModuleOp([]))
 

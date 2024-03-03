@@ -92,11 +92,11 @@ class PatternRewriter(PatternRewriterListener):
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
-    def insert_op_before_matched_op(self, op: (Operation | Sequence[Operation])):
+    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations before the matched operation."""
         self.insert_op_before(op, self.current_operation)
 
-    def insert_op_after_matched_op(self, op: (Operation | Sequence[Operation])):
+    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations after the matched operation."""
         self.insert_op_after(op, self.current_operation)
 
