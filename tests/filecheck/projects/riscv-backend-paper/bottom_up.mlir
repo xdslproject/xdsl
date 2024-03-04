@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-func-to-riscv-func,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 // x[ M x K ]
 // y[ K x N ]
@@ -19,23 +19,26 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
-    "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
-      "stride_patterns" = [
-        #snitch_stream.stride_pattern<ub = [3, 3, 6, 6], strides = [8, 64, 8, 64]>,
-        #snitch_stream.stride_pattern<ub = [3, 3, 36], strides = [8, 24, 0]>
-      ],
-      "operandSegmentSizes" = array<i32: 2, 0>
-    }> ({
-    ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
+    memref_stream.streaming_region {
+      bounds = [1, 1, 6, 6, 1, 3, 3],
+      indexing_maps = [
+        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
+        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
+      ]
+    } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) {
+    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
+
       %c288 = riscv.li 288 : () -> !riscv.reg<>
       riscv_scf.for %z_i : !riscv.reg<> = %c0 to %c288 step %c8 {
         %Z_dest = riscv.add %Z_moved, %z_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %c = riscv.fld %Z_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %z = riscv_scf.for %i : !riscv.reg<> = %c0 to %c9 step %c1 iter_args(%acc = %c) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
-          %y = riscv_snitch.read from %Y_stream : !riscv.freg<ft1>
-          %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<ft0>, !riscv.freg<ft1>, !riscv.freg<>) -> !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %y_val = memref_stream.read from %y_stream : f64
+          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
+          %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
 
@@ -43,7 +46,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 
         riscv_scf.yield
       }
-    }) : (!riscv.reg<>, !riscv.reg<>) -> ()
+    }
 
     func.return
   }
@@ -109,29 +112,32 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<128xf64>,
     %G : memref<f64>
   ) {
-    %X_moved = builtin.unrealized_conversion_cast %X : memref<128xf64> to !riscv.reg<>
-    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<128xf64> to !riscv.reg<>
     %G_moved = builtin.unrealized_conversion_cast %G : memref<f64> to !riscv.reg<>
 
-    "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
-      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [128], strides = [8]>],
-      "operandSegmentSizes" = array<i32: 2, 0>
-    }> ({
-    ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
+    memref_stream.streaming_region {
+      bounds = [128],
+      indexing_maps = [
+          affine_map<(m) -> (m)>,
+          affine_map<(m) -> (m)>
+      ]
+    } ins(%X, %Y : memref<128xf64>, memref<128xf64>) {
+    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
         %init = riscv.fld %G_moved, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %c0 = riscv.li 0: () -> !riscv.reg<>
         %c1 = riscv.li 1: () -> !riscv.reg<>
         %c128 = riscv.li 128: () -> !riscv.reg<>
         %g = riscv_scf.for %i : !riscv.reg<> = %c0 to %c128 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
-          %y = riscv_snitch.read from %Y_stream : !riscv.freg<ft1>
-          %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<ft0>, !riscv.freg<ft1>, !riscv.freg<>) -> !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %y_val = memref_stream.read from %y_stream : f64
+          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
+          %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
 
         riscv.fsd %G_moved, %g, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
-    }) : (!riscv.reg<>, !riscv.reg<>) -> ()
+    }
 
     func.return
   }
@@ -170,9 +176,6 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %B : memref<8x8xf64>,
     %Y : memref<8x8xf64>
   ) {
-    %X_moved = builtin.unrealized_conversion_cast %X : memref<8x8xf64> to !riscv.reg<>
-    %W_moved = builtin.unrealized_conversion_cast %W : memref<8x8xf64> to !riscv.reg<>
-    %B_moved = builtin.unrealized_conversion_cast %B : memref<8x8xf64> to !riscv.reg<>
     %Y_moved = builtin.unrealized_conversion_cast %Y : memref<8x8xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
@@ -182,35 +185,39 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
-    "snitch_stream.streaming_region"(%X_moved, %W_moved, %B_moved) <{
-      "stride_patterns" = [
-        #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 0, 64]>,
-        #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 8, 0]>,
-        #snitch_stream.stride_pattern<ub = [64], strides = [8]>
-      ],
-      "operandSegmentSizes" = array<i32: 3, 0>
-    }> ({
-    ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %W_stream : !stream.readable<!riscv.freg<ft1>>, %B_stream : !stream.readable<!riscv.freg<ft2>>):
+    memref_stream.streaming_region {
+      bounds = [8, 8, 8],
+      indexing_maps = [
+          affine_map<(m, n, k) -> (m, k)>,
+          affine_map<(m, n, k) -> (k, n)>,
+          affine_map<(m, n) -> (m, n)>
+      ]
+    } ins(%X, %W, %B : memref<8x8xf64>, memref<8x8xf64>, memref<8x8xf64>) {
+    ^0(%x_stream : !stream.readable<f64>, %w_stream : !stream.readable<f64>, %b_stream : !stream.readable<f64>):
+
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c512 step %c8 {
         %Y_dest = riscv.add %Y_moved, %y_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %c = riscv.fld %Y_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %dot = riscv_scf.for %i : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%acc = %c) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
-          %w = riscv_snitch.read from %W_stream : !riscv.freg<ft1>
-          %res = riscv.fmadd.d %x, %w, %acc : (!riscv.freg<ft0>, !riscv.freg<ft1>, !riscv.freg<>) -> !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %w_val = memref_stream.read from %w_stream : f64
+          %w = builtin.unrealized_conversion_cast %w_val : f64 to !riscv.freg<>
+          %res = riscv.fmadd.d %x, %w, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
 
-        %b = riscv_snitch.read from %B_stream : !riscv.freg<ft2>
-        %y_0 = riscv.fadd.d %b, %dot : (!riscv.freg<ft2>, !riscv.freg<>) -> !riscv.freg<>
+        %b_val = memref_stream.read from %b_stream : f64
+        %b = builtin.unrealized_conversion_cast %b_val : f64 to !riscv.freg<>
+        %y_0 = riscv.fadd.d %b, %dot : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
         %y_1 = riscv.fmax.d %y_0, %zero_float : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
         riscv.fsd %Y_dest, %y_1, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
 
         riscv_scf.yield
       }
-    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+    }
 
     func.return
   }
@@ -276,30 +283,35 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      ret
 
     func.func @dsum(
-      %arg0 : memref<8x16xf64>,
-      %arg1 : memref<8x16xf64>,
-      %arg2 : memref<8x16xf64>
+      %X : memref<8x16xf64>,
+      %Y : memref<8x16xf64>,
+      %Z : memref<8x16xf64>
     ) {
-      %0 = builtin.unrealized_conversion_cast %arg0 : memref<8x16xf64> to !riscv.reg<>
-      %1 = builtin.unrealized_conversion_cast %arg1 : memref<8x16xf64> to !riscv.reg<>
-      %2 = builtin.unrealized_conversion_cast %arg2 : memref<8x16xf64> to !riscv.reg<>
-
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c128 = riscv.li 128 : () -> !riscv.reg<>
-      "snitch_stream.streaming_region"(%0, %1, %2) <{
-        "stride_patterns" = [#snitch_stream.stride_pattern<ub = [128], strides = [8]>],
-        "operandSegmentSizes" = array<i32: 2, 1>
-      }> ({
-      ^0(%5 : !stream.readable<!riscv.freg<ft0>>, %6 : !stream.readable<!riscv.freg<ft1>>, %7 : !stream.writable<!riscv.freg<ft2>>):
+
+      memref_stream.streaming_region {
+        bounds = [8, 16],
+        indexing_maps = [
+          affine_map<(d0, d1) -> (d0, d1)>,
+          affine_map<(d0, d1) -> (d0, d1)>,
+          affine_map<(d0, d1) -> (d0, d1)>
+        ]
+      } ins(%X, %Y : memref<8x16xf64>, memref<8x16xf64>) outs(%Z : memref<8x16xf64>) {
+      ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %z_stream : !stream.writable<f64>):
+
         riscv_scf.for %i : !riscv.reg<> = %c0 to %c128 step %c1 {
-          %9 = riscv_snitch.read from %5 : !riscv.freg<ft0>
-          %10 = riscv_snitch.read from %6 : !riscv.freg<ft1>
-          %11 = riscv.fadd.d %9, %10 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
-          riscv_snitch.write %11 to %7 : !riscv.freg<ft2>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %y_val = memref_stream.read from %y_stream : f64
+          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
+          %z = riscv.fadd.d %x, %y : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+          %z_val = builtin.unrealized_conversion_cast %z : !riscv.freg<> to f64
+          memref_stream.write %z_val to %z_stream : f64
           riscv_scf.yield
         }
-      }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+      }
 
       func.return
     }
@@ -333,23 +345,26 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<16x16xf64>
   ) {
     %X_moved = builtin.unrealized_conversion_cast %X : f64 to !riscv.freg<>
-    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<16x16xf64> to !riscv.reg<>
 
     %x = riscv.fmv.d %X_moved : (!riscv.freg<>) -> !riscv.freg<>
 
-    "snitch_stream.streaming_region"(%Y_moved) <{
-      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [256], strides=[8]>],
-      "operandSegmentSizes" = array<i32: 0, 1>
-    }> ({
-    ^bb0(%Y_stream : !stream.writable<!riscv.freg<ft0>>):
+    memref_stream.streaming_region {
+      bounds = [16, 16],
+      indexing_maps = [
+          affine_map<(d0, d1) -> (d0, d1)>
+      ]
+    } outs(%Y : memref<16x16xf64>) {
+    ^0(%y_stream : !stream.writable<f64>):
+
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c256 = riscv.li 256 : () -> !riscv.reg<>
       riscv_scf.for %i : !riscv.reg<> = %c0 to %c256 step %c1 {
-        %y = riscv.fmv.d %x : (!riscv.freg<>) -> !riscv.freg<ft0>
-        riscv_snitch.write %y to %Y_stream : !riscv.freg<ft0>
+        %y = riscv.fmv.d %x : (!riscv.freg<>) -> !riscv.freg<>
+        %y_val = builtin.unrealized_conversion_cast %y : !riscv.freg<> to f64
+        memref_stream.write %y_val to %y_stream : f64
       }
-    }) : (!riscv.reg<>) -> ()
+    }
 
     func.return
   }
@@ -378,36 +393,35 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // y[ K x N ]
 // g[ M x N ]
   func.func @matmul(
-    %X : memref<8x8x8xf64>,
-    %Y : memref<8x8x8xf64>,
-    %G : memref<8x8x8xf64>
+    %X : memref<8x8xf64>,
+    %Y : memref<8x8xf64>,
+    %G : memref<8x8xf64>
   ) {
-    %X_moved = builtin.unrealized_conversion_cast %X : memref<8x8x8xf64> to !riscv.reg<>
-    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<8x8x8xf64> to !riscv.reg<>
-    %G_moved = builtin.unrealized_conversion_cast %G : memref<8x8x8xf64> to !riscv.reg<>
-
+    %G_moved = builtin.unrealized_conversion_cast %G : memref<8x8xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
     %c8 = riscv.li 8 : () -> !riscv.reg<>
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
-    "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
-      "stride_patterns" = [
-        #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 0, 64]>,
-        #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 8, 0]>
-      ],
-      "operandSegmentSizes" = array<i32: 2, 0>
-    }> ({
-    ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
+    memref_stream.streaming_region {
+      bounds = [8, 8, 8],
+      indexing_maps = [
+          affine_map<(m, n, k) -> (m, k)>,
+          affine_map<(m, n, k) -> (k, n)>
+      ]
+    } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) {
+    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
       riscv_scf.for %g_i : !riscv.reg<> = %c0 to %c512 step %c8 {
         %G_dest = riscv.add %G_moved, %g_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %init = riscv.fld %G_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %g = riscv_scf.for %i : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
-          %y = riscv_snitch.read from %Y_stream : !riscv.freg<ft1>
-          %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<ft0>, !riscv.freg<ft1>, !riscv.freg<>) -> !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %y_val = memref_stream.read from %y_stream : f64
+          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
+          %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
 
@@ -415,7 +429,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 
         riscv_scf.yield
       }
-    }) : (!riscv.reg<>, !riscv.reg<>) -> ()
+    }
 
     func.return
   }
@@ -478,7 +492,6 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %X_moved = builtin.unrealized_conversion_cast %X : memref<1x1x16x16xf64> to !riscv.reg<>
     %Y_moved = builtin.unrealized_conversion_cast %Y : memref<1x1x7x7xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
@@ -487,19 +500,23 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %c9 = riscv.li 9 : () -> !riscv.reg<>
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
-    "snitch_stream.streaming_region"(%X_moved) <{
-      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [3, 3, 7, 7], strides = [8, 128, 16, 256]>],
-      "operandSegmentSizes" = array<i32: 1, 0>
-    }> ({
-    ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
+    memref_stream.streaming_region {
+      bounds = [1, 1, 7, 7, 3, 3],
+      indexing_maps = [
+          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
+      ]
+    } ins(%X : memref<1x1x16x16xf64>) {
+    ^0(%x_stream : !stream.readable<f64>):
+
       %c392 = riscv.li 392 : () -> !riscv.reg<>
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c392 step %c8 {
         %Y_dest = riscv.add %Y_moved, %y_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %init = riscv.fld %Y_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %y = riscv_scf.for %i : !riscv.reg<> = %c0 to %c9 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
-          %res = riscv.fmax.d %x, %acc : (!riscv.freg<ft0>, !riscv.freg<>) -> !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %res = riscv.fmax.d %x, %acc : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
 
@@ -507,7 +524,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 
         riscv_scf.yield
       }
-    }) : (!riscv.reg<>) -> ()
+    }
 
     func.return
   }
@@ -555,26 +572,29 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 
 
   func.func public @relu(%X: memref<16x16xf64>, %Y: memref<16x16xf64>) {
-    %X_moved = builtin.unrealized_conversion_cast %X : memref<16x16xf64> to !riscv.reg<>
-    %Y_moved = builtin.unrealized_conversion_cast %Y : memref<16x16xf64> to !riscv.reg<>
 
     %zero_int = riscv.get_register : () -> !riscv.reg<zero>
     %zero_float = riscv.fcvt.d.w %zero_int : (!riscv.reg<zero>) -> !riscv.freg<>
 
-    "snitch_stream.streaming_region"(%X_moved, %Y_moved) <{
-      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [256], strides = [8]>],
-      "operandSegmentSizes" = array<i32: 1, 1>
-    }> ({
-    ^0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.writable<!riscv.freg<ft1>>):
+    memref_stream.streaming_region {
+      bounds = [16, 16],
+      indexing_maps = [
+          affine_map<(d0, d1) -> (d0, d1)>,
+          affine_map<(d0, d1) -> (d0, d1)>
+      ]
+    } ins(%X : memref<16x16xf64>) outs(%Y : memref<16x16xf64>) {
+    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
       %c0 = riscv.li 0 : () -> !riscv.reg<>
       %c1 = riscv.li 1 : () -> !riscv.reg<>
       %c256 = riscv.li 256 : () -> !riscv.reg<>
       riscv_scf.for %i : !riscv.reg<> = %c0 to %c256 step %c1 {
-        %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
-        %y = riscv.fmax.d %x, %zero_float : (!riscv.freg<ft0>, !riscv.freg<>) -> !riscv.freg<ft1>
-        riscv_snitch.write %y to %Y_stream : !riscv.freg<ft1>
+        %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+        %y = riscv.fmax.d %x, %zero_float : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        %y_val = builtin.unrealized_conversion_cast %y : !riscv.freg<> to f64
+        memref_stream.write %y_val to %y_stream : f64
       }
-    }) : (!riscv.reg<>, !riscv.reg<>) -> ()
+    }
 
     func.return
   }
@@ -608,7 +628,6 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %X_moved = builtin.unrealized_conversion_cast %X : memref<1x1x16x16xf64> to !riscv.reg<>
     %Y_moved = builtin.unrealized_conversion_cast %Y : memref<1x1x7x7xf64> to !riscv.reg<>
 
     %c0 = riscv.li 0 : () -> !riscv.reg<>
@@ -617,19 +636,23 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %c9 = riscv.li 9 : () -> !riscv.reg<>
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
-    "snitch_stream.streaming_region"(%X_moved) <{
-      "stride_patterns" = [#snitch_stream.stride_pattern<ub = [3, 3, 7, 7], strides = [8, 128, 16, 256]>],
-      "operandSegmentSizes" = array<i32: 1, 0>
-    }> ({
-    ^bb0(%X_stream : !stream.readable<!riscv.freg<ft0>>, %Y_stream : !stream.readable<!riscv.freg<ft1>>):
+    memref_stream.streaming_region {
+      bounds = [1, 1, 7, 7, 3, 3],
+      indexing_maps = [
+          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
+      ]
+    } ins(%X : memref<1x1x16x16xf64>) {
+    ^0(%x_stream : !stream.readable<f64>):
+
       %c392 = riscv.li 392 : () -> !riscv.reg<>
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c392 step %c8 {
         %Y_dest = riscv.add %Y_moved, %y_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         %init = riscv.fld %Y_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
 
         %y = riscv_scf.for %i : !riscv.reg<> = %c0 to %c9 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x = riscv_snitch.read from %X_stream : !riscv.freg<ft0>
-          %res = riscv.fadd.d %x, %acc : (!riscv.freg<ft0>, !riscv.freg<>) -> !riscv.freg<>
+          %x_val = memref_stream.read from %x_stream : f64
+          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
+          %res = riscv.fadd.d %x, %acc : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
           riscv_scf.yield %res : !riscv.freg<>
         }
 
@@ -638,7 +661,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
         riscv_scf.yield
       }
 
-    }) : (!riscv.reg<>) -> ()
+    }
 
     func.return
   }
