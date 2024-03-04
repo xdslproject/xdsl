@@ -24,6 +24,7 @@ from xdsl.dialects.gpu import (
     ModuleEndOp,
     ModuleOp,
     NumSubgroupsOp,
+    PrintfOp,
     ReturnOp,
     SetDefaultDeviceOp,
     SubgroupIdOp,
@@ -362,6 +363,11 @@ def test_num_subgroups():
     num_subgroups = NumSubgroupsOp()
 
     assert isinstance(num_subgroups, NumSubgroupsOp)
+
+
+def test_printf():
+    printf = PrintfOp()
+    assert isinstance(printf, PrintfOp)
 
 
 def test_set_default_device():

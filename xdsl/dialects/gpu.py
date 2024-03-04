@@ -15,6 +15,11 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    f16,
+    f32,
+    f64,
+    f80,
+    i1,
     i32,
     i64,
 )
@@ -672,6 +677,22 @@ class NumSubgroupsOp(IRDLOperation):
 
 
 @irdl_op_definition
+class PrintfOp(IRDLOperation):
+    name = "gpu.printf"
+    format: StringAttr = attr_def(StringAttr)
+    args: VarOperand = var_operand_def(
+        AnyOf((IndexType, f16, f32, f64, f80, i1, i32, i64))
+    )
+
+    def __init__(
+        self,
+        format: StringAttr,
+        args: Sequence[SSAValue | Operation] | None = None,
+    ):
+        super().__init__(operands=[args], attributes={"format": format})
+
+
+@irdl_op_definition
 class ReturnOp(IRDLOperation):
     name = "gpu.return"
 
@@ -774,6 +795,7 @@ GPU = Dialect(
         ModuleEndOp,
         NumSubgroupsOp,
         ReturnOp,
+        PrintfOp,
         SetDefaultDeviceOp,
         SubgroupIdOp,
         SubgroupSizeOp,
