@@ -366,7 +366,7 @@ def test_num_subgroups():
 
 
 def test_printf():
-    printf = PrintfOp("Hello from Device")
+    printf = PrintfOp(builtin.StringAttr("Hello from Device"))
     assert isinstance(printf, PrintfOp)
 
 
