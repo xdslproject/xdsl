@@ -61,4 +61,54 @@ memref_stream.streaming_region {
 // CHECK-NEXT:      "test.op"(%{{.*}}, %{{.*}}) : (!stream.readable<f64>, !stream.readable<f64>) -> ()
 // CHECK-NEXT:  }) : (!riscv.reg<>, !riscv.reg<>) -> ()
 
+
+%D, %E = "test.op"() : () -> (memref<1x1x8x8xf64>, memref<1x1x3x3xf64>)
+// CHECK-NEXT:   %D, %E = "test.op"() : () -> (memref<1x1x8x8xf64>, memref<1x1x3x3xf64>)
+
+memref_stream.streaming_region {
+    bounds = [1, 1, 6, 6, 1, 3, 3],
+    indexing_maps = [
+    affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
+    affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
+    ]
+} ins(%D, %E : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) {
+^0(%d_stream : !stream.readable<f64>, %e_stream : !stream.readable<f64>):
+    "test.op"(%d_stream, %e_stream) : (!stream.readable<f64>, !stream.readable<f64>) -> ()
+}
+
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<1x1x8x8xf64> to !riscv.reg<>
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<1x1x3x3xf64> to !riscv.reg<>
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [3, 3, 6, 6], strides = [8, 64, 8, 64]>, #snitch_stream.stride_pattern<ub = [3, 3, 36], strides = [8, 24, 0]>], "operandSegmentSizes" = array<i32: 2, 0>}> ({
+// CHECK-NEXT:    ^{{.*}}(%{{.*}} : !stream.readable<!riscv.freg<>>, %{{.*}} : !stream.readable<!riscv.freg<>>):
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
+// CHECK-NEXT:      "test.op"(%{{.*}}, %{{.*}}) : (!stream.readable<f64>, !stream.readable<f64>) -> ()
+// CHECK-NEXT:    }) : (!riscv.reg<>, !riscv.reg<>) -> ()
+
+%F = "test.op"() : () -> memref<8x8xf64>
+// CHECK-NEXT:   %F = "test.op"() : () -> memref<8x8xf64>
+
+memref_stream.streaming_region {
+    bounds = [8, 8, 8],
+    indexing_maps = [
+        affine_map<(m, n, k) -> (m, k)>,
+        affine_map<(m, n, k) -> (k, n)>,
+        affine_map<(m, n) -> (m, n)>
+    ]
+} ins(%F, %F, %F : memref<8x8xf64>, memref<8x8xf64>, memref<8x8xf64>) {
+^0(%x_stream : !stream.readable<f64>, %w_stream : !stream.readable<f64>, %b_stream : !stream.readable<f64>):
+    "test.op"(%x_stream, %w_stream, %b_stream) : (!stream.readable<f64>, !stream.readable<f64>, !stream.readable<f64>) -> ()
+}
+
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<8x8xf64> to !riscv.reg<>
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<8x8xf64> to !riscv.reg<>
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<8x8xf64> to !riscv.reg<>
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 0, 64]>, #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 8, 0]>, #snitch_stream.stride_pattern<ub = [64], strides = [8]>], "operandSegmentSizes" = array<i32: 3, 0>}> ({
+// CHECK-NEXT:    ^{{.*}}(%{{.*}} : !stream.readable<!riscv.freg<>>, %{{.*}} : !stream.readable<!riscv.freg<>>, %{{.*}} : !stream.readable<!riscv.freg<>>):
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
+// CHECK-NEXT:      "test.op"(%{{.*}}, %{{.*}}, %{{.*}}) : (!stream.readable<f64>, !stream.readable<f64>, !stream.readable<f64>) -> ()
+// CHECK-NEXT:    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
+
 // CHECK-NEXT:  }
