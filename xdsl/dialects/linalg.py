@@ -601,6 +601,60 @@ class TransposeOp(IRDLOperation):
         return transpose
 
 
+@irdl_op_definition
+class MatMulOp(IRDLOperation):
+    """
+    Performs a matrix multiplication of two 2D inputs.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmatmul-linalgmatmulop
+
+    """
+
+    name = "linalg.matmul"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+    def verify_(self) -> None:
+
+        for input in self.inputs.type:
+            input_dimension: int = input.get_num_dims()
+            if input_dimension != 2:
+                raise VerifyException(f"input is not 2D: got a {len(input)}D input!")
+
+        lhs: tuple = self.inputs.type.get_shape()[0]
+        rhs: tuple = self.inputs.type.get_shape()[1]
+
+        if lhs[1] != rhs[0]:
+            raise VerifyException(
+                f"inputs have incompatible shapes: {lhs.get_shape()} and {rhs.get_shape()}"
+            )
+
+
 Linalg = Dialect(
     "linalg",
     [
