@@ -366,7 +366,7 @@ def test_num_subgroups():
 
 
 def test_printf():
-    printf = PrintfOp()
+    printf = PrintfOp("Hello from Device")
     assert isinstance(printf, PrintfOp)
 
 
