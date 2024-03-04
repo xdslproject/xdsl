@@ -188,7 +188,8 @@ class AllocOp(IRDLOperation):
             [SSAValue.get(e) for e in dynamic_sizes] if dynamic_sizes else []
         )
         async_dependencies_vals: list[SSAValue] = (
-            [SSAValue.get(e) for e in async_dependencies] if async_dependencies else []
+            [SSAValue.get(e)
+             for e in async_dependencies] if async_dependencies else []
         )
         attributes: dict[str, Attribute] = (
             {"hostShared": UnitAttr()} if host_shared else {}
@@ -283,7 +284,8 @@ class BlockDimOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
+        super().__init__(result_types=[
+            IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -293,7 +295,8 @@ class BlockIdOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
+        super().__init__(result_types=[
+            IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -355,7 +358,8 @@ class MemcpyOp(IRDLOperation):
 class ModuleEndOp(IRDLOperation):
     name = "gpu.module_end"
 
-    traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(ModuleOp)]))
+    traits = traits_def(lambda: frozenset(
+        [IsTerminator(), HasParent(ModuleOp)]))
 
     def __init__(self):
         super().__init__()
@@ -396,7 +400,8 @@ class FuncOp(IRDLOperation):
         DenseArrayBase, attr_name="gpu.known_grid_size"
     )
 
-    traits = frozenset([IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
+    traits = frozenset(
+        [IsolatedFromAbove(), HasParent(ModuleOp), SymbolOpInterface()])
 
     def __init__(
         self,
@@ -412,7 +417,8 @@ class FuncOp(IRDLOperation):
             function_type = FunctionType.from_lists(inputs, outputs)
         if not isinstance(region, Region):
             region = Region(Block(arg_types=function_type.inputs))
-        attributes: dict[str, Attribute | None] = {"sym_name": StringAttr(name)}
+        attributes: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(name)}
         properties: dict[str, Attribute | None] = {
             "function_type": function_type,
         }
@@ -426,7 +432,8 @@ class FuncOp(IRDLOperation):
             )
         if kernel:
             properties["kernel"] = UnitAttr()
-        super().__init__(properties=properties, attributes=attributes, regions=[region])
+        super().__init__(properties=properties,
+                         attributes=attributes, regions=[region])
 
     def verify_(self):
         entry_block: Block = self.body.blocks[0]
@@ -438,7 +445,8 @@ class FuncOp(IRDLOperation):
                 "function input types"
             )
         if (self.kernel is not None) and (len(self.function_type.outputs) != 0):
-            raise VerifyException("Expected void return type for kernel function")
+            raise VerifyException(
+                "Expected void return type for kernel function")
 
 
 @irdl_op_definition
@@ -448,7 +456,8 @@ class GlobalIdOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
+        super().__init__(result_types=[
+            IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -458,7 +467,8 @@ class GridDimOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
+        super().__init__(result_types=[
+            IndexType()], properties={"dimension": dim})
 
 
 @irdl_op_definition
@@ -529,9 +539,11 @@ class LaunchOp(IRDLOperation):
         dynamicSharedMemorySize: SSAValue | Operation | None = None,
     ):
         if len(gridSize) != 3:
-            raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
+            raise ValueError(
+                f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
-            raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+            raise ValueError(
+                f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
         operands = [
             (
                 []
@@ -632,9 +644,11 @@ class LaunchFuncOp(IRDLOperation):
         dynamicSharedMemorySize: SSAValue | Operation | None = None,
     ):
         if len(gridSize) != 3:
-            raise ValueError(f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
+            raise ValueError(
+                f"LaunchOp must have 3 gridSizes, got {len(gridSize)}")
         if len(blockSize) != 3:
-            raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
+            raise ValueError(
+                f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
         clusterSizeOperands: Sequence[
             SSAValue | Operation | Sequence[SSAValue | Operation]
         ]
@@ -727,7 +741,22 @@ class ThreadIdOp(IRDLOperation):
     result: OpResult = result_def(IndexType)
 
     def __init__(self, dim: DimensionAttr):
-        super().__init__(result_types=[IndexType()], properties={"dimension": dim})
+        super().__init__(result_types=[
+            IndexType()], properties={"dimension": dim})
+
+
+@irdl_op_definition
+class WaitOp(IRDLOperation):
+    name = "gpu.wait"
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
+
+    def __init__(
+        self,
+        async_dependencies: Sequence[SSAValue | Operation] | None = None,
+    ):
+        super().__init__(operands=[async_dependencies],
+                         result_types=[[AsyncTokenType()]],)
 
 
 @irdl_op_definition
@@ -779,6 +808,7 @@ GPU = Dialect(
         SubgroupSizeOp,
         TerminatorOp,
         ThreadIdOp,
+        WaitOp,
         YieldOp,
     ],
     [

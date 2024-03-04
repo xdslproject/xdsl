@@ -29,6 +29,7 @@ from xdsl.dialects.gpu import (
     SubgroupIdOp,
     SubgroupSizeOp,
     TerminatorOp,
+    WaitOp,
     ThreadIdOp,
     YieldOp,
 )
@@ -99,7 +100,8 @@ def test_all_reduce():
 
     @Builder.implicit_region
     def body():
-        sum = Operation.clone(arith.Addi(body_block.args[0], body_block.args[1]))
+        sum = Operation.clone(arith.Addi(
+            body_block.args[0], body_block.args[1]))
         YieldOp([sum])
 
     all_reduce_body = AllReduceOp.from_body(body, init)
@@ -142,7 +144,8 @@ def test_dealloc():
     assert alloc.asyncToken is not None  # For pyright
 
     dealloc = DeallocOp(
-        buffer=alloc.result, async_dependencies=[alloc.asyncToken], is_async=True
+        buffer=alloc.result, async_dependencies=[
+            alloc.asyncToken], is_async=True
     )
 
     assert dealloc.asyncToken is not None
@@ -228,7 +231,8 @@ def test_func():
 
     body = Region(Block([ReturnOp([])]))
 
-    func = FuncOp(kernel, (inputs, []), body, True, known_block_size, known_grid_size)
+    func = FuncOp(kernel, (inputs, []), body, True,
+                  known_block_size, known_grid_size)
 
     assert isinstance(func, FuncOp)
     assert func.kernel == builtin.UnitAttr()
@@ -398,6 +402,18 @@ def test_terminator():
     terminator = TerminatorOp()
 
     assert isinstance(terminator, TerminatorOp)
+
+
+def test_wait():
+    waitOp = WaitOp()
+
+    assert isinstance(waitOp,  WaitOp)
+    assert waitOp.asyncToken is not None
+    assert isinstance(waitOp.asyncToken.type, AsyncTokenType)
+
+    waitOpWithDep = WaitOp(waitOp)
+    assert waitOpWithDep.asyncToken is not None
+    assert waitOpWithDep.asyncDependencies[0] is waitOp.asyncToken
 
 
 def test_yield():
