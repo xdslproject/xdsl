@@ -51,8 +51,6 @@ class RiscvLibcFunctions(InterpreterFunctions):
     ) -> PythonValues:
         assert len(args) == 1
         assert isinstance(args[0], RawPtr)
-        buff: RawPtr = args[0]
-        buff.deallocate()
         return ()
 
     @impl_external("putchar")
