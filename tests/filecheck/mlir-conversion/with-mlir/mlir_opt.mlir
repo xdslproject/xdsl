@@ -11,6 +11,9 @@
 // RUN: xdsl-opt %s -p mlir-opt{generic=false\ arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
 // RUN: xdsl-opt %s -p mlir-opt{generic=true\ arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
 
+// Check that manually passing an executable works
+// RUN: xdsl-opt %s -p mlir-opt{executable=mlir-opt\ generic=true\ arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
+
 "builtin.module"() ({
   "func.func"() ({
     %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
