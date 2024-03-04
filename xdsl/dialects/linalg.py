@@ -601,6 +601,45 @@ class TransposeOp(IRDLOperation):
         return transpose
 
 
+@irdl_op_definition
+class MatmulOp(IRDLOperation):
+    """
+    Performs a matrix multiplication of two 2D inputs.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmatmul-linalgmatmulop
+
+    """
+
+    name = "linalg.matmul"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -610,6 +649,7 @@ Linalg = Dialect(
         FillOp,
         MulOp,
         TransposeOp,
+        MatmulOp,
     ],
     [
         IteratorTypeAttr,
