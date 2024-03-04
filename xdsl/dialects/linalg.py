@@ -639,21 +639,6 @@ class MatMulOp(IRDLOperation):
             result_types=result_types,
         )
 
-    def verify_(self) -> None:
-
-        for input in self.inputs.type:
-            input_dimension: int = input.get_num_dims()
-            if input_dimension != 2:
-                raise VerifyException(f"input is not 2D: got a {len(input)}D input!")
-
-        lhs: tuple = self.inputs.type.get_shape()[0]
-        rhs: tuple = self.inputs.type.get_shape()[1]
-
-        if lhs[1] != rhs[0]:
-            raise VerifyException(
-                f"inputs have incompatible shapes: {lhs.get_shape()} and {rhs.get_shape()}"
-            )
-
 
 Linalg = Dialect(
     "linalg",
@@ -664,6 +649,7 @@ Linalg = Dialect(
         FillOp,
         MulOp,
         TransposeOp,
+        MatMulOp,
     ],
     [
         IteratorTypeAttr,
