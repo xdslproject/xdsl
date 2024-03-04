@@ -29,11 +29,11 @@ from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_prop_def,
     opt_region_def,
     opt_result_def,
@@ -210,19 +210,19 @@ class DeallocOp(IRDLOperation):
 class DmaMemcpyNdOp(IRDLOperation):
     name = "air.dma_memcpy_nd"
 
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    dst = operand_def(MemRefType)
-    dst_offsets = var_operand_def(IndexType)
-    dst_sizes = var_operand_def(IndexType)
-    dst_strides = var_operand_def(IndexType)
+    async_dependencies = var_operand_def(AsyncTokenAttr())
+    dst = operand_def(MemRefType[Attribute])
+    dst_offsets = var_operand_def(IndexType())
+    dst_sizes = var_operand_def(IndexType())
+    dst_strides = var_operand_def(IndexType())
     src = operand_def(MemRefType[Attribute])
-    src_offsets = var_operand_def(IndexType)
-    src_sizes = var_operand_def(IndexType)
-    src_strides = var_operand_def(IndexType)
+    src_offsets = var_operand_def(IndexType())
+    src_sizes = var_operand_def(IndexType())
+    src_strides = var_operand_def(IndexType())
 
-    async_token = opt_result_def(AsyncTokenAttr)
+    async_token = opt_result_def(AsyncTokenAttr())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
 
     def __init__(
         self,
@@ -251,93 +251,7 @@ class DmaMemcpyNdOp(IRDLOperation):
             result_types=[AsyncTokenAttr()],
         )
 
-    def print(self, printer: Printer):
-        if self.async_dependencies:
-            printer.print(self.async_dependencies)
-        printer.print("(")
-        printer.print_operand(self.dst)
-        printer.print("[")
-        printer.print_list(self.dst_offsets, printer.print_operand)
-        printer.print("]")
-        printer.print("[")
-        printer.print_list(self.dst_sizes, printer.print_operand)
-        printer.print("]")
-        printer.print_list(self.dst_strides, printer.print_operand)
-        printer.print(", ")
-        printer.print_operand(self.src)
-        printer.print("[")
-        printer.print_list(self.src_offsets, printer.print_operand)
-        printer.print("]")
-        printer.print("[")
-        printer.print_list(self.src_sizes, printer.print_operand)
-        printer.print("]")
-        printer.print("[")
-        printer.print_list(self.src_strides, printer.print_operand)
-        printer.print("]")
-        printer.print(")")
-        printer.print(" : ")
-        printer.print("(")
-        printer.print(self.dst.type)
-        printer.print(", ")
-        printer.print(self.src.type)
-        printer.print(")")
-
-    @classmethod
-    def parse(cls, parser: Parser) -> DmaMemcpyNdOp:
-        parser.parse_characters("(")
-        dst = parser.parse_operand()
-        parser.parse_characters("[")
-        dst_offsets: list[Operation | SSAValue] = []
-        while not parser.parse_optional_characters("]"):
-            dst_offsets.append(parser.parse_operand())
-            parser.parse_optional_characters(",")
-        parser.parse_characters("[")
-        dst_sizes: list[Operation | SSAValue] = []
-        while not parser.parse_optional_characters("]"):
-            dst_sizes.append(parser.parse_operand())
-            parser.parse_optional_characters(",")
-        parser.parse_characters("[")
-        dst_strides: list[Operation | SSAValue] = []
-        while not parser.parse_optional_characters("]"):
-            dst_strides.append(parser.parse_operand())
-            parser.parse_optional_characters(",")
-        parser.parse_characters(",")
-        src = parser.parse_operand()
-        parser.parse_characters("[")
-        src_offsets: list[Operation | SSAValue] = []
-        while not parser.parse_optional_characters("]"):
-            src_offsets.append(parser.parse_operand())
-            parser.parse_optional_characters(",")
-        parser.parse_characters("[")
-        src_sizes: list[Operation | SSAValue] = []
-        while not parser.parse_optional_characters("]"):
-            src_sizes.append(parser.parse_operand())
-            parser.parse_optional_characters(",")
-        parser.parse_characters("[")
-        src_strides: list[Operation | SSAValue] = []
-        while not parser.parse_optional_characters("]"):
-            src_strides.append(parser.parse_operand())
-            parser.parse_optional_characters(",")
-        parser.parse_characters(")")
-        parser.parse_optional_attr_dict()
-        parser.parse_characters(":")
-        parser.parse_characters("(")
-        parser.parse_type()
-        parser.parse_characters(",")
-        parser.parse_type()
-        parser.parse_characters(")")
-
-        return DmaMemcpyNdOp(
-            None,
-            dst,
-            dst_offsets,
-            dst_sizes,
-            dst_strides,
-            src,
-            src_offsets,
-            src_sizes,
-            src_strides,
-        )
+    assembly_format = "(`async` $async_dependencies^)? `(` $dst `[` $dst_offsets `]``[` $dst_sizes `]``[` $dst_strides `]` `,` $src `[` $src_offsets `]``[` $src_sizes `]``[` $src_strides `]` `)`  attr-dict `:` `(` type($dst) `,` type($src) `)`"
 
 
 @irdl_op_definition
@@ -567,14 +481,14 @@ class HerdOp(IRDLOperation):
 class LaunchTerminatorOp(IRDLOperation):
     name = "air.launch_terminator"
 
-    traits = traits_def(lambda: frozenset([HasParent(LaunchOp)]))
+    traits = traits_def(lambda: frozenset([HasParent(LaunchOp), IsTerminator()]))
 
 
 @irdl_op_definition
 class LaunchOp(IRDLOperation):
     name = "air.launch"
 
-    sym_name = opt_attr_def(StringAttr)
+    sym_name = opt_prop_def(StringAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
     launch_operands = var_operand_def(AnyAttr())
@@ -585,7 +499,7 @@ class LaunchOp(IRDLOperation):
         [IsolatedFromAbove(), SingleBlockImplicitTerminator(LaunchTerminatorOp)]
     )
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
@@ -612,9 +526,15 @@ class LaunchOp(IRDLOperation):
                 while not parser.parse_optional_characters("]"):
                     async_dependencies.append(parser.parse_operand())
                     parser.parse_optional_characters(",")
-                parser.parse_characters("[")
 
-        parser.parse_op_args_list()
+        block_args_lst: list[Parser.Argument] = []
+        if parser.parse_optional_characters("("):
+            while not parser.parse_optional_characters(")"):
+                b_arg = parser.parse_argument(expect_type=False)
+                b_arg = b_arg.resolve(IndexType())
+                block_args_lst.append(b_arg)
+                parser.parse_optional_characters(",")
+
         parser.parse_keyword("in")
         parser.parse_characters("(")
 
@@ -632,7 +552,6 @@ class LaunchOp(IRDLOperation):
 
             parser.parse_optional_characters(",")
 
-        arguments_lst: list[Parser.Argument] = []
         launch_operands_lst: list[Operation | SSAValue] = []
         if parser.parse_optional_keyword("args"):
             parser.parse_characters("(")
@@ -642,7 +561,7 @@ class LaunchOp(IRDLOperation):
                 operand = parser.parse_operand()
 
                 argument = argument.resolve(operand.type)
-                arguments_lst.append(argument)
+                block_args_lst.append(argument)
                 launch_operands_lst.append(operand)
 
                 if not parser.parse_optional_characters(","):
@@ -653,8 +572,10 @@ class LaunchOp(IRDLOperation):
             for _ in range(len(launch_operands_lst)):
                 parser.parse_type()
                 parser.parse_optional_characters(",")
+            if parser.parse_optional_keyword("attributes"):
+                parser.parse_optional_attr_dict()
 
-        body = parser.parse_optional_region()
+        body = parser.parse_optional_region(block_args_lst)
 
         return LaunchOp(
             sym_name, async_dependencies, sizes_operands_lst, launch_operands_lst, body
@@ -752,29 +673,74 @@ class SegmentTerminatorOp(IRDLOperation):
 class SegmentOp(IRDLOperation):
     name = "air.segment"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = opt_prop_def(StringAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     sizes = var_operand_def(IndexType())
     segment_operands = var_operand_def(AnyAttr())
     async_token = result_def(AsyncTokenAttr)
 
+    body = opt_region_def()
+
     traits = frozenset(
         [IsolatedFromAbove(), SingleBlockImplicitTerminator(SegmentTerminatorOp)]
     )
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
-        sym_name: StringAttr,
+        sym_name: None | StringAttr,
         async_dependencies: list[Operation | SSAValue],
         sizes: list[Operation | SSAValue],
         segment_operands: list[Operation | SSAValue],
+        body: None | Region,
     ):
         super().__init__(
             attributes={"sym_name": sym_name},
             operands=[async_dependencies, sizes, segment_operands],
             result_types=[AsyncTokenAttr()],
+            regions=[body],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> SegmentOp:
+        sym_name = parser.parse_optional_symbol_name()
+        async_dependencies: list[Operation | SSAValue] = []
+        sizes: list[Operation | SSAValue] = []
+        parser.parse_optional_keyword("async")
+        # TODO: unclear from the tests how to parse async. Follow the C++ code for the original custom parser
+        if parser.parse_optional_keyword("unroll"):
+            pass  # TODO: unclear from the tests how to parse unroll. Follow the C++ code for the original custom parser
+        arguments_lst: list[Parser.Argument] = []
+        segment_operands_lst: list[Operation | SSAValue] = []
+        if parser.parse_optional_keyword("args"):
+            if parser.parse_optional_characters("("):
+                while True:
+                    argument = parser.parse_argument(expect_type=False)
+                    parser.parse_characters("=")
+                    operand = parser.parse_operand()
+
+                    argument = argument.resolve(operand.type)
+                    arguments_lst.append(argument)
+                    segment_operands_lst.append(operand)
+
+                    if not parser.parse_optional_characters(","):
+                        break
+                parser.parse_characters(")")
+
+            parser.parse_characters(":")
+
+            for _ in range(len(segment_operands_lst)):
+                parser.parse_type()
+                parser.parse_optional_characters(",")
+
+        if parser.parse_optional_keyword("attributes"):
+            parser.parse_optional_attr_dict()
+
+        body = parser.parse_optional_region()
+
+        return SegmentOp(
+            sym_name, async_dependencies, sizes, segment_operands_lst, body
         )
 
 
