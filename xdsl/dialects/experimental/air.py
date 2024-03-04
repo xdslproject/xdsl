@@ -84,11 +84,11 @@ class AllocOp(IRDLOperation):
 class ChannelOp(IRDLOperation):
     name = "air.channel"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolRefAttr)
     size = prop_def(ArrayAttr)
 
     def __init__(
-        self, sym_name: StringAttr, size: ArrayAttr[AnyIntegerAttr]
+        self, sym_name: SymbolRefAttr, size: ArrayAttr[AnyIntegerAttr]
     ):  # TODO: add verify to check 64-bit integer array attribute
         super().__init__(properties={"sym_name": sym_name, "size": size})
 
@@ -123,18 +123,18 @@ class ChannelGetOp(IRDLOperation):
 class ChannelPutOp(IRDLOperation):
     name = "air.channel.put"
 
-    chan_name = prop_def(SymbolRefAttr)
+    chan_name = attr_def(SymbolRefAttr)
 
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    indices = var_operand_def(IndexType)
+    async_dependencies = var_operand_def(AsyncTokenAttr())
+    indices = var_operand_def(IndexType())
     src = operand_def(MemRefType[Attribute])
-    src_offsets = var_operand_def(IndexType)
-    src_sizes = var_operand_def(IndexType)
-    src_strides = var_operand_def(IndexType)
+    src_offsets = var_operand_def(IndexType())
+    src_sizes = var_operand_def(IndexType())
+    src_strides = var_operand_def(IndexType())
 
-    async_token = opt_result_def(AsyncTokenAttr)
+    async_token = opt_result_def(AsyncTokenAttr())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = [AttrSizedOperandSegments()]
 
     def __init__(
         self,
@@ -147,7 +147,7 @@ class ChannelPutOp(IRDLOperation):
         src_strides: list[Operation | SSAValue],
     ):
         super().__init__(
-            attributes={"chan_name": chan_name},
+            properties={"chan_name": chan_name},
             operands=[
                 async_dependencies,
                 indices,
@@ -159,54 +159,7 @@ class ChannelPutOp(IRDLOperation):
             result_types=[AsyncTokenAttr()],
         )
 
-    @classmethod
-    def parse(cls, parser: Parser) -> ChannelPutOp:
-        parser.parse_keyword("async")
-        async_dependencies: list[Operation | SSAValue] = []
-        if parser.parse_optional_characters("["):
-            while not parser.parse_optional_characters("]"):
-                parser.parse_operand()
-                parser.parse_optional_characters(",")
-        chan_name = SymbolRefAttr(parser.parse_symbol_name())
-        indices: list[Operation | SSAValue] = []
-        if parser.parse_optional_characters("["):
-            while not parser.parse_optional_characters("]"):
-                indices.append(parser.parse_operand())
-                parser.parse_optional_characters(",")
-        parser.parse_characters("(")
-        src = parser.parse_operand()
-        src_offsets: list[Operation | SSAValue] = []
-        if parser.parse_optional_characters("["):
-            while not parser.parse_optional_characters("]"):
-                src_offsets.append(parser.parse_operand())
-                parser.parse_optional_characters(",")
-        src_sizes: list[Operation | SSAValue] = []
-        if parser.parse_optional_characters("["):
-            while not parser.parse_optional_characters("]"):
-                src_sizes.append(parser.parse_operand())
-                parser.parse_optional_characters(",")
-        src_strides: list[Operation | SSAValue] = []
-        if parser.parse_optional_characters("["):
-            while not parser.parse_optional_characters("]"):
-                src_strides.append(parser.parse_operand())
-                parser.parse_optional_characters(",")
-
-        parser.parse_characters(")")
-        parser.parse_optional_attr_dict()
-        parser.parse_characters(":")
-        parser.parse_characters("(")
-        parser.parse_type()
-        parser.parse_characters(")")
-
-        return ChannelPutOp(
-            chan_name,
-            async_dependencies,
-            indices,
-            src,
-            src_offsets,
-            src_sizes,
-            src_strides,
-        )
+    assembly_format = "(`async` `[` $async_dependencies^ `]`)? $chan_name `[` $indices `]` `(` $src `[` $src_offsets `]``[` $src_sizes `]``[` $src_strides `]` `)` attr-dict `:` `(` type($src) `)`"
 
 
 @irdl_op_definition
