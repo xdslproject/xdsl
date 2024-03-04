@@ -100,11 +100,16 @@ class ChannelGetOp(IRDLOperation):
     name = "air.channel.get"
 
     chan_name = attr_def(SymbolRefAttr)
-    async_dependencies = var_operand_def(AsyncTokenAttr)
-    indices = var_operand_def(AsyncTokenAttr)
+    async_dependencies = var_operand_def(AsyncTokenAttr())
+    indices = var_operand_def(AsyncTokenAttr())
     dst = operand_def(MemRefType[Attribute])
+    dst_offsets = var_operand_def(IndexType())
+    dst_sizes = var_operand_def(IndexType())
+    dst_strides = var_operand_def(IndexType())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    async_token = result_def(AsyncTokenAttr())
+
+    irdl_options = [AttrSizedOperandSegments()]
 
     def __init__(
         self,
@@ -112,11 +117,23 @@ class ChannelGetOp(IRDLOperation):
         async_dependencies: list[Operation | SSAValue],
         indices: list[Operation | SSAValue],
         dst: Operation | SSAValue,
+        dst_offsets: list[Operation | SSAValue],
+        dst_sizes: list[Operation | SSAValue],
+        dst_strides: list[Operation | SSAValue],
     ):
         super().__init__(
             attributes={"chan_name": chan_name},
-            operands=[async_dependencies, indices, dst],
+            operands=[
+                async_dependencies,
+                indices,
+                dst,
+                dst_offsets,
+                dst_sizes,
+                dst_strides,
+            ],
         )
+
+    assembly_format = "(`async` `[` $async_dependencies^ `]`)? $chan_name `[` $indices `]` `(` $dst `[` $dst_offsets `]``[` $dst_sizes `]``[` $dst_strides `]` `)` attr-dict `:` `(` type($dst) `)`"
 
 
 @irdl_op_definition
