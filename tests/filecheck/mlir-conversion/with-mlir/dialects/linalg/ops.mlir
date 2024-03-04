@@ -59,7 +59,7 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-NEXT:    %5:2 = "test.op"() : () -> (tensor<16x64xf32>, tensor<64x16xf32>)
 // CHECK-NEXT:    %transposed  = linalg.transpose ins(%5#0 : tensor<16x64xf32>) outs(%5#1 : tensor<64x16xf32>) permutation = [1, 0]
 // CHECK-NEXT:    %6:2 = "test.op"() : () -> (tensor<64x9216xf32>, tensor<9216x4096xf32>)
-// CHECK-NEXT:    %7 = "test.op"() : () -> (tensor<64x4096xf32>)
+// CHECK-NEXT:    %7 = "test.op"() : () -> tensor<64x4096xf32>
 // CHECK-NEXT:    %mat_mul  = linalg.matmul ins(%6#0, %6#1 : tensor<64x9216xf32>, tensor<9216x4096xf32>) outs(%7 : tensor<64x4096xf32>) -> tensor<64x4096xf32>
 // CHECK-NEXT:    %{{.*}} = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) {
 // CHECK-NEXT:    ^bb0(%in: f32, %in_0: f32, %out: f32):
