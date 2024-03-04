@@ -602,7 +602,7 @@ class TransposeOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MatMulOp(IRDLOperation):
+class MatmulOp(IRDLOperation):
     """
     Performs a matrix multiplication of two 2D inputs.
 
@@ -649,7 +649,7 @@ Linalg = Dialect(
         FillOp,
         MulOp,
         TransposeOp,
-        MatMulOp,
+        MatmulOp,
     ],
     [
         IteratorTypeAttr,
