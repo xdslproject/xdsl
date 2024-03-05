@@ -22,6 +22,9 @@ from xdsl.transforms import (
     individual_rewrite,
     test_lower_linalg_to_snitch,
 )
+from xdsl.transforms.experimental.convert_stencil_to_tensor import (
+    ConvertStencilToTensorCompat,
+)
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -326,6 +329,11 @@ async def test_rewrites():
                 AvailablePass(
                     display_name="convert-func-to-riscv-func",
                     module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
+                    pass_spec=None,
+                ),
+                AvailablePass(
+                    display_name="convert-stencil-to-tensor-compat",
+                    module_pass=ConvertStencilToTensorCompat,
                     pass_spec=None,
                 ),
                 AvailablePass(
