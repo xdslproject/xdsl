@@ -283,7 +283,7 @@ class Use:
     """The index of the operand using the value in the operation."""
 
 
-@dataclass
+@dataclass(eq=False)
 class SSAValue(ABC):
     """
     A reference to an SSA variable.
@@ -383,7 +383,7 @@ class SSAValue(ABC):
         return self is other
 
 
-@dataclass
+@dataclass(eq=False)
 class OpResult(SSAValue):
     """A reference to an SSA variable defined by an operation result."""
 
@@ -401,7 +401,7 @@ class OpResult(SSAValue):
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
 
 
-@dataclass
+@dataclass(eq=False)
 class BlockArgument(SSAValue):
     """A reference to an SSA variable defined by a basic block argument."""
 
@@ -419,7 +419,7 @@ class BlockArgument(SSAValue):
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
 
 
-@dataclass
+@dataclass(eq=False)
 class ErasedSSAValue(SSAValue):
     """
     An erased SSA variable.

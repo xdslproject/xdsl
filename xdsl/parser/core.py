@@ -22,7 +22,7 @@ from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 
 
-@dataclass
+@dataclass(eq=False)
 class ForwardDeclaredValue(SSAValue):
     """
     An SSA value that is used before it is defined.
