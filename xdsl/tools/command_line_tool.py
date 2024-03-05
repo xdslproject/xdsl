@@ -348,7 +348,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_convert_stencil_to_tensor_compat():
         from xdsl.transforms.experimental import convert_stencil_to_tensor
 
-        return convert_stencil_to_tensor.ConvertStencilToTensorCOmpat
+        return convert_stencil_to_tensor.ConvertStencilToTensorCompat
 
     def get_convert_riscv_scf_to_riscv_cf():
         from xdsl.backend.riscv.lowering import (

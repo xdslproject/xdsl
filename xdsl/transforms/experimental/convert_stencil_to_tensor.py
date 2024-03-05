@@ -3,19 +3,22 @@ from typing import cast
 from attr import dataclass
 
 from xdsl.dialects import memref
+from xdsl.dialects.bufferization import AllocTensorOp, ToTensorOp
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     MemRefType,
     ModuleOp,
     StringAttr,
     TensorType,
-    UnitAttr,
+    UnrealizedConversionCastOp,
 )
 from xdsl.dialects.linalg import Generic, IteratorTypeAttr, YieldOp
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
+    BufferOp,
     CastOp,
+    ExternalLoadOp,
     FieldType,
     LoadOp,
     ReturnOp,
@@ -35,13 +38,6 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.ir.affine import AffineMap
-from xdsl.irdl import (
-    IRDLOperation,
-    irdl_op_definition,
-    operand_def,
-    opt_prop_def,
-    result_def,
-)
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -51,6 +47,9 @@ from xdsl.pattern_rewriter import (
     TypeConversionPattern,
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
+)
+from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
+    TrivialExternalStoreOpCleanup,
 )
 from xdsl.transforms.mlir_opt import MLIROptPass
 
@@ -77,29 +76,10 @@ class StencilTempConversion(TypeConversionPattern):
         return stencil_type_to_tensor(typ)
 
 
-@irdl_op_definition
-class toTensor(IRDLOperation):
-    name = "bufferization.to_tensor"
-
-    memref = operand_def(MemRefType)
-    tensor = result_def(TensorType)
-    writable = opt_prop_def(UnitAttr)
-    restrict = opt_prop_def(UnitAttr)
-
-
-def bufferization_to_tensor(memref: SSAValue):
-    memref_t = cast(StencilType[Attribute], memref.type)
-    return toTensor(
-        operands=[memref],
-        properties={"writable": UnitAttr(), "restrict": UnitAttr()},
-        result_types=[stencil_type_to_tensor(memref_t)],
-    )
-
-
-class LoadOpToSubviewCopy(RewritePattern):
+class LoadOpToExtractSlice(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        to_tensor = bufferization_to_tensor(op.field)
+        to_tensor = ToTensorOp(op.field, writable=True, restrict=True)
         field_t = cast(StencilType[Attribute], op.field.type)
         temp_t = cast(StencilType[Attribute], op.res.type)
         assert isinstance(field_t.bounds, StencilBoundsAttr)
@@ -108,18 +88,20 @@ class LoadOpToSubviewCopy(RewritePattern):
             -flb + tlb for flb, tlb in zip(field_t.bounds.lb, temp_t.bounds.lb)
         )
         sizes = temp_t.get_shape()
-        extract = extract_slice(to_tensor.tensor, offsets, sizes)
+        extract = ExtractSliceOp.from_static_parameters(
+            to_tensor.tensor, offsets, sizes
+        )
         rewriter.replace_matched_op((to_tensor, extract))
 
 
-class StoreOpToSubviewCopy(RewritePattern):
+class StoreOpToInsertSlice(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
         field_t = cast(FieldType[Attribute], op.field.type)
         temp_t = cast(TempType[Attribute], op.temp.type)
         assert isinstance(field_t.bounds, StencilBoundsAttr)
 
-        to_tensor = bufferization_to_tensor(op.field)
+        to_tensor = ToTensorOp(op.field, writable=True, restrict=True)
         match op.field.owner:
             case Operation():
                 rewriter.insert_op_after(
@@ -160,18 +142,13 @@ class CastOpToCast(RewritePattern):
         )
 
 
-def extract_slice(tensor: SSAValue, offsets: tuple[int, ...], sizes: tuple[int, ...]):
-    # TODO Implement and use tensor.extract_slice
-    t = cast(TempType[Attribute], tensor.type)
-
-    extract_slice = ExtractSliceOp.from_static_parameters(
-        tensor,
-        stencil_type_to_tensor(t),
-        offsets,
-        sizes,
-        strides=(1,) * len(sizes),
-    )
-    return extract_slice
+@dataclass(frozen=True)
+class ExternalLoadToUnerealizedConversionCast(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter):
+        rewriter.replace_matched_op(
+            UnrealizedConversionCastOp.get((op.field,), (op.result.type,))
+        )
 
 
 @dataclass(frozen=True)
@@ -181,6 +158,8 @@ class ApplyOpToGeneric(RewritePattern):
         output = op.res[0]
         output_type = cast(TempType[Attribute], output.type)
         shape = output_type.get_shape()
+        assert isinstance(output_type.bounds, StencilBoundsAttr)
+        apply_offset = output_type.bounds.lb
         # Get accesses to generate inputs and replace by block arguments
         inputs: list[SSAValue] = []
         new_block = Block()
@@ -199,9 +178,12 @@ class ApplyOpToGeneric(RewritePattern):
                 temp_t = cast(TempType[Attribute], a.temp.type)
                 assert isinstance(temp_t.bounds, StencilBoundsAttr)
 
-                offsets = tuple(-lb + o for lb, o in zip(temp_t.bounds.lb, a.offset))
+                offsets = tuple(
+                    -lb + o + a
+                    for lb, o, a in zip(temp_t.bounds.lb, a.offset, apply_offset)
+                )
 
-                extract = extract_slice(operand, offsets, shape)
+                extract = ExtractSliceOp.from_static_parameters(operand, offsets, shape)
 
                 indexing_maps.append(AffineMapAttr(AffineMap.identity(len(a.offset))))
 
@@ -246,6 +228,31 @@ class ApplyOpToGeneric(RewritePattern):
         pass
 
 
+class BufferOpToAlloc(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
+        t = cast(StencilType[Attribute], op.res.type)
+        assert isinstance(t, StencilType)
+        num_dims = t.get_num_dims()
+        alloc = AllocTensorOp.static_type(stencil_type_to_tensor(t))
+        match op.temp.owner:
+            case Operation():
+                rewriter.insert_op_before(
+                    alloc,
+                    op.temp.owner,
+                )
+            case Block():
+                rewriter.insert_op_at_start(alloc, op.temp.owner)
+        rewriter.replace_matched_op(
+            InsertSliceOp.from_static_parameters(
+                op.temp,
+                alloc.tensor,
+                [0] * num_dims,
+                t.get_shape(),
+            )
+        )
+
+
 @dataclass(frozen=True)
 class ConvertStencilToLinalg(ModulePass):
     name = "convert-stencil-to-tensor"
@@ -255,8 +262,11 @@ class ConvertStencilToLinalg(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    StoreOpToSubviewCopy(),
-                    LoadOpToSubviewCopy(),
+                    BufferOpToAlloc(),
+                    ExternalLoadToUnerealizedConversionCast(),
+                    TrivialExternalStoreOpCleanup(),
+                    StoreOpToInsertSlice(),
+                    LoadOpToExtractSlice(),
                     CastOpToCast(),
                     ApplyOpToGeneric(),
                     ReturnOpToYield(),
@@ -276,7 +286,7 @@ class ConvertStencilToLinalg(ModulePass):
         type_conversion_pass.rewrite_module(op)
 
 
-class ConvertStencilToTensorCOmpat(ModulePass):
+class ConvertStencilToTensorCompat(ModulePass):
     name = "convert-stencil-to-tensor-compat"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
@@ -288,7 +298,7 @@ class ConvertStencilToTensorCOmpat(ModulePass):
                         "--allow-unregistered-dialect",
                         "--mlir-print-op-generic",
                         "-p",
-                        "builtin.module(eliminate-empty-tensors,cse,one-shot-bufferize,canonicalize,convert-linalg-to-parallel-loops)",
+                        "builtin.module(eliminate-empty-tensors,cse,one-shot-bufferize,canonicalize,func.func(buffer-deallocation),convert-linalg-to-parallel-loops)",
                     )
                 ),
             )

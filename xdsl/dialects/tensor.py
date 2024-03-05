@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import cast
+from typing import Any, cast
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerOrIndexType,
+    ContainerType,
     DenseArrayBase,
     IndexType,
     TensorType,
@@ -190,40 +191,32 @@ class ExtractSliceOp(IRDLOperation):
     @staticmethod
     def from_static_parameters(
         source: SSAValue | Operation,
-        source_type: TensorType[Attribute],
         offsets: Sequence[int],
         sizes: Sequence[int],
-        strides: Sequence[int],
+        strides: Sequence[int] | None = None,
         reduce_rank: bool = False,
     ) -> ExtractSliceOp:
-        source = SSAValue.get(source)
 
-        source_shape = source_type.get_shape()
-        source_strides = [1]
-        for input_size in reversed(source_shape[1:]):
-            source_strides.insert(0, source_strides[0] * input_size)
+        if strides is None:
+            strides = [1] * len(offsets)
+        source_v = SSAValue.get(source)
+        source_t = source_v.type
+        if not isinstance(source_t, ContainerType):
+            raise ValueError(f"Expected ContainerType, got {source_t}")
 
         if reduce_rank:
-            result_sizes: list[int] = []
-
-            for size in sizes:
-                if size == 1:
-                    continue
-                result_sizes.append(size)
-
+            result_sizes = list(s for s in sizes if s != 1)
         else:
             result_sizes = list(sizes)
 
-        return_type = TensorType(
-            source_type.element_type, result_sizes, source_type.encoding
-        )
+        return_type = TensorType[Any](source_t.get_element_type(), result_sizes)
 
         return ExtractSliceOp.build(
             operands=[source, [], [], []],
             result_types=[return_type],
             properties={
                 "static_offsets": DenseArrayBase.from_list(i64, offsets),
-                "static_sizes": DenseArrayBase.from_list(i64, sizes),
+                "static_sizes": DenseArrayBase.from_list(i64, result_sizes),
                 "static_strides": DenseArrayBase.from_list(i64, strides),
             },
         )
@@ -251,10 +244,13 @@ class InsertSliceOp(IRDLOperation):
         dest: SSAValue | Operation,
         offsets: Sequence[int],
         sizes: Sequence[int],
-        strides: Sequence[int],
+        strides: Sequence[int] | None = None,
     ) -> InsertSliceOp:
         source = SSAValue.get(source)
         dest = SSAValue.get(dest)
+
+        if strides is None:
+            strides = [1] * len(sizes)
 
         return InsertSliceOp.build(
             operands=[source, dest, [], [], []],
