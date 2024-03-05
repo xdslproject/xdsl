@@ -372,6 +372,12 @@ class SSAValue(ABC):
             )
         self.replace_by(ErasedSSAValue(self.type, self))
 
+    def __hash__(self):
+        """
+        Make SSAValue hashable. Two SSA Values are never the same, therefore
+        the use of `id` is allowed here.
+        """
+        return id(self)
 
 @dataclass
 class OpResult(SSAValue):
