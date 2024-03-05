@@ -379,6 +379,9 @@ class SSAValue(ABC):
         """
         return id(self)
 
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
 
 @dataclass
 class OpResult(SSAValue):
@@ -396,12 +399,6 @@ class OpResult(SSAValue):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
 
 
 @dataclass
@@ -421,12 +418,6 @@ class BlockArgument(SSAValue):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
-
 
 @dataclass
 class ErasedSSAValue(SSAValue):
@@ -440,9 +431,6 @@ class ErasedSSAValue(SSAValue):
     @property
     def owner(self) -> Operation | Block:
         return self.old_value.owner
-
-    def __hash__(self) -> int:
-        return hash(id(self))
 
 
 A = TypeVar("A", bound="Attribute")

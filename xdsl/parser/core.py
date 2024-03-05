@@ -33,12 +33,6 @@ class ForwardDeclaredValue(SSAValue):
     def owner(self) -> Operation | Block:
         assert False, "Forward declared values do not have an owner"
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
-
 
 @dataclass
 class UnresolvedOperand:
