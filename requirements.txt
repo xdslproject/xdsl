@@ -6,7 +6,7 @@ pytest-cov
 coverage<8.0.0
 ipykernel
 pytest<8.1
-nbval<0.11
+nbval<0.12
 filecheck<0.0.25
 lit<18.0.0
 pre-commit==3.6.2
