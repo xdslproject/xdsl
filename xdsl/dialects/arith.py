@@ -283,7 +283,7 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
-    traits = frozenset([Pure(), AddiOpHasCanonicalizationPatternsTrait()])
+    traits = frozenset([AddiOpHasCanonicalizationPatternsTrait()])
 
 
 @irdl_op_definition
@@ -351,14 +351,10 @@ class AddUIExtended(IRDLOperation):
 class Muli(SignlessIntegerBinaryOp):
     name = "arith.muli"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class Subi(SignlessIntegerBinaryOp):
     name = "arith.subi"
-
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -371,8 +367,6 @@ class DivUI(SignlessIntegerBinaryOp):
 
     name = "arith.divui"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class DivSI(SignlessIntegerBinaryOp):
@@ -383,8 +377,6 @@ class DivSI(SignlessIntegerBinaryOp):
 
     name = "arith.divsi"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class FloorDivSI(SignlessIntegerBinaryOp):
@@ -394,84 +386,60 @@ class FloorDivSI(SignlessIntegerBinaryOp):
 
     name = "arith.floordivsi"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class CeilDivSI(SignlessIntegerBinaryOp):
     name = "arith.ceildivsi"
-
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
 class CeilDivUI(SignlessIntegerBinaryOp):
     name = "arith.ceildivui"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class RemUI(SignlessIntegerBinaryOp):
     name = "arith.remui"
-
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
 class RemSI(SignlessIntegerBinaryOp):
     name = "arith.remsi"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class MinUI(SignlessIntegerBinaryOp):
     name = "arith.minui"
-
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
 class MaxUI(SignlessIntegerBinaryOp):
     name = "arith.maxui"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class MinSI(SignlessIntegerBinaryOp):
     name = "arith.minsi"
-
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
 class MaxSI(SignlessIntegerBinaryOp):
     name = "arith.maxsi"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class AndI(SignlessIntegerBinaryOp):
     name = "arith.andi"
-
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
 class OrI(SignlessIntegerBinaryOp):
     name = "arith.ori"
 
-    traits = frozenset((Pure(),))
-
 
 @irdl_op_definition
 class XOrI(SignlessIntegerBinaryOp):
     name = "arith.xori"
-
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -482,7 +450,6 @@ class ShLI(SignlessIntegerBinaryOp):
     """
 
     name = "arith.shli"
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -494,7 +461,6 @@ class ShRUI(SignlessIntegerBinaryOp):
     """
 
     name = "arith.shrui"
-    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -507,7 +473,6 @@ class ShRSI(SignlessIntegerBinaryOp):
     """
 
     name = "arith.shrsi"
-    traits = frozenset((Pure(),))
 
 
 @dataclass
