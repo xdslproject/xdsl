@@ -379,6 +379,7 @@ class SSAValue(ABC):
         """
         return id(self)
 
+
 @dataclass
 class OpResult(SSAValue):
     """A reference to an SSA variable defined by an operation result."""
