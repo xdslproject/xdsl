@@ -6,12 +6,22 @@ from typing import cast
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import AnySignlessIntegerOrIndexType, IndexType, TensorType
-from xdsl.ir import Attribute, Dialect, SSAValue
+from xdsl.dialects.builtin import (
+    AnySignlessIntegerOrIndexType,
+    DenseArrayBase,
+    IndexType,
+    TensorType,
+    i64,
+)
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    VarOperand,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     var_operand_def,
 )
@@ -162,10 +172,107 @@ class ReshapeOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class ExtractSliceOp(IRDLOperation):
+    name = "tensor.extract_slice"
+
+    source: Operand = operand_def(TensorType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
+    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
+    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
+    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
+    result: OpResult = result_def(TensorType)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    @staticmethod
+    def from_static_parameters(
+        source: SSAValue | Operation,
+        source_type: TensorType[Attribute],
+        offsets: Sequence[int],
+        sizes: Sequence[int],
+        strides: Sequence[int],
+        reduce_rank: bool = False,
+    ) -> ExtractSliceOp:
+        source = SSAValue.get(source)
+
+        source_shape = source_type.get_shape()
+        source_strides = [1]
+        for input_size in reversed(source_shape[1:]):
+            source_strides.insert(0, source_strides[0] * input_size)
+
+        if reduce_rank:
+            result_sizes: list[int] = []
+
+            for size in sizes:
+                if size == 1:
+                    continue
+                result_sizes.append(size)
+
+        else:
+            result_sizes = list(sizes)
+
+        return_type = TensorType(
+            source_type.element_type, result_sizes, source_type.encoding
+        )
+
+        return ExtractSliceOp.build(
+            operands=[source, [], [], []],
+            result_types=[return_type],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(i64, offsets),
+                "static_sizes": DenseArrayBase.from_list(i64, sizes),
+                "static_strides": DenseArrayBase.from_list(i64, strides),
+            },
+        )
+
+
+@irdl_op_definition
+class InsertSliceOp(IRDLOperation):
+    name = "tensor.insert_slice"
+
+    source: Operand = operand_def(TensorType)
+    dest: Operand = operand_def(TensorType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
+    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
+    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
+    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
+    result: OpResult = result_def(TensorType)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    @staticmethod
+    def from_static_parameters(
+        source: SSAValue | Operation,
+        dest: SSAValue | Operation,
+        offsets: Sequence[int],
+        sizes: Sequence[int],
+        strides: Sequence[int],
+    ) -> InsertSliceOp:
+        source = SSAValue.get(source)
+        dest = SSAValue.get(dest)
+
+        return InsertSliceOp.build(
+            operands=[source, dest, [], [], []],
+            result_types=[dest.type],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(i64, offsets),
+                "static_sizes": DenseArrayBase.from_list(i64, sizes),
+                "static_strides": DenseArrayBase.from_list(i64, strides),
+            },
+        )
+
+
 Tensor = Dialect(
     "tensor",
     [
         EmptyOp,
+        ExtractSliceOp,
+        InsertSliceOp,
         ReshapeOp,
     ],
     [],
