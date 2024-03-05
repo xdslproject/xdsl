@@ -118,8 +118,6 @@ class Generic(IRDLOperation):
             properties={
                 "indexing_maps": ArrayAttr(indexing_maps),
                 "iterator_types": ArrayAttr(iterator_types),
-            },
-            attributes={
                 "doc": doc,
                 "library_call": library_call,
             },
@@ -367,7 +365,6 @@ class Generic(IRDLOperation):
             doc,
             library_call,
         )
-        generic.attributes |= attrs
         generic.attributes |= extra_attrs
 
         return generic
