@@ -64,7 +64,7 @@
                 %sum = "gpu.all_reduce"(%dev) ({
                 }) {"op" = #gpu<all_reduce_op add>} : (i32) -> i32
                 %final = "arith.muli"(%sum, %dev) : (i32, i32) -> i32
-                "gpu.printf"() {"format" = "Hello from device"} : () -> ()
+                "gpu.printf"() <{format = "Hello from device"}> : () -> ()
                 "gpu.terminator"() : () -> ()
             }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
             "gpu.launch_func"(%n, %n, %n, %n, %n, %n, %one, %one, %one, %dev, %n) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0>, "kernel" = @gpu::@foo} : (index, index, index, index, index, index, index, index, index, i32, index) -> ()
@@ -142,7 +142,7 @@
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:             }) : (i32) -> i32
 // CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) : (i32, i32) -> i32
-// CHECK-NEXT:                 "gpu.printf"() {"format" = "Hello from device"} : () -> ()
+// CHECK-NEXT:                 "gpu.printf"() <{format = "Hello from device"}> : () -> ()
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) : (index, index, index, index, index, index) -> ()
 // CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kernel" = @gpu::@foo, "operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0>}> : (index, index, index, index, index, index, index, index, index, i32, index) -> ()
