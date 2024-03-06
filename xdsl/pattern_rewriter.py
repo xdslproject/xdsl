@@ -14,7 +14,7 @@ from typing import (
     get_origin,
 )
 
-from xdsl.builder import Builder, BuilderListener, InsertPoint
+from xdsl.builder import Builder, BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -25,7 +25,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.rewriter import Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.hints import isa
 
 
