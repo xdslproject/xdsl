@@ -605,6 +605,8 @@ class LaunchOp(IRDLOperation):
         )
         launch_op.attributes |= attr_dict
 
+        return launch_op
+
 
 @irdl_op_definition
 class HerdPipelineOp(IRDLOperation):
