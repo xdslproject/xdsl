@@ -74,7 +74,8 @@ def _insert_loop_nest(
     zero_op: arith.Constant,
     one_op: arith.Constant,
     bounds: tuple[OpResult, ...],
-) -> tuple[list[BlockArgument], InsertPoint]:
+    make_body: Callable[[PatternRewriter, InsertPoint, Sequence[BlockArgument]], None],
+) -> None:
 
     loops: list[scf.For] = []
     index = IndexType()
@@ -91,17 +92,18 @@ def _insert_loop_nest(
         rewriter.insert_op_at_location(loop, insertion_point)
         insertion_point = InsertPoint.at_start(loop.body.block)
 
-    for loop in loops:
-        rewriter.insert_op_at_end(scf.Yield(), loop.body.block)
-        insertion_point = InsertPoint.before(loop)
+    make_body(
+        rewriter, insertion_point, tuple(loop.body.block.args[0] for loop in loops)
+    )
 
-    return ([loop.body.block.args[0] for loop in loops], insertion_point)
+    for loop in loops[:-1]:
+        rewriter.insert_op_at_end(scf.Yield(), loop.body.block)
 
 
 def _insert_load_ops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
-    loop_args: Sequence[BlockArgument],
+    ind_vars: Sequence[BlockArgument],
     affine_map_attrs: Sequence[AffineMapAttr],
     operands: Sequence[SSAValue],
     args: Sequence[BlockArgument],
@@ -113,7 +115,7 @@ def _insert_load_ops(
         if not arg.uses:
             return
         affine_map = affine_map_attr.data
-        indices = indices_for_map(rewriter, insertion_point, affine_map, loop_args)
+        indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
         load_op = load(operand, indices)
         rewriter.insert_op_at_location(load_op, insertion_point)
         arg.replace_by(load_op.results[0])
@@ -122,7 +124,7 @@ def _insert_load_ops(
 def _insert_store_ops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
-    loop_args: Sequence[BlockArgument],
+    ind_vars: Sequence[BlockArgument],
     output_indexing_maps: Sequence[AffineMapAttr],
     yield_operands: Sequence[SSAValue],
     output_operands: Sequence[SSAValue],
@@ -132,7 +134,7 @@ def _insert_store_ops(
         output_indexing_maps, yield_operands, output_operands, strict=True
     ):
         affine_map = affine_map_attr.data
-        indices = indices_for_map(rewriter, insertion_point, affine_map, loop_args)
+        indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
         store_op = store(yield_value, ref, indices)
         rewriter.insert_op_at_location(store_op, insertion_point)
 
@@ -159,50 +161,62 @@ def rewrite_generic_to_loops(
     if bound_constant_values:
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
+    def make_body(
+        rewriter: PatternRewriter,
+        insertion_point: InsertPoint,
+        ind_vars: Sequence[BlockArgument],
+    ):
+        # Add load ops before the innermost scf.yield operation
+        _insert_load_ops(
+            rewriter,
+            insertion_point,
+            ind_vars,
+            op.indexing_maps.data,
+            op.operands,
+            op.body.block.args,
+            load,
+        )
+
+        # Add store ops before the yield operation in the generic body
+
+        yield_op = op.body.block.last_op
+        assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
+
+        output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
+        output_operands = op.operands[-len(op.outputs) :]
+        _insert_store_ops(
+            rewriter,
+            InsertPoint.before(yield_op),
+            ind_vars,
+            output_indexing_maps,
+            yield_op.operands,
+            output_operands,
+            store,
+        )
+
+        # Now that the linalg yield op operands have been converted to stores, remove
+
+        rewriter.erase_op(yield_op)
+
+        # Inline generic body into innermost scf loop
+        # The operands have already been remapped
+
+        while op.body.block.args:
+            rewriter.erase_block_argument(op.body.block.args[0])
+
+        rewriter.inline_block_at_location(op.body.block, insertion_point)
+
+        rewriter.insert_op_at_location(scf.Yield(), insertion_point)
+
     # Insert loop nest, from the outtermost loop inwards
-    loop_args, insertion_point = _insert_loop_nest(
-        rewriter, InsertPoint.before(op), zero_op, one_op, bound_constant_values
-    )
-
-    # Add load ops before the innermost scf.yield operation
-    _insert_load_ops(
+    _insert_loop_nest(
         rewriter,
-        insertion_point,
-        loop_args,
-        op.indexing_maps.data,
-        op.operands,
-        op.body.block.args,
-        load,
+        InsertPoint.before(op),
+        zero_op,
+        one_op,
+        bound_constant_values,
+        make_body,
     )
-
-    # Add store ops before the yield operation in the generic body
-
-    yield_op = op.body.block.last_op
-    assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
-
-    output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
-    output_operands = op.operands[-len(op.outputs) :]
-    _insert_store_ops(
-        rewriter,
-        InsertPoint.before(yield_op),
-        loop_args,
-        output_indexing_maps,
-        yield_op.operands,
-        output_operands,
-        store,
-    )
-
-    # Now that the linalg yield op operands have been converted to stores, remove
-
-    rewriter.erase_op(yield_op)
-
-    # Inline generic body into innermost scf loop
-    # The operands have already been remapped
-
-    while op.body.block.args:
-        rewriter.erase_block_argument(op.body.block.args[0])
-
-    rewriter.inline_block_at_location(op.body.block, insertion_point)
 
     # Erase generic
 
