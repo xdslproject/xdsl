@@ -1,6 +1,7 @@
 from collections.abc import Callable, Sequence
 from itertools import compress
 
+from xdsl.builder import InsertPoint
 from xdsl.dialects import affine, arith, linalg, memref_stream, scf
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -16,7 +17,7 @@ from xdsl.pattern_rewriter import (
 
 def indices_for_map(
     rewriter: PatternRewriter,
-    target_op: Operation,
+    insertion_point: InsertPoint,
     affine_map: AffineMap,
     input_index_vals: Sequence[SSAValue],
 ) -> Sequence[SSAValue]:
@@ -54,12 +55,12 @@ def indices_for_map(
                 new_index_vals = tuple(compress(new_index_vals, selectors))
                 new_affine_map = new_affine_map.compress_dims(selectors)
 
-            rewriter.insert_op_before(
+            rewriter.insert_op_at_location(
                 apply_op := affine.ApplyOp(
                     new_index_vals,
                     AffineMapAttr(new_affine_map),
                 ),
-                target_op,
+                insertion_point,
             )
 
             output_indices.append(apply_op.result)
@@ -69,11 +70,11 @@ def indices_for_map(
 
 def _insert_loop_nest(
     rewriter: PatternRewriter,
-    insertion_target: Operation,
+    insertion_point: InsertPoint,
     zero_op: arith.Constant,
     one_op: arith.Constant,
     bounds: tuple[OpResult, ...],
-) -> tuple[list[BlockArgument], Operation]:
+) -> tuple[list[BlockArgument], InsertPoint]:
 
     loops: list[scf.For] = []
     index = IndexType()
@@ -84,18 +85,22 @@ def _insert_loop_nest(
             ub,
             one_op.result,
             (),
-            Region(Block((yield_op := scf.Yield(),), arg_types=(index,))),
+            Region(Block((), arg_types=(index,))),
         )
         loops.append(loop)
-        rewriter.insert_op_before(loop, insertion_target)
-        insertion_target = yield_op
+        rewriter.insert_op_at_location(loop, insertion_point)
+        insertion_point = InsertPoint.at_start(loop.body.block)
 
-    return ([loop.body.block.args[0] for loop in loops], insertion_target)
+    for loop in loops:
+        rewriter.insert_op_at_end(scf.Yield(), loop.body.block)
+        insertion_point = InsertPoint.before(loop)
+
+    return ([loop.body.block.args[0] for loop in loops], insertion_point)
 
 
 def _insert_load_ops(
     rewriter: PatternRewriter,
-    insertion_target: Operation,
+    insertion_point: InsertPoint,
     loop_args: Sequence[BlockArgument],
     affine_map_attrs: Sequence[AffineMapAttr],
     operands: Sequence[SSAValue],
@@ -108,15 +113,15 @@ def _insert_load_ops(
         if not arg.uses:
             return
         affine_map = affine_map_attr.data
-        indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
+        indices = indices_for_map(rewriter, insertion_point, affine_map, loop_args)
         load_op = load(operand, indices)
-        rewriter.insert_op_before(load_op, insertion_target)
+        rewriter.insert_op_at_location(load_op, insertion_point)
         arg.replace_by(load_op.results[0])
 
 
 def _insert_store_ops(
     rewriter: PatternRewriter,
-    insertion_target: Operation,
+    insertion_point: InsertPoint,
     loop_args: Sequence[BlockArgument],
     output_indexing_maps: Sequence[AffineMapAttr],
     yield_operands: Sequence[SSAValue],
@@ -127,9 +132,9 @@ def _insert_store_ops(
         output_indexing_maps, yield_operands, output_operands, strict=True
     ):
         affine_map = affine_map_attr.data
-        indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
+        indices = indices_for_map(rewriter, insertion_point, affine_map, loop_args)
         store_op = store(yield_value, ref, indices)
-        rewriter.insert_op_before(store_op, insertion_target)
+        rewriter.insert_op_at_location(store_op, insertion_point)
 
 
 def rewrite_generic_to_loops(
@@ -155,14 +160,14 @@ def rewrite_generic_to_loops(
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
     # Insert loop nest, from the outtermost loop inwards
-    loop_args, insertion_target = _insert_loop_nest(
-        rewriter, op, zero_op, one_op, bound_constant_values
+    loop_args, insertion_point = _insert_loop_nest(
+        rewriter, InsertPoint.before(op), zero_op, one_op, bound_constant_values
     )
 
     # Add load ops before the innermost scf.yield operation
     _insert_load_ops(
         rewriter,
-        insertion_target,
+        insertion_point,
         loop_args,
         op.indexing_maps.data,
         op.operands,
@@ -179,7 +184,7 @@ def rewrite_generic_to_loops(
     output_operands = op.operands[-len(op.outputs) :]
     _insert_store_ops(
         rewriter,
-        yield_op,
+        InsertPoint.before(yield_op),
         loop_args,
         output_indexing_maps,
         yield_op.operands,
@@ -197,7 +202,7 @@ def rewrite_generic_to_loops(
     while op.body.block.args:
         rewriter.erase_block_argument(op.body.block.args[0])
 
-    rewriter.inline_block_before(op.body.block, insertion_target)
+    rewriter.inline_block_at_location(op.body.block, insertion_point)
 
     # Erase generic
 

@@ -247,6 +247,14 @@ class PatternRewriter(PatternRewriterListener):
         self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
         arg.block.erase_arg(arg, safe_erase)
 
+    def inline_block_at_location(self, block: Block, insertion_point: InsertPoint):
+        """
+        Move the block operations to the specified location in another block.
+        This block should not be a parent of the block to move to.
+        """
+        self.has_done_action = True
+        Rewriter.inline_block_at_location(block, insertion_point)
+
     def inline_block_at_end(self, block: Block, target_block: Block):
         """
         Move the block operations to the end of another block.
