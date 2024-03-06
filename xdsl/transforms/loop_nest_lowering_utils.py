@@ -75,7 +75,7 @@ def _insert_loop_nest(
     bounds: tuple[OpResult, ...],
 ) -> tuple[list[BlockArgument], Operation]:
 
-    loop_args: list[BlockArgument] = []
+    loops: list[scf.For] = []
     index = IndexType()
 
     for ub in bounds:
@@ -86,11 +86,11 @@ def _insert_loop_nest(
             (),
             Region(Block((yield_op := scf.Yield(),), arg_types=(index,))),
         )
-        loop_args.append(loop.body.block.args[0])
+        loops.append(loop)
         rewriter.insert_op_before(loop, insertion_target)
         insertion_target = yield_op
 
-    return (loop_args, insertion_target)
+    return ([loop.body.block.args[0] for loop in loops], insertion_target)
 
 
 def _insert_load_ops(
