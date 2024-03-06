@@ -296,11 +296,11 @@ class ExecuteOp(IRDLOperation):
 
     traits = traits_def(
         lambda: frozenset([SingleBlockImplicitTerminator(ExecuteTerminatorOp)])
-    )  # TODO: solve dependency
+    )
 
     def __init__(
         self,
-        async_dependencies: list[Operation | SSAValue],
+        async_dependencies: list[SSAValue] | None,
         result_types: list[Attribute] | None,
         body: Region,
     ):
@@ -312,18 +312,15 @@ class ExecuteOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> ExecuteOp:
-        async_dependencies: list[Operation | SSAValue] = []
-        if parser.parse_optional_characters("["):
-            while not parser.parse_optional_characters("]"):
-                async_dependencies.append(parser.parse_operand())
-                parser.parse_optional_characters(",")
+        async_dependencies = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_operand
+        )
 
-        result_types: list[Attribute] = []
+        result_types: list[Attribute] | None = []
         if parser.parse_optional_characters("->"):
-            parser.parse_characters("(")
-            while not parser.parse_optional_characters(")"):
-                result_types.append(parser.parse_type())
-                parser.parse_optional_characters(",")
+            result_types = parser.parse_optional_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
 
         body = parser.parse_region()
 
@@ -383,7 +380,7 @@ class HerdOp(IRDLOperation):
     def __init__(
         self,
         sym_name: StringAttr | None,
-        async_dependencies: list[Operation | SSAValue] | None,
+        async_dependencies: list[SSAValue] | None,
         sizes: list[Operation | SSAValue],
         herd_operands: list[Operation | SSAValue] | None,
         region: Region | None,
@@ -454,12 +451,9 @@ class HerdOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> HerdOp:
         sym_name = parser.parse_optional_symbol_name()
-        async_dependencies: list[Operation | SSAValue] = []
-        if parser.parse_optional_keyword("async"):
-            parser.parse_optional_characters("[")
-            while not parser.parse_optional_characters("]"):
-                async_dependencies.append(parser.parse_operand())
-                parser.parse_optional_characters(",")
+        async_dependencies = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_operand
+        )
         parser.parse_keyword("tile")
         arg_list = parser.parse_op_args_list()
         parser.parse_keyword("in")
@@ -534,7 +528,7 @@ class LaunchOp(IRDLOperation):
     def __init__(
         self,
         sym_name: StringAttr | None,
-        async_dependencies: list[Operation | SSAValue],
+        async_dependencies: list[SSAValue] | None,
         sizes: list[Operation | SSAValue],
         launch_operands: list[Operation | SSAValue],
         body: Region | None,
@@ -550,12 +544,9 @@ class LaunchOp(IRDLOperation):
     def parse(cls, parser: Parser) -> LaunchOp:
         sym_name = parser.parse_optional_symbol_name()
 
-        async_dependencies: list[Operation | SSAValue] = []
-        if parser.parse_optional_keyword("async"):
-            if parser.parse_optional_characters("["):
-                while not parser.parse_optional_characters("]"):
-                    async_dependencies.append(parser.parse_operand())
-                    parser.parse_optional_characters(",")
+        async_dependencies = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_operand
+        )
 
         block_args_lst: list[Parser.Argument] = []
         if parser.parse_optional_characters("("):
@@ -583,6 +574,7 @@ class LaunchOp(IRDLOperation):
             parser.parse_optional_characters(",")
 
         launch_operands_lst: list[Operation | SSAValue] = []
+        attr_dict: dict[str, Attribute] = dict()
         if parser.parse_optional_keyword("args"):
             parser.parse_characters("(")
             while True:
@@ -602,14 +594,16 @@ class LaunchOp(IRDLOperation):
             for _ in range(len(launch_operands_lst)):
                 parser.parse_type()
                 parser.parse_optional_characters(",")
+
             if parser.parse_optional_keyword("attributes"):
-                parser.parse_optional_attr_dict()
+                attr_dict = parser.parse_optional_attr_dict()
 
         body = parser.parse_optional_region(block_args_lst)
 
-        return LaunchOp(
+        launch_op = LaunchOp(
             sym_name, async_dependencies, sizes_operands_lst, launch_operands_lst, body
         )
+        launch_op.attributes |= attr_dict
 
 
 @irdl_op_definition
@@ -625,12 +619,16 @@ class HerdPipelineOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> HerdPipelineOp:
+        attr_dict: dict[str, Attribute] = dict()
         if parser.parse_optional_keyword("attributes"):
-            parser.parse_optional_attr_dict()
+            attr_dict = parser.parse_optional_attr_dict()
 
         body = parser.parse_optional_region()
 
-        return HerdPipelineOp(body)
+        herd_pipeline_op = HerdPipelineOp(body)
+        herd_pipeline_op.attributes |= attr_dict
+
+        return herd_pipeline_op
 
 
 @irdl_op_definition
@@ -807,14 +805,17 @@ class SegmentOp(IRDLOperation):
                 parser.parse_type()
                 parser.parse_optional_characters(",")
 
+        attr_dict: dict[str, Attribute] = dict()
         if parser.parse_optional_keyword("attributes"):
-            parser.parse_optional_attr_dict()
+            attr_dict = parser.parse_optional_attr_dict()
 
         body = parser.parse_optional_region()
 
-        return SegmentOp(
+        segment_op = SegmentOp(
             sym_name, async_dependencies, sizes, segment_operands_lst, body
         )
+        segment_op.attributes |= attr_dict
+        return segment_op
 
 
 @irdl_op_definition
@@ -824,19 +825,20 @@ class WaitAllOp(IRDLOperation):
     async_dependencies = var_operand_def(AsyncTokenAttr)
     async_token = result_def(AsyncTokenAttr)
 
-    def __init__(self, async_dependencies: list[Operation | SSAValue | None]):
-        super().__init__(operands=async_dependencies, result_types=[AsyncTokenAttr()])
+    def __init__(self, async_dependencies: list[SSAValue] | None):
+        super().__init__(operands=[async_dependencies], result_types=[AsyncTokenAttr()])
+
+    def print(self, printer: Printer):
+        printer.print(" async ")
+        if self.async_dependencies:
+            printer.print(self.async_dependencies, printer.print_ssa_value, ",")
 
     @classmethod
     def parse(cls, parser: Parser) -> WaitAllOp:
         parser.parse_keyword("async")
-        async_dependencies: list[Operation | SSAValue | None] = []
-        if parser.parse_optional_characters("["):
-            while parser.parse_optional_characters("]"):
-                async_dependencies.append(parser.parse_operand())
-                parser.parse_optional_characters(",")
-        else:
-            async_dependencies = [None]
+        async_dependencies = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_operand
+        )
 
         return WaitAllOp(async_dependencies)
 

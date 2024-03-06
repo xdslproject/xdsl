@@ -159,7 +159,6 @@ module {
 // CHECK-NEXT: }
 
 
-
 // -----
 
 #map0 = affine_map<(d0) -> (d0)>
@@ -274,10 +273,10 @@ module  {
 // CHECK-NEXT:             %7 = arith.addi %a2_2, %three : i32
 // CHECK-NEXT:             linalg.yield %7 : i32
 // CHECK-NEXT:           } -> tensor<1024xi32>
-// CHECK-NEXT:           air.pipeline.yield 
+// CHECK-NEXT:           air.pipeline.yield
 // CHECK-NEXT:         }) : () -> ()
 // CHECK-NEXT:         air.pipeline.terminator
-// CHECK-NEXT:       }) : () -> ()
+// CHECK-NEXT:       }) {"direction" = "horiz"} : () -> ()
 // CHECK-NEXT:       air.herd_terminator
 // CHECK-NEXT:     }
 // CHECK-NEXT:     func.return
