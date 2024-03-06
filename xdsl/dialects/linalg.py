@@ -35,7 +35,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
     prop_def,
     region_def,
     var_operand_def,
@@ -96,8 +96,8 @@ class Generic(IRDLOperation):
     # Trait attributes
     indexing_maps: ArrayAttr[AffineMapAttr] = prop_def(ArrayAttr[AffineMapAttr])
     iterator_types: ArrayAttr[IteratorTypeAttr] = prop_def(ArrayAttr[IteratorTypeAttr])
-    doc: StringAttr | None = opt_attr_def(StringAttr)
-    library_call: StringAttr | None = opt_attr_def(StringAttr)
+    doc: StringAttr | None = opt_prop_def(StringAttr)
+    library_call: StringAttr | None = opt_prop_def(StringAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -118,8 +118,6 @@ class Generic(IRDLOperation):
             properties={
                 "indexing_maps": ArrayAttr(indexing_maps),
                 "iterator_types": ArrayAttr(iterator_types),
-            },
-            attributes={
                 "doc": doc,
                 "library_call": library_call,
             },
@@ -238,7 +236,14 @@ class Generic(IRDLOperation):
 
         if self.res:
             printer.print_string(" -> ")
-            printer.print_list(self.res, lambda res: printer.print_attribute(res.type))
+            if len(self.res) == 1:
+                printer.print_attribute(self.res[0].type)
+            else:
+                printer.print("(")
+                printer.print_list(
+                    self.res, lambda res: printer.print_attribute(res.type)
+                )
+                printer.print(")")
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -360,7 +365,6 @@ class Generic(IRDLOperation):
             doc,
             library_call,
         )
-        generic.attributes |= attrs
         generic.attributes |= extra_attrs
 
         return generic
