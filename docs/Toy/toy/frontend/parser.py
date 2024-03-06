@@ -86,12 +86,10 @@ class Parser:
         return PRECEDENCE.get(op, -1)
 
     @overload
-    def peek(self, pattern: str) -> Token | None:
-        ...
+    def peek(self, pattern: str) -> Token | None: ...
 
     @overload
-    def peek(self, pattern: type[TokenT] = Token) -> TokenT | None:
-        ...
+    def peek(self, pattern: type[TokenT] = Token) -> TokenT | None: ...
 
     def peek(self, pattern: str | type[TokenT] = Token) -> Token | TokenT | None:
         """

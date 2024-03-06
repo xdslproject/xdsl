@@ -23,11 +23,11 @@ from xdsl.ir import (
     Block,
     Dialect,
     EnumAttribute,
-    OpaqueSyntaxAttribute,
     Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     StrEnum,
     TypeAttribute,
@@ -100,17 +100,17 @@ class ProcessorEnum(StrEnum):
 
 
 @irdl_attr_definition
-class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], OpaqueSyntaxAttribute):
+class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], SpacedOpaqueSyntaxAttribute):
     name = "gpu.all_reduce_op"
 
 
 @irdl_attr_definition
-class DimensionAttr(EnumAttribute[DimensionEnum], OpaqueSyntaxAttribute):
+class DimensionAttr(EnumAttribute[DimensionEnum], SpacedOpaqueSyntaxAttribute):
     name = "gpu.dim"
 
 
 @irdl_attr_definition
-class ProcessorAttr(EnumAttribute[ProcessorEnum], OpaqueSyntaxAttribute):
+class ProcessorAttr(EnumAttribute[ProcessorEnum], SpacedOpaqueSyntaxAttribute):
     name = "gpu.processor"
 
 
@@ -533,17 +533,21 @@ class LaunchOp(IRDLOperation):
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
         operands = [
-            []
-            if asyncDependencies is None
-            else [SSAValue.get(a) for a in asyncDependencies]
+            (
+                []
+                if asyncDependencies is None
+                else [SSAValue.get(a) for a in asyncDependencies]
+            )
         ]
 
         operands += [SSAValue.get(gs) for gs in gridSize]
         operands += [SSAValue.get(bs) for bs in blockSize]
         operands += [
-            []
-            if dynamicSharedMemorySize is None
-            else [SSAValue.get(dynamicSharedMemorySize)]
+            (
+                []
+                if dynamicSharedMemorySize is None
+                else [SSAValue.get(dynamicSharedMemorySize)]
+            )
         ]
         super().__init__(
             operands=operands,

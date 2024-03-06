@@ -493,7 +493,7 @@ class StencilTypeConversion(TypeConversionPattern):
         return StencilToMemRefType(typ)
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 

@@ -9,6 +9,7 @@ from xdsl.interpreters import (
     register_implementations,
 )
 from xdsl.ir import MLContext
+from xdsl.parser import Parser
 from xdsl.tools.command_line_tool import CommandLineTool
 
 
@@ -58,6 +59,12 @@ class xDSLRunMain(CommandLineTool):
             nargs="?",
             help="Bitwidth of the index type representation.",
         )
+        arg_parser.add_argument(
+            "--args",
+            default="",
+            type=str,
+            help="Arguments to pass to entry function. Comma-separated list of xDSL Attributes, that will be parsed and converted by the interpreter.",
+        )
         return super().register_all_arguments(arg_parser)
 
     def register_implementations(self, interpreter: Interpreter):
@@ -75,9 +82,26 @@ class xDSLRunMain(CommandLineTool):
                 self.register_implementations(interpreter)
                 symbol = self.args.symbol
                 assert isinstance(symbol, str)
-                result = interpreter.call_op(symbol, ())
+                parser = Parser(self.ctx, self.args.args, "args")
+                runner_args = parser.parse_optional_undelimited_comma_separated_list(
+                    parser.parse_optional_attribute, parser.parse_attribute
+                )
+                args = (
+                    tuple(interpreter.value_for_attribute(attr) for attr in runner_args)
+                    if runner_args is not None
+                    else ()
+                )
+                result = interpreter.call_op(symbol, args)
                 if self.args.verbose:
-                    print(f"result: {result}")
+                    if result:
+                        if len(result) == 1:
+                            print(f"result: {result[0]}")
+                        else:
+                            print("result: (")
+                            print(",\n".join(f"    {res}" for res in result))
+                            print(")")
+                    else:
+                        print("result: ()")
         finally:
             if input is not sys.stdin:
                 input.close()

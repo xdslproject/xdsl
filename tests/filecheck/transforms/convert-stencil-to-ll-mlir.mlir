@@ -336,7 +336,7 @@ builtin.module {
 // CHECK-NEXT:        memref.store %133, %116[%130] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index) -> ()
-// CHECK-NEXT:      "memref.dealloc"(%119) : (memref<64xf64, strided<[1], offset: -1>>) -> ()
+// CHECK-NEXT:      memref.dealloc %119 : memref<64xf64, strided<[1], offset: -1>>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 

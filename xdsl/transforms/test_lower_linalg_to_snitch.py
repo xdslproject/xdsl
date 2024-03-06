@@ -16,17 +16,17 @@ from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldin
 from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
 
 
-class TestLowerLinalgToSnitchPass(ModulePass):
+class TestLowerSnitchStreamToAsm(ModulePass):
     """
     A compiler pass used for testing of the lowering from ML kernels defined as
-    linalg.generic operations to riscv-assemby leveraging Snitch cores.
+    snitch_stream + riscv operations to riscv-assemby leveraging Snitch cores.
     """
 
-    name = "test-lower-linalg-to-snitch"
+    name = "test-lower-snitch-stream-to-asm"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PipelinePass(
-            [
+            (
                 RiscvCommonSubexpressionElimination(),
                 ConvertRiscvScfForToFrepPass(),
                 SnitchRegisterAllocation(),
@@ -39,5 +39,5 @@ class TestLowerLinalgToSnitchPass(ModulePass):
                 CanonicalizePass(),
                 ConvertRiscvScfToRiscvCfPass(),
                 CanonicalizePass(),
-            ]
+            )
         ).apply(ctx, op)
