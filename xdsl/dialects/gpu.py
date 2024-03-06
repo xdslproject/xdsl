@@ -799,6 +799,7 @@ GPU = Dialect(
         YieldOp,
     ],
     [
+        AsyncTokenType
         AllReduceOpAttr,
         DimensionAttr,
         ProcessorAttr,
