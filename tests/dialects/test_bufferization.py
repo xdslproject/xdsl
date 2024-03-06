@@ -23,7 +23,7 @@ def test_to_tensor():
 
 def test_alloc_tensor_static():
     t = TensorType(f64, [10, 20, 30])
-    alloc_tensor = AllocTensorOp.static_type(t)
+    alloc_tensor = AllocTensorOp(t)
 
     assert alloc_tensor.tensor.type == t
     assert alloc_tensor.dynamic_sizes == ()
