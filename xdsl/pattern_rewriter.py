@@ -98,7 +98,7 @@ class PatternRewriter(PatternRewriterListener):
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
         op = [op] if isinstance(op, Operation) else op
-        if len(op) == 0:
+        if not op:
             return
         for op_ in op:
             Builder(insertion_point).insert(op_)
