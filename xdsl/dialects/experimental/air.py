@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
 )
+from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -721,59 +722,17 @@ class PipelineStageOp(IRDLOperation):
 
 
 @irdl_op_definition
-class PipelineTerminatorOp(IRDLOperation):
+class PipelineTerminatorOp(AbstractYieldOperation[Attribute]):
     name = "air.pipeline.terminator"
-
-    opers = var_operand_def(Attribute)
 
     traits = frozenset([HasParent(HerdPipelineOp), IsTerminator()])
 
-    def __init__(self, opers: list[Operation | SSAValue]):
-        super().__init__(operands=[opers])
-
-    def print(self, printer: Printer):
-        if self.opers:
-            for n_op in range(len(self.opers)):
-                printer.print(self.opers[n_op])
-                if n_op < len(self.opers) - 1:
-                    printer.print(", ")
-
-            for n_op in range(len(self.opers)):
-                printer.print(self.opers[n_op].type)
-                if n_op < len(self.opers) - 1:
-                    printer.print(", ")
-
-    @classmethod
-    def parse(cls, parser: Parser) -> PipelineTerminatorOp:
-        parser.parse_optional_attr_dict()
-        operands_lst: list[Operation | SSAValue] = []
-        operand = parser.parse_optional_operand()
-        if operand:
-            operands_lst.append(operand)
-            while not parser.parse_optional_characters(":"):
-                operand = parser.parse_optional_operand()
-                if operand:
-                    operands_lst.append(operand)
-                parser.parse_optional_characters(",")
-            for _ in range(len(operands_lst)):
-                parser.parse_type()
-                parser.parse_optional_characters(",")
-
-        return PipelineTerminatorOp(operands_lst)
-
 
 @irdl_op_definition
-class PipelineYieldOp(IRDLOperation):
+class PipelineYieldOp(AbstractYieldOperation[Attribute]):
     name = "air.pipeline.yield"
 
-    opers = var_operand_def(Attribute)
-
     traits = frozenset([HasParent(PipelineStageOp), IsTerminator()])
-
-    def __init__(self, opers: list[Operation | SSAValue]):
-        super().__init__(operands=[opers])
-
-    assembly_format = "$opers attr-dict (`:` type($opers)^)?"
 
 
 @irdl_op_definition
