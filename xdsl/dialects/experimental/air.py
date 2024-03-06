@@ -255,7 +255,6 @@ class DmaMemcpyNdOp(IRDLOperation):
         src_sizes: list[Operation | SSAValue],
         src_strides: list[Operation | SSAValue],
     ):
-        print("-----> BUILD DMA MEMCPY ND")
         print(
             async_dependencies,
             dst,
