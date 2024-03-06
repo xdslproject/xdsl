@@ -34,5 +34,13 @@
 // CHECK-NEXT: %res_constant_2 = ml_program.global_load_const @onnx_constant_2 : tensor<1x5xf32>
 // CHECK-NEXT: ml_program.global private @onnx_constant_1(dense<1> : tensor<1xi64>) : tensor<1xi64>
 // CHECK-NEXT: ml_program.global private @onnx_constant_2(dense<2.000000e+00> : tensor<1x5xf32>) : tensor<1x5xf32>
+
+
+%t5, %t6, %t7 = "test.op"(): () -> (tensor<5x3xf32>, tensor<3x2xf32>, tensor<5x2xf32>)
+%res_gemm = "onnx.Gemm"(%t5, %t6, %t7) {onnx_node_name = "/Gemm"}: (tensor<5x3xf32>, tensor<3x2xf32>, tensor<5x2xf32>) -> tensor<5x2xf32>
+
+
 // CHECK-NEXT:  }
+
+
 

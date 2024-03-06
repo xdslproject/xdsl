@@ -144,6 +144,62 @@ class ReshapeOpLowering(RewritePattern):
         )
 
 
+@dataclass
+class GemmOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, gemm: onnx.Gemm, rewriter: PatternRewriter, /):
+
+        # Dynamic shapes not currently supported
+        tensor_a_type = gemm.tensor_a.type
+        tensor_b_type = gemm.tensor_b.type
+        tensor_c_type = gemm.tensor_c.type
+
+        if all(
+            isinstance(t, TensorType)
+            for t in [tensor_a_type, tensor_b_type, tensor_c_type]
+        ):
+            tensor_a_shape = tensor_a_type.get_shape()
+            tensor_b_shape = tensor_b_type.get_shape()
+            tensor_c_shape = tensor_c_type.get_shape()
+
+            if any(
+                -1 in shape
+                for shape in [tensor_a_shape, tensor_b_shape, tensor_c_shape]
+            ):
+                raise NotImplementedError()
+        # if transA is set
+        print(gemm.trans_a)
+        if gemm.trans_a.value.data == 1:
+            empty = tensor.EmptyOp((), ())
+            linalg.TransposeOp(gemm.tensor_a, (empty,), (empty.tensor,))
+            # if transB is set
+        if gemm.trans_b.value.data == 1:
+            empty = tensor.EmptyOp((), ())
+            linalg.TransposeOp(gemm.tensor_b, (empty,), (empty.tensor,))
+
+        if gemm.alpha is not None and gemm.alpha.value.data != 1:
+            empty = tensor.EmptyOp((), (gemm.res_tensor.type,))
+            alpha_a = linalg.MulOp(
+                (gemm.alpha, gemm.tensor_a), (empty,), (empty.tensor,)
+            )
+        if gemm.beta is not None and gemm.beta.value != 1:
+            empty = tensor.EmptyOp((), (gemm.res_tensor.type,))
+            beta_c = linalg.MulOp((gemm.beta, gemm.tensor_c), (empty,), (empty.tensor,))
+        # A * B
+        empty = tensor.EmptyOp((), (gemm.res_tensor.type,))
+        mat_mul_res = linalg.MulOp((alpha_a, gemm.tensor_b), (empty,), (empty.tensor,))
+
+        # (A * B) + beta * C
+        rewriter.replace_matched_op(
+            (
+                empty := tensor.EmptyOp((), gemm.res_tensor.type),
+                linalg.AddOp(
+                    (mat_mul_res, beta_c), (empty.tensor,), res=(gemm.res_tensor.type,)
+                ),
+            )
+        )
+
+
 @dataclass(frozen=True)
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
@@ -156,6 +212,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
                     ReluOpLowering(),
                     ConstantOpLowering(),
                     ReshapeOpLowering(),
+                    GemmOpLowering(),
                 ]
             ),
             apply_recursively=False,
