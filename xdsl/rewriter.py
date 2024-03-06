@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 
 
 @dataclass(frozen=True)
@@ -118,47 +118,8 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
-    def inline_block_at_end(inlined_block: Block, extended_block: Block):
-        """
-        Move the block operations to the end of another block.
-        This block should not be a parent of the block to move to.
-        The block operations should not use the block arguments.
-        """
-        if inlined_block.is_ancestor(extended_block):
-            raise Exception("Cannot inline a block in a child block.")
-        for op in inlined_block.ops:
-            for operand in op.operands:
-                if (
-                    isinstance(operand, BlockArgument)
-                    and operand.block is extended_block
-                ):
-                    raise Exception(
-                        "Cannot inline block which has operations using "
-                        "the block arguments."
-                    )
-
-        ops = list(inlined_block.ops)
-        for block_op in ops:
-            block_op.detach()
-
-        extended_block.add_ops(ops)
-
-    @staticmethod
-    def inline_block_at_start(inlined_block: Block, extended_block: Block):
-        """
-        Move the block operations to the start of another block.
-        This block should not be a parent of the block to move to.
-        The block operations should not use the block arguments.
-        """
-        first_op_of_extended_block = extended_block.first_op
-        if first_op_of_extended_block is None:
-            Rewriter.inline_block_at_end(inlined_block, extended_block)
-        else:
-            Rewriter.inline_block_before(inlined_block, first_op_of_extended_block)
-
-    @staticmethod
-    def inline_block_before(
-        source: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    def inline_block_at_location(
+        source: Block, insertion_point: InsertPoint, arg_values: Sequence[SSAValue] = ()
     ):
         """
         Move the block operations before another operation.
@@ -177,8 +138,7 @@ class Rewriter:
 
         #  assert not block.predecessors, "expected 'source' to have no predecessors"
 
-        if (dest := op.parent) is None:
-            raise Exception("Cannot inline a block before a toplevel operation")
+        dest = insertion_point.block
 
         # TODO: verify that the successors will make sense after inlining
         # We currently cannot perform this check, just like the TODO above, due to lack
@@ -206,11 +166,45 @@ class Rewriter:
         for block_op in ops:
             block_op.detach()
 
-        dest.insert_ops_before(ops, op)
+        if (insert_before := insertion_point.insert_before) is not None:
+            dest.insert_ops_before(ops, insert_before)
+        else:
+            dest.add_ops(ops)
+
         parent_region = source.parent
         assert parent_region is not None
         parent_region.detach_block(source)
         source.erase()
+
+    @staticmethod
+    def inline_block_at_end(inlined_block: Block, extended_block: Block):
+        """
+        Move the block operations to the end of another block.
+        This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
+        """
+        Rewriter.inline_block_at_location(
+            inlined_block, InsertPoint.at_end(extended_block)
+        )
+
+    @staticmethod
+    def inline_block_at_start(inlined_block: Block, extended_block: Block):
+        """
+        Move the block operations to the start of another block.
+        This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
+        """
+        Rewriter.inline_block_at_location(
+            inlined_block, InsertPoint.at_start(extended_block)
+        )
+
+    @staticmethod
+    def inline_block_before(
+        source: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    ):
+        Rewriter.inline_block_at_location(
+            source, InsertPoint.before(op), arg_values=arg_values
+        )
 
     @staticmethod
     def inline_block_after(block: Block, op: Operation):

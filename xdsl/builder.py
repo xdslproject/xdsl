@@ -8,14 +8,7 @@ from types import TracebackType
 from typing import ClassVar, TypeAlias, overload
 
 from xdsl.dialects.builtin import ArrayAttr
-from xdsl.ir import (
-    Attribute,
-    Block,
-    BlockArgument,
-    Operation,
-    OperationInvT,
-    Region,
-)
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, OperationInvT, Region
 from xdsl.rewriter import InsertPoint, Rewriter
 
 
