@@ -8,6 +8,8 @@ of the original dialect can be found here https://xilinx.github.io/mlir-air/AIRD
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
@@ -253,6 +255,18 @@ class DmaMemcpyNdOp(IRDLOperation):
         src_sizes: list[Operation | SSAValue],
         src_strides: list[Operation | SSAValue],
     ):
+        print("-----> BUILD DMA MEMCPY ND")
+        print(
+            async_dependencies,
+            dst,
+            dst_offsets,
+            dst_sizes,
+            dst_strides,
+            src,
+            src_offsets,
+            src_sizes,
+            src_strides,
+        )
         super().__init__(
             operands=[
                 async_dependencies,
@@ -484,8 +498,7 @@ class HerdOp(IRDLOperation):
 
             for n_arg in range(len(operands_lst)):
                 parser.parse_type()
-                if n_arg < len(arg_list) - 1:
-                    parser.parse_optional_characters(",")
+                parser.parse_optional_characters(",")
 
         parser.parse_keyword("attributes")
         parser.parse_optional_attr_dict()
@@ -603,7 +616,21 @@ class LaunchOp(IRDLOperation):
 class HerdPipelineOp(IRDLOperation):
     name = "air.pipeline"
 
+    body = opt_region_def()
+
     traits = frozenset([HasParent(HerdOp)])
+
+    def __init__(self, body: None | Region):
+        super().__init__(regions=[body])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> HerdPipelineOp:
+        if parser.parse_optional_keyword("attributes"):
+            parser.parse_optional_attr_dict()
+
+        body = parser.parse_optional_region()
+
+        return HerdPipelineOp(body)
 
 
 @irdl_op_definition
@@ -645,14 +672,53 @@ class PipelineStageOp(IRDLOperation):
     name = "air.pipeline.stage"
 
     opers = var_operand_def(Attribute)
-    results = var_result_def(Attribute)
+    result = var_result_def(AnyAttr())
+
+    body = opt_region_def()
 
     traits = frozenset([HasParent(HerdPipelineOp)])
 
     def __init__(
-        self, opers: list[Operation | SSAValue], result_types: list[Attribute]
+        self,
+        opers: list[Operation | SSAValue],
+        result_types: Sequence[Attribute],
+        body: None | Region,
     ):
-        super().__init__(operands=[opers], result_types=result_types)
+        if not result_types:
+            result_types = []
+        super().__init__(operands=[opers], result_types=[result_types], regions=[body])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> PipelineStageOp:
+        kernel_ops_lst: list[Operation | SSAValue] = []
+        result_types_lst: list[Attribute] = []
+
+        arguments_lst: list[Parser.Argument] = []
+        pipeline_operands_lst: list[Operation | SSAValue] = []
+        if parser.parse_optional_keyword("args"):
+            parser.parse_characters("(")
+            while not parser.parse_optional_characters(")"):
+                argument = parser.parse_argument(expect_type=False)
+                parser.parse_characters("=")
+                operand = parser.parse_operand()
+                pipeline_operands_lst.append(operand)
+
+                argument = argument.resolve(operand.type)
+                arguments_lst.append(argument)
+
+                parser.parse_optional_characters(",")
+
+            if parser.parse_optional_characters(":"):
+                for _ in range(len(arguments_lst)):
+                    parser.parse_type()
+                    parser.parse_optional_characters(",")
+
+        body = parser.parse_optional_region(arguments=arguments_lst)
+        if parser.parse_optional_characters(":"):
+            result_types_lst.append(parser.parse_type())
+            parser.parse_optional_characters(",")
+
+        return PipelineStageOp(kernel_ops_lst, result_types_lst, body)
 
 
 @irdl_op_definition
@@ -666,6 +732,36 @@ class PipelineTerminatorOp(IRDLOperation):
     def __init__(self, opers: list[Operation | SSAValue]):
         super().__init__(operands=[opers])
 
+    def print(self, printer: Printer):
+        if self.opers:
+            for n_op in range(len(self.opers)):
+                printer.print(self.opers[n_op])
+                if n_op < len(self.opers) - 1:
+                    printer.print(", ")
+
+            for n_op in range(len(self.opers)):
+                printer.print(self.opers[n_op].type)
+                if n_op < len(self.opers) - 1:
+                    printer.print(", ")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> PipelineTerminatorOp:
+        parser.parse_optional_attr_dict()
+        operands_lst: list[Operation | SSAValue] = []
+        operand = parser.parse_optional_operand()
+        if operand:
+            operands_lst.append(operand)
+            while not parser.parse_optional_characters(":"):
+                operand = parser.parse_optional_operand()
+                if operand:
+                    operands_lst.append(operand)
+                parser.parse_optional_characters(",")
+            for _ in range(len(operands_lst)):
+                parser.parse_type()
+                parser.parse_optional_characters(",")
+
+        return PipelineTerminatorOp(operands_lst)
+
 
 @irdl_op_definition
 class PipelineYieldOp(IRDLOperation):
@@ -677,6 +773,8 @@ class PipelineYieldOp(IRDLOperation):
 
     def __init__(self, opers: list[Operation | SSAValue]):
         super().__init__(operands=[opers])
+
+    assembly_format = "$opers attr-dict (`:` type($opers)^)?"
 
 
 @irdl_op_definition
