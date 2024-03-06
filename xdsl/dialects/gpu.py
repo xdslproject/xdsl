@@ -689,7 +689,7 @@ class PrintfOp(IRDLOperation):
         format: StringAttr,
         args: Sequence[SSAValue | Operation] | None = None,
     ):
-        super().__init__(operands=[args], attributes={"format": format})
+        super().__init__(operands=[args], properties={"format": format})
 
 
 @irdl_op_definition
