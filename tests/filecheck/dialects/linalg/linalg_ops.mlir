@@ -38,10 +38,10 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:  ^0(%{{.*}}: f32, %{{.*}}: f32):
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-GENERIC-NEXT:  }) : (f32, memref<1x256xf32>) -> ()
-// CHECK-GENERIC-NEXT:  "linalg.generic"(%0, %1) <{"indexing_maps" = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:  "linalg.generic"(%0, %1) <{"indexing_maps" = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "doc" = "a_docstring", "library_call" = "a_library_call", "operandSegmentSizes" = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:  ^1(%arg3_1 : f32, %arg4_1 : f32):
 // CHECK-GENERIC-NEXT:    "linalg.yield"(%arg3_1) : (f32) -> ()
-// CHECK-GENERIC-NEXT:  }) {"doc" = "a_docstring", "library_call" = "a_library_call"} : (f32, memref<1x256xf32>) -> ()
+// CHECK-GENERIC-NEXT:  }) : (f32, memref<1x256xf32>) -> ()
   
 // CHECK-GENERIC:       "linalg.generic"(%0, %1) <{"indexing_maps" = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:  ^{{.*}}(%{{.*}}: f32, %{{.*}}: f32):
