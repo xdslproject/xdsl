@@ -64,7 +64,7 @@ builtin.module attributes {"gpu.container_module"} {
                 %sum = "gpu.all_reduce"(%tx) ({
                 }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
                 %final = arith.muli %sum, %one : index
-                "gpu.printf"() <{format = "Hello from device"}> : () -> ()
+                "gpu.printf"() <{"format" = "Hello from device"}> : () -> ()
                 "gpu.terminator"() : () -> ()
             }) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>} : (index, index, index, index, index, index) -> ()
             "gpu.launch_func"(%n, %n, %n, %n, %n, %n, %dev, %n) {"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0>, "kernel" = @gpu::@foo} : (index, index, index, index, index, index, i32, index) -> ()
@@ -143,7 +143,7 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:                 }) : (index) -> index
 // CHECK-NEXT:                 %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index
-// CHECK-NEXT:                 "gpu.printf"() <{format = "Hello from device"}> : () -> ()
+// CHECK-NEXT:                 "gpu.printf"() <{"format" = "Hello from device"}> : () -> ()
 // CHECK-NEXT:                 "gpu.terminator"() : () -> ()
 // CHECK-NEXT:             }) : (index, index, index, index, index, index) -> ()
 // CHECK-NEXT:             "gpu.launch_func"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kernel" = @gpu::@foo, "operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0>}> : (index, index, index, index, index, index, i32, index) -> ()
