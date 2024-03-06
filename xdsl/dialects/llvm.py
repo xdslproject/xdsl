@@ -743,7 +743,7 @@ class InlineAsmOp(IRDLOperation):
 
     def __init__(
         self,
-        operands_: list[SSAValue | Operation],
+        operands: list[SSAValue | Operation],
         res_types: list[Attribute],
         asm_string: str,
         constraints: str,
@@ -763,7 +763,7 @@ class InlineAsmOp(IRDLOperation):
         }
 
         super().__init__(
-            operands=operands_,
+            operands=[operands],
             attributes=attrs,
             properties=props,
             result_types=res_types,
