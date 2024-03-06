@@ -171,8 +171,9 @@ def rewrite_generic_to_loops(
     )
 
     # Add store ops before the yield operation in the generic body
+
     yield_op = op.body.block.last_op
-    assert yield_op is not None
+    assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
 
     output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
     output_operands = op.operands[-len(op.outputs) :]
