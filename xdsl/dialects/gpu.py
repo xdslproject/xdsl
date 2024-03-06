@@ -679,7 +679,7 @@ class NumSubgroupsOp(IRDLOperation):
 @irdl_op_definition
 class PrintfOp(IRDLOperation):
     name = "gpu.printf"
-    format: StringAttr = attr_def(StringAttr)
+    format: StringAttr = prop_def(StringAttr)
     args: VarOperand = var_operand_def(
         AnyOf((IndexType, f16, f32, f64, f80, i1, i32, i64))
     )
