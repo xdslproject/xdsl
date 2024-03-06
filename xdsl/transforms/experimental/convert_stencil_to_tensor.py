@@ -234,7 +234,7 @@ class BufferOpToAlloc(RewritePattern):
         t = cast(StencilType[Attribute], op.res.type)
         assert isinstance(t, StencilType)
         num_dims = t.get_num_dims()
-        alloc = AllocTensorOp.static_type(stencil_type_to_tensor(t))
+        alloc = AllocTensorOp(stencil_type_to_tensor(t))
         match op.temp.owner:
             case Operation():
                 rewriter.insert_op_before(

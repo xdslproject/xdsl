@@ -48,10 +48,6 @@ class AllocTensorOp(IRDLOperation):
             result_types=(result_type,),
         )
 
-    @classmethod
-    def static_type(cls, type: Attribute) -> "AllocTensorOp":
-        return cls(type)
-
 
 @irdl_op_definition
 class ToTensorOp(IRDLOperation):

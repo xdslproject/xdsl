@@ -411,6 +411,10 @@ class InputApp(App[None]):
         if selected_pass.data is None:
             return
 
+        # block ability to select root (i.e. add root pass to the pipeline)
+        if selected_pass.is_root:
+            return
+
         # get instance
         selected_pass_value, selected_pass_spec = selected_pass.data
 
