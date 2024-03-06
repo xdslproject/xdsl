@@ -76,11 +76,14 @@ def _insert_loop_nest(
     bounds: tuple[OpResult, ...],
     make_body: Callable[[PatternRewriter, InsertPoint, Sequence[BlockArgument]], None],
 ) -> None:
+    if not bounds:
+        make_body(rewriter, insertion_point, ())
+        return
 
     loops: list[scf.For] = []
     index = IndexType()
 
-    for ub in bounds:
+    for i, ub in enumerate(bounds):
         loop = scf.For(
             zero_op.result,
             ub,
@@ -90,14 +93,15 @@ def _insert_loop_nest(
         )
         loops.append(loop)
         rewriter.insert_op_at_location(loop, insertion_point)
-        insertion_point = InsertPoint.at_start(loop.body.block)
 
-    make_body(
-        rewriter, insertion_point, tuple(loop.body.block.args[0] for loop in loops)
-    )
-
-    for loop in loops[:-1]:
+        if i + 1 == len(bounds):
+            make_body(
+                rewriter,
+                InsertPoint.at_start(loop.body.block),
+                tuple(loop.body.block.args[0] for loop in loops),
+            )
         rewriter.insert_op_at_end(scf.Yield(), loop.body.block)
+        insertion_point = InsertPoint.at_start(loop.body.block)
 
 
 def _insert_load_ops(
@@ -205,8 +209,6 @@ def rewrite_generic_to_loops(
             rewriter.erase_block_argument(op.body.block.args[0])
 
         rewriter.inline_block_at_location(op.body.block, insertion_point)
-
-        rewriter.insert_op_at_location(scf.Yield(), insertion_point)
 
     # Insert loop nest, from the outtermost loop inwards
     _insert_loop_nest(
