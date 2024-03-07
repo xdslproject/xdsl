@@ -8,7 +8,7 @@ from functools import wraps
 from types import UnionType
 from typing import TypeVar, Union, final, get_args, get_origin
 
-from xdsl.builder import Builder, BuilderListener, InsertPoint
+from xdsl.builder import BuilderListener, InsertPoint
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -91,11 +91,11 @@ class PatternRewriter(PatternRewriterListener):
     ):
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        op = [op] if isinstance(op, Operation) else op
+        op = (op,) if isinstance(op, Operation) else op
         if not op:
             return
         for op_ in op:
-            Builder(insertion_point).insert(op_)
+            Rewriter.insert_op_at_location(op_, insertion_point)
 
         for op_ in op:
             self.handle_operation_insertion(op_)
