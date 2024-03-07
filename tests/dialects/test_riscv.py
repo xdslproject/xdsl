@@ -20,9 +20,15 @@ def test_add_op():
     assert isinstance(a0.type, riscv.IntRegisterType)
     assert isinstance(a1.type, riscv.IntRegisterType)
     assert isinstance(a2.type, riscv.IntRegisterType)
-    assert a0.type.data == "a0"
-    assert a1.type.data == "a1"
-    assert a2.type.data == "a2"
+    assert a0.type.spelling.data == "a0"
+    assert a0.type.index.data == 10
+    assert a1.type.spelling.data == "a1"
+    assert a1.type.index.data == 11
+    assert a2.type.spelling.data == "a2"
+    assert a2.type.index.data == 12
+
+    # Registers that aren't predefined should not have an index.
+    assert riscv.IntRegisterType("j1").index is None
 
 
 def test_csr_op():
