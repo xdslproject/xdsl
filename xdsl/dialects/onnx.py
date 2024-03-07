@@ -303,10 +303,10 @@ class Gemm(IRDLOperation):
             raise VerifyException("tensor B should be a 2D tensor")
 
         if self.trans_a is not None and self.trans_a.value.data == 1:
-            tensor_a_shape = tuple(reversed(tensor_a_shape))
+            tensor_a_shape = tuple(tensor_a_shape)[::-1]
 
         if self.trans_b is not None and self.trans_b.value.data == 1:
-            tensor_b_shape = tuple(reversed(tensor_b_shape))
+            tensor_b_shape = tuple(tensor_b_shape)[::-1]
 
         if self.beta is not None:
             c_dims = tensor_c_type.get_num_dims()
@@ -322,7 +322,7 @@ class Gemm(IRDLOperation):
             res_shape.append(tensor_b_shape[1])
 
         # Build tensor of tensor (A * B) computation
-        tensors_res = TensorType(IntegerType(32), res_shape)
+        tensors_res = TensorType(tensor_a_type.element_type, res_shape)
         verify_unidirectional_broadcast_shape(
             tensors_res, tensor_c_type, res_tensor_type
         )
