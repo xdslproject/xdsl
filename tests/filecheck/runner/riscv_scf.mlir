@@ -19,5 +19,5 @@ builtin.module {
   }
 }
 
-// CHECK: result: (10,)
-// CHECK-ARGS: result: (15,)
+// CHECK:       result: 10
+// CHECK-ARGS:  result: 15

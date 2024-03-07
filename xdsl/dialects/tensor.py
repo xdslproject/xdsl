@@ -2,16 +2,27 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import cast
+from typing import Any, cast
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import AnySignlessIntegerOrIndexType, IndexType, TensorType
-from xdsl.ir import Attribute, Dialect, SSAValue
+from xdsl.dialects.builtin import (
+    AnySignlessIntegerOrIndexType,
+    ContainerType,
+    DenseArrayBase,
+    IndexType,
+    TensorType,
+    i64,
+)
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
+    Operand,
+    VarOperand,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     var_operand_def,
 )
@@ -162,10 +173,102 @@ class ReshapeOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class ExtractSliceOp(IRDLOperation):
+    name = "tensor.extract_slice"
+
+    source: Operand = operand_def(TensorType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
+    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
+    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
+    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
+    result: OpResult = result_def(TensorType)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    @staticmethod
+    def from_static_parameters(
+        source: SSAValue | Operation,
+        offsets: Sequence[int],
+        sizes: Sequence[int],
+        strides: Sequence[int] | None = None,
+        reduce_rank: bool = False,
+    ) -> ExtractSliceOp:
+
+        if strides is None:
+            strides = [1] * len(offsets)
+        source_v = SSAValue.get(source)
+        source_t = source_v.type
+        if not isinstance(source_t, ContainerType):
+            raise ValueError(f"Expected ContainerType, got {source_t}")
+
+        if reduce_rank:
+            result_sizes = list(s for s in sizes if s != 1)
+        else:
+            result_sizes = list(sizes)
+
+        return_type = TensorType[Any](source_t.get_element_type(), result_sizes)
+
+        return ExtractSliceOp.build(
+            operands=[source, [], [], []],
+            result_types=[return_type],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(i64, offsets),
+                "static_sizes": DenseArrayBase.from_list(i64, result_sizes),
+                "static_strides": DenseArrayBase.from_list(i64, strides),
+            },
+        )
+
+
+@irdl_op_definition
+class InsertSliceOp(IRDLOperation):
+    name = "tensor.insert_slice"
+
+    source: Operand = operand_def(TensorType)
+    dest: Operand = operand_def(TensorType)
+    offsets: VarOperand = var_operand_def(IndexType)
+    sizes: VarOperand = var_operand_def(IndexType)
+    strides: VarOperand = var_operand_def(IndexType)
+    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
+    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
+    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
+    result: OpResult = result_def(TensorType)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    @staticmethod
+    def from_static_parameters(
+        source: SSAValue | Operation,
+        dest: SSAValue | Operation,
+        offsets: Sequence[int],
+        sizes: Sequence[int],
+        strides: Sequence[int] | None = None,
+    ) -> InsertSliceOp:
+        source = SSAValue.get(source)
+        dest = SSAValue.get(dest)
+
+        if strides is None:
+            strides = [1] * len(sizes)
+
+        return InsertSliceOp.build(
+            operands=[source, dest, [], [], []],
+            result_types=[dest.type],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(i64, offsets),
+                "static_sizes": DenseArrayBase.from_list(i64, sizes),
+                "static_strides": DenseArrayBase.from_list(i64, strides),
+            },
+        )
+
+
 Tensor = Dialect(
     "tensor",
     [
         EmptyOp,
+        ExtractSliceOp,
+        InsertSliceOp,
         ReshapeOp,
     ],
     [],
