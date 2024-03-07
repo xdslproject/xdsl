@@ -253,11 +253,35 @@ def test_inline_assembly_op():
     )
 
     op = llvm.InlineAsmOp(
-        [a, b, c],
-        [builtin.i32],
         "nop",
         "I, I, I, =r",
+        [a, b, c],
+        [builtin.i32],
         has_side_effects=True,
     )
+    op.verify()
 
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [a, b, c],
+        [],
+        has_side_effects=True,
+    )
+    op.verify()
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [a, b, c],
+        has_side_effects=True,
+    )
+    op.verify()
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [],
+        has_side_effects=True,
+    )
     op.verify()

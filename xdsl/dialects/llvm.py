@@ -743,10 +743,10 @@ class InlineAsmOp(IRDLOperation):
 
     def __init__(
         self,
-        operands: list[SSAValue | Operation],
-        res_types: list[Attribute],
         asm_string: str,
         constraints: str,
+        operands: Sequence[SSAValue | Operation],
+        res_types: Sequence[Attribute] | None = None,
         asm_dialect: int = 0,
         has_side_effects: bool = False,
         is_align_stack: bool = False,
@@ -762,11 +762,14 @@ class InlineAsmOp(IRDLOperation):
             "is_align_stack": UnitAttr() if is_align_stack else None,
         }
 
+        if res_types is None:
+            res_types = []
+
         super().__init__(
             operands=[operands],
             attributes=attrs,
             properties=props,
-            result_types=res_types,
+            result_types=[res_types],
         )
 
 
