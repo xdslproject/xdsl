@@ -1,7 +1,14 @@
 import pytest
 
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import IntegerAttr, ModuleOp, NoneAttr, Signedness, i32
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    ModuleOp,
+    NoneAttr,
+    Signedness,
+    i32,
+    IntAttr,
+)
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
@@ -21,11 +28,11 @@ def test_add_op():
     assert isinstance(a1.type, riscv.IntRegisterType)
     assert isinstance(a2.type, riscv.IntRegisterType)
     assert a0.type.spelling.data == "a0"
-    assert a0.type.index.data == 10
+    assert a0.type.index == IntAttr(10)
     assert a1.type.spelling.data == "a1"
-    assert a1.type.index.data == 11
+    assert a1.type.index == IntAttr(11)
     assert a2.type.spelling.data == "a2"
-    assert a2.type.index.data == 12
+    assert a2.type.index == IntAttr(12)
 
     # Registers that aren't predefined should not have an index.
     assert isinstance(riscv.IntRegisterType("j1").index, NoneAttr)
