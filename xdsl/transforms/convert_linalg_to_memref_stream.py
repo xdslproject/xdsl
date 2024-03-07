@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -41,11 +42,19 @@ class ConvertGenericOpPattern(RewritePattern):
         )
 
 
+class ConvertYieldOpPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: linalg.YieldOp, rewriter: PatternRewriter) -> None:
+        rewriter.replace_matched_op(memref_stream.YieldOp(*op.operands))
+
+
 class ConvertLinalgToMemrefStreamPass(ModulePass):
     name = "convert-linalg-to-memref-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            ConvertGenericOpPattern(),
+            GreedyRewritePatternApplier(
+                [ConvertGenericOpPattern(), ConvertYieldOpPattern()]
+            ),
             apply_recursively=False,
         ).rewrite_module(op)
