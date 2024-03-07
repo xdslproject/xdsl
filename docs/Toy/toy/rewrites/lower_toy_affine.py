@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from itertools import product
 from typing import TypeAlias, TypeVar, cast
 
-from xdsl.builder import Builder, InsertPoint
+from xdsl.builder import Builder
 from xdsl.dialects import affine, arith, func, memref, printf
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -30,6 +30,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 from ..dialects import toy
 
