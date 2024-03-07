@@ -2,12 +2,12 @@ import pytest
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
+    IntAttr,
     IntegerAttr,
     ModuleOp,
     NoneAttr,
     Signedness,
     i32,
-    IntAttr,
 )
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
