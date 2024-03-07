@@ -76,17 +76,17 @@ memref_stream.generic {
     iterator_types = ["parallel", "parallel"]
 } ins(%D : f64) outs(%C : memref<3x2xf64>) {
 ^bb0(%d : f64, %c : f64):
-    linalg.yield %d : f64
+    memref_stream.yield %d : f64
 }
 
 // CHECK-NEXT:    memref_stream.generic {bounds = [#builtin.int<3>, #builtin.int<2>], indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%D : f64) outs(%C : memref<3x2xf64>) {
 // CHECK-NEXT:    ^2(%d : f64, %c_1 : f64):
-// CHECK-NEXT:      linalg.yield %d : f64
+// CHECK-NEXT:      memref_stream.yield %d : f64
 // CHECK-NEXT:    }
 
 // CHECK-GENERIC-NEXT:    "memref_stream.generic"(%D, %C) <{"bounds" = [#builtin.int<3>, #builtin.int<2>], "indexing_maps" = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^2(%d : f64, %c_1 : f64):
-// CHECK-GENERIC-NEXT:      "linalg.yield"(%d) : (f64) -> ()
+// CHECK-GENERIC-NEXT:      "memref_stream.yield"(%d) : (f64) -> ()
 // CHECK-GENERIC-NEXT:    }) : (f64, memref<3x2xf64>) -> ()
 
 // CHECK-NEXT:          }

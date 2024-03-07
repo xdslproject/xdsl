@@ -6,13 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import (
-    TypeVar,
-    Union,
-    final,
-    get_args,
-    get_origin,
-)
+from typing import TypeVar, Union, final, get_args, get_origin
 
 from xdsl.builder import Builder, BuilderListener, InsertPoint
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
@@ -204,7 +198,7 @@ class PatternRewriter(PatternRewriterListener):
         if new_results is None:
             new_results = [] if len(new_ops) == 0 else new_ops[-1].results
 
-        if len(op.results) != len(new_results):
+        if len(op.results) != len(new_results) and safe_erase:
             raise ValueError(
                 f"Expected {len(op.results)} new results, but got {len(new_results)}"
             )
