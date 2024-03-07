@@ -103,8 +103,9 @@ class RISCVRegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return index_attr, StringAttr(spelling)
 
     @classmethod
+    @abstractmethod
     def unallocated(cls) -> Self:
-        return cls("")
+        raise NotImplementedError()
 
     @property
     def register_name(self) -> str:
@@ -202,6 +203,10 @@ class IntRegisterType(RISCVRegisterType):
     name = "riscv.reg"
 
     @classmethod
+    def unallocated(cls) -> IntRegisterType:
+        return Registers.UNALLOCATED_INT
+
+    @classmethod
     def instruction_set_name(cls) -> str:
         return "RV32I"
 
@@ -259,6 +264,10 @@ class FloatRegisterType(RISCVRegisterType):
     name = "riscv.freg"
 
     @classmethod
+    def unallocated(cls) -> FloatRegisterType:
+        return Registers.UNALLOCATED_FLOAT
+
+    @classmethod
     def instruction_set_name(cls) -> str:
         return "RV32F"
 
@@ -280,6 +289,7 @@ RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 class Registers(ABC):
     """Namespace for named register constants."""
 
+    UNALLOCATED_INT = IntRegisterType("")
     ZERO = IntRegisterType("zero")
     RA = IntRegisterType("ra")
     SP = IntRegisterType("sp")
@@ -314,6 +324,7 @@ class Registers(ABC):
     T5 = IntRegisterType("t5")
     T6 = IntRegisterType("t6")
 
+    UNALLOCATED_FLOAT = FloatRegisterType("")
     FT0 = FloatRegisterType("ft0")
     FT1 = FloatRegisterType("ft1")
     FT2 = FloatRegisterType("ft2")
