@@ -211,7 +211,7 @@ class PatternRewriter(PatternRewriterListener):
         if new_results is None:
             new_results = [] if len(new_ops) == 0 else new_ops[-1].results
 
-        if len(op.results) != len(new_results) and safe_erase:
+        if len(op.results) != len(new_results):
             raise ValueError(
                 f"Expected {len(op.results)} new results, but got {len(new_results)}"
             )
