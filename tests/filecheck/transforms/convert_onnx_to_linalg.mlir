@@ -30,8 +30,12 @@
 %t5, %t6, %t7 = "test.op"(): () -> (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>)
 %res_gemm= "onnx.Gemm"(%t5, %t6, %t7) {onnx_node_name = "/Gemm", "alpha" = 1.000000e+00 : f32, "beta" = 1.000000e+00 : f32, "transA" = 0 : si64, "transB" = 1 : si64}: (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>) -> tensor<1x50xf32>
 
-// CHECK-NEXT: %t5, %t6, %t7 = "test.op"(): () -> (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>)
-// CHECK-NEXT: %res_gemm = linalg.add ins(%t5, %t6 : tensor<1x50xf32>, tensor<50xf32>) outs(%t7 : tensor<50xf32>) -> tensor<50xf32>
+// CHECK-NEXT:   %t5, %t6, %t7 = "test.op"() : () -> (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>)
+// CHECK-NEXT:  %3 = tensor.empty() : tensor<320x50xf32>
+// CHECK-NEXT:  %4 = linalg.transpose ins(%t6:tensor<50x320xf32>) outs(%3:tensor<320x50xf32>) permutation = [1, 0]
+// CHECK-NEXT:  %res_gemm = tensor.empty() : tensor<1x50xf32>
+// CHECK-NEXT:  %res_gemm_1 = linalg.mul ins(%t5, %4 : tensor<1x320xf32>, tensor<320x50xf32>) outs(%res_gemm : tensor<1x50xf32>) -> tensor<1x50xf32>
+// CHECK-NEXT:  %res_gemm_2 = linalg.add ins(%res_gemm_1, %t7 : tensor<1x50xf32>, tensor<50xf32>) outs(%res_gemm : tensor<1x50xf32>) -> tensor<1x50xf32>
 
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
@@ -41,6 +45,8 @@
 // CHECK-NEXT: %res_constant_2 = ml_program.global_load_const @onnx_constant_2 : tensor<1x5xf32>
 // CHECK-NEXT: ml_program.global private @onnx_constant_1(dense<1> : tensor<1xi64>) : tensor<1xi64>
 // CHECK-NEXT: ml_program.global private @onnx_constant_2(dense<2.000000e+00> : tensor<1x5xf32>) : tensor<1x5xf32>
+
+
 // CHECK-NEXT:  }
 
 
