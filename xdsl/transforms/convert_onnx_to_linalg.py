@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     FloatAttr,
     ModuleOp,
-    NoneType,
     StringAttr,
     SymbolRefAttr,
     TensorType,
@@ -173,9 +172,7 @@ class GemmOpLowering(RewritePattern):
             shape = tensor_a_shape[::-1]
             empty_shape = TensorType(shape_type, shape)
             empty = tensor.EmptyOp((), empty_shape)
-            trans_a = linalg.TransposeOp(
-                gemm.tensor_a, empty.tensor, NoneType(), empty.tensor
-            )
+            trans_a = linalg.TransposeOp(gemm.tensor_a, empty.tensor, (), empty.tensor)
 
         # if transB is set
         if gemm.trans_b is not None and gemm.trans_b.value.data == 1:
@@ -183,9 +180,7 @@ class GemmOpLowering(RewritePattern):
             shape = tensor_b_shape[::-1]
             empty_shape = TensorType(shape_type, shape)
             empty = tensor.EmptyOp((), empty_shape)
-            trans_b = linalg.TransposeOp(
-                gemm.tensor_b, empty.tensor, NoneType(), empty.tensor
-            )
+            trans_b = linalg.TransposeOp(gemm.tensor_b, empty.tensor, (), empty.tensor)
 
         # alpha * A
         if gemm.alpha is not None and gemm.alpha.value.data != 1:
@@ -202,7 +197,6 @@ class GemmOpLowering(RewritePattern):
             beta_c = linalg.MulOp(
                 (gemm.beta, gemm.tensor_c), (empty.tensor,), res=(gemm.tensor_c.type,)
             )
-
         beta_c = gemm.tensor_c
 
         # A * B
@@ -210,13 +204,21 @@ class GemmOpLowering(RewritePattern):
         res_shape.append(tensor_a_shape[0])
         res_shape.append(tensor_b_shape[1])
         a_mul_b = TensorType(tensor_a_type.element_type, res_shape)
-        empty = tensor.EmptyOp((), a_mul_b)
-        mat_mul_res = linalg.MulOp((alpha_a, trans_b), (empty.tensor,), res=(a_mul_b,))
+
+        # empty = tensor.EmptyOp((), a_mul_b)
+        # mat_mul_res = linalg.MulOp((alpha_a, trans_b), (empty.tensor,), res=(a_mul_b,))
 
         # (A * B) + beta * C
         rewriter.replace_matched_op(
             (
-                empty := tensor.EmptyOp((), gemm.res_tensor.type),
+                trans_a,
+                trans_b,
+                alpha_a,
+                beta_c,
+                empty := tensor.EmptyOp((), a_mul_b),
+                mat_mul_res := linalg.MulOp(
+                    (alpha_a, trans_b), (empty.tensor,), res=(a_mul_b,)
+                ),
                 linalg.AddOp(
                     (mat_mul_res, beta_c), (empty.tensor,), res=(gemm.res_tensor.type,)
                 ),
@@ -236,7 +238,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
                     ReluOpLowering(),
                     ConstantOpLowering(),
                     ReshapeOpLowering(),
-                    # GemmOpLowering(),
+                    GemmOpLowering(),
                 ]
             ),
             apply_recursively=False,
