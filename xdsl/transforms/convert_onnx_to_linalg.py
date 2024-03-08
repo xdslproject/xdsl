@@ -170,15 +170,11 @@ class GemmOpLowering(RewritePattern):
         ):
             raise NotImplementedError()
 
-        # set `transposes` to tensors a and b init
-        trans_a = gemm.tensor_a
-        trans_b = gemm.tensor_b
-
-        # hardcode
         perm: list[int] = [1, 0]
         permutation = DenseArrayBase.create_dense_int_or_index(i64, perm)
 
         # if transA is set, trans_a is changed to this op
+        trans_a_res = None
         if gemm.trans_a is not None and gemm.trans_a.value.data == 1:
             shape_type = tensor_a_type.element_type
             # onnx.gemm supports only 2D tensors, hence reversing is acceptable
@@ -188,11 +184,13 @@ class GemmOpLowering(RewritePattern):
             trans_a = linalg.TransposeOp(
                 gemm.tensor_a, empty.tensor, permutation, empty.tensor.type
             )
+            # save the result
+            trans_a_res = trans_a.result[0]
             rewriter.insert_op_before_matched_op([empty, trans_a])
-        #
-        # if transB is set, trans_b is changed to this op
+
+        trans_b_res = None
         if gemm.trans_b is not None and gemm.trans_b.value.data == 1:
-            shape_type = tensor_a_type.element_type
+            shape_type = tensor_b_type.element_type
             # onnx.gemm supports only 2D tensors, hence reversing is acceptable
             shape = tensor_b_shape[::-1]
             empty_shape = TensorType(shape_type, shape)
@@ -200,36 +198,62 @@ class GemmOpLowering(RewritePattern):
             trans_b = linalg.TransposeOp(
                 gemm.tensor_b, empty.tensor, permutation, empty.tensor.type
             )
+            # save the result
+            trans_b_res = trans_b.result[0]
             rewriter.insert_op_before_matched_op([empty, trans_b])
 
-        alpha_mul_result = trans_a
-        beta_mul_result = gemm.tensor_c
+        # if trans_a occurs, else remain
+        if trans_a_res is not None:
+            trans_a = trans_a_res
+        else:
+            trans_a = gemm.tensor_a
+
+        # if trans_b occurs, else remain
+        if trans_b_res is not None:
+            trans_b = trans_b_res
+        else:
+            trans_b = gemm.tensor_b
 
         # alpha * A
+        alpha_res = None
         if gemm.alpha is not None and gemm.alpha.value.data != 1:
             empty = tensor.EmptyOp((), gemm.tensor_a.type)
+            constant = arith.Constant(FloatAttr(gemm.alpha.value.data, gemm.alpha.type))
             alpha_mul_result = linalg.MulOp(
-                (
-                    gemm.alpha,
-                    trans_a,
-                ),
-                empty.tensor,
-                res=(gemm.tensor_a.type,),
+                (constant.result, trans_a),
+                (empty.tensor,),
+                (gemm.tensor_a.type,),
             )
-            rewriter.insert_op_before_matched_op([empty, alpha_mul_result])
+            alpha_res = alpha_mul_result.res[0]
+            rewriter.insert_op_before_matched_op([empty, constant, alpha_mul_result])
+
+        # if alpha * a does not occur remain on previous trans_a else switch
+        if alpha_res is not None:
+            trans_a = alpha_res
 
         # beta * C
+        beta_mul_result = gemm.tensor_c
+
+        beta_res = None
         if gemm.beta is not None and gemm.beta.value.data != 1:
             empty = tensor.EmptyOp((), gemm.tensor_c.type)
+            constant = arith.Constant(FloatAttr(gemm.beta.value.data, gemm.beta.type))
             beta_mul_result = linalg.MulOp(
                 (
-                    gemm.beta,
-                    gemm.tensor_c,
+                    constant.result,
+                    beta_mul_result,
                 ),
-                empty.tensor,
-                res=(gemm.tensor_c.type,),
+                (empty.tensor,),
+                (gemm.tensor_c.type,),
             )
-            rewriter.insert_op_before_matched_op([empty, beta_mul_result])
+            beta_res = beta_mul_result.res[0]
+            rewriter.insert_op_before_matched_op([empty, constant, beta_mul_result])
+
+        # this is beta * c result else its just c
+        if beta_res is not None:
+            beta_mul_result = beta_res
+        else:
+            beta_mul_result = gemm.tensor_c
 
         # (A * B) + beta * C
         rewriter.replace_matched_op(
@@ -239,12 +263,12 @@ class GemmOpLowering(RewritePattern):
                     gemm.res_tensor.type,
                 ),
                 mat_mul_res := linalg.MulOp(
-                    (alpha_mul_result, trans_b),
+                    (trans_a, trans_b),
                     (empty.tensor,),
                     res=(gemm.res_tensor.type,),
                 ),
                 linalg.AddOp(
-                    (mat_mul_res, beta_mul_result),
+                    (mat_mul_res.res[0], beta_mul_result),
                     (empty.tensor,),
                     res=(gemm.res_tensor.type,),
                 ),
