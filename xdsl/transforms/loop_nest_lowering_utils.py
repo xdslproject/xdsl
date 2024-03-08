@@ -74,12 +74,16 @@ def _insert_loop_nest(
     zero_op: arith.Constant,
     one_op: arith.Constant,
     bounds: tuple[OpResult, ...],
-    make_body: Callable[[PatternRewriter, InsertPoint, Sequence[BlockArgument]], None],
-) -> None:
+    iter_args: Sequence[SSAValue],
+    make_body: Callable[
+        [PatternRewriter, InsertPoint, Sequence[BlockArgument], Sequence[SSAValue]],
+        Sequence[SSAValue],
+    ],
+) -> Sequence[SSAValue]:
     if not bounds:
-        make_body(rewriter, insertion_point, ())
-        return
+        return make_body(rewriter, insertion_point, (), iter_args)
 
+    iter_arg_types = tuple(arg.type for arg in iter_args)
     loops: list[scf.For] = []
     index = IndexType()
 
@@ -88,20 +92,25 @@ def _insert_loop_nest(
             zero_op.result,
             ub,
             one_op.result,
-            (),
-            Region(Block((), arg_types=(index,))),
+            iter_args,
+            Region(Block(arg_types=(index, *iter_arg_types))),
         )
+        iter_args = loop.body.block.args[1:]
         loops.append(loop)
         rewriter.insert_op_at_location(loop, insertion_point)
+        results = loop.results
 
         if i + 1 == len(bounds):
-            make_body(
+            results = make_body(
                 rewriter,
                 InsertPoint.at_start(loop.body.block),
                 tuple(loop.body.block.args[0] for loop in loops),
+                iter_args,
             )
-        rewriter.insert_op_at_end(scf.Yield(), loop.body.block)
+        rewriter.insert_op_at_end(scf.Yield(*results), loop.body.block)
         insertion_point = InsertPoint.at_start(loop.body.block)
+
+    return loops[0].results
 
 
 def _insert_load_ops(
@@ -173,7 +182,8 @@ def rewrite_generic_to_loops(
         rewriter: PatternRewriter,
         insertion_point: InsertPoint,
         ind_vars: Sequence[BlockArgument],
-    ):
+        iter_args: Sequence[SSAValue],
+    ) -> Sequence[SSAValue]:
         # Add load ops
         loaded_values = _insert_load_ops(
             rewriter,
@@ -216,6 +226,8 @@ def rewrite_generic_to_loops(
             store,
         )
 
+        return ()
+
     # Insert loop nest, from the outtermost loop inwards
     _insert_loop_nest(
         rewriter,
@@ -223,6 +235,7 @@ def rewrite_generic_to_loops(
         zero_op,
         one_op,
         bound_constant_values,
+        (),
         make_body,
     )
 
