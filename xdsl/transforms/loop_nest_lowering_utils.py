@@ -169,18 +169,12 @@ def rewrite_generic_to_loops(
     if bound_constant_values:
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
-    yield_op = op.body.block.last_op
-    assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
-
-    # Erase the yield op, we still have access to its operands
-    rewriter.erase_op(yield_op)
-
     def make_body(
         rewriter: PatternRewriter,
         insertion_point: InsertPoint,
         ind_vars: Sequence[BlockArgument],
     ):
-        # Add load ops before the innermost scf.yield operation
+        # Add load ops
         loaded_values = _insert_load_ops(
             rewriter,
             insertion_point,
@@ -194,6 +188,12 @@ def rewrite_generic_to_loops(
         # Replace block argument use with load op results
         for i, val in loaded_values:
             op.body.block.args[i].replace_by(val)
+
+        yield_op = op.body.block.last_op
+        assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
+
+        # Erase the yield op, we still have access to its operands
+        rewriter.erase_op(yield_op)
 
         # Inline generic body into innermost scf loop
         # The operands have already been remapped
