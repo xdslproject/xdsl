@@ -112,17 +112,20 @@ def _insert_load_ops(
     operands: Sequence[SSAValue],
     args: Sequence[BlockArgument],
     load: Callable[[SSAValue, Sequence[SSAValue]], Operation],
-):
+) -> Sequence[SSAValue | None]:
+    res: list[SSAValue | None] = []
     for affine_map_attr, operand, arg in zip(
         affine_map_attrs, operands, args, strict=True
     ):
         if not arg.uses:
-            return
+            res.append(None)
+            continue
         affine_map = affine_map_attr.data
         indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
         load_op = load(operand, indices)
         rewriter.insert_op_at_location(load_op, insertion_point)
-        arg.replace_by(load_op.results[0])
+        res.append(load_op.results[0])
+    return res
 
 
 def _insert_store_ops(
@@ -171,7 +174,7 @@ def rewrite_generic_to_loops(
         ind_vars: Sequence[BlockArgument],
     ):
         # Add load ops before the innermost scf.yield operation
-        _insert_load_ops(
+        loaded_values = _insert_load_ops(
             rewriter,
             insertion_point,
             ind_vars,
@@ -180,6 +183,11 @@ def rewrite_generic_to_loops(
             op.body.block.args,
             load,
         )
+
+        # Replace block argument use with load op results
+        for arg, val in zip(op.body.block.args, loaded_values):
+            if val is not None:
+                arg.replace_by(val)
 
         # Add store ops before the yield operation in the generic body
 
