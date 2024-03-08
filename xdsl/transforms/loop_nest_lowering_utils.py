@@ -112,19 +112,18 @@ def _insert_load_ops(
     operands: Sequence[SSAValue],
     args: Sequence[BlockArgument],
     load: Callable[[SSAValue, Sequence[SSAValue]], Operation],
-) -> Sequence[SSAValue | None]:
-    res: list[SSAValue | None] = []
-    for affine_map_attr, operand, arg in zip(
-        affine_map_attrs, operands, args, strict=True
+) -> Sequence[tuple[int, SSAValue]]:
+    res: list[tuple[int, SSAValue]] = []
+    for i, (affine_map_attr, operand, arg) in enumerate(
+        zip(affine_map_attrs, operands, args, strict=True)
     ):
         if not arg.uses:
-            res.append(None)
             continue
         affine_map = affine_map_attr.data
         indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
         load_op = load(operand, indices)
         rewriter.insert_op_at_location(load_op, insertion_point)
-        res.append(load_op.results[0])
+        res.append((i, load_op.results[0]))
     return res
 
 
@@ -193,9 +192,8 @@ def rewrite_generic_to_loops(
         )
 
         # Replace block argument use with load op results
-        for arg, val in zip(op.body.block.args, loaded_values):
-            if val is not None:
-                arg.replace_by(val)
+        for i, val in loaded_values:
+            op.body.block.args[i].replace_by(val)
 
         # Inline generic body into innermost scf loop
         # The operands have already been remapped
