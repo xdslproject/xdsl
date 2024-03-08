@@ -253,22 +253,22 @@ class Rewriter:
         region.insert_block(block_list, pos)
 
     @staticmethod
-    def insert_op_at_location(op: Operation, insertion_point: InsertPoint):
+    def insert_ops_at_location(ops: Sequence[Operation], insertion_point: InsertPoint):
         """Insert operations at a certain location in a block."""
         if insertion_point.insert_before is not None:
-            insertion_point.block.insert_op_before(op, insertion_point.insert_before)
+            insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)
         else:
-            insertion_point.block.add_op(op)
+            insertion_point.block.add_ops(ops)
 
     @staticmethod
     def insert_op_after(op: Operation, new_op: Operation):
         """Inserts a new operation after another operation."""
-        Rewriter.insert_op_at_location(new_op, InsertPoint.after(op))
+        Rewriter.insert_ops_at_location((new_op,), InsertPoint.after(op))
 
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
         """Inserts a new operation before another operation."""
-        Rewriter.insert_op_at_location(new_op, InsertPoint.before(op))
+        Rewriter.insert_ops_at_location((new_op,), InsertPoint.before(op))
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:
