@@ -178,40 +178,61 @@ def rewrite_generic_to_loops(
     if bound_constant_values:
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
-    def make_body(
+    def outer_make_body(
         rewriter: PatternRewriter,
         insertion_point: InsertPoint,
-        ind_vars: Sequence[BlockArgument],
-        iter_args: Sequence[SSAValue],
+        outer_ind_vars: Sequence[BlockArgument],
+        _: Sequence[SSAValue],
     ) -> Sequence[SSAValue]:
         # Add load ops
-        loaded_values = _insert_load_ops(
+        outer_loaded_values = _insert_load_ops(
             rewriter,
             insertion_point,
-            ind_vars,
+            outer_ind_vars,
             op.indexing_maps.data,
             op.operands,
             op.body.block.args,
             load,
         )
 
-        # Replace block argument use with load op results
-        for i, val in loaded_values:
-            op.body.block.args[i].replace_by(val)
+        def inner_make_body(
+            rewriter: PatternRewriter,
+            insertion_point: InsertPoint,
+            inner_ind_vars: Sequence[BlockArgument],
+            inner_iter_args: Sequence[SSAValue],
+        ):
+            assert not inner_ind_vars
 
-        yield_op = op.body.block.last_op
-        assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
+            # Replace block argument use with load op results
+            for (i, _), arg in zip(outer_loaded_values, inner_iter_args):
+                op.body.block.args[i].replace_by(arg)
 
-        # Erase the yield op, we still have access to its operands
-        rewriter.erase_op(yield_op)
+            yield_op = op.body.block.last_op
+            assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
 
-        # Inline generic body into innermost scf loop
-        # The operands have already been remapped
+            # Erase the yield op, we still have access to its operands
+            rewriter.erase_op(yield_op)
 
-        while op.body.block.args:
-            rewriter.erase_block_argument(op.body.block.args[0])
+            # Inline generic body into innermost scf loop
+            # The operands have already been remapped
 
-        rewriter.inline_block_at_location(op.body.block, insertion_point)
+            while op.body.block.args:
+                rewriter.erase_block_argument(op.body.block.args[0])
+
+            rewriter.inline_block_at_location(op.body.block, insertion_point)
+
+            return yield_op.operands
+
+        # Insert inner loop nest, from the outtermost loop inwards
+        inner_loop_nest_results = _insert_loop_nest(
+            rewriter,
+            insertion_point,
+            zero_op,
+            one_op,
+            (),
+            tuple(val for _, val in outer_loaded_values),
+            inner_make_body,
+        )
 
         # Finally, add store ops
         output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
@@ -219,16 +240,16 @@ def rewrite_generic_to_loops(
         _insert_store_ops(
             rewriter,
             insertion_point,
-            ind_vars,
+            outer_ind_vars,
             output_indexing_maps,
-            yield_op.operands,
+            inner_loop_nest_results,
             output_operands,
             store,
         )
 
         return ()
 
-    # Insert loop nest, from the outtermost loop inwards
+    # Insert outer loop nest, from the outtermost loop inwards
     _insert_loop_nest(
         rewriter,
         InsertPoint.before(op),
@@ -236,7 +257,7 @@ def rewrite_generic_to_loops(
         one_op,
         bound_constant_values,
         (),
-        make_body,
+        outer_make_body,
     )
 
     # Erase generic
