@@ -11,8 +11,10 @@ from xdsl.dialects.hw import (
     InnerRefAttr,
     InnerRefNamespaceTrait,
     InnerRefUserOpInterfaceTrait,
+    InnerSymAttr,
     InnerSymbolTableCollection,
     InnerSymbolTableTrait,
+    InnerSymPropertiesAttr,
     InnerSymTarget,
 )
 from xdsl.dialects.test import TestOp
@@ -278,3 +280,46 @@ def test_inner_ref_attr():
     assert (
         ref.get_module().data == "mod2"
     ), "Name of the referenced module should be returned correctly"
+
+
+def test_inner_sym_attr():
+    """
+    Test inner symbol attributes
+    """
+    invalid_sym_attr = InnerSymAttr()
+    assert (
+        invalid_sym_attr.get_sym_name() is None
+    ), "Invalid InnerSymAttr should return no name"
+
+    sym_attr = InnerSymAttr("sym")
+    assert sym_attr.get_sym_name() == StringAttr(
+        "sym"
+    ), "InnerSymAttr for “ground” type should return name"
+
+    with pytest.raises(VerifyException, match=r"inner symbol cannot have empty name"):
+        InnerSymAttr("")
+
+    aggregate_sym_attr = InnerSymAttr(
+        [
+            InnerSymPropertiesAttr("sym", 0, "public"),
+            InnerSymPropertiesAttr("other", 1, "private"),
+            InnerSymPropertiesAttr("yet_another", 2, "nested"),
+        ]
+    )
+
+    assert aggregate_sym_attr.get_sym_name() == StringAttr(
+        "sym"
+    ), "InnerSymAttr for aggregate types should return name with field ID 0"
+
+    for inner, expected_field_id in zip(aggregate_sym_attr, [0, 1, 2]):
+        assert (
+            inner.field_id.data == expected_field_id
+        ), "InnerSymAttr should allow iterating its properties in order"
+
+    aggregate_without_nested = aggregate_sym_attr.erase(2)
+    assert (
+        aggregate_without_nested.get_sym_if_exists(2) is None
+    ), "InnerSymAttr removal should work"
+    assert (
+        len(aggregate_without_nested) == 2
+    ), "InnerSymAttr removal should correctly change length"

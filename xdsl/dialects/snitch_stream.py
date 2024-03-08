@@ -60,12 +60,12 @@ class StridePattern(ParametrizedAttribute):
 
     ```
     // 2D access pattern
-    #pat = #snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>
+    #pat = #snitch_stream.stride_pattern<ub = [16, 8], strides = [8, 128]>
     // Corresponds to the following locations
     // for i in range(16):
     //   for j in range(8):
     //     yield i * 8 + j * 128
-    // Note that the upper bounds and strides go from the innermost loop outwards
+    // Note that the upper bounds and strides go from the outermost loop inwards
     ```
     """
 
@@ -125,13 +125,11 @@ class StridePattern(ParametrizedAttribute):
             )
 
     def offset_iter(self) -> Iterator[int]:
-        for indices in product(
-            *(range(bound.data) for bound in reversed(self.ub.data))
-        ):
+        for indices in product(*(range(bound.data) for bound in self.ub.data)):
             indices: tuple[int, ...] = indices
             yield sum(
                 index * stride.data
-                for (index, stride) in zip(indices, reversed(self.strides.data))
+                for (index, stride) in zip(indices, self.strides.data)
             )
 
     def offsets(self) -> tuple[int, ...]:
@@ -145,7 +143,7 @@ class StridePattern(ParametrizedAttribute):
         e.g.
 
         ```
-        stride_pattern<ub = [4, 3, 2], strides = [1, 4, 12]>
+        stride_pattern<ub = [2, 3, 4], strides = [12, 4, 1]>
         ->
         stride_pattern<ub = [24], strides = [1]
         ```
@@ -161,11 +159,11 @@ class StridePattern(ParametrizedAttribute):
         )
 
         # Outermost bound and stride
-        ub0, s0 = tuples[-1]
+        ub0, s0 = tuples[0]
 
         # Start with the second outermost loop bounds
-        second_outermost_dim = len(tuples) - 2
-        while 0 <= second_outermost_dim:
+        second_outermost_dim = 1
+        while second_outermost_dim < len(tuples):
             # Next bound and stride to fold into outermost
             ubd, sd = tuples[second_outermost_dim]
             if s0 == ubd * sd:
@@ -174,15 +172,15 @@ class StridePattern(ParametrizedAttribute):
                 s0 = sd
                 # Decrement the index into tuples for what the new second outermost loop
                 # bound is
-                second_outermost_dim -= 1
+                second_outermost_dim += 1
             else:
                 # The second outermost loop does not match, do not try to further simplify
                 break
 
-        # ub and s include all the tuples up to and including the second outermost dim,
-        # followed by the new outermost bound and stride
-        ub = (*(bound for bound, _ in tuples[: second_outermost_dim + 1]), ub0)
-        s = (*(stride for _, stride in tuples[: second_outermost_dim + 1]), s0)
+        # ub and s include the new outermost bound and stride,
+        # followed by all the tuples up to and including the second outermost dim
+        ub = (ub0, *(bound for bound, _ in tuples[second_outermost_dim:]))
+        s = (s0, *(stride for _, stride in tuples[second_outermost_dim:]))
 
         return StridePattern.from_bounds_and_strides(ub, s)
 
