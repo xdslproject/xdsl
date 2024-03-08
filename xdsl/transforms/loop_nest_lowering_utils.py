@@ -168,6 +168,12 @@ def rewrite_generic_to_loops(
     if bound_constant_values:
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
+    yield_op = op.body.block.last_op
+    assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
+
+    # Erase the yield op, we still have access to its operands
+    rewriter.erase_op(yield_op)
+
     def make_body(
         rewriter: PatternRewriter,
         insertion_point: InsertPoint,
@@ -189,27 +195,6 @@ def rewrite_generic_to_loops(
             if val is not None:
                 arg.replace_by(val)
 
-        # Add store ops before the yield operation in the generic body
-
-        yield_op = op.body.block.last_op
-        assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
-
-        output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
-        output_operands = op.operands[-len(op.outputs) :]
-        _insert_store_ops(
-            rewriter,
-            InsertPoint.before(yield_op),
-            ind_vars,
-            output_indexing_maps,
-            yield_op.operands,
-            output_operands,
-            store,
-        )
-
-        # Now that the linalg yield op operands have been converted to stores, remove
-
-        rewriter.erase_op(yield_op)
-
         # Inline generic body into innermost scf loop
         # The operands have already been remapped
 
@@ -217,6 +202,19 @@ def rewrite_generic_to_loops(
             rewriter.erase_block_argument(op.body.block.args[0])
 
         rewriter.inline_block_at_location(op.body.block, insertion_point)
+
+        # Finally, add store ops
+        output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
+        output_operands = op.operands[-len(op.outputs) :]
+        _insert_store_ops(
+            rewriter,
+            insertion_point,
+            ind_vars,
+            output_indexing_maps,
+            yield_op.operands,
+            output_operands,
+            store,
+        )
 
     # Insert loop nest, from the outtermost loop inwards
     _insert_loop_nest(
