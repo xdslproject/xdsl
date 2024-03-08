@@ -151,6 +151,8 @@ def rewrite_generic_to_loops(
     op: linalg.Generic | memref_stream.GenericOp,
     load: Callable[[SSAValue, Sequence[SSAValue]], Operation],
     store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
+    *,
+    imperfectly_nested: bool = False,
 ) -> None:
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
