@@ -40,6 +40,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -642,6 +643,8 @@ class RangeOp(IRDLOperation):
     name = "pdl.range"
     arguments: VarOperand = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
     result: OpResult = result_def(RangeType[AnyPDLType])
+
+    traits = traits_def(lambda: frozenset([HasParent(RewriteOp)]))
 
     def verify_(self) -> None:
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
