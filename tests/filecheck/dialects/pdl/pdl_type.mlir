@@ -26,7 +26,7 @@ pdl.pattern @unboundedTypes : benefit(1) {
   // Unbounded types
   %type = pdl.types
   
-  %root = pdl.operation -> (%type : !pdl.range<!pdl.type>)
+  %root = pdl.operation -> (%type : !pdl.range<type>)
   pdl.rewrite %root with "test_rewriter"(%root : !pdl.operation)
 }
 
@@ -37,7 +37,7 @@ pdl.pattern @knownTypes : benefit(1) {
   // Known types
   %type = pdl.types : [i32, i64]
   
-  %root = pdl.operation -> (%type : !pdl.range<!pdl.type>)
+  %root = pdl.operation -> (%type : !pdl.range<type>)
   pdl.rewrite %root with "test_rewriter"(%root : !pdl.operation)
 }
 
