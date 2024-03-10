@@ -57,8 +57,8 @@
   %extract = comb.extract %lhsi32 from 1 : (i32) -> i32
   // CHECK-NEXT: %extract = comb.extract %lhsi32 : i32
 
-  %concat = comb.concat %lhsi32, %rhsi32 : i32
-  // CHECK-NEXT: %concat = comb.concat %lhsi32, %rhsi32 : i32
+  %concat = comb.concat %lhsi32, %rhsi32 : i32, i32
+  // CHECK-NEXT: %concat = comb.concat %lhsi32, %rhsi32 : i32, i32
 
   %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
