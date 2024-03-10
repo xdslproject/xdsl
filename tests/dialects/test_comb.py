@@ -1,7 +1,5 @@
 import pytest
 
-from typing import cast
-
 from xdsl.dialects.builtin import IntegerType, i32
 from xdsl.dialects.comb import ConcatOp, ICmpOp
 from xdsl.dialects.test import TestOp, TestType
