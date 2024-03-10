@@ -44,6 +44,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import Parser
+from xdsl.parser.attribute_parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
@@ -147,6 +148,33 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
 
     def __init__(self, element_type: _RangeT):
         super().__init__([element_type])
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        parser.parse_punctuation("<")
+        if parser.parse_optional_keyword("attribute") is not None:
+            element_type = AttributeType()
+        elif parser.parse_optional_keyword("operation") is not None:
+            element_type = OperationType()
+        elif parser.parse_optional_keyword("type") is not None:
+            element_type = TypeType()
+        elif parser.parse_optional_keyword("value") is not None:
+            element_type = ValueType()
+        else:
+            parser.raise_error("expected PDL element type for range")
+        parser.parse_punctuation(">")
+        return [element_type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        match self.element_type:
+            case AttributeType():
+                printer.print("<attribute>")
+            case OperationType():
+                printer.print("<operation>")
+            case TypeType():
+                printer.print("<type>")
+            case ValueType():
+                printer.print("<value>")
 
 
 @irdl_op_definition
