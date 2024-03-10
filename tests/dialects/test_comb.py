@@ -20,17 +20,17 @@ def test_icmp_incorrect_comparison():
 
 
 def test_comb_concat_builder():
-    a = TestOp(result_types=[IntegerType(5)])
-    b = TestOp(result_types=[IntegerType(3)])
-    c = TestOp(result_types=[IntegerType(1)])
-    foo = TestOp(result_types=[TestType("foo")])
+    a = TestSSAValue(IntegerType(5))
+    b = TestSSAValue(IntegerType(3))
+    c = TestSSAValue(IntegerType(1))
+    foo = TestSSAValue(TestType("foo"))
 
-    concat = ConcatOp.from_int_values([a.results[0], b.results[0], c.results[0]])
+    concat = ConcatOp.from_int_values([a, b, c])
     assert concat is not None
     assert isinstance(concat.result.type, IntegerType)
     assert concat.result.type.width.data == 9
 
-    bad_concat = ConcatOp.from_int_values([a.results[0], foo.results[0]])
+    bad_concat = ConcatOp.from_int_values([a, foo])
     assert bad_concat is None
 
 
