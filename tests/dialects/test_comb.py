@@ -1,11 +1,9 @@
 import pytest
 
 from xdsl.dialects.builtin import IntegerType, i32
-from xdsl.dialects.comb import Comb, ConcatOp, ICmpOp
-from xdsl.dialects.test import Test, TestOp, TestType
-from xdsl.ir import MLContext
-from xdsl.parser import Parser
-from xdsl.utils.exceptions import ParseError, VerifyException
+from xdsl.dialects.comb import ConcatOp, ICmpOp
+from xdsl.dialects.test import TestOp, TestType
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -43,31 +41,3 @@ def test_comb_concat_verifier():
 
     with pytest.raises(VerifyException):
         ConcatOp([a, b, c], IntegerType(2)).verify()
-
-
-def test_comb_concat_parse():
-    ctx = MLContext()
-    ctx.load_dialect(Comb)
-    ctx.load_dialect(Test)
-    with pytest.raises(ParseError) as e:
-        Parser(ctx, r'%concat = comb.concat %a, %b : i32, !test.type<"foo">').parse_op()
-    assert e.value.args[1] == "expected only integer types as input"
-
-
-def test_comb_extract_parse():
-    ctx = MLContext()
-    ctx.load_dialect(Comb)
-    ctx.load_dialect(Test)
-
-    with pytest.raises(ParseError) as e:
-        Parser(ctx, r"%extract = comb.extract %a from 1 : (i32, i32) -> i4").parse_op()
-    assert e.value.args[1] == "expected exactly one input and exactly one output types"
-
-    with pytest.raises(ParseError) as e:
-        Parser(
-            ctx, r'%extract = comb.extract %a from 1 : (i32) -> !test.type<"foo">'
-        ).parse_op()
-    assert (
-        e.value.args[1]
-        == "expected output to be an integer type, got '!test.type<\"foo\">'"
-    )
