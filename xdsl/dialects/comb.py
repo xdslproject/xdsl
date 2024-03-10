@@ -413,8 +413,34 @@ class ConcatOp(IRDLOperation):
     inputs: VarOperand = var_operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return super().__init__(operands=[op], result_types=[target_type])
+    def __init__(self, ops: Sequence[SSAValue | Operation], target_type: IntegerType):
+        return super().__init__(operands=[ops], result_types=[target_type])
+
+    @staticmethod
+    def from_int_values(inputs: Sequence[SSAValue]) -> "ConcatOp | None":
+        """
+        Concatenates the provided values, in order. Returns None if the provided
+        values are not integers.
+        """
+        sum_of_width = 0
+        for arg in inputs:
+            if not isinstance(arg.type, IntegerType):
+                return None
+            sum_of_width += arg.type.width.data
+        return ConcatOp(inputs, IntegerType(sum_of_width))
+
+    def verify_(self) -> None:
+        sum_of_width = 0
+        for arg in self.inputs:
+            assert isinstance(arg.type, IntegerType)
+            sum_of_width += arg.type.width.data
+        assert isinstance(self.result.type, IntegerType)
+        if sum_of_width != self.result.type.width.data:
+            raise VerifyException(
+                f"Sum of integer width ({sum_of_width}) "
+                f"is different from result "
+                f"width ({self.result.type.width.data})"
+            )
 
     @classmethod
     def parse(cls, parser: Parser):
