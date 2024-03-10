@@ -402,6 +402,19 @@ class ExtractOp(IRDLOperation):
         printer.print(self.result.type)
 
 
+def _get_sum_of_int_width(int_types: Sequence[Attribute]) -> int | None:
+    """
+    Gets the sum of the width of the provided integer types. Returns None
+    if one of the provided attributes is not an integer type.
+    """
+    sum_of_width = 0
+    for typ in int_types:
+        if not isinstance(typ, IntegerType):
+            return None
+        sum_of_width += typ.width.data
+    return sum_of_width
+
+
 @irdl_op_definition
 class ConcatOp(IRDLOperation):
     """
@@ -422,18 +435,14 @@ class ConcatOp(IRDLOperation):
         Concatenates the provided values, in order. Returns None if the provided
         values are not integers.
         """
-        sum_of_width = 0
-        for arg in inputs:
-            if not isinstance(arg.type, IntegerType):
-                return None
-            sum_of_width += arg.type.width.data
+        sum_of_width = _get_sum_of_int_width([inp.type for inp in inputs])
+        if sum_of_width is None:
+            return None
         return ConcatOp(inputs, IntegerType(sum_of_width))
 
     def verify_(self) -> None:
-        sum_of_width = 0
-        for arg in self.inputs:
-            assert isinstance(arg.type, IntegerType)
-            sum_of_width += arg.type.width.data
+        sum_of_width = _get_sum_of_int_width([inp.type for inp in self.inputs])
+        assert sum_of_width is not None
         assert isinstance(self.result.type, IntegerType)
         if sum_of_width != self.result.type.width.data:
             raise VerifyException(
@@ -448,17 +457,20 @@ class ConcatOp(IRDLOperation):
             parser.Delimiter.NONE, parser.parse_unresolved_operand
         )
         parser.parse_punctuation(":")
-        result_type = parser.parse_type()
-        inputs = parser.resolve_operands(
-            inputs, len(inputs) * [result_type], parser.pos
+        input_types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_type
         )
-        return cls.create(operands=inputs, result_types=[result_type])
+        sum_of_width = _get_sum_of_int_width(input_types)
+        if sum_of_width is None:
+            parser.raise_error("expected only integer types as input")
+        inputs = parser.resolve_operands(inputs, input_types, parser.pos)
+        return cls.create(operands=inputs, result_types=[IntegerType(sum_of_width)])
 
     def print(self, printer: Printer):
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
         printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_list([inp.type for inp in self.inputs], printer.print_attribute)
 
 
 @irdl_op_definition
