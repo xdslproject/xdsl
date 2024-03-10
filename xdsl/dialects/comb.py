@@ -384,7 +384,7 @@ class ExtractOp(IRDLOperation):
         self,
         operand: Operation | SSAValue,
         low_bit: IntegerAttr[IntegerType],
-        result: Attribute,
+        result: IntegerType,
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
@@ -417,6 +417,10 @@ class ExtractOp(IRDLOperation):
         if len(result_type.inputs.data) != 1 or len(result_type.outputs.data) != 1:
             parser.raise_error(
                 "expected exactly one input and exactly one output types"
+            )
+        if not isinstance(result_type.outputs.data[0], IntegerType):
+            parser.raise_error(
+                f"expected output to be an integer type, got '{result_type.outputs.data[0]}'"
             )
         (op,) = parser.resolve_operands([op], result_type.inputs.data, parser.pos)
         return cls(op, IntegerAttr(bit, 32), result_type.outputs.data[0])

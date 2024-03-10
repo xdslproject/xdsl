@@ -58,6 +58,16 @@ def test_comb_extract_parse():
     ctx = MLContext()
     ctx.load_dialect(Comb)
     ctx.load_dialect(Test)
+
     with pytest.raises(ParseError) as e:
         Parser(ctx, r"%extract = comb.extract %a from 1 : (i32, i32) -> i4").parse_op()
     assert e.value.args[1] == "expected exactly one input and exactly one output types"
+
+    with pytest.raises(ParseError) as e:
+        Parser(
+            ctx, r'%extract = comb.extract %a from 1 : (i32) -> !test.type<"foo">'
+        ).parse_op()
+    assert (
+        e.value.args[1]
+        == "expected output to be an integer type, got '!test.type<\"foo\">'"
+    )
