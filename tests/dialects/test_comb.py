@@ -2,8 +2,8 @@ import pytest
 
 from typing import cast
 
-from xdsl.dialects.builtin import i32, IntegerType
-from xdsl.dialects.comb import ICmpOp, ConcatOp
+from xdsl.dialects.builtin import IntegerType, i32
+from xdsl.dialects.comb import ConcatOp, ICmpOp
 from xdsl.dialects.test import TestOp, TestType
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
