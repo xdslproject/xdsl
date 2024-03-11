@@ -227,7 +227,7 @@ class GemmOpLowering(RewritePattern):
             alpha_res = alpha_mul_result.res[0]
             rewriter.insert_op_before_matched_op([empty, constant, alpha_mul_result])
 
-        # if alpha * a does not occur remain on previous trans_a else change
+        # if alpha * a does not occur remain on previous trans_a else switch
         if alpha_res is not None:
             trans_a = alpha_res
 
