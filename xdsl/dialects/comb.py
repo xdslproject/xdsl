@@ -4,6 +4,8 @@ compiler IR for combinational logic. It is designed to be easy to analyze and
 transform, and be a flexible and extensible substrate that may be extended with
 higher level dialects mixed into it.
 
+Up to date as of CIRCT commit `2e23cda6c2cbedb118b92fab755f1e36d80b13f5`.
+
 [1] https://circt.llvm.org/docs/Dialects/Comb/
 """
 
@@ -364,7 +366,12 @@ class ParityOp(IRDLOperation):
 class ExtractOp(IRDLOperation):
     """
     Extract a range of bits into a smaller value, low_bit
-    specifies the lowest bit included.
+    specifies the lowest bit included. Result is the size
+    of the value to extract.
+
+    |-----------------|   input
+           l              low bit
+           <-------->     result
     """
 
     name = "comb.extract"
@@ -376,14 +383,31 @@ class ExtractOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     def __init__(
-        self, operand: Operation | SSAValue, low_bit: IntegerAttr[IntegerType]
+        self,
+        operand: Operation | SSAValue,
+        low_bit: IntegerAttr[IntegerType],
+        result_type: IntegerType,
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
             attributes={"low_bit": low_bit},
             operands=[operand],
-            result_types=[operand.type],
+            result_types=[result_type],
         )
+
+    def verify_(self) -> None:
+        assert isinstance(self.input.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
+        if (
+            self.low_bit.value.data + self.result.type.width.data
+            > self.input.type.width.data + 1
+        ):
+            raise VerifyException(
+                f"output width {self.result.type.width.data} is "
+                f"too large for input of width "
+                f"{self.input.type.width.data} (included low bit "
+                f"is at {self.low_bit.value.data})"
+            )
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -392,14 +416,22 @@ class ExtractOp(IRDLOperation):
         bit = parser.parse_integer()
         parser.parse_punctuation(":")
         result_type = parser.parse_function_type()
+        if len(result_type.inputs.data) != 1 or len(result_type.outputs.data) != 1:
+            parser.raise_error(
+                "expected exactly one input and exactly one output types"
+            )
+        if not isinstance(result_type.outputs.data[0], IntegerType):
+            parser.raise_error(
+                f"expected output to be an integer type, got '{result_type.outputs.data[0]}'"
+            )
         (op,) = parser.resolve_operands([op], result_type.inputs.data, parser.pos)
-        return cls(op, IntegerAttr(bit, 32))
+        return cls(op, IntegerAttr(bit, 32), result_type.outputs.data[0])
 
     def print(self, printer: Printer):
         printer.print(" ")
         printer.print_ssa_value(self.input)
-        printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print(f" from {self.low_bit.value.data} : ")
+        printer.print_function_type([self.input.type], [self.result.type])
 
 
 def _get_sum_of_int_width(int_types: Sequence[Attribute]) -> int | None:
