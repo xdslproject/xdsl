@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 
 import pytest
-
 from conftest import assert_print_op
 
 from xdsl.dialects import test
