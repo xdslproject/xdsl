@@ -178,7 +178,7 @@ class GemmOpLowering(RewritePattern):
         if gemm.trans_a is not None and gemm.trans_a.value.data == 1:
             shape_type = tensor_a_type.element_type
             # onnx.gemm supports only 2D tensors, hence reversing is acceptable
-            shape = tensor_a_shape[::-1]
+            shape = tuple(reversed(tensor_a_shape))
             empty_shape = TensorType(shape_type, shape)
             empty = tensor.EmptyOp((), empty_shape)
             trans_a = linalg.TransposeOp(
@@ -192,7 +192,7 @@ class GemmOpLowering(RewritePattern):
         if gemm.trans_b is not None and gemm.trans_b.value.data == 1:
             shape_type = tensor_b_type.element_type
             # onnx.gemm supports only 2D tensors, hence reversing is acceptable
-            shape = tensor_b_shape[::-1]
+            shape = tuple(reversed(tensor_b_shape))
             empty_shape = TensorType(shape_type, shape)
             empty = tensor.EmptyOp((), empty_shape)
             trans_b = linalg.TransposeOp(
