@@ -16,8 +16,8 @@ from xdsl.utils.test_value import TestSSAValue
     [
         ((6,), (1,), tuple(range(6))),
         ((6,), (2,), tuple(range(0, 12, 2))),
-        ((2, 3), (1, 2), tuple(range(6))),
-        ((2, 3, 4), (1, 2, 6), tuple(range(24))),
+        ((3, 2), (2, 1), tuple(range(6))),
+        ((4, 3, 2), (6, 2, 1), tuple(range(24))),
     ],
 )
 def test_stride_pattern_offsets(
@@ -33,11 +33,11 @@ def test_stride_pattern_offsets(
     "inputs, outputs",
     [
         (((24,), (1,)), ((24,), (1,))),
-        (((4, 3, 2), (1, 4, 12)), ((24,), (1,))),
-        (((2, 3), (8, 16)), ((6,), (8,))),
-        (((2, 3), (0, 8)), ((2, 3), (0, 8))),
-        (((2, 3), (8, 0)), ((2, 3), (8, 0))),
-        (((3, 3, 1, 6, 1, 1), (1, 2, 3, 4, 5, 6)), ((3, 3, 6), (1, 2, 4))),
+        (((2, 3, 4), (12, 4, 1)), ((24,), (1,))),
+        (((3, 2), (16, 8)), ((6,), (8,))),
+        (((3, 2), (8, 0)), ((3, 2), (8, 0))),
+        (((3, 2), (0, 8)), ((3, 2), (0, 8))),
+        (((1, 1, 6, 1, 3, 3), (6, 5, 4, 3, 2, 1)), ((6, 3, 3), (4, 2, 1))),
     ],
 )
 def test_simplify_stride_pattern(
@@ -92,7 +92,7 @@ def test_snitch_stream_interpreter():
                 ArrayAttr(
                     (
                         snitch_stream.StridePattern.from_bounds_and_strides(
-                            [3, 2], [8, 24]
+                            [2, 3], [24, 8]
                         ),
                     )
                 ),

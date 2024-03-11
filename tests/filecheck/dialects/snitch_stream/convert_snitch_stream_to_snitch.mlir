@@ -8,8 +8,8 @@
 "snitch_stream.streaming_region"(%A, %B, %C) <{
     "stride_patterns" = [
         #snitch_stream.stride_pattern<ub = [2], strides = [8]>,
-        #snitch_stream.stride_pattern<ub = [2, 3], strides = [24, 8]>,
-        #snitch_stream.stride_pattern<ub = [2, 3, 4, 5], strides = [480, 160, 40, 8]>
+        #snitch_stream.stride_pattern<ub = [3, 2], strides = [8, 24]>,
+        #snitch_stream.stride_pattern<ub = [5, 4, 3, 2], strides = [8, 40, 160, 480]>
     ],
     "operandSegmentSizes" = array<i32: 2, 1>
 }> ({
