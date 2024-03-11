@@ -4,6 +4,8 @@ compiler IR for combinational logic. It is designed to be easy to analyze and
 transform, and be a flexible and extensible substrate that may be extended with
 higher level dialects mixed into it.
 
+Up to date as of CIRCT commit `2e23cda6c2cbedb118b92fab755f1e36d80b13f5`.
+
 [1] https://circt.llvm.org/docs/Dialects/Comb/
 """
 
