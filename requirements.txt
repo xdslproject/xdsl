@@ -15,7 +15,7 @@ asv<0.7
 isort==5.13.2
 nbconvert>=7.7.2,<8.0.0
 textual-dev==1.5.1
-pytest-asyncio==0.23.5
+pytest-asyncio==0.23.5.post1
 # pyright version has to be fixed with `==`. The CI parses this file
 # and installs the according version for typechecking.
 pyright==1.1.345
