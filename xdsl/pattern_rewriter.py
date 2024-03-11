@@ -684,14 +684,14 @@ class PatternRewriteWalker:
     def rewrite_module(self, module: ModuleOp) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
-        pattern. Returns `True` if an operation was inserted, deleted, or rewritten.
+        pattern. Returns `True` if the IR was mutated.
         """
         return self.rewrite_op(module)
 
     def rewrite_op(self, op: Operation) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
-        pattern. Returns `True` if an operation was inserted, deleted, or rewritten.
+        pattern. Returns `True` if the IR was mutated.
         """
         pattern_listener = self._get_rewriter_listener()
 
