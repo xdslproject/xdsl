@@ -6,10 +6,14 @@ It currently implements minimal types and operations for the symbols and inner s
 [2] https://circt.llvm.org/docs/RationaleSymbols/
 """
 
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
+from typing import overload
 
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     FlatSymbolRefAttr,
+    IntAttr,
     ParameterDef,
     StringAttr,
     SymbolRefAttr,
@@ -17,6 +21,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
 )
@@ -72,7 +77,7 @@ class InnerSymTarget:
 class InnerRefAttr(ParametrizedAttribute):
     """This works like a symbol reference, but to a name inside a module."""
 
-    name = "hw.inner_name_ref"
+    name = "hw.innerNameRef"
     module_ref: ParameterDef[FlatSymbolRefAttr]
     # NB. upstream defines as “name” which clashes with Attribute.name
     sym_name: ParameterDef[StringAttr]
@@ -248,10 +253,168 @@ class InnerRefNamespace:
         self.inner_sym_tables = InnerSymbolTableCollection(inner_ref_ns_op)
 
 
+@irdl_attr_definition
+class InnerSymPropertiesAttr(ParametrizedAttribute):
+    name = "hw.innerSymProps"
+
+    # NB. upstream defines as “name” which clashes with Attribute.name
+    sym_name: ParameterDef[StringAttr]
+    field_id: ParameterDef[IntAttr]
+    sym_visibility: ParameterDef[StringAttr]
+
+    def __init__(
+        self,
+        sym: str | StringAttr,
+        field_id: int | IntAttr = 0,
+        sym_visibility: str | StringAttr = "public",
+    ) -> None:
+        if isinstance(sym, str):
+            sym = StringAttr(sym)
+        if isinstance(field_id, int):
+            field_id = IntAttr(field_id)
+        if isinstance(sym_visibility, str):
+            sym_visibility = StringAttr(sym_visibility)
+        super().__init__([sym, field_id, sym_visibility])
+
+    @classmethod
+    def parse_parameters(
+        cls, parser: AttrParser
+    ) -> tuple[StringAttr, IntAttr, StringAttr]:
+        parser.parse_punctuation("<")
+        sym_name = parser.parse_symbol_name()
+        parser.parse_punctuation(",")
+        field_id = parser.parse_integer(allow_negative=False, allow_boolean=False)
+        parser.parse_punctuation(",")
+        sym_visibility = parser.parse_identifier()
+        if sym_visibility not in {"public", "private", "nested"}:
+            parser.raise_error('Expected "public", "private", or "nested"')
+        parser.parse_punctuation(">")
+        return (sym_name, IntAttr(field_id), StringAttr(sym_visibility))
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<@")
+        printer.print_string(self.sym_name.data)
+        printer.print_string(",")
+        printer.print_string(str(self.field_id.data))
+        printer.print_string(",")
+        printer.print_string(self.sym_visibility.data)
+        printer.print_string(">")
+
+    def verify(self):
+        if not self.sym_name or not self.sym_name.data:
+            raise VerifyException("inner symbol cannot have empty name")
+
+
+@irdl_attr_definition
+class InnerSymAttr(
+    ParametrizedAttribute, Iterable[InnerSymPropertiesAttr], OpaqueSyntaxAttribute
+):
+    """Inner symbol definition
+
+    Defines the properties of an inner_sym attribute. It specifies the symbol name and symbol
+    visibility for each field ID. For any ground types, there are no subfields and the field ID is 0.
+    For aggregate types, a unique field ID is assigned to each field by visiting them in a
+    depth-first pre-order.
+
+    The custom assembly format ensures that for ground types, only `@<sym_name>` is printed.
+    """
+
+    name = "hw.innerSym"
+
+    props: ParameterDef[ArrayAttr[InnerSymPropertiesAttr]]
+
+    @overload
+    def __init__(self) -> None:
+        # Create an empty array, represents an invalid InnerSym.
+        ...
+
+    @overload
+    def __init__(self, syms: str | StringAttr) -> None: ...
+
+    @overload
+    def __init__(
+        self, syms: Sequence[InnerSymPropertiesAttr] | ArrayAttr[InnerSymPropertiesAttr]
+    ) -> None: ...
+
+    def __init__(
+        self,
+        syms: (
+            str
+            | StringAttr
+            | Sequence[InnerSymPropertiesAttr]
+            | ArrayAttr[InnerSymPropertiesAttr]
+        ) = [],
+    ) -> None:
+        if isinstance(syms, str | StringAttr):
+            syms = [InnerSymPropertiesAttr(syms)]
+        if not isinstance(syms, ArrayAttr):
+            syms = ArrayAttr(syms)
+        super().__init__([syms])
+
+    def get_sym_if_exists(self, field_id: IntAttr | int) -> StringAttr | None:
+        """Get the inner sym name for field_id, if it exists."""
+        if not isinstance(field_id, IntAttr):
+            field_id = IntAttr(field_id)
+
+        for prop in self.props:
+            if field_id == prop.field_id:
+                return prop.sym_name
+
+    def get_sym_name(self) -> StringAttr | None:
+        """Get the inner sym name for field_id=0, if it exists."""
+        return self.get_sym_if_exists(0)
+
+    def __len__(self) -> int:
+        """Get the number of inner symbols defined."""
+        return len(self.props)
+
+    def __iter__(self) -> Iterator[InnerSymPropertiesAttr]:
+        """Iterator for all the InnerSymPropertiesAttr."""
+        return iter(self.props)
+
+    def erase(self, field_id: IntAttr | int) -> "InnerSymAttr":
+        """Return an InnerSymAttr with the inner symbol for the specified field_id removed."""
+        if not isinstance(field_id, IntAttr):
+            field_id = IntAttr(field_id)
+        return InnerSymAttr([prop for prop in self.props if prop.field_id != field_id])
+
+    @classmethod
+    def parse_parameters(
+        cls, parser: AttrParser
+    ) -> list[ArrayAttr[InnerSymPropertiesAttr]]:
+        if (sym_name := parser.parse_optional_symbol_name()) is not None:
+            return [ArrayAttr([InnerSymPropertiesAttr(sym_name, 0, "public")])]
+
+        data = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE,
+            lambda: InnerSymPropertiesAttr.parse_parameters(parser),
+        )
+        return [ArrayAttr(InnerSymPropertiesAttr(*tup) for tup in data)]
+
+    def print_parameters(self, printer: Printer):
+        if (
+            len(self) == 1
+            and (sym_name := self.get_sym_name()) is not None
+            and self.props.data[0].sym_visibility.data == "public"
+            and self.props.data[0].field_id.data == 0
+        ):
+            printer.print_string("@")
+            printer.print_string(sym_name.data)
+        else:
+            printer.print_string("[")
+            printer.print_list(
+                sorted(self.props, key=lambda prop: prop.field_id.data),
+                lambda prop: prop.print_parameters(printer),
+            )
+            printer.print_string("]")
+
+
 HW = Dialect(
     "hw",
     [],
     [
         InnerRefAttr,
+        InnerSymPropertiesAttr,
+        InnerSymAttr,
     ],
 )

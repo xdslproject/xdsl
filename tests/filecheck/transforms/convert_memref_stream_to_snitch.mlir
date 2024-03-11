@@ -33,7 +33,7 @@ memref_stream.streaming_region {
 // CHECK-NEXT:  %{{.*}} = builtin.unrealized_conversion_cast %A : memref<2xf64> to !riscv.reg<>
 // CHECK-NEXT:  %{{.*}} = builtin.unrealized_conversion_cast %B : memref<3xf64> to !riscv.reg<>
 // CHECK-NEXT:  %{{.*}} = builtin.unrealized_conversion_cast %C : memref<3x2xf64> to !riscv.reg<>
-// CHECK-NEXT:    "snitch_stream.streaming_region"(%2, %3, %4) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [2, 3], strides = [0, 8]>, #snitch_stream.stride_pattern<ub = [2, 3], strides = [8, 0]>, #snitch_stream.stride_pattern<ub = [6], strides = [8]>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%2, %3, %4) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [3, 2], strides = [8, 0]>, #snitch_stream.stride_pattern<ub = [3, 2], strides = [0, 8]>, #snitch_stream.stride_pattern<ub = [6], strides = [8]>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
 // CHECK-NEXT:  ^0(%a : !stream.readable<!riscv.freg<>>, %b : !stream.readable<!riscv.freg<>>, %c : !stream.writable<!riscv.freg<>>):
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %a : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %b : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
@@ -78,7 +78,7 @@ memref_stream.streaming_region {
 
 // CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<1x1x8x8xf64> to !riscv.reg<>
 // CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<1x1x3x3xf64> to !riscv.reg<>
-// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [3, 3, 6, 6], strides = [8, 64, 8, 64]>, #snitch_stream.stride_pattern<ub = [3, 3, 36], strides = [8, 24, 0]>], "operandSegmentSizes" = array<i32: 2, 0>}> ({
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [6, 6, 3, 3], strides = [64, 8, 64, 8]>, #snitch_stream.stride_pattern<ub = [36, 3, 3], strides = [0, 24, 8]>], "operandSegmentSizes" = array<i32: 2, 0>}> ({
 // CHECK-NEXT:    ^{{.*}}(%{{.*}} : !stream.readable<!riscv.freg<>>, %{{.*}} : !stream.readable<!riscv.freg<>>):
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
@@ -103,7 +103,7 @@ memref_stream.streaming_region {
 // CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<8x8xf64> to !riscv.reg<>
 // CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<8x8xf64> to !riscv.reg<>
 // CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<8x8xf64> to !riscv.reg<>
-// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 0, 64]>, #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 8, 0]>, #snitch_stream.stride_pattern<ub = [64], strides = [8]>], "operandSegmentSizes" = array<i32: 3, 0>}> ({
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [64, 0, 8]>, #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [0, 8, 64]>, #snitch_stream.stride_pattern<ub = [64], strides = [8]>], "operandSegmentSizes" = array<i32: 3, 0>}> ({
 // CHECK-NEXT:    ^{{.*}}(%{{.*}} : !stream.readable<!riscv.freg<>>, %{{.*}} : !stream.readable<!riscv.freg<>>, %{{.*}} : !stream.readable<!riscv.freg<>>):
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg<>> to !stream.readable<f64>
