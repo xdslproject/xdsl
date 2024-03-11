@@ -473,93 +473,10 @@ class ROperation(Generic[R1InvT], SingleOperandInstruction):
             raise VerifyException("Either source or destination must be specified")
         if self.source is not None and self.destination is not None:
             raise VerifyException("Cannot specify both source and destination")
+        return super().verify_()
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return (self.destination,) if self.destination else (self.source,)
-
-
-# class RdRsOperation(Generic[RDInvT, RS1InvT], IRDLOperation, X86Instruction, ABC):
-#     """
-#     A base class for x86 operations which has a source register and a destination register.
-#     """
-
-#     rd: OpResult = result_def(RDInvT)
-#     rs: Operand = operand_def(RS1InvT)
-
-#     def __init__(
-#         self,
-#         rs: Operation | SSAValue,
-#         *,
-#         rd: RDInvT,
-#         comment: str | StringAttr | None = None,
-#     ):
-#         if isinstance(comment, str):
-#             comment = StringAttr(comment)
-
-#         super().__init__(
-#             operands=[rs],
-#             attributes={
-#                 "comment": comment,
-#             },
-#             result_types=[rd],
-#         )
-
-#     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-#         return self.rd, self.rs
-
-
-# class RsOperation(Generic[RS1InvT], IRDLOperation, X86Instruction, ABC):
-#     """
-#     A base class for x86 operations that have one source register.
-#     """
-
-#     rs: Operand = operand_def(RS1InvT)
-
-#     def __init__(
-#         self,
-#         rs: Operation | SSAValue,
-#         *,
-#         comment: str | StringAttr | None = None,
-#     ):
-#         if isinstance(comment, str):
-#             comment = StringAttr(comment)
-
-#         super().__init__(
-#             operands=[rs],
-#             attributes={
-#                 "comment": comment,
-#             },
-#         )
-
-#     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-#         return (self.rs,)
-
-
-# class RdOperation(Generic[RDInvT], IRDLOperation, X86Instruction, ABC):
-#     """
-#     A base class for x86 operations that have one destination register.
-#     """
-
-#     rd: OpResult = result_def(RDInvT)
-
-#     def __init__(
-#         self,
-#         *,
-#         rd: RDInvT,
-#         comment: str | StringAttr | None = None,
-#     ):
-#         if isinstance(comment, str):
-#             comment = StringAttr(comment)
-
-#         super().__init__(
-#             attributes={
-#                 "comment": comment,
-#             },
-#             result_types=[rd],
-#         )
-
-#     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-#         return (self.rd,)
 
 
 @irdl_op_definition
@@ -568,6 +485,8 @@ class AddOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     Adds the registers r1 and r2 and stores the result in r1.
 
     x[r1] = x[r1] + x[r2]
+
+    https://www.felixcloutier.com/x86/add
     """
 
     name = "x86.add"
@@ -579,6 +498,8 @@ class SubOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     subtracts r2 from r1 and stores the result in r1.
 
     x[r1] = x[r1] - x[r2]
+
+    https://www.felixcloutier.com/x86/sub
     """
 
     name = "x86.sub"
@@ -590,6 +511,8 @@ class ImulOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     Multiplies the registers r1 and r2 and stores the result in r1.
 
     x[r1] = x[r1] * x[r2]
+
+    https://www.felixcloutier.com/x86/imul
     """
 
     name = "x86.imul"
@@ -599,6 +522,8 @@ class ImulOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
 class IdivOp(ROperation[GeneralRegisterType]):
     """
     Divide rdx:rax by x[r1]. Store quotient in rax and store remainder in rdx.
+
+    https://www.felixcloutier.com/x86/idiv
     """
 
     name = "x86.idiv"
@@ -610,6 +535,8 @@ class NotOp(ROperation[GeneralRegisterType]):
     bitwise not of r1, stored in r1
 
     x[r1] = ~x[r1]
+
+    https://www.felixcloutier.com/x86/not
     """
 
     name = "x86.not"
@@ -621,6 +548,8 @@ class AndOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     bitwise and of r1 and r2, stored in r1
 
     x[r1] = x[r1] & x[r2]
+
+    https://www.felixcloutier.com/x86/and
     """
 
     name = "x86.and"
@@ -632,6 +561,8 @@ class OrOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     bitwise or of r1 and r2, stored in r1
 
     x[r1] = x[r1] | x[r2]
+
+    https://www.felixcloutier.com/x86/or
     """
 
     name = "x86.or"
@@ -643,6 +574,8 @@ class XorOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     bitwise xor of r1 and r2, stored in r1
 
     x[r1] = x[r1] ^ x[r2]
+
+    https://www.felixcloutier.com/x86/xor
     """
 
     name = "x86.xor"
@@ -654,6 +587,8 @@ class MovOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     Copies the value of r1 into r2.
 
     x[r1] = x[r2]
+
+    https://www.felixcloutier..com/x86/mov
     """
 
     name = "x86.mov"
@@ -663,6 +598,8 @@ class MovOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
 class PushOp(ROperation[GeneralRegisterType]):
     """
     Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
+
+    https://www.felixcloutier.com/x86/push
     """
 
     name = "x86.push"
@@ -678,6 +615,8 @@ class PushOp(ROperation[GeneralRegisterType]):
 class PopOp(ROperation[GeneralRegisterType]):
     """
     Copies the value at the top of the stack into r1 and increases %rsp.
+
+    https://www.felixcloutier.com/x86/pop
     """
 
     name = "x86.pop"
@@ -843,6 +782,8 @@ class DirectiveOp(IRDLOperation, X86Op):
 class Vfmadd231pdOp(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]):
     """
     Multiply packed double-precision floating-point elements in r2 and r3, add the intermediate result to r1, and store the final result in r1.
+
+    https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd
     """
 
     name = "x86.vfmadd231pd"
@@ -852,6 +793,8 @@ class Vfmadd231pdOp(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterTy
 class VmovapdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Move aligned packed double-precision floating-point elements.
+
+    https://www.felixcloutier.com/x86/movapd
     """
 
     name = "x86.vmovapd"
@@ -870,6 +813,8 @@ class VmovapdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
 class VbroadcastsdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Broadcast scalar double-precision floating-point element.
+
+    https://www.felixcloutier.com/x86/vbroadcast
     """
 
     name = "x86.vbroadcastsd"
