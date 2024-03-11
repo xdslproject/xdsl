@@ -386,13 +386,13 @@ class ExtractOp(IRDLOperation):
         self,
         operand: Operation | SSAValue,
         low_bit: IntegerAttr[IntegerType],
-        result: IntegerType,
+        result_type: IntegerType,
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
             attributes={"low_bit": low_bit},
             operands=[operand],
-            result_types=[result],
+            result_types=[result_type],
         )
 
     def verify_(self) -> None:
