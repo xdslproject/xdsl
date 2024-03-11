@@ -303,10 +303,10 @@ class Gemm(IRDLOperation):
             raise VerifyException("tensor B should be a 2D tensor")
 
         if self.trans_a is not None and self.trans_a.value.data == 1:
-            tensor_a_shape = tuple(tensor_a_shape)[::-1]
+            tensor_a_shape = tuple(reversed(tensor_a_shape))
 
         if self.trans_b is not None and self.trans_b.value.data == 1:
-            tensor_b_shape = tuple(tensor_b_shape)[::-1]
+            tensor_b_shape = tuple(reversed(tensor_b_shape))
 
         if self.beta is not None:
             c_dims = tensor_c_type.get_num_dims()

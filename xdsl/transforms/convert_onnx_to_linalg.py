@@ -217,12 +217,12 @@ class GemmOpLowering(RewritePattern):
         # alpha * A
         alpha_res = None
         if gemm.alpha is not None and gemm.alpha.value.data != 1:
-            empty = tensor.EmptyOp((), gemm.tensor_a.type)
+            empty = tensor.EmptyOp((), trans_a.type)
             constant = arith.Constant(FloatAttr(gemm.alpha.value.data, gemm.alpha.type))
             alpha_mul_result = linalg.MulOp(
                 (constant.result, trans_a),
                 (empty.tensor,),
-                (gemm.tensor_a.type,),
+                (trans_a.type,),
             )
             alpha_res = alpha_mul_result.res[0]
             rewriter.insert_op_before_matched_op([empty, constant, alpha_mul_result])
