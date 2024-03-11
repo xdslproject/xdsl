@@ -12,13 +12,16 @@ OP_BY_OP_TYPE: dict[str, type[IRDLOperation]] = {
     "Add": onnx.Add,
     "Sub": onnx.Sub,
 }
+"Dictionary that associates the name of the operations with the respective operation in ONNX dialect."
 
 
 class Ctx:
+    "Class to represent the Context."
     type_by_name: dict[str, Attribute]
     value_by_name: dict[str, SSAValue]
 
     def __init__(self):
+        "Constructor to initialize the Context class."
         self.type_by_name = {}
         self.value_by_name = {}
 

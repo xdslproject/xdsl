@@ -7,9 +7,11 @@ ELEM_TYPE = {
     1: f32,
     11: f64,
 }
+"Dictionary containing information about the type."
 
 
 def get_elem_type(code: int) -> Attribute:
+    "Function that takes an index as input and returns the corresponding Attribute."
     if code in ELEM_TYPE:
         return ELEM_TYPE[code]
     else:
@@ -17,15 +19,18 @@ def get_elem_type(code: int) -> Attribute:
 
 
 def get_type(type: TypeProto) -> Attribute:
+    "Function that takes the type in ONNX as input and returns the corresponding Attribute."
     tt = get_tensor_type(type.tensor_type)
     return tt
 
 
 def get_shape(shape: TensorShapeProto) -> tuple[int, ...]:
+    "Function that returns the shape of a tensor in ONNX."
     return tuple(dim.dim_value for dim in shape.dim)
 
 
 def get_tensor_type(tensor: TypeProto.Tensor) -> TensorType[Attribute]:
+    "Function that returns the type of the tensor in ONNX."
     elem_type = get_elem_type(tensor.elem_type)
     shape = get_shape(tensor.shape)
     return TensorType(elem_type, shape)

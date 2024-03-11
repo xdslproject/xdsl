@@ -20,8 +20,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
 from xdsl.interpreters.riscv import RawPtr
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue
-from xdsl.ir.core import Region
+from xdsl.ir import Attribute, MLContext, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

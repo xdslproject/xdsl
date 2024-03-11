@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.frontend.onnx.elem_type import f32, f64, get_elem_type
+from xdsl.frontend.onnx.type import f32, f64, get_elem_type
 
 
 def test_get_elem_type():
