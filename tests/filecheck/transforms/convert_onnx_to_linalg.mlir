@@ -34,7 +34,7 @@
 // CHECK-NEXT:  %3 = tensor.empty() : tensor<320x50xf32>
 // CHECK-NEXT:  %4 = linalg.transpose ins(%t6:tensor<50x320xf32>) outs(%3:tensor<320x50xf32>) permutation = [1, 0]
 // CHECK-NEXT:  %res_gemm = tensor.empty() : tensor<1x50xf32>
-// CHECK-NEXT:  %res_gemm_1 = linalg.mul ins(%t5, %4 : tensor<1x320xf32>, tensor<320x50xf32>) outs(%res_gemm : tensor<1x50xf32>) -> tensor<1x50xf32>
+// CHECK-NEXT:  %res_gemm_1 = linalg.matmul ins(%t5, %4 : tensor<1x320xf32>, tensor<320x50xf32>) outs(%res_gemm : tensor<1x50xf32>) -> tensor<1x50xf32>
 // CHECK-NEXT:  %res_gemm_2 = linalg.add ins(%res_gemm_1, %t7 : tensor<1x50xf32>, tensor<50xf32>) outs(%res_gemm : tensor<1x50xf32>) -> tensor<1x50xf32>
 
 
@@ -44,7 +44,7 @@
 
 // CHECK-NEXT:  %t8, %t9, %t10 = "test.op"() : () -> (tensor<5x3xf32>, tensor<3x2xf32>, tensor<5x2xf32>)
 // CHECK-NEXT:  %res_gemm_1 = tensor.empty() : tensor<5x2xf32>
-// CHECK-NEXT:  %res_gemm_1_1 = linalg.mul ins(%t8, %t9 : tensor<5x3xf32>, tensor<3x2xf32>) outs(%res_gemm_1 : tensor<5x2xf32>) -> tensor<5x2xf32>
+// CHECK-NEXT:  %res_gemm_1_1 = linalg.matmul ins(%t8, %t9 : tensor<5x3xf32>, tensor<3x2xf32>) outs(%res_gemm_1 : tensor<5x2xf32>) -> tensor<5x2xf32>
 // CHECK-NEXT:  %res_gemm_1_2 = linalg.add ins(%res_gemm_1_1, %t10 : tensor<5x2xf32>, tensor<5x2xf32>) outs(%res_gemm_1 : tensor<5x2xf32>) -> tensor<5x2xf32>
 
 
@@ -62,7 +62,7 @@
 // CHECK-NEXT:  %11 = arith.constant 5.000000e-01 : f32
 // CHECK-NEXT:  %12 = linalg.mul ins(%11, %t13 : f32, tensor<5x3xf32>) outs(%10 : tensor<5x3xf32>) -> tensor<5x3xf32>
 // CHECK-NEXT:  %res_gemm_2 = tensor.empty() : tensor<5x3xf32>
-// CHECK-NEXT:  %res_gemm_2_1 = linalg.mul ins(%9, %t12 : tensor<5x10xf32>, tensor<10x3xf32>) outs(%res_gemm_2 : tensor<5x3xf32>) -> tensor<5x3xf32>
+// CHECK-NEXT:  %res_gemm_2_1 = linalg.matmul ins(%9, %t12 : tensor<5x10xf32>, tensor<10x3xf32>) outs(%res_gemm_2 : tensor<5x3xf32>) -> tensor<5x3xf32>
 // CHECK-NEXT:  %res_gemm_2_2 = linalg.add ins(%res_gemm_2_1, %12 : tensor<5x3xf32>, tensor<5x3xf32>) outs(%res_gemm_2 : tensor<5x3xf32>) -> tensor<5x3xf32>
 
 

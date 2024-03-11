@@ -262,7 +262,7 @@ class GemmOpLowering(RewritePattern):
                     (),
                     gemm.res_tensor.type,
                 ),
-                mat_mul_res := linalg.MulOp(
+                mat_mul_res := linalg.MatmulOp(
                     (trans_a, trans_b),
                     (empty.tensor,),
                     res=(gemm.res_tensor.type,),
