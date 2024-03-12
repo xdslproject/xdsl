@@ -1,7 +1,14 @@
 import onnx
 import pytest
 
-from xdsl.frontend.onnx.type import f32, f64, get_elem_type, get_shape, get_tensor_type
+from xdsl.frontend.onnx.type import (
+    f32,
+    f64,
+    get_elem_type,
+    get_shape,
+    get_tensor_type,
+    get_type,
+)
 
 
 def test_get_elem_type():
@@ -17,7 +24,19 @@ def test_get_elem_type():
 
 
 def test_get_type():
-    pass
+    tensor_type = onnx.TypeProto()
+    tensor_type.tensor_type.elem_type = onnx.TensorProto.FLOAT
+    tensor_type.tensor_type.shape.dim.extend(
+        [
+            onnx.TensorShapeProto.Dimension(dim_value=3),
+            onnx.TensorShapeProto.Dimension(dim_value=4),
+            onnx.TensorShapeProto.Dimension(dim_value=5),
+        ]
+    )
+    tt = get_type(tensor_type)
+    assert tt.get_num_dims() == 3
+    assert tt.get_shape() == (3, 4, 5)
+    assert tt.get_element_type().name == "f32"
 
 
 def test_get_shape():
