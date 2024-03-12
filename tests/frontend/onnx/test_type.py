@@ -8,10 +8,10 @@ try:
 
     from xdsl.dialects.builtin import TensorType, f32, f64
     from xdsl.frontend.onnx.type import (
-        get_elem_type,
-        get_shape,
-        get_tensor_type,
-        get_type,
+        get_elem_type,  # noqa: E402
+        get_shape,  # noqa: E402
+        get_tensor_type,  # noqa: E402
+        get_type,  # noqa: E402
     )
     from xdsl.utils.hints import isa
 except ImportError as exc:
