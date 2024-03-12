@@ -17,24 +17,7 @@ def test_get_elem_type():
 
 
 def test_get_type():
-    tensor_type = onnx.TypeProto()
-    tensor_type.tensor_type.elem_type = onnx.TensorProto.FLOAT
-    tensor_type.tensor_type.shape.dim.extend(
-        [
-            onnx.TensorShapeProto.Dimension(dim_value=3),
-            onnx.TensorShapeProto.Dimension(dim_value=4),
-            onnx.TensorShapeProto.Dimension(dim_value=5),
-        ]
-    )
-
-    tt = get_tensor_type(tensor_type.tensor_type)
-    assert tt.get_element_type().name == "f32"
-    shape = tt.get_shape()
-    n_dim = len(shape)
-    assert n_dim == 3
-    assert shape[0] == 3
-    assert shape[1] == 4
-    assert shape[2] == 5
+    pass
 
 
 def test_get_shape():
@@ -54,4 +37,21 @@ def test_get_shape():
 
 
 def test_get_tensor_type():
-    pass
+    tensor_type = onnx.TypeProto()
+    tensor_type.tensor_type.elem_type = onnx.TensorProto.FLOAT
+    tensor_type.tensor_type.shape.dim.extend(
+        [
+            onnx.TensorShapeProto.Dimension(dim_value=3),
+            onnx.TensorShapeProto.Dimension(dim_value=4),
+            onnx.TensorShapeProto.Dimension(dim_value=5),
+        ]
+    )
+
+    tt = get_tensor_type(tensor_type.tensor_type)
+    assert tt.get_element_type().name == "f32"
+    shape = tt.get_shape()
+    n_dim = len(shape)
+    assert n_dim == 3
+    assert shape[0] == 3
+    assert shape[1] == 4
+    assert shape[2] == 5
