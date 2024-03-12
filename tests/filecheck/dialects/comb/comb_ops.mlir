@@ -49,7 +49,10 @@
   // CHECK-NEXT: %xor = comb.xor %lhsi32, %rhsi32 : i32
 
   %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : i64, "two_state"} : (i1, i1) -> i1
-  // CHECK-NEXT: %icmp = comb.icmp slt, %lhsi1, %rhsi1 : i1
+  // CHECK-NEXT: %icmp = comb.icmp slt %lhsi1, %rhsi1 : i1
+
+  %icmp2 = comb.icmp eq %lhsi1, %rhsi1 : i1
+  // CHECK-NEXT: %icmp2 = comb.icmp eq %lhsi1, %rhsi1 : i1
 
   %parity = comb.parity %lhsi1 : i1
   // CHECK-NEXT: %parity = comb.parity %lhsi1 : i1

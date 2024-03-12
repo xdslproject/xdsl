@@ -303,7 +303,6 @@ class ICmpOp(IRDLOperation, ABC):
     @classmethod
     def parse(cls, parser: Parser):
         arg = parser.parse_identifier()
-        parser.parse_punctuation(",")
         operand1 = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         operand2 = parser.parse_unresolved_operand()
@@ -318,7 +317,6 @@ class ICmpOp(IRDLOperation, ABC):
     def print(self, printer: Printer):
         printer.print(" ")
         printer.print_string(ICMP_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
         printer.print_operand(self.lhs)
         printer.print(", ")
         printer.print_operand(self.rhs)
