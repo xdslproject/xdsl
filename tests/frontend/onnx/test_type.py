@@ -1,12 +1,11 @@
 import onnx
 import pytest
 
-from xdsl.dialects.builtin import Float32Type
+from xdsl.dialects.builtin import Float32Type, TensorType, f32, f64
 
 try:
     from onnx import TensorShapeProto, TypeProto  # noqa: E402
 
-    from xdsl.dialects.builtin import TensorType, f32, f64
     from xdsl.frontend.onnx.type import (
         get_elem_type,  # noqa: E402
         get_shape,  # noqa: E402
