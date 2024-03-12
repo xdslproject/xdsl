@@ -188,6 +188,7 @@ class GemmOpLowering(RewritePattern):
             trans_a_res = trans_a.result[0]
             rewriter.insert_op_before_matched_op([empty, trans_a])
 
+        # if transB is set, trans_b is changed to this op
         trans_b_res = None
         if gemm.trans_b is not None and gemm.trans_b.value.data == 1:
             shape_type = tensor_b_type.element_type
