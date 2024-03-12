@@ -498,7 +498,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT]
+    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None]
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern

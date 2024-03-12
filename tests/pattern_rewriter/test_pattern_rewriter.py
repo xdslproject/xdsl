@@ -1501,6 +1501,49 @@ def test_type_conversion():
         op_modified=4,
     )
 
+    class RewriteMaybe(TypeConversionPattern):
+        @attr_type_rewrite_pattern
+        def convert_type(self, typ: IntegerType) -> IndexType | None:
+            return IndexType() if typ.width.data >= 8 else None
+
+    prog = """\
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : i6):
+  }) : () -> ()
+  %0 = "test.op"() {"nested" = memref<*xi4>} : () -> i6
+  %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
+  %2 = "test.op"() <{"prop" = memref<*xi4>}> : () -> i32
+  %3 = "test.op"(%0, %1) : (i6, f32) -> memref<*xi32>
+  %4 = "arith.addi"(%0, %0) : (i6, i6) -> i6
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : i6):
+  }) : () -> ()
+  %0 = "test.op"() {"nested" = memref<*xi4>} : () -> i6
+  %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
+  %2 = "test.op"() <{"prop" = memref<*xi4>}> : () -> index
+  %3 = "test.op"(%0, %1) : (i6, f32) -> memref<*xindex>
+  %4 = "arith.addi"(%0, %0) : (i6, i6) -> i6
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(RewriteMaybe(recursive=True), apply_recursively=True),
+        op_inserted=3,
+        op_removed=3,
+        op_replaced=3,
+        op_modified=1,
+    )
+
 
 def test_no_change():
     """Test that doing nothing successfully does not report doing something."""
