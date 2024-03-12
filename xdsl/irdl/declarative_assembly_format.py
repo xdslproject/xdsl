@@ -247,12 +247,12 @@ class FormatDirective(ABC):
     """A format directive for operation format."""
 
     @abstractmethod
-    def parse(self, parser: Parser, state: ParsingState) -> None:
-        ...
+    def parse(self, parser: Parser, state: ParsingState) -> None: ...
 
     @abstractmethod
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        ...
+    def print(
+        self, printer: Printer, state: PrintingState, op: IRDLOperation
+    ) -> None: ...
 
 
 class AnchorableDirective(FormatDirective, ABC):
@@ -433,7 +433,7 @@ class OperandVariable(VariableDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_ssa_value(op.operands[self.index])
+        printer.print_ssa_value(getattr(op, self.name))
         state.last_was_punctuation = False
         state.should_emit_space = True
 
@@ -502,7 +502,7 @@ class OperandTypeDirective(TypeDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_attribute(op.operands[self.index].type)
+        printer.print_attribute(getattr(op, self.name).type)
         state.last_was_punctuation = False
         state.should_emit_space = True
 
@@ -636,7 +636,7 @@ class ResultTypeDirective(TypeDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_attribute(op.results[self.index].type)
+        printer.print_attribute(getattr(op, self.name).type)
         state.last_was_punctuation = False
         state.should_emit_space = True
 

@@ -245,7 +245,7 @@ class LowerSsrDisable(RewritePattern):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class LowerSnitchPass(ModulePass):
     name = "lower-snitch"
 

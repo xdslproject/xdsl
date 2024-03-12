@@ -165,7 +165,7 @@ class ReshapeOpLowering(RewritePattern):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
 

@@ -6,13 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import (
-    TypeVar,
-    Union,
-    final,
-    get_args,
-    get_origin,
-)
+from typing import TypeVar, Union, final, get_args, get_origin
 
 from xdsl.builder import BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
@@ -92,11 +86,11 @@ class PatternRewriter(PatternRewriterListener):
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
-    def insert_op_before_matched_op(self, op: (Operation | Sequence[Operation])):
+    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations before the matched operation."""
         self.insert_op_before(op, self.current_operation)
 
-    def insert_op_after_matched_op(self, op: (Operation | Sequence[Operation])):
+    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations after the matched operation."""
         self.insert_op_after(op, self.current_operation)
 
@@ -217,7 +211,7 @@ class PatternRewriter(PatternRewriterListener):
         if new_results is None:
             new_results = [] if len(new_ops) == 0 else new_ops[-1].results
 
-        if len(op.results) != len(new_results):
+        if len(op.results) != len(new_results) and safe_erase:
             raise ValueError(
                 f"Expected {len(op.results)} new results, but got {len(new_results)}"
             )
