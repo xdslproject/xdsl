@@ -27,7 +27,7 @@ pdl.pattern @unboundedOperands : benefit(1) {
   // Unbounded operands
   %operands = pdl.operands
   
-  %root = pdl.operation(%operands : !pdl.range<!pdl.value>)
+  %root = pdl.operation(%operands : !pdl.range<value>)
   pdl.rewrite %root with "test_rewriter"(%root : !pdl.operation)
 }
 
@@ -39,7 +39,7 @@ pdl.pattern @boundedOperands : benefit(1) {
   %types = pdl.types : [i32, i64, i1]
   %operands = pdl.operands : %types
   
-  %root = pdl.operation(%operands : !pdl.range<!pdl.value>)
+  %root = pdl.operation(%operands : !pdl.range<value>)
   pdl.rewrite %root with "test_rewriter"(%root : !pdl.operation)
 }
 

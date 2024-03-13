@@ -19,51 +19,51 @@ def test_pass_parser():
         PipelinePassSpec(
             "mlir-opt",
             {
-                "arguments": [
+                "arguments": (
                     "--mlir-print-op-generic",
                     "--allow-unregistered-dialect",
                     "-p",
                     "builtin.module(cse)",
-                ]
+                )
             },
         ),
         PipelinePassSpec("pass-1", {}),
         PipelinePassSpec(
             "pass-2",
             {
-                "arg1": [1],
-                "arg2": ["test", "test2", 3],
-                "arg3": ["test-str,2,3"],
-                "arg-4": [-3.44e-11],
-                "no-val-arg": [],
+                "arg1": (1,),
+                "arg2": ("test", "test2", 3),
+                "arg3": ("test-str,2,3",),
+                "arg-4": (-3.44e-11,),
+                "no-val-arg": (),
             },
         ),
         PipelinePassSpec(
             "mlir-opt",
             {
-                "arguments": [
+                "arguments": (
                     "--mlir-print-op-generic",
                     "--allow-unregistered-dialect",
                     "-p",
                     "builtin.module(cse)",
-                ]
+                )
             },
         ),
         PipelinePassSpec(
             "pass-3",
             {
-                "thing": ["2d-grid"],
+                "thing": ("2d-grid",),
             },
         ),
         PipelinePassSpec(
             "mlir-opt",
             {
-                "arguments": [
+                "arguments": (
                     "--mlir-print-op-generic",
                     "--allow-unregistered-dialect",
                     "-p",
                     "builtin.module(cse)",
-                ]
+                )
             },
         ),
     ]
@@ -76,17 +76,21 @@ def test_pass_parser():
         PipelinePassSpec(
             "pass-2",
             {
-                "arg1": [1],
-                "arg2": ["test", "test2", 3],
-                "arg3": ["test-str,2,3"],
-                "arg-4": [-3.44e-11],
-                "no-val-arg": [],
+                "arg1": (1,),
+                "arg2": (
+                    "test",
+                    "test2",
+                    3,
+                ),
+                "arg3": ("test-str,2,3",),
+                "arg-4": (-3.44e-11,),
+                "no-val-arg": (),
             },
         ),
         PipelinePassSpec(
             "pass-3",
             {
-                "thing": ["2d-grid"],
+                "thing": ("2d-grid",),
             },
         ),
     ],

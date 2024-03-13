@@ -90,7 +90,7 @@ class StreamifyGenericOpPattern(RewritePattern):
         rewriter.erase_matched_op()
 
 
-@dataclass
+@dataclass(frozen=True)
 class MemrefStreamifyPass(ModulePass):
     """
     Converts a memref generic on memrefs to a memref generic on streams, by moving it into

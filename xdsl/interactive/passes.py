@@ -42,10 +42,10 @@ def apply_passes_to_module(
     Function that takes a ModuleOp, an MLContext and a pass_pipeline (consisting of a type[ModulePass] and PipelinePassSpec), applies the pass(es) to the ModuleOp and returns the new ModuleOp.
     """
     pipeline = PipelinePass(
-        passes=[
+        passes=tuple(
             module_pass.from_pass_spec(pipeline_pass_spec)
             for module_pass, pipeline_pass_spec in pass_pipeline
-        ]
+        )
     )
     pipeline.apply(ctx, module)
     return module

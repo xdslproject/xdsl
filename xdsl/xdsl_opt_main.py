@@ -238,7 +238,7 @@ class xDSLOptMain(CommandLineTool):
                 print("\n\n\n")
 
         self.pipeline = PipelinePass(
-            list(
+            tuple(
                 pass_type.from_pass_spec(spec)
                 for pass_type, spec in PipelinePass.build_pipeline_tuples(
                     self.available_passes, parse_pipeline(self.args.passes)

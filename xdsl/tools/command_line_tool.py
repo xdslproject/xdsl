@@ -14,20 +14,30 @@ from xdsl.utils.exceptions import ParseError
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
-    def get_aie():
-        from xdsl.dialects.experimental.aie import AIE
-
-        return AIE
-
     def get_affine():
         from xdsl.dialects.affine import Affine
 
         return Affine
 
+    def get_aie():
+        from xdsl.dialects.experimental.aie import AIE
+
+        return AIE
+
+    def get_air():
+        from xdsl.dialects.experimental.air import AIR
+
+        return AIR
+
     def get_arith():
         from xdsl.dialects.arith import Arith
 
         return Arith
+
+    def get_bufferization():
+        from xdsl.dialects.bufferization import Bufferization
+
+        return Bufferization
 
     def get_builtin():
         from xdsl.dialects.builtin import Builtin
@@ -235,9 +245,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return Vector
 
     return {
-        "aie": get_aie,
         "affine": get_affine,
+        "aie": get_aie,
+        "air": get_air,
         "arith": get_arith,
+        "bufferization": get_bufferization,
         "builtin": get_builtin,
         "cf": get_cf,
         "cmath": get_cmath,

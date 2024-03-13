@@ -30,6 +30,7 @@ from xdsl.dialects.gpu import (
     SubgroupSizeOp,
     TerminatorOp,
     ThreadIdOp,
+    WaitOp,
     YieldOp,
 )
 from xdsl.ir import Block, Operation, Region, SSAValue
@@ -398,6 +399,21 @@ def test_terminator():
     terminator = TerminatorOp()
 
     assert isinstance(terminator, TerminatorOp)
+
+
+def test_wait():
+    waitOp = WaitOp()
+
+    assert isinstance(waitOp, WaitOp)
+    assert waitOp.asyncToken is not None
+    assert isinstance(waitOp.asyncToken.type, AsyncTokenType)
+
+    waitOp1 = WaitOp()
+
+    waitOpWithDep = WaitOp([waitOp, waitOp1])
+    assert waitOpWithDep.asyncToken is not None
+    assert waitOpWithDep.asyncDependencies[0] is waitOp.asyncToken
+    assert waitOpWithDep.asyncDependencies[1] is waitOp1.asyncToken
 
 
 def test_yield():

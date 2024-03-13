@@ -22,7 +22,7 @@ from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 
 
-@dataclass
+@dataclass(eq=False)
 class ForwardDeclaredValue(SSAValue):
     """
     An SSA value that is used before it is defined.
@@ -32,12 +32,6 @@ class ForwardDeclaredValue(SSAValue):
     @property
     def owner(self) -> Operation | Block:
         assert False, "Forward declared values do not have an owner"
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
 
 
 @dataclass
@@ -439,20 +433,17 @@ class Parser(AttrParser):
     @overload
     def parse_optional_argument(
         self, expect_type: Literal[True] = True
-    ) -> Argument | None:
-        ...
+    ) -> Argument | None: ...
 
     @overload
     def parse_optional_argument(
         self, expect_type: Literal[False]
-    ) -> UnresolvedArgument | None:
-        ...
+    ) -> UnresolvedArgument | None: ...
 
     @overload
     def parse_optional_argument(
         self, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument | None:
-        ...
+    ) -> UnresolvedArgument | Argument | None: ...
 
     def parse_optional_argument(
         self, expect_type: bool = True
@@ -477,18 +468,15 @@ class Parser(AttrParser):
             return self.UnresolvedArgument(name_token.span)
 
     @overload
-    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument:
-        ...
+    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument: ...
 
     @overload
-    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument:
-        ...
+    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument: ...
 
     @overload
     def parse_argument(
         self, *, expect_type: bool = True
-    ) -> UnresolvedArgument | Argument:
-        ...
+    ) -> UnresolvedArgument | Argument: ...
 
     def parse_argument(
         self, *, expect_type: bool = True

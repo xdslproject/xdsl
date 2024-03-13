@@ -54,7 +54,7 @@ def offseted_block_clone(apply: ApplyOp, unroll_offset: Sequence[int]):
 
 @dataclass
 class StencilUnrollPattern(RewritePattern):
-    unroll_factor: list[int]
+    unroll_factor: tuple[int, ...]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -79,7 +79,7 @@ class StencilUnrollPattern(RewritePattern):
         unroll = self.unroll_factor
         if len(unroll) < dim:
             # If unroll factors list is shorter than the dim, fill with ones from the front
-            unroll = [1] * (dim - len(unroll)) + unroll
+            unroll = (1,) * (dim - len(unroll)) + unroll
         elif len(unroll) > dim:
             # If unroll factors list is longer than the dim, pop from the front to keep
             # similar semantics
@@ -114,11 +114,11 @@ class StencilUnrollPattern(RewritePattern):
         rewriter.replace_matched_op(new_apply)
 
 
-@dataclass
+@dataclass(frozen=True)
 class StencilUnrollPass(ModulePass):
     name = "stencil-unroll"
 
-    unroll_factor: list[int]
+    unroll_factor: tuple[int, ...]
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         walker = PatternRewriteWalker(
