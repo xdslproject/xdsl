@@ -43,6 +43,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StridedLayoutAttr,
     StringAttr,
+    SymbolNameAttr,
     SymbolRefAttr,
     TensorType,
     UnitAttr,
