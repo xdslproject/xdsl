@@ -8,6 +8,7 @@ from xdsl.interpreters import (
     linalg,
     memref,
     memref_stream,
+    onnx,
     printf,
     riscv,
     riscv_debug,
@@ -40,6 +41,7 @@ def register_implementations(
     interpreter.register_implementations(linalg.LinalgFunctions())
     interpreter.register_implementations(memref.MemrefFunctions())
     interpreter.register_implementations(memref_stream.MemrefStreamFunctions())
+    interpreter.register_implementations(onnx.OnnxFunctions())
     if include_wgpu:
         from xdsl.interpreters.experimental import wgpu
 
