@@ -189,6 +189,8 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
     rhs: Operand = operand_def(T)
     result: OpResult = result_def(T)
 
+    traits = frozenset((Pure(),))
+
     def __init__(
         self,
         operand1: Operation | SSAValue,
