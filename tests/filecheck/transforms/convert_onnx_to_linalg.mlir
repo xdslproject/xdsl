@@ -55,15 +55,14 @@
 // CHECK-NEXT:  %t11, %t12, %t13 = "test.op"() : () ->  (tensor<10x5xf32>, tensor<10x3xf32>, tensor<5x3xf32>)
 // CHECK-NEXT:  %5 = tensor.empty() : tensor<5x10xf32>
 // CHECK-NEXT:  %6 = linalg.transpose ins(%t11:tensor<10x5xf32>) outs(%5:tensor<5x10xf32>) permutation = [1, 0]
-// CHECK-NEXT:  %7 = tensor.empty() : tensor<5x10xf32>
-// CHECK-NEXT:  %8 = arith.constant 5.000000e-01 : f32
-// CHECK-NEXT:  %9 = linalg.mul ins(%8, %6 : f32, tensor<5x10xf32>) outs(%7 : tensor<5x10xf32>) -> tensor<5x10xf32>
-// CHECK-NEXT:  %10 = tensor.empty() : tensor<5x3xf32>
-// CHECK-NEXT:  %11 = arith.constant 5.000000e-01 : f32
-// CHECK-NEXT:  %12 = linalg.mul ins(%11, %t13 : f32, tensor<5x3xf32>) outs(%10 : tensor<5x3xf32>) -> tensor<5x3xf32>
+// CHECK-NEXT:  %7 = arith.constant 5.000000e-01 : f32
+// CHECK-NEXT:  %8 = linalg.mul ins(%7, %6 : f32, tensor<5x10xf32>) outs(%6 : tensor<5x10xf32>) -> tensor<5x10xf32>
+// CHECK-NEXT:  %9 = arith.constant 5.000000e-01 : f32
+// CHECK-NEXT:  %10 = linalg.mul ins(%9, %t13 : f32, tensor<5x3xf32>) outs(%t13 : tensor<5x3xf32>) -> tensor<5x3xf32>
 // CHECK-NEXT:  %res_gemm_2 = tensor.empty() : tensor<5x3xf32>
-// CHECK-NEXT:  %res_gemm_2_1 = linalg.matmul ins(%9, %t12 : tensor<5x10xf32>, tensor<10x3xf32>) outs(%res_gemm_2 : tensor<5x3xf32>) -> tensor<5x3xf32>
-// CHECK-NEXT:  %res_gemm_2_2 = linalg.add ins(%res_gemm_2_1, %12 : tensor<5x3xf32>, tensor<5x3xf32>) outs(%res_gemm_2 : tensor<5x3xf32>) -> tensor<5x3xf32>
+// CHECK-NEXT:  %res_gemm_2_1 = linalg.matmul ins(%8, %t12 : tensor<5x10xf32>, tensor<10x3xf32>) outs(%res_gemm_2 : tensor<5x3xf32>) -> tensor<5x3xf32>
+// CHECK-NEXT:  %res_gemm_2_2 = linalg.add ins(%res_gemm_2_1, %10 : tensor<5x3xf32>, tensor<5x3xf32>) outs(%res_gemm_2 : tensor<5x3xf32>) -> tensor<5x3xf32>
+
 
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>

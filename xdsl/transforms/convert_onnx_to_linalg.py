@@ -218,15 +218,14 @@ class GemmOpLowering(RewritePattern):
         # alpha * A
         alpha_res = None
         if gemm.alpha is not None and gemm.alpha.value.data != 1:
-            empty = tensor.EmptyOp((), trans_a.type)
             constant = arith.Constant(FloatAttr(gemm.alpha.value.data, gemm.alpha.type))
             alpha_mul_result = linalg.MulOp(
                 (constant.result, trans_a),
-                (empty.tensor,),
+                (trans_a,),
                 (trans_a.type,),
             )
             alpha_res = alpha_mul_result.res[0]
-            rewriter.insert_op_before_matched_op([empty, constant, alpha_mul_result])
+            rewriter.insert_op_before_matched_op([constant, alpha_mul_result])
 
         # if alpha * a does not occur remain on previous trans_a else switch
         if alpha_res is not None:
@@ -234,21 +233,19 @@ class GemmOpLowering(RewritePattern):
 
         # beta * C
         beta_mul_result = gemm.tensor_c
-
         beta_res = None
         if gemm.beta is not None and gemm.beta.value.data != 1:
-            empty = tensor.EmptyOp((), gemm.tensor_c.type)
             constant = arith.Constant(FloatAttr(gemm.beta.value.data, gemm.beta.type))
             beta_mul_result = linalg.MulOp(
                 (
                     constant.result,
                     beta_mul_result,
                 ),
-                (empty.tensor,),
+                (gemm.tensor_c,),
                 (gemm.tensor_c.type,),
             )
             beta_res = beta_mul_result.res[0]
-            rewriter.insert_op_before_matched_op([empty, constant, beta_mul_result])
+            rewriter.insert_op_before_matched_op([constant, beta_mul_result])
 
         # this is beta * c result else its just c
         if beta_res is not None:
@@ -263,11 +260,13 @@ class GemmOpLowering(RewritePattern):
                     (),
                     gemm.res_tensor.type,
                 ),
+                # A * B
                 mat_mul_res := linalg.MatmulOp(
                     (trans_a, trans_b),
                     (empty.tensor,),
                     res=(gemm.res_tensor.type,),
                 ),
+                # (A * B) + beta * C
                 linalg.AddOp(
                     (mat_mul_res.res[0], beta_mul_result),
                     (empty.tensor,),
