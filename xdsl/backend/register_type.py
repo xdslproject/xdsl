@@ -22,7 +22,7 @@ from xdsl.printer import Printer
 
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
-    A RISC-V register type.
+    An abstract register type for target ISA-specific dialects.
     """
 
     index: ParameterDef[IntAttr | NoneAttr]
