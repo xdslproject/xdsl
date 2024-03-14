@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC
 from collections.abc import Sequence
 
 from xdsl.backend.register_type import RegisterType
@@ -77,23 +76,20 @@ class GeneralRegisterType(X86RegisterType):
         return X86_INDEX_BY_NAME
 
 
-class Registers(ABC):
-    """Namespace for named register constants."""
-
-    UNALLOCATED_GENERAL = GeneralRegisterType("")
-    RAX = GeneralRegisterType("rax")
-    RCX = GeneralRegisterType("rcx")
-    RDX = GeneralRegisterType("rdx")
-    RBX = GeneralRegisterType("rbx")
-    RSP = GeneralRegisterType("rsp")
-    RBP = GeneralRegisterType("rbp")
-    RSI = GeneralRegisterType("rsi")
-    RDI = GeneralRegisterType("rdi")
-    R8 = GeneralRegisterType("r8")
-    R9 = GeneralRegisterType("r9")
-    R10 = GeneralRegisterType("r10")
-    R11 = GeneralRegisterType("r11")
-    R12 = GeneralRegisterType("r12")
-    R13 = GeneralRegisterType("r13")
-    R14 = GeneralRegisterType("r14")
-    R15 = GeneralRegisterType("r15")
+UNALLOCATED_GENERAL = GeneralRegisterType("")
+RAX = GeneralRegisterType("rax")
+RCX = GeneralRegisterType("rcx")
+RDX = GeneralRegisterType("rdx")
+RBX = GeneralRegisterType("rbx")
+RSP = GeneralRegisterType("rsp")
+RBP = GeneralRegisterType("rbp")
+RSI = GeneralRegisterType("rsi")
+RDI = GeneralRegisterType("rdi")
+R8 = GeneralRegisterType("r8")
+R9 = GeneralRegisterType("r9")
+R10 = GeneralRegisterType("r10")
+R11 = GeneralRegisterType("r11")
+R12 = GeneralRegisterType("r12")
+R13 = GeneralRegisterType("r13")
+R14 = GeneralRegisterType("r14")
+R15 = GeneralRegisterType("r15")
