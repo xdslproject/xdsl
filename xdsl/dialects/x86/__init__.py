@@ -1,7 +1,6 @@
 from xdsl.ir import Dialect
 
-from .ops import *
-from .register import *
+from .register import *  # noqa: F405
 
 X86 = Dialect(
     "x86",
