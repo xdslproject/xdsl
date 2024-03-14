@@ -1,11 +1,11 @@
 from xdsl.ir import Dialect
 
-from .register import *  # noqa: F405
+from .register import *
 
 X86 = Dialect(
     "x86",
     [],
     [
-        GeneralRegisterType,
+        GeneralRegisterType,  # noqa: F405
     ],
 )
