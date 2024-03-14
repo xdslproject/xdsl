@@ -65,7 +65,7 @@ class GeneralRegisterType(X86RegisterType):
 
     @classmethod
     def unallocated(cls) -> GeneralRegisterType:
-        return Registers.UNALLOCATED_GENERAL
+        return UNALLOCATED_GENERAL
 
     @classmethod
     def instruction_set_name(cls) -> str:
