@@ -474,7 +474,7 @@ async def test_passes():
 
 @pytest.mark.asyncio()
 async def test_argument_pass_screen():
-    """Test rewrite application has the desired result."""
+    """Test that clicking on a pass that requires passes opens a screen to specify them."""
     async with InputApp().run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
