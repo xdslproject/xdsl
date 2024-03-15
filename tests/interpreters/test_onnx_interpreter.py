@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from xdsl.dialects import onnx
@@ -7,10 +8,9 @@ from xdsl.interpreters.onnx import OnnxFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.test_value import TestSSAValue
 
-try:
-    import numpy as np
-except (ImportError, ModuleNotFoundError):
-    np = pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
+np = pytest.importorskip(  # noqa: F811
+    "numpy", reason="numpy is an optional dependency in xDSL"
+)
 
 interpreter = Interpreter(ModuleOp([]))
 
