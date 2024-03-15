@@ -10,8 +10,8 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.shaped_array import ShapedArray
 
-spec = importlib.util.find_spec("numpy")
-numpy_found = spec is not None
+where_is_numpy = importlib.util.find_spec("numpy")
+numpy_found = where_is_numpy is not None
 
 if numpy_found:
     import numpy as np  # noqa: E402
