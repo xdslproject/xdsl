@@ -1,7 +1,5 @@
 from typing import Any, cast
 
-import numpy as np
-
 from xdsl.dialects import onnx
 from xdsl.interpreter import (
     Interpreter,
@@ -10,6 +8,11 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
+
+try:
+    import numpy as np
+except (ImportError, ModuleNotFoundError) as exc:
+    print(exc)
 
 
 @register_impls
@@ -24,7 +27,7 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = np.array(lhs.data) + np.array(rhs.data)  # pyright: ignore
+        result = np.array(lhs.data) + np.array(rhs.data)
         return (ShapedArray(result, lhs.shape),)
 
     @impl(onnx.Sub)
@@ -37,7 +40,7 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = np.array(lhs.data) - np.array(rhs.data)  # pyright: ignore
+        result = np.array(lhs.data) - np.array(rhs.data)
         return (ShapedArray(result, lhs.shape),)
 
     @impl(onnx.Mul)
@@ -50,7 +53,7 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = np.array(lhs.data) * np.array(rhs.data)  # pyright: ignore
+        result = np.array(lhs.data) * np.array(rhs.data)
         return (ShapedArray(result, lhs.shape),)
 
     @impl(onnx.Div)
@@ -63,7 +66,7 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = np.array(lhs.data) / np.array(rhs.data)  # pyright: ignore
+        result = np.array(lhs.data) / np.array(rhs.data)
         return (ShapedArray(result, lhs.shape),)
 
     @impl(onnx.Relu)
@@ -73,8 +76,6 @@ class OnnxFunctions(InterpreterFunctions):
         operand = args[0]
         assert isinstance(operand, ShapedArray)
         operand = cast(ShapedArray[int], operand)
-        operand_data = np.array(operand.data)  # pyright: ignore
-        result = np.maximum(  # pyright: ignore
-            np.zeros_like(operand.data), operand_data  # pyright: ignore
-        )
+        operand_data = np.array(operand.data)
+        result = np.maximum(np.zeros_like(operand.data), operand_data)
         return (ShapedArray(result, operand.shape),)
