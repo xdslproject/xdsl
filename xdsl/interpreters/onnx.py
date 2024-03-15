@@ -77,7 +77,7 @@ class OnnxFunctions(InterpreterFunctions):
         assert isinstance(operand, ShapedArray)
         operand = cast(ShapedArray[int], operand)
         operand_data = np.array(operand.data)  # pyright: ignore
-        result = np.maximum(
-            np.zeros_like(operand.data), operand_data
-        )  # pyright: ignore
+        result = np.maximum(  # pyright: ignore
+            np.zeros_like(operand.data), operand_data  # pyright: ignore
+        )
         return (ShapedArray(result, operand.shape),)

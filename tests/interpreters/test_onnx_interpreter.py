@@ -9,7 +9,6 @@ from xdsl.utils.test_value import TestSSAValue
 try:
     import numpy as np
 except (ImportError, ModuleNotFoundError):
-
     np = None
     pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
 
