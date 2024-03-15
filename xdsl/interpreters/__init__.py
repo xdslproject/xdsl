@@ -25,6 +25,7 @@ from xdsl.ir import MLContext
 def register_implementations(
     interpreter: Interpreter,
     ctx: MLContext,
+    *,
     include_wgpu: bool = True,
     include_onnx: bool = True,
 ):

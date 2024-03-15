@@ -1,5 +1,7 @@
 from typing import Any, cast
 
+import numpy as np
+
 from xdsl.dialects import onnx
 from xdsl.interpreter import (
     Interpreter,
@@ -8,11 +10,6 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
-
-try:
-    import numpy as np
-except (ImportError, ModuleNotFoundError) as exc:
-    print(exc)
 
 
 @register_impls
