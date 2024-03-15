@@ -11,12 +11,12 @@ from xdsl.ir import MLContext
 from xdsl.parser import Parser
 
 pytest.importorskip("wgpu", reason="wgpu is an optional dependency")
-pytest.skip("skip test", allow_module_level=True)
 
 from xdsl.interpreters.experimental.wgpu import WGPUFunctions  # noqa: E402
 
 
 def test_init():
+    pytest.skip("skip test", allow_module_level=True)
     mlir_source = """
 builtin.module attributes {gpu.container_module} {
   "gpu.module"() ({
