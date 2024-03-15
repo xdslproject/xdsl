@@ -16,11 +16,12 @@ found_numpy = spec is not None
 
 if found_numpy:
     import numpy as np  # noqa: I001, E402
-    from xdsl.interpreters.onnx import OnnxFunctions
 else:
     np = None
 
 if np is not None:
+    from xdsl.interpreters.onnx import OnnxFunctions  # noqa: E402 # pyright: ignore
+
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
 
