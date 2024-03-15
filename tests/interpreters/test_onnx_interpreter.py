@@ -11,6 +11,7 @@ try:
 except (ImportError, ModuleNotFoundError):
     np = None
     pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
+    pytest.importorskip("wgpu", reason="wgpu is an optional dependency")
 
 if np is not None:
     interpreter = Interpreter(ModuleOp([]))
