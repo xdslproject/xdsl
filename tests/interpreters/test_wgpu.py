@@ -11,6 +11,7 @@ from xdsl.ir import MLContext
 from xdsl.parser import Parser
 
 pytest.importorskip("wgpu", reason="wgpu is an optional dependency")
+pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
 
 from xdsl.interpreters.experimental.wgpu import WGPUFunctions  # noqa: E402
 
