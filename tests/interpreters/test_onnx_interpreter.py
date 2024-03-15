@@ -10,10 +10,7 @@ from xdsl.utils.test_value import TestSSAValue
 try:
     import numpy as np
 except (ImportError, ModuleNotFoundError):
-    np = pytest.importorskip(  # noqa: F811
-        "numpy", reason="numpy is an optional dependency in xDSL"
-    )
-pytest.importorskip("wgpu", reason="wgpu is an optional dependency")
+    np = pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
 
 interpreter = Interpreter(ModuleOp([]))
 
