@@ -1,4 +1,3 @@
-import os
 from io import StringIO
 
 import pytest
@@ -13,9 +12,6 @@ from xdsl.ir import MLContext
 from xdsl.parser import Parser
 
 pytest.importorskip("wgpu", reason="wgpu is an optional dependency")
-
-if "XDG_RUNTIME_DIR" not in os.environ:
-    pytest.skip("XDG_RUNTIME_DIR not set in the environment.", allow_module_level=True)
 
 
 def test_init():
