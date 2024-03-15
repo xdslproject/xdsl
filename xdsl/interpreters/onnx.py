@@ -1,6 +1,6 @@
 from typing import Any, cast
 
-import numpy as np
+import numpy as np  # pyright: ignore
 
 from xdsl.dialects import onnx
 from xdsl.interpreter import (
@@ -14,6 +14,7 @@ from xdsl.interpreters.shaped_array import ShapedArray
 
 @register_impls
 class OnnxFunctions(InterpreterFunctions):
+
     @impl(onnx.Add)
     def run_add(
         self, interpreter: Interpreter, op: onnx.Add, args: tuple[Any, ...]
