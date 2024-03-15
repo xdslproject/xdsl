@@ -41,6 +41,11 @@ def register_implementations(
     interpreter.register_implementations(linalg.LinalgFunctions())
     interpreter.register_implementations(memref.MemrefFunctions())
     interpreter.register_implementations(memref_stream.MemrefStreamFunctions())
+    if include_onnx:
+        from xdsl.interpreters import onnx
+
+        interpreter.register_implementations(onnx.OnnxFunctions())
+
     if include_wgpu:
         from xdsl.interpreters.experimental import wgpu
 
@@ -50,8 +55,3 @@ def register_implementations(
     interpreter.register_implementations(printf.PrintfFunctions())
     interpreter.register_implementations(scf.ScfFunctions())
     interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
-
-    if include_onnx:
-        from xdsl.interpreters import onnx
-
-        interpreter.register_implementations(onnx.OnnxFunctions())
