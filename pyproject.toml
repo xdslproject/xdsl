@@ -60,7 +60,6 @@ typeCheckingMode = "strict"
     "tests/filecheck/frontend/dialects/scf.py",
     "tests/filecheck/frontend/programs/invalid.py",
     "xdsl/_version.py",
-
 ]
 
 [tool.isort]

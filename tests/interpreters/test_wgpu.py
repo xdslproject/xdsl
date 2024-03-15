@@ -1,5 +1,7 @@
 from io import StringIO
 
+import pytest
+
 from xdsl.dialects import arith, builtin, func, gpu, memref, printf
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
@@ -8,6 +10,8 @@ from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
+
+pytest.importorskip("wgpu", reason="wgpu is an optional dependency")
 
 
 def test_init():
