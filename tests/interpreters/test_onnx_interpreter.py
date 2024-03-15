@@ -20,7 +20,7 @@ else:
     np = None
 
 if np is not None:
-    from xdsl.interpreters.onnx import OnnxFunctions  # noqa: E402 # pyright: ignore
+    from xdsl.interpreters.onnx import OnnxFunctions  # noqa: E402
 
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(OnnxFunctions())
