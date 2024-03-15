@@ -27,6 +27,7 @@ def register_implementations(
     interpreter: Interpreter,
     ctx: MLContext,
     include_wgpu: bool = True,
+    include_onnx: bool = True,
 ):
     interpreter.register_implementations(func.FuncFunctions())
     interpreter.register_implementations(cf.CfFunctions())
@@ -41,7 +42,8 @@ def register_implementations(
     interpreter.register_implementations(linalg.LinalgFunctions())
     interpreter.register_implementations(memref.MemrefFunctions())
     interpreter.register_implementations(memref_stream.MemrefStreamFunctions())
-    interpreter.register_implementations(onnx.OnnxFunctions())
+    if include_onnx:
+        interpreter.register_implementations(onnx.OnnxFunctions())
     if include_wgpu:
         from xdsl.interpreters.experimental import wgpu
 

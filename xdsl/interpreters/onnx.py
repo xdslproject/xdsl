@@ -1,32 +1,83 @@
+from typing import Any, cast
+
 from xdsl.dialects import onnx
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
-    PythonValues,
-    ReturnedValues,
     impl,
     register_impls,
 )
+from xdsl.interpreters.shaped_array import ShapedArray
+
+try:
+    import numpy as np  # pyright: ignore
+except (ImportError, ModuleNotFoundError) as exc:
+    print(exc)
 
 
 @register_impls
 class OnnxFunctions(InterpreterFunctions):
     @impl(onnx.Add)
-    def run_add(self, interpreter: Interpreter, op: onnx.Add, args: PythonValues):
-        return ReturnedValues(args), ()
+    def run_add(
+        self, interpreter: Interpreter, op: onnx.Add, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        lhs, rhs = args[0], args[1]
+        assert isinstance(lhs, ShapedArray)
+        assert isinstance(rhs, ShapedArray)
+        lhs = cast(ShapedArray[int], lhs)
+        rhs = cast(ShapedArray[int], rhs)
+        assert lhs.shape == rhs.shape
+        result = np.array(lhs.data) + np.array(rhs.data)  # pyright: ignore
+        return (ShapedArray(result, lhs.shape),)
 
     @impl(onnx.Sub)
-    def run_sub(self, interpreter: Interpreter, op: onnx.Sub, args: PythonValues):
-        return ReturnedValues(args), ()
+    def run_sub(
+        self, interpreter: Interpreter, op: onnx.Sub, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        lhs, rhs = args[0], args[1]
+        assert isinstance(lhs, ShapedArray)
+        assert isinstance(rhs, ShapedArray)
+        lhs = cast(ShapedArray[int], lhs)
+        rhs = cast(ShapedArray[int], rhs)
+        assert lhs.shape == rhs.shape
+        result = np.array(lhs.data) - np.array(rhs.data)  # pyright: ignore
+        return (ShapedArray(result, lhs.shape),)
 
     @impl(onnx.Mul)
-    def run_mul(self, interpreter: Interpreter, op: onnx.Mul, args: PythonValues):
-        return ReturnedValues(args), ()
+    def run_mul(
+        self, interpreter: Interpreter, op: onnx.Mul, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        lhs, rhs = args[0], args[1]
+        assert isinstance(lhs, ShapedArray)
+        assert isinstance(rhs, ShapedArray)
+        lhs = cast(ShapedArray[int], lhs)
+        rhs = cast(ShapedArray[int], rhs)
+        assert lhs.shape == rhs.shape
+        result = np.array(lhs.data) * np.array(rhs.data)  # pyright: ignore
+        return (ShapedArray(result, lhs.shape),)
 
     @impl(onnx.Div)
-    def run_div(self, interpreter: Interpreter, op: onnx.Div, args: PythonValues):
-        return ReturnedValues(args), ()
+    def run_div(
+        self, interpreter: Interpreter, op: onnx.Div, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        lhs, rhs = args[0], args[1]
+        assert isinstance(lhs, ShapedArray)
+        assert isinstance(rhs, ShapedArray)
+        lhs = cast(ShapedArray[int], lhs)
+        rhs = cast(ShapedArray[int], rhs)
+        assert lhs.shape == rhs.shape
+        result = np.array(lhs.data) / np.array(rhs.data)  # pyright: ignore
+        return (ShapedArray(result, lhs.shape),)
 
     @impl(onnx.Relu)
-    def run_relu(self, interpreter: Interpreter, op: onnx.Relu, args: PythonValues):
-        return ReturnedValues(args), ()
+    def run_relu(
+        self, interpreter: Interpreter, op: onnx.Relu, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        operand = args[0]
+        assert isinstance(operand, ShapedArray)
+        operand = cast(ShapedArray[int], operand)
+        operand_data = np.array(operand.data)  # pyright: ignore
+        result = np.maximum(
+            np.zeros_like(operand.data), operand_data
+        )  # pyright: ignore
+        return (ShapedArray(result, operand.shape),)
