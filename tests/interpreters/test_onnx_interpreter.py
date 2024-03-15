@@ -1,19 +1,22 @@
-import numpy as np
 import pytest
 
 from xdsl.dialects import onnx
 from xdsl.dialects.builtin import ModuleOp, TensorType, f32
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.onnx import OnnxFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.test_value import TestSSAValue
 
-pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
-
-interpreter = Interpreter(ModuleOp([]))
-interpreter.register_implementations(OnnxFunctions())
+try:
+    import numpy as np
+except (ImportError, ModuleNotFoundError):
+    np = None
+    pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
 
 if np is not None:
+    interpreter = Interpreter(ModuleOp([]))
+    from xdsl.interpreters.onnx import OnnxFunctions
+
+    interpreter.register_implementations(OnnxFunctions())
 
     def test_onnx_add():
         op = onnx.Add(
