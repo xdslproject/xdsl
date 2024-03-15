@@ -351,9 +351,19 @@ class Muli(SignlessIntegerBinaryOp):
     name = "arith.muli"
 
 
+class SubiHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import SubSquaresPattern
+
+        return (SubSquaresPattern(),)
+
+
 @irdl_op_definition
 class Subi(SignlessIntegerBinaryOp):
     name = "arith.subi"
+
+    traits = frozenset((SubiHasCanonicalizationPatternsTrait(),))
 
 
 @irdl_op_definition

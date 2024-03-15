@@ -13,12 +13,34 @@ def __():
 @app.cell
 def __(mo):
     input = mo.ui.code_editor(value="""\
-    func.func @hello(%n : i32) -> i32 {
-        %two = arith.constant 0 : i32
-        %res = arith.addi %two, %n : i32
-        func.return %res : i32
+    func.func @hello() -> i32 {
+        %c0 = arith.constant 0 : i32
+        %c1 = arith.constant 1 : i32
+        %c8 = arith.constant 8 : i32
+        %c64 = arith.constant 64 : i32
+
+        scf.for %16 = %c0 to %c64 step %c8 {
+            scf.for %17 = %c0 to %c8 step %c1 {
+            %18 = arith.constant 8 : i32
+            %19 = arith.addi %16, %17 : i32
+            %20 = builtin.unrealized_conversion_cast %19 : i32 to !riscv.reg<>
+            "test.op"(%20) : (!riscv.reg<>) -> ()
+            }
+        }
     }
     """)
+    # func.func @hello(%a : i32, %b : i32) -> i32 {
+    #     %a_sq = arith.muli %a, %a : i32
+    #     %b_sq = arith.muli %b, %b : i32
+    #     %res = arith.subi %a_sq, %b_sq : i32
+    #     func.return %res : i32
+    # }
+    # func.func @hello(%n : i32) -> i32 {
+    #     %two = arith.constant 0 : i32
+    #     %res = arith.addi %two, %n : i32
+
+    #     func.return %res : i32
+    # }
     input
     return input,
 
@@ -55,8 +77,99 @@ def __(input):
 
 
 @app.cell
+def __(ModuleOp, input_module):
+    from xdsl.interactive.passes import iter_condensed_passes
+    from xdsl.utils.hashable_module import HashableModule
+
+    import networkx as nx
+    import random
+
+    from typing import Callable
+
+    from xdsl.dialects.builtin import UnrealizedConversionCastOp
+    from xdsl.dialects.func import FuncOp
+    from xdsl.dialects.scf import For
+
+    G = nx.MultiDiGraph()
+
+    root = HashableModule(input_module)
+    queue = [root]
+    visited = set()
+
+    filters: dict[str, Callable[[ModuleOp], bool]] = {}
+
+    def has_no_casts(module: ModuleOp):
+        return not any(isinstance(op, UnrealizedConversionCastOp) for op in module.walk())
+
+    filters["riscv-allocate-registers"] = has_no_casts
+    filters["canonicalize"] = has_no_casts
+    filters["convert-riscv-scf-to-riscv-cf"] = has_no_casts
+
+    def can_lower_arith(module: ModuleOp):
+        """
+        Only lower arith after lowering func and scf, since they commute.
+        """
+        return not any(isinstance(op, FuncOp) or isinstance(op, For) for op in module.walk())
+
+    filters["convert-arith-to-riscv"] = can_lower_arith
+
+    def can_lower_scf(module: ModuleOp):
+        """
+        Only lower arith after lowering func, since they commute.
+        """
+        return not any(isinstance(op, FuncOp) for op in module.walk())
+
+    filters["convert-scf-to-riscv-scf"] = can_lower_scf
+
+    while queue and len(visited) < 5000:
+        source = queue.pop()
+        if source in visited:
+            continue
+        visited.add(source)
+        for available_pass, t in iter_condensed_passes(source.module):
+            if available_pass.display_name in filters:
+                if not filters[available_pass.display_name](source.module):
+                    continue
+            target = HashableModule(t)
+            # I'm not sure we want to exclude duplicate edges here
+            # if G.has_edge(source, target):
+            #     continue
+            G.add_edge(source, target, name=available_pass.display_name, weight=random.uniform(0.1, 1.0))
+            if target not in visited:
+                queue.append(target)
+    return (
+        Callable,
+        For,
+        FuncOp,
+        G,
+        HashableModule,
+        UnrealizedConversionCastOp,
+        available_pass,
+        can_lower_arith,
+        can_lower_scf,
+        filters,
+        has_no_casts,
+        iter_condensed_passes,
+        nx,
+        queue,
+        random,
+        root,
+        source,
+        t,
+        target,
+        visited,
+    )
+
+
+@app.cell
 def __(G, mo, nx, root):
     import plotly.graph_objects as go
+
+    import plotly.colors as pc
+
+    color_scale = pc.sequential.Blues
+
+    print(len(color_scale))
 
     assert nx.is_directed_acyclic_graph(G), "topo sort breaks otherwise"
 
@@ -108,25 +221,46 @@ def __(G, mo, nx, root):
             ),
             line_width=2))
 
-    edge_x = []
-    edge_y = []
-    for edge in G.edges():
-        n0 = node_index_by_node[edge[0]]
-        n1 = node_index_by_node[edge[1]]
+    edge_traces = []
+
+    for edge_source, edge_target, edge_data in G.edges(data=True):
+        n0 = node_index_by_node[edge_source]
+        n1 = node_index_by_node[edge_target]
         x0, y0 = node_x[n0], node_y[n0]
         x1, y1 = node_x[n1], node_y[n1]
-        edge_x.append(x0)
-        edge_x.append(x1)
-        edge_x.append(None)
-        edge_y.append(y0)
-        edge_y.append(y1)
-        edge_y.append(None)
+        edge_trace = go.Scatter(
+            x=[x0, x1, None],
+            y=[y0, y1, None],
+            line=dict(
+                width=edge_data['weight'],  # Set the width to the edge weight
+                color=color_scale[int(edge_data['weight'] * 9)]
+            ),
+            hoverinfo='none',
+            mode='lines'
+        )
+        edge_traces.append(edge_trace)
 
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=0.5, color='#888'),
-        hoverinfo='none',
-        mode='lines')
+    # edge_x = []
+    # edge_y = []
+    # edge_weights = [] 
+    # for edge in G.edges(data=True):
+    #     n0 = node_index_by_node[edge[0]]
+    #     n1 = node_index_by_node[edge[1]]
+    #     x0, y0 = node_x[n0], node_y[n0]
+    #     x1, y1 = node_x[n1], node_y[n1]
+    #     edge_x.append(x0)
+    #     edge_x.append(x1)
+    #     edge_x.append(None)
+    #     edge_y.append(y0)
+    #     edge_y.append(y1)
+    #     edge_y.append(None)
+    #     edge_weights.append(edge[2]['weight'])
+        
+    # edge_trace = go.Scatter(
+    #     x=edge_x, y=edge_y,
+    #     line=dict(width=edge_weights, color='#888'),
+    #     hoverinfo='none',
+    #     mode='lines')
 
 
     node_adjacencies = []
@@ -142,7 +276,7 @@ def __(G, mo, nx, root):
     node_trace.marker.color = node_adjacencies
     node_trace.text = node_text
 
-    fig = go.Figure(data=[edge_trace, node_trace],
+    fig = go.Figure(data=[*edge_traces, node_trace],
                  layout=go.Layout(
                     title=str(G), # 'Network graph made with Python',
                     titlefont_size=16,
@@ -158,10 +292,12 @@ def __(G, mo, nx, root):
     return (
         adjacencies,
         all_nodes,
-        edge,
+        color_scale,
+        edge_data,
+        edge_source,
+        edge_target,
         edge_trace,
-        edge_x,
-        edge_y,
+        edge_traces,
         fig,
         go,
         i,
@@ -181,6 +317,7 @@ def __(G, mo, nx, root):
         nodes,
         num_ops,
         op,
+        pc,
         x,
         x0,
         x1,
@@ -194,50 +331,12 @@ def __(G, mo, nx, root):
 
 
 @app.cell
-def __(input_module):
-    from xdsl.interactive.passes import iter_condensed_passes
-    from xdsl.utils.hashable_module import HashableModule
-
-    import networkx as nx
-
-    G = nx.MultiDiGraph()
-
-    root = HashableModule(input_module)
-    queue = [root]
-    visited = set()
-
-    while queue and len(visited) < 500:
-        source = queue.pop()
-        if source in visited:
-            continue
-        visited.add(source)
-        for available_pass, t in iter_condensed_passes(source.module):
-            target = HashableModule(t)
-            G.add_edge(source, target, available_pass.display_name)
-            if target not in visited:
-                queue.append(target)
-    return (
-        G,
-        HashableModule,
-        available_pass,
-        iter_condensed_passes,
-        nx,
-        queue,
-        root,
-        source,
-        t,
-        target,
-        visited,
-    )
-
-
-@app.cell
 def __(G):
     node_index_by_module = {n: i for i, n in enumerate(G.nodes())}
     return node_index_by_module,
 
 
-@app.cell
+@app.cell(disabled=True)
 def __(G, nx, root):
     for n in G.nodes:
         print(n.module)

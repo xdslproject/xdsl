@@ -499,10 +499,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_scf_to_riscv_scf.ConvertScfToRiscvPass
 
-    def get_lower_scf_for_to_labels():
-        from xdsl.backend.riscv import riscv_scf_to_asm
+    # def get_lower_scf_for_to_labels():
+    #     from xdsl.backend.riscv import riscv_scf_to_asm
 
-        return riscv_scf_to_asm.LowerScfForToLabels
+    #     return riscv_scf_to_asm.LowerScfForToLabels
 
     def get_stencil_shape_inference():
         from xdsl.transforms.experimental import stencil_shape_inference
@@ -565,7 +565,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
-        "dce": get_dce,
+        # "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
@@ -576,7 +576,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
         "lower-riscv-func": get_lower_riscv_func,
-        "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
+        # "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
         "lower-snitch": get_lower_snitch,
         "memref-streamify": get_memref_streamify,
         "mlir-opt": get_mlir_opt,
@@ -585,7 +585,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
-        "riscv-cse": get_riscv_cse,
+        # "riscv-cse": get_riscv_cse,
         "riscv-scf-loop-fusion": get_riscv_scf_loop_fusion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
@@ -593,7 +593,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-unroll": get_stencil_unroll,
-        "test-lower-snitch-stream-to-asm": get_test_lower_linalg_to_snitch,
+        # "test-lower-snitch-stream-to-asm": get_test_lower_linalg_to_snitch,
     }
 
 

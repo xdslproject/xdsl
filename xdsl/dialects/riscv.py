@@ -2851,6 +2851,8 @@ class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
 
     res: OpResult = result_def(RDInvT)
 
+    traits = frozenset((Pure(),))
+
     def __init__(
         self,
         register_type: RDInvT,
