@@ -1,3 +1,4 @@
+import os
 from io import StringIO
 
 import pytest
@@ -13,6 +14,9 @@ from xdsl.parser import Parser
 pytest.importorskip("wgpu", reason="wgpu is an optional dependency")
 
 from xdsl.interpreters.experimental.wgpu import WGPUFunctions  # noqa: E402
+
+if "XDG_RUNTIME_DIR" not in os.environ:
+    pytest.skip("Skipping test because XDG_RUNTIME_DIR is not set in the environment.")
 
 
 def test_init():
