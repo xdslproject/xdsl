@@ -51,6 +51,7 @@ typeCheckingMode = "strict"
     "tests/dialects/test_memref.py",
     "xdsl/interpreters/experimental/wgpu.py",
     "xdsl/frontend/onnx/shape_type.py",
+    "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",
@@ -59,6 +60,7 @@ typeCheckingMode = "strict"
     "tests/filecheck/frontend/dialects/scf.py",
     "tests/filecheck/frontend/programs/invalid.py",
     "xdsl/_version.py",
+
 ]
 
 [tool.isort]
