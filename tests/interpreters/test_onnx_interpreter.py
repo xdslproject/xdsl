@@ -11,7 +11,7 @@ from xdsl.utils.test_value import TestSSAValue
 found_numpy = importlib.util.find_spec("numpy")
 
 if found_numpy is None:
-    pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
+    pytest.skip("numpy is an optional dependency", allow_module_level=True)
 
 import numpy as np  # noqa: I001, E402
 from xdsl.interpreters.onnx import OnnxFunctions  # noqa: E402
