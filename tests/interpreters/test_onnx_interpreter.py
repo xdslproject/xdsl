@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 
 from xdsl.dialects import onnx
@@ -15,6 +14,7 @@ found_numpy = True if "numpy" in globals() else False
 interpreter = Interpreter(ModuleOp([]))
 
 if found_numpy:
+    import numpy as np  # noqa: I001, E402
     from xdsl.interpreters.onnx import OnnxFunctions  # noqa: I001, E402
 
     interpreter.register_implementations(OnnxFunctions())
