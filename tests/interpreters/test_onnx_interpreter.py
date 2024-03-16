@@ -7,17 +7,12 @@ from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.test_value import TestSSAValue
 
 pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
+import numpy as np  # noqa: I001, E402
 
+from xdsl.interpreters.onnx import OnnxFunctions  # noqa: E402
 
-# check if the numpy is available in the global python environment
-found_numpy = True if "numpy" in globals() else False
 interpreter = Interpreter(ModuleOp([]))
-
-if found_numpy:
-    import numpy as np  # noqa: I001, E402
-    from xdsl.interpreters.onnx import OnnxFunctions  # noqa: I001, E402
-
-    interpreter.register_implementations(OnnxFunctions())
+interpreter.register_implementations(OnnxFunctions())
 
 
 def test_onnx_add():

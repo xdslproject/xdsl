@@ -1,6 +1,6 @@
 from typing import Any, cast
 
-import numpy as np
+import numpy as np  # pyright: ignore
 
 from xdsl.dialects import onnx
 from xdsl.interpreter import (
