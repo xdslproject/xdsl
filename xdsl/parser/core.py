@@ -22,7 +22,7 @@ from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 
 
-@dataclass
+@dataclass(eq=False)
 class ForwardDeclaredValue(SSAValue):
     """
     An SSA value that is used before it is defined.
@@ -32,12 +32,6 @@ class ForwardDeclaredValue(SSAValue):
     @property
     def owner(self) -> Operation | Block:
         assert False, "Forward declared values do not have an owner"
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
 
 
 @dataclass

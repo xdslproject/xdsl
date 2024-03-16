@@ -21,12 +21,13 @@ class MLIROptPass(ModulePass):
 
     name = "mlir-opt"
 
+    executable: str = field(default="mlir-opt")
     generic: bool = field(default=True)
     arguments: tuple[str, ...] = field(default=())
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        if not shutil.which("mlir-opt"):
-            raise ValueError("mlir-opt is not available")
+        if not shutil.which(self.executable):
+            raise ValueError(f"{self.executable} is not available")
 
         stream = StringIO()
         printer = Printer(print_generic_format=self.generic, stream=stream)
@@ -35,7 +36,7 @@ class MLIROptPass(ModulePass):
         my_string = stream.getvalue()
 
         completed_process = subprocess.run(
-            ["mlir-opt", *self.arguments],
+            [self.executable, *self.arguments],
             input=my_string,
             stdout=subprocess.PIPE,
             text=True,
