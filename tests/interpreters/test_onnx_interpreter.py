@@ -7,17 +7,13 @@ from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.test_value import TestSSAValue
 
 # it looks for numpy if it's not there it skips the tests
-try:
-    from xdsl.interpreters.onnx import OnnxFunctions  # noqa: I001, E402
-except ImportError as exc:
-    print(exc)
-    pytest.skip("numpy is an optional dependency in xDSL", allow_module_level=True)
-
-interpreter = Interpreter(ModuleOp([]))
-interpreter.register_implementations(OnnxFunctions())
+pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
+from xdsl.interpreters.onnx import OnnxFunctions  # noqa: I001, E402
 
 
 def test_onnx_add():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
     op = onnx.Add(
         TestSSAValue(TensorType(f32, [2, 3])),
         TestSSAValue(TensorType(f32, [2, 3])),
@@ -32,6 +28,8 @@ def test_onnx_add():
 
 
 def test_onnx_sub():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
     op = onnx.Sub(
         TestSSAValue(TensorType(f32, [2, 3])),
         TestSSAValue(TensorType(f32, [2, 3])),
@@ -46,6 +44,8 @@ def test_onnx_sub():
 
 
 def test_onnx_mul():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
     op = onnx.Mul(
         TestSSAValue(TensorType(f32, [2, 2])),
         TestSSAValue(TensorType(f32, [2, 2])),
@@ -60,6 +60,8 @@ def test_onnx_mul():
 
 
 def test_onnx_div():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
     op = onnx.Div(
         TestSSAValue(TensorType(f32, [2, 2])),
         TestSSAValue(TensorType(f32, [2, 2])),
@@ -74,6 +76,8 @@ def test_onnx_div():
 
 
 def test_onnx_relu():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
     op = onnx.Relu(
         TestSSAValue(TensorType(f32, [2, 2])),
     )
