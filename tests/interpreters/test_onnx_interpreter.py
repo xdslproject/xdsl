@@ -6,10 +6,8 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.test_value import TestSSAValue
 
-found_numpy = pytest.importorskip(
-    "numpy", reason="numpy is an optional dependency in xDSL"
-)
-import numpy as np  # noqa: I001, E402
+# it looks for numpy if it's not there it skips the tests
+pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
 from xdsl.interpreters.onnx import OnnxFunctions  # noqa: I001, E402
 
 interpreter = Interpreter(ModuleOp([]))
@@ -23,14 +21,11 @@ def test_onnx_add():
         res_type=TensorType(f32, [2, 3]),
     )
 
-    a = ShapedArray(np.array([1, 2, 3, 4, 5, 6]), [2, 3])
-    b = ShapedArray(np.array([1, 4, 2, 5, 3, 6]), [2, 3])
-    c = ShapedArray(np.array([0, 0, 0, 0, 0, 0]), [2, 3])
+    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
+    b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
 
-    c = interpreter.run_op(op, (a, b, c))
-    assert len(c) == 1
-    assert np.array_equal(c[0].data[0][0], np.array([2, 6, 5, 9, 8, 12]))
-    assert c[0].shape == [2, 3]
+    c = interpreter.run_op(op, (a, b))
+    assert c == ShapedArray([2, 6, 5, 9, 8, 12], [2, 3])
 
 
 def test_onnx_sub():
@@ -40,14 +35,11 @@ def test_onnx_sub():
         res_type=TensorType(f32, [2, 3]),
     )
 
-    a = ShapedArray(np.array([1, 2, 3, 4, 5, 6]), [2, 3])
-    b = ShapedArray(np.array([1, 4, 2, 5, 3, 6]), [2, 3])
-    c = ShapedArray(np.array([0, 0, 0, 0, 0, 0]), [2, 3])
+    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
+    b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
 
-    c = interpreter.run_op(op, (a, b, c))
-    assert len(c) == 1
-    assert np.array_equal(c[0].data[0][0], np.array([0, -2, 1, -1, 2, 0]))
-    assert c[0].shape == [2, 3]
+    c = interpreter.run_op(op, (a, b))
+    assert c == ShapedArray([0, -2, 1, -1, 2, 0], [2, 3])
 
 
 def test_onnx_mul():
@@ -57,14 +49,11 @@ def test_onnx_mul():
         res_type=TensorType(f32, [2, 2]),
     )
 
-    a = ShapedArray(np.array([1, 4, 7, 1]), [2, 2])
-    b = ShapedArray(np.array([2, 3, 1, 8]), [2, 2])
-    c = ShapedArray(np.array([0, 0, 0, 0]), [2, 2])
+    a = ShapedArray([1, 4, 7, 1], [2, 2])
+    b = ShapedArray([2, 3, 1, 8], [2, 2])
 
-    c = interpreter.run_op(op, (a, b, c))
-    assert len(c) == 1
-    assert np.array_equal(c[0].data[0][0], np.array([2, 12, 7, 8]))
-    assert c[0].shape == [2, 2]
+    c = interpreter.run_op(op, (a, b))
+    assert c == ShapedArray([2, 12, 7, 8], [2, 2])
 
 
 def test_onnx_div():
@@ -74,14 +63,11 @@ def test_onnx_div():
         res_type=TensorType(f32, [2, 2]),
     )
 
-    a = ShapedArray(np.array([1, 1, 1, 1]), [2, 2])
-    b = ShapedArray(np.array([5, 2, 1, 2]), [2, 2])
-    c = ShapedArray(np.array([0, 0, 0, 0]), [2, 2])
+    a = ShapedArray([1, 1, 1, 1], [2, 2])
+    b = ShapedArray([5, 2, 1, 2], [2, 2])
 
-    c = interpreter.run_op(op, (a, b, c))
-    assert len(c) == 1
-    assert np.array_equal(c[0].data[0][0], np.array([0.2, 0.5, 1.0, 0.5]))
-    assert c[0].shape == [2, 2]
+    c = interpreter.run_op(op, (a, b))
+    assert c == ShapedArray([0.2, 0.5, 1.0, 0.5], [2, 2])
 
 
 def test_onnx_relu():
@@ -89,8 +75,6 @@ def test_onnx_relu():
         TestSSAValue(TensorType(f32, [2, 2])),
     )
 
-    a = ShapedArray(np.array([1, 1, 1, 1]), [2, 2])
+    a = ShapedArray([1, 1, 1, 1], [2, 2])
     b = interpreter.run_op(op, (a,))
-    assert (b[0].data[0] == np.array([1, 1, 1, 1])).all()
-    assert len(b) == 1
-    assert b[0].shape == [2, 2]
+    assert b == ShapedArray([1, 1, 1, 1], [2, 2])
