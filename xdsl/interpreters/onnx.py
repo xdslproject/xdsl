@@ -21,7 +21,8 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = lhs.data + rhs.data
+        result = [l + r for l, r in zip(lhs.data, rhs.data)]
+        # result = np.array(lhs.data) + np.array(rhs.data)
         return ShapedArray(list(result), lhs.shape)
 
     @impl(onnx.Sub)
@@ -32,7 +33,8 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = lhs.data - rhs.data
+        result = [l - r for l, r in zip(lhs.data, rhs.data)]
+        # result = np.array(lhs.data) - np.array(rhs.data)
         return ShapedArray(list(result), lhs.shape)
 
     @impl(onnx.Mul)
@@ -43,7 +45,8 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = lhs.data * rhs.data
+        result = [l * r for l, r in zip(lhs.data, rhs.data)]
+        # result = np.array(lhs.data) * np.array(rhs.data)
         return ShapedArray(list(result), lhs.shape)
 
     @impl(onnx.Div)
@@ -54,7 +57,8 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = lhs.data / rhs.data
+        result = [l / r for l, r in zip(lhs.data, rhs.data)]
+        # result = np.array(lhs.data) / np.array(rhs.data)
         return ShapedArray(list(result), lhs.shape)
 
     @impl(onnx.Relu)
