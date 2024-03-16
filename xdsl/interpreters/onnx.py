@@ -1,7 +1,6 @@
 from typing import Any, cast
 
-import numpy as np
-
+# import numpy as np
 from xdsl.dialects import onnx
 from xdsl.interpreter import (
     Interpreter,
@@ -22,7 +21,7 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = np.array(lhs.data) + np.array(rhs.data)
+        result = lhs.data + rhs.data
         return ShapedArray(list(result), lhs.shape)
 
     @impl(onnx.Sub)
@@ -33,7 +32,7 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = np.array(lhs.data) - np.array(rhs.data)
+        result = lhs.data - rhs.data
         return ShapedArray(list(result), lhs.shape)
 
     @impl(onnx.Mul)
@@ -44,7 +43,7 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = np.array(lhs.data) * np.array(rhs.data)
+        result = lhs.data * rhs.data
         return ShapedArray(list(result), lhs.shape)
 
     @impl(onnx.Div)
@@ -55,7 +54,7 @@ class OnnxFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        result = np.array(lhs.data) / np.array(rhs.data)
+        result = lhs.data / rhs.data
         return ShapedArray(list(result), lhs.shape)
 
     @impl(onnx.Relu)
@@ -63,6 +62,6 @@ class OnnxFunctions(InterpreterFunctions):
         operand = args[0]
         assert isinstance(operand, ShapedArray)
         operand = cast(ShapedArray[int], operand)
-        operand_data = np.array(operand.data)
+        operand_data = [operand.data]
         result = operand_data * (operand_data > 0)
         return ShapedArray(list(result), operand.shape)
