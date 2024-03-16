@@ -8,6 +8,7 @@ from xdsl.utils.test_value import TestSSAValue
 
 # it looks for numpy if it's not there it skips the tests
 pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
+
 from xdsl.interpreters.onnx import OnnxFunctions  # noqa: I001, E402
 
 
