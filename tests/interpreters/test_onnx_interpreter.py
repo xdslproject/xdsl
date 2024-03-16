@@ -6,10 +6,9 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.test_value import TestSSAValue
 
-# it looks for numpy if it's not there it skips the tests
 pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
 
-from xdsl.interpreters.onnx import OnnxFunctions  # noqa: I001, E402
+from xdsl.interpreters.onnx import OnnxFunctions  # noqa: E402
 
 
 def test_onnx_add():
