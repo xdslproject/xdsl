@@ -3,9 +3,12 @@ import pytest
 from xdsl.dialects import onnx
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    ArrayAttr,
     DenseIntOrFPElementsAttr,
     FloatAttr,
     ModuleOp,
+    NoneType,
+    StringAttr,
     TensorType,
     f32,
     i64,
@@ -128,7 +131,7 @@ def test_onnx_reshape():
         AnyIntegerAttr(0, i64),
     )
     a = ShapedArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 10])
-    b = ShapedArray([], [2])
+    b = ShapedArray([None], [2])
     c = interpreter.run_op(op, (a, b))
     assert c == ShapedArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 10])
 
@@ -171,3 +174,437 @@ def test_onnx_gemm_transpose_b():
     c = ShapedArray([1, 2, 3, 4], [2, 2])
     d = interpreter.run_op(op, (a, b, c))
     assert d == ShapedArray([23, 24, 25, 26], [2, 2])
+
+
+def test_onnx_gemm_alpha():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Gemm(
+        TestSSAValue(TensorType(f32, [2, 1])),
+        TestSSAValue(TensorType(f32, [1, 2])),
+        TestSSAValue(TensorType(f32, [2, 2])),
+        FloatAttr(2, f32),
+        AnyIntegerAttr(0, i64),
+        AnyIntegerAttr(0, i64),
+        FloatAttr(1, f32),
+    )
+
+    a = ShapedArray([1, 2], [2, 1])
+    b = ShapedArray([4, 9], [1, 2])
+    c = ShapedArray([1, 2, 3, 4], [2, 2])
+    d = interpreter.run_op(op, (a, b, c))
+    assert d == ShapedArray([45, 46, 47, 48], [2, 2])
+
+
+def test_onnx_conv_no_padding():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Conv(
+        TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
+        TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
+        TestSSAValue(NoneType()),
+        StringAttr("NOTSET"),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+        AnyIntegerAttr(1, i64),
+        ArrayAttr([AnyIntegerAttr(3, i64), AnyIntegerAttr(3, i64)]),
+        ArrayAttr(
+            [
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+            ]
+        ),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+    )
+    a = ShapedArray(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+        ],
+        [1, 1, 5, 5],
+    )
+    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
+    c = ShapedArray([0], [1])
+    d = interpreter.run_op(op, (a, b, c))
+
+    assert d == ShapedArray([54, 63, 72, 99, 108, 117, 144, 153, 162], [1, 1, 3, 3])
+
+
+def test_onnx_conv_with_padding():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Conv(
+        TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
+        TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
+        TestSSAValue(NoneType()),
+        StringAttr("NOTSET"),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+        AnyIntegerAttr(1, i64),
+        ArrayAttr([AnyIntegerAttr(3, i64), AnyIntegerAttr(3, i64)]),
+        ArrayAttr(
+            [
+                AnyIntegerAttr(1, i64),
+                AnyIntegerAttr(1, i64),
+                AnyIntegerAttr(1, i64),
+                AnyIntegerAttr(1, i64),
+            ]
+        ),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+    )
+    a = ShapedArray(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+        ],
+        [1, 1, 5, 5],
+    )
+    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
+    c = ShapedArray([0], [1])
+    d = interpreter.run_op(op, (a, b, c))
+
+    assert d == ShapedArray(
+        [
+            12.0,
+            21.0,
+            27.0,
+            33.0,
+            24.0,
+            33.0,
+            54.0,
+            63.0,
+            72.0,
+            51.0,
+            63.0,
+            99.0,
+            108.0,
+            117.0,
+            81.0,
+            93.0,
+            144.0,
+            153.0,
+            162.0,
+            111.0,
+            72.0,
+            111.0,
+            117.0,
+            123.0,
+            84.0,
+        ],
+        [1, 1, 5, 5],
+    )
+
+
+def test_onnx_conv_with_same_lower_strides():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Conv(
+        TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
+        TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
+        TestSSAValue(NoneType()),
+        StringAttr("SAME_LOWER"),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+        AnyIntegerAttr(1, i64),
+        ArrayAttr([AnyIntegerAttr(3, i64), AnyIntegerAttr(3, i64)]),
+        ArrayAttr(
+            [
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+            ]
+        ),
+        ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
+    )
+    a = ShapedArray(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+        ],
+        [1, 1, 5, 5],
+    )
+    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
+    c = ShapedArray([0], [1])
+    d = interpreter.run_op(op, (a, b, c))
+
+    assert d == ShapedArray(
+        [12.0, 27.0, 24.0, 63.0, 108.0, 81.0, 72.0, 117.0, 84.0], [1, 1, 3, 3]
+    )
+
+
+def test_onnx_conv_with_strides_padding():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Conv(
+        TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
+        TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
+        TestSSAValue(NoneType()),
+        StringAttr("NOTSET"),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+        AnyIntegerAttr(1, i64),
+        ArrayAttr([AnyIntegerAttr(3, i64), AnyIntegerAttr(3, i64)]),
+        ArrayAttr(
+            [
+                AnyIntegerAttr(1, i64),
+                AnyIntegerAttr(1, i64),
+                AnyIntegerAttr(1, i64),
+                AnyIntegerAttr(1, i64),
+            ]
+        ),
+        ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
+    )
+    a = ShapedArray(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+        ],
+        [1, 1, 7, 5],
+    )
+    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
+    c = ShapedArray([0], [1])
+    d = interpreter.run_op(op, (a, b, c))
+
+    assert d == ShapedArray(
+        [12.0, 27.0, 24.0, 63.0, 108.0, 81.0, 123.0, 198.0, 141.0, 112.0, 177.0, 124.0],
+        [1, 1, 4, 3],
+    )
+
+
+def test_onnx_conv_with_strides_no_padding():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Conv(
+        TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
+        TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
+        TestSSAValue(NoneType()),
+        StringAttr("NOTSET"),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+        AnyIntegerAttr(1, i64),
+        ArrayAttr([AnyIntegerAttr(3, i64), AnyIntegerAttr(3, i64)]),
+        ArrayAttr(
+            [
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+            ]
+        ),
+        ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
+    )
+    a = ShapedArray(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+        ],
+        [1, 1, 7, 5],
+    )
+    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
+    c = ShapedArray([0], [1])
+    d = interpreter.run_op(op, (a, b, c))
+
+    assert d == ShapedArray([54.0, 72.0, 144.0, 162.0, 234.0, 252.0], [1, 1, 3, 2])
+
+
+def test_onnx_conv_with_strides_asy_padding():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Conv(
+        TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
+        TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
+        TestSSAValue(NoneType()),
+        StringAttr("NOTSET"),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+        AnyIntegerAttr(1, i64),
+        ArrayAttr([AnyIntegerAttr(3, i64), AnyIntegerAttr(3, i64)]),
+        ArrayAttr(
+            [
+                AnyIntegerAttr(1, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(1, i64),
+                AnyIntegerAttr(0, i64),
+            ]
+        ),
+        ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
+    )
+    a = ShapedArray(
+        [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+        ],
+        [1, 1, 7, 5],
+    )
+    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
+    c = ShapedArray([None], [1])
+    d = interpreter.run_op(op, (a, b, c))
+
+    assert d == ShapedArray(
+        [21.0, 33.0, 99.0, 117.0, 189.0, 207.0, 171.0, 183.0], [1, 1, 4, 2]
+    )

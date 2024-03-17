@@ -67,47 +67,53 @@ class LinalgFunctions(InterpreterFunctions):
     @impl(linalg.AddOp)
     def run_add(
         self, interpreter: Interpreter, op: linalg.AddOp, args: tuple[Any, ...]
-    ):
+    ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        return ShapedArray(list(l + r for l, r in zip(lhs.data, rhs.data)), lhs.shape)
+        return (
+            ShapedArray(list(l + r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
+        )
 
     @impl(linalg.FillOp)
     def run_fill(
         self, interpreter: Interpreter, op: linalg.FillOp, args: tuple[Any, ...]
-    ):
+    ) -> tuple[Any, ...]:
         (operand,) = args
         assert isinstance(operand, ShapedArray)
         operand = cast(ShapedArray[int], operand)
         result_type = op.res[0].type
         assert isinstance(result_type, TensorType)
         result_shape = list(result_type.get_shape())
-        return ShapedArray(list(operand.data * math.prod(result_shape)), result_shape)
+        return (
+            ShapedArray(list(operand.data * math.prod(result_shape)), result_shape),
+        )
 
     @impl(linalg.MulOp)
     def run_mul(
         self, interpreter: Interpreter, op: linalg.MulOp, args: tuple[Any, ...]
-    ):
+    ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
         lhs = cast(ShapedArray[int], lhs)
         rhs = cast(ShapedArray[int], rhs)
         assert lhs.shape == rhs.shape
-        return ShapedArray(list(l * r for l, r in zip(lhs.data, rhs.data)), lhs.shape)
+        return (
+            ShapedArray(list(l * r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
+        )
 
     @impl(linalg.TransposeOp)
     def run_transpose(
         self, interpreter: Interpreter, op: linalg.TransposeOp, args: tuple[Any, ...]
-    ):
+    ) -> tuple[Any, ...]:
         operand = args[0]
         assert isinstance(operand, ShapedArray)
-        arg = cast(ShapedArray[int], operand)
-        assert len(arg.shape) == 2
+        operand = cast(ShapedArray[int], operand)
+        assert len(operand.shape) == 2
 
         transposed_data: list[int] = []
 
@@ -115,12 +121,12 @@ class LinalgFunctions(InterpreterFunctions):
             for r in range(operand.shape[0]):
                 transposed_data.append(operand.load((r, c)))
 
-        return ShapedArray(list(transposed_data), arg.shape[::-1])
+        return (ShapedArray(list(transposed_data), operand.shape[::-1]),)
 
     @impl(linalg.MatmulOp)
     def run_mat_mul(
         self, interpreter: Interpreter, op: linalg.MatmulOp, args: tuple[Any, ...]
-    ):
+    ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
@@ -139,7 +145,7 @@ class LinalgFunctions(InterpreterFunctions):
         ]
 
         # initialise a result list
-        matrix_result: list[int] = [
+        matrix_result: list[list[int]] = [
             [0 for _ in range(rhs.shape[1])] for _ in range(lhs.shape[0])
         ]
 
@@ -150,5 +156,5 @@ class LinalgFunctions(InterpreterFunctions):
                     matrix_result[i][j] += a[i][k] * b[k][j]
 
         # flatten the result
-        result = [ele for row in matrix_result for ele in row]
-        return ShapedArray(result, list([lhs.shape[0], rhs.shape[1]]))
+        result: list[int] = [ele for row in matrix_result for ele in row]
+        return (ShapedArray(result, list([lhs.shape[0], rhs.shape[1]])),)

@@ -87,7 +87,7 @@ class OnnxFunctions(InterpreterFunctions):
     ):
         operand = args[0]
         assert isinstance(operand, ShapedArray)
-        operand = cast(ShapedArray[int], operand)
+        operand = cast(ShapedArray[float], operand)
         result_type = op.reshaped.type
         assert isinstance(result_type, TensorType)
         new_shape = list(result_type.get_shape())
@@ -104,6 +104,10 @@ class OnnxFunctions(InterpreterFunctions):
         assert isinstance(a, ShapedArray)
         assert isinstance(b, ShapedArray)
         assert isinstance(c, ShapedArray)
+
+        a = cast(ShapedArray[float], a)
+        b = cast(ShapedArray[float], b)
+        c = cast(ShapedArray[float], c)
 
         a = np.array(a.data)
         b = np.array(b.data)
@@ -125,13 +129,106 @@ class OnnxFunctions(InterpreterFunctions):
 
     @impl(onnx.Conv)
     def run_conv(self, interpreter: Interpreter, op: onnx.Conv, args: tuple[Any, ...]):
-        return args
+
+        # initialise the attributes used
+        auto_pad = op.auto_pad.data
+        strides: list[int] = [value.value.data for value in op.strides]
+        matrix, kernel, bias = args[0], args[1], args[2]
+        pads: list[int] = [value.value.data for value in op.pads]
+
+        matrix = cast(ShapedArray[float], matrix)
+        kernel = cast(ShapedArray[float], kernel)
+        bias = cast(ShapedArray[float], bias)
+
+        matrix = np.array(matrix.data).reshape(matrix.shape)
+        kernel = np.array(kernel.data).reshape(kernel.shape)
+
+        if auto_pad != "NOTSET":
+            if auto_pad == "SAME_UPPER" or auto_pad == "SAME_LOWER":
+                out_height = np.ceil(matrix.shape[2] / strides[0])
+                out_width = np.ceil(matrix.shape[3] / strides[1])
+
+                pad_along_height = max(
+                    (out_height - 1) * strides[0] + kernel.shape[2] - matrix.shape[2], 0
+                )
+                pad_along_width = max(
+                    (out_width - 1) * strides[1] + kernel.shape[3] - matrix.shape[3], 0
+                )
+
+                if auto_pad == "SAME_UPPER":
+                    pad_top = int(pad_along_height // 2)
+                    pad_bottom = int(pad_along_height - pad_top)
+                    pad_left = int(pad_along_width // 2)
+                    pad_right = int(pad_along_width - pad_left)
+                else:
+                    pad_bottom = int(pad_along_height // 2)
+                    pad_top = int(pad_along_height - pad_bottom)
+                    pad_right = int(pad_along_width // 2)
+                    pad_left = int(pad_along_width - pad_right)
+
+                pads = [pad_top, pad_bottom, pad_left, pad_right]
+
+            elif auto_pad == "VALID":
+                pads = [0, 0, 0, 0]  # set padding to all zeros
+
+        if pads:
+            # case of asymmetric padding
+            pad_values = [
+                (pads[i], pads[i + len(pads) // 2]) for i in range(len(pads) // 2)
+            ]
+
+            # pad input matrix
+            padded_matrix = np.pad(
+                matrix,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (pad_values[0][0], pad_values[0][1]),
+                    (pad_values[1][0], pad_values[1][1]),
+                ),
+                mode="constant",
+            )
+
+            # padded shape case
+            m_height, m_width = padded_matrix.shape[2:]
+
+        else:
+            m_height, m_width = matrix.shape[2:]
+
+            padded_matrix = matrix
+
+        # based on strides calculate the output shape
+        out_height = int((m_height - kernel.shape[2]) // strides[0] + 1)
+        out_width = int((m_width - kernel.shape[3]) // strides[1] + 1)
+
+        output = np.zeros((matrix.shape[0], matrix.shape[1], out_height, out_width))
+
+        # do convolution
+        for k in range(matrix.shape[0]):
+            for l in range(matrix.shape[1]):
+                for i in range(0, m_height - kernel.shape[2] + 1, strides[0]):
+                    for j in range(0, m_width - kernel.shape[3] + 1, strides[1]):
+                        output[k, l, i // strides[0], j // strides[1]] = np.sum(
+                            padded_matrix[
+                                k, l, i : i + kernel.shape[2], j : j + kernel.shape[3]
+                            ]
+                            * kernel[k, l]
+                        )
+
+        if bias.data[0] is not None:
+            output += np.array(bias.data[0])
+
+        output_dims = [1, 1, output.shape[2], output.shape[3]]
+
+        result = np.array(output).flatten()
+        return ShapedArray(list(result), output_dims)
 
     @impl(onnx.MaxPoolSingleOut)
     def run_max_pool_single_out(
         self, interpreter: Interpreter, op: onnx.MaxPoolSingleOut, args: tuple[Any, ...]
     ):
-        return args
+        # Implement
+        pass
 
     @impl(onnx.EntryPoint)
     def run_entry_point(
