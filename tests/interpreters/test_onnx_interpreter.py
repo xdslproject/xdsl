@@ -1,8 +1,17 @@
 import pytest
 
 from xdsl.dialects import onnx
-from xdsl.dialects.builtin import ModuleOp, TensorType, f32
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    DenseIntOrFPElementsAttr,
+    FloatAttr,
+    ModuleOp,
+    TensorType,
+    f32,
+    i64,
+)
 from xdsl.interpreter import Interpreter
+from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.test_value import TestSSAValue
 
@@ -85,3 +94,80 @@ def test_onnx_relu():
     a = ShapedArray([1, 1, 1, 1], [2, 2])
     b = interpreter.run_op(op, (a,))
     assert b == ShapedArray([1, 1, 1, 1], [2, 2])
+
+
+def test_onnx_constant():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    interpreter.register_implementations(BuiltinFunctions())
+    op = onnx.Constant(
+        (
+            DenseIntOrFPElementsAttr.create_dense_int(
+                TensorType(i64, [4]), [5, 5, 16, 2]
+            )
+        ),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        output_type=TensorType(i64, [4]),
+    )
+
+    a = interpreter.run_op(op, ())
+    assert a == ShapedArray([5, 5, 16, 2], [4])
+
+
+def test_onnx_reshape():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Reshape(
+        (TestSSAValue(TensorType(f32, [1, 10]))),
+        (TestSSAValue(TensorType(i64, [2]))),
+        AnyIntegerAttr(0, i64),
+    )
+    a = ShapedArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 10])
+    b = ShapedArray([], [2])
+    c = interpreter.run_op(op, (a, b))
+    assert c == ShapedArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 10])
+
+
+def test_onnx_gemm():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Gemm(
+        TestSSAValue(TensorType(f32, [2, 2])),
+        TestSSAValue(TensorType(f32, [2, 2])),
+        TestSSAValue(TensorType(f32, [2, 2])),
+        FloatAttr(1, f32),
+        AnyIntegerAttr(0, i64),
+        AnyIntegerAttr(0, i64),
+        FloatAttr(1, f32),
+    )
+
+    a = ShapedArray([1, 2, 3, 4], [2, 2])
+    b = ShapedArray([2, 4, 6, 8], [2, 2])
+    c = ShapedArray([1, 1, 1, 1], [2, 2])
+    d = interpreter.run_op(op, (a, b, c))
+    assert d == ShapedArray([61, 61, 61, 61], [2, 2])
+
+
+def test_onnx_gemm_transpose_b():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Gemm(
+        TestSSAValue(TensorType(f32, [2, 1])),
+        TestSSAValue(TensorType(f32, [2, 1])),
+        TestSSAValue(TensorType(f32, [2, 2])),
+        FloatAttr(1, f32),
+        AnyIntegerAttr(0, i64),
+        AnyIntegerAttr(1, i64),
+        FloatAttr(1, f32),
+    )
+
+    a = ShapedArray([1, 2], [2, 1])
+    b = ShapedArray([4, 9], [2, 1])
+    c = ShapedArray([1, 2, 3, 4], [2, 2])
+    d = interpreter.run_op(op, (a, b, c))
+    assert d == ShapedArray([23, 24, 25, 26], [2, 2])

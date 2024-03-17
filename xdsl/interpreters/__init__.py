@@ -17,6 +17,7 @@ from xdsl.interpreters import (
     riscv_snitch,
     scf,
     snitch_stream,
+    tensor,
 )
 from xdsl.interpreters.experimental import pdl
 from xdsl.ir import MLContext
@@ -56,3 +57,4 @@ def register_implementations(
     interpreter.register_implementations(printf.PrintfFunctions())
     interpreter.register_implementations(scf.ScfFunctions())
     interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
+    interpreter.register_implementations(tensor.TensorFunctions())
