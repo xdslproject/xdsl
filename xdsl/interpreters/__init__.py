@@ -8,6 +8,7 @@ from xdsl.interpreters import (
     linalg,
     memref,
     memref_stream,
+    ml_program,
     printf,
     riscv,
     riscv_debug,
@@ -42,6 +43,7 @@ def register_implementations(
     interpreter.register_implementations(linalg.LinalgFunctions())
     interpreter.register_implementations(memref.MemrefFunctions())
     interpreter.register_implementations(memref_stream.MemrefStreamFunctions())
+    interpreter.register_implementations(ml_program.MLProgramFunctions())
     if include_onnx:
         from xdsl.interpreters import onnx
 
