@@ -13,7 +13,7 @@ from xdsl.utils.exceptions import VerifyException
 
 class X86RegisterType(RegisterType):
     """
-    An x86 register type.
+    The abstract class for all x86 register types.
     """
 
     @classmethod
@@ -58,7 +58,7 @@ X86_INDEX_BY_NAME = {
 @irdl_attr_definition
 class GeneralRegisterType(X86RegisterType):
     """
-    An x86 register type.
+    A scalar x86 register type representing general registers.
     """
 
     name = "x86.reg"
