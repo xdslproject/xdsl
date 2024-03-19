@@ -17,7 +17,6 @@ class RawPtr:
 
     memory: bytearray
     offset: int = field(default=0)
-    deallocated: bool = field(default=False)
 
     @staticmethod
     def zeros(count: int) -> RawPtr:
@@ -39,8 +38,6 @@ class RawPtr:
         return res
 
     def get_iter(self, format: str) -> Iterator[Any]:
-        if self.deallocated:
-            raise ValueError("Cannot get item of deallocated ptr")
         # The memoryview needs to be a multiple of the size of the packed format
         format_size = struct.calcsize(format)
         mem_view = memoryview(self.memory)[self.offset :]
@@ -53,15 +50,10 @@ class RawPtr:
         return next(self.get_iter(format))
 
     def set(self, format: str, *item: Any):
-        if self.deallocated:
-            raise ValueError("Cannot set item of deallocated ptr")
         struct.pack_into(format, self.memory, self.offset, *item)
 
     def get_list(self, format: str, count: int):
         return list(itertools.islice(self.get_iter(format), count))
-
-    def deallocate(self) -> None:
-        self.deallocated = True
 
     def __add__(self, offset: int) -> RawPtr:
         """

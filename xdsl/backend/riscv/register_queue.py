@@ -58,12 +58,10 @@ class RegisterQueue:
             self.available_float_registers.append(reg)
 
     @overload
-    def pop(self, reg_type: type[IntRegisterType]) -> IntRegisterType:
-        ...
+    def pop(self, reg_type: type[IntRegisterType]) -> IntRegisterType: ...
 
     @overload
-    def pop(self, reg_type: type[FloatRegisterType]) -> FloatRegisterType:
-        ...
+    def pop(self, reg_type: type[FloatRegisterType]) -> FloatRegisterType: ...
 
     def pop(
         self, reg_type: type[IntRegisterType] | type[FloatRegisterType]

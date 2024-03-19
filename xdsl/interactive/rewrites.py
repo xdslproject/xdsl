@@ -37,9 +37,9 @@ def convert_indexed_individual_rewrites_to_available_pass(
         rewrite_spec = PipelinePassSpec(
             name=rewrite_pass.name,
             args={
-                "matched_operation_index": [op_idx],
-                "operation_name": [op_name],
-                "pattern_name": [pat_name],
+                "matched_operation_index": (op_idx,),
+                "operation_name": (op_name,),
+                "pattern_name": (pat_name,),
             },
         )
         op = list(current_module.walk())[op_idx]
@@ -85,5 +85,6 @@ def get_all_possible_rewrites(
                     ),
                 )
                 current_module = old_module.clone()
+                matched_op = list(current_module.walk())[op_idx]
 
     return res

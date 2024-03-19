@@ -8,7 +8,7 @@ from typing import Annotated, Generic, TypeVar
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.test import Test
+from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
     MLContext,
@@ -1318,3 +1318,40 @@ def test_optional_group_checkers(format: str, error: str):
             mandatory_arg = operand_def()
 
             assembly_format = format
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0()",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0) : (!test.type<"index">) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0, %0) : (!test.type<"index">, !test.type<"index">) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0, %0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0, %0, %0) : (!test.type<"index">, !test.type<"index">, !test.type<"index">) -> ()',
+        ),
+    ],
+)
+def test_variadic_and_single_mixed(program: str, generic_program: str):
+    @irdl_op_definition
+    class MixedOp(IRDLOperation):
+        name = "test.mixed"
+        var = var_operand_def(TestType("index"))
+        sin = operand_def(TestType("index"))
+
+        assembly_format = "$sin `(` $var `)` attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(MixedOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)

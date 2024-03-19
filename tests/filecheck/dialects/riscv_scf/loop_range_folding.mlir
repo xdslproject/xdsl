@@ -31,13 +31,13 @@ riscv_scf.for %2 : !riscv.reg<> = %lb to %ub step %step {
 
 // Don't fold
 riscv_scf.for %2 : !riscv.reg<> = %lb to %ub step %step {
-    // Two uses mul
+    // Two uses of mul -> can't fold
     %3 = riscv.li 3 : () -> !riscv.reg<>
     %4 = riscv.mul %2, %3 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     "test.op"(%4, %2) : (!riscv.reg<>, !riscv.reg<>) -> ()
 }
 riscv_scf.for %2 : !riscv.reg<> = %lb to %ub step %step {
-    // Two uses add
+    // Two uses of add -> can't fold
     %3 = riscv.li 3 : () -> !riscv.reg<>
     %4 = riscv.add %2, %3 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
     "test.op"(%4, %2) : (!riscv.reg<>, !riscv.reg<>) -> ()
