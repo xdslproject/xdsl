@@ -7,7 +7,7 @@ license = { text = "MIT License" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.1.1",
+    "immutabledict<4.2.1",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
 ]
@@ -16,8 +16,8 @@ dynamic = ["version"]
 [project.optional-dependencies]
 extras = [
     "riscemu==2.2.5",
-    "wgpu==0.14.1",
-    "textual==0.52.1",
+    "wgpu==0.15.0",
+    "textual==0.53.1",
     "pyclip==0.7",
     "marimo",
 ]
@@ -57,6 +57,7 @@ typeCheckingMode = "strict"
     "tests/dialects/test_memref.py",
     "xdsl/interpreters/experimental/wgpu.py",
     "xdsl/frontend/onnx/shape_type.py",
+    "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",
