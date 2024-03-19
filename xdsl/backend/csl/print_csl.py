@@ -7,8 +7,10 @@ from xdsl.dialects import arith, func
 from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
+    FloatAttr,
     IndexType,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     ModuleOp,
     Signedness,
@@ -59,13 +61,15 @@ class CslPrintContext:
         self.variables[val] = name
         return name
 
-    def mlir_type_to_csl_type(self, t: Attribute) -> str:
-        match t:
+    def mlir_type_to_csl_type(self, type_attr: Attribute) -> str:
+        match type_attr:
             case Float16Type():
                 return "f16"
             case Float32Type():
                 return "f32"
-            case IndexType():
+            case (
+                IndexType()
+            ):  # TODO: figure out what the equivalent of intpr_t is for csl!
                 return "i64"
             case IntegerType(
                 width=IntAttr(data=width),
@@ -75,32 +79,52 @@ class CslPrintContext:
             case IntegerType(width=IntAttr(data=width)):
                 return f"i{width}"
             case unkn:
-                return f"!unsupported type: {unkn}"
+                return f"<!unknown type {unkn}>"
+
+    def attribute_value_to_str(self, attr: Attribute) -> str:
+        match attr:
+            case IntAttr(data=val):
+                return str(val)
+            case IntegerAttr(value=val):
+                return str(val.data)
+            case FloatAttr(value=val):
+                return str(val.data)
+            case unkn:
+                return f"<!unknown value {unkn}>"
+
+    def attribute_type_to_str(self, attr: Attribute) -> str:
+        match attr:
+            case IntAttr():
+                return "<!indeterminate IntAttr type>"
+            case IntegerAttr(type=(IntegerType() | IndexType()) as int_t):
+                return self.mlir_type_to_csl_type(int_t)
+            case FloatAttr(type=(Float16Type() | Float32Type()) as float_t):
+                return self.mlir_type_to_csl_type(float_t)
+            case unkn:
+                return f"<!unknown type of {unkn}>"
 
     def print_block(self, body: Block):
         for op in body.ops:
             match op:
                 case arith.Constant(value=v, result=r):
-                    type_name = self.mlir_type_to_csl_type(
-                        v.type  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportAttributeAccessIssue]
-                    )
-                    value_str = f"{v.value.data}"  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+                    # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
 
+                    # convert the attributes type to a csl type:
+                    type_name = self.attribute_type_to_str(v)
+                    # convert the carried value to a csl value
+                    value_str = self.attribute_value_to_str(v)
+
+                    # emit a constant instantiation:
                     self.print(
                         f"const {self._get_variable_name_for(r)} : {type_name} = {value_str};"
                     )
-                case func.FuncOp(sym_name=name, body=bdy) as funcop:
-                    if len(funcop.function_type.inputs) > 0:
-                        print("// can't print function with arguments")
-                        continue
-                    if len(funcop.function_type.outputs) > 0:
-                        print("// can't print function with results")
-                        continue
-
+                case func.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(
+                    ftyp.inputs
+                ) == 0 and len(ftyp.outputs) == 0:
+                    # only functions without input / outputs supported for now.
                     self.print(f"fn {name.data}() {{")
                     self.descend().print_block(bdy.block)
                     self.print("}")
-
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
