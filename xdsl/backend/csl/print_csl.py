@@ -43,14 +43,12 @@ class CslPrintContext:
         if val in self.variables:
             return self.variables[val]
 
-        prefix = "v"
-        if val.name_hint is not None:
-            prefix = val.name_hint
-
         taken_names = set(self.variables.values())
-        if prefix not in taken_names:
-            name = prefix
+        if val.name_hint is not None and val.name_hint not in taken_names:
+            name = val.name_hint
         else:
+            prefix = "v" if val.name_hint is None else val.name_hint
+
             name = f"{prefix}{self._counter}"
             self._counter += 1
 

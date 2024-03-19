@@ -10,8 +10,8 @@ func.func @initialize() {
   %ub = arith.constant  24 : i16
   %step = arith.constant 1 : i16
 
-  %f32cst = arith.constant 3.14 : f32
-  %f16cst = arith.constant 2.718 : f16
+  %0 = arith.constant 3.14 : f32
+  %v0 = arith.constant 2.718 : f16
 
   %u32cst = arith.constant 44 : ui32
 
@@ -37,11 +37,11 @@ func.func @initialize() {
   %ub_4 = arith.constant 6 : i16
 
   scf.for %i = %lb to %ub_4 step %step {
-    %v2 = arith.constant 2.0 : f32
-    %v0 = arith.constant 0.0 : f32
+    %c2 = arith.constant 2.0 : f32
+    %c0 = arith.constant 0.0 : f32
     %i_idx = "arith.index_cast"(%i) : (i16) -> index
-    memref.store %v2, %b[%i_idx] : memref<4xf32>
-    memref.store %v0, %y[%i_idx] : memref<4xf32>
+    memref.store %c2, %b[%i_idx] : memref<4xf32>
+    memref.store %c0, %y[%i_idx] : memref<4xf32>
   }
 
   func.return
@@ -56,8 +56,8 @@ func.func @initialize() {
 // CHECK-NEXT:   const lb : i16 = 0;
 // CHECK-NEXT:   const ub : i16 = 24;
 // CHECK-NEXT:   const step : i16 = 1;
-// CHECK-NEXT:   const f32cst : f32 = 3.14;
-// CHECK-NEXT:   const f16cst : f16 = 2.718;
+// CHECK-NEXT:   const v0 : f32 = 3.14;
+// CHECK-NEXT:   const v01 : f16 = 2.718;
 // CHECK-NEXT:   const u32cst : u32 = 44;
 // CHECK-NEXT:   //unknown op GetGlobal(%A = memref.get_global @A : memref<24xf32>)
 // CHECK-NEXT:   //unknown op GetGlobal(%x = memref.get_global @x : memref<6xf32>)
@@ -81,11 +81,11 @@ func.func @initialize() {
 // CHECK-NEXT:   const ub_4 : i16 = 6;
 // CHECK-NEXT:   //unknown op For(
 // CHECK-NEXT:   //    scf.for %i = %lb to %ub_4 step %step : i16 {
-// CHECK-NEXT:   //      %v2 = arith.constant 2.000000e+00 : f32
-// CHECK-NEXT:   //      %v0 = arith.constant 0.000000e+00 : f32
+// CHECK-NEXT:   //      %c2 = arith.constant 2.000000e+00 : f32
+// CHECK-NEXT:   //      %c0 = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:   //      %i_idx = "arith.index_cast"(%i) : (i16) -> index
-// CHECK-NEXT:   //      memref.store %v2, %b[%i_idx] : memref<4xf32>
-// CHECK-NEXT:   //      memref.store %v0, %y[%i_idx] : memref<4xf32>
+// CHECK-NEXT:   //      memref.store %c2, %b[%i_idx] : memref<4xf32>
+// CHECK-NEXT:   //      memref.store %c0, %y[%i_idx] : memref<4xf32>
 // CHECK-NEXT:   //    }
 // CHECK-NEXT:   //)
 // CHECK-NEXT:   //unknown op Return(func.return)
