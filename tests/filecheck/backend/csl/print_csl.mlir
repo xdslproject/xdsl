@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t csl %s
+// RUN: xdsl-opt -t csl %s | filecheck %s
 
 "memref.global"() {"sym_name" = "A", "type" = memref<24xf32>, "sym_visibility" = "public", "initial_value" = dense<0> : tensor<1xindex>} : () -> ()
 "memref.global"() {"sym_name" = "x", "type" = memref<6xf32>, "sym_visibility" = "public", "initial_value" = dense<0> : tensor<1xindex>} : () -> ()
@@ -9,6 +9,11 @@ func.func @initialize() {
   %lb = arith.constant   0 : i16
   %ub = arith.constant  24 : i16
   %step = arith.constant 1 : i16
+
+  %f32cst = arith.constant 3.14 : f32
+  %f16cst = arith.constant 2.718 : f16
+
+  %u32cst = arith.constant 44 : ui32
 
   %A = memref.get_global @A : memref<24xf32>
   %x = memref.get_global @x : memref<6xf32>
@@ -51,6 +56,9 @@ func.func @initialize() {
 // CHECK-NEXT:   const lb : i16 = 0;
 // CHECK-NEXT:   const ub : i16 = 24;
 // CHECK-NEXT:   const step : i16 = 1;
+// CHECK-NEXT:   const f32cst : f32 = 3.14;
+// CHECK-NEXT:   const f16cst : f16 = 2.718;
+// CHECK-NEXT:   const u32cst : u32 = 44;
 // CHECK-NEXT:   //unknown op GetGlobal(%A = memref.get_global @A : memref<24xf32>)
 // CHECK-NEXT:   //unknown op GetGlobal(%x = memref.get_global @x : memref<6xf32>)
 // CHECK-NEXT:   //unknown op GetGlobal(%b = memref.get_global @b : memref<4xf32>)
