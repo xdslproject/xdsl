@@ -8,7 +8,7 @@ from xdsl.dialects.experimental import dmp
 
 @dataclass
 class DomainDecompositionStrategy(ABC):
-    def __init__(self, _: list[int]):
+    def __init__(self, _: tuple[int, ...]):
         pass
 
     @abstractmethod

@@ -20,6 +20,19 @@
 // CHECK-NEXT:       %2 = arith.maximumf %0, %res_relu_1 : f64
 // CHECK-NEXT:       linalg.yield %2 : f64
 // CHECK-NEXT:    } -> tensor<3x4xf64>
-// CHECK-NEXT:  }
 
+%t3,%t4 = "test.op"(): () -> (tensor<20x2xf32>, tensor<2xi64>)
+%res_reshape = "onnx.Reshape"(%t3, %t4) {onnx_node_name = "/Reshape"}: (tensor<20x2xf32>, tensor<2xi64>) -> tensor<1x40xf32>
+
+// CHECK-NEXT: %t3, %t4 = "test.op"() : () -> (tensor<20x2xf32>, tensor<2xi64>)
+// CHECK-NEXT: %res_reshape = tensor.reshape %t3(%t4) : (tensor<20x2xf32>, tensor<2xi64>) -> tensor<1x40xf32>
+
+%res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
+%res_constant_2 = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<2.0> : tensor<1x5xf32>} : () -> tensor<1x5xf32>
+
+// CHECK-NEXT: %res_constant = ml_program.global_load_const @onnx_constant_1 : tensor<1xi64>
+// CHECK-NEXT: %res_constant_2 = ml_program.global_load_const @onnx_constant_2 : tensor<1x5xf32>
+// CHECK-NEXT: ml_program.global private @onnx_constant_1(dense<1> : tensor<1xi64>) : tensor<1xi64>
+// CHECK-NEXT: ml_program.global private @onnx_constant_2(dense<2.000000e+00> : tensor<1x5xf32>) : tensor<1x5xf32>
+// CHECK-NEXT:  }
 

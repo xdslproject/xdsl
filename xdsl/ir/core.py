@@ -15,7 +15,6 @@ from typing import (
     Protocol,
     TypeVar,
     cast,
-    final,
     get_args,
     get_origin,
     overload,
@@ -284,7 +283,7 @@ class Use:
     """The index of the operand using the value in the operation."""
 
 
-@dataclass
+@dataclass(eq=False)
 class SSAValue(ABC):
     """
     A reference to an SSA variable.
@@ -373,8 +372,18 @@ class SSAValue(ABC):
             )
         self.replace_by(ErasedSSAValue(self.type, self))
 
+    def __hash__(self):
+        """
+        Make SSAValue hashable. Two SSA Values are never the same, therefore
+        the use of `id` is allowed here.
+        """
+        return id(self)
 
-@dataclass
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+
+@dataclass(eq=False)
 class OpResult(SSAValue):
     """A reference to an SSA variable defined by an operation result."""
 
@@ -391,14 +400,8 @@ class OpResult(SSAValue):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
 
-    def __hash__(self) -> int:
-        return id(self)
-
-
-@dataclass
+@dataclass(eq=False)
 class BlockArgument(SSAValue):
     """A reference to an SSA variable defined by a basic block argument."""
 
@@ -415,14 +418,8 @@ class BlockArgument(SSAValue):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
 
-    def __hash__(self) -> int:
-        return id(self)
-
-
-@dataclass
+@dataclass(eq=False)
 class ErasedSSAValue(SSAValue):
     """
     An erased SSA variable.
@@ -434,9 +431,6 @@ class ErasedSSAValue(SSAValue):
     @property
     def owner(self) -> Operation | Block:
         return self.old_value.owner
-
-    def __hash__(self) -> int:
-        return hash(id(self))
 
 
 A = TypeVar("A", bound="Attribute")
@@ -488,6 +482,16 @@ class TypeAttribute(Attribute):
 
 
 class OpaqueSyntaxAttribute(Attribute):
+    """
+    This class should only be inherited by classes inheriting Attribute.
+    This class is only used for printing attributes in the opaque form,
+    as described at https://mlir.llvm.org/docs/LangRef/#dialect-attribute-values.
+    """
+
+    pass
+
+
+class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     """
     This class should only be inherited by classes inheriting Attribute.
     This class is only used for printing attributes in the opaque form,
@@ -554,7 +558,7 @@ class EnumAttribute(Data[EnumType]):
         First = auto()
         Second = auto()
 
-    class MyEnumAttribute(EnumAttribute[MyEnum], OpaqueSyntaxAttribute):
+    class MyEnumAttribute(EnumAttribute[MyEnum], SpacedOpaqueSyntaxAttribute):
         name = "example.my_enum"
     ```
     To use this attribute suffices to have a textual representation
@@ -594,11 +598,9 @@ class EnumAttribute(Data[EnumType]):
 
         cls.enum_type = enum_type
 
-    @final
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(" ", self.data.value)
+        printer.print(self.data.value)
 
-    @final
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
         enum_type = cls.enum_type
@@ -690,16 +692,13 @@ class IRNode(ABC):
 
     @property
     @abstractmethod
-    def parent_node(self) -> IRNode | None:
-        ...
+    def parent_node(self) -> IRNode | None: ...
 
     @abstractmethod
-    def __eq__(self, other: object) -> bool:
-        ...
+    def __eq__(self, other: object) -> bool: ...
 
     @abstractmethod
-    def __hash__(self) -> int:
-        ...
+    def __hash__(self) -> int: ...
 
 
 @dataclass
@@ -713,12 +712,10 @@ class OpOperands(Sequence[SSAValue]):
     """The operation owning the operands."""
 
     @overload
-    def __getitem__(self, idx: int) -> SSAValue:
-        ...
+    def __getitem__(self, idx: int) -> SSAValue: ...
 
     @overload
-    def __getitem__(self, idx: slice) -> Sequence[SSAValue]:
-        ...
+    def __getitem__(self, idx: slice) -> Sequence[SSAValue]: ...
 
     def __getitem__(self, idx: int | slice) -> SSAValue | Sequence[SSAValue]:
         return self._op._operands[idx]  # pyright: ignore[reportPrivateUsage]
@@ -1433,8 +1430,7 @@ class Block(IRNode):
         return self._args
 
     class BlockCallback(Protocol):
-        def __call__(self, *args: BlockArgument) -> list[Operation]:
-            ...
+        def __call__(self, *args: BlockArgument) -> list[Operation]: ...
 
     def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
         """

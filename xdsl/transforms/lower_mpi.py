@@ -824,7 +824,7 @@ class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
         ], []
 
 
-@dataclass
+@dataclass(frozen=True)
 class LowerMPIPass(ModulePass):
     name = "lower-mpi"
 
