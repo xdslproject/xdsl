@@ -43,7 +43,6 @@ class Trace(abc.ABC):
         pass
 
 
-
 class TraceNode(Trace):
     member_specifiers: set[dlt.MemberAttr]
     dimensions: set[dlt.DimensionAttr]
@@ -210,7 +209,7 @@ class DLTLayoutRewriter(RewritePattern):
                     add_traces(use.operation.res, child_node, seen_funcs)
                 elif isinstance(use.operation, dlt.IterateOp):
                     op: dlt.IterateOp = use.operation
-                    block_arg, dims = op.get_block_arg_for_input_arg(use)
+                    block_arg, dims = op.get_block_arg_and_dims_for_input_arg(use)
                     if dims is None:
                         # This is an Iter_arg
                         add_traces(block_arg, trace, seen_funcs)
@@ -222,7 +221,7 @@ class DLTLayoutRewriter(RewritePattern):
                     assert isinstance(iter_op, dlt.IterateOp)
                     res = iter_op.get_result_for_yield_use()
                     add_traces(res, trace, seen_funcs)
-                elif isinstance(use.operation, dlt.GetOp | dlt.SetOp):
+                elif isinstance(use.operation, dlt.GetOp | dlt.SetOp | dlt.ExtractExtentOp):
                     ms, ds = trace.constraints()
                     bases = _get_deep_base(operand, funcs)
                     for base, b_ms, b_ds in bases:
@@ -239,8 +238,17 @@ class DLTLayoutRewriter(RewritePattern):
                     if op not in seen_funcs:
                         new_seen_funcs = seen_funcs | {op}
                         add_traces(op.body.block.args[use.index], trace, new_seen_funcs)
+                elif isinstance(use.operation, func.Return):
+                    func_op = use.operation.parent_op()
+                    assert isinstance(func_op, func.FuncOp)
+                    if func_op.sym_visibility is None or func_op.sym_visibility.data != "private":
+                        ms, ds = trace.constraints()
+                        elem_use = ElementsUse(use.operation, operand, frozenset(ms), frozenset(ds))
+                        trace.add_leaf(elem_use)
+                    op, calls = funcs[func_op.sym_name]
+                    for call in calls:
+                        add_traces(call.results[use.index], trace, seen_funcs)
                 else:
-                    return
                     raise NotImplementedError(f"Not implemented for type: {type(use.operation)} : {use.operation}")
 
         for i, operand in enumerate(layout_entry_point_operands):
@@ -270,7 +278,7 @@ class DLTLayoutRewriter(RewritePattern):
                     op: dlt.IterateOp = use.operation
                     assert operand == op.operands[use.index]
                     block = op.body.block
-                    block_arg, dims = op.get_block_arg_for_input_arg(use)
+                    block_arg, dims = op.get_block_arg_and_dims_for_input_arg(use)
                     assert isinstance(block_arg.type, dlt.PtrType)
                     if dims is None:
                         # This is an Iter_arg
@@ -296,8 +304,38 @@ class DLTLayoutRewriter(RewritePattern):
                         if block_arg.type != new_inner_type:
                             rewriter.modify_block_argument_type(block_arg, new_inner_type)
                             propergate_operands(block_arg)
+                elif isinstance(use.operation, dlt.GetOp):
+                    pass
+                elif isinstance(use.operation, dlt.SetOp):
+                    pass
+                elif isinstance(use.operation, dlt.CopyOp):
+                    pass
+                elif isinstance(use.operation, dlt.ExtractExtentOp):
+                    pass
                 elif isinstance(use.operation, func.FuncOp):
-                    raise NotImplementedError
+                    raise NotImplementedError(f"cannot propagate dlt ptr type through {use.operation}")
+                elif isinstance(use.operation, func.Call):
+                    call_op = cast(func.Call, use.operation)
+                    func_name = call_op.callee.root_reference
+                    if func_name not in funcs:
+                        raise NotImplementedError(f"cannot propagate dlt ptr type through call to unknown function: {use.operation}")
+                    func_op, calls = funcs[func_name]
+                    if func_op.args[use.index].type != operand.type:
+                        func_op.replace_argument_type(use.index, operand.type)
+                        propergate_operands(func_op.args[use.index])
+                    # raise NotImplementedError(f"cannot propagate dlt ptr type through {use.operation}")
+                elif isinstance(use.operation, func.Return):
+                    func_op = use.operation.parent_op()
+                    assert isinstance(func_op, func.FuncOp)
+                    func_op.update_function_type()
+                    op, calls = funcs[func_op.sym_name]
+                    for call in calls:
+                        call_operand = call.results[use.index]
+                        call_operand.type = operand.type
+                        rewriter.handle_operation_modification(call)
+                        propergate_operands(call_operand)
+                else:
+                    raise NotImplementedError(f"cannot propagate dlt ptr type through {use.operation}")
 
         def update_and_propagate(operation: tuple[Operation, int], layout: dlt.Layout):
             op, idx = operation

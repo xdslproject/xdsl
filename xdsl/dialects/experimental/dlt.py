@@ -993,18 +993,21 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
     filled_dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
     filled_extents: ParameterDef[ArrayAttr[AnyRunTimeBaseExtent()]]
     base: ParameterDef[StringAttr]
+    identification: ParameterDef[StringAttr]
 
     def __init__(self, type_type: TypeType,
                  layout: Layout = None,
                  members: SetAttr[MemberAttr] = SetAttr([]),
                  dimensions: ArrayAttr[DimensionAttr] = ArrayAttr([]),
                  extents: Sequence[InitDefinedExtentAttr]|ArrayAttr[InitDefinedExtentAttr] = ArrayAttr([]),
-                 base: bool = False):
+                 base: bool = False,
+                 identity: StringAttr | str = ""):
         base = StringAttr("Y") if base else StringAttr("N")
+        identity = StringAttr(identity) if isinstance(identity, str) else identity
         if layout is None:
             layout = Layout.abstract_layout(type_type)
         extents = ArrayAttr(extents)
-        super().__init__(tuple([type_type, layout, members, dimensions, extents, base]))
+        super().__init__(tuple([type_type, layout, members, dimensions, extents, base, identity]))
 
     @property
     def is_base(self):
@@ -1438,8 +1441,17 @@ class GetOp(DTLLayoutScopedOp):
         super().__init__(operands=[tree], result_types=[get_type],
                          attributes={"get_type":get_type})
 
-
-    #TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
+    def verify_(self) -> None:
+        ptr_type = cast(PtrType, self.tree.type)
+        elem = ptr_type.contents_type.get_single_element()
+        if elem is None:
+            raise VerifyException(f"{self.name} cannot get into ptr that has more than one element")
+        if len(elem.dimensions) > 0:
+            raise VerifyException(f"{self.name} cannot get into ptr that has dimensions")
+        if len(elem.member_specifiers) > 0:
+            raise VerifyException(f"{self.name} cannot get into ptr that has unspecified members")
+        if self.get_type != elem.base_type:
+            raise VerifyException(f"{self.name} cannot get {self.get_type} from {elem}")
 
 
 @irdl_op_definition
@@ -1449,17 +1461,74 @@ class SetOp(DTLLayoutScopedOp):
     value: Operand = operand_def(AcceptedTypes)
     set_type: AcceptedTypes = attr_def(AcceptedTypes)
 
-    # TODO Verify the tree layout type accesses one and only one element (with no dims or member names)
+    def __init__(self, tree: SSAValue, set_type: AcceptedTypes, value: SSAValue | Operation):
+        super().__init__(operands=[tree, value],
+                         attributes={"set_type":set_type})
+    def verify_(self) -> None:
+        ptr_type = cast(PtrType, self.tree.type)
+        elem = ptr_type.contents_type.get_single_element()
+        if elem is None:
+            raise VerifyException(f"{self.name} cannot set into ptr that has more than one element")
+        if len(elem.dimensions) > 0:
+            raise VerifyException(f"{self.name} cannot set into ptr that has dimensions")
+        if len(elem.member_specifiers) > 0:
+            raise VerifyException(f"{self.name} cannot set into ptr that has unspecified members")
+        if self.set_type != elem.base_type:
+            raise VerifyException(f"{self.name} cannot set {self.set_type} into {elem}")
 
+@irdl_op_definition
+class ExtractExtentOp(DTLLayoutScopedOp):
+    name = "dlt.extractExtent"
+    tree: Operand = operand_def(PtrType)
+    extent: Extent = attr_def(Extent)
+    res: OpResult = result_def(IndexType())
+
+    def __init__(self, tree: SSAValue, extent: Extent):
+        super().__init__(operands=[tree], result_types=[IndexType()],
+                         attributes={"extent":extent})
+
+    def verify_(self) -> None:
+        AnyExtent().verify(self.extent, {})
+        ptr_type = cast(PtrType, self.tree.type)
+        if self.extent not in ptr_type.filled_extents:
+            raise VerifyException("Cannot extract Extent from ptr that does not contain that extent")
 
 @irdl_op_definition
 class CopyOp(DTLLayoutScopedOp):
     name = "dlt.copy" # take src and dst Ptrtypes and copy all values of the copy_type primitive from one to the other.
     src: Operand = operand_def(PtrType)
     dst: Operand = operand_def(PtrType)
-    src_dimensions: AttributeDef = attr_def(ArrayAttr[DimensionAttr])
-    dst_dimensions: AttributeDef = attr_def(ArrayAttr[DimensionAttr])
-    copy_type: AttributeDef = attr_def(AcceptedTypes)
+    src_dimensions: ArrayAttr[DimensionAttr] = attr_def(ArrayAttr[DimensionAttr])
+    dst_dimensions: ArrayAttr[DimensionAttr] = attr_def(ArrayAttr[DimensionAttr])
+    copy_type: AcceptedTypes = attr_def(AcceptedTypes)
+
+    def __init__(self, src: SSAValue, src_dims: Iterable[DimensionAttr],
+                 dst: SSAValue, dst_dims: Iterable[DimensionAttr], copy_type: AcceptedTypes):
+        if not isinstance(src_dims, ArrayAttr):
+            src_dims = ArrayAttr(src_dims)
+        if not isinstance(dst_dims, ArrayAttr):
+            dst_dims = ArrayAttr(dst_dims)
+
+        super().__init__(operands=[src, dst], attributes={
+            "src_dimensions": src_dims,
+            "dst_dimensions": dst_dims,
+            "copy_type": copy_type
+        })
+        self.check_inputs()
+
+    def verify_(self) -> None:
+        self.check_inputs()
+    def check_inputs(self) -> None:
+        for name, operand, dims in [("src", self.src, self.src_dimensions), ("dst", self.dst, self.dst_dimensions)]:
+            assert isinstance(operand.type, PtrType)
+            ptr_type = cast(PtrType, operand.type)
+            try:
+                inner_type = ptr_type.contents_type.select_dimensions(dims)
+            except VerifyException as e:
+                raise VerifyException(f"{self.name}: Cannot construct copy from {name} {operand} with dims: {dims}")
+            if inner_type.get_single_element() is None:
+                raise VerifyException(f"{self.name}: Cannot construct copy from {name} {operand} with dims: {dims} as result does not have single element.")
+
 
     # TODO Verify the tree layout types match perfectly
 
@@ -1509,11 +1578,29 @@ class IterateOp(DTLLayoutScopedOp):
         extents: Sequence[Extent],
         extent_args: Sequence[SSAValue | Operation],
         dimensions: Sequence[Sequence[Sequence[DimensionAttr]]],
-        tensors: Sequence[SSAValue | PtrType],
+        tensors: Sequence[SSAValue],
         iter_args: Sequence[SSAValue | Operation],
         order: StringAttr,
-        body: Region | Sequence[Operation] | Sequence[Block] | Block,
+        body: Region | Sequence[Operation] | Sequence[Block] | Block = None,
     ):
+        if body is None:
+            body = Block()
+            arg_idx = 0
+            for e in extents:
+                body.insert_arg(IndexType(), arg_idx)
+                arg_idx += 1
+            for t, t_ds in zip(tensors, dimensions):
+                t_dimensions = [d for ds in t_ds for d in ds]
+                ptr_type = SelectOp.calculateResultType(t.type, [], t_dimensions)
+                body.insert_arg(ptr_type, arg_idx)
+                arg_idx += 1
+            body_iter_args = []
+            for arg in iter_args:
+                body_iter_args.append(body.insert_arg(SSAValue.get(arg).type, arg_idx))
+                arg_idx += 1
+            body.add_op(IterateYieldOp(*body_iter_args))
+
+
         if isinstance(body, Block):
             body = [body]
         assert order.data in ["nested", "none", "stored"]
@@ -1623,8 +1710,7 @@ class IterateOp(DTLLayoutScopedOp):
         assert isinstance(op, IterateYieldOp)
         return op
 
-
-    def get_block_arg_for_input_arg(self, use: Use) -> tuple[BlockArgument, ArrayAttr[SetAttr[DimensionAttr]] | None]:
+    def get_block_arg_and_dims_for_input_arg(self, use: Use) -> tuple[BlockArgument, ArrayAttr[SetAttr[DimensionAttr]] | None]:
         assert use.operation == self
         idx = use.index
         idx -= len(self.extent_args)
@@ -1636,6 +1722,24 @@ class IterateOp(DTLLayoutScopedOp):
         assert 0 <= idx < len(self.iter_args)
         assert use in self.iter_args[idx].uses
         return self.body.block.args[len(self.extents) + len(self.tensors) + idx], None
+
+    def get_block_arg_for_input_arg(self, use: Use) -> BlockArgument:
+        assert use.operation == self
+        idx = use.index
+        idx -= len(self.extent_args)
+        assert idx >= 0
+        if idx < len(self.tensors):
+            assert use in self.tensors[idx].uses
+            return self.body.block.args[len(self.extents) + idx]
+        idx -= len(self.tensors)
+        assert 0 <= idx < len(self.iter_args)
+        assert use in self.iter_args[idx].uses
+        return self.body.block.args[len(self.extents) + len(self.tensors) + idx]
+
+    def get_block_arg_for_tensor_arg_idx(self, index: int) -> BlockArgument:
+        index += len(self.extent_args)
+        assert index < len(self.extents) + len(self.tensors)
+        return self.body.block.args[index]
 
     def get_result_for_input_arg(self, use: Use) -> tuple[OpResult, int]:
         assert use.operation == self

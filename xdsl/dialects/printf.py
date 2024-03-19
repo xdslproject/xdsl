@@ -122,6 +122,22 @@ class PrintCharOp(IRDLOperation):
         char_constant = arith.Constant.from_int_and_width(ascii_value, i8)
         return PrintCharOp(char_constant)
 
+    @staticmethod
+    def from_constant_char_ops(char: str) -> list[Operation]:
+        """
+        This constructor returns a PrintCharOp that prints the value supplied
+        in "char" as a python char.
+        """
+        if len(char) != 1:
+            raise ValueError(
+                f'Unexpected char value "{char}", input must be a single ascii character'
+            )
+        ascii_value = ord(char)
+        if ascii_value > 128:
+            raise ValueError("Only ascii characters are supported")
+        char_constant = arith.Constant.from_int_and_width(ascii_value, i8)
+        return [char_constant, PrintCharOp(char_constant)]
+
 
 @irdl_op_definition
 class PrintIntOp(IRDLOperation):

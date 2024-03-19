@@ -156,6 +156,14 @@ class TensorExprType(ParametrizedAttribute):
     def verify(self) -> None:
         self.result.verify_generic(VectorSpace)
 
+    def get_results_as_list(self, idx_struct=None) -> list[IndexShapeStruct[VectorSpace]]:
+        if idx_struct is None:
+            return self.get_results_as_list(idx_struct=self.result)
+        elif isinstance(idx_struct, IndexTupleStruct):
+            return [shape for child in idx_struct.children for shape in self.get_results_as_list(idx_struct=child)]
+        elif isinstance(idx_struct, IndexShapeStruct):
+            return [idx_struct]
+
 
 @irdl_attr_definition
 class NoneIndex(ParametrizedAttribute):
@@ -459,10 +467,10 @@ class ConstTensorOp(IRDLOperation):
 
 
 @irdl_op_definition
-class DenseBackedTensorOp(IRDLOperation):
-    name = "dtl.denseTensorOp"
+class TensorVariableOp(IRDLOperation):
+    name = "dtl.tensorVariableOp"
 
-    val: builtin.TensorType = operand_def(dlt.PtrType)
+    val: dlt.PtrType = operand_def(dlt.PtrType)
     result: TensorExprType = result_def(TensorExprType)
 
     def verify_(self):
@@ -478,65 +486,9 @@ class DenseBackedTensorOp(IRDLOperation):
         #             f"{self.val.type.name} with shape {self.val.type.shape} does not match {self.result.type.name} with shape {self.result.type.result.shape}")
 
 
-@irdl_attr_definition
-class ExecuteContextType(ParametrizedAttribute):
-    name = "dtl.executeContextType"
-    vectorSpaces: ParameterDef[ArrayAttr[UnknownVectorSpace]]
-
-
 @irdl_op_definition
-class ExecuteContextOp(IRDLOperation):
-    name = "dtl.executeContextOp"
-
-    extents: VarOperand = var_operand_def(builtin.IndexType)
-    result: ExecuteContextType = result_def(ExecuteContextType)
-
-    def verify_(self):
-        assert len(self.extents) == len(self.result.type.vectorSpaces)
-
-@irdl_attr_definition
-class ExecuteArgsType(ParametrizedAttribute):
-    name = "dtl.executeArgsType"
-    vectorSpaces: ParameterDef[ArrayAttr[Index]]
-
-
-@irdl_op_definition
-class ExecuteArgsOp(IRDLOperation):
-    name = "dtl.executeArgsOp"
-
-    extents: VarOperand = var_operand_def(builtin.IndexType)
-    result: ExecuteArgsType = result_def(ExecuteArgsType)
-
-    def verify_(self):
-        assert len(self.extents) == len(self.result.type.vectorSpaces)
-
-
-@irdl_attr_definition
-class ExecuteOutputType(ParametrizedAttribute):
-    name = "dtl.executeOutputType"
-    dimensionNames: ParameterDef[ArrayAttr[ArrayAttr[StringAttr]]]
-
-
-@irdl_op_definition
-class ExecuteOutputOp(IRDLOperation):
-    name = "dtl.executeOutputOp"
-
-    tensors: VarOperand = var_operand_def(dlt.PtrType)
-    result: ExecuteArgsType = result_def(ExecuteOutputType)
-
-    def verify_(self):
-        #we should assert that the dlt type has all and the needed output tensors as specified by the result type
-        assert len(self.tensors) == len(self.result.type.dimensionNames)
-        for tensor, dims in zip(self.tensors, self.result.type.dimensionNames):
-            assert tensor.type.contents_type.get_single_element() is not None
-            elem = tensor.type.contents_type.get_single_element()
-            assert len(elem.dimensions) == len(dims)
-            assert len(elem.member_specifiers) == 0
-
-
-@irdl_op_definition
-class DenseExecuteTensorOp(IRDLOperation):
-    name = "dtl.denseExecuteOp"
+class InPlaceExecuteTensorOp(IRDLOperation):
+    name = "dtl.inPlaceExecuteOp"
 
     expr_region: Region = region_def("single_block")
     # extent_names: ArrayAttr[UnknownVectorSpace] = attr_def(ArrayAttr[UnknownVectorSpace])
@@ -592,13 +544,6 @@ class DenseExecuteTensorOp(IRDLOperation):
                         "tensor_arg_indices":tensor_arg_indices,
                         "tensor_arg_base_types":tensor_arg_base_types}
         )
-
-
-    # output_indices: ArrayAttr[ArrayAttr[StringAttr]] = attr_def(ArrayAttr[ArrayAttr[StringAttr]])
-    # outputs: dlt.PtrType = operand_def(dlt.PtrType)
-
-    # result: TensorExprType = result_def(TensorExprType) No result type needed as this effectively stores into the given output op
-
     def verify_(self):
         # check context holds all the required vector spaces
         # check args holds correct args given TensorExprType
@@ -624,7 +569,7 @@ class ExecuteYieldOp(IRDLOperation):
     arguments: TensorExprType = operand_def(TensorExprType)
 
     traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(DenseExecuteTensorOp)])
+        lambda: frozenset([IsTerminator(), HasParent(InPlaceExecuteTensorOp)])
     )
 #
 #
@@ -805,11 +750,9 @@ DTL = Dialect("DTL",
         ScalarConstOp,
         TupleOp,
         IndexedTupleOp,
-        DenseBackedTensorOp,
+        TensorVariableOp,
         ConstTensorOp,
-        ExecuteContextOp,
-        ExecuteArgsOp,
-        DenseExecuteTensorOp
+        InPlaceExecuteTensorOp
     ],
     [
         IndexShapeStruct,
@@ -821,7 +764,5 @@ DTL = Dialect("DTL",
         IndexToVectorSpaceMapPair,
         IndexToVectorSpaceMap,
         TensorExprType,
-        ExecuteContextType,
-        ExecuteArgsType
     ],
 )

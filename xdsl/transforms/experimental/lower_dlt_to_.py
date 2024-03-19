@@ -4,7 +4,7 @@ import functools
 from dataclasses import dataclass
 from typing import Optional, cast, assert_type
 
-from xdsl.dialects import llvm, arith, builtin, memref, scf
+from xdsl.dialects import llvm, arith, builtin, memref, scf, printf
 from xdsl.dialects.builtin import DenseArrayBase, IndexType, UnrealizedConversionCastOp, i64, IntegerType, AnyFloat, \
     IntegerAttr, ModuleOp
 from xdsl.dialects.experimental import dlt
@@ -489,18 +489,23 @@ class DLTAllocRewriter(RewritePattern):
 
         size_ops, alloc_bytes = from_int_to_ssa(get_size_from_layout(ptr_type.layout, extent_resolver), sum=True)
         ops.extend(size_ops)
-        # ops.append(size_sum := arith.Addi(alloc_size, alloc_extra))
-        # alloc_bytes = size_sum.result
-        ops.append(mr_alloc_op := memref.Alloc.get(IntegerType(8), 64, [-1], [alloc_bytes]))
-        ops.append(llvm_alloc_cast := UnrealizedConversionCastOp.get(mr_alloc_op.memref, llvm.LLVMPointerType.opaque()))
 
-        gen_ops, ptr_struct = generate_ptr_struct_in_llvm(ptr_type, llvm_alloc_cast.results[0], {}, extent_resolver)
+        # ops.append(mr_alloc_op := memref.Alloc.get(IntegerType(8), 64, [-1], [alloc_bytes]))
+        # ops.append(llvm_alloc_cast := UnrealizedConversionCastOp.get(mr_alloc_op.memref, llvm.LLVMPointerType.opaque()))
+        # buffer = llvm_alloc_cast.results[0]
+
+        conv_to_i64, alloc_bytes = get_as_i64(alloc_bytes)
+        ops.extend(conv_to_i64)
+        ops.append(malloc := llvm.CallOp("malloc", alloc_bytes, return_type=llvm.LLVMPointerType.opaque()))
+        buffer = malloc.returned
+
+        gen_ops, ptr_struct = generate_ptr_struct_in_llvm(ptr_type, buffer, {}, extent_resolver)
         ops.extend(gen_ops)
 
 
         init_values_map = {cast(dlt.PtrType, init_arg.type).contents_type.get_single_element():init_arg for init_arg in alloc_op.initialValues}
 
-        init_ops = init_layout(ptr_type.layout, extent_resolver, llvm_alloc_cast.results[0], init_values_map)
+        init_ops = init_layout(ptr_type.layout, extent_resolver, buffer, init_values_map)
         ops.extend(init_ops)
 
         cast_output_op = UnrealizedConversionCastOp.get(ptr_struct, alloc_op.res.type)
@@ -519,9 +524,10 @@ def init_layout(layout: dlt.Layout, extent_resolver: ExtentResolver, input_ptr: 
 @init_layout.register
 def _(layout: dlt.PrimitiveLayoutAttr, extent_resolver: ExtentResolver, input_ptr: SSAValue, initial_values: dict[dlt.ElementAttr, SSAValue]) -> list[Operation]:
     elem = layout.contents_type.get_single_element()
+    debug = [] # [int_op := llvm.PtrToIntOp(input_ptr), trunc_op := arith.TruncIOp(int_op.output, builtin.i32), printf.PrintIntOp(trunc_op.result)]
     if elem not in initial_values:
-        return []
-    return [init_val := dlt.GetOp(initial_values[elem], layout.base_type), llvm.StoreOp(init_val, input_ptr)]
+        return debug + []
+    return debug + [init_val := dlt.GetOp(initial_values[elem], layout.base_type), llvm.StoreOp(init_val, input_ptr)]
 
 
 @init_layout.register
@@ -567,7 +573,9 @@ def _(layout: dlt.DenseLayoutAttr, extent_resolver: ExtentResolver, input_ptr: S
 
     block = Block()
     index = block.insert_arg(IndexType(),0)
-    ptr_arg = block.insert_arg(llvm.LLVMPointerType.opaque(), 1)
+    block.add_op(offsetMul_op := arith.Muli(index, size))
+    ptr_add_ops, ptr_arg = add_to_llvm_pointer(input_ptr, offsetMul_op.result)
+    block.add_ops(ptr_add_ops)
 
     new_init_values = {}
     for elem, dlt_ptr in initial_values.items():
@@ -577,15 +585,16 @@ def _(layout: dlt.DenseLayoutAttr, extent_resolver: ExtentResolver, input_ptr: S
         new_init_values[new_elem] = select_op.res
 
     block.add_ops(init_layout(layout.child, extent_resolver, ptr_arg, new_init_values))
-    increment_ops, new_ptr = add_to_llvm_pointer(ptr_arg, size)
-    block.add_ops(increment_ops)
-    block.add_op(scf.Yield(ptr_arg))
+    # block.add_ops(increment_ops)
+    block.add_op(scf.Yield())
 
     ops.append(lb := arith.Constant(IntegerAttr(0, IndexType())))
     ops.append(step := arith.Constant(IntegerAttr(1, IndexType())))
     ub_ops, ub = from_int_to_ssa(extent_resolver.resolve(layout.dimension.extent))
     ops.extend(ub_ops)
-    loop = scf.For(lb, ub, step, [input_ptr], block)
+    debug = [trunc_op := arith.IndexCastOp(ub, builtin.i32), printf.PrintIntOp(trunc_op.result)]
+    # ops.extend(debug)
+    loop = scf.For(lb, ub, step, [], block)
     ops.append(loop)
     return ops
 
@@ -599,6 +608,9 @@ class DLTIterateRewriter(RewritePattern):
         assert all(isinstance(tensor.type, dlt.PtrType) for tensor in iterate_op.tensors)
         ops = []
 
+        extent_map = {extent: SSAExtentGetter(arg) for extent, arg in zip([e for e in iterate_op.extents if not e.is_static()], iterate_op.extent_args)}
+        extent_map |= {extent: StaticExtentGetter(extent) for extent in iterate_op.extents if extent.is_static() and isinstance(extent, dlt.StaticExtentAttr)}
+        extent_resolver = ExtentResolver(extent_map)
 
         for tensor_arg, tensor_dims in zip(iterate_op.tensors, iterate_op.dimensions):
             tensor_dims = cast(builtin.ArrayAttr[dlt.SetAttr[dlt.DimensionAttr]], tensor_dims)
@@ -613,16 +625,13 @@ class DLTIterateRewriter(RewritePattern):
                 if extent.is_static():
                     assert all(dim.extent == extent for dim in ext_dims)
                 else:
-                    get_extent_ops, tensor_extent = tensor_arg_extent_resolver.resolve(extent)
-                    ops.extend(get_extent_ops)
-                    ops.append(cond := arith.Cmpi(extent, tensor_extent, "ne"))
-                    fail = [null := llvm.NullOp(llvm.LLVMPointerType.opaque()), llvm.LoadOp(null, llvm.LLVMPointerType.opaque()), scf.Yield()]
-                    # fail is a horrible idea to force a seg-fault if the extents don't match.
-                    ops.append(scf.If(cond, (), fail, ()))
-
-        extent_map = {extent: SSAExtentGetter(arg) for extent, arg in zip([e for e in iterate_op.extents if not e.is_static()], iterate_op.extent_args)}
-        extent_map |= {extent: StaticExtentGetter(extent) for extent in iterate_op.extents if extent.is_static() and isinstance(extent, dlt.StaticExtentAttr)}
-        extent_resolver = ExtentResolver(extent_map)
+                    get_tensor_extent_ops, tensor_extent = tensor_arg_extent_resolver.resolve(extent)
+                    ops.extend(get_tensor_extent_ops)
+                    get_iterate_extent_ops, iterate_extent = extent_resolver.resolve(extent)
+                    ops.extend(get_iterate_extent_ops)
+                    ops.append(cond := arith.Cmpi(iterate_extent, tensor_extent, "ne"))
+                    fail = [llvm.CallOp("abort"), scf.Yield()]
+                    ops.append(scf.If(cond, (), fail))
 
         ops.append(lb := arith.Constant(IntegerAttr(0, IndexType())))
         ops.append(step := arith.Constant(IntegerAttr(1, IndexType())))
@@ -671,6 +680,59 @@ class DLTIterateRewriter(RewritePattern):
 
         ops.append(outer_loop_op)
         rewriter.replace_matched_op(ops, outer_loop_op.results)
+
+
+@dataclass
+class DLTCopyRewriter(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, copy_op: dlt.CopyOp, rewriter: PatternRewriter):
+        assert all(isinstance(tensor.type, dlt.PtrType) for tensor in [copy_op.src, copy_op.dst])
+        src_extents = [d.extent for d in copy_op.src_dimensions]
+        dst_extents = [d.extent for d in copy_op.dst_dimensions]
+        assert src_extents == dst_extents
+        extent_args = []
+        ops = []
+        for extent in src_extents:
+            extent = cast(dlt.Extent, extent)
+            if extent.is_init_time():
+                ops.append(e_op := dlt.ExtractExtentOp(copy_op.src, extent))
+                extent_args.append(e_op.res)
+        iterate_op = dlt.IterateOp(src_extents, extent_args,
+                                   [[[d] for d in copy_op.src_dimensions],
+                                    [[d] for d in copy_op.dst_dimensions]],
+                                   [copy_op.src, copy_op.dst],
+                                   [], builtin.StringAttr("nested"))
+        ops.append(iterate_op)
+        body = iterate_op.body.block
+        new_body_ops = []
+        src = iterate_op.get_block_arg_for_tensor_arg_idx(0)
+        dst = iterate_op.get_block_arg_for_tensor_arg_idx(1)
+        new_body_ops.append(load := dlt.GetOp(src, copy_op.copy_type))
+        new_body_ops.append(store := dlt.SetOp(dst, copy_op.copy_type, load))
+        body.insert_ops_before(new_body_ops, body.last_op)
+        rewriter.replace_matched_op(ops)
+
+@dataclass
+class DLTExtractExtentRewriter(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, extract_op: dlt.ExtractExtentOp, rewriter: PatternRewriter):
+        assert isinstance(extract_op.tree.type, dlt.PtrType)
+        dlt_ptr: dlt.PtrType = extract_op.tree.type
+        # dlt_ptr = cast(dlt.PtrType, dlt_ptr)
+        ops = []
+
+        llvm_type = get_llvm_type_from_dlt_ptr(dlt_ptr)
+        ops.append(cast_op := builtin.UnrealizedConversionCastOp.get(extract_op.tree, llvm_type))
+
+        e_map = {extent: PtrCarriedGetter(cast_op.outputs[0], dlt_ptr, extent=extent) for extent in
+                 dlt_ptr.filled_extents}
+        extent_resolver = ExtentResolver(e_map)
+
+        resolve_ops, extent_ssa = from_int_to_ssa(extent_resolver.resolve(extract_op.extent))
+        ops.extend(resolve_ops)
+        rewriter.replace_matched_op(ops, [extent_ssa])
 
 
 @dataclass

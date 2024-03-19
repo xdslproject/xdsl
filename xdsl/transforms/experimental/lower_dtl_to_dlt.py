@@ -2,7 +2,6 @@ import functools
 import typing
 from typing import Union
 
-import dtl
 from xdsl import printer
 from xdsl.builder import Builder
 from xdsl.dialects.experimental import dlt, dtl
@@ -77,17 +76,36 @@ class DeIndexElement():
             if dim == d: return i
         raise ValueError(f"dimension {dim} not found in indices_map for {self}")
 
+
+def _linear(res: TupleStruct, cls) -> list:
+    if isinstance(res, tuple):
+        return [r for rs in res for r in _linear(rs, cls)]
+    elif isinstance(res, cls):
+        return [res]
+    else:
+        raise ValueError()
+
 @dataclass
 class DTLDenseRewriter(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, exe_op: dtl.DenseExecuteTensorOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, exe_op: dtl.InPlaceExecuteTensorOp, rewriter: PatternRewriter):
         exe_op.verify_()
         yield_op = exe_op.regions[-1].blocks[-1].last_op
         assert isinstance(yield_op, dtl.ExecuteYieldOp)
         exit_point = yield_op.arguments.op
-
-        new_block = Block()
-        self.block = new_block
+        output_tensor_types = exit_point.result.type.get_results_as_list()
+        assert len(output_tensor_types) == len(exe_op.outputs)
+        tensor_arg_types = []
+        for arg in exe_op.expr_region.block.args:
+            assert len(arg.uses) == 1
+            for use in arg.uses:
+                assert isinstance(use.operation, dtl.TensorVariableOp)
+                result = use.operation.result.type.result
+                assert isinstance(result, dtl.IndexShapeStruct)
+                tensor_arg_types.append(result)
+        assert len(tensor_arg_types) == len(exe_op.tensor_args)
+        # new_block = Block()
+        # self.block = new_block
         self.rewriter = rewriter
         self.context = exe_op
         self.next_dimension_name_number = 0#
@@ -96,53 +114,86 @@ class DTLDenseRewriter(RewritePattern):
         self.elements = {}
 
         self.const_ops = []
-        self.vector_space_dim_map = {}
-        for block_arg, dims  in zip(exe_op.expr_region.block.args, exe_op.tensor_arg_indices):
-            print(block_arg, dims)
-            for tv in block_arg.uses:
-                assert isinstance(tv.operation, dtl.DenseBackedTensorOp)
-                assert isinstance(tv.operation.result.type.result, dtl.IndexShapeStruct)
-                for vs, dim in zip(tv.operation.result.type.result.shape, dims):
-                    print(vs, dim)
-                    if isinstance(vs, dtl.UnknownVectorSpace):
-                        ssa = None
-                        for i, unknown_vs in enumerate(exe_op.context_vector_spaces):
-                            if vs.id == unknown_vs.id:
-                                ssa = SSAValue.get(exe_op.context_values[i].op)
-                        if ssa is None:
-                            raise ValueError(f"Cannot find Extent context for {vs} in {exe_op}")
-                        dimension = block_arg.type.contents_type.get_dimension(dim)
-                        if dimension is None:
-                            raise ValueError(f"Cannot find Dimension for {dim} in {block_arg}")
-                        new_mapping = (dimension, ssa)
-                        if vs in self.vector_space_dim_map:
-                            existing_mapping = self.vector_space_dim_map[vs]
-                            if existing_mapping != new_mapping:
-                                raise ValueError(f"multiple Unknown vector space mappings with different definitions for {vs}:\n{existing_mapping},\n{new_mapping}")
-                        else:
-                            self.vector_space_dim_map[vs] = new_mapping
-                    elif isinstance(vs, dtl.KnownVectorSpace):
+        self.extent_map: dict[dtl.VectorSpace, tuple[dlt.DimensionAttr, SSAValue]] = {}
+        for output, dims, shapeStruct in zip(exe_op.outputs + exe_op.tensor_args,
+                                             list(exe_op.output_indices) + list(exe_op.tensor_arg_indices),
+                                             output_tensor_types + tensor_arg_types):
+            for dim, vs in zip(dims, shapeStruct.shape):
+                if isinstance(vs, dtl.KnownVectorSpace):
+                    assert dim.extent.is_static()
+                    if vs not in self.extent_map:
                         const = arith.Constant(vs.dim, IndexType())
-                        assert vs.dim == dim.extent.value.value
                         self.const_ops.append(const)
-                        # new_mapping = (dlt.DimensionAttr(dim, IntegerAttr(vs.dim, IndexType())), SSAValue.get(const))
-                        new_mapping = (dim, SSAValue.get(const))
-                        if vs in self.vector_space_dim_map:
-                            existing_mapping = self.vector_space_dim_map[vs]
-                            if existing_mapping[0] != new_mapping[0]:
-                                # raise ValueError(f"multiple Known vector space mappings with different definitions for {vs}:\n{existing_mapping},\n{new_mapping}")
-                                pass
-                        else:
-                            self.vector_space_dim_map[vs] = new_mapping
-                    else:
-                        raise NotImplementedError()
+                        self.extent_map[vs] = (dim.extent, const.result)
+                    elif self.extent_map[vs][0] != dim.extent:
+                        raise ValueError("multiple Extents for a single Known Vector Space have been found")
+                elif isinstance(vs, dtl.UnknownVectorSpace):
+                    if dim.extent.is_init_time():
+                        if vs not in self.extent_map:
+                            extract = dlt.ExtractExtentOp(output, dim.extent)
+                            self.const_ops.append(extract)
+                            self.extent_map[vs] = (dim.extent, extract.res)
+                        elif self.extent_map[vs][0] != dim.extent:
+                            raise ValueError("multiple Extents for a single Unknown Vector Space have been found")
+                    elif dim.extent.is_dynamic():
+                        if vs not in self.extent_map:
+                            index = exe_op.context_vector_spaces.data.index(vs)
+                            ssa = exe_op.context_values[index]
+                            self.extent_map[vs] = (dim.extent, ssa)
 
-        self.vector_space_dim_map = {}
-        ssa_out = self._get_expression(exit_point, {})
+        # self.vector_space_dim_map = {}
+        # for block_arg, dims  in zip(exe_op.expr_region.block.args, exe_op.tensor_arg_indices):
+        #     print(block_arg, dims)
+        #     for tv in block_arg.uses:
+        #         assert isinstance(tv.operation, dtl.TensorVariableOp)
+        #         assert isinstance(tv.operation.result.type.result, dtl.IndexShapeStruct)
+        #         for vs, dim in zip(tv.operation.result.type.result.shape, dims):
+        #             print(vs, dim)
+        #             if isinstance(vs, dtl.UnknownVectorSpace):
+        #                 ssa = None
+        #                 for i, unknown_vs in enumerate(exe_op.context_vector_spaces):
+        #                     if vs.id == unknown_vs.id:
+        #                         ssa = SSAValue.get(exe_op.context_values[i].op)
+        #                 if ssa is None:
+        #                     raise ValueError(f"Cannot find Extent context for {vs} in {exe_op}")
+        #                 dimension = block_arg.type.contents_type.get_dimension(dim)
+        #                 if dimension is None:
+        #                     raise ValueError(f"Cannot find Dimension for {dim} in {block_arg}")
+        #                 new_mapping = (dimension, ssa)
+        #                 if vs in self.vector_space_dim_map:
+        #                     existing_mapping = self.vector_space_dim_map[vs]
+        #                     if existing_mapping != new_mapping:
+        #                         raise ValueError(f"multiple Unknown vector space mappings with different definitions for {vs}:\n{existing_mapping},\n{new_mapping}")
+        #                 else:
+        #                     self.vector_space_dim_map[vs] = new_mapping
+        #             elif isinstance(vs, dtl.KnownVectorSpace):
+        #                 const = arith.Constant(vs.dim, IndexType())
+        #                 assert vs.dim == dim.extent.value.value
+        #                 self.const_ops.append(const)
+        #                 # new_mapping = (dlt.DimensionAttr(dim, IntegerAttr(vs.dim, IndexType())), SSAValue.get(const))
+        #                 new_mapping = (dim, SSAValue.get(const))
+        #                 if vs in self.vector_space_dim_map:
+        #                     existing_mapping = self.vector_space_dim_map[vs]
+        #                     if existing_mapping[0] != new_mapping[0]:
+        #                         # raise ValueError(f"multiple Known vector space mappings with different definitions for {vs}:\n{existing_mapping},\n{new_mapping}")
+        #                         pass
+        #                 else:
+        #                     self.vector_space_dim_map[vs] = new_mapping
+        #             else:
+        #                 raise NotImplementedError()
+
+        # self.vector_space_dim_map = {}
+        ssa_out = cast(OpsAndResult, self._get_expression(exit_point, {}))
         ops = []
         ops.extend(self.const_ops)
         # self.block.add_ops(self.const_ops)
         ops.extend(ssa_out.ops)
+
+        results = _linear(ssa_out.result, ExprResult)
+        for res, output, out_idxs, out_type in zip(results, exe_op.outputs, exe_op.output_indices, exe_op.output_base_types):
+            res = cast(ExprResult, res)
+            assert res.base_type == out_type
+            ops.append(dlt.CopyOp(res.ssa, res.dims, output, out_idxs, out_type))
         # self.block.add_ops(ssa_out.ops)
         # p = printer.Printer()
         # p.print(self.block)
@@ -166,7 +217,7 @@ class DTLDenseRewriter(RewritePattern):
         raise TypeError(f"expr has unsupported class: {expr.__class__}")
 
     @_get_expression.register
-    def _(self, expr: dtl.DenseBackedTensorOp, indexMap: typing.Dict[dtl.Index, SSAValue]) -> OpsAndResult:
+    def _(self, expr: dtl.TensorVariableOp, indexMap: typing.Dict[dtl.Index, SSAValue]) -> OpsAndResult:
         print(f"_get_expression: {expr.name} :===: {expr}")
         spaces = [space for space in expr.result.type.result.shape]
         block_arg = expr.val
@@ -177,7 +228,7 @@ class DTLDenseRewriter(RewritePattern):
         return OpsAndResult([], ExprResult(self.context.tensor_args[block_arg.index], dlt_dims, base_type))
 
     @_do_expression.register
-    def _(self, expr: dtl.DenseBackedTensorOp, destination, indexMap: typing.Dict[dtl.Index, SSAValue]):
+    def _(self, expr: dtl.TensorVariableOp, destination, indexMap: typing.Dict[dtl.Index, SSAValue]):
         print(f"_do_expression: {expr.name} :===: {expr}")
         spaces = [space for space in expr.result.type.result.shape]
         block_arg = expr.val
@@ -259,8 +310,7 @@ class DTLDenseRewriter(RewritePattern):
                         dims.append(dim)
                         indices_map[index] = dim
                     elif isinstance(vector_space, dtl.UnknownVectorSpace):
-                        extent = self.context.get_extent(vector_space)
-                        if extent is None:
+                        if vector_space not in self.extent_map:
                             raise ValueError(f"Cannot find extent for UnknownVectorSpace: {vector_space}")
                         dim_name = StringAttr(f"{vector_space.id.data}_{self.next_dimension_name()}_")
                         dim = dlt.DimensionAttr(dim_name, dlt.InitDefinedExtentAttr(vector_space.id))
@@ -335,9 +385,8 @@ class DTLDenseRewriter(RewritePattern):
                 assert res_ssa.type == dst.res.type.contents_type.get_single_element().base_type
                 assert len(dst_dims) == 0
                 set_op = (
-                    dlt.SetOp(operands=[dst, res_ssa],
-                               attributes={"set_type": dst.res.type.contents_type.get_single_element().base_type},
-                               result_types=[]))
+                    dlt.SetOp(dst, dst.res.type.contents_type.get_single_element().base_type, res_ssa)
+                )
                 return [dst, set_op]
             elif isinstance(res_ssa.type, dlt.PtrType):
                 src = res_ssa
@@ -412,9 +461,9 @@ class DTLDenseRewriter(RewritePattern):
             if isinstance(vs, dtl.KnownVectorSpace):
                 extents.append(dlt.StaticExtentAttr(vs.dim))
             elif isinstance(vs, dtl.UnknownVectorSpace):
-                extent = self.context.get_extent(vs)
-                if extent is None:
+                if vs not in self.extent_map:
                     raise ValueError(f"Cannot find extent for UnknownVectorSpace: {vs}")
+                ext_dim, extent = self.extent_map[vs]
                 extents.append(dlt.InitDefinedExtentAttr(dim.id))
                 extent_args.append(extent)
             else:
@@ -441,7 +490,7 @@ class DTLDenseRewriter(RewritePattern):
                 return extent_map
             elif isinstance(element, DeIndexElement):
                 assert isinstance(indices, dtl.IndexShapeStruct)
-                extent_map = {e: self.context.get_extent(dtl.UnknownVectorSpace(e.get_id())) for d in element.elem.dimensions if (d.extent.get_stage() >= dlt.Stage.INIT) for e in d.extent.base_extents() if isinstance(e, dlt.InitDefinedExtentAttr)}
+                extent_map = {e: self.extent_map[dtl.UnknownVectorSpace(e.get_id())][1] for d in element.elem.dimensions if (d.extent.get_stage() >= dlt.Stage.INIT) for e in d.extent.base_extents() if isinstance(e, dlt.InitDefinedExtentAttr)}
                 assert all(ssa is not None for ssa in extent_map.values())
                 return extent_map
             else: raise ValueError()
@@ -508,10 +557,10 @@ class DTLDenseRewriter(RewritePattern):
             if isinstance(vs, dtl.KnownVectorSpace):
                 extents.append(dlt.StaticExtentAttr(vs.dim))
             elif isinstance(vs, dtl.UnknownVectorSpace):
-                extent = self.context.get_extent(vs)
-                if extent is None:
+                if vs not in self.extent_map:
                     raise ValueError(f"Cannot find extent for UnknownVectorSpace: {vs}")
-                extents.append(dlt.InitDefinedExtentAttr(vs.id))
+                ext_dim, extent = self.extent_map[vs]
+                extents.append(ext_dim)
                 extent_args.append(extent)
             else:
                 raise NotImplementedError(f"Vector space {vs} is not implemented")
@@ -635,7 +684,7 @@ class IndexingOpRewriter(RewritePattern):
     def match_and_rewrite(self, index_op: dtl.IndexOp, rewriter: PatternRewriter):
         assert index_op.expr is not None
         expr = index_op.expr
-        if isinstance(index_op.expr, dtl.DenseBackedTensorOp):
+        if isinstance(index_op.expr, dtl.TensorVariableOp):
             print("hi")
 
         load_op = memref.Load.get(index_op.tensor, index_op.indices)
