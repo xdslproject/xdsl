@@ -93,7 +93,7 @@ class CslPrintContext:
 
     def attribute_value_to_str(self, attr: Attribute) -> str:
         """
-        Takes a value-carrying attribute (IntegerAttribute, FloatAttribute, etc.)
+        Takes a value-carrying attribute (IntegerAttr, FloatAttr, etc.)
         and converts it to a csl expression representing that value literal (0, 3.14, ...)
         """
         match attr:
@@ -108,7 +108,7 @@ class CslPrintContext:
 
     def attribute_type_to_str(self, attr: Attribute) -> str:
         """
-        Takes a value-carrying attribute and (IntegerAttribute, FloatAttribute, etc.)
+        Takes a value-carrying attribute and (IntegerAttr, FloatAttr, etc.)
         and converts it to a csl expression representing the value's type (f32, u16, ...)
         """
         match attr:
