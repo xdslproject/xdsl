@@ -11,6 +11,28 @@ def __():
 
 
 @app.cell
+def __():
+    import re
+
+    from xdsl.dialects.builtin import ModuleOp
+
+    regex = r"^  "
+
+    def pp(module: ModuleOp) -> str:
+        """
+        Helper function to print modules for paper and slides
+        """
+        original = str(module)
+        no_module = original[:-1].replace("builtin.module {", "")
+        dedented = re.sub(regex, "", no_module, 0, re.MULTILINE)
+        return (dedented
+            .replace("riscv.", "rv.")
+            .replace("riscv_func.", "rv_func.")
+            .replace("riscv_scf.", "rv_scf."))
+    return ModuleOp, pp, re, regex
+
+
+@app.cell
 def __(mo):
     mo.md("""
     # Using xDSL to Lower Matrix Multiplication from `linalg` to Snitch
@@ -62,8 +84,7 @@ def __(mo):
 
 
 @app.cell
-def __():
-    from xdsl.dialects.builtin import ModuleOp
+def __(ModuleOp):
     from xdsl.ir import MLContext
     from xdsl.passes import ModulePass
 
@@ -71,7 +92,7 @@ def __():
         r = m.clone()
         p.apply(ctx, r)
         return r
-    return MLContext, ModuleOp, ModulePass, apply
+    return MLContext, ModulePass, apply
 
 
 @app.cell
@@ -94,7 +115,7 @@ def __(ctx, linalg_ir):
 
 
 @app.cell
-def __(apply, ctx, input, mo):
+def __(apply, ctx, input, mo, pp):
     from xdsl.transforms.convert_linalg_to_memref_stream import ConvertLinalgToMemrefStreamPass
 
     m_g = apply(ConvertLinalgToMemrefStreamPass(), input, ctx)
@@ -105,14 +126,14 @@ def __(apply, ctx, input, mo):
     `linalg.generic` constructs the iteration bounds from the sizes of the inputs + the iteration maps, leading to some awkward approaches like empty tensors used just to define the pooling or convolution regions.
 
     ``` mlir
-    {str(m_g)}
+    {pp(m_g)}
     ```
     """)
     return ConvertLinalgToMemrefStreamPass, m_g
 
 
 @app.cell
-def __(apply, ctx, m_g, mo):
+def __(apply, ctx, m_g, mo, pp):
     from xdsl.transforms.memref_streamify import MemrefStreamifyPass
 
     streamified_m = apply(MemrefStreamifyPass(), m_g, ctx)
@@ -123,7 +144,7 @@ def __(apply, ctx, m_g, mo):
     We get the following IR, with the generic now taking streams as inputs:
 
     ``` mlir
-    {str(streamified_m)}
+    {pp(streamified_m)}
     ```
     """)
     return MemrefStreamifyPass, streamified_m
@@ -161,7 +182,7 @@ def __(mo):
 
 
 @app.cell
-def __(Parser, ctx, mo):
+def __(Parser, ctx, mo, pp):
     imperfect_nest_ir = """
     func.func public @matmul(%0 : memref<8x8xf64>, %1 : memref<8x8xf64>, %2 : memref<8x8xf64>) {
         memref_stream.streaming_region {bounds = [8, 8, 8], indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d1, d2)>]} ins(%0, %1 : memref<8x8xf64>, memref<8x8xf64>) {
@@ -198,14 +219,14 @@ def __(Parser, ctx, mo):
     But what if we had imperfect nest loop lowering? The code would look something like this, with the output manipulation done outside of the inner loop:
 
     ``` mlir
-    {str(imperfect_nest_m)}
+    {pp(imperfect_nest_m)}
     ```
     """)
     return imperfect_nest_ir, imperfect_nest_m
 
 
 @app.cell
-def __(apply, ctx, imperfect_nest_m, mo):
+def __(apply, ctx, imperfect_nest_m, mo, pp):
     from xdsl.backend.riscv.lowering import (
         convert_arith_to_riscv,
         convert_func_to_riscv_func,
@@ -231,7 +252,7 @@ def __(apply, ctx, imperfect_nest_m, mo):
     We can then lower the code to riscv:
 
     ``` mlir
-    {str(rv_loops_m)}
+    {pp(rv_loops_m)}
     ```
     """)
     return (
@@ -248,7 +269,7 @@ def __(apply, ctx, imperfect_nest_m, mo):
 
 
 @app.cell
-def __(apply, ctx, mo, rv_loops_m):
+def __(apply, ctx, mo, pp, rv_loops_m):
     from xdsl.transforms.riscv_cse import RiscvCommonSubexpressionElimination
 
     rv_loops_cse_m = apply(RiscvCommonSubexpressionElimination(), rv_loops_m, ctx)
@@ -259,14 +280,14 @@ def __(apply, ctx, mo, rv_loops_m):
     In order to simplify this we need to make a couple of optimisations, starting with common subexpression elimination ({RiscvCommonSubexpressionElimination.name})
 
     ``` mlir
-    {str(rv_loops_cse_m)}
+    {pp(rv_loops_cse_m)}
     ```
     """)
     return RiscvCommonSubexpressionElimination, rv_loops_cse_m
 
 
 @app.cell
-def __(apply, ctx, mo, rv_loops_cse_m):
+def __(apply, ctx, mo, pp, rv_loops_cse_m):
     from xdsl.transforms.canonicalize import CanonicalizePass
     from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 
@@ -278,7 +299,7 @@ def __(apply, ctx, mo, rv_loops_cse_m):
     We can then simplify the loop logic with {RiscvScfLoopRangeFoldingPass.name}, and some canonicalization:
 
     ``` mlir
-    {str(rv_loops_folded_m)}
+    {pp(rv_loops_folded_m)}
     ```
     """)
     return (
@@ -290,7 +311,7 @@ def __(apply, ctx, mo, rv_loops_cse_m):
 
 
 @app.cell
-def __(Parser, ctx, mo):
+def __(Parser, ctx, mo, pp):
     fused_ir = """
       riscv.assembly_section ".text" {
         riscv.directive ".globl" "matmul"
@@ -340,7 +361,7 @@ def __(Parser, ctx, mo):
     These loops can be fused, to give something like this:
 
     ``` mlir
-    {str(fused_m)}
+    {pp(fused_m)}
     ```
     """)
     return fused_ir, fused_m
@@ -354,6 +375,7 @@ def __(
     ctx,
     fused_m,
     mo,
+    pp,
 ):
     rv_canonicalized_2_m = apply(CanonicalizePass(), fused_m, ctx)
     rv_loops_folded_2_m = apply(RiscvScfLoopRangeFoldingPass(), rv_canonicalized_2_m, ctx)
@@ -364,7 +386,7 @@ def __(
     We can then do some loop range folding to eliminate the rest of the unnecessary code in the for loop:
 
     ``` mlir
-    {str(rv_loops_folded_2_m)}
+    {pp(rv_loops_folded_2_m)}
     ```
     """)
     return rv_canonicalized_2_m, rv_loops_folded_2_m
@@ -381,7 +403,7 @@ def __(mo):
 
 
 @app.cell
-def __(apply, ctx, mo, rv_loops_folded_2_m):
+def __(apply, ctx, mo, pp, rv_loops_folded_2_m):
     from xdsl.transforms.test_lower_linalg_to_snitch import TEST_LOWER_LINALG_TO_SNITCH_PASSES
 
     pass_results = ""
@@ -394,7 +416,7 @@ def __(apply, ctx, mo, rv_loops_folded_2_m):
     {p.name}
 
     ``` mlir
-    {str(remaining_m)}
+    {pp(remaining_m)}
     ```
     """
 
