@@ -62,6 +62,16 @@ class CslPrintContext:
         return name
 
     def mlir_type_to_csl_type(self, type_attr: Attribute) -> str:
+        """
+        Convert an MLR type to a csl type. CSL supports a very limited set of types:
+
+        - integer types: i16, u16, i32, u32
+        - float types: f16, f32
+        - pointers: [*]f32
+        - arrays: [64]f32
+
+        This method does not yet support all the types and will be expanded as needed later.
+        """
         match type_attr:
             case Float16Type():
                 return "f16"
@@ -82,6 +92,10 @@ class CslPrintContext:
                 return f"<!unknown type {unkn}>"
 
     def attribute_value_to_str(self, attr: Attribute) -> str:
+        """
+        Takes a value-carrying attribute (IntegerAttribute, FloatAttribute, etc.)
+        and converts it to a csl expression representing that value literal (0, 3.14, ...)
+        """
         match attr:
             case IntAttr(data=val):
                 return str(val)
@@ -93,6 +107,10 @@ class CslPrintContext:
                 return f"<!unknown value {unkn}>"
 
     def attribute_type_to_str(self, attr: Attribute) -> str:
+        """
+        Takes a value-carrying attribute and (IntegerAttribute, FloatAttribute, etc.)
+        and converts it to a csl expression representing the value's type (f32, u16, ...)
+        """
         match attr:
             case IntAttr():
                 return "<!indeterminate IntAttr type>"
@@ -104,6 +122,9 @@ class CslPrintContext:
                 return f"<!unknown type of {unkn}>"
 
     def print_block(self, body: Block):
+        """
+        Walks over a block and prints every operation in the block.
+        """
         for op in body.ops:
             match op:
                 case arith.Constant(value=v, result=r):
@@ -144,5 +165,8 @@ class CslPrintContext:
 
 
 def print_to_csl(prog: ModuleOp, output: IO[str]):
+    """
+    Takes a module op and prints it to the given output stream.
+    """
     ctx = CslPrintContext(output)
     ctx.print_block(prog.body.block)
