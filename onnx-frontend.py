@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.3.1"
+__generated_with = "0.2.5"
 app = marimo.App()
 
 
@@ -124,7 +124,7 @@ def __(mo):
 
 @app.cell
 def __(mo, model_def):
-    from xdsl.frontend.onnx.context import build_module
+    from xdsl.frontend.onnx import build_module
 
     init_module = build_module(model_def.graph).clone()
 
@@ -403,7 +403,7 @@ def __(ctx, mo, riscv_code, snitch_stream_module):
 
     snitch_asm_module = snitch_stream_module.clone()
 
-    test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass().apply(
+    test_lower_linalg_to_snitch.TestLowerSnitchStreamToAsm().apply(
         ctx, snitch_asm_module
     )
 
@@ -441,9 +441,7 @@ def __(ctx, mo, rank, riscv_module, shape):
 
     mo.md(
         f"""
-    One of the useful features of xDSL is its interpreter.
-    Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct.
-    Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
+    One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
 
     {rank}
 
