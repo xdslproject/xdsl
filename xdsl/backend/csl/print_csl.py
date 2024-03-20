@@ -75,10 +75,6 @@ class CslPrintContext:
                 return "f16"
             case Float32Type():
                 return "f32"
-            case (
-                IndexType()
-            ):  # TODO: figure out what the equivalent of intpr_t is for csl!
-                return "i64"
             case IntegerType(
                 width=IntAttr(data=width),
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
