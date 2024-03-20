@@ -86,8 +86,8 @@ class CslPrintContext:
                 return f"u{width}"
             case IntegerType(width=IntAttr(data=width)):
                 return f"i{width}"
-            case unkn:
-                return f"<!unknown type {unkn}>"
+            case _:
+                return f"<!unknown type {type_attr}>"
 
     def attribute_value_to_str(self, attr: Attribute) -> str:
         """
@@ -101,8 +101,8 @@ class CslPrintContext:
                 return str(val.data)
             case FloatAttr(value=val):
                 return str(val.data)
-            case unkn:
-                return f"<!unknown value {unkn}>"
+            case _:
+                return f"<!unknown value {attr}>"
 
     def attribute_type_to_str(self, attr: Attribute) -> str:
         """
@@ -116,8 +116,8 @@ class CslPrintContext:
                 return self.mlir_type_to_csl_type(int_t)
             case FloatAttr(type=(Float16Type() | Float32Type()) as float_t):
                 return self.mlir_type_to_csl_type(float_t)
-            case unkn:
-                return f"<!unknown type of {unkn}>"
+            case _:
+                return f"<!unknown type of {attr}>"
 
     def print_block(self, body: Block):
         """
