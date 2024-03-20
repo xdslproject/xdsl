@@ -17,16 +17,16 @@ class MLProgramFunctions(InterpreterFunctions):
     @impl(ml_program.Global)
     def run_global(
         self, interpreter: Interpreter, op: ml_program.Global, args: tuple[Any, ...]
-    ):
+    ) -> tuple[Any, ...]:
         if op.is_mutable is not None:
             raise NotImplementedError(
                 "mutable global not yet supported in ml_program.global interpreter"
             )
-        global_value = op.value
+        values: list[int] = [v.value.data for v in op.value.dat]
         result_type = op.type
         assert isinstance(result_type, TensorType)
-        result_shape = result_type.get_shape()
-        return ShapedArray(list(global_value), result_shape)
+        result_shape = result_type.get_shape()[0]
+        return (ShapedArray(values, [result_shape]),)
 
     @impl(ml_program.GlobalLoadConstant)
     def run_global_load_constant(
@@ -34,8 +34,8 @@ class MLProgramFunctions(InterpreterFunctions):
         interpreter: Interpreter,
         op: ml_program.GlobalLoadConstant,
         args: tuple[Any, ...],
-    ):
+    ) -> tuple[Any, ...]:
         result_type = op.result.type
         assert isinstance(result_type, TensorType)
-        result_shape = result_type.get_shape()
-        return ShapedArray(list(), result_shape)
+        result_shape = result_type.get_shape()[0]
+        return (ShapedArray(list([None]), [result_shape]),)
