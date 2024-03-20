@@ -19,7 +19,6 @@ def test_onnx_add():
         TestSSAValue(TensorType(f32, [2, 3])),
         res_type=TensorType(f32, [2, 3]),
     )
-
     a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
     b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
 
