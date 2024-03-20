@@ -1,4 +1,5 @@
-from xdsl.dialects import ml_program
+from xdsl.builder import ImplicitBuilder
+from xdsl.dialects import func, ml_program
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     ModuleOp,
@@ -13,43 +14,47 @@ from xdsl.interpreters.ml_program import MLProgramFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
-def test_ml_program_global():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MLProgramFunctions())
-    op = ml_program.Global(
-        StringAttr("global_op"),
-        TensorType(i32, [4]),
-        None,
-        DenseIntOrFPElementsAttr.tensor_from_list([4], i32, [4]),
-        StringAttr("private"),
-    )
-
-    c = interpreter.run_op(op, ())
-    assert c[0] == ShapedArray([4], [4])
-
-
-def test_ml_program_global_ex2():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MLProgramFunctions())
-    op = ml_program.Global(
-        StringAttr("global_op_2"),
-        TensorType(i64, [2]),
-        None,
-        DenseIntOrFPElementsAttr.tensor_from_list([1, 320], i64, [2]),
-        StringAttr("private"),
-    )
-
-    c = interpreter.run_op(op, ())
-    assert c[0] == ShapedArray([1, 320], [2])
-
-
 def test_ml_program_global_load_constant():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(MLProgramFunctions())
-    op = ml_program.GlobalLoadConstant(
-        SymbolRefAttr("global_op"),
-        TensorType(i32, [4]),
-    )
+    tensor_type = TensorType(i32, [4])
+    module = ModuleOp([])
+    with ImplicitBuilder(module.body):
+        ml_program.Global(
+            StringAttr("my_global"),
+            tensor_type,
+            None,
+            DenseIntOrFPElementsAttr.from_list(tensor_type, [4]),
+            StringAttr("private"),
+        )
+        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
+            fetch = ml_program.GlobalLoadConstant(
+                SymbolRefAttr("my_global"), tensor_type
+            )
 
-    c = interpreter.run_op(op, ())
-    assert c[0] == ShapedArray([None], [4])
+    interpreter = Interpreter(module)
+    interpreter.register_implementations(MLProgramFunctions())
+
+    (result,) = interpreter.run_op(fetch, ())
+    assert result == ShapedArray([4], [4])
+
+
+def test_ml_program_global_load_constant_ex2():
+    tensor_type = TensorType(i64, [2])
+    module = ModuleOp([])
+    with ImplicitBuilder(module.body):
+        ml_program.Global(
+            StringAttr("my_global"),
+            tensor_type,
+            None,
+            DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 320]),
+            StringAttr("private"),
+        )
+        with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
+            fetch = ml_program.GlobalLoadConstant(
+                SymbolRefAttr("my_global"), tensor_type
+            )
+
+    interpreter = Interpreter(module)
+    interpreter.register_implementations(MLProgramFunctions())
+
+    (result,) = interpreter.run_op(fetch, ())
+    assert result == ShapedArray([1, 320], [2])
