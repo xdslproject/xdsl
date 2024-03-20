@@ -37,5 +37,5 @@ class MLProgramFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         result_type = op.result.type
         assert isinstance(result_type, TensorType)
-        result_shape = result_type.get_shape()[0]
-        return (ShapedArray([None], [result_shape]),)
+        result_shape = result_type.get_shape()
+        return (ShapedArray([None], list(result_shape)),)
