@@ -1,7 +1,7 @@
 from typing import Any
 
 from xdsl.dialects import ml_program
-from xdsl.dialects.builtin import TensorType
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, TensorType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -22,11 +22,11 @@ class MLProgramFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "mutable global not yet supported in ml_program.global interpreter"
             )
-        # FIX ME
-        result_type = op.type
-        assert isinstance(result_type, TensorType)
-        result_shape = result_type.get_shape()[0]
-        return (ShapedArray([], [result_shape]),)
+        global_value = op.value
+        assert isinstance(global_value, DenseIntOrFPElementsAttr)
+        shape = global_value.get_shape()
+        data = [el.value.data for el in global_value.data]
+        return (ShapedArray(data, list(shape) if shape is not None else []),)
 
     @impl(ml_program.GlobalLoadConstant)
     def run_global_load_constant(
@@ -38,4 +38,4 @@ class MLProgramFunctions(InterpreterFunctions):
         result_type = op.result.type
         assert isinstance(result_type, TensorType)
         result_shape = result_type.get_shape()[0]
-        return (ShapedArray(list([None]), [result_shape]),)
+        return (ShapedArray([None], [result_shape]),)
