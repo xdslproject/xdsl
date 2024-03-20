@@ -22,11 +22,11 @@ class MLProgramFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "mutable global not yet supported in ml_program.global interpreter"
             )
-        values: list[int] = [v.value.data for v in op.value.dat]
+        # FIX ME
         result_type = op.type
         assert isinstance(result_type, TensorType)
         result_shape = result_type.get_shape()[0]
-        return (ShapedArray(values, [result_shape]),)
+        return (ShapedArray([], [result_shape]),)
 
     @impl(ml_program.GlobalLoadConstant)
     def run_global_load_constant(
