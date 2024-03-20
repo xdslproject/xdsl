@@ -71,8 +71,8 @@ class LinalgFunctions(InterpreterFunctions):
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
-        lhs = cast(ShapedArray[int], lhs)
-        rhs = cast(ShapedArray[int], rhs)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
         return (
             ShapedArray(list(l + r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
@@ -84,7 +84,7 @@ class LinalgFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         (operand,) = args
         assert isinstance(operand, ShapedArray)
-        operand = cast(ShapedArray[int], operand)
+        operand = cast(ShapedArray[float], operand)
         result_type = op.res[0].type
         assert isinstance(result_type, TensorType)
         result_shape = list(result_type.get_shape())
@@ -99,8 +99,8 @@ class LinalgFunctions(InterpreterFunctions):
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
-        lhs = cast(ShapedArray[int], lhs)
-        rhs = cast(ShapedArray[int], rhs)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
         return (
             ShapedArray(list(l * r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
@@ -112,10 +112,10 @@ class LinalgFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         operand = args[0]
         assert isinstance(operand, ShapedArray)
-        operand = cast(ShapedArray[int], operand)
+        operand = cast(ShapedArray[float], operand)
         assert len(operand.shape) == 2
 
-        transposed_data: list[int] = []
+        transposed_data: list[float] = []
 
         for c in range(operand.shape[1]):
             for r in range(operand.shape[0]):
@@ -130,8 +130,8 @@ class LinalgFunctions(InterpreterFunctions):
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
-        lhs = cast(ShapedArray[int], lhs)
-        rhs = cast(ShapedArray[int], rhs)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape[1] == rhs.shape[0]
 
         # reshape the arrays
@@ -156,5 +156,5 @@ class LinalgFunctions(InterpreterFunctions):
                     matrix_result[i][j] += a[i][k] * b[k][j]
 
         # flatten the result
-        result: list[int] = [ele for row in matrix_result for ele in row]
+        result: list[float] = [ele for row in matrix_result for ele in row]
         return (ShapedArray(result, list([lhs.shape[0], rhs.shape[1]])),)

@@ -21,7 +21,7 @@ class TensorFunctions(InterpreterFunctions):
         result_type = op.tensor.type
         assert isinstance(result_type, TensorType)
         result_shape = list(result_type.get_shape())
-        return (ShapedArray(list([None]), result_shape),)
+        return (ShapedArray([None], result_shape),)
 
     @impl(tensor.ReshapeOp)
     def run_reshape(
