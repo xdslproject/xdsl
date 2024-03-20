@@ -85,6 +85,10 @@ class OnnxFunctions(InterpreterFunctions):
     def run_reshape(
         self, interpreter: Interpreter, op: onnx.Reshape, args: tuple[Any, ...]
     ):
+        if op.allow_zero is not None:
+            raise NotImplementedError(
+                "allow_zero not yet supported in onnx.reshape interpreter"
+            )
         operand = args[0]
         assert isinstance(operand, ShapedArray)
         operand = cast(ShapedArray[float], operand)
