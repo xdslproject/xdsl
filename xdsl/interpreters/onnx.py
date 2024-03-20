@@ -85,7 +85,7 @@ class OnnxFunctions(InterpreterFunctions):
     def run_reshape(
         self, interpreter: Interpreter, op: onnx.Reshape, args: tuple[Any, ...]
     ):
-        if op.allow_zero is not None:
+        if op.allow_zero.value.data == 1:
             raise NotImplementedError(
                 "allow_zero not yet supported in onnx.reshape interpreter"
             )
@@ -231,8 +231,55 @@ class OnnxFunctions(InterpreterFunctions):
     def run_max_pool_single_out(
         self, interpreter: Interpreter, op: onnx.MaxPoolSingleOut, args: tuple[Any, ...]
     ):
-        # Implement
-        pass
+        kernel: list[int] = [value.value.data for value in op.kernel_shape]
+        strides: list[int] = [value.value.data for value in op.strides]
+
+        if kernel.sort() != strides.sort():
+            raise NotImplementedError(
+                "Kernel shape and strides not equal computation not yet supported in onnx.MaxPoolSingleOut interpreter"
+            )
+
+        if op.storage_order.value.data == 1:
+            raise NotImplementedError(
+                "storage order not yet supported in onnx.MaxPoolSingleOut interpreter"
+            )
+
+        pads: list[int] = [value.value.data for value in op.pads]
+        ky, kx = kernel[0], kernel[1]
+        matrix = args[0]
+
+        matrix = cast(ShapedArray[float], matrix)
+        matrix = np.array(matrix.data).reshape(matrix.shape[2], matrix.shape[3])
+
+        m, n = matrix.shape[:2]
+
+        if op.ceil_mode.value.data == 1:
+
+            def output_mode(x, y):
+                return int(np.ceil(x / float(y)))
+
+        else:
+
+            def output_mode(x, y):
+                return int(np.floor(x / float(y)))
+
+        if all(element == 1 for element in pads):
+            ny = output_mode(m, ky)
+            nx = output_mode(n, kx)
+            size = (ny * ky, nx * kx) + matrix.shape[2:]
+            mat_pad = np.full(size, np.nan)
+            mat_pad[:m, :n, ...] = matrix
+        else:
+            ny = m // ky
+            nx = n // kx
+            mat_pad = matrix[: ny * ky, : nx * kx, ...]
+
+        new_shape = (ny, ky, nx, kx) + matrix.shape[2:]
+
+        result = np.nanmax(mat_pad.reshape(new_shape), axis=(1, 3))
+        flatten_res = np.array(result).flatten()
+        output_dims = [1, 1, new_shape[1], new_shape[3]]
+        return ShapedArray(list(flatten_res), output_dims)
 
     @impl(onnx.EntryPoint)
     def run_entry_point(

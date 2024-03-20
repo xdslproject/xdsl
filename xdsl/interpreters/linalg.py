@@ -145,7 +145,7 @@ class LinalgFunctions(InterpreterFunctions):
         ]
 
         # initialise a result list
-        matrix_result: list[list[int]] = [
+        matrix_result: list[list[float]] = [
             [0 for _ in range(rhs.shape[1])] for _ in range(lhs.shape[0])
         ]
 

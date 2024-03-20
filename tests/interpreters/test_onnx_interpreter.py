@@ -608,3 +608,31 @@ def test_onnx_conv_with_strides_asy_padding():
     assert d == ShapedArray(
         [21.0, 33.0, 99.0, 117.0, 189.0, 207.0, 171.0, 183.0], [1, 1, 4, 2]
     )
+
+
+def test_onnx_max_pool_single_out():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.MaxPoolSingleOut(
+        TestSSAValue(TensorType(f32, [1, 1, 4, 4])),
+        StringAttr("NOTSET"),
+        AnyIntegerAttr(0, i64),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+        ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
+        ArrayAttr(
+            [
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+            ]
+        ),
+        AnyIntegerAttr(0, i64),
+        ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
+    )
+    a = ShapedArray(
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], [1, 1, 4, 4]
+    )
+    b = interpreter.run_op(op, (a,))
+
+    assert b == ShapedArray([6, 8, 14, 16], [1, 1, 2, 2])
