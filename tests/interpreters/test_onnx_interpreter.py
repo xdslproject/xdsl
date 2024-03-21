@@ -217,37 +217,14 @@ def test_onnx_conv_no_padding():
         ),
         ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
     )
-    a = ShapedArray(
+    a = ShapedArray(list(range(25)), [1, 1, 5, 5])
+    b = ShapedArray(
         [
-            0,
             1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-        ],
-        [1, 1, 5, 5],
+        ]
+        * 9,
+        [1, 1, 3, 3],
     )
-    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
     c = ShapedArray([0], [1])
     d = interpreter.run_op(op, (a, b, c))
 
@@ -275,37 +252,14 @@ def test_onnx_conv_with_padding():
         ),
         ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
     )
-    a = ShapedArray(
+    a = ShapedArray(list(range(25)), [1, 1, 5, 5])
+    b = ShapedArray(
         [
-            0,
             1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-        ],
-        [1, 1, 5, 5],
+        ]
+        * 9,
+        [1, 1, 3, 3],
     )
-    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
     c = ShapedArray([0], [1])
     d = interpreter.run_op(op, (a, b, c))
 
@@ -362,37 +316,14 @@ def test_onnx_conv_with_same_lower_strides():
         ),
         ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
     )
-    a = ShapedArray(
+    a = ShapedArray(list(range(25)), [1, 1, 5, 5])
+    b = ShapedArray(
         [
-            0,
             1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-        ],
-        [1, 1, 5, 5],
+        ]
+        * 9,
+        [1, 1, 3, 3],
     )
-    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
     c = ShapedArray([0], [1])
     d = interpreter.run_op(op, (a, b, c))
 
@@ -422,47 +353,14 @@ def test_onnx_conv_with_strides_padding():
         ),
         ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
     )
-    a = ShapedArray(
+    a = ShapedArray(list(range(35)), [1, 1, 7, 5])
+    b = ShapedArray(
         [
-            0,
             1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            33,
-            34,
-        ],
-        [1, 1, 7, 5],
+        ]
+        * 9,
+        [1, 1, 3, 3],
     )
-    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
     c = ShapedArray([0], [1])
     d = interpreter.run_op(op, (a, b, c))
 
@@ -493,47 +391,14 @@ def test_onnx_conv_with_strides_no_padding():
         ),
         ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
     )
-    a = ShapedArray(
+    a = ShapedArray(list(range(35)), [1, 1, 7, 5])
+    b = ShapedArray(
         [
-            0,
             1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            33,
-            34,
-        ],
-        [1, 1, 7, 5],
+        ]
+        * 9,
+        [1, 1, 3, 3],
     )
-    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
     c = ShapedArray([0], [1])
     d = interpreter.run_op(op, (a, b, c))
 
@@ -561,48 +426,15 @@ def test_onnx_conv_with_strides_asy_padding():
         ),
         ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
     )
-    a = ShapedArray(
+    a = ShapedArray(list(range(35)), [1, 1, 7, 5])
+    b = ShapedArray(
         [
-            0,
             1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            33,
-            34,
-        ],
-        [1, 1, 7, 5],
+        ]
+        * 9,
+        [1, 1, 3, 3],
     )
-    b = ShapedArray([1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 3, 3])
-    c = ShapedArray([None], [1])
+    c = ShapedArray([0], [1])
     d = interpreter.run_op(op, (a, b, c))
 
     assert d == ShapedArray(
@@ -630,9 +462,7 @@ def test_onnx_max_pool_single_out():
         AnyIntegerAttr(0, i64),
         ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
     )
-    a = ShapedArray(
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], [1, 1, 4, 4]
-    )
+    a = ShapedArray(list(range(1, 17)), [1, 1, 4, 4])
     b = interpreter.run_op(op, (a,))
 
     assert b == ShapedArray([6, 8, 14, 16], [1, 1, 2, 2])

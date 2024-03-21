@@ -165,10 +165,10 @@ class OnnxFunctions(InterpreterFunctions):
                     pad_left = int(pad_along_width // 2)
                     pad_right = int(pad_along_width - pad_left)
                 else:
-                    pad_bottom = int(pad_along_height // 2)
-                    pad_top = int(pad_along_height - pad_bottom)
-                    pad_right = int(pad_along_width // 2)
-                    pad_left = int(pad_along_width - pad_right)
+                    pad_bottom = pad_along_height // 2
+                    pad_top = pad_along_height - pad_bottom
+                    pad_right = pad_along_width // 2
+                    pad_left = pad_along_width - pad_right
 
                 pads = [pad_top, pad_bottom, pad_left, pad_right]
 
