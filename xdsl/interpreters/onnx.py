@@ -19,8 +19,8 @@ class OnnxFunctions(InterpreterFunctions):
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
-        lhs = cast(ShapedArray[int], lhs)
-        rhs = cast(ShapedArray[int], rhs)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
         result = np.array(lhs.data) + np.array(rhs.data)
         return ShapedArray(list(result), lhs.shape)
@@ -30,8 +30,8 @@ class OnnxFunctions(InterpreterFunctions):
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
-        lhs = cast(ShapedArray[int], lhs)
-        rhs = cast(ShapedArray[int], rhs)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
         result = np.array(lhs.data) - np.array(rhs.data)
         return ShapedArray(list(result), lhs.shape)
@@ -41,8 +41,8 @@ class OnnxFunctions(InterpreterFunctions):
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
-        lhs = cast(ShapedArray[int], lhs)
-        rhs = cast(ShapedArray[int], rhs)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
         result = np.array(lhs.data) * np.array(rhs.data)
         return ShapedArray(list(result), lhs.shape)
@@ -52,8 +52,8 @@ class OnnxFunctions(InterpreterFunctions):
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
-        lhs = cast(ShapedArray[int], lhs)
-        rhs = cast(ShapedArray[int], rhs)
+        lhs = cast(ShapedArray[float], lhs)
+        rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
         result = np.array(lhs.data) / np.array(rhs.data)
         return ShapedArray(list(result), lhs.shape)
@@ -62,7 +62,7 @@ class OnnxFunctions(InterpreterFunctions):
     def run_relu(self, interpreter: Interpreter, op: onnx.Relu, args: tuple[Any, ...]):
         operand = args[0]
         assert isinstance(operand, ShapedArray)
-        operand = cast(ShapedArray[int], operand)
+        operand = cast(ShapedArray[float], operand)
         operand_data = np.array(operand.data)
         result = operand_data * (operand_data > 0)
         return ShapedArray(list(result), operand.shape)
