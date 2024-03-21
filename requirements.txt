@@ -9,6 +9,7 @@ pytest<8.2
 nbval<0.12
 filecheck<0.0.25
 lit<19.0.0
+marimo==0.2.5
 pre-commit==3.6.2
 ruff==0.3.3
 asv<0.7
