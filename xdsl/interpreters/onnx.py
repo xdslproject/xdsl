@@ -149,8 +149,8 @@ class OnnxFunctions(InterpreterFunctions):
 
         if auto_pad != "NOTSET":
             if auto_pad == "SAME_UPPER" or auto_pad == "SAME_LOWER":
-                out_height = np.ceil(matrix.shape[2] / strides[0])
-                out_width = np.ceil(matrix.shape[3] / strides[1])
+                out_height = int(np.ceil(matrix.shape[2] / strides[0]))
+                out_width = int(np.ceil(matrix.shape[3] / strides[1]))
 
                 pad_along_height = max(
                     (out_height - 1) * strides[0] + kernel.shape[2] - matrix.shape[2], 0
@@ -160,15 +160,15 @@ class OnnxFunctions(InterpreterFunctions):
                 )
 
                 if auto_pad == "SAME_UPPER":
-                    pad_top = int(pad_along_height // 2)
-                    pad_bottom = int(pad_along_height - pad_top)
-                    pad_left = int(pad_along_width // 2)
-                    pad_right = int(pad_along_width - pad_left)
+                    pad_top = pad_along_height // 2
+                    pad_bottom = pad_along_height - pad_top
+                    pad_left = pad_along_width // 2
+                    pad_right = pad_along_width - pad_left
                 else:
-                    pad_bottom = int(pad_along_height // 2)
-                    pad_top = int(pad_along_height - pad_bottom)
-                    pad_right = int(pad_along_width // 2)
-                    pad_left = int(pad_along_width - pad_right)
+                    pad_bottom = pad_along_height // 2
+                    pad_top = pad_along_height - pad_bottom
+                    pad_right = pad_along_width // 2
+                    pad_left = pad_along_width - pad_right
 
                 pads = [pad_top, pad_bottom, pad_left, pad_right]
 
