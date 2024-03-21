@@ -10,8 +10,8 @@ def test_tensor_empty():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(TensorFunctions())
     op = tensor.EmptyOp((), TensorType(f32, [3, 2]))
-    c = interpreter.run_op(op, ())
-    assert c[0] == ShapedArray([None], [3, 2])
+    (c,) = interpreter.run_op(op, ())
+    assert c == ShapedArray([0.0] * 6, [3, 2])
 
 
 def test_tensor_reshape():
@@ -23,6 +23,6 @@ def test_tensor_reshape():
         TensorType(f32, [4]),
     )
     a = ShapedArray([1, 2, 3, 4], [4, 1])
-    b = ShapedArray([None], [1])
-    c = interpreter.run_op(op, (a, b))
-    assert c[0] == ShapedArray([1, 2, 3, 4], [4])
+    b = ShapedArray([4], [1])
+    (c,) = interpreter.run_op(op, (a, b))
+    assert c == ShapedArray([1, 2, 3, 4], [4])
