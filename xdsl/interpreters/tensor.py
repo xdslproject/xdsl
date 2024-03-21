@@ -35,6 +35,7 @@ class TensorFunctions(InterpreterFunctions):
         result_type = op.result.type
         assert isinstance(result_type, TensorType)
         static_shape = list(result_type.get_shape())
-        if static_shape is not None and static_shape != new_shape.data:
+        assert static_shape is not None
+        if static_shape != new_shape.data:
             raise InterpretationError("Mismatch between static shape and new shape")
         return (ShapedArray(list(input.data), static_shape),)
