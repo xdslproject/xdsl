@@ -141,7 +141,7 @@ class CslPrintContext:
                     self.descend().print_block(bdy.block)
                     self.print("}")
                 case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
-                    idx, *iter_args = bdy.block.args
+                    idx, *_ = bdy.block.args
                     self.print(
                         f"for(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
                     )
