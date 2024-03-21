@@ -1,20 +1,27 @@
+from typing import cast
+
 import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    DenseArrayBase,
+    FloatAttr,
     MemRefType,
     ModuleOp,
     StringAttr,
+    TensorType,
+    f32,
     i32,
+    i64,
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.linalg import LinalgFunctions
 from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.ir import Block, Region
+from xdsl.ir import Attribute, Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
@@ -163,3 +170,88 @@ def test_linalg_generic_reduction():
     interpreter.run_op(op, (a, b, c))
 
     assert c.data == [32]
+
+
+def test_linalg_add():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    op = linalg.AddOp(
+        (
+            TestSSAValue(TensorType(f32, [2, 2])),
+            TestSSAValue(TensorType(f32, [2, 2])),
+        ),
+        (TestSSAValue(TensorType(f32, [2, 2])),),
+        (TensorType(f32, [2, 2]),),
+    )
+
+    a = ShapedArray([1, 2, 3, 4], [2, 2])
+    b = ShapedArray([6, 4, 9, 5], [2, 2])
+
+    c = interpreter.run_op(op, (a, b))
+    assert c[0] == ShapedArray([7, 6, 12, 9], [2, 2])
+
+
+def test_fill_op():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(ArithFunctions())
+    interpreter.register_implementations(LinalgFunctions())
+    constant = arith.Constant(FloatAttr(0.0, f32))
+    constant = cast(Attribute, constant)
+    op = linalg.FillOp(
+        (TestSSAValue(constant),),
+        (TestSSAValue(TensorType(f32, [2, 3])),),
+        (TensorType(f32, [2, 3]),),
+    )
+    a = ShapedArray([0], [1])
+    c = interpreter.run_op(op, (a,))
+    assert c[0] == ShapedArray([0, 0, 0, 0, 0, 0], [2, 3])
+
+
+def test_linalg_mul():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    op = linalg.MulOp(
+        (
+            TestSSAValue(TensorType(f32, [2, 2])),
+            TestSSAValue(TensorType(f32, [2, 2])),
+        ),
+        (TestSSAValue(TensorType(f32, [2, 2])),),
+        (TensorType(f32, [2, 2]),),
+    )
+
+    a = ShapedArray([1, 0, 8, 4], [2, 2])
+    b = ShapedArray([3, 9, 1, 6], [2, 2])
+
+    c = interpreter.run_op(op, (a, b))
+    assert c[0] == ShapedArray([3, 0, 8, 24], [2, 2])
+
+
+def test_linalg_transpose():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    op = linalg.TransposeOp(
+        TestSSAValue(TensorType(f32, [3, 2])),
+        TestSSAValue(TensorType(f32, [2, 3])),
+        DenseArrayBase.from_list(i64, [1, 0]),
+        TensorType(f32, [2, 2]),
+    )
+
+    a = ShapedArray([3, 5, 6, 7, 8, 9], [3, 2])
+    c = interpreter.run_op(op, (a,))
+    assert c[0] == ShapedArray([3, 6, 8, 5, 7, 9], [2, 3])
+
+
+def test_linalg_matmul():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    op = linalg.MatmulOp(
+        (TestSSAValue(TensorType(f32, [3, 2])),),
+        (TestSSAValue(TensorType(f32, [2, 3])),),
+        (TensorType(f32, [3, 3]),),
+    )
+
+    a = ShapedArray([1, 2, 3, 4, 5, 6], [3, 2])
+    b = ShapedArray([4, 3, 5, 1, 2, 8], [2, 3])
+
+    c = interpreter.run_op(op, (a, b))
+    assert c[0] == ShapedArray([6, 7, 21, 16, 17, 47, 26, 27, 73], [3, 3])
