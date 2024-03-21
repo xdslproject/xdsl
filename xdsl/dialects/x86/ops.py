@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
-from io import StringIO
-from typing import IO, Generic, TypeAlias, TypeVar
+from typing import Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
-    ModuleOp,
     StringAttr,
 )
 from xdsl.ir import (
@@ -26,7 +24,6 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.hints import isa
 
 from .register import GeneralRegisterType, X86RegisterType
 
@@ -151,13 +148,7 @@ class X86Instruction(X86Op):
 
     def assembly_line(self) -> str | None:
         # default assembly code generator
-        instruction_name = self.assembly_instruction_name()
-        arg_str = ", ".join(
-            _assembly_arg_str(arg)
-            for arg in self.assembly_line_args()
-            if arg is not None
-        )
-        return _assembly_line(instruction_name, arg_str, self.comment)
+        raise NotImplementedError()
 
 
 class DoubleOperandInstruction(IRDLOperation, X86Instruction, ABC):
@@ -208,83 +199,3 @@ class AddOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.add"
-
-
-# region Assembly printing
-def _append_comment(line: str, comment: StringAttr | None) -> str:
-    if comment is None:
-        return line
-
-    padding = " " * max(0, 48 - len(line))
-
-    return f"{line}{padding} # {comment.data}"
-
-
-def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
-    if isa(arg, AnyIntegerAttr):
-        return f"{arg.value.data}"
-    elif isinstance(arg, int):
-        return f"{arg}"
-    elif isinstance(arg, str):
-        return arg
-    elif isinstance(arg, GeneralRegisterType):
-        return arg.register_name
-    else:
-        if isinstance(arg.type, GeneralRegisterType):
-            reg = arg.type.register_name
-            return reg
-        else:
-            assert False, f"{arg.type}"
-
-
-def _assembly_line(
-    name: str,
-    arg_str: str,
-    comment: StringAttr | None = None,
-    is_indented: bool = True,
-) -> str:
-    code = "    " if is_indented else ""
-    code += name
-    if arg_str:
-        code += f" {arg_str}"
-    code = _append_comment(code, comment)
-    return code
-
-
-def print_assembly(module: ModuleOp, output: IO[str]) -> None:
-    for op in module.body.walk():
-        assert isinstance(op, X86Op), f"{op}"
-        asm = op.assembly_line()
-        if asm is not None:
-            print(asm, file=output)
-
-
-def x86_code(module: ModuleOp) -> str:
-    stream = StringIO()
-    print_assembly(module, stream)
-    return stream.getvalue()
-
-
-# endregion
-
-
-class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
-    """
-    This instruction allows us to create an SSAValue for a given register name.
-    """
-
-    result = result_def(R1InvT)
-
-    def __init__(
-        self,
-        register_type: R1InvT,
-    ):
-        super().__init__(result_types=[register_type])
-
-    def assembly_line(self) -> str | None:
-        return None
-
-
-@irdl_op_definition
-class GetRegisterOp(GetAnyRegisterOperation[GeneralRegisterType]):
-    name = "x86.get_register"

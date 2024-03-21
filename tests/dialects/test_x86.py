@@ -1,7 +1,6 @@
 import pytest
 
 from xdsl.dialects import x86
-from xdsl.utils.test_value import TestSSAValue
 
 
 @pytest.mark.parametrize(
@@ -28,11 +27,3 @@ from xdsl.utils.test_value import TestSSAValue
 def test_register(register: x86.register.GeneralRegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
-
-
-def test_add_op():
-    r1 = TestSSAValue(x86.register.RAX)
-    r2 = TestSSAValue(x86.register.RDX)
-    add_op = x86.AddOp(r1, r2, result=x86.register.RAX)
-
-    assert add_op.assembly_line() == "    add rax, rdx"
