@@ -63,30 +63,27 @@ func.func @initialize() {
 // CHECK-NEXT:   //unknown op GetGlobal(%x = memref.get_global @x : memref<6xf32>)
 // CHECK-NEXT:   //unknown op GetGlobal(%b = memref.get_global @b : memref<4xf32>)
 // CHECK-NEXT:   //unknown op GetGlobal(%y = memref.get_global @y : memref<4xf32>)
-// CHECK-NEXT:   //unknown op For(
-// CHECK-NEXT:   //    scf.for %idx = %lb to %ub step %step : i16 {
-// CHECK-NEXT:   //      %idx_f32 = "arith.sitofp"(%idx) : (i16) -> f32
-// CHECK-NEXT:   //      %idx_index = "arith.index_cast"(%idx) : (i16) -> index
-// CHECK-NEXT:   //      memref.store %idx_f32, %A[%idx_index] : memref<24xf32>
-// CHECK-NEXT:   //    }
-// CHECK-NEXT:   //)
+// CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
+// CHECK-NEXT:     //unknown op SIToFPOp(%idx_f32 = "arith.sitofp"(%idx) : (i16) -> f32)
+// CHECK-NEXT:     //unknown op IndexCastOp(%idx_index = "arith.index_cast"(%idx) : (i16) -> index)
+// CHECK-NEXT:     //unknown op Store(memref.store %idx_f32, %A[%idx_index] : memref<24xf32>)
+// CHECK-NEXT:     //unknown op Yield(scf.yield)
+// CHECK-NEXT:   }
 // CHECK-NEXT:   const ub_6 : i16 = 6;
-// CHECK-NEXT:   //unknown op For(
-// CHECK-NEXT:   //    scf.for %j = %lb to %ub step %step : i16 {
-// CHECK-NEXT:   //      %val = arith.constant 1.000000e+00 : f32
-// CHECK-NEXT:   //      %j_idx = "arith.index_cast"(%j) : (i16) -> index
-// CHECK-NEXT:   //      memref.store %val, %x[%j_idx] : memref<6xf32>
-// CHECK-NEXT:   //    }
-// CHECK-NEXT:   //)
+// CHECK-NEXT:   for(@range(i16, lb, ub, step)) |j| {
+// CHECK-NEXT:     const val : f32 = 1.0;
+// CHECK-NEXT:     //unknown op IndexCastOp(%j_idx = "arith.index_cast"(%j) : (i16) -> index)
+// CHECK-NEXT:     //unknown op Store(memref.store %val, %x[%j_idx] : memref<6xf32>)
+// CHECK-NEXT:     //unknown op Yield(scf.yield)
+// CHECK-NEXT:   }
 // CHECK-NEXT:   const ub_4 : i16 = 6;
-// CHECK-NEXT:   //unknown op For(
-// CHECK-NEXT:   //    scf.for %i = %lb to %ub_4 step %step : i16 {
-// CHECK-NEXT:   //      %c2 = arith.constant 2.000000e+00 : f32
-// CHECK-NEXT:   //      %c0 = arith.constant 0.000000e+00 : f32
-// CHECK-NEXT:   //      %i_idx = "arith.index_cast"(%i) : (i16) -> index
-// CHECK-NEXT:   //      memref.store %c2, %b[%i_idx] : memref<4xf32>
-// CHECK-NEXT:   //      memref.store %c0, %y[%i_idx] : memref<4xf32>
-// CHECK-NEXT:   //    }
-// CHECK-NEXT:   //)
+// CHECK-NEXT:   for(@range(i16, lb, ub_4, step)) |i| {
+// CHECK-NEXT:     const c2 : f32 = 2.0;
+// CHECK-NEXT:     const c0 : f32 = 0.0;
+// CHECK-NEXT:     //unknown op IndexCastOp(%i_idx = "arith.index_cast"(%i) : (i16) -> index)
+// CHECK-NEXT:     //unknown op Store(memref.store %c2, %b[%i_idx] : memref<4xf32>)
+// CHECK-NEXT:     //unknown op Store(memref.store %c0, %y[%i_idx] : memref<4xf32>)
+// CHECK-NEXT:     //unknown op Yield(scf.yield)
+// CHECK-NEXT:   }
 // CHECK-NEXT:   //unknown op Return(func.return)
 // CHECK-NEXT: }
