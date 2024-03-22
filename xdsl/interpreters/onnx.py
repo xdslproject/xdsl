@@ -12,6 +12,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.utils.exceptions import InterpretationError
 
 
 @register_impls
@@ -89,14 +90,17 @@ class OnnxFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "allow_zero not yet supported in onnx.reshape interpreter"
             )
-        operand = args[0]
-        assert isinstance(operand, ShapedArray)
-        operand = cast(ShapedArray[float], operand)
+        input, new_shape = args
+        assert isinstance(input, ShapedArray)
+        input = cast(ShapedArray[float], input)
         result_type = op.reshaped.type
         assert isinstance(result_type, TensorType)
-        new_shape = list(result_type.get_shape())
-        operand_data = np.array(operand.data)
-        return ShapedArray(list(operand_data), new_shape)
+        static_shape = list(result_type.get_shape())
+        input_data = np.array(input.data)
+        assert static_shape is not None
+        if static_shape != new_shape.data:
+            raise InterpretationError("Mismatch between static shape and new shape")
+        return (ShapedArray(list(input_data), new_shape.data),)
 
     @impl(onnx.Gemm)
     def run_gemm(self, interpreter: Interpreter, op: onnx.Gemm, args: tuple[Any, ...]):
