@@ -164,20 +164,20 @@ builtin.module {
 builtin.module {
   pdl.pattern @infer_type_from_type_used_in_match : benefit(1) {
     %types = pdl.types
-    %root = pdl.operation -> (%types : !pdl.range<!pdl.type>)
+    %root = pdl.operation -> (%types : !pdl.range<type>)
     pdl.rewrite %root {
       %otherTypes = pdl.types : [i32, i64]
-      %newOp = pdl.operation "foo.op" -> (%types, %otherTypes : !pdl.range<!pdl.type>, !pdl.range<!pdl.type>)
+      %newOp = pdl.operation "foo.op" -> (%types, %otherTypes : !pdl.range<type>, !pdl.range<type>)
     }
   }
 }
 
 // CHECK:      pdl.pattern @infer_type_from_type_used_in_match : benefit(1) {
 // CHECK-NEXT:   %types = pdl.types
-// CHECK-NEXT:   %root = pdl.operation -> (%types : !pdl.range<!pdl.type>)
+// CHECK-NEXT:   %root = pdl.operation -> (%types : !pdl.range<type>)
 // CHECK-NEXT:   pdl.rewrite %root {
 // CHECK-NEXT:     %otherTypes = pdl.types : [i32, i64]
-// CHECK-NEXT:     %newOp = pdl.operation "foo.op" -> (%types, %otherTypes : !pdl.range<!pdl.type>, !pdl.range<!pdl.type>)
+// CHECK-NEXT:     %newOp = pdl.operation "foo.op" -> (%types, %otherTypes : !pdl.range<type>, !pdl.range<type>)
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
@@ -219,9 +219,9 @@ builtin.module {
   pdl.pattern @infer_type_from_type_used_in_match : benefit(1) {
     %types = pdl.types
     %operands = pdl.operands : %types
-    %root = pdl.operation (%operands : !pdl.range<!pdl.value>)
+    %root = pdl.operation (%operands : !pdl.range<value>)
     pdl.rewrite %root {
-      %newOp = pdl.operation "foo.op" -> (%types : !pdl.range<!pdl.type>)
+      %newOp = pdl.operation "foo.op" -> (%types : !pdl.range<type>)
     }
   }
 }
@@ -229,9 +229,9 @@ builtin.module {
 // CHECK:       pdl.pattern @infer_type_from_type_used_in_match : benefit(1) {
 // CHECK-NEXT:    %types = pdl.types
 // CHECK-NEXT:    %operands = pdl.operands : %types
-// CHECK-NEXT:    %root = pdl.operation (%operands : !pdl.range<!pdl.value>)
+// CHECK-NEXT:    %root = pdl.operation (%operands : !pdl.range<value>)
 // CHECK-NEXT:    pdl.rewrite %root {
-// CHECK-NEXT:      %newOp = pdl.operation "foo.op" -> (%types : !pdl.range<!pdl.type>)
+// CHECK-NEXT:      %newOp = pdl.operation "foo.op" -> (%types : !pdl.range<type>)
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
 

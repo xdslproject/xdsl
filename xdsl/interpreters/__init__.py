@@ -7,6 +7,8 @@ from xdsl.interpreters import (
     func,
     linalg,
     memref,
+    memref_stream,
+    ml_program,
     printf,
     riscv,
     riscv_debug,
@@ -16,6 +18,7 @@ from xdsl.interpreters import (
     riscv_snitch,
     scf,
     snitch_stream,
+    tensor,
 )
 from xdsl.interpreters.experimental import pdl
 from xdsl.ir import MLContext
@@ -24,7 +27,9 @@ from xdsl.ir import MLContext
 def register_implementations(
     interpreter: Interpreter,
     ctx: MLContext,
+    *,
     include_wgpu: bool = True,
+    include_onnx: bool = True,
 ):
     interpreter.register_implementations(func.FuncFunctions())
     interpreter.register_implementations(cf.CfFunctions())
@@ -38,6 +43,13 @@ def register_implementations(
     interpreter.register_implementations(affine.AffineFunctions())
     interpreter.register_implementations(linalg.LinalgFunctions())
     interpreter.register_implementations(memref.MemrefFunctions())
+    interpreter.register_implementations(memref_stream.MemrefStreamFunctions())
+    interpreter.register_implementations(ml_program.MLProgramFunctions())
+    if include_onnx:
+        from xdsl.interpreters import onnx
+
+        interpreter.register_implementations(onnx.OnnxFunctions())
+
     if include_wgpu:
         from xdsl.interpreters.experimental import wgpu
 
@@ -47,3 +59,4 @@ def register_implementations(
     interpreter.register_implementations(printf.PrintfFunctions())
     interpreter.register_implementations(scf.ScfFunctions())
     interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
+    interpreter.register_implementations(tensor.TensorFunctions())

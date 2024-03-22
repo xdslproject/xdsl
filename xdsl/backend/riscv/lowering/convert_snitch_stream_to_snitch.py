@@ -21,6 +21,9 @@ def insert_stride_pattern_ops(
     strides: builtin.ArrayAttr[builtin.IntAttr],
     dm: builtin.IntAttr,
 ):
+    """
+    `ub` and `strides` must go from the outermost dimension inwards
+    """
     # reference implementation:
     # https://github.com/pulp-platform/snitch/blob/d026f47843f0ea6c269244c4e6851e0e09141ec3/sw/snRuntime/src/ssr.h#L73
     #
@@ -60,8 +63,8 @@ def insert_stride_pattern_ops(
 
     ints = tuple(builtin.IntAttr(i) for i in range(rank))
 
-    b_ops = tuple(riscv.LiOp(b.data) for b in ub)
-    s_ops = tuple(riscv.LiOp(s.data) for s in strides)
+    b_ops = tuple(riscv.LiOp(b.data) for b in reversed(ub.data))
+    s_ops = tuple(riscv.LiOp(s.data) for s in reversed(strides.data))
     new_b_ops = tuple(riscv.AddiOp(b_op.rd, -1) for b_op in b_ops)
     set_bound_ops = tuple(
         snitch.SsrSetDimensionBoundOp(new_b_op, dm, i)
