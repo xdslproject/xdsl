@@ -101,7 +101,7 @@ class Constant(IRDLOperation):
     result: OpResult = result_def(Attribute)
     value: Attribute = prop_def(Attribute)
 
-    traits = frozenset((ConstantLike(),))
+    traits = frozenset((ConstantLike(), Pure()))
 
     @overload
     def __init__(
@@ -186,6 +186,8 @@ class BinaryOperation(IRDLOperation, Generic[_T]):
     lhs: Operand = operand_def(T)
     rhs: Operand = operand_def(T)
     result: OpResult = result_def(T)
+
+    traits = frozenset((Pure(),))
 
     def __init__(
         self,
@@ -281,7 +283,7 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
-    traits = frozenset([Pure(), AddiOpHasCanonicalizationPatternsTrait()])
+    traits = frozenset([AddiOpHasCanonicalizationPatternsTrait()])
 
 
 @irdl_op_definition
@@ -293,8 +295,6 @@ class AddUIExtended(IRDLOperation):
 
     name = "arith.addui_extended"
 
-    traits = frozenset([Pure()])
-
     T = Annotated[Attribute, signlessIntegerLike, ConstraintVar("T")]
 
     lhs: Operand = operand_def(T)
@@ -304,6 +304,7 @@ class AddUIExtended(IRDLOperation):
     overflow: OpResult = result_def(Annotated[Attribute, boolLike])
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($sum) `,` type($overflow)"
+    traits = frozenset((Pure(),))
 
     def __init__(
         self,
@@ -546,6 +547,7 @@ class Cmpi(IRDLOperation, ComparisonOperation):
     lhs: Operand = operand_def(signlessIntegerLike)
     rhs: Operand = operand_def(signlessIntegerLike)
     result: OpResult = result_def(IntegerType(1))
+    traits = frozenset((Pure(),))
 
     def __init__(
         self,
@@ -636,6 +638,7 @@ class Cmpf(IRDLOperation, ComparisonOperation):
     lhs: Operand = operand_def(floatingPointLike)
     rhs: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(IntegerType(1))
+    traits = frozenset((Pure(),))
 
     def __init__(
         self,
@@ -715,6 +718,7 @@ class Select(IRDLOperation):
     lhs: Operand = operand_def(Attribute)
     rhs: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
+    traits = frozenset((Pure(),))
 
     # TODO replace with trait
     def verify_(self) -> None:
@@ -765,21 +769,25 @@ class Select(IRDLOperation):
 @irdl_op_definition
 class Addf(FloatingPointLikeBinaryOp):
     name = "arith.addf"
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
 class Subf(FloatingPointLikeBinaryOp):
     name = "arith.subf"
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
 class Mulf(FloatingPointLikeBinaryOp):
     name = "arith.mulf"
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
 class Divf(FloatingPointLikeBinaryOp):
     name = "arith.divf"
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -788,6 +796,7 @@ class Negf(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(floatingPointLike)
     result: OpResult = result_def(floatingPointLike)
+    traits = frozenset((Pure(),))
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -822,6 +831,7 @@ class Maximumf(FloatingPointLikeBinaryOp):
     """
 
     name = "arith.maximumf"
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -833,6 +843,7 @@ class Maxnumf(FloatingPointLikeBinaryOp):
     """
 
     name = "arith.maxnumf"
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -843,6 +854,7 @@ class Minimumf(FloatingPointLikeBinaryOp):
     """
 
     name = "arith.minimumf"
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -853,6 +865,7 @@ class Minnumf(FloatingPointLikeBinaryOp):
     """
 
     name = "arith.minnumf"
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition
@@ -873,6 +886,7 @@ class FPToSIOp(IRDLOperation):
 
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(IntegerType)
+    traits = frozenset((Pure(),))
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
@@ -884,6 +898,7 @@ class SIToFPOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
+    traits = frozenset((Pure(),))
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
@@ -895,6 +910,7 @@ class ExtFOp(IRDLOperation):
 
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+    traits = frozenset((Pure(),))
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
@@ -908,6 +924,7 @@ class TruncFOp(IRDLOperation):
 
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+    traits = frozenset((Pure(),))
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])
@@ -921,6 +938,7 @@ class TruncIOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
+    traits = frozenset((Pure(),))
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
@@ -942,6 +960,7 @@ class ExtSIOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
+    traits = frozenset((Pure(),))
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
@@ -963,6 +982,7 @@ class ExtUIOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
+    traits = frozenset((Pure(),))
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
