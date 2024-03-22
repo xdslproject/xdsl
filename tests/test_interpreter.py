@@ -1,10 +1,11 @@
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
 
-from xdsl.dialects import builtin, func
-from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
+from xdsl.dialects import builtin, func, onnx
+from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, TensorType, f32, i32
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -14,6 +15,8 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.builtin import BuiltinFunctions
+from xdsl.interpreters.onnx import OnnxFunctions
+from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir import Operation
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
@@ -134,3 +137,24 @@ def test_interpreter_data():
     assert interpreter.get_data(Funcs0, "d", lambda: {"b": 2}) == {"b": 2}
 
     assert interpreter.get_data(Funcs1, "a", lambda: {"b": 2}) == {"b": 2}
+
+
+def test_run_op_interpreter_args():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.Add(
+        TestSSAValue(TensorType(f32, [2, 3])),
+        TestSSAValue(TensorType(f32, [2, 3])),
+        res_type=TensorType(f32, [2, 3]),
+    )
+
+    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
+    b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
+    c = ShapedArray([0, 0, 0, 0, 0, 0], [2, 3])
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "Number of operands (2) doesn't match the number of inputs (3)."
+        ),
+    ):
+        interpreter.run_op(op, (a, b, c))
