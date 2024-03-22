@@ -16,7 +16,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     SignednessAttr,
 )
-from xdsl.ir import Attribute, Block, SSAValue, Use
+from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.utils.hints import isa
 
 
@@ -152,9 +152,6 @@ class CslPrintContext:
                         and stp.owner.value.value.data == 1
                     ):
                         # implicit lb==0 and step==1
-                        lower.remove_use(Use(op, 0))
-                        stp.remove_use(Use(op, 2))
-                        # calling .erase() has no effect as the value was already printed
                         self.print(
                             f"for(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(upper)})) |{self._get_variable_name_for(idx)}| {{"
                         )
