@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Sequence, Set
 from typing import Generic, TypeAlias, TypeVar
 
@@ -19,7 +19,6 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -35,10 +34,6 @@ class X86Op(Operation, ABC):
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
-
-    @abstractmethod
-    def assembly_line(self) -> str | None:
-        raise NotImplementedError()
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -126,30 +121,6 @@ class X86Instruction(X86Op):
     The name of the operation will be used as the x86 assembly instruction name.
     """
 
-    comment: StringAttr | None = opt_attr_def(StringAttr)
-    """
-    An optional comment that will be printed along with the instruction.
-    """
-
-    @abstractmethod
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        """
-        The arguments to the instruction, in the order they should be printed in the
-        assembly.
-        """
-        raise NotImplementedError()
-
-    def assembly_instruction_name(self) -> str:
-        """
-        By default, the name of the instruction is the same as the name of the operation.
-        """
-
-        return self.name.split(".", 1)[-1]
-
-    def assembly_line(self) -> str | None:
-        # default assembly code generator
-        raise NotImplementedError()
-
 
 class DoubleOperandInstruction(IRDLOperation, X86Instruction, ABC):
     """
@@ -185,9 +156,6 @@ class RROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
             },
             result_types=[result],
         )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.r2
 
 
 @irdl_op_definition

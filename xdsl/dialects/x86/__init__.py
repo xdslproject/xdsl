@@ -5,7 +5,9 @@ from .register import GeneralRegisterType
 
 X86 = Dialect(
     "x86",
-    [AddOp],
+    [
+        AddOp,
+    ],
     [
         GeneralRegisterType,
     ],
