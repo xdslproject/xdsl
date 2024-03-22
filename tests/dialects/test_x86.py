@@ -125,7 +125,7 @@ def test_vmovapd_op():
 def test_vbroadcastsd_op():
     r1 = TestSSAValue(x86.Registers.ZMM0)
     r2 = TestSSAValue(x86.Registers.RAX)
-    vbroadcastsd_op = x86.VbroadcastsdOp(r1, r2, offset=0x10, result=x86.Registers.ZMM0)
+    vbroadcastsd_op = x86.VbroadcastsdOp(r1, r2, result=x86.Registers.ZMM0)
 
     print(vbroadcastsd_op.assembly_line())
 
@@ -134,3 +134,26 @@ def test_directive():
     directive = x86.DirectiveOp(".text", None)
 
     print(directive.assembly_line())
+
+
+def test_mimov_op():
+    r1 = TestSSAValue(x86.Registers.RAX)
+    mimov_op = x86.MIMovOp(r1, immediate=16, offset=4, result=x86.Registers.RAX)
+
+    print(mimov_op.assembly_line())
+
+
+def test_mrmov_op():
+    r1 = TestSSAValue(x86.Registers.RAX)
+    r2 = TestSSAValue(x86.Registers.RDX)
+    mrmov_op = x86.MRMovOp(r1, r2, offset=4, result=x86.Registers.RAX)
+
+    print(mrmov_op.assembly_line())
+
+
+def test_rmmov_op():
+    r1 = TestSSAValue(x86.Registers.RAX)
+    r2 = TestSSAValue(x86.Registers.RDX)
+    rmmov_op = x86.RMMovOp(r1, r2, offset=4, result=x86.Registers.RAX)
+
+    print(rmmov_op.assembly_line())

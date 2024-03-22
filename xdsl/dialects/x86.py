@@ -663,14 +663,14 @@ class RRROperation(Generic[R1InvT, R2InvT, R3InvT], TripleOperandInstruction):
         return self.r1, self.r2, self.r3
 
 
-class RMOffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
+class RMOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
     """
     A base class for x86 operations that have two registers and an offset.
     """
 
     r1 = operand_def(R1InvT)
     r2 = operand_def(R2InvT)
-    offset: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
 
     result = result_def(R1InvT)
 
@@ -678,7 +678,7 @@ class RMOffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
         self,
         r1: Operation | SSAValue,
         r2: Operation | SSAValue,
-        offset: int | AnyIntegerAttr,
+        offset: int | AnyIntegerAttr | None = None,
         *,
         comment: str | StringAttr | None = None,
         result: R1InvT,
@@ -710,8 +710,198 @@ class RMOffOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.offset)
+        if self.offset is not None:
+            _print_immediate_value(printer, self.offset)
         return {"offset"}
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        destination = _assembly_arg_str(self.r1)
+        source = _assembly_arg_str(self.r2)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            return _assembly_line(
+                instruction_name, f"{destination}, [{source} + {offset}]", self.comment
+            )
+        else:
+            return _assembly_line(
+                instruction_name, f"{destination}, [{source}]", self.comment
+            )
+
+
+@irdl_op_definition
+class RMMovOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Copies the value from the memory location pointed to by r2 into r1.
+
+    x[r1] = [x[r2]]
+
+    https://www.felixcloutier.com/x86/mov
+    """
+
+    name = "x86.mov"
+
+
+class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
+    """
+    A base class for x86 operations that have one memory reference and an immediate value.
+    """
+
+    r1 = operand_def(R1InvT)
+    immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        immediate: int | AnyIntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, 32)  # 32 bits?
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 12)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "immediate": immediate,
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = _parse_immediate_value(
+            parser, IntegerType(32, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        destination = _assembly_arg_str(self.r1)
+        immediate = _assembly_arg_str(self.immediate)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            return _assembly_line(
+                instruction_name,
+                f"[{destination} + {offset}],  {immediate}",
+                self.comment,
+            )
+        else:
+            return _assembly_line(
+                instruction_name, f"[{destination}], {immediate}", self.comment
+            )
+
+
+@irdl_op_definition
+class MIMovOp(MIOperation[GeneralRegisterType]):
+    """
+    Copies the immediate value into r1.
+
+    [x[r1]] = immediate
+
+    https://www.felixcloutier.com/x86/mov
+    """
+
+    name = "x86.mov"
+
+
+class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
+    """
+    A base class for x86 operations that have one memory reference and one register.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 12)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["offset"] = _parse_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        if self.offset is not None:
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        destination = _assembly_arg_str(self.r1)
+        source = _assembly_arg_str(self.r2)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            return _assembly_line(
+                instruction_name, f"[{destination} + {offset}], {source}", self.comment
+            )
+        else:
+            return _assembly_line(
+                instruction_name, f"[{destination}], {source}", self.comment
+            )
+
+
+@irdl_op_definition
+class MRMovOp(MROperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Copies the value from r2 into the memory location pointed to by r1.
+
+    x[r1] = [x[r2]]
+
+    https://www.felixcloutier.com/x86/mov
+    """
+
+    name = "x86.mov"
 
 
 @irdl_op_definition
@@ -790,7 +980,7 @@ class Vfmadd231pdOp(RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterTy
 
 
 @irdl_op_definition
-class VmovapdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
+class VmovapdOp(RMOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Move aligned packed double-precision floating-point elements.
 
@@ -799,18 +989,9 @@ class VmovapdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
 
     name = "x86.vmovapd"
 
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        destination = _assembly_arg_str(self.r1)
-        source = _assembly_arg_str(self.r2)
-        offset = _assembly_arg_str(self.offset)
-        return _assembly_line(
-            instruction_name, f"{destination}, {offset}({source})", self.comment
-        )
-
 
 @irdl_op_definition
-class VbroadcastsdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
+class VbroadcastsdOp(RMOperation[AVXRegisterType, GeneralRegisterType]):
     """
     Broadcast scalar double-precision floating-point element.
 
@@ -818,15 +999,6 @@ class VbroadcastsdOp(RMOffOperation[AVXRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.vbroadcastsd"
-
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        destination = _assembly_arg_str(self.r1)
-        source = _assembly_arg_str(self.r2)
-        offset = _assembly_arg_str(self.offset)
-        return _assembly_line(
-            instruction_name, f"{destination}, {offset}({source})", self.comment
-        )
 
 
 # region Assembly printing
