@@ -1,10 +1,11 @@
 import pytest
 
-from xdsl.builder import Builder, InsertPoint
+from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import IntAttr, i32, i64
 from xdsl.dialects.scf import If
 from xdsl.ir import Block, BlockArgument, Operation, Region
+from xdsl.rewriter import InsertPoint
 
 
 def test_insertion_point_constructors():

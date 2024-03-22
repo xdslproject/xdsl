@@ -11,6 +11,8 @@ builtin.module attributes {"gpu.container_module"} {
             "gpu.host_register"(%unranked) : (memref<*xi32>) -> ()
             "gpu.host_unregister"(%unranked) : (memref<*xi32>) -> ()
 
+            %wait_token = "gpu.wait"() : () -> !gpu.async.token
+
             %threadidx = "gpu.thread_id"() {"dimension" = #gpu<dim x>} : () -> index
             %threadidy = "gpu.thread_id"() {"dimension" = #gpu<dim y>} : () -> index
             %threadidz = "gpu.thread_id"() {"dimension" = #gpu<dim z>} : () -> index
@@ -88,6 +90,8 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:             %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x10xi32>) -> memref<*xi32>
 // CHECK-NEXT:             "gpu.host_register"(%{{.*}}) : (memref<*xi32>) -> ()
 // CHECK-NEXT:             "gpu.host_unregister"(%{{.*}}) : (memref<*xi32>) -> ()
+
+ // CHECK-NEXT:            %{{.*}} = "gpu.wait"() : () -> !gpu.async.token
 
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{"dimension" = #gpu<dim x>}> : () -> index
 // CHECK-NEXT:             %{{.*}} = "gpu.thread_id"() <{"dimension" = #gpu<dim y>}> : () -> index
