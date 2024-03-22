@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from xdsl.dialects import builtin, func, onnx
+from xdsl.dialects import builtin, func, tensor
 from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, TensorType, f32, i32
 from xdsl.interpreter import (
     Interpreter,
@@ -15,8 +15,8 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.builtin import BuiltinFunctions
-from xdsl.interpreters.onnx import OnnxFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.tensor import TensorFunctions
 from xdsl.ir import Operation
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
@@ -141,16 +141,15 @@ def test_interpreter_data():
 
 def test_run_op_interpreter_args():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Add(
-        TestSSAValue(TensorType(f32, [2, 3])),
-        TestSSAValue(TensorType(f32, [2, 3])),
-        res_type=TensorType(f32, [2, 3]),
+    interpreter.register_implementations(TensorFunctions())
+    op = tensor.ReshapeOp(
+        TestSSAValue(TensorType(f32, [4, 1])),
+        TestSSAValue(TensorType(i32, [1])),
+        TensorType(f32, [4]),
     )
-
-    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
-    b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
-    c = ShapedArray([0, 0, 0, 0, 0, 0], [2, 3])
+    a = ShapedArray([1, 2, 3, 4], [4, 1])
+    b = ShapedArray([4], [1])
+    c = ShapedArray([0, 0, 0, 0], [4])
     with pytest.raises(
         InterpretationError,
         match=re.escape(
