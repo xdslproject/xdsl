@@ -20,6 +20,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
+    ErasedSSAValue,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -647,7 +648,11 @@ class PatternRewriteWalker:
         have more canonicalization opportunities.
         """
         for operand in operands:
-            if len(operand.uses) == 1 and isinstance((op := operand.owner), Operation):
+            if (
+                len(operand.uses) == 1
+                and not isinstance(operand, ErasedSSAValue)
+                and isinstance((op := operand.owner), Operation)
+            ):
                 self._worklist.push(op)
 
     def _handle_operation_insertion(self, op: Operation) -> None:
