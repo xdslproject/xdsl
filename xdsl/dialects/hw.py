@@ -13,7 +13,6 @@ from typing import overload
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    DictionaryAttr,
     FlatSymbolRefAttr,
     IntAttr,
     LocationAttr,
@@ -25,7 +24,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    Block,
     Data,
     Dialect,
     OpaqueSyntaxAttribute,
@@ -435,9 +433,9 @@ class Direction(Enum):
     Represents the direction of a module port.
     """
 
+    # TODO: support INOUT direction
     INPUT = (0,)
     OUTPUT = (1,)
-    INOUT = (2,)
 
     @staticmethod
     def parse_optional(parser: BaseParser, short: bool = False) -> "Direction | None":
@@ -445,8 +443,6 @@ class Direction(Enum):
             return Direction.INPUT
         elif parser.parse_optional_keyword("output" if not short else "out"):
             return Direction.OUTPUT
-        elif parser.parse_optional_keyword("inout"):
-            return Direction.INOUT
         else:
             return None
 
@@ -461,12 +457,10 @@ class Direction(Enum):
             case Direction.INPUT:
                 printer.print("input" if not short else "in")
             case Direction.OUTPUT:
-                printer.print("output" if not short else "out")
-            case Direction.INOUT:
                 printer.print("inout")
 
     def is_input_like(self) -> bool:
-        return self == Direction.INPUT or self == Direction.INOUT
+        return self == Direction.INPUT
 
 
 @irdl_attr_definition
@@ -581,9 +575,6 @@ _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
     "sym_name",
     "module_type",
     "parameters",
-    "per_port_attrs",
-    "comment",
-    "result_locs",
 ]
 
 
@@ -600,25 +591,15 @@ class ModuleOp(IRDLOperation):
     sym_name: SymbolNameAttr = attr_def(SymbolNameAttr)
     module_type: ModuleType = attr_def(ModuleType)
     parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
-    per_port_attrs: ArrayAttr[DictionaryAttr] | None = opt_attr_def(
-        ArrayAttr[DictionaryAttr]
-    )
-    comment: StringAttr | None = opt_attr_def(StringAttr)
-    result_locs: ArrayAttr[LocationAttr] | None = opt_attr_def(
-        ArrayAttr[LocationAttr], attr_name="resultLocs"
-    )
 
-    body: SingleBlockRegion = region_def()
+    body: SingleBlockRegion = region_def("single_block")
 
     def __init__(
         self,
         sym_name: SymbolNameAttr,
         module_type: ModuleType,
-        body: Region | None = None,
+        body: Region,
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
-        per_port_attrs: ArrayAttr[DictionaryAttr] | None = None,
-        comment: StringAttr | None = None,
-        result_locs: ArrayAttr[LocationAttr] | None = None,
     ):
         attributes: dict[str, Attribute] = {
             "sym_name": sym_name,
@@ -626,32 +607,32 @@ class ModuleOp(IRDLOperation):
             "parameters": parameters,
         }
 
-        if per_port_attrs is not None:
-            attributes["per_port_attrs"] = per_port_attrs
-
-        if comment is not None:
-            attributes["comment"] = comment
-
-        if result_locs is not None:
-            attributes["result_locs"] = result_locs
-
-        if body is None:
-            body = Region(
-                [
-                    Block(
-                        arg_types=(
-                            port.type
-                            for port in module_type.ports.data
-                            if port.dir.data.is_input_like()
-                        )
-                    )
-                ]
-            )
-
         return super().__init__(
             attributes=attributes,
             regions=[body],
         )
+
+    def verify_(self) -> None:
+        if self.parameters is not None:
+            # FIXME: once xDSL supports typed attributes, check that parameter
+            # types are consistent with their default values
+            param_names = [param.port_name.data for param in self.parameters.data]
+            if len(set(param_names)) != len(param_names):
+                raise VerifyException("module has two parameters of same name")
+        block_args = iter(self.body.block.args)
+        for i, port in enumerate(self.module_type.ports.data):
+            if not port.dir.data.is_input_like():
+                continue
+            if (next_block_arg := next(block_args, None)) is None:
+                raise VerifyException("missing block arguments in module block")
+            if port.type != next_block_arg.type:
+                raise VerifyException(
+                    f"input-like port #{i} has inconsistent type with its matching "
+                    f"module block argument (expected {port.type}, block argument "
+                    f"is of type {next_block_arg.type})"
+                )
+        if next(block_args, None) is not None:
+            raise VerifyException("too many block arguments in module block")
 
     @classmethod
     def parse(cls, parser: Parser) -> "ModuleOp":
@@ -689,8 +670,6 @@ class ModuleOp(IRDLOperation):
             if not isinstance(port_type, TypeAttribute):
                 parser.raise_error("port type must be a type attribute")
 
-            # TODO BEFORE PR: handle inout type wrapping
-
             port_attrs = parser.parse_optional_attr_dict()
             port_location = parser.parse_optional_location()
 
@@ -717,10 +696,6 @@ class ModuleOp(IRDLOperation):
         # Extract the ModuleOp attributes and arguments from the parsed arg port list
         region_args: list[Parser.Argument] = []
         module_ports: list[ModulePort] = []
-        per_port_attrs: list[DictionaryAttr] = []
-        has_non_empty_per_port_attr = False
-        result_locs: list[LocationAttr] = []
-        has_known_location = False
         for arg in args:
             if arg.port_ssa:
                 region_args.append(arg.port_ssa)
@@ -733,12 +708,6 @@ class ModuleOp(IRDLOperation):
                     ]
                 )
             )
-            per_port_attrs.append(DictionaryAttr(arg.port_attrs))
-            has_non_empty_per_port_attr |= len(arg.port_attrs) != 0
-            result_locs.append(
-                arg.port_location if arg.port_location is not None else LocationAttr()
-            )
-            has_known_location |= arg.port_location is not None
 
         body = parser.parse_region(region_args)
         parameters = ArrayAttr(parameters if parameters is not None else [])
@@ -748,9 +717,6 @@ class ModuleOp(IRDLOperation):
             ModuleType([ArrayAttr(module_ports)]),
             body,
             parameters,
-            ArrayAttr(per_port_attrs) if has_non_empty_per_port_attr else None,
-            None,
-            ArrayAttr(result_locs) if has_known_location else None,
         )
 
         if attrs is not None:
@@ -763,6 +729,7 @@ class ModuleOp(IRDLOperation):
         printer.print(" ")
         printer.print_attribute(self.sym_name)
 
+        # Print parameters
         if self.parameters is not None and len(self.parameters.data) != 0:
             with printer.in_angle_brackets():
                 printer.print_list(
@@ -772,12 +739,6 @@ class ModuleOp(IRDLOperation):
 
         printer.print("(")
         arg_iter = iter(self.body.block.args)
-        result_loc_iter = (
-            iter(self.result_locs.data) if self.result_locs is not None else None
-        )
-        per_port_attrs = (
-            iter(self.per_port_attrs) if self.per_port_attrs is not None else None
-        )
 
         def print_port(port: ModulePort):
             ssa_arg = next(arg_iter) if port.dir.data.is_input_like() else None
@@ -794,22 +755,6 @@ class ModuleOp(IRDLOperation):
                 printer.print_identifier_or_string_literal(port.port_name.data)
             printer.print(": ")
             printer.print_attribute(port.type)
-
-            # Print port attributes
-            if per_port_attrs is not None:
-                printer.print_attr_dict(next(per_port_attrs).data)
-                printer.print(" ")
-
-            # Print argument location
-            if printer.print_debuginfo:
-                if ssa_arg is not None:
-                    # FIXME: when location is supported in xDSL, fetch location from ssa_arg instead
-                    location = LocationAttr()
-                elif result_loc_iter is not None:
-                    location = next(result_loc_iter)
-                else:
-                    location = LocationAttr()
-                printer.print_attribute(location)
 
         printer.print_list(self.module_type.ports.data, print_port)
 
