@@ -593,6 +593,14 @@ class Interpreter:
         self._impls.register_from(impls, override=override)
 
     def _run_op(self, op: Operation, inputs: PythonValues) -> OpImplResult:
+        if (operands_count := len(op.operands)) != (inputs_count := len(inputs)):
+            raise InterpretationError(
+                f"Number of operands ({operands_count}) doesn't match the number of inputs ({inputs_count})."
+            )
+        if (results_count := len(op.results)) != (inputs_count := len(inputs)):
+            raise InterpretationError(
+                f"Number of results ({results_count}) doesn't match the number of inputs ({inputs_count})."
+            )
         self.listener.will_interpret_op(op, inputs)
         result = self._impls.run(self, op, inputs)
         self.listener.did_interpret_op(op, result.values)
@@ -604,12 +612,6 @@ class Interpreter:
         """
         if isinstance(op, str):
             op = self.get_op_for_symbol(op)
-
-        if (operands_count := len(op.operands)) != (inputs_count := len(inputs)):
-            raise InterpretationError(
-                f"Number of operands ({operands_count}) doesn't match the number of inputs ({inputs_count})."
-            )
-
         return self._run_op(op, inputs).values
 
     def call_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
