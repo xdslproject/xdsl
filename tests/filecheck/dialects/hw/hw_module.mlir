@@ -28,8 +28,8 @@ hw.module @custom_param<p1: i42, "p2 with wack name": i1>() {
 // CHECK-NEXT: hw.output
 // CHECK-NEXT: }
 // CHECK-GENERIC: "hw.module"() ({
-// CHECK-GENERIC:   "hw.output"() : () -> ()
-// CHECK-GENERIC: }) {"sym_name" = "wack name!!", "module_type" = !hw.modty<>, "parameters" = []} : () -> ()
+// CHECK-GENERIC-NEXT:   "hw.output"() : () -> ()
+// CHECK-GENERIC-NEXT: }) {"sym_name" = "wack name!!", "module_type" = !hw.modty<>, "parameters" = []} : () -> ()
 hw.module @"wack name!!"() {
   hw.output
 }
