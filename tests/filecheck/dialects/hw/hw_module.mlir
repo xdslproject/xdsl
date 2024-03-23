@@ -35,13 +35,14 @@ hw.module @"wack name!!"() {
 }
 
 // CHECK: hw.module @name_preserve(in %preserve: i8)
-// CHECK-GENERIC: {"sym_name" = "name_preserve", "module_type" = !hw.modty<input preserve: i8>, "parameters" = []} : () -> ()
+// CHECK-GENERIC: {"sym_name" = "name_preserve", "module_type" = !hw.modty<input preserve : i8>, "parameters" = []} : () -> ()
 hw.module @name_preserve(in %preserve: i8) {
   hw.output
 }
 
-// CHECK: hw.module @more_attrs(in %preserve: i8) attributes {"foo"} {
-hw.module @more_attrs(in %preserve: i8) attributes {"foo"} {
+// CHECK: hw.module @more_attrs() attributes {"foo"} {
+// CHECK-GENERIC: }) {"sym_name" = "more_attrs", "module_type" = !hw.modty<>, "parameters" = [], "foo"} : () -> ()
+hw.module @more_attrs() attributes {"foo"} {
   hw.output
 }
 
