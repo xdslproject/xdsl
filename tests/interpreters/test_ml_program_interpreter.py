@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.ml_program import MLProgramFunctions
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
@@ -34,7 +35,7 @@ def test_ml_program_global_load_constant():
     interpreter.register_implementations(MLProgramFunctions())
 
     (result,) = interpreter.run_op(fetch, ())
-    assert result == ShapedArray([4], [4])
+    assert result == ShapedArray(TypedPtr.new_int32([4]), [4])
 
 
 def test_ml_program_global_load_constant_ex2():
@@ -57,4 +58,4 @@ def test_ml_program_global_load_constant_ex2():
     interpreter.register_implementations(MLProgramFunctions())
 
     (result,) = interpreter.run_op(fetch, ())
-    assert result == ShapedArray([1, 320], [2])
+    assert result == ShapedArray(TypedPtr.new_int64([1, 320]), [2])
