@@ -597,7 +597,7 @@ class Interpreter:
             raise InterpretationError(
                 f"Number of operands ({operands_count}) doesn't match the number of inputs ({inputs_count})."
             )
-        if (results_count := len(op.results)) != (inputs_count := len(inputs)):
+        elif (results_count := len(op.results)) != (inputs_count := len(inputs)):
             raise InterpretationError(
                 f"Number of results ({results_count}) doesn't match the number of inputs ({inputs_count})."
             )
