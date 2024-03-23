@@ -1,6 +1,6 @@
 """
 This is a stub of CIRCT’s hw dialect.
-Up to date as of commit `TODO`
+Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e`.
 
 [1] https://circt.llvm.org/docs/Dialects/HW/
 [2] https://circt.llvm.org/docs/RationaleSymbols/
