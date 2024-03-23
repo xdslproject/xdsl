@@ -34,6 +34,18 @@ hw.module @"wack name!!"() {
   hw.output
 }
 
+// CHECK: hw.module @name_preserve(in %preserve: i8)
+// CHECK-GENERIC: {"sym_name" = "name_preserve", "module_type" = !hw.modty<input preserve: i8>, "parameters" = []} : () -> ()
+hw.module @name_preserve(in %preserve: i8) {
+  hw.output
+}
+
+// CHECK: hw.module @more_attrs(in %preserve: i8) attributes {"foo"} {
+hw.module @more_attrs(in %preserve: i8) attributes {"foo"} {
+  hw.output
+}
+
+
 // Generic format input tests
 
 // CHECK: hw.module @generic_basic(in %{{[^ ]*}} a: i1, out nameOfPortInSV: i1, out "": i1, in %{{[^ ]*}} customName: i1, in %{{[^ ]*}} "very custom name": i32) {

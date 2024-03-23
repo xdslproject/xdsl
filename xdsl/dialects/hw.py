@@ -780,7 +780,13 @@ class ModuleOp(IRDLOperation):
 
         printer.print_list(self.module_type.ports.data, print_port)
 
-        printer.print(") ")
+        printer.print(")")
+        printer.print_op_attributes(
+            self.attributes,
+            reserved_attr_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
+            print_keyword=True,
+        )
+        printer.print(" ")
         printer.print_region(self.body, print_entry_block_args=False)
 
 
@@ -807,13 +813,13 @@ class OutputOp(IRDLOperation):
 
         if len(expected_results) != len(self.inputs):
             raise VerifyException(
-                f"module expected {len(expected_results)} outputs, got {len(self.inputs)}"
+                f"wrong amount of output values (expected {len(expected_results)}, got {len(self.inputs)})"
             )
 
         for i, (got, expected) in enumerate(zip(self.inputs, expected_results)):
             if got.type != expected:
                 raise VerifyException(
-                    f"output {i} is of unexpected type: expected {expected}, got {got.type}"
+                    f"output #{i} is of unexpected type (expected {expected}, got {got.type})"
                 )
 
     @classmethod
