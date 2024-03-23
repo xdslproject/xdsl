@@ -16,10 +16,8 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
     IntAttr,
     LocationAttr,
-    NoneAttr,
     ParameterDef,
     StringAttr,
-    SymbolNameAttr,
     SymbolRefAttr,
 )
 from xdsl.ir import (
@@ -457,7 +455,7 @@ class Direction(Enum):
             case Direction.INPUT:
                 printer.print("input" if not short else "in")
             case Direction.OUTPUT:
-                printer.print("inout")
+                printer.print("output" if not short else "out")
 
     def is_input_like(self) -> bool:
         return self == Direction.INPUT
@@ -506,18 +504,31 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         def parse_port() -> ModulePort:
             direction = Direction.parse(parser)
-            name = parser.parse_identifier("port name")
+            if (
+                name := parser.parse_optional_identifier()
+                or parser.parse_optional_str_literal()
+            ) is None:
+                parser.raise_error(
+                    "expected port name as identifier or string litteral"
+                )
+
             parser.parse_punctuation(":")
             typ = parser.parse_type()
 
             return ModulePort([StringAttr(name), typ, DirectionAttr(direction)])
 
-        return parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_port)
+        return [
+            ArrayAttr(
+                parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_port)
+            )
+        ]
 
     def print_parameters(self, printer: Printer):
         def print_port(port: ModulePort):
             port.dir.data.print(printer)
-            printer.print(f" {port.port_name.data} : ")
+            printer.print(" ")
+            printer.print_identifier_or_string_literal(port.port_name.data)
+            printer.print(" : ")
             printer.print_attribute(port.type)
 
         with printer.in_angle_brackets():
@@ -530,45 +541,56 @@ class ParamDeclAttr(ParametrizedAttribute):
 
     port_name: ParameterDef[StringAttr]
     type: ParameterDef[TypeAttribute]
-    value: ParameterDef[Attribute | NoneAttr]  # optional
 
     @classmethod
-    def parse_free_standing_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+    def parse_free_standing_parameters(
+        cls, parser: AttrParser, always_parse_name_in_quotes: bool = False
+    ) -> Sequence[Attribute]:
         """
         Parses the parameter declaration without the encompassing angle brackets.
         """
 
-        name = StringAttr(parser.parse_identifier("parameter name"))
+        name = parser.parse_optional_str_literal()
+        if name is None and not always_parse_name_in_quotes:
+            name = parser.parse_optional_identifier()
+        if name is None:
+            parser.raise_error("expected parameter name")
         parser.parse_punctuation(":")
         typ = parser.parse_attribute()
         if not isinstance(typ, TypeAttribute):
             parser.raise_error("expected type attribute for parameter")
 
-        value = NoneAttr()
         if parser.parse_optional_punctuation("=") is not None:
-            value = parser.parse_attribute()
+            # TODO: support default values for parameters
+            parser.raise_error("default values for parameters are not yet supported")
 
-        return [name, typ, value]
+        return [StringAttr(name), typ]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
-            return cls.parse_free_standing_parameters(parser)
+            return cls.parse_free_standing_parameters(
+                parser, always_parse_name_in_quotes=True
+            )
 
-    def print_free_standing_parameters(self, printer: Printer):
+    def print_free_standing_parameters(
+        self, printer: Printer, always_print_name_in_quotes: bool = False
+    ):
         """
         Prints the parameter declaration without the encompassing angle brackets.
         """
-
-        printer.print(f"{self.port_name.data} : ")
+        if always_print_name_in_quotes:
+            printer.print_attribute(self.port_name)
+        else:
+            printer.print_identifier_or_string_literal(self.port_name.data)
+        printer.print(": ")
         printer.print_attribute(self.type)
-        if not isinstance(self.value, NoneAttr):
-            printer.print(" = ")
-            printer.print_attribute(self.value)
 
     def print_parameters(self, printer: Printer):
         with printer.in_angle_brackets():
-            self.print_free_standing_parameters(printer)
+            self.print_free_standing_parameters(
+                printer, always_print_name_in_quotes=True
+            )
 
 
 _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
@@ -588,7 +610,7 @@ class ModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name: SymbolNameAttr = attr_def(SymbolNameAttr)
+    sym_name: StringAttr = attr_def(StringAttr)
     module_type: ModuleType = attr_def(ModuleType)
     parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
@@ -596,7 +618,7 @@ class ModuleOp(IRDLOperation):
 
     def __init__(
         self,
-        sym_name: SymbolNameAttr,
+        sym_name: StringAttr,
         module_type: ModuleType,
         body: Region,
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
@@ -646,10 +668,10 @@ class ModuleOp(IRDLOperation):
             port_location: LocationAttr | None
 
         def parse_optional_port_name() -> str | None:
-            name = parser.parse_optional_identifier()
-            if name is not None:
-                return name
-            return parser.parse_optional_str_literal()
+            return (
+                parser.parse_optional_identifier()
+                or parser.parse_optional_str_literal()
+            )
 
         def parse_module_arg() -> ModuleArg:
             port_dir = Direction.parse(parser, short=True)
@@ -681,7 +703,7 @@ class ModuleOp(IRDLOperation):
                 port_dir, port_name, port_ssa, port_type, port_attrs, port_location
             )
 
-        name = SymbolNameAttr(parser.parse_symbol_name())
+        name = parser.parse_symbol_name()
         parameters = parser.parse_optional_comma_separated_list(
             parser.Delimiter.ANGLE,
             lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
@@ -726,8 +748,8 @@ class ModuleOp(IRDLOperation):
         return module_op
 
     def print(self, printer: Printer):
-        printer.print(" ")
-        printer.print_attribute(self.sym_name)
+        printer.print(" @")
+        printer.print_identifier_or_string_literal(self.sym_name.data)
 
         # Print parameters
         if self.parameters is not None and len(self.parameters.data) != 0:
@@ -771,7 +793,7 @@ class OutputOp(IRDLOperation):
     traits = frozenset([IsTerminator(), HasParent(ModuleOp)])
 
     def __init__(self, ops: Sequence[SSAValue | Operation]):
-        super().__init__(operands=ops)
+        super().__init__(operands=[ops])
 
     def verify_(self) -> None:
         parent = self.parent_op()
@@ -796,9 +818,12 @@ class OutputOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> "OutputOp":
-        operands = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        operands = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
         )
+        if operands is None:
+            return cls([])
+
         parser.parse_punctuation(":")
         types = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, parser.parse_attribute
@@ -807,6 +832,9 @@ class OutputOp(IRDLOperation):
         return cls(operands)
 
     def print(self, printer: Printer):
+        if len(self.inputs) == 0:
+            return
+
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_operand)
         printer.print(" : ")
@@ -822,6 +850,7 @@ HW = Dialect(
         InnerSymPropertiesAttr,
         InnerSymAttr,
         ModulePort,
+        ModuleType,
         ParamDeclAttr,
     ],
 )
