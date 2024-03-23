@@ -23,7 +23,7 @@ def test_onnx_add():
     a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
     b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
 
-    c = interpreter.run_op(op, (a, b))
+    (c,) = interpreter.run_op(op, (a, b))
     assert c == ShapedArray([2, 6, 5, 9, 8, 12], [2, 3])
 
 
@@ -39,7 +39,7 @@ def test_onnx_sub():
     a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
     b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
 
-    c = interpreter.run_op(op, (a, b))
+    (c,) = interpreter.run_op(op, (a, b))
     assert c == ShapedArray([0, -2, 1, -1, 2, 0], [2, 3])
 
 
@@ -55,7 +55,7 @@ def test_onnx_mul():
     a = ShapedArray([1, 4, 7, 1], [2, 2])
     b = ShapedArray([2, 3, 1, 8], [2, 2])
 
-    c = interpreter.run_op(op, (a, b))
+    (c,) = interpreter.run_op(op, (a, b))
     assert c == ShapedArray([2, 12, 7, 8], [2, 2])
 
 
@@ -71,7 +71,7 @@ def test_onnx_div():
     a = ShapedArray([1, 1, 1, 1], [2, 2])
     b = ShapedArray([5, 2, 1, 2], [2, 2])
 
-    c = interpreter.run_op(op, (a, b))
+    (c,) = interpreter.run_op(op, (a, b))
     assert c == ShapedArray([0.2, 0.5, 1.0, 0.5], [2, 2])
 
 
@@ -83,5 +83,5 @@ def test_onnx_relu():
     )
 
     a = ShapedArray([1, 1, 1, 1], [2, 2])
-    b = interpreter.run_op(op, (a,))
+    (b,) = interpreter.run_op(op, (a,))
     assert b == ShapedArray([1, 1, 1, 1], [2, 2])
