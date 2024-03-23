@@ -124,7 +124,7 @@ class TypedPtr(Generic[_T]):
         raw_at_offset = self.raw + index * self.size
         return struct.unpack(self.format, raw_at_offset.memoryview[: self.size])[0]
 
-    def __setitem__(self: TypedPtr[_T], index: int, value: _T):
+    def __setitem__(self, index: int, value: _T):
         raw_at_offset = self.raw + index * self.size
         struct.pack_into(self.format, raw_at_offset.memory, raw_at_offset.offset, value)
 
