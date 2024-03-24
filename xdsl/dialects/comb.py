@@ -536,30 +536,9 @@ class ReplicateOp(IRDLOperation):
     def parse(cls, parser: Parser):
         op = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-
-        fun_type_start = parser.pos
         fun_type = parser.parse_function_type()
-        fun_type_end = parser.pos
-
-        if len(fun_type.inputs.data) != 1:
-            parser.raise_error(
-                "expected exactly one input type for replicate op",
-                fun_type_start,
-                fun_type_end,
-            )
-        if len(fun_type.outputs.data) != 1:
-            parser.raise_error(
-                "expected exactly one output type for replicate op",
-                fun_type_start,
-                fun_type_end,
-            )
-
-        in_type = fun_type.inputs.data[0]
-        res_type = fun_type.outputs.data[0]
-        if not isinstance(res_type, IntegerType):
-            parser.raise_error(f"expected result to be an integer type, got {res_type}")
-        (op,) = parser.resolve_operands([op], [in_type], parser.pos)
-        return cls(op, res_type)
+        operands = parser.resolve_operands([op], fun_type.inputs.data, parser.pos)
+        return cls.create(operands=operands, result_types=fun_type.outputs.data)
 
     def print(self, printer: Printer):
         printer.print(" ")
