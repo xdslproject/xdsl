@@ -9,28 +9,32 @@ from typing import Generic, TypeVar
 
 from typing_extensions import Self
 
+from xdsl.interpreters.ptr import TypedPtr
+
 _T = TypeVar("_T")
 
 
-@dataclass(init=False)
+@dataclass
 class ShapedArray(Generic[_T]):
     """
     A helper structure to represent instances of type MemrefType, TensorType, VectorType, etc.
     in the interpreter.
     """
 
-    data: list[_T]
+    _data: TypedPtr[_T]
     shape: list[int]
 
-    def __init__(self, data: list[_T] | _T, shape: list[int]):
-        if not isinstance(data, list):
-            data = [data] * prod(shape)
+    @property
+    def size(self) -> int:
+        return prod(self.shape)
 
-        self.data = data
-        self.shape = shape
+    @property
+    def data(self) -> list[_T]:
+        return self._data.get_list(self.size)
 
-    def __post__init__(self):
-        assert prod(self.shape) == len(self.data)
+    @property
+    def data_ptr(self) -> TypedPtr[_T]:
+        return self._data
 
     def offset(self, index: Sequence[int]) -> int:
         """
@@ -50,13 +54,13 @@ class ShapedArray(Generic[_T]):
         """
         Returns the element for a given tuple of indices
         """
-        return self.data[self.offset(index)]
+        return self._data[self.offset(index)]
 
     def store(self, index: Sequence[int], value: _T) -> None:
         """
         Returns the element for a given tuple of indices
         """
-        self.data[self.offset(index)] = value
+        self._data[self.offset(index)] = value
 
     def indices(self) -> Iterable[tuple[int, ...]]:
         """
@@ -70,8 +74,10 @@ class ShapedArray(Generic[_T]):
         """
         new_shape = list(self.shape)
         new_shape[dim0], new_shape[dim1] = new_shape[dim1], new_shape[dim0]
+        old_list = self.data
+        new_data = type(self.data_ptr).new(old_list, xtype=self.data_ptr.xtype)
 
-        result = type(self)(list(self.data), new_shape)
+        result = type(self)(new_data, new_shape)
 
         for source_index in self.indices():
             dest_index = list(source_index)
@@ -82,10 +88,11 @@ class ShapedArray(Generic[_T]):
 
     def __format__(self, __format_spec: str) -> str:
         prod_dims: list[int] = list(accumulate(reversed(self.shape), operator.mul))
-        assert prod_dims[-1] == len(self.data)
+        size = prod_dims[-1]
         result = "[" * len(self.shape)
 
-        for i, d in enumerate(self.data):
+        for i in range(size):
+            d = self._data[i]
             if i:
                 n = sum(not i % p for p in prod_dims)
                 result += "]" * n

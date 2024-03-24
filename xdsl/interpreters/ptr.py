@@ -7,6 +7,7 @@ from dataclasses import KW_ONLY, dataclass, field
 from typing import Generic, Literal, TypeVar, final
 
 _T = TypeVar("_T")
+_TCov = TypeVar("_TCov", covariant=True)
 
 
 @dataclass
@@ -61,13 +62,13 @@ class RawPtr:
 
 
 @final
-@dataclass
-class XType(Generic[_T]):
+@dataclass(frozen=True)
+class XType(Generic[_TCov]):
     """
     A typed format representation, similar to numpy's dtype.
     """
 
-    type: type[_T]
+    type: type[_TCov]
     format: str
     """
     Format string as specified in the `struct` module.
@@ -154,6 +155,10 @@ class TypedPtr(Generic[_T]):
     @staticmethod
     def new_int32(els: Sequence[int]) -> TypedPtr[int]:
         return TypedPtr.new(els, xtype=int32)
+
+    @staticmethod
+    def new_int64(els: Sequence[int]) -> TypedPtr[int]:
+        return TypedPtr.new(els, xtype=int64)
 
     @staticmethod
     def new_index(els: Sequence[int], index_bitwidth: int) -> TypedPtr[int]:

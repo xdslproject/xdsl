@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.linalg import LinalgFunctions
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
@@ -75,9 +76,9 @@ def test_linalg_generic():
         c = arith.Muli(a, b).result
         linalg.YieldOp(c)
 
-    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
-    b = ShapedArray([1, 4, 2, 5, 3, 6], [3, 2])
-    c = ShapedArray([-1, -1, -1, -1, -1, -1], [1, 6])
+    a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
+    b = ShapedArray(TypedPtr.new_int32([1, 4, 2, 5, 3, 6]), [3, 2])
+    c = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
     interpreter.run_op(op, (a, b, c))
 
@@ -121,9 +122,9 @@ def test_linalg_generic_scalar():
         c = arith.Muli(a, b).result
         linalg.YieldOp(c)
 
-    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
+    a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = 2
-    c = ShapedArray([-1, -1, -1, -1, -1, -1], [1, 6])
+    c = ShapedArray(TypedPtr.new_int32([-1, -1, -1, -1, -1, -1]), [1, 6])
 
     interpreter.run_op(op, (a, b, c))
 
@@ -155,9 +156,9 @@ def test_linalg_generic_reduction():
         new_acc = arith.Addi(sum, acc).result
         linalg.YieldOp(new_acc)
 
-    a = ShapedArray([1, 2, 3], [3])
-    b = ShapedArray([4, 5, 6], [3])
-    c = ShapedArray([0], [])
+    a = ShapedArray(TypedPtr.new_int32([1, 2, 3]), [3])
+    b = ShapedArray(TypedPtr.new_int32([4, 5, 6]), [3])
+    c = ShapedArray(TypedPtr.new_int32([0]), [])
 
     interpreter.run_op(op, (a, b, c))
 

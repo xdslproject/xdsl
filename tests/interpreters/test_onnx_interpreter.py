@@ -3,6 +3,7 @@ import pytest
 from xdsl.dialects import onnx
 from xdsl.dialects.builtin import ModuleOp, TensorType, f32
 from xdsl.interpreter import Interpreter
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.utils.test_value import TestSSAValue
 
@@ -20,11 +21,11 @@ def test_onnx_add():
         res_type=TensorType(f32, [2, 3]),
     )
 
-    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
-    b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
+    a = ShapedArray(TypedPtr.new_float32([1, 2, 3, 4, 5, 6]), [2, 3])
+    b = ShapedArray(TypedPtr.new_float32([1, 4, 2, 5, 3, 6]), [2, 3])
 
     (c,) = interpreter.run_op(op, (a, b))
-    assert c == ShapedArray([2, 6, 5, 9, 8, 12], [2, 3])
+    assert c == ShapedArray(TypedPtr.new_float32([2, 6, 5, 9, 8, 12]), [2, 3])
 
 
 def test_onnx_sub():
@@ -36,11 +37,11 @@ def test_onnx_sub():
         res_type=TensorType(f32, [2, 3]),
     )
 
-    a = ShapedArray([1, 2, 3, 4, 5, 6], [2, 3])
-    b = ShapedArray([1, 4, 2, 5, 3, 6], [2, 3])
+    a = ShapedArray(TypedPtr.new_float32([1, 2, 3, 4, 5, 6]), [2, 3])
+    b = ShapedArray(TypedPtr.new_float32([1, 4, 2, 5, 3, 6]), [2, 3])
 
     (c,) = interpreter.run_op(op, (a, b))
-    assert c == ShapedArray([0, -2, 1, -1, 2, 0], [2, 3])
+    assert c == ShapedArray(TypedPtr.new_float32([0, -2, 1, -1, 2, 0]), [2, 3])
 
 
 def test_onnx_mul():
@@ -52,11 +53,11 @@ def test_onnx_mul():
         res_type=TensorType(f32, [2, 2]),
     )
 
-    a = ShapedArray([1, 4, 7, 1], [2, 2])
-    b = ShapedArray([2, 3, 1, 8], [2, 2])
+    a = ShapedArray(TypedPtr.new_float32([1, 4, 7, 1]), [2, 2])
+    b = ShapedArray(TypedPtr.new_float32([2, 3, 1, 8]), [2, 2])
 
     (c,) = interpreter.run_op(op, (a, b))
-    assert c == ShapedArray([2, 12, 7, 8], [2, 2])
+    assert c == ShapedArray(TypedPtr.new_float32([2, 12, 7, 8]), [2, 2])
 
 
 def test_onnx_div():
@@ -68,11 +69,11 @@ def test_onnx_div():
         res_type=TensorType(f32, [2, 2]),
     )
 
-    a = ShapedArray([1, 1, 1, 1], [2, 2])
-    b = ShapedArray([5, 2, 1, 2], [2, 2])
+    a = ShapedArray(TypedPtr.new_float32([1, 1, 1, 1]), [2, 2])
+    b = ShapedArray(TypedPtr.new_float32([5, 2, 1, 2]), [2, 2])
 
     (c,) = interpreter.run_op(op, (a, b))
-    assert c == ShapedArray([0.2, 0.5, 1.0, 0.5], [2, 2])
+    assert c == ShapedArray(TypedPtr.new_float32([0.2, 0.5, 1.0, 0.5]), [2, 2])
 
 
 def test_onnx_relu():
@@ -82,6 +83,6 @@ def test_onnx_relu():
         TestSSAValue(TensorType(f32, [2, 2])),
     )
 
-    a = ShapedArray([1, 1, 1, 1], [2, 2])
+    a = ShapedArray(TypedPtr.new_float32([1, 1, 1, 1]), [2, 2])
     (b,) = interpreter.run_op(op, (a,))
-    assert b == ShapedArray([1, 1, 1, 1], [2, 2])
+    assert b == ShapedArray(TypedPtr.new_float32([1, 1, 1, 1]), [2, 2])
