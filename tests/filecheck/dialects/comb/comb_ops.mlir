@@ -72,7 +72,7 @@
   %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
 
-  %replicate = comb.replicate %lhsi32 : (i32) -> i32
-  // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : i32
+  %replicate = comb.replicate %lhsi32 : (i32) -> i64
+  // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : (i32) -> i64
   }) : () -> ()
   
