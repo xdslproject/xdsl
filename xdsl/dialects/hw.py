@@ -9,7 +9,7 @@ Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
-from typing import overload
+from typing import NamedTuple, overload
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -431,7 +431,7 @@ class Direction(Enum):
     Represents the direction of a module port.
     """
 
-    # TODO: support INOUT direction
+    # TODO: support INOUT direction (https://github.com/xdslproject/xdsl/issues/2368)
     INPUT = (0,)
     OUTPUT = (1,)
 
@@ -508,9 +508,7 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
                 name := parser.parse_optional_identifier()
                 or parser.parse_optional_str_literal()
             ) is None:
-                parser.raise_error(
-                    "expected port name as identifier or string litteral"
-                )
+                parser.raise_error("expected port name as identifier or string literal")
 
             parser.parse_punctuation(":")
             typ = parser.parse_type()
@@ -544,42 +542,48 @@ class ParamDeclAttr(ParametrizedAttribute):
 
     @classmethod
     def parse_free_standing_parameters(
-        cls, parser: AttrParser, always_parse_name_in_quotes: bool = False
+        cls, parser: AttrParser, only_accept_string_literal_name: bool = False
     ) -> Sequence[Attribute]:
         """
         Parses the parameter declaration without the encompassing angle brackets.
+        If only_accept_string_literal_name is True, the parser will not accept
+        the name of the parameter to be an identifier but only as a string literal.
         """
 
         name = parser.parse_optional_str_literal()
-        if name is None and not always_parse_name_in_quotes:
-            name = parser.parse_optional_identifier()
         if name is None:
-            parser.raise_error("expected parameter name")
+            if only_accept_string_literal_name:
+                parser.raise_error("expected parameter name as string literal")
+            name = parser.expect(
+                parser.parse_optional_identifier, "expected parameter name"
+            )
         parser.parse_punctuation(":")
         typ = parser.parse_attribute()
         if not isinstance(typ, TypeAttribute):
             parser.raise_error("expected type attribute for parameter")
 
         if parser.parse_optional_punctuation("=") is not None:
-            # TODO: support default values for parameters
+            # TODO: support default values for parameters (https://github.com/xdslproject/xdsl/issues/2367)
             parser.raise_error("default values for parameters are not yet supported")
 
-        return [StringAttr(name), typ]
+        return (StringAttr(name), typ)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
             return cls.parse_free_standing_parameters(
-                parser, always_parse_name_in_quotes=True
+                parser, only_accept_string_literal_name=True
             )
 
     def print_free_standing_parameters(
-        self, printer: Printer, always_print_name_in_quotes: bool = False
+        self, printer: Printer, print_name_as_string_literal: bool = False
     ):
         """
         Prints the parameter declaration without the encompassing angle brackets.
+        If print_name_as_string_literal is True, the name of the parameter will
+        never be printed as an identifier but only as a string literal.
         """
-        if always_print_name_in_quotes:
+        if print_name_as_string_literal:
             printer.print_attribute(self.port_name)
         else:
             printer.print_identifier_or_string_literal(self.port_name.data)
@@ -589,7 +593,7 @@ class ParamDeclAttr(ParametrizedAttribute):
     def print_parameters(self, printer: Printer):
         with printer.in_angle_brackets():
             self.print_free_standing_parameters(
-                printer, always_print_name_in_quotes=True
+                printer, print_name_as_string_literal=True
             )
 
 
@@ -658,8 +662,7 @@ class ModuleOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> "ModuleOp":
-        @dataclass
-        class ModuleArg:
+        class ModuleArg(NamedTuple):
             port_dir: Direction
             port_name: str
             port_ssa: Parser.Argument | None
@@ -805,11 +808,11 @@ class OutputOp(IRDLOperation):
         parent = self.parent_op()
         assert isinstance(parent, ModuleOp)
 
-        expected_results = [
+        expected_results = tuple(
             port.type
             for port in parent.module_type.ports.data
             if port.dir.data == Direction.OUTPUT
-        ]
+        )
 
         if len(expected_results) != len(self.inputs):
             raise VerifyException(
@@ -828,7 +831,7 @@ class OutputOp(IRDLOperation):
             parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
         )
         if operands is None:
-            return cls([])
+            return cls(())
 
         parser.parse_punctuation(":")
         types = parser.parse_comma_separated_list(
@@ -849,7 +852,10 @@ class OutputOp(IRDLOperation):
 
 HW = Dialect(
     "hw",
-    [ModuleOp, OutputOp],
+    [
+        ModuleOp,
+        OutputOp,
+    ],
     [
         DirectionAttr,
         InnerRefAttr,

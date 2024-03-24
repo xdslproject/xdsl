@@ -120,7 +120,7 @@ hw.module @double_param<param: i1, param: i1>() {
   }) {"sym_name" = "bad_port_name", "module_type" = !hw.modty<output 9foo : i32>, "parameters" = []} : () -> ()
 }) : () -> ()
 
-// CHECK: expected port name as identifier or string litteral
+// CHECK: expected port name as identifier or string literal
 
 // -----
 
