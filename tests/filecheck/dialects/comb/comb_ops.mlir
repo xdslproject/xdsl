@@ -74,5 +74,4 @@
 
   %replicate = comb.replicate %lhsi32 : (i32) -> i64
   // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : (i32) -> i64
-  }) : () -> ()
-  
+}) : () -> ()
