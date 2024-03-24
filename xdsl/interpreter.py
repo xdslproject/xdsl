@@ -600,7 +600,7 @@ class Interpreter:
         self.listener.will_interpret_op(op, inputs)
         result = self._impls.run(self, op, inputs)
         if (results_count := len(op.results)) != (
-            actual_result_count := len(result[0])
+            actual_result_count := len(result.values)
         ):
             raise InterpretationError(
                 f"Number of operation results ({results_count}) doesn't match the number of implementation results ({actual_result_count})."

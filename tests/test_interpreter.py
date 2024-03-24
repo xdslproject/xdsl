@@ -4,8 +4,15 @@ from typing import Any
 
 import pytest
 
-from xdsl.dialects import builtin, func, tensor
-from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, TensorType, f32, i32
+from xdsl.dialects import builtin, func, tensor, test
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerType,
+    ModuleOp,
+    TensorType,
+    f32,
+    i32,
+)
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -15,8 +22,10 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.builtin import BuiltinFunctions
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.tensor import TensorFunctions
+from xdsl.interpreters.test import TestFunctions
 from xdsl.ir import Operation
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
@@ -142,14 +151,15 @@ def test_interpreter_data():
 def test_run_op_interpreter_args():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(TensorFunctions())
+    interpreter.register_implementations(TestFunctions())
     op = tensor.ReshapeOp(
         TestSSAValue(TensorType(f32, [4, 1])),
         TestSSAValue(TensorType(i32, [1])),
         TensorType(f32, [4]),
     )
-    a = ShapedArray([1, 2, 3, 4], [4, 1])
-    b = ShapedArray([4], [1])
-    c = ShapedArray([0, 0, 0, 0], [4])
+    a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4]), [4, 1])
+    b = ShapedArray(TypedPtr.new_int32([4]), [1])
+    c = ShapedArray(TypedPtr.new_int32([0, 0, 0, 0]), [4])
     with pytest.raises(
         InterpretationError,
         match=re.escape(
@@ -157,3 +167,18 @@ def test_run_op_interpreter_args():
         ),
     ):
         interpreter.run_op(op, (a, b, c))
+
+    test_op = test.TestOp(
+        (),
+        (
+            TensorType(f32, [4]),
+            TensorType(f32, [4]),
+        ),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "Number of operation results (2) doesn't match the number of implementation results (1)"
+        ),
+    ):
+        interpreter.run_op(test_op, ())
