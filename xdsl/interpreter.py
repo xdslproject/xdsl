@@ -614,6 +614,7 @@ class Interpreter:
         """
         if isinstance(op, str):
             op = self.get_op_for_symbol(op)
+
         return self._run_op(op, inputs).values
 
     def call_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
