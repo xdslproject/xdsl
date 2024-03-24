@@ -244,6 +244,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Vector
 
+    def get_x86():
+        from xdsl.dialects.x86 import X86
+
+        return X86
+
     return {
         "affine": get_affine,
         "aie": get_aie,
@@ -291,6 +296,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "tensor": get_tensor,
         "test": get_test,
         "vector": get_vector,
+        "x86": get_x86,
     }
 
 

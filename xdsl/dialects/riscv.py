@@ -7,14 +7,13 @@ from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IndexType,
-    IntAttr,
     IntegerAttr,
     IntegerType,
     ModuleOp,
-    NoneAttr,
     Signedness,
     StringAttr,
     UnitAttr,
@@ -28,16 +27,13 @@ from xdsl.ir import (
     Dialect,
     Operation,
     OpResult,
-    ParametrizedAttribute,
     Region,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
     OptSingleBlockRegion,
-    ParameterDef,
     VarOperand,
     VarOpResult,
     attr_def,
@@ -78,46 +74,10 @@ class FastMathFlagsAttr(FastMathAttrBase):
         super().__init__(flags)
 
 
-class RISCVRegisterType(ParametrizedAttribute, TypeAttribute, ABC):
+class RISCVRegisterType(RegisterType):
     """
     A RISC-V register type.
     """
-
-    index: ParameterDef[IntAttr | NoneAttr]
-    spelling: ParameterDef[StringAttr]
-
-    def __init__(self, spelling: str):
-        super().__init__(self._parameters_from_spelling(spelling))
-
-    @classmethod
-    def _parameters_from_spelling(
-        cls, spelling: str
-    ) -> tuple[IntAttr | NoneAttr, StringAttr]:
-        """
-        Returns the parameter list required to construct a register instance from the given spelling.
-        """
-        index_attr = NoneAttr()
-        index = cls.abi_index_by_name().get(spelling)
-        if index is not None:
-            index_attr = IntAttr(index)
-        return index_attr, StringAttr(spelling)
-
-    @classmethod
-    @abstractmethod
-    def unallocated(cls) -> Self:
-        raise NotImplementedError()
-
-    @property
-    def register_name(self) -> str:
-        """Returns name if allocated, raises ValueError if not"""
-        if not self.is_allocated:
-            raise ValueError("Cannot get name for unallocated register")
-        return self.spelling.data
-
-    @property
-    def is_allocated(self) -> bool:
-        """Returns true if a RISCV register is allocated, otherwise false"""
-        return bool(self.spelling.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -130,26 +90,12 @@ class RISCVRegisterType(ParametrizedAttribute, TypeAttribute, ABC):
                 name = ""
             return cls._parameters_from_spelling(name)
 
-    def print_parameters(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string(self.spelling.data)
-
     def verify(self) -> None:
         name = self.spelling.data
         if not self.is_allocated or name.startswith("j"):
             return
         if name not in type(self).abi_index_by_name():
             raise VerifyException(f"{name} not in {self.instruction_set_name()}")
-
-    @classmethod
-    @abstractmethod
-    def instruction_set_name(cls) -> str:
-        raise NotImplementedError()
-
-    @classmethod
-    @abstractmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
-        raise NotImplementedError()
 
     @classmethod
     @abstractmethod

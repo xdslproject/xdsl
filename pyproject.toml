@@ -14,7 +14,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.15.0", "textual==0.52.1", "pyclip==0.7"]
+extras = ["riscemu==2.2.5", "wgpu==0.15.0", "textual==0.53.1", "pyclip==0.7"]
 onnx = ["onnx-weekly"]
 
 [project.urls]
@@ -51,6 +51,7 @@ typeCheckingMode = "strict"
     "tests/dialects/test_memref.py",
     "xdsl/interpreters/experimental/wgpu.py",
     "xdsl/frontend/onnx/shape_type.py",
+    "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",
