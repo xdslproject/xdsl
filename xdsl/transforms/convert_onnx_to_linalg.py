@@ -268,9 +268,9 @@ class GemmOpLowering(RewritePattern):
                 ),
                 # (A * B) + beta * C
                 linalg.AddOp(
-                    (mat_mul_res.res[0], beta_mul_result),
-                    (empty.tensor,),
-                    res=(gemm.res_tensor.type,),
+                    (mat_mul_res.results[0], beta_mul_result),
+                    (mat_mul_res.results[0],),
+                    res=(mat_mul_res.results[0].type,),
                 ),
             )
         )
