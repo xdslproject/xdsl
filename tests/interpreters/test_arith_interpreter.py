@@ -30,7 +30,9 @@ rhs_op = test.TestOp(result_types=[IndexType()])
 )
 def test_constant(value: int, value_type: int | IndexType | IntegerType):
     constant = Constant.from_int_and_width(value, value_type)
+
     ret = interpreter.run_op(constant, ())
+
     assert len(ret) == 1
     assert ret[0] == value
 
