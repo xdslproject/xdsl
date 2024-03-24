@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 
-from xdsl.dialects import builtin, func, tensor, test
+from xdsl.dialects import builtin, func, test
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
@@ -17,15 +17,12 @@ from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
+    impl,
     impl_cast,
     impl_external,
     register_impls,
 )
 from xdsl.interpreters.builtin import BuiltinFunctions
-from xdsl.interpreters.ptr import TypedPtr
-from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.interpreters.tensor import TensorFunctions
-from xdsl.interpreters.test import TestFunctions
 from xdsl.ir import Operation
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
@@ -149,25 +146,18 @@ def test_interpreter_data():
 
 
 def test_run_op_interpreter_args():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(TensorFunctions())
-    interpreter.register_implementations(TestFunctions())
-    op = tensor.ReshapeOp(
-        TestSSAValue(TensorType(f32, [4, 1])),
-        TestSSAValue(TensorType(i32, [1])),
-        TensorType(f32, [4]),
-    )
-    a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4]), [4, 1])
-    b = ShapedArray(TypedPtr.new_int32([4]), [1])
-    c = ShapedArray(TypedPtr.new_int32([0, 0, 0, 0]), [4])
-    with pytest.raises(
-        InterpretationError,
-        match=re.escape(
-            "Number of operands (2) doesn't match the number of inputs (3)."
-        ),
-    ):
-        interpreter.run_op(op, (a, b, c))
 
+    @dataclass
+    @register_impls
+    class TestFunctions(InterpreterFunctions):
+        @impl(test.TestOp)
+        def run_test(
+            self, interpreter: Interpreter, op: test.TestOp, args: PythonValues
+        ) -> PythonValues:
+            return (1,)
+
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(TestFunctions())
     test_op = test.TestOp(
         (),
         (
@@ -182,3 +172,18 @@ def test_run_op_interpreter_args():
         ),
     ):
         interpreter.run_op(test_op, ())
+
+    op = test.TestOp(
+        (TestSSAValue(TensorType(f32, [4])),),
+        (
+            TensorType(f32, [4]),
+            TensorType(f32, [4]),
+        ),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "Number of operands (1) doesn't match the number of inputs (0)."
+        ),
+    ):
+        interpreter.run_op(op, ())
