@@ -36,7 +36,7 @@ class AddArguments(Screen[str]):
 
     @on(Button.Pressed, "#quit_screen_button")
     def exit_screen(self, event: Button.Pressed) -> None:
-        self.dismiss()
+        self.dismiss("")
 
     @on(Button.Pressed, "#clear_input_screen_button")
     def clear_text_area(self, event: Button.Pressed) -> None:

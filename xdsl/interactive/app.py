@@ -372,6 +372,14 @@ class InputApp(App[None]):
             Parse Error.
             """
             try:
+                # if screen was dismissed and user 1) cleared the screen 2) made no changes
+                if (
+                    concatenated_arg_val == ""
+                    or concatenated_arg_val
+                    == get_pass_argument_names_and_types(selected_pass_value)
+                ):
+                    return
+
                 new_pass_with_arguments = list(
                     parse_pipeline(
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
