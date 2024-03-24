@@ -67,6 +67,7 @@ from xdsl.ir import (
 )
 from xdsl.traits import IsTerminator
 from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.lexer import Lexer
 
 indentNumSpaces = 2
 
@@ -357,6 +358,16 @@ class Printer:
     def print_string_literal(self, string: str):
         self.print(json.dumps(string))
 
+    def print_identifier_or_string_literal(self, string: str):
+        """
+        Prints the provided string as an identifier if it is one,
+        and as a string literal otherwise.
+        """
+        if Lexer.bare_identifier_regex.fullmatch(string) is None:
+            self.print_string_literal(string)
+            return
+        self.print(string)
+
     def print_bytes_literal(self, bytestring: bytes):
         self.print('"')
         for byte in bytestring:
@@ -415,9 +426,11 @@ class Printer:
             return
 
         if isinstance(attribute, SymbolRefAttr):
-            self.print(f"@{attribute.root_reference.data}")
+            self.print("@")
+            self.print_identifier_or_string_literal(attribute.root_reference.data)
             for ref in attribute.nested_references.data:
-                self.print(f"::@{ref.data}")
+                self.print("::@")
+                self.print_identifier_or_string_literal(ref.data)
             return
 
         if isinstance(attribute, IntegerAttr):
