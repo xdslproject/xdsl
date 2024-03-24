@@ -536,15 +536,15 @@ class ReplicateOp(IRDLOperation):
     def parse(cls, parser: Parser):
         op = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
-        result_type = parser.parse_function_type()
-        (op,) = parser.resolve_operands([op], [result_type.inputs.data[0]], parser.pos)
-        return cls.create(operands=[op], result_types=result_type.outputs.data)
+        fun_type = parser.parse_function_type()
+        operands = parser.resolve_operands([op], fun_type.inputs.data, parser.pos)
+        return cls.create(operands=operands, result_types=fun_type.outputs.data)
 
     def print(self, printer: Printer):
         printer.print(" ")
         printer.print_ssa_value(self.input)
         printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_function_type((self.input.type,), (self.result.type,))
 
 
 @irdl_op_definition
