@@ -187,3 +187,15 @@ def test_run_op_interpreter_args():
         ),
     ):
         interpreter.run_op(op, ())
+
+    test_op_2 = test.TestOp(
+        (),
+        (TensorType(f32, [4]),),
+    )
+    assert interpreter.run_op(test_op_2, ()) == (1,)
+
+    op_2 = test.TestOp(
+        (TestSSAValue(TensorType(f32, [4])),),
+        (TensorType(f32, [4]),),
+    )
+    assert interpreter.run_op(op_2, (1,)) == (1,)
