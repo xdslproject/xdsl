@@ -255,7 +255,7 @@ def __(G, mo, nx, root):
     #     edge_y.append(y1)
     #     edge_y.append(None)
     #     edge_weights.append(edge[2]['weight'])
-        
+
     # edge_trace = go.Scatter(
     #     x=edge_x, y=edge_y,
     #     line=dict(width=edge_weights, color='#888'),
@@ -349,8 +349,31 @@ def __(G, nx, root):
 
 
 @app.cell
-def __():
-    return
+def __(G, HashableModule, nx):
+    # Calculate the number of nodes in the tree equivalent to a dag
+
+    def equivalent_tree_node_count(dag: nx.Graph) -> int:
+        if not nx.is_directed_acyclic_graph(dag):
+            raise ValueError("Expected DAG")
+
+        count_by_node: dict[HashableModule, int] = {}
+
+        for i, generation in enumerate(nx.topological_generations(dag)):
+            if not i:
+                # First generation, assign 1 to root node
+                assert len(generation) == 1, "Only one root node allowed"
+                count_by_node[generation[0]] = 1
+                continue
+
+            # For each generation, we know the number of equivalent nodes of the parents
+            # The number of nodes is the sum of counts of parents
+            for node in generation:
+                count_by_node[node] = sum(count_by_node[parent] for parent in dag.predecessors(node))
+            
+        return sum(count_by_node.values())
+
+    equivalent_tree_node_count(G)
+    return equivalent_tree_node_count,
 
 
 if __name__ == "__main__":
