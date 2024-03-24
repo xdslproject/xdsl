@@ -420,6 +420,10 @@ class FillOp(IRDLOperation):
     """
     Fills the output tensor with the given value.
 
+    Works for arbitrary ranked output tensors since the operation performs scalar accesses
+    only and is thus rank polymorphic. Numeric casting is performed on the value operand,
+    promoting it to the same data type as the output.
+
     See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgfill-linalgfillop
     """
 
@@ -432,7 +436,7 @@ class FillOp(IRDLOperation):
 
     assembly_format = (
         "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+        "`outs` `(` $outputs `:` type($outputs) `)` (`->` type($res)^)? attr-dict"
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
