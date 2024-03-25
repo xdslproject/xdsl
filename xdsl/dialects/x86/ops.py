@@ -265,6 +265,9 @@ def x86_code(module: ModuleOp) -> str:
     return stream.getvalue()
 
 
+# endregion
+
+
 class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
     """
     This instruction allows us to create an SSAValue for a given register name.
