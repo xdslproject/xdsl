@@ -1591,14 +1591,14 @@ def test_type_conversion():
     rewrite_and_compare(
         prog,
         prog,
-        PatternRewriteWalker(RewriteMaybe(recursive=False)),
+        PatternRewriteWalker(Rewrite(recursive=False)),
         expect_rewrite=False,
     )
 
     rewrite_and_compare(
         prog,
         expected_recursive,
-        PatternRewriteWalker(RewriteMaybe(recursive=True)),
+        PatternRewriteWalker(Rewrite(recursive=True)),
         op_inserted=1,
         op_removed=1,
         op_replaced=1,
