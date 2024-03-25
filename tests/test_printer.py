@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IntAttr,
     IntegerType,
+    SymbolRefAttr,
     UnitAttr,
     i32,
 )
@@ -788,6 +789,26 @@ def test_print_properties_as_attributes_safeguard():
         match="Properties sym_name would overwrite the attributes of the same names.",
     ):
         assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+
+
+@pytest.mark.parametrize(
+    "attr,expected",
+    [
+        (SymbolRefAttr("foo"), "@foo"),
+        (SymbolRefAttr("weird name!!"), '@"weird name!!"'),
+        (
+            SymbolRefAttr("weird nested", ["yes", "very nested"]),
+            '@"weird nested"::@yes::@"very nested"',
+        ),
+    ],
+)
+def test_symbol_ref(attr: SymbolRefAttr, expected: str):
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+
+    printed = StringIO()
+    Printer(printed).print_attribute(attr)
+    assert printed.getvalue() == expected
 
 
 def test_get_printed_name():
