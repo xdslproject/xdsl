@@ -1576,6 +1576,34 @@ def test_type_conversion():
         op_modified=1,
     )
 
+    prog = """\
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = i32}} : () -> ()
+}) : () -> ()
+"""
+
+    expected_recursive = """
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = index}} : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(recursive=False)),
+        expect_rewrite=False,
+    )
+
+    rewrite_and_compare(
+        prog,
+        expected_recursive,
+        PatternRewriteWalker(Rewrite(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+    )
+
 
 def test_no_change():
     """Test that doing nothing successfully does not report doing something."""

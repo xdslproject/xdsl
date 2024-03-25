@@ -9,7 +9,7 @@ from types import UnionType
 from typing import TypeVar, Union, final, get_args, get_origin
 
 from xdsl.builder import BuilderListener, InsertPoint
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
@@ -440,6 +440,9 @@ class TypeConversionPattern(RewritePattern):
                 inp = type(typ).new(parameters)
             if isa(typ, ArrayAttr[Attribute]):
                 parameters = tuple(self._convert_type_rec(p) or p for p in typ)
+                inp = type(typ).new(parameters)
+            if isa(typ, DictionaryAttr):
+                parameters = {k: self._convert_type_rec(v) for k, v in typ.data.items()}
                 inp = type(typ).new(parameters)
         converted = self.convert_type(inp)
         return converted if converted is not None else inp
