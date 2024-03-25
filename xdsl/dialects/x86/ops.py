@@ -263,3 +263,25 @@ def x86_code(module: ModuleOp) -> str:
     stream = StringIO()
     print_assembly(module, stream)
     return stream.getvalue()
+
+
+class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
+    """
+    This instruction allows us to create an SSAValue for a given register name.
+    """
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        register_type: R1InvT,
+    ):
+        super().__init__(result_types=[register_type])
+
+    def assembly_line(self) -> str | None:
+        return None
+
+
+@irdl_op_definition
+class GetRegisterOp(GetAnyRegisterOperation[GeneralRegisterType]):
+    name = "x86.get_register"
