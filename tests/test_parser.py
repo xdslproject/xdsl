@@ -851,5 +851,5 @@ def test_properties_retrocompatibility():
 
 def test_parse_location():
     ctx = MLContext()
-    attr = Parser(ctx, "loc(unknown)").parse_attribute()
+    attr = Parser(ctx, "loc(unknown)").parse_optional_location()
     assert attr == LocationAttr()
