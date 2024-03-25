@@ -74,7 +74,9 @@ def from_ndarray(
 @register_impls
 class OnnxFunctions(InterpreterFunctions):
     @impl(onnx.Add)
-    def run_add(self, interpreter: Interpreter, op: onnx.Add, args: tuple[Any, ...]):
+    def run_add(
+        self, interpreter: Interpreter, op: onnx.Add, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
@@ -84,7 +86,9 @@ class OnnxFunctions(InterpreterFunctions):
         return (from_ndarray(result),)
 
     @impl(onnx.Sub)
-    def run_sub(self, interpreter: Interpreter, op: onnx.Sub, args: tuple[Any, ...]):
+    def run_sub(
+        self, interpreter: Interpreter, op: onnx.Sub, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
@@ -94,7 +98,9 @@ class OnnxFunctions(InterpreterFunctions):
         return (from_ndarray(result),)
 
     @impl(onnx.Mul)
-    def run_mul(self, interpreter: Interpreter, op: onnx.Mul, args: tuple[Any, ...]):
+    def run_mul(
+        self, interpreter: Interpreter, op: onnx.Mul, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
@@ -104,7 +110,9 @@ class OnnxFunctions(InterpreterFunctions):
         return (from_ndarray(result),)
 
     @impl(onnx.Div)
-    def run_div(self, interpreter: Interpreter, op: onnx.Div, args: tuple[Any, ...]):
+    def run_div(
+        self, interpreter: Interpreter, op: onnx.Div, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
         lhs, rhs = args[0], args[1]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
@@ -114,7 +122,9 @@ class OnnxFunctions(InterpreterFunctions):
         return (from_ndarray(result),)
 
     @impl(onnx.Relu)
-    def run_relu(self, interpreter: Interpreter, op: onnx.Relu, args: tuple[Any, ...]):
+    def run_relu(
+        self, interpreter: Interpreter, op: onnx.Relu, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
         operand = args[0]
         assert isinstance(operand, ShapedArray)
         operand = cast(ShapedArray[float], operand)

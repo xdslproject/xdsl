@@ -43,6 +43,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_simple_forgotten_op():
@@ -808,3 +809,28 @@ def test_symbol_ref(attr: SymbolRefAttr, expected: str):
     printed = StringIO()
     Printer(printed).print_attribute(attr)
     assert printed.getvalue() == expected
+
+
+def test_get_printed_name():
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+
+    printer = Printer()
+    val = TestSSAValue(i32)
+
+    # Test printing without constraints
+    printer.stream = StringIO()
+    picked_name = printer.print_ssa_value(val)
+    assert f"%{picked_name}" == printer.stream.getvalue()
+
+    # Test printing when name has already been picked
+    printer.stream = StringIO()
+    picked_name = printer.print_ssa_value(val)
+    assert f"%{picked_name}" == printer.stream.getvalue()
+
+    # Test printing with name hint
+    val = TestSSAValue(i32)
+    val.name_hint = "foo"
+    printed = StringIO()
+    picked_name = Printer(printed).print_ssa_value(val)
+    assert f"%{picked_name}" == printed.getvalue()

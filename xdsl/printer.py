@@ -177,7 +177,7 @@ class Printer:
     V = TypeVar("V")
 
     def print_list(
-        self, elems: Iterable[T], print_fn: Callable[[T], None], delimiter: str = ", "
+        self, elems: Iterable[T], print_fn: Callable[[T], Any], delimiter: str = ", "
     ) -> None:
         for i, elem in enumerate(elems):
             if i:
@@ -227,12 +227,14 @@ class Printer:
         self.print_list(op.results, self.print)
         self.print(" = ")
 
-    def print_ssa_value(self, value: SSAValue) -> None:
+    def print_ssa_value(self, value: SSAValue) -> str:
         """
         Print an SSA value in the printer. This assigns a name to the value if the value
         does not have one in the current printing context.
         If the value has a name hint, it will use it as a prefix, and otherwise assign
         a number as the name. Numbers are assigned in order.
+
+        Returns the name used for printing the value.
         """
         if value in self._ssa_values:
             name = self._ssa_values[value]
@@ -247,6 +249,7 @@ class Printer:
             self._ssa_values[value] = name
 
         self.print(f"%{name}")
+        return name
 
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
