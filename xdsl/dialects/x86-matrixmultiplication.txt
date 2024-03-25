@@ -1,0 +1,45 @@
+void multiply(int matrix1[2][2], int matrix2[2][2], int result[2][2]) {
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 2; j++) {
+            result[i][j] = 0;
+            for (int k = 0; k < 2; k++) {
+                result[i][j] += matrix1[i][k] * matrix2[k][j];
+            }
+        }
+    }
+}
+
+multiply:                               # @multiply
+        mov     dword ptr [rdx], 0
+        mov     eax, dword ptr [rsi]
+        imul    eax, dword ptr [rdi]
+        mov     dword ptr [rdx], eax
+        mov     ecx, dword ptr [rsi + 8]
+        imul    ecx, dword ptr [rdi + 4]
+        add     ecx, eax
+        mov     dword ptr [rdx], ecx
+        mov     dword ptr [rdx + 4], 0
+        mov     eax, dword ptr [rsi + 4]
+        imul    eax, dword ptr [rdi]
+        mov     dword ptr [rdx + 4], eax
+        mov     ecx, dword ptr [rsi + 12]
+        imul    ecx, dword ptr [rdi + 4]
+        add     ecx, eax
+        mov     dword ptr [rdx + 4], ecx
+        mov     dword ptr [rdx + 8], 0
+        mov     eax, dword ptr [rsi]
+        imul    eax, dword ptr [rdi + 8]
+        mov     dword ptr [rdx + 8], eax
+        mov     ecx, dword ptr [rsi + 8]
+        imul    ecx, dword ptr [rdi + 12]
+        add     ecx, eax
+        mov     dword ptr [rdx + 8], ecx
+        mov     dword ptr [rdx + 12], 0
+        mov     eax, dword ptr [rsi + 4]
+        imul    eax, dword ptr [rdi + 8]
+        mov     dword ptr [rdx + 12], eax
+        mov     ecx, dword ptr [rsi + 12]
+        imul    ecx, dword ptr [rdi + 12]
+        add     ecx, eax
+        mov     dword ptr [rdx + 12], ecx
+        ret

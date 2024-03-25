@@ -28,6 +28,9 @@
     %pop = x86.pop  : () -> !x86.reg<>
     // CHECK-NEXT: %{{.*}} = x86.pop : () -> !x86.reg<>
 
+    // mimov, mrmov, rmmov, rmimul, rmadd
+    
+
     // vfmadd231pd, vmovapd, vbroadcastsd
     %2 = x86.get_avx_register : () -> !x86.avxreg<>
     %3 = x86.get_avx_register : () -> !x86.avxreg<>

@@ -489,7 +489,7 @@ class AddOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/add
     """
 
-    name = "x86.add"
+    name = "x86.rr_add"
 
 
 @irdl_op_definition
@@ -515,7 +515,7 @@ class ImulOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/imul
     """
 
-    name = "x86.imul"
+    name = "x86.rr_imul"
 
 
 @irdl_op_definition
@@ -591,7 +591,7 @@ class MovOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier..com/x86/mov
     """
 
-    name = "x86.mov"
+    name = "x86.rr_mov"
 
 
 @irdl_op_definition
@@ -703,9 +703,9 @@ class RMOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        temp = _parse_optional_immediate_value(parser, IntegerType(12, Signedness.SIGNED))
+        if temp is not None:
+            attributes["offset"] = temp
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -715,7 +715,7 @@ class RMOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
         return {"offset"}
 
     def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
+        instruction_name = self.assembly_instruction_name().split('_', 1)[-1]
         destination = _assembly_arg_str(self.r1)
         source = _assembly_arg_str(self.r2)
         if self.offset is not None:
@@ -739,8 +739,31 @@ class RMMovOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/mov
     """
 
-    name = "x86.mov"
+    name = "x86.rm_mov"
 
+@irdl_op_definition
+class RMImulOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the value from the memory location pointed to by r2 with r1 and stores the result in r1.
+
+    x[r1] = x[r1] * [x[r2]]
+
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.rm_imul"
+
+@irdl_op_definition
+class RMAddOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Adds the value from the memory location pointed to by r2 to r1 and stores the result in r1.
+
+    x[r1] = x[r1] + [x[r2]]
+
+    https://www.felixcloutier.com/x86/add
+    """
+
+    name = "x86.rm_add"
 
 class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
     """
@@ -751,8 +774,6 @@ class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
     immediate: AnyIntegerAttr | LabelAttr = attr_def(AnyIntegerAttr)
     offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
 
-    result = result_def(R1InvT)
-
     def __init__(
         self,
         r1: Operation | SSAValue,
@@ -760,7 +781,6 @@ class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
         immediate: int | AnyIntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: R1InvT,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, 32)  # 32 bits?
@@ -776,7 +796,7 @@ class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
                 "offset": offset,
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -785,9 +805,9 @@ class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(
-            parser, IntegerType(32, Signedness.SIGNED)
-        )
+        temp = _parse_optional_immediate_value(parser, IntegerType(12, Signedness.SIGNED))
+        if temp is not None:
+            attributes["offset"] = temp
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -822,7 +842,7 @@ class MIMovOp(MIOperation[GeneralRegisterType]):
     https://www.felixcloutier.com/x86/mov
     """
 
-    name = "x86.mov"
+    name = "x86.mi_mov"
 
 
 class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
@@ -834,7 +854,6 @@ class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
     r2 = operand_def(R2InvT)
     offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
 
-    result = result_def(R1InvT)
 
     def __init__(
         self,
@@ -843,7 +862,6 @@ class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
         offset: int | AnyIntegerAttr | None,
         *,
         comment: str | StringAttr | None = None,
-        result: R1InvT,
     ):
         if isinstance(offset, int):
             offset = IntegerAttr(offset, 12)
@@ -856,7 +874,7 @@ class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
                 "offset": offset,
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -865,9 +883,9 @@ class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = _parse_immediate_value(
-            parser, IntegerType(12, Signedness.SIGNED)
-        )
+        temp = _parse_optional_immediate_value(parser, IntegerType(12, Signedness.SIGNED))
+        if temp is not None:
+            attributes["offset"] = temp
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -901,7 +919,7 @@ class MRMovOp(MROperation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/mov
     """
 
-    name = "x86.mov"
+    name = "x86.mr_mov"
 
 
 @irdl_op_definition
@@ -1077,14 +1095,6 @@ def _parse_optional_immediate_value(
         return LabelAttr(immediate)
 
 
-def _parse_immediate_value(
-    parser: Parser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
-    return parser.expect(
-        lambda: _parse_optional_immediate_value(parser, integer_type),
-        "Expected immediate",
-    )
-
 
 def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
     match immediate:
@@ -1144,6 +1154,11 @@ X86 = Dialect(
         DirectiveOp,
         GetRegisterOp,
         GetAVXRegisterOp,
+        MIMovOp,
+        MRMovOp,
+        RMMovOp,
+        RMImulOp,
+        RMAddOp,
     ],
     [
         GeneralRegisterType,
