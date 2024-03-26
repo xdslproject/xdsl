@@ -4,6 +4,9 @@ from xdsl.dialects import builtin
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.tools.command_line_tool import get_all_dialects, get_all_passes
+from xdsl.transforms.experimental.convert_stencil_to_tensor import (
+    ConvertStencilToTensorCompat,
+)
 from xdsl.transforms.mlir_opt import MLIROptPass
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
@@ -50,6 +53,9 @@ def apply_passes_to_module(
     return module
 
 
+FORBIDDEN_PASSES = {MLIROptPass, ConvertStencilToTensorCompat}
+
+
 def iter_condensed_passes(input: builtin.ModuleOp):
     ctx = MLContext(True)
 
@@ -58,6 +64,8 @@ def iter_condensed_passes(input: builtin.ModuleOp):
 
     selections: list[AvailablePass] = []
     for _, value in ALL_PASSES:
+        if value in FORBIDDEN_PASSES:
+            continue
         if value is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
             selections.append(AvailablePass(value.name, value, None))

@@ -358,6 +358,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass
 
+    def get_convert_stencil_to_tensor():
+        from xdsl.transforms.experimental import convert_stencil_to_tensor
+
+        return convert_stencil_to_tensor.ConvertStencilToLinalg
+
+    def get_convert_stencil_to_tensor_compat():
+        from xdsl.transforms.experimental import convert_stencil_to_tensor
+
+        return convert_stencil_to_tensor.ConvertStencilToTensorCompat
+
     def get_convert_riscv_scf_to_riscv_cf():
         from xdsl.backend.riscv.lowering import (
             convert_riscv_scf_to_riscv_cf,
@@ -566,6 +576,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
+        "convert-stencil-to-tensor": get_convert_stencil_to_tensor,
+        "convert-stencil-to-tensor-compat": get_convert_stencil_to_tensor_compat,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
