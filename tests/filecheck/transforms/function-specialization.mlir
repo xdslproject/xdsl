@@ -1,6 +1,6 @@
 
 
-func.func @basic() {
+func.func @basic(%arg0: memref<100xf32>) -> i32{
     "test.op"() {"before_op"} : () -> ()
 
     %cond = "test.op"() {"specialize_on_vals"= [true]} : () -> i1
@@ -12,9 +12,9 @@ func.func @basic() {
         scf.yield
     }) : (i1) -> ()
 
-    "test.op"() {"after_op"} : () -> ()
+    %retval = "test.op"(%arg0) {"after_op"} : (memref<100xf32>) -> i32
 
-    func.return
+    func.return %retval : i32
 }
 
 

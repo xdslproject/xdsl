@@ -22,10 +22,6 @@ class FunctionSpecializationPattern(RewritePattern):
         if split_op is None:
             return
 
-        # can't do function with returns yet
-        if len(func_op.function_type.outputs) > 0:
-            return
-
         # can't do splits on multi-value ops
         if len(split_op.results) != 1:
             return
@@ -37,24 +33,27 @@ class FunctionSpecializationPattern(RewritePattern):
             print("can't do more than one specialization yet!")
             return
 
+        return_types = tuple(func_op.function_type.outputs)
+
         function_remainder = split_op.next_op
 
         # for every specialization, generate a specialized function body:
         dest_block: Block | None = None
         for val in specialization_vals:
             new_func = specialize_function(func_op, (split_op, val), rewriter)
+            rewriter.insert_op_after_matched_op(new_func)
             rewriter.insert_op_after(
                 [
                     cst := arith.Constant(val, split_op.results[0].type),
                     is_eq := arith.Cmpi(split_op.results[0], cst, "eq"),
                     scf_if := scf.If(
                         is_eq,
-                        [],
+                        return_types,
                         [
-                            func.Call(
-                                new_func.sym_name.data, func_op.body.block.args, []
+                            call_op := func.Call(
+                                new_func.sym_name.data, func_op.body.block.args, return_types
                             ),
-                            scf.Yield(),
+                            scf.Yield(*call_op.results),
                         ],
                         Region(Block()),
                     ),
@@ -71,7 +70,7 @@ class FunctionSpecializationPattern(RewritePattern):
                 function_remainder = next
                 next = function_remainder.next_op
 
-            rewriter.insert_op_at_end(scf.Yield(), dest_block)
+            rewriter.insert_op_at_end(scf.Yield(*function_remainder.operands), dest_block)
 
         # remove specialization attribute
         split_op.attributes.pop("specialize_on_vals")
@@ -87,11 +86,9 @@ def specialize_function(
     # generate a new name and set it:
     module = func_op.parent_op()
     assert isinstance(module, builtin.ModuleOp), "func must be top-level functions!"
-    new_func.properties["sym_name"] = StringAttr(
+    new_func.sym_name = StringAttr(
         unique_specialized_name(module, new_func.sym_name.data, "specialized")
     )
-
-    rewriter.insert_op_after(new_func, func_op)
 
     # find the first operation that is structurally equivalent, this will always give us the exact same operation
     # that was matched, simply because the function `func_contains_specialization_annotation` returns
@@ -112,7 +109,7 @@ def specialize_function(
             )
             break
     # return the newly created func op
-    return func_op
+    return new_func
 
 
 def func_contains_specialization_annotation(funcop: func.FuncOp) -> Operation:
