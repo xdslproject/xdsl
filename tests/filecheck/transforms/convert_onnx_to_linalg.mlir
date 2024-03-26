@@ -64,7 +64,10 @@
 // CHECK-NEXT:  %res_gemm_2_1 = linalg.matmul ins(%8, %t12 : tensor<5x10xf32>, tensor<10x3xf32>) outs(%res_gemm_2 : tensor<5x3xf32>) -> tensor<5x3xf32>
 // CHECK-NEXT:  %res_gemm_2_2 = linalg.add ins(%res_gemm_2_1, %10 : tensor<5x3xf32>, tensor<5x3xf32>) outs(%res_gemm_2_1 : tensor<5x3xf32>) -> tensor<5x3xf32>
 
+%t26 = "test.op"(): () ->  (tensor<5x5x32x32xf32>)
+%res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t26) {onnx_node_name = "/MaxPoolSingleOut", "auto_pad" = "VALID", "ceil_mode" = 0 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0 : i64, 0 : i64], "storage_order" = 0 : i64, "strides" = [1 : i64, 1 : i64]}: (tensor<5x5x32x32xf32>) -> tensor<5x5x30x30xf32>
 
+// CHECK-NEXT:    %t26 = "test.op"() : () -> tensor<5x5x32x32xf32>
 
 
 

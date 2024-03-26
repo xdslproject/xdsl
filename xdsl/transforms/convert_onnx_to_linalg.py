@@ -276,6 +276,53 @@ class GemmOpLowering(RewritePattern):
         )
 
 
+@dataclass
+class MaxPoolSingleOutOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, max_pool_single_out: onnx.MaxPoolSingleOut, rewriter: PatternRewriter, /
+    ):
+        body = Region(Block(arg_types=(f64,)))
+        affine_map = AffineMapAttr(
+            AffineMap.from_callable(
+                lambda d0, d1, d2, d3, d4, d5: (d0, d1, d2 * 2 + d4, d3 * 2 + d5)
+            )
+        )
+        rewriter.replace_matched_op(
+            (
+                empty_tensor := tensor.EmptyOp((), max_pool_single_out.data.type),
+                zero := arith.Constant(FloatAttr(0, f64)),
+                fill_tensor := linalg.FillOp(
+                    (zero.result,),
+                    (empty_tensor.tensor,),
+                    (max_pool_single_out.data.type,),
+                ),
+                empty_result := tensor.EmptyOp((), max_pool_single_out.output.type),
+                linalg.Generic(
+                    (max_pool_single_out.data,),
+                    (empty_result.tensor,),
+                    body,
+                    (
+                        affine_map,
+                        affine_map,
+                    ),
+                    (
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                    ),
+                    (max_pool_single_out.output.type,),
+                ),
+            )
+        )
+        with ImplicitBuilder(body) as (a,):
+            max_op = arith.Maximumf(a, fill_tensor.inputs[0])
+            linalg.YieldOp(max_op.result)
+
+
 @dataclass(frozen=True)
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
@@ -289,6 +336,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
                     ConstantOpLowering(),
                     ReshapeOpLowering(),
                     GemmOpLowering(),
+                    MaxPoolSingleOutOpLowering(),
                 ]
             ),
             apply_recursively=False,
