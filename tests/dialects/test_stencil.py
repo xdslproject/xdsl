@@ -2,6 +2,7 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.dialects import builtin
 from xdsl.dialects.arith import (
     Addf,
 )
@@ -31,6 +32,7 @@ from xdsl.dialects.stencil import (
     ApplyOp,
     BufferOp,
     CastOp,
+    DynAccessOp,
     ExternalLoadOp,
     ExternalStoreOp,
     FieldType,
@@ -576,6 +578,22 @@ def test_stencil_access():
     assert isinstance(access, AccessOp)
     assert access.offset == offset_index_attr
     assert access.temp.type == temp_type
+
+
+def test_stencil_dyn_access():
+    temp_type = TempType([(0, 5), (0, 5)], f32)
+    temp_type_ssa_val = TestSSAValue(temp_type)
+
+    lb = IndexAttr.get(0, 0)
+    ub = IndexAttr.get(1, 1)
+    offset = (TestSSAValue(builtin.IndexType()), TestSSAValue(builtin.IndexType()))
+
+    dyn_access = DynAccessOp(temp_type_ssa_val, offset, lb, ub)
+
+    assert dyn_access.offset == offset
+    assert dyn_access.temp is temp_type_ssa_val
+    assert dyn_access.lb is lb
+    assert dyn_access.ub is ub
 
 
 def test_stencil_access_offset_mapping():
