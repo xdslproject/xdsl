@@ -102,7 +102,7 @@ class ReconcileUnrealizedCastsPattern(RewritePattern):
     `builtin.unrealized_conversion_cast`.
     """
 
-    warn_on_failure: bool = field(default=True, kw_only=True)
+    warn_on_failure: bool = field(default=False, kw_only=True)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
