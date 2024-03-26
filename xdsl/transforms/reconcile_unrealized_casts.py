@@ -1,7 +1,7 @@
 import itertools
 from collections import deque
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from warnings import warn
 
 from xdsl.dialects import builtin
@@ -19,7 +19,7 @@ from xdsl.pattern_rewriter import (
 def _try_remove_cast_chain(
     op: builtin.UnrealizedConversionCastOp,
     rewriter: PatternRewriter,
-    with_warnings: bool,
+    warn_on_failure: bool,
 ):
     # casts that either have no uses or have at least
     # one user that isn't an unrealized cast.
@@ -53,7 +53,7 @@ def _try_remove_cast_chain(
                         use.operation.inputs, cast.results
                     )
                 ):
-                    if with_warnings:
+                    if warn_on_failure:
                         warn(
                             f"Unable to remove cast {cast} because "
                             "it is not unifiable with its uses"
@@ -72,7 +72,7 @@ def _try_remove_cast_chain(
             r.type == i.type for r, i in zip(cast.results, op.inputs)
         )
         if is_live and not has_trivial_cycle:
-            if with_warnings:
+            if warn_on_failure:
                 warn(
                     "Unable to remove cast "
                     f"{cast} because it is not unifiable "
@@ -102,23 +102,23 @@ class ReconcileUnrealizedCastsPattern(RewritePattern):
     `builtin.unrealized_conversion_cast`.
     """
 
-    with_warnings: bool = False
+    warn_on_failure: bool = field(default=True, kw_only=True)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter
     ):
-        _try_remove_cast_chain(op, rewriter, self.with_warnings)
+        _try_remove_cast_chain(op, rewriter, self.warn_on_failure)
 
 
-def reconcile_unrealized_casts(module: ModuleOp, with_warnings: bool = True):
+def reconcile_unrealized_casts(module: ModuleOp, *, warn_on_failure: bool = True):
     """
     Removes all `builtin.unrealized_conversion_cast` operations
     that are not needed anymore in a module.
     """
 
     PatternRewriteWalker(
-        ReconcileUnrealizedCastsPattern(with_warnings=with_warnings)
+        ReconcileUnrealizedCastsPattern(warn_on_failure=warn_on_failure)
     ).rewrite_module(module)
 
 
