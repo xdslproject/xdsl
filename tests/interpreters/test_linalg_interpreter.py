@@ -184,11 +184,11 @@ def test_linalg_add():
         (TensorType(f32, [2, 2]),),
     )
 
-    a = ShapedArray([1, 2, 3, 4], [2, 2])
-    b = ShapedArray([6, 4, 9, 5], [2, 2])
+    a = ShapedArray(TypedPtr.new_float32([1, 2, 3, 4]), [2, 2])
+    b = ShapedArray(TypedPtr.new_float32([6, 4, 9, 5]), [2, 2])
 
     c = interpreter.run_op(op, (a, b))
-    assert c[0] == ShapedArray([7, 6, 12, 9], [2, 2])
+    assert c[0] == ShapedArray(TypedPtr.new_float32([7, 6, 12, 9]), [2, 2])
 
 
 def test_fill_op():
