@@ -1,6 +1,7 @@
 import itertools
 from collections import deque
 from collections.abc import Iterable
+from dataclasses import dataclass
 from warnings import warn
 
 from xdsl.dialects import builtin
@@ -16,7 +17,9 @@ from xdsl.pattern_rewriter import (
 
 
 def _try_remove_cast_chain(
-    op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter
+    op: builtin.UnrealizedConversionCastOp,
+    rewriter: PatternRewriter,
+    with_warnings: bool,
 ):
     # casts that either have no uses or have at least
     # one user that isn't an unrealized cast.
@@ -50,10 +53,11 @@ def _try_remove_cast_chain(
                         use.operation.inputs, cast.results
                     )
                 ):
-                    warn(
-                        f"Unable to remove cast {cast} because "
-                        "it is not unifiable with its uses"
-                    )
+                    if with_warnings:
+                        warn(
+                            f"Unable to remove cast {cast} because "
+                            "it is not unifiable with its uses"
+                        )
                     return
                 casts_to_visit.append(use.operation)
             else:
@@ -68,11 +72,12 @@ def _try_remove_cast_chain(
             r.type == i.type for r, i in zip(cast.results, op.inputs)
         )
         if is_live and not has_trivial_cycle:
-            warn(
-                "Unable to remove cast "
-                f"{cast} because it is not unifiable "
-                "with its uses"
-            )
+            if with_warnings:
+                warn(
+                    "Unable to remove cast "
+                    f"{cast} because it is not unifiable "
+                    "with its uses"
+                )
             return
 
         if not has_any_uses or is_live:
@@ -89,6 +94,7 @@ def _try_remove_cast_chain(
         rewriter.erase_op(cast)
 
 
+@dataclass
 class ReconcileUnrealizedCastsPattern(RewritePattern):
     """
     Removes the chains of `builtin.unrealized_conversion_cast` operations
@@ -96,20 +102,24 @@ class ReconcileUnrealizedCastsPattern(RewritePattern):
     `builtin.unrealized_conversion_cast`.
     """
 
+    with_warnings: bool = False
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: builtin.UnrealizedConversionCastOp, rewriter: PatternRewriter
     ):
-        _try_remove_cast_chain(op, rewriter)
+        _try_remove_cast_chain(op, rewriter, self.with_warnings)
 
 
-def reconcile_unrealized_casts(module: ModuleOp):
+def reconcile_unrealized_casts(module: ModuleOp, with_warnings: bool = True):
     """
     Removes all `builtin.unrealized_conversion_cast` operations
     that are not needed anymore in a module.
     """
 
-    PatternRewriteWalker(ReconcileUnrealizedCastsPattern()).rewrite_module(module)
+    PatternRewriteWalker(
+        ReconcileUnrealizedCastsPattern(with_warnings=with_warnings)
+    ).rewrite_module(module)
 
 
 class ReconcileUnrealizedCastsPass(ModulePass):
