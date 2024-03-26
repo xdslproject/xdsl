@@ -302,13 +302,8 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
                     (max_pool_single_out.data,),
                     (empty_result.tensor,),
                     body,
+                    (affine_map,),
                     (
-                        affine_map,
-                        affine_map,
-                    ),
-                    (
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
                         linalg.IteratorTypeAttr.parallel(),
                         linalg.IteratorTypeAttr.parallel(),
                         linalg.IteratorTypeAttr.parallel(),
