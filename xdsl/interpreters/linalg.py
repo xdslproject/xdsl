@@ -68,20 +68,21 @@ class LinalgFunctions(InterpreterFunctions):
     def run_add(
         self, interpreter: Interpreter, op: linalg.AddOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs = args[0], args[1]
+        (
+            lhs,
+            rhs,
+        ) = (
+            args[0],
+            args[1],
+        )
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
-        for i in range(len(lhs.data)):
-            lhs.data[i] += rhs.data[i]
-        if op.results is not None:
-            return (lhs,)
-        return ()
-        # return (
-        #     ShapedArray(list(l + r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
-        # )
+        return (
+            ShapedArray(list(l + r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
+        )
 
     @impl(linalg.FillOp)
     def run_fill(
@@ -93,12 +94,12 @@ class LinalgFunctions(InterpreterFunctions):
         result_type = op.res[0].type
         assert isinstance(result_type, TensorType)
         result_shape = list(result_type.get_shape())
-        operand.data *= math.prod(result_shape)
-        if op.results is not None:
-            return (operand,)
-        # return (
-        #     ShapedArray(list(operand.data * math.prod(result_shape)), result_shape),
-        # )
+        # operand.data *= math.prod(result_shape)
+        # if op.results is not None:
+        #     return (operand,)
+        return (
+            ShapedArray(list(operand.data * math.prod(result_shape)), result_shape),
+        )
 
     @impl(linalg.MulOp)
     def run_mul(
@@ -110,14 +111,14 @@ class LinalgFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
         assert lhs.shape == rhs.shape
-        for i in range(len(lhs)):
-            lhs.data[i] *= rhs.data[i]
-        if op.results is not None:
-            return (lhs,)
-        return ()
-        # return (
-        #     ShapedArray(list(l * r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
-        # )
+        # for i in range(len(lhs)):
+        #     lhs.data[i] *= rhs.data[i]
+        # if op.results is not None:
+        #     return (lhs,)
+        # return ()
+        return (
+            ShapedArray(list(l * r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
+        )
 
     @impl(linalg.TransposeOp)
     def run_transpose(
