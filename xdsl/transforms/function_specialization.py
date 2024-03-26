@@ -72,6 +72,8 @@ class FunctionSpecializationPattern(RewritePattern):
 
             rewriter.insert_op_at_end(scf.Yield(*function_remainder.operands), dest_block)
 
+            rewriter.replace_op(function_remainder, func.Return(*dest_block.parent_op().results))
+
         # remove specialization attribute
         split_op.attributes.pop("specialize_on_vals")
 
