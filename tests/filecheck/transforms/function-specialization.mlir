@@ -3,7 +3,7 @@
 func.func @basic(%arg0: memref<100xf32>) -> i32{
     "test.op"() {"before_op"} : () -> ()
 
-    %cond = "test.op"() {"specialize_on_vals"= [true]} : () -> i1
+    %cond = "test.op"() {"specialize_on_vals"= [true, false]} : () -> i1
 
     "scf.if"(%cond) ({
         "test.op"() {"inside_if"} : () -> ()

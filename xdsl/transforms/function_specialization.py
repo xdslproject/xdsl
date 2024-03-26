@@ -28,54 +28,54 @@ class FunctionSpecializationPattern(RewritePattern):
 
         # get list of vals to specialize on:
         specialization_vals = get_op_specialization(split_op)
-
-        if len(specialization_vals) > 1:
-            print("can't do more than one specialization yet!")
+        # drop malformed or empty specializations:
+        if specialization_vals is None or len(specialization_vals) == 0:
+            split_op.attributes.pop('specialize_on_vals')
             return
 
         return_types = tuple(func_op.function_type.outputs)
 
         function_remainder = split_op.next_op
 
-        # for every specialization, generate a specialized function body:
-        dest_block: Block | None = None
-        for val in specialization_vals:
-            new_func = specialize_function(func_op, (split_op, val), rewriter)
-            rewriter.insert_op_after_matched_op(new_func)
-            rewriter.insert_op_after(
-                [
-                    cst := arith.Constant(val, split_op.results[0].type),
-                    is_eq := arith.Cmpi(split_op.results[0], cst, "eq"),
-                    scf_if := scf.If(
-                        is_eq,
-                        return_types,
-                        [
-                            call_op := func.Call(
-                                new_func.sym_name.data, func_op.body.block.args, return_types
-                            ),
-                            scf.Yield(*call_op.results),
-                        ],
-                        Region(Block()),
-                    ),
-                ],
-                split_op,
-            )
-            dest_block = scf_if.false_region.block
+        val = specialization_vals.pop()
+        new_func = specialize_function(func_op, (split_op, val), rewriter)
+        rewriter.insert_op_after_matched_op(new_func)
+        rewriter.insert_op_after(
+            [
+                cst := arith.Constant(val, split_op.results[0].type),
+                is_eq := arith.Cmpi(split_op.results[0], cst, "eq"),
+                scf_if := scf.If(
+                    is_eq,
+                    return_types,
+                    [
+                        call_op := func.Call(
+                            new_func.sym_name.data, func_op.body.block.args, return_types
+                        ),
+                        scf.Yield(*call_op.results),
+                    ],
+                    Region(Block()),
+                ),
+            ],
+            split_op,
+        )
+        dest_block = scf_if.false_region.block
 
-        if dest_block is not None:
+        next = function_remainder.next_op
+        while function_remainder is not func_op.body.block.last_op:
+            function_remainder.detach()
+            rewriter.insert_op_at_end(function_remainder, dest_block)
+            function_remainder = next
             next = function_remainder.next_op
-            while function_remainder is not func_op.body.block.last_op:
-                function_remainder.detach()
-                rewriter.insert_op_at_end(function_remainder, dest_block)
-                function_remainder = next
-                next = function_remainder.next_op
 
-            rewriter.insert_op_at_end(scf.Yield(*function_remainder.operands), dest_block)
+        rewriter.insert_op_at_end(scf.Yield(*function_remainder.operands), dest_block)
 
-            rewriter.replace_op(function_remainder, func.Return(*dest_block.parent_op().results))
+        rewriter.replace_op(function_remainder, func.Return(*dest_block.parent_op().results))
 
         # remove specialization attribute
-        split_op.attributes.pop("specialize_on_vals")
+        if specialization_vals:
+            split_op.attributes["specialize_on_vals"] = ArrayAttr(specialization_vals)
+        else:
+            split_op.attributes.pop("specialize_on_vals")
 
 
 def specialize_function(
