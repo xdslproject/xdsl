@@ -308,6 +308,7 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
                         linalg.IteratorTypeAttr.parallel(),
                         linalg.IteratorTypeAttr.parallel(),
                         linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
                     ),
                     (max_pool_single_out.output.type,),
                 ),
