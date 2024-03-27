@@ -694,6 +694,7 @@ class PoolingOpsBase(IRDLOperation, ABC):
 class PoolingNCHWMaxOp(PoolingOpsBase):
     """
     Performs max pooling
+
     See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop
     """
 
