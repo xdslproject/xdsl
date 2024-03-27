@@ -70,7 +70,7 @@
 // CHECK-NEXT:   %t26 = "test.op"() : () -> tensor<1x16x14x14xf32>
 // CHECK-NEXT:  %res_max_pool_single_out = tensor.empty() : tensor<3x3xf32>
 // CHECK-NEXT:  %res_max_pool_single_out_1 = tensor.empty() : tensor<1x16x4x4xf32>
-// CHECK-NEXT:  %res_max_pool_single_out_2 = arith.constant 1.844224e+19 : f64
+// CHECK-NEXT:  %res_max_pool_single_out_2 = arith.constant -inf : f64
 // CHECK-NEXT:  %res_max_pool_single_out_3 = linalg.fill ins(%res_max_pool_single_out_2 : f64) outs(%res_max_pool_single_out_1 : tensor<1x16x4x4xf32>) -> tensor<1x16x4x4xf32>
 // CHECK-NEXT:  %res_max_pool_single_out_4 = linalg.pooling_nchw_max {"dilations" = dense<1> : tensor<2xi64>, "strides" = dense<3> : tensor<2xi64>} ins(%t26, %res_max_pool_single_out : tensor<1x16x14x14xf32>, tensor<3x3xf32>) outs(%res_max_pool_single_out_3 : tensor<1x16x4x4xf32>) -> tensor<1x16x4x4xf32>
 
