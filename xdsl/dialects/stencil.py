@@ -440,7 +440,43 @@ class CastOp(IRDLOperation):
             )
 
 
-# Operations
+@irdl_op_definition
+class DynAccessOp(IRDLOperation):
+    """
+    This operation accesses a temporary element given a dynamic offset.
+    The offset is specified in absolute coordinates. An additional
+    range attribute specifies the maximal access extent relative to the
+    iteration domain of the parent apply operation.
+
+    Example:
+      %0 = stencil.dyn_access %temp (%i, %j, %k) in [-1, -1, -1] : [1, 1, 1] : !stencil.temp<?x?x?xf64> -> f64
+    """
+
+    name = "stencil.dyn_access"
+
+    temp = operand_def(TempType)
+    offset = var_operand_def(builtin.IndexType())
+    lb = attr_def(IndexAttr)
+    ub = attr_def(IndexAttr)
+
+    res = result_def(Attribute)
+
+    def __init__(
+        self,
+        temp: SSAValue | Operation,
+        offset: Sequence[SSAValue | Operation],
+        lb: IndexAttr,
+        ub: IndexAttr,
+    ):
+        temp_type = SSAValue.get(temp).type
+        assert isa(temp_type, TempType[Attribute])
+        super().__init__(
+            operands=[temp, list(offset)],
+            attributes={"lb": lb, "ub": ub},
+            result_types=[temp_type.element_type],
+        )
+
+
 @irdl_op_definition
 class ExternalLoadOp(IRDLOperation):
     """
@@ -888,6 +924,7 @@ Stencil = Dialect(
     "stencil",
     [
         CastOp,
+        DynAccessOp,
         ExternalLoadOp,
         ExternalStoreOp,
         IndexOp,
