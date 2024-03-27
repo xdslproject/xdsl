@@ -312,7 +312,7 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
                     (init.tensor,),
                     (max_pool_single_out.output.type,),
                 ),
-                linalg.MaxPoolOp(
+                linalg.PoolingNchwMaxOp(
                     DenseIntOrFPElementsAttr.tensor_from_list(dilations, i64, [2]),
                     DenseIntOrFPElementsAttr.tensor_from_list(strides, i64, [2]),
                     (
