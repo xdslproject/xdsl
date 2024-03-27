@@ -70,10 +70,10 @@ class LinalgFunctions(InterpreterFunctions):
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
         assert isinstance(res, ShapedArray)
-        assert all(res.data_ptr[i] == 0 for i in range(len(res.data)))
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
         res = cast(ShapedArray[float], res)
+        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
         assert lhs.shape == rhs.shape == res.shape
         for i in range(len(lhs.data)):
             res.data_ptr[i] = lhs.data_ptr[i] + rhs.data_ptr[i]
@@ -90,7 +90,7 @@ class LinalgFunctions(InterpreterFunctions):
         assert isinstance(res, ShapedArray)
         operand = cast(ShapedArray[float], operand)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0 for i in range(len(res.data)))
+        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
         for i in range(len(res.data)):
             res.data_ptr[i] = operand.data_ptr[0]
         if len(op.results) > 0:
@@ -108,7 +108,7 @@ class LinalgFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0 for i in range(len(res.data)))
+        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
         assert lhs.shape == rhs.shape == res.shape
         for i in range(len(lhs.data)):
             res.data_ptr[i] = lhs.data_ptr[i] * rhs.data_ptr[i]
@@ -125,7 +125,7 @@ class LinalgFunctions(InterpreterFunctions):
         assert isinstance(res, ShapedArray)
         operand = cast(ShapedArray[float], operand)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0 for i in range(len(res.data)))
+        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
         assert len(operand.shape) == 2
         assert len(res.shape) == 2
         rows, cols = operand.shape
@@ -147,7 +147,7 @@ class LinalgFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0 for i in range(len(res.data)))
+        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
         rows = lhs.shape[0]
         cols = rhs.shape[1]
         assert rows == cols
