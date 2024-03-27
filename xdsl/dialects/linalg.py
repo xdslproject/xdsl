@@ -677,6 +677,8 @@ class MaxPoolOp(IRDLOperation):
 
     def __init__(
         self,
+        dilations: Attribute,
+        strides: Attribute,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
@@ -686,6 +688,10 @@ class MaxPoolOp(IRDLOperation):
         else:
             result_types = res
         super().__init__(
+            attributes={
+                "dilations": dilations,
+                "strides": strides,
+            },
             operands=(inputs, outputs),
             result_types=result_types,
         )

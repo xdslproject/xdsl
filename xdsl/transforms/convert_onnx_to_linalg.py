@@ -6,11 +6,13 @@ from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     FloatAttr,
     ModuleOp,
     StringAttr,
     SymbolRefAttr,
     TensorType,
+    f32,
     f64,
     i64,
 )
@@ -282,41 +284,50 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
     def match_and_rewrite(
         self, max_pool_single_out: onnx.MaxPoolSingleOut, rewriter: PatternRewriter, /
     ):
-        body = Region(Block(arg_types=(f64,)))
-        affine_map = AffineMapAttr(
-            AffineMap.from_callable(
-                lambda d0, d1, d2, d3, d4, d5: (d0, d1, d2 * 2 + d4, d3 * 2 + d5)
-            )
-        )
+        kernel: list[int] = [
+            value.value.data for value in max_pool_single_out.kernel_shape.data
+        ]
+        dilations: list[int] = [
+            value.value.data for value in max_pool_single_out.dilations.data
+        ]
+        strides: list[int] = [
+            value.value.data for value in max_pool_single_out.strides.data
+        ]
+        kernel_shape = TensorType(f32, kernel)
+
+        # Lowering of unequal kernel and stride shapes not supported
+        if strides != kernel:
+            raise NotImplementedError()
+
+        # Lowering with `storage_order = 1` attribute not supported"
+        if (
+            max_pool_single_out.storage_order is not None
+            and max_pool_single_out.storage_order.value.data == 1
+        ):
+            raise NotImplementedError()
+
         rewriter.replace_matched_op(
             (
-                empty_tensor := tensor.EmptyOp((), max_pool_single_out.data.type),
+                empty := tensor.EmptyOp((), kernel_shape),
+                init := tensor.EmptyOp((), max_pool_single_out.output.type),
                 zero := arith.Constant(FloatAttr(0, f64)),
-                fill_tensor := linalg.FillOp(
+                fill := linalg.FillOp(
                     (zero.result,),
-                    (empty_tensor.tensor,),
-                    (max_pool_single_out.data.type,),
+                    (init.tensor,),
+                    (max_pool_single_out.output.type,),
                 ),
-                empty_result := tensor.EmptyOp((), max_pool_single_out.output.type),
-                linalg.Generic(
-                    (max_pool_single_out.data,),
-                    (empty_result.tensor,),
-                    body,
-                    (affine_map,),
+                linalg.MaxPoolOp(
+                    DenseIntOrFPElementsAttr.tensor_from_list(dilations, i64, [2]),
+                    DenseIntOrFPElementsAttr.tensor_from_list(strides, i64, [2]),
                     (
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
+                        max_pool_single_out.data,
+                        empty.tensor,
                     ),
+                    (fill.results[0],),
                     (max_pool_single_out.output.type,),
                 ),
             )
         )
-        with ImplicitBuilder(body) as (a,):
-            max_op = arith.Maximumf(a, fill_tensor.inputs[0])
-            linalg.YieldOp(max_op.result)
 
 
 @dataclass(frozen=True)
