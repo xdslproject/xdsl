@@ -326,6 +326,53 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
         )
 
 
+@dataclass
+class ConvOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, conv: onnx.Conv, rewriter: PatternRewriter, /):
+        body = Region(Block(arg_types=(f64, f64, f64)))
+        affine_map_1 = AffineMapAttr(
+            AffineMap.from_callable(
+                lambda d0, d1, d2, d3, d4, d5, d6: (d0, d4, d2 + d5, d3 + d6)
+            )
+        )
+        affine_map_2 = AffineMapAttr(
+            AffineMap.from_callable(lambda d0, d1, d2, d3, d4, d5, d6: (d1, d4, d5, d6))
+        )
+        rewriter.replace_matched_op(
+            (
+                empty := tensor.EmptyOp((), conv.res.type),
+                linalg.Generic(
+                    (
+                        conv.data,
+                        conv.weight,
+                        conv.bias,
+                    ),
+                    (empty.tensor,),
+                    body,
+                    (
+                        affine_map_1,
+                        affine_map_2,
+                    ),
+                    (
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                        linalg.IteratorTypeAttr.parallel(),
+                    ),
+                    (conv.res.type,),
+                ),
+            )
+        )
+        with ImplicitBuilder(body) as (a, b, c):
+            mul_op = arith.Mulf(a, b)
+            acc_op = arith.Addf(c, mul_op.result)
+            linalg.YieldOp(acc_op.result)
+
+
 @dataclass(frozen=True)
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
@@ -340,6 +387,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
                     ReshapeOpLowering(),
                     GemmOpLowering(),
                     MaxPoolSingleOutOpLowering(),
+                    ConvOpLowering(),
                 ]
             ),
             apply_recursively=False,

@@ -75,7 +75,17 @@
 // CHECK-NEXT:  %res_max_pool_single_out_4 = linalg.pooling_nchw_max {"dilations" = dense<1> : tensor<2xi64>, "strides" = dense<3> : tensor<2xi64>} ins(%t26, %res_max_pool_single_out : tensor<1x16x14x14xf32>, tensor<3x3xf32>) outs(%res_max_pool_single_out_3 : tensor<1x16x4x4xf32>) -> tensor<1x16x4x4xf32>
 
 
+%t20,%t21,%t22 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+%res_conv_2 = "onnx.Conv"(%t20, %t21, %t22) {onnx_node_name = "/Conv", "auto_pad" = "NOTSET", "group" = 1 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "strides" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0: i64, 0 : i64]}: (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
 
+// CHECK-NEXT:  %t20,%t21,%t22 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
+// CHECK-NEXT: %res_conv_2 = tensor.empty() : tensor<1x1x3x3xf32>
+// CHECK-NEXT:  %res_conv_2_1 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, (d2 + d5), (d3 + d6))>, affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>], iterator_types = ["parallel", "parallel", "parallel", "parallel", "parallel", "parallel", "parallel"]} ins(%t20, %t21, %t22 : tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) outs(%res_conv_2 : tensor<1x1x3x3xf32>) {
+// CHECK-NEXT:  ^1(%11 : f64, %12 : f64, %13 : f64):
+// CHECK-NEXT:     %14 = arith.mulf %11, %12 : f64
+// CHECK-NEXT:     %15 = arith.addf %13, %14 : f64
+// CHECK-NEXT:     linalg.yield %15 : f64
+// CHECK-NEXT: } -> tensor<1x1x3x3xf32>
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
 %res_constant_2 = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<2.0> : tensor<1x5xf32>} : () -> tensor<1x5xf32>
