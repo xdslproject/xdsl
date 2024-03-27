@@ -295,10 +295,6 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
         ]
         kernel_shape = TensorType(f32, kernel)
 
-        # Lowering of unequal kernel and stride shapes not supported
-        if strides != kernel:
-            raise NotImplementedError()
-
         # Lowering with `storage_order = 1` attribute not supported"
         if (
             max_pool_single_out.storage_order.value.data != 0
@@ -310,7 +306,7 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
             (
                 empty := tensor.EmptyOp((), kernel_shape),
                 init := tensor.EmptyOp((), max_pool_single_out.output.type),
-                zero := arith.Constant(FloatAttr(0, f64)),
+                zero := arith.Constant(FloatAttr(0xFFF0000000000000, f64)),
                 fill := linalg.FillOp(
                     (zero.result,),
                     (init.tensor,),
