@@ -1344,6 +1344,38 @@ def test_inline_region_at_end():
     )
 
 
+def test_erased_ssavalue():
+    prog = """\
+builtin.module {
+  "test.op"() ({
+    %0 = "test.op"() : () -> i32
+    "test.op"(%0) : (i32) -> ()
+  }) : () -> ()
+}
+  """
+
+    expected = """\
+"builtin.module"() ({
+  "test.op"() ({
+  ^0:
+  }) : () -> ()
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.results or op.operands:
+                rewriter.erase_matched_op(safe_erase=False)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_removed=2,
+    )
+
+
 def test_type_conversion():
     """Test rewriter on ops without results"""
     prog = """\
@@ -1542,6 +1574,34 @@ def test_type_conversion():
         op_removed=3,
         op_replaced=3,
         op_modified=1,
+    )
+
+    prog = """\
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = i32}} : () -> ()
+}) : () -> ()
+"""
+
+    expected_recursive = """
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = index}} : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(recursive=False)),
+        expect_rewrite=False,
+    )
+
+    rewrite_and_compare(
+        prog,
+        expected_recursive,
+        PatternRewriteWalker(Rewrite(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
     )
 
 
