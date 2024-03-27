@@ -301,8 +301,8 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
 
         # Lowering with `storage_order = 1` attribute not supported"
         if (
-            max_pool_single_out.storage_order is not None
-            and max_pool_single_out.storage_order.value.data == 1
+            max_pool_single_out.storage_order.value.data != 0
+            and max_pool_single_out.storage_order
         ):
             raise NotImplementedError()
 
