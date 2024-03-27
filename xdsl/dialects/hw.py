@@ -41,14 +41,17 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_attr_def,
     region_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser, BaseParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
+    IsolatedFromAbove,
     IsTerminator,
     OpTrait,
+    SingleBlockImplicitTerminator,
     SymbolOpInterface,
     SymbolTable,
 )
@@ -432,8 +435,8 @@ class Direction(Enum):
     """
 
     # TODO: support INOUT direction (https://github.com/xdslproject/xdsl/issues/2368)
-    INPUT = (0,)
-    OUTPUT = (1,)
+    INPUT = 0
+    OUTPUT = 1
 
     @staticmethod
     def parse_optional(parser: BaseParser, short: bool = False) -> "Direction | None":
@@ -504,10 +507,11 @@ class ModuleType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         def parse_port() -> ModulePort:
             direction = Direction.parse(parser)
-            if (
-                name := parser.parse_optional_identifier()
+            name = (
+                parser.parse_optional_identifier()
                 or parser.parse_optional_str_literal()
-            ) is None:
+            )
+            if name is None:
                 parser.raise_error("expected port name as identifier or string literal")
 
             parser.parse_punctuation(":")
@@ -605,7 +609,7 @@ _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
 
 
 @irdl_op_definition
-class ModuleOp(IRDLOperation):
+class HWModuleOp(IRDLOperation):
     """
     Represents a Verilog module, including a given name, a list of ports,
     a list of parameters, and a body that represents the connections within
@@ -619,6 +623,16 @@ class ModuleOp(IRDLOperation):
     parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
     body: SingleBlockRegion = region_def("single_block")
+
+    traits = traits_def(
+        lambda: frozenset(
+            (
+                SymbolOpInterface(),
+                IsolatedFromAbove(),
+                SingleBlockImplicitTerminator(OutputOp),
+            )
+        )
+    )
 
     def __init__(
         self,
@@ -661,7 +675,7 @@ class ModuleOp(IRDLOperation):
             raise VerifyException("too many block arguments in module block")
 
     @classmethod
-    def parse(cls, parser: Parser) -> "ModuleOp":
+    def parse(cls, parser: Parser) -> "HWModuleOp":
         class ModuleArg(NamedTuple):
             port_dir: Direction
             port_name: str
@@ -745,8 +759,7 @@ class ModuleOp(IRDLOperation):
         )
 
         if attrs is not None:
-            for k, v in attrs.data.items():
-                module_op.attributes[k] = v
+            module_op.attributes.update(attrs.data)
 
         return module_op
 
@@ -799,14 +812,14 @@ class OutputOp(IRDLOperation):
 
     inputs: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([IsTerminator(), HasParent(ModuleOp)])
+    traits = frozenset([IsTerminator(), HasParent(HWModuleOp)])
 
     def __init__(self, ops: Sequence[SSAValue | Operation]):
         super().__init__(operands=[ops])
 
     def verify_(self) -> None:
         parent = self.parent_op()
-        assert isinstance(parent, ModuleOp)
+        assert isinstance(parent, HWModuleOp)
 
         expected_results = tuple(
             port.type
@@ -853,7 +866,7 @@ class OutputOp(IRDLOperation):
 HW = Dialect(
     "hw",
     [
-        ModuleOp,
+        HWModuleOp,
         OutputOp,
     ],
     [
