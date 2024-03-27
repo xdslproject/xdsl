@@ -1,9 +1,7 @@
-import math
 from itertools import product
 from typing import Any, cast
 
 from xdsl.dialects import linalg
-from xdsl.dialects.builtin import TensorType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -68,107 +66,94 @@ class LinalgFunctions(InterpreterFunctions):
     def run_add(
         self, interpreter: Interpreter, op: linalg.AddOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        (
-            lhs,
-            rhs,
-        ) = (
-            args[0],
-            args[1],
-        )
+        (lhs, rhs, res) = (args[0], args[1], args[2])
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
+        assert isinstance(res, ShapedArray)
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
-        assert lhs.shape == rhs.shape
-        return (
-            ShapedArray(list(l + r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
-        )
+        res = cast(ShapedArray[float], res)
+        assert lhs.shape == rhs.shape == res.shape
+        for i in range(len(lhs.data)):
+            res.data_ptr[i] = lhs.data_ptr[i] + rhs.data_ptr[i]
+        if len(op.results) > 0:
+            return (res,)
+        return ()
 
     @impl(linalg.FillOp)
     def run_fill(
         self, interpreter: Interpreter, op: linalg.FillOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        (operand,) = args
+        operand, res = args[0], args[1]
         assert isinstance(operand, ShapedArray)
+        assert isinstance(res, ShapedArray)
         operand = cast(ShapedArray[float], operand)
-        result_type = op.res[0].type
-        assert isinstance(result_type, TensorType)
-        result_shape = list(result_type.get_shape())
-        # operand.data *= math.prod(result_shape)
-        # if op.results is not None:
-        #     return (operand,)
-        return (
-            ShapedArray(list(operand.data * math.prod(result_shape)), result_shape),
-        )
+        res = cast(ShapedArray[float], res)
+        for i in range(len(res.data)):
+            res.data_ptr[i] = operand.data_ptr[0]
+        if len(op.results) > 0:
+            return (res,)
+        return ()
 
     @impl(linalg.MulOp)
     def run_mul(
         self, interpreter: Interpreter, op: linalg.MulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs = args[0], args[1]
+        lhs, rhs, res = args[0], args[1], args[2]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
+        assert isinstance(res, ShapedArray)
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
-        assert lhs.shape == rhs.shape
-        # for i in range(len(lhs)):
-        #     lhs.data[i] *= rhs.data[i]
-        # if op.results is not None:
-        #     return (lhs,)
-        # return ()
-        return (
-            ShapedArray(list(l * r for l, r in zip(lhs.data, rhs.data)), lhs.shape),
-        )
+        res = cast(ShapedArray[float], res)
+        assert lhs.shape == rhs.shape == res.shape
+        for i in range(len(lhs.data)):
+            res.data_ptr[i] = lhs.data_ptr[i] * rhs.data_ptr[i]
+        if len(op.results) > 0:
+            return (res,)
+        return ()
 
     @impl(linalg.TransposeOp)
     def run_transpose(
         self, interpreter: Interpreter, op: linalg.TransposeOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        operand = args[0]
+        operand, res = args[0], args[1]
         assert isinstance(operand, ShapedArray)
+        assert isinstance(res, ShapedArray)
         operand = cast(ShapedArray[float], operand)
+        res = cast(ShapedArray[float], res)
         assert len(operand.shape) == 2
-
-        transposed_data: list[float] = []
-
-        for c in range(operand.shape[1]):
-            for r in range(operand.shape[0]):
-                transposed_data.append(operand.load((r, c)))
-
-        return (ShapedArray(list(transposed_data), operand.shape[::-1]),)
+        assert len(res.shape) == 2
+        rows, cols = operand.shape
+        for i in range(rows):
+            for j in range(cols):
+                res.data_ptr[j * rows + i] = operand.data_ptr[i * cols + j]
+        if len(op.results) > 0:
+            return (res,)
+        return ()
 
     @impl(linalg.MatmulOp)
     def run_mat_mul(
         self, interpreter: Interpreter, op: linalg.MatmulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs = args[0], args[1]
+        lhs, rhs, res = args[0], args[1], args[2]
         assert isinstance(lhs, ShapedArray)
         assert isinstance(rhs, ShapedArray)
+        assert isinstance(res, ShapedArray)
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
-        assert lhs.shape[1] == rhs.shape[0]
+        res = cast(ShapedArray[float], res)
+        rows = lhs.shape[0]
+        cols = rhs.shape[1]
+        assert rows == cols
+        for i in range(rows):
+            for j in range(cols):
+                res.data_ptr[i * cols + j] = sum(
+                    lhs.data_ptr[i * lhs.shape[1] + k]
+                    * rhs.data_ptr[k * rhs.shape[1] + j]
+                    for k in range(lhs.shape[1])
+                )
 
-        # reshape the arrays
-        a = [
-            lhs.data[x : x + lhs.shape[1]]
-            for x in range(0, len(lhs.data), lhs.shape[1])
-        ]
-        b = [
-            rhs.data[x : x + rhs.shape[1]]
-            for x in range(0, len(rhs.data), rhs.shape[1])
-        ]
-
-        # initialise a result list
-        matrix_result: list[list[float]] = [
-            [0 for _ in range(rhs.shape[1])] for _ in range(lhs.shape[0])
-        ]
-
-        # do matmul
-        for i in range(lhs.shape[0]):
-            for j in range(rhs.shape[1]):
-                for k in range(lhs.shape[1]):
-                    matrix_result[i][j] += a[i][k] * b[k][j]
-
-        # flatten the result
-        result: list[float] = [ele for row in matrix_result for ele in row]
-        return (ShapedArray(result, list([lhs.shape[0], rhs.shape[1]])),)
+        if len(op.results) > 0:
+            return (res,)
+        return ()
