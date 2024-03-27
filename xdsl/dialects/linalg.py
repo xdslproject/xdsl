@@ -691,7 +691,7 @@ class PoolingOpsBase(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class PoolingNCHWMaxOp(PoolingOpsBase):
+class PoolingNchwMaxOp(PoolingOpsBase):
     """
     Performs max pooling
 
@@ -711,7 +711,7 @@ Linalg = Dialect(
         MulOp,
         TransposeOp,
         MatmulOp,
-        PoolingNCHWMaxOp,
+        PoolingNchwMaxOp,
     ],
     [
         IteratorTypeAttr,
