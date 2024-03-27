@@ -1,17 +1,18 @@
-from typing import cast, Iterable
+from typing import Iterable, cast
 
+from xdsl.dialects import arith, builtin, func, scf
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
-from xdsl.ir import Operation, Attribute, MLContext, Block, Region
+from xdsl.ir import Attribute, Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    RewritePattern,
     PatternRewriter,
-    op_type_rewrite_pattern,
     PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
 )
-
-from xdsl.dialects import func, arith, builtin, scf
 from xdsl.traits import SymbolTable
+
+SPEZIALIZE_ON_VALS_ATTR = "specialize_on_vals"
 
 
 class FunctionSpecializationPattern(RewritePattern):
@@ -30,16 +31,21 @@ class FunctionSpecializationPattern(RewritePattern):
         specialization_vals = get_op_specialization(split_op)
         # drop malformed or empty specializations:
         if specialization_vals is None or len(specialization_vals) == 0:
-            split_op.attributes.pop('specialize_on_vals')
+            split_op.attributes.pop(SPEZIALIZE_ON_VALS_ATTR)
             return
 
         return_types = tuple(func_op.function_type.outputs)
 
         function_remainder = split_op.next_op
+        assert function_remainder is not None, "Can't specialize on terminator!"
 
+        # grab the first value to specialize on:
         val = specialization_vals.pop()
-        new_func = specialize_function(func_op, (split_op, val), rewriter)
+        # generate the specialized function:
+        new_func = specialize_function(func_op, val, rewriter)
+        # insert the specialized function after the generic function (the one we matched on)
         rewriter.insert_op_after_matched_op(new_func)
+        # insert a compare to the value we specialize and, and branch on if we are equal
         rewriter.insert_op_after(
             [
                 cst := arith.Constant(val, split_op.results[0].type),
@@ -48,46 +54,74 @@ class FunctionSpecializationPattern(RewritePattern):
                     is_eq,
                     return_types,
                     [
+                        # if we are equal to the specialized value, call the function:
                         call_op := func.Call(
-                            new_func.sym_name.data, func_op.body.block.args, return_types
+                            new_func.sym_name.data,
+                            func_op.body.block.args,
+                            return_types,
                         ),
+                        # yield call results
                         scf.Yield(*call_op.results),
                     ],
-                    Region(Block()),
+                    # empty region placeholder, will be filled in later
+                    # grab a reference to it
+                    Region(dest_block := Block()),
                 ),
             ],
             split_op,
         )
-        dest_block = scf_if.false_region.block
 
-        next = function_remainder.next_op
-        while function_remainder is not func_op.body.block.last_op:
-            function_remainder.detach()
-            rewriter.insert_op_at_end(function_remainder, dest_block)
-            function_remainder = next
-            next = function_remainder.next_op
+        # iterate over the remainder of the function:
+        # grab a reference to the next operation in the remainder.
+        # this is because we will modify the op and therefore loose the "old" next op.
+        next_op = function_remainder.next_op
+        # unless we already hit the block terminator
+        if next_op is not None:
+            # while we haven't reached the return statement:
+            while function_remainder is not func_op.body.block.last_op:
+                # detatch the function
+                function_remainder.detach()
+                # re-insert it inside the else block of the if statement
+                rewriter.insert_op_at_end(function_remainder, dest_block)
+                # go to next op
+                function_remainder = next_op
+                next_op = function_remainder.next_op
 
+        # insert a yield that yields the return values
         rewriter.insert_op_at_end(scf.Yield(*function_remainder.operands), dest_block)
-
-        rewriter.replace_op(function_remainder, func.Return(*dest_block.parent_op().results))
+        # return the results of the scf.if
+        rewriter.replace_op(function_remainder, func.Return(*scf_if.results))
 
         # remove specialization attribute
         if specialization_vals:
-            split_op.attributes["specialize_on_vals"] = ArrayAttr(specialization_vals)
+            split_op.attributes[SPEZIALIZE_ON_VALS_ATTR] = ArrayAttr(
+                specialization_vals
+            )
         else:
-            split_op.attributes.pop("specialize_on_vals")
+            split_op.attributes.pop(SPEZIALIZE_ON_VALS_ATTR)
 
 
 def specialize_function(
     func_op: func.FuncOp,
-    specialization: tuple[Operation, Attribute],
+    specialization: Attribute,
     rewriter: PatternRewriter,
 ):
-    """ """
+    """
+    Specializes a function to pin a value to a compile time constant. Assumes the function is top-level
+    inside the module.
+
+    This will do the following things:
+    - clone the function
+    - rename it to be uniquely named inside the module
+    - erase all operations up until the specialized operation
+    - replace the specialized operation with a constant instantiation
+    """
+    # clone the function including the body:
     new_func = func_op.clone()
-    # generate a new name and set it:
+    # get the module op
     module = func_op.parent_op()
     assert isinstance(module, builtin.ModuleOp), "func must be top-level functions!"
+    # generate a new name and set it:
     new_func.sym_name = StringAttr(
         unique_specialized_name(module, new_func.sym_name.data, "specialized")
     )
@@ -97,7 +131,7 @@ def specialize_function(
     # the first occurrence of any operation with the attribute.
     for op in new_func.body.ops:
         # replace specialized op by constant
-        if "specialize_on_vals" in op.attributes:
+        if SPEZIALIZE_ON_VALS_ATTR in op.attributes:
             # find ops that came before, so we can erase them
             for bad_ops in ops_between_op_and_func_start(func_op, op):
                 rewriter.erase_op(bad_ops)
@@ -106,20 +140,21 @@ def specialize_function(
                 len(op.results) == 1
             ), "Specializations only work on single return operations"
             # replace op by constant
-            rewriter.replace_op(
-                op, arith.Constant(specialization[1], op.results[0].type)
-            )
+            rewriter.replace_op(op, arith.Constant(specialization, op.results[0].type))
+            # don't look at more operations inside the function
             break
     # return the newly created func op
     return new_func
 
 
-def func_contains_specialization_annotation(funcop: func.FuncOp) -> Operation:
+def func_contains_specialization_annotation(funcop: func.FuncOp) -> Operation | None:
     """
     Return the first operation inside the function that has a "specialize_on_vals" attribute.
+
+    Only works on top-level operations, we can't handle nested things right now.
     """
     for op in funcop.body.block.ops:
-        if "specialize_on_vals" in op.attributes:
+        if SPEZIALIZE_ON_VALS_ATTR in op.attributes:
             return op
 
 
@@ -128,7 +163,7 @@ def get_op_specialization(op: Operation) -> list[Attribute] | None:
     Reads the "specialize_on_vals" attribute of an operation, checks for valid
     formatting, and return the list of attributes that should be specialized on.
     """
-    specialize_attr = op.attributes.get("specialize_on_vals")
+    specialize_attr = op.attributes.get(SPEZIALIZE_ON_VALS_ATTR)
     if not specialize_attr:
         return None
     if not isinstance(specialize_attr, ArrayAttr):
@@ -142,7 +177,7 @@ def ops_between_op_and_func_start(
 ) -> Iterable[Operation]:
     """
     Get a list of all operations localed between op and the start of body.
-    Returns them in reverse order of occurence.
+    Returns them in reverse order of occurrence.
 
     op must be a direct child of func_op!
 
@@ -162,7 +197,7 @@ def ops_between_op_and_func_start(
 
 def unique_specialized_name(module: builtin.ModuleOp, name: str, hint: str) -> str:
     """
-    Generate a new specialized name that is unqiue to the module
+    Generate a new specialized name that is unique to the module
     """
     # try just name + hint
     proposed_name = f"{name}_{hint}"
