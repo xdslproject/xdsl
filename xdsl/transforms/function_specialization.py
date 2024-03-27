@@ -1,4 +1,5 @@
-from typing import Iterable, cast
+from collections.abc import Iterable
+from typing import cast
 
 from xdsl.dialects import arith, builtin, func, scf
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
