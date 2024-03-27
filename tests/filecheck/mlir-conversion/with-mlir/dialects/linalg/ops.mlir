@@ -33,6 +33,12 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 
 %mat_mul = linalg.matmul ins(%7, %8 : tensor<64x9216xf32>, tensor<9216x4096xf32>) outs(%9 : tensor<64x4096xf32>) -> tensor<64x4096xf32>
 
+%10, %11, %12 = "test.op"() : () -> (tensor<1x1x4x4xf32>, tensor<3x3xf32>, tensor<1x1x2x2xf32>)
+
+%max_pool = linalg.pooling_nchw_max {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>}
+    ins(%10, %11: tensor<1x1x4x4xf32>, tensor<3x3xf32>)
+    outs(%12: tensor<1x1x2x2xf32>) -> tensor<1x1x2x2xf32>
+
 %sum_2 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%2, %2 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) {
 ^bb0(%in: f32, %in_0: f32, %out: f32):
     %acc = arith.addf %in, %in_0 : f32
@@ -63,6 +69,8 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 // CHECK-NEXT:    %6:2 = "test.op"() : () -> (tensor<64x9216xf32>, tensor<9216x4096xf32>)
 // CHECK-NEXT:    %7 = "test.op"() : () -> tensor<64x4096xf32>
 // CHECK-NEXT:    %8 = linalg.matmul ins(%6#0, %6#1 : tensor<64x9216xf32>, tensor<9216x4096xf32>) outs(%7 : tensor<64x4096xf32>) -> tensor<64x4096xf32>
+// CHECK-NEXT:    %9:3 = "test.op"() : () -> (tensor<1x1x4x4xf32>, tensor<3x3xf32>, tensor<1x1x2x2xf32>)
+// CHECK-NEXT:    %10 = linalg.pooling_nchw_max {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%9#0, %9#1 : tensor<1x1x4x4xf32>, tensor<3x3xf32>) outs(%9#2 : tensor<1x1x2x2xf32>) -> tensor<1x1x2x2xf32>
 // CHECK-NEXT:    %{{.*}} = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) {
 // CHECK-NEXT:    ^bb0(%in: f32, %in_0: f32, %out: f32):
 // CHECK-NEXT:      %{{.*}} = arith.addf %in, %in_0 : f32
