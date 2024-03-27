@@ -6,8 +6,8 @@ from importlib.metadata import version
 from io import StringIO
 from typing import IO
 
+from xdsl.dialects import riscv, x86
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import print_assembly, riscv_code
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
@@ -201,7 +201,10 @@ class xDSLOptMain(CommandLineTool):
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
-            print_assembly(prog, output)
+            riscv.print_assembly(prog, output)
+
+        def _output_x86_asm(prog: ModuleOp, output: IO[str]):
+            x86.ops.print_assembly(prog, output)
 
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
@@ -211,12 +214,13 @@ class xDSLOptMain(CommandLineTool):
                 print("Please install optional dependencies to run riscv emulation")
                 return
 
-            code = riscv_code(prog)
+            code = riscv.riscv_code(prog)
             with redirect_stdout(output):
                 run_riscv(code, unlimited_regs=True, verbosity=0)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
+        self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
 
     def setup_pipeline(self):
@@ -238,7 +242,7 @@ class xDSLOptMain(CommandLineTool):
                 print("\n\n\n")
 
         self.pipeline = PipelinePass(
-            list(
+            tuple(
                 pass_type.from_pass_spec(spec)
                 for pass_type, spec in PipelinePass.build_pipeline_tuples(
                     self.available_passes, parse_pipeline(self.args.passes)

@@ -60,16 +60,14 @@ class BaseParser:
         msg: str,
         at_position: Position,
         end_position: Position,
-    ) -> NoReturn:
-        ...
+    ) -> NoReturn: ...
 
     @overload
     def raise_error(
         self,
         msg: str,
         at_position: Position | Span | None = None,
-    ) -> NoReturn:
-        ...
+    ) -> NoReturn: ...
 
     @contextmanager
     def in_angle_brackets(self):

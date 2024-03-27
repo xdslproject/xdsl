@@ -6,20 +6,15 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import (
-    TypeVar,
-    Union,
-    final,
-    get_args,
-    get_origin,
-)
+from typing import TypeVar, Union, final, get_args, get_origin
 
-from xdsl.builder import BuilderListener
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.builder import BuilderListener, InsertPoint
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
+    ErasedSSAValue,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -92,60 +87,46 @@ class PatternRewriter(PatternRewriterListener):
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
-    def insert_op_before_matched_op(self, op: (Operation | Sequence[Operation])):
-        """Insert operations before the matched operation."""
-        self.insert_op_before(op, self.current_operation)
-
-    def insert_op_after_matched_op(self, op: (Operation | Sequence[Operation])):
-        """Insert operations after the matched operation."""
-        self.insert_op_after(op, self.current_operation)
-
-    def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
-        """Insert operations at the end of a block."""
+    def insert_op_at_location(
+        self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
+    ):
+        """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        op = [op] if isinstance(op, Operation) else op
-        if len(op) == 0:
+        op = (op,) if isinstance(op, Operation) else op
+        if not op:
             return
-        block.add_ops(op)
+        Rewriter.insert_ops_at_location(op, insertion_point)
+
         for op_ in op:
             self.handle_operation_insertion(op_)
 
+    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
+        """Insert operations before the matched operation."""
+        self.insert_op_at_location(op, InsertPoint.before(self.current_operation))
+
+    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
+        """Insert operations after the matched operation."""
+        self.insert_op_at_location(op, InsertPoint.after(self.current_operation))
+
+    def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
+        """Insert operations at the end of a block."""
+        self.insert_op_at_location(op, InsertPoint.at_end(block))
+
     def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations at the start of a block."""
-        if (first_op := block.first_op) is not None:
-            self.insert_op_before(op, first_op)
-        else:
-            self.insert_op_at_end(op, block)
+        self.insert_op_at_location(op, InsertPoint.at_start(block))
 
     def insert_op_before(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
         """Insert operations before an operation."""
-        if target_op.parent is None:
-            raise Exception("Cannot insert operations before toplevel operation.")
-        target_block = target_op.parent
-        self.has_done_action = True
-        op = [op] if isinstance(op, Operation) else op
-        if len(op) == 0:
-            return
-        target_block.insert_ops_before(op, target_op)
-        for op_ in op:
-            self.handle_operation_insertion(op_)
+        self.insert_op_at_location(op, InsertPoint.before(target_op))
 
     def insert_op_after(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
         """Insert operations after an operation."""
-        if target_op.parent is None:
-            raise Exception("Cannot insert operations after toplevel operation.")
-        target_block = target_op.parent
-        self.has_done_action = True
-        ops = [op] if isinstance(op, Operation) else op
-        if len(ops) == 0:
-            return
-        target_block.insert_ops_after(ops, target_op)
-        for op_ in ops:
-            self.handle_operation_insertion(op_)
+        self.insert_op_at_location(op, InsertPoint.after(target_op))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -460,6 +441,9 @@ class TypeConversionPattern(RewritePattern):
             if isa(typ, ArrayAttr[Attribute]):
                 parameters = tuple(self._convert_type_rec(p) or p for p in typ)
                 inp = type(typ).new(parameters)
+            if isa(typ, DictionaryAttr):
+                parameters = {k: self._convert_type_rec(v) for k, v in typ.data.items()}
+                inp = type(typ).new(parameters)
         converted = self.convert_type(inp)
         return converted if converted is not None else inp
 
@@ -518,7 +502,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT]
+    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None]
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern
@@ -647,7 +631,11 @@ class PatternRewriteWalker:
         have more canonicalization opportunities.
         """
         for operand in operands:
-            if len(operand.uses) == 1 and isinstance((op := operand.owner), Operation):
+            if (
+                len(operand.uses) == 1
+                and not isinstance(operand, ErasedSSAValue)
+                and isinstance((op := operand.owner), Operation)
+            ):
                 self._worklist.push(op)
 
     def _handle_operation_insertion(self, op: Operation) -> None:
@@ -701,17 +689,17 @@ class PatternRewriteWalker:
             block_creation_handler=self.listener.block_creation_handler,
         )
 
-    def rewrite_module(self, module: ModuleOp) -> None:
+    def rewrite_module(self, module: ModuleOp) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
-        pattern.
+        pattern. Returns `True` if the IR was mutated.
         """
-        self.rewrite_op(module)
+        return self.rewrite_op(module)
 
-    def rewrite_op(self, op: Operation) -> None:
+    def rewrite_op(self, op: Operation) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
-        pattern.
+        pattern. Returns `True` if the IR was mutated.
         """
         pattern_listener = self._get_rewriter_listener()
 
@@ -719,11 +707,15 @@ class PatternRewriteWalker:
         op_was_modified = self._process_worklist(pattern_listener)
 
         if not self.apply_recursively:
-            return
+            return op_was_modified
+
+        result = op_was_modified
 
         while op_was_modified:
             self._populate_worklist(op)
             op_was_modified = self._process_worklist(pattern_listener)
+
+        return result
 
     def _populate_worklist(self, op: Operation) -> None:
         """Populate the worklist with all nested operations."""

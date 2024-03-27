@@ -8,7 +8,7 @@ from typing import Annotated, Generic, TypeVar
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.test import Test
+from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
     MLContext,
@@ -1143,3 +1143,215 @@ def test_chained_variadic_operands_safeguard(
             assembly_format = "$variadic_one $variadic_two `:` type($variadic_one) `<` type($variadic_two) `>` attr-dict"
 
             irdl_options = [AttrSizedOperandSegments()]
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> i32\n' "test.optional_group(%0 : i32)",
+            '%0 = "test.op"() : () -> i32\n' '"test.optional_group"(%0) : (i32) -> ()',
+        ),
+        (
+            "test.optional_group",
+            '"test.optional_group"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_group_optional_operand_anchor(
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalGroupOp(IRDLOperation):
+        name = "test.optional_group"
+
+        args = opt_operand_def()
+
+        assembly_format = "(`(` $args^ `:` type($args) `)`)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            "test.optional_group(%0, %1 : i32, i64)",
+            '%0, %1 = "test.op"() : () -> (i32, i64)\n'
+            '"test.optional_group"(%0, %1) : (i32, i64) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i32\n' "test.optional_group(%0 : i32)",
+            '%0 = "test.op"() : () -> i32\n' '"test.optional_group"(%0) : (i32) -> ()',
+        ),
+        (
+            "test.optional_group",
+            '"test.optional_group"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_group_variadic_operand_anchor(
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalGroupOp(IRDLOperation):
+        name = "test.optional_group"
+
+        args = var_operand_def()
+
+        assembly_format = "(`(` $args^ `:` type($args) `)`)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "%0 = test.optional_group(i32)",
+            '%0 = "test.optional_group"() : () -> (i32)',
+        ),
+        (
+            "test.optional_group",
+            '"test.optional_group"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_group_optional_result_anchor(
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalGroupOp(IRDLOperation):
+        name = "test.optional_group"
+
+        res = opt_result_def()
+
+        assembly_format = "(`(` type($res)^ `)`)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "%0, %1 = test.optional_group(i32, i64)",
+            '%0, %1 = "test.optional_group"() : () -> (i32, i64)',
+        ),
+        (
+            "%0 = test.optional_group(i32)",
+            '%0 = "test.optional_group"() : () -> (i32)',
+        ),
+        (
+            "test.optional_group",
+            '"test.optional_group"() : () -> ()',
+        ),
+    ],
+)
+def test_optional_group_variadic_result_anchor(
+    program: str,
+    generic_program: str,
+):
+    @irdl_op_definition
+    class OptionalGroupOp(IRDLOperation):
+        name = "test.optional_group"
+
+        res = var_result_def()
+
+        assembly_format = "(`(` type($res)^ `)`)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalGroupOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "format, error",
+    (
+        ("()?", "An optional group cannot be empty"),
+        ("(`keyword`)?", "Every optional group must have an anchor."),
+        (
+            "($args^ type($rets)^)?",
+            "An optional group can only have one anchor.",
+        ),
+        ("(`keyword`^)?", "An optional group's anchor must be an achorable directive."),
+        (
+            "($mandatory_arg^)?",
+            "First element of an optional group must be optionally parsable.",
+        ),
+    ),
+)
+def test_optional_group_checkers(format: str, error: str):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match=error,
+    ):
+
+        @irdl_op_definition
+        class WrongOptionalGroupOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.wrong_optional_group"
+
+            args = var_operand_def()
+            rets = var_result_def()
+            mandatory_arg = operand_def()
+
+            assembly_format = format
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0()",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0) : (!test.type<"index">) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0, %0) : (!test.type<"index">, !test.type<"index">) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0, %0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0, %0, %0) : (!test.type<"index">, !test.type<"index">, !test.type<"index">) -> ()',
+        ),
+    ],
+)
+def test_variadic_and_single_mixed(program: str, generic_program: str):
+    @irdl_op_definition
+    class MixedOp(IRDLOperation):
+        name = "test.mixed"
+        var = var_operand_def(TestType("index"))
+        sin = operand_def(TestType("index"))
+
+        assembly_format = "$sin `(` $var `)` attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(MixedOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from enum import Enum
+from enum import auto
 from typing import cast
 
 from typing_extensions import Self
@@ -12,14 +12,19 @@ from xdsl.dialects.builtin import (
     AnyShapedType,
     AnyTensorType,
     ArrayAttr,
+    DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     IntegerType,
+    MemRefType,
     ShapedType,
     StringAttr,
+    TensorType,
+    i64,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
 )
-from xdsl.ir import Attribute, Data, Dialect, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, EnumAttribute, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -27,9 +32,11 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     VarOperand,
     VarOpResult,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
-    opt_attr_def,
+    operand_def,
+    opt_prop_def,
     prop_def,
     region_def,
     var_operand_def,
@@ -39,18 +46,19 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
-class IteratorType(Enum):
+class IteratorType(StrEnum):
     "Iterator type for linalg trait"
 
-    PARALLEL = "parallel"
-    REDUCTION = "reduction"
-    WINDOW = "window"
+    PARALLEL = auto()
+    REDUCTION = auto()
+    WINDOW = auto()
 
 
 @irdl_attr_definition
-class IteratorTypeAttr(Data[IteratorType]):
+class IteratorTypeAttr(EnumAttribute[IteratorType]):
     name = "linalg.iterator_type"
 
     @classmethod
@@ -68,24 +76,11 @@ class IteratorTypeAttr(Data[IteratorType]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
         with parser.in_angle_brackets():
-            if parser.parse_optional_keyword("parallel") is not None:
-                return IteratorType.PARALLEL
-            if parser.parse_optional_keyword("reduction") is not None:
-                return IteratorType.REDUCTION
-            if parser.parse_optional_keyword("window") is not None:
-                return IteratorType.WINDOW
-            parser.raise_error("`parallel`, `reduction` or `window` expected")
+            return super().parse_parameter(parser)
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            data = self.data
-            match data:
-                case IteratorType.PARALLEL:
-                    printer.print_string("parallel")
-                case IteratorType.REDUCTION:
-                    printer.print_string("reduction")
-                case IteratorType.WINDOW:
-                    printer.print_string("window")
+            super().print_parameter(printer)
 
 
 @irdl_op_definition
@@ -102,8 +97,8 @@ class Generic(IRDLOperation):
     # Trait attributes
     indexing_maps: ArrayAttr[AffineMapAttr] = prop_def(ArrayAttr[AffineMapAttr])
     iterator_types: ArrayAttr[IteratorTypeAttr] = prop_def(ArrayAttr[IteratorTypeAttr])
-    doc: StringAttr | None = opt_attr_def(StringAttr)
-    library_call: StringAttr | None = opt_attr_def(StringAttr)
+    doc: StringAttr | None = opt_prop_def(StringAttr)
+    library_call: StringAttr | None = opt_prop_def(StringAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -124,8 +119,6 @@ class Generic(IRDLOperation):
             properties={
                 "indexing_maps": ArrayAttr(indexing_maps),
                 "iterator_types": ArrayAttr(iterator_types),
-            },
-            attributes={
                 "doc": doc,
                 "library_call": library_call,
             },
@@ -200,9 +193,7 @@ class Generic(IRDLOperation):
         printer.print_string(", iterator_types = [")
         printer.print_list(
             self.iterator_types,
-            lambda iterator_type: printer.print_string_literal(
-                iterator_type.data.value
-            ),
+            lambda iterator_type: printer.print_string_literal(iterator_type.data),
         )
         printer.print_string("]")
         if self.doc:
@@ -246,7 +237,14 @@ class Generic(IRDLOperation):
 
         if self.res:
             printer.print_string(" -> ")
-            printer.print_list(self.res, lambda res: printer.print_attribute(res.type))
+            if len(self.res) == 1:
+                printer.print_attribute(self.res[0].type)
+            else:
+                printer.print("(")
+                printer.print_list(
+                    self.res, lambda res: printer.print_attribute(res.type)
+                )
+                printer.print(")")
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -368,7 +366,6 @@ class Generic(IRDLOperation):
             doc,
             library_call,
         )
-        generic.attributes |= attrs
         generic.attributes |= extra_attrs
 
         return generic
@@ -424,6 +421,10 @@ class FillOp(IRDLOperation):
     """
     Fills the output tensor with the given value.
 
+    Works for arbitrary ranked output tensors since the operation performs scalar accesses
+    only and is thus rank polymorphic. Numeric casting is performed on the value operand,
+    promoting it to the same data type as the output.
+
     See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgfill-linalgfillop
     """
 
@@ -436,7 +437,7 @@ class FillOp(IRDLOperation):
 
     assembly_format = (
         "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+        "`outs` `(` $outputs `:` type($outputs) `)` (`->` type($res)^)? attr-dict"
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
@@ -466,6 +467,230 @@ class FillOp(IRDLOperation):
                 )
 
 
+@irdl_op_definition
+class MulOp(IRDLOperation):
+    """
+    Multiplies two tensors elementwise.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmul-linalgmulop
+    """
+
+    name = "linalg.mul"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
+@irdl_op_definition
+class TransposeOp(IRDLOperation):
+    """
+    Transpose operator
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgtranspose-linalgtransposeop
+    """
+
+    name = "linalg.transpose"
+
+    input = operand_def(MemRefType | AnyTensorType)
+    init = operand_def(MemRefType | AnyTensorType)
+    result = var_result_def(AnyTensorType)
+
+    permutation = attr_def(DenseArrayBase)
+
+    def __init__(
+        self,
+        input: SSAValue,
+        init: SSAValue,
+        permutation: Attribute,
+        result: Attribute | None = None,
+    ):
+        super().__init__(
+            attributes={
+                "permutation": permutation,
+            },
+            operands=(input, init),
+            result_types=(result,),
+        )
+
+    def verify_(self) -> None:
+
+        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
+        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+
+        input_shape = input_type.get_shape()
+        init_shape = init_type.get_shape()
+
+        if (input_rank := len(input_shape)) != (init_rank := len(init_shape)):
+            raise VerifyException(
+                f"Input rank ({input_rank}) does not match output rank ({init_rank})"
+            )
+        if (input_rank := len(input_shape)) != (
+            permutation_size := len(self.permutation.data)
+        ):
+            raise VerifyException(
+                f"Input rank ({input_rank}) does not match size of permutation ({permutation_size})"
+            )
+
+        permutation_shape = cast(list[int], self.permutation.as_tuple())
+
+        for i in range(len(input_shape)):
+            input_dimension = input_shape[permutation_shape[i]]
+            init_dimension = init_shape[i]
+
+            if input_dimension != init_dimension:
+                raise VerifyException(
+                    f"dim(result, {i}) = {init_dimension} "
+                    f"doesn't match dim(input, permutation[{i}]) = {input_dimension}"
+                )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ins(")
+        printer.print(self.input)
+        printer.print_string(":")
+        printer.print(self.input.type)
+        printer.print_string(")")
+        printer.print_string(" outs(")
+        printer.print(self.init)
+        printer.print_string(":")
+        printer.print(self.init.type)
+        printer.print_string(") ")
+        printer.print_string("permutation")
+        printer.print_string(" = ")
+        printer.print(list(self.permutation.as_tuple()))
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_characters("ins")
+        parser.parse_punctuation("(")
+        input = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_characters("outs")
+        parser.parse_punctuation("(")
+        init = parser.parse_operand()
+        parser.parse_punctuation(":")
+        result = parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_keyword("permutation")
+        parser.parse_punctuation("=")
+        permutation = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        transpose = cls(
+            input,
+            init,
+            DenseArrayBase.create_dense_int_or_index(i64, permutation),
+            result,
+        )
+        return transpose
+
+
+@irdl_op_definition
+class MatmulOp(IRDLOperation):
+    """
+    Performs a matrix multiplication of two 2D inputs.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgmatmul-linalgmatmulop
+
+    """
+
+    name = "linalg.matmul"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
+@irdl_op_definition
+class MaxPoolOp(IRDLOperation):
+    """
+    Performs max pooling
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop
+
+    """
+
+    name = "linalg.pooling_nchw_max"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "attr-dict `ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res)"
+    )
+
+    strides = attr_def(DenseIntOrFPElementsAttr)
+    dilations = attr_def(DenseIntOrFPElementsAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -473,6 +698,10 @@ Linalg = Dialect(
         YieldOp,
         AddOp,
         FillOp,
+        MulOp,
+        TransposeOp,
+        MatmulOp,
+        MaxPoolOp,
     ],
     [
         IteratorTypeAttr,

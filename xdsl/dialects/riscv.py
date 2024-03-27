@@ -3,10 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Annotated, ClassVar, Generic, Literal, TypeAlias, TypeVar
+from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IndexType,
@@ -28,7 +29,6 @@ from xdsl.ir import (
     OpResult,
     Region,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
@@ -74,47 +74,24 @@ class FastMathFlagsAttr(FastMathAttrBase):
         super().__init__(flags)
 
 
-class RISCVRegisterType(Data[str], TypeAttribute, ABC):
+class RISCVRegisterType(RegisterType):
     """
     A RISC-V register type.
     """
 
-    _unallocated: ClassVar[Self | None] = None
-
     @classmethod
-    def unallocated(cls) -> Self:
-        if cls._unallocated is None:
-            cls._unallocated = cls("")
-        return cls._unallocated
-
-    @property
-    def register_name(self) -> str:
-        """Returns name if allocated, raises ValueError if not"""
-        if not self.is_allocated:
-            raise ValueError("Cannot get name for unallocated register")
-        return self.data
-
-    @property
-    def is_allocated(self) -> bool:
-        """Returns true if a RISCV register is allocated, otherwise false"""
-        return bool(self.data)
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
             name = parser.parse_optional_identifier()
-            if name is None:
-                return ""
-            if not name.startswith("j"):
-                assert name in cls.abi_index_by_name(), f"{name}"
-            return name
-
-    def print_parameter(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string(self.data)
+            if name is not None:
+                if not name.startswith("j"):
+                    assert name in cls.abi_index_by_name(), f"{name}"
+            else:
+                name = ""
+            return cls._parameters_from_spelling(name)
 
     def verify(self) -> None:
-        name = self.data
+        name = self.spelling.data
         if not self.is_allocated or name.startswith("j"):
             return
         if name not in type(self).abi_index_by_name():
@@ -122,18 +99,45 @@ class RISCVRegisterType(Data[str], TypeAttribute, ABC):
 
     @classmethod
     @abstractmethod
-    def instruction_set_name(cls) -> str:
-        raise NotImplementedError()
-
-    @classmethod
-    @abstractmethod
-    def abi_index_by_name(cls) -> dict[str, int]:
-        raise NotImplementedError()
-
-    @classmethod
-    @abstractmethod
     def a_register(cls, index: int) -> Self:
         raise NotImplementedError()
+
+
+RV32I_INDEX_BY_NAME = {
+    "zero": 0,
+    "ra": 1,
+    "sp": 2,
+    "gp": 3,
+    "tp": 4,
+    "t0": 5,
+    "t1": 6,
+    "t2": 7,
+    "fp": 8,
+    "s0": 8,
+    "s1": 9,
+    "a0": 10,
+    "a1": 11,
+    "a2": 12,
+    "a3": 13,
+    "a4": 14,
+    "a5": 15,
+    "a6": 16,
+    "a7": 17,
+    "s2": 18,
+    "s3": 19,
+    "s4": 20,
+    "s5": 21,
+    "s6": 22,
+    "s7": 23,
+    "s8": 24,
+    "s9": 25,
+    "s10": 26,
+    "s11": 27,
+    "t3": 28,
+    "t4": 29,
+    "t5": 30,
+    "t6": 31,
+}
 
 
 @irdl_attr_definition
@@ -145,52 +149,56 @@ class IntRegisterType(RISCVRegisterType):
     name = "riscv.reg"
 
     @classmethod
+    def unallocated(cls) -> IntRegisterType:
+        return Registers.UNALLOCATED_INT
+
+    @classmethod
     def instruction_set_name(cls) -> str:
         return "RV32I"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        return IntRegisterType.RV32I_INDEX_BY_NAME
+        return RV32I_INDEX_BY_NAME
 
     @classmethod
     def a_register(cls, index: int) -> IntRegisterType:
         return Registers.A[index]
 
-    RV32I_INDEX_BY_NAME = {
-        "zero": 0,
-        "ra": 1,
-        "sp": 2,
-        "gp": 3,
-        "tp": 4,
-        "t0": 5,
-        "t1": 6,
-        "t2": 7,
-        "fp": 8,
-        "s0": 8,
-        "s1": 9,
-        "a0": 10,
-        "a1": 11,
-        "a2": 12,
-        "a3": 13,
-        "a4": 14,
-        "a5": 15,
-        "a6": 16,
-        "a7": 17,
-        "s2": 18,
-        "s3": 19,
-        "s4": 20,
-        "s5": 21,
-        "s6": 22,
-        "s7": 23,
-        "s8": 24,
-        "s9": 25,
-        "s10": 26,
-        "s11": 27,
-        "t3": 28,
-        "t4": 29,
-        "t5": 30,
-        "t6": 31,
-    }
+
+RV32F_INDEX_BY_NAME = {
+    "ft0": 0,
+    "ft1": 1,
+    "ft2": 2,
+    "ft3": 3,
+    "ft4": 4,
+    "ft5": 5,
+    "ft6": 6,
+    "ft7": 7,
+    "fs0": 8,
+    "fs1": 9,
+    "fa0": 10,
+    "fa1": 11,
+    "fa2": 12,
+    "fa3": 13,
+    "fa4": 14,
+    "fa5": 15,
+    "fa6": 16,
+    "fa7": 17,
+    "fs2": 18,
+    "fs3": 19,
+    "fs4": 20,
+    "fs5": 21,
+    "fs6": 22,
+    "fs7": 23,
+    "fs8": 24,
+    "fs9": 25,
+    "fs10": 26,
+    "fs11": 27,
+    "ft8": 28,
+    "ft9": 29,
+    "ft10": 30,
+    "ft11": 31,
+}
 
 
 @irdl_attr_definition
@@ -202,51 +210,20 @@ class FloatRegisterType(RISCVRegisterType):
     name = "riscv.freg"
 
     @classmethod
+    def unallocated(cls) -> FloatRegisterType:
+        return Registers.UNALLOCATED_FLOAT
+
+    @classmethod
     def instruction_set_name(cls) -> str:
         return "RV32F"
 
     @classmethod
     def abi_index_by_name(cls) -> dict[str, int]:
-        return FloatRegisterType.RV32F_INDEX_BY_NAME
+        return RV32F_INDEX_BY_NAME
 
     @classmethod
     def a_register(cls, index: int) -> FloatRegisterType:
         return Registers.FA[index]
-
-    RV32F_INDEX_BY_NAME = {
-        "ft0": 0,
-        "ft1": 1,
-        "ft2": 2,
-        "ft3": 3,
-        "ft4": 4,
-        "ft5": 5,
-        "ft6": 6,
-        "ft7": 7,
-        "fs0": 8,
-        "fs1": 9,
-        "fa0": 10,
-        "fa1": 11,
-        "fa2": 12,
-        "fa3": 13,
-        "fa4": 14,
-        "fa5": 15,
-        "fa6": 16,
-        "fa7": 17,
-        "fs2": 18,
-        "fs3": 19,
-        "fs4": 20,
-        "fs5": 21,
-        "fs6": 22,
-        "fs7": 23,
-        "fs8": 24,
-        "fs9": 25,
-        "fs10": 26,
-        "fs11": 27,
-        "ft8": 28,
-        "ft9": 29,
-        "ft10": 30,
-        "ft11": 31,
-    }
 
 
 RDInvT = TypeVar("RDInvT", bound=RISCVRegisterType)
@@ -258,6 +235,7 @@ RS2InvT = TypeVar("RS2InvT", bound=RISCVRegisterType)
 class Registers(ABC):
     """Namespace for named register constants."""
 
+    UNALLOCATED_INT = IntRegisterType("")
     ZERO = IntRegisterType("zero")
     RA = IntRegisterType("ra")
     SP = IntRegisterType("sp")
@@ -292,6 +270,7 @@ class Registers(ABC):
     T5 = IntRegisterType("t5")
     T6 = IntRegisterType("t6")
 
+    UNALLOCATED_FLOAT = FloatRegisterType("")
     FT0 = FloatRegisterType("ft0")
     FT1 = FloatRegisterType("ft1")
     FT2 = FloatRegisterType("ft2")
@@ -1157,10 +1136,10 @@ class CsrReadWriteOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rd.type, IntRegisterType):
             return
-        if self.rd.type.is_allocated and self.rd.type.data != "zero":
+        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.data}'"
+                f"not '{self.rd.type.spelling.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1235,10 +1214,10 @@ class CsrBitwiseOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rs1.type, IntRegisterType):
             return
-        if self.rs1.type.is_allocated and self.rs1.type.data != "zero":
+        if self.rs1.type.is_allocated and self.rs1.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'readonly' mode, source must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rs1.type.data}'"
+                f"not '{self.rs1.type.spelling.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -1311,10 +1290,10 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
             return
         if not isinstance(self.rd.type, IntRegisterType):
             return
-        if self.rd.type.is_allocated and self.rd.type.data != "zero":
+        if self.rd.type.is_allocated and self.rd.type != Registers.ZERO:
             raise VerifyException(
                 "When in 'writeonly' mode, destination must be register x0 (a.k.a. 'zero'), "
-                f"not '{self.rd.type.data}'"
+                f"not '{self.rd.type.spelling.data}'"
             )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -2323,7 +2302,7 @@ class MulOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
 
     name = "riscv.mul"
 
-    traits = frozenset((MulOpHasCanonicalizationPatternsTrait(),))
+    traits = frozenset((MulOpHasCanonicalizationPatternsTrait(), Pure()))
 
 
 @irdl_op_definition
