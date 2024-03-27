@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from enum import auto
 from typing import cast
@@ -649,16 +650,8 @@ class MatmulOp(IRDLOperation):
         )
 
 
-@irdl_op_definition
-class MaxPoolOp(IRDLOperation):
-    """
-    Performs max pooling
-
-    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop
-
-    """
-
-    name = "linalg.pooling_nchw_max"
+class PoolingOpsBase(IRDLOperation, ABC):
+    """Base class for linalg pooling operations."""
 
     inputs = var_operand_def()
     outputs = var_operand_def(AnyShapedType())
@@ -697,6 +690,16 @@ class MaxPoolOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class PoolingNCHWMaxOp(PoolingOpsBase):
+    """
+    Performs max pooling
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop
+    """
+
+    name = "linalg.pooling_nchw_max"
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -707,7 +710,7 @@ Linalg = Dialect(
         MulOp,
         TransposeOp,
         MatmulOp,
-        MaxPoolOp,
+        PoolingNCHWMaxOp,
     ],
     [
         IteratorTypeAttr,
