@@ -306,7 +306,7 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
             (
                 empty := tensor.EmptyOp((), kernel_shape),
                 init := tensor.EmptyOp((), max_pool_single_out.output.type),
-                zero := arith.Constant(FloatAttr(0xFFF0000000000000, f64)),
+                zero := arith.Constant(FloatAttr(float("-inf"), f64)),
                 fill := linalg.FillOp(
                     (zero.result,),
                     (init.tensor,),
