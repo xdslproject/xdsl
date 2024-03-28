@@ -78,7 +78,7 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 // CHECK-NEXT:    %9:3 = "test.op"() : () -> (tensor<1x1x4x4xf32>, tensor<3x3xf32>, tensor<1x1x2x2xf32>)
 // CHECK-NEXT:    %10 = linalg.pooling_nchw_max {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%9#0, %9#1 : tensor<1x1x4x4xf32>, tensor<3x3xf32>) outs(%9#2 : tensor<1x1x2x2xf32>) -> tensor<1x1x2x2xf32>
 // CHECK-NEXT:    %11:3 = "test.op"() : () -> (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, tensor<1x1x3x3xf32>)
-// CHECK-NEXT:    %12 = linalg.conv_2d_nchw_fchw  {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%11#0, %11#1: tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>) outs(%11#2 : tensor<1x1x3x3xf32>) -> tensor<1x1x3x3xf32>
+// CHECK-NEXT:    %12 = linalg.conv_2d_nchw_fchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%11#0, %11#1 : tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>) outs(%11#2 : tensor<1x1x3x3xf32>) -> tensor<1x1x3x3xf32>
 // CHECK-NEXT:    %{{.*}} = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) {
 // CHECK-NEXT:    ^bb0(%in: f32, %in_0: f32, %out: f32):
 // CHECK-NEXT:      %{{.*}} = arith.addf %in, %in_0 : f32
