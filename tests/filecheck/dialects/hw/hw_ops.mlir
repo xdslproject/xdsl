@@ -9,4 +9,6 @@
 
   "test.op"() { "test" = #hw<innerSym@sym> } : () -> ()
   // CHECK-NEXT:  "test.op"() {"test" = #hw<innerSym@sym>} : () -> ()
+
+  "test.op"() { "test" = #hw.direction<input> } : () -> ()
 }) : () -> ()
