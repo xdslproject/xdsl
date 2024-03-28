@@ -6,6 +6,8 @@ from collections.abc import Iterator, Sequence
 from dataclasses import KW_ONLY, dataclass, field
 from typing import Generic, Literal, TypeVar, final
 
+from typing_extensions import Self
+
 _T = TypeVar("_T")
 _TCov = TypeVar("_TCov", covariant=True)
 
@@ -22,6 +24,9 @@ class RawPtr:
     @property
     def memoryview(self) -> memoryview:
         return memoryview(self.memory)[self.offset :]
+
+    def copy(self) -> RawPtr:
+        return RawPtr(bytearray(self.memory), self.offset)
 
     @staticmethod
     def zeros(count: int) -> RawPtr:
@@ -107,6 +112,9 @@ class TypedPtr(Generic[_T]):
     @property
     def size(self) -> int:
         return self.xtype.size
+
+    def copy(self) -> Self:
+        return type(self)(self.raw.copy(), xtype=self.xtype)
 
     def get_iter(self) -> Iterator[_T]:
         # The memoryview needs to be a multiple of the size of the packed format

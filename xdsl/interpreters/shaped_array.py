@@ -36,6 +36,12 @@ class ShapedArray(Generic[_T]):
     def data_ptr(self) -> TypedPtr[_T]:
         return self._data
 
+    def copy(self) -> Self:
+        return type(self)(self._data.copy(), self.shape.copy())
+
+    def with_shape(self, new_shape: Sequence[int]) -> Self:
+        return type(self)(self._data.copy(), list(new_shape))
+
     def offset(self, index: Sequence[int]) -> int:
         """
         Returns the index of the element in `self.data` for a given tuple of indices
