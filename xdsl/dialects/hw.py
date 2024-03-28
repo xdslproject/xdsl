@@ -1,6 +1,6 @@
 """
 This is a stub of CIRCT’s hw dialect.
-It currently implements minimal types and operations for the symbols and inner symbols used by other dialects.
+Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e`.
 
 [1] https://circt.llvm.org/docs/Dialects/HW/
 [2] https://circt.llvm.org/docs/RationaleSymbols/
@@ -8,30 +8,50 @@ It currently implements minimal types and operations for the symbols and inner s
 
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
-from typing import overload
+from enum import Enum
+from typing import NamedTuple, overload
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FlatSymbolRefAttr,
     IntAttr,
+    LocationAttr,
     ParameterDef,
     StringAttr,
     SymbolRefAttr,
 )
 from xdsl.ir import (
     Attribute,
+    Data,
     Dialect,
     OpaqueSyntaxAttribute,
     Operation,
     ParametrizedAttribute,
+    Region,
+    SSAValue,
+    TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    IRDLOperation,
+    SingleBlockRegion,
+    VarOperand,
+    attr_def,
     irdl_attr_definition,
+    irdl_op_definition,
+    opt_attr_def,
+    region_def,
+    traits_def,
+    var_operand_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, BaseParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
     OpTrait,
+    SingleBlockImplicitTerminator,
     SymbolOpInterface,
     SymbolTable,
 )
@@ -409,12 +429,454 @@ class InnerSymAttr(
             printer.print_string("]")
 
 
+class Direction(Enum):
+    """
+    Represents the direction of a module port.
+    """
+
+    # TODO: support INOUT direction (https://github.com/xdslproject/xdsl/issues/2368)
+    INPUT = 0
+    OUTPUT = 1
+
+    @staticmethod
+    def parse_optional(parser: BaseParser, short: bool = False) -> "Direction | None":
+        if parser.parse_optional_keyword("input" if not short else "in"):
+            return Direction.INPUT
+        elif parser.parse_optional_keyword("output" if not short else "out"):
+            return Direction.OUTPUT
+        else:
+            return None
+
+    @staticmethod
+    def parse(parser: BaseParser, short: bool = False) -> "Direction":
+        if (direction := Direction.parse_optional(parser, short)) is None:
+            return parser.raise_error("invalid port direction")
+        return direction
+
+    def print(self, printer: Printer, short: bool = False) -> None:
+        match self:
+            case Direction.INPUT:
+                printer.print("input" if not short else "in")
+            case Direction.OUTPUT:
+                printer.print("output" if not short else "out")
+
+    def is_input_like(self) -> bool:
+        return self == Direction.INPUT
+
+
+@irdl_attr_definition
+class DirectionAttr(Data[Direction]):
+    """
+    Represents a ModulePort's direction. This attribute does not
+    exist in CIRCT but is useful in xDSL to give structure to ModuleType.
+    """
+
+    name = "hw.direction"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> Direction:
+        with parser.in_angle_brackets():
+            return Direction.parse(parser)
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            self.data.print(printer)
+
+
+@irdl_attr_definition
+class ModulePort(ParametrizedAttribute):
+    """
+    Represents a ModulePort. This attribute does not exist in CIRCT
+    but is useful in xDSL to give structure to ModuleType.
+    """
+
+    name = "hw.modport"
+
+    port_name: ParameterDef[StringAttr]
+    type: ParameterDef[TypeAttribute]
+    dir: ParameterDef[DirectionAttr]
+
+
+@irdl_attr_definition
+class ModuleType(ParametrizedAttribute, TypeAttribute):
+    name = "hw.modty"
+
+    ports: ParameterDef[ArrayAttr[ModulePort]]
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        def parse_port() -> ModulePort:
+            direction = Direction.parse(parser)
+            name = (
+                parser.parse_optional_identifier()
+                or parser.parse_optional_str_literal()
+            )
+            if name is None:
+                parser.raise_error("expected port name as identifier or string literal")
+
+            parser.parse_punctuation(":")
+            typ = parser.parse_type()
+
+            return ModulePort([StringAttr(name), typ, DirectionAttr(direction)])
+
+        return [
+            ArrayAttr(
+                parser.parse_comma_separated_list(parser.Delimiter.ANGLE, parse_port)
+            )
+        ]
+
+    def print_parameters(self, printer: Printer):
+        def print_port(port: ModulePort):
+            port.dir.data.print(printer)
+            printer.print(" ")
+            printer.print_identifier_or_string_literal(port.port_name.data)
+            printer.print(" : ")
+            printer.print_attribute(port.type)
+
+        with printer.in_angle_brackets():
+            printer.print_list(self.ports.data, print_port)
+
+
+@irdl_attr_definition
+class ParamDeclAttr(ParametrizedAttribute):
+    name = "hw.param.decl"
+
+    port_name: ParameterDef[StringAttr]
+    type: ParameterDef[TypeAttribute]
+
+    @classmethod
+    def parse_free_standing_parameters(
+        cls, parser: AttrParser, only_accept_string_literal_name: bool = False
+    ) -> Sequence[Attribute]:
+        """
+        Parses the parameter declaration without the encompassing angle brackets.
+        If only_accept_string_literal_name is True, the parser will not accept
+        the name of the parameter to be an identifier but only as a string literal.
+        """
+
+        name = parser.parse_optional_str_literal()
+        if name is None:
+            if only_accept_string_literal_name:
+                parser.raise_error("expected parameter name as string literal")
+            name = parser.expect(
+                parser.parse_optional_identifier, "expected parameter name"
+            )
+        parser.parse_punctuation(":")
+        typ = parser.parse_attribute()
+        if not isinstance(typ, TypeAttribute):
+            parser.raise_error("expected type attribute for parameter")
+
+        if parser.parse_optional_punctuation("=") is not None:
+            # TODO: support default values for parameters (https://github.com/xdslproject/xdsl/issues/2367)
+            parser.raise_error("default values for parameters are not yet supported")
+
+        return (StringAttr(name), typ)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            return cls.parse_free_standing_parameters(
+                parser, only_accept_string_literal_name=True
+            )
+
+    def print_free_standing_parameters(
+        self, printer: Printer, print_name_as_string_literal: bool = False
+    ):
+        """
+        Prints the parameter declaration without the encompassing angle brackets.
+        If print_name_as_string_literal is True, the name of the parameter will
+        never be printed as an identifier but only as a string literal.
+        """
+        if print_name_as_string_literal:
+            printer.print_attribute(self.port_name)
+        else:
+            printer.print_identifier_or_string_literal(self.port_name.data)
+        printer.print(": ")
+        printer.print_attribute(self.type)
+
+    def print_parameters(self, printer: Printer):
+        with printer.in_angle_brackets():
+            self.print_free_standing_parameters(
+                printer, print_name_as_string_literal=True
+            )
+
+
+_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
+    "sym_name",
+    "module_type",
+    "parameters",
+]
+
+
+@irdl_op_definition
+class HWModuleOp(IRDLOperation):
+    """
+    Represents a Verilog module, including a given name, a list of ports,
+    a list of parameters, and a body that represents the connections within
+    the module.
+    """
+
+    name = "hw.module"
+
+    sym_name: StringAttr = attr_def(StringAttr)
+    module_type: ModuleType = attr_def(ModuleType)
+    parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
+
+    body: SingleBlockRegion = region_def("single_block")
+
+    # TODO: add InnerSymbolTableTrait (https://github.com/xdslproject/xdsl/issues/2402)
+    traits = traits_def(
+        lambda: frozenset(
+            (
+                SymbolOpInterface(),
+                IsolatedFromAbove(),
+                SingleBlockImplicitTerminator(OutputOp),
+            )
+        )
+    )
+
+    def __init__(
+        self,
+        sym_name: StringAttr,
+        module_type: ModuleType,
+        body: Region,
+        parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
+    ):
+        attributes: dict[str, Attribute] = {
+            "sym_name": sym_name,
+            "module_type": module_type,
+            "parameters": parameters,
+        }
+
+        return super().__init__(
+            attributes=attributes,
+            regions=[body],
+        )
+
+    def verify_(self) -> None:
+        if self.parameters is not None:
+            # FIXME: once xDSL supports typed attributes, check that parameter
+            # types are consistent with their default values
+            param_names = [param.port_name.data for param in self.parameters.data]
+            if len(set(param_names)) != len(param_names):
+                raise VerifyException("module has two parameters of same name")
+        block_args = iter(self.body.block.args)
+        for i, port in enumerate(self.module_type.ports.data):
+            if not port.dir.data.is_input_like():
+                continue
+            if (next_block_arg := next(block_args, None)) is None:
+                raise VerifyException("missing block arguments in module block")
+            if port.type != next_block_arg.type:
+                raise VerifyException(
+                    f"input-like port #{i} has inconsistent type with its matching "
+                    f"module block argument (expected {port.type}, block argument "
+                    f"is of type {next_block_arg.type})"
+                )
+        if next(block_args, None) is not None:
+            raise VerifyException("too many block arguments in module block")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "HWModuleOp":
+        class ModuleArg(NamedTuple):
+            port_dir: Direction
+            port_name: str
+            port_ssa: Parser.Argument | None
+            port_type: TypeAttribute
+            port_attrs: dict[str, Attribute]
+            port_location: LocationAttr | None
+
+        def parse_optional_port_name() -> str | None:
+            return (
+                parser.parse_optional_identifier()
+                or parser.parse_optional_str_literal()
+            )
+
+        def parse_module_arg() -> ModuleArg:
+            port_dir = Direction.parse(parser, short=True)
+            if port_dir.is_input_like():
+                port_ssa = parser.parse_argument(expect_type=False)
+                port_name = parse_optional_port_name()
+                if port_name is None:
+                    port_name = port_ssa.name.text[1:]
+            else:
+                port_ssa = None
+                port_name = parse_optional_port_name()
+                if port_name is None:
+                    parser.raise_error(
+                        "expected identifier or string literal as port name"
+                    )
+            parser.parse_punctuation(":")
+            port_type = parser.parse_attribute()
+            if not isinstance(port_type, TypeAttribute):
+                parser.raise_error("port type must be a type attribute")
+
+            port_attrs = parser.parse_optional_attr_dict()
+            port_location = parser.parse_optional_location()
+
+            # Resolve the argument
+            if port_ssa is not None:
+                port_ssa = Parser.Argument(port_ssa.name, port_type)
+
+            return ModuleArg(
+                port_dir, port_name, port_ssa, port_type, port_attrs, port_location
+            )
+
+        name = parser.parse_symbol_name()
+        parameters = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.ANGLE,
+            lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
+        )
+        args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parse_module_arg
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword(
+            _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT
+        )
+
+        # Extract the ModuleOp attributes and arguments from the parsed arg port list
+        region_args: list[Parser.Argument] = []
+        module_ports: list[ModulePort] = []
+        for arg in args:
+            if arg.port_ssa:
+                region_args.append(arg.port_ssa)
+            module_ports.append(
+                ModulePort(
+                    [
+                        StringAttr(arg.port_name),
+                        arg.port_type,
+                        DirectionAttr(arg.port_dir),
+                    ]
+                )
+            )
+
+        body = parser.parse_region(region_args)
+        parameters = ArrayAttr(parameters if parameters is not None else [])
+
+        module_op = cls(
+            name,
+            ModuleType([ArrayAttr(module_ports)]),
+            body,
+            parameters,
+        )
+
+        if attrs is not None:
+            module_op.attributes.update(attrs.data)
+
+        return module_op
+
+    def print(self, printer: Printer):
+        printer.print(" @")
+        printer.print_identifier_or_string_literal(self.sym_name.data)
+
+        # Print parameters
+        if self.parameters is not None and len(self.parameters.data) != 0:
+            with printer.in_angle_brackets():
+                printer.print_list(
+                    self.parameters.data,
+                    lambda x: x.print_free_standing_parameters(printer),
+                )
+
+        printer.print("(")
+        arg_iter = iter(self.body.block.args)
+
+        def print_port(port: ModulePort):
+            ssa_arg = next(arg_iter) if port.dir.data.is_input_like() else None
+            port.dir.data.print(printer, short=True)
+            printer.print(" ")
+
+            # Print argument
+            if ssa_arg is not None:
+                used_name = printer.print_ssa_value(ssa_arg)
+                if port.port_name.data != used_name:
+                    printer.print(" ")
+                    printer.print_identifier_or_string_literal(port.port_name.data)
+            else:
+                printer.print_identifier_or_string_literal(port.port_name.data)
+            printer.print(": ")
+            printer.print_attribute(port.type)
+
+        printer.print_list(self.module_type.ports.data, print_port)
+
+        printer.print(")")
+        printer.print_op_attributes(
+            self.attributes,
+            reserved_attr_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
+            print_keyword=True,
+        )
+        printer.print(" ")
+        printer.print_region(self.body, print_entry_block_args=False)
+
+
+@irdl_op_definition
+class OutputOp(IRDLOperation):
+    name = "hw.output"
+
+    inputs: VarOperand = var_operand_def(AnyAttr())
+
+    traits = frozenset([IsTerminator(), HasParent(HWModuleOp)])
+
+    def __init__(self, ops: Sequence[SSAValue | Operation]):
+        super().__init__(operands=[ops])
+
+    def verify_(self) -> None:
+        parent = self.parent_op()
+        assert isinstance(parent, HWModuleOp)
+
+        expected_results = tuple(
+            port.type
+            for port in parent.module_type.ports.data
+            if port.dir.data == Direction.OUTPUT
+        )
+
+        if len(expected_results) != len(self.inputs):
+            raise VerifyException(
+                f"wrong amount of output values (expected {len(expected_results)}, got {len(self.inputs)})"
+            )
+
+        for i, (got, expected) in enumerate(zip(self.inputs, expected_results)):
+            if got.type != expected:
+                raise VerifyException(
+                    f"output #{i} is of unexpected type (expected {expected}, got {got.type})"
+                )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "OutputOp":
+        operands = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
+        )
+        if operands is None:
+            return cls(())
+
+        parser.parse_punctuation(":")
+        types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_attribute
+        )
+        operands = parser.resolve_operands(operands, types, parser.pos)
+        return cls(operands)
+
+    def print(self, printer: Printer):
+        if len(self.inputs) == 0:
+            return
+
+        printer.print(" ")
+        printer.print_list(self.inputs, printer.print_operand)
+        printer.print(" : ")
+        printer.print_list((x.type for x in self.inputs), printer.print_attribute)
+
+
 HW = Dialect(
     "hw",
-    [],
     [
+        HWModuleOp,
+        OutputOp,
+    ],
+    [
+        DirectionAttr,
         InnerRefAttr,
         InnerSymPropertiesAttr,
         InnerSymAttr,
+        ModulePort,
+        ModuleType,
+        ParamDeclAttr,
     ],
 )
