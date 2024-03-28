@@ -624,6 +624,7 @@ class HWModuleOp(IRDLOperation):
 
     body: SingleBlockRegion = region_def("single_block")
 
+    # TODO: add InnerSymbolTableTrait (https://github.com/xdslproject/xdsl/issues/2402)
     traits = traits_def(
         lambda: frozenset(
             (
