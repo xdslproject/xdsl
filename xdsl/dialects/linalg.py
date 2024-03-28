@@ -701,6 +701,57 @@ class PoolingNchwMaxOp(PoolingOpsBase):
     name = "linalg.pooling_nchw_max"
 
 
+class ConvOpsBase(IRDLOperation, ABC):
+    """Base class for linalg convolution operations."""
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "attr-dict `ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res)"
+    )
+
+    strides = attr_def(DenseIntOrFPElementsAttr)
+    dilations = attr_def(DenseIntOrFPElementsAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        dilations: Attribute,
+        strides: Attribute,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            attributes={
+                "dilations": dilations,
+                "strides": strides,
+            },
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
+@irdl_op_definition
+class Conv2DNchwFchwOp(ConvOpsBase):
+    """
+    Performs 2-D convolution
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgconv_2d_nchw_fchw-linalgconv2dnchwfchwop
+    """
+
+    name = "linalg.conv_2d_nchw_fchw"
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -712,6 +763,7 @@ Linalg = Dialect(
         TransposeOp,
         MatmulOp,
         PoolingNchwMaxOp,
+        Conv2DNchwFchwOp,
     ],
     [
         IteratorTypeAttr,
