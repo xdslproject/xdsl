@@ -46,6 +46,8 @@ MLIR version is commit `98e674c9f16d677d95c67bc130e267fae331e43c`.
 
 ## Getting Started
 
+Check out the dedicated [Getting Started guide](GETTING_STARTED.md) for a comprehensive tutorial.
+
 To get familiar with xDSL, we recommend starting with our Jupyter notebooks. The
 notebooks consist of examples and documentation concerning the core xDSL data
 structures and the xDSL's Python-embedded abstraction definition language, as
