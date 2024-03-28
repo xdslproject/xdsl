@@ -330,47 +330,28 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
 class ConvOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, conv: onnx.Conv, rewriter: PatternRewriter, /):
-        body = Region(Block(arg_types=(f64, f64, f64)))
-        affine_map_1 = AffineMapAttr(
-            AffineMap.from_callable(
-                lambda d0, d1, d2, d3, d4, d5, d6: (d0, d4, d2 + d5, d3 + d6)
-            )
-        )
-        affine_map_2 = AffineMapAttr(
-            AffineMap.from_callable(lambda d0, d1, d2, d3, d4, d5, d6: (d1, d4, d5, d6))
-        )
+        dilations: list[int] = [value.value.data for value in conv.dilations.data]
+        strides: list[int] = [value.value.data for value in conv.strides.data]
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), conv.res.type),
-                linalg.Generic(
+                conv_op := linalg.Conv2DNchwFchwOp(
+                    DenseIntOrFPElementsAttr.tensor_from_list(dilations, i64, [2]),
+                    DenseIntOrFPElementsAttr.tensor_from_list(strides, i64, [2]),
                     (
                         conv.data,
                         conv.weight,
-                        conv.bias,
                     ),
                     (empty.tensor,),
-                    body,
-                    (
-                        affine_map_1,
-                        affine_map_2,
-                    ),
-                    (
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                    ),
                     (conv.res.type,),
+                ),
+                linalg.AddOp(
+                    (conv.bias, conv_op.results[0]),
+                    (empty.tensor,),
+                    res=(conv.res.type,),
                 ),
             )
         )
-        with ImplicitBuilder(body) as (a, b, c):
-            mul_op = arith.Mulf(a, b)
-            acc_op = arith.Addf(c, mul_op.result)
-            linalg.YieldOp(acc_op.result)
 
 
 @dataclass(frozen=True)
