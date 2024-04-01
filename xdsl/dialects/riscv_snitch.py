@@ -16,6 +16,7 @@ from xdsl.dialects.riscv import (
     Registers,
     RISCVInstruction,
     RISCVOp,
+    UImm5Attr
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -46,6 +47,8 @@ from xdsl.traits import (
     ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
+
+from xdsl.irdl import prop_def
 
 # region Snitch Extensions
 
@@ -453,14 +456,44 @@ class DMSourceOp(IRDLOperation, RISCVOp):
     ptrhi = operand_def(riscv.IntRegisterType)
     ptrlo = operand_def(riscv.IntRegisterType)
 
-    def __init__(self, ptrhi: SSAValue | Operation, ptrlo: SSAValue | Operation):
-        super().__init__(operands=[ptrhi, ptrlo])
+    def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
+        super().__init__(operands=[ptrlo, ptrhi])
 
     def assembly_line(self) -> str | None:
         return (
-            f"    dmsrc {assembly_arg_str(self.ptrhi)}, {assembly_arg_str(self.ptrlo)}"
+            f"    dmsrc {assembly_arg_str(self.ptrlo)}, {assembly_arg_str(self.ptrhi)}"
         )
 
+@irdl_op_definition
+class DMDestinationOp(IRDLOperation, RISCVOp):
+    name = "riscv_snitch.dmdst"
+
+    ptrhi = operand_def(riscv.IntRegisterType)
+    ptrlo = operand_def(riscv.IntRegisterType)
+
+    def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
+        super().__init__(operands=[ptrlo, ptrhi])
+
+    def assembly_line(self) -> str | None:
+        return (
+            f"    dmdst {assembly_arg_str(self.ptrlo)}, {assembly_arg_str(self.ptrhi)}"
+        )
+
+@irdl_op_definition
+class DMCopyImmOp(IRDLOperation, RISCVOp):
+    name = "riscv_snitch.dmcpyi"
+
+    dest = result_def(riscv.IntRegisterType)
+    size = operand_def(riscv.IntRegisterType)
+    config = prop_def(UImm5Attr)
+
+    def __init__(self, size: SSAValue | Operation, config: UImm5Attr):
+        super().__init__(operands=[size], properties={"config": config}, result_types=[IntRegisterType.unallocated()])
+
+    def assembly_line(self) -> str | None:
+        return (
+            f"    dmcpyi {assembly_arg_str(self.dest)}, {assembly_arg_str(self.size)}, {assembly_arg_str(self.config)}"
+        )
 
 # endregion
 
@@ -476,6 +509,8 @@ RISCV_Snitch = Dialect(
         WriteOp,
         GetStreamOp,
         DMSourceOp,
+        DMDestinationOp,
+        DMCopyImmOp
     ],
     [],
 )
