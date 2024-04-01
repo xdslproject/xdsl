@@ -59,8 +59,12 @@ riscv_func.func @xfrep() {
 riscv_func.func @xdma() {
   %reg = riscv.get_register : () -> !riscv.reg<>
   riscv_snitch.dmsrc %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+  riscv_snitch.dmdst %reg, %reg : (!riscv.reg<>, !riscv.rec<>) -> ()
+  %dest = riscv_snitch.dmcpyi %reg, 0+ :(!riscv.reg<>) -> !riscv.reg<>
   // CHECK: %reg = riscv.get_register : () -> !riscv.reg<>
   // CHECK-NEXT: riscv_snitch.dmsrc %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+  // CHECK-NEXT: riscv_snitch.dmdst %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+  // CHECK-NEXT: %dest = riscv_snitch.dmcpyi %reg, 0+ : (!riscv.reg<>) -> (!riscv.reg<>)
 
   riscv_func.return
 }

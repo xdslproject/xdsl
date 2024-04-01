@@ -14,6 +14,8 @@ riscv_func.func @main() {
   }
 
   riscv_snitch.dmsrc %0, %1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> ()
+  riscv_snitch.dmdst %0, %1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> ()
+  %1 = riscv_snitch.dmcpyi %0, 0 : (!riscv.reg<a1>) -> (!riscv.reg<a0>) 
 
   riscv_func.return
 }
@@ -22,4 +24,6 @@ riscv_func.func @main() {
 // CHECK-NEXT:       frep.o a0, 1, 0, 0
 // CHECK-NEXT:       fmv.d ft1, ft0
 // CHECK-NEXT:       dmsrc a0, a1
+// CHECK-NEXT:       dmdst a0, a1
+// CHECK-NEXT:       dmdst a0, a1, 0
 // CHECK-NEXT:       ret
