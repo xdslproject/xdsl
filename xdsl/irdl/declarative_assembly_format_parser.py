@@ -18,6 +18,7 @@ from xdsl.irdl import (
     OptAttributeDef,
     OptionalDef,
     OptOperandDef,
+    OptPropertyDef,
     OptResultDef,
     ParsePropInAttrDict,
     VariadicDef,
@@ -359,8 +360,13 @@ class FormatParser(BaseParser):
                         )
                     self.seen_attributes.add(attr_name)
 
-            match self.op_def.attributes.get(attr_name):
-                case OptAttributeDef():
+            attr_def = (
+                self.op_def.properties.get(attr_name)
+                if attr_or_prop == "property"
+                else self.op_def.attributes.get(attr_name)
+            )
+            match attr_def:
+                case OptAttributeDef() | OptPropertyDef():
                     return OptionalAttributeVariable(
                         variable_name, attr_or_prop == "property"
                     )
