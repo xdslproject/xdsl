@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     TypeAttribute,
     i1,
 )
+from xdsl.dialects.hw import InnerSymAttr
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -24,6 +25,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     result_def,
 )
@@ -93,6 +95,7 @@ class CompRegOp(IRDLOperation):
 
     DataType = Annotated[Attribute, ConstraintVar("DataType")]
 
+    inner_sym = opt_attr_def(InnerSymAttr)
     input = operand_def(DataType)
     clk = operand_def(clock)
     reset = opt_operand_def(i1)
@@ -102,7 +105,7 @@ class CompRegOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments()]
 
     assembly_format = (
-        "$input `,` $clk (`reset` $reset^ `,` $reset_value)? attr-dict "
+        "(`sym` $inner_sym^)? $input `,` $clk (`reset` $reset^ `,` $reset_value)? attr-dict "
         "`:` type($input)"
     )
 

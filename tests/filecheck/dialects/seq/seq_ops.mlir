@@ -11,4 +11,6 @@ builtin.module {
   // CHECK: %compreg = seq.compreg %data, %clk : i14
   %compreg_reset = seq.compreg %data, %clk reset %bool, %data : i14
   // CHECK: %compreg_reset = seq.compreg %data, %clk reset %bool, %data : i14
+  %compreg_sym = seq.compreg sym #hw<innerSym@foo> %data, %clk : i14
+  // CHECK: %compreg_sym = seq.compreg sym #hw<innerSym@foo> %data, %clk : i14
 }
