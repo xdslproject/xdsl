@@ -295,8 +295,18 @@ class OnnxFunctions(InterpreterFunctions):
 
         output += to_ndarray(bias)
 
+        # the number of channels is not always fixed to one
+        result_type = op.res.type
+        assert isinstance(result_type, TensorType)
+        static_shape = list(result_type.get_shape())
+
         result = np.array(output)
-        assert tuple(result.shape) == (1, 1, output.shape[2], output.shape[3])
+        assert tuple(result.shape) == (
+            1,
+            static_shape[1],
+            output.shape[2],
+            output.shape[3],
+        )
         return (from_ndarray(result),)
 
     @impl(onnx.MaxPoolSingleOut)
