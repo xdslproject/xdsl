@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
-from io import StringIO
-from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
+from typing import Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
@@ -13,7 +12,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
-    ModuleOp,
     Signedness,
     StringAttr,
     UnitAttr,
@@ -57,7 +55,6 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 
 @irdl_attr_definition
@@ -464,80 +461,17 @@ class RISCVInstruction(RISCVOp):
     def assembly_line(self) -> str | None:
         # default assembly code generator
         instruction_name = self.assembly_instruction_name()
+        from xdsl.backend.riscv.printing import assembly_arg_str
+
         arg_str = ", ".join(
-            _assembly_arg_str(arg)
+            assembly_arg_str(arg)
             for arg in self.assembly_line_args()
             if arg is not None
         )
-        return _assembly_line(instruction_name, arg_str, self.comment)
+        from xdsl.backend.riscv.printing import assembly_line
 
+        return assembly_line(instruction_name, arg_str, self.comment)
 
-# region Assembly printing
-
-
-def _append_comment(line: str, comment: StringAttr | None) -> str:
-    if comment is None:
-        return line
-
-    padding = " " * max(0, 48 - len(line))
-
-    return f"{line}{padding} # {comment.data}"
-
-
-def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
-    if isa(arg, AnyIntegerAttr):
-        return f"{arg.value.data}"
-    elif isinstance(arg, int):
-        return f"{arg}"
-    elif isinstance(arg, LabelAttr):
-        return arg.data
-    elif isinstance(arg, str):
-        return arg
-    elif isinstance(arg, IntRegisterType):
-        return arg.register_name
-    elif isinstance(arg, FloatRegisterType):
-        return arg.register_name
-    else:
-        if isinstance(arg.type, IntRegisterType):
-            reg = arg.type.register_name
-            return reg
-        elif isinstance(arg.type, FloatRegisterType):
-            reg = arg.type.register_name
-            return reg
-        else:
-            assert False, f"{arg.type}"
-    assert False, f"{arg}"
-
-
-def _assembly_line(
-    name: str,
-    arg_str: str,
-    comment: StringAttr | None = None,
-    is_indented: bool = True,
-) -> str:
-    code = "    " if is_indented else ""
-    code += name
-    if arg_str:
-        code += f" {arg_str}"
-    code = _append_comment(code, comment)
-    return code
-
-
-def print_assembly(module: ModuleOp, output: IO[str]) -> None:
-    for op in module.body.walk():
-        assert isinstance(op, RISCVOp), f"{op}"
-        asm = op.assembly_line()
-        if asm is not None:
-            print(asm, file=output)
-
-
-def riscv_code(module: ModuleOp) -> str:
-    stream = StringIO()
-    print_assembly(module, stream)
-    return stream.getvalue()
-
-
-# endregion
 
 # region Base Operation classes
 
@@ -677,8 +611,10 @@ class RdImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(" ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -732,8 +668,10 @@ class RdImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(" ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -800,8 +738,10 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -900,8 +840,10 @@ class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -981,8 +923,10 @@ class RsRsOffIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(", ")
-        _print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1031,8 +975,10 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -1315,10 +1261,12 @@ class CsrReadWriteImmOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(" ")
         printer.print(self.csr.value.data)
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.writeonly is not None:
             printer.print(', "w"')
         return {"csr", "immediate", "writeonly"}
@@ -1379,10 +1327,12 @@ class CsrBitwiseImmOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(" ")
         printer.print(self.csr.value.data)
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
 
 
@@ -1577,9 +1527,7 @@ class AuipcOp(RdImmIntegerOperation):
 class MVHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            RemoveRedundantMv,
-        )
+        from xdsl.transforms.canonicalization_patterns.riscv import RemoveRedundantMv
 
         return (RemoveRedundantMv(),)
 
@@ -2066,11 +2014,13 @@ class LwOp(RdRsImmIntegerOperation):
     traits = frozenset((LwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
+        from xdsl.backend.riscv.printing import assembly_arg_str, assembly_line
+
         instruction_name = self.assembly_instruction_name()
-        value = _assembly_arg_str(self.rd)
-        imm = _assembly_arg_str(self.immediate)
-        offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        value = assembly_arg_str(self.rd)
+        imm = assembly_arg_str(self.immediate)
+        offset = assembly_arg_str(self.rs1)
+        return assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -2127,11 +2077,13 @@ class SwOp(RsRsImmIntegerOperation):
     traits = frozenset((SwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
+        from xdsl.backend.riscv.printing import assembly_arg_str, assembly_line
+
         instruction_name = self.assembly_instruction_name()
-        value = _assembly_arg_str(self.rs2)
-        imm = _assembly_arg_str(self.immediate)
-        offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        value = assembly_arg_str(self.rs2)
+        imm = assembly_arg_str(self.immediate)
+        offset = assembly_arg_str(self.rs1)
+        return assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -2404,9 +2356,7 @@ class RemuOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType])
 class LiOpHasCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            LoadImmediate0,
-        )
+        from xdsl.transforms.canonicalization_patterns.riscv import LoadImmediate0
 
         return (LoadImmediate0(),)
 
@@ -2464,8 +2414,10 @@ class LiOp(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(" ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -2516,7 +2468,9 @@ class LabelOp(IRDLOperation, RISCVOp):
         )
 
     def assembly_line(self) -> str | None:
-        return _append_comment(f"{self.label.data}:", self.comment)
+        from xdsl.backend.riscv.printing import append_comment
+
+        return append_comment(f"{self.label.data}:", self.comment)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2571,12 +2525,14 @@ class DirectiveOp(IRDLOperation, RISCVOp):
         )
 
     def assembly_line(self) -> str | None:
+        from xdsl.backend.riscv.printing import assembly_arg_str, assembly_line
+
         if self.value is not None and self.value.data:
-            arg_str = _assembly_arg_str(self.value.data)
+            arg_str = assembly_arg_str(self.value.data)
         else:
             arg_str = ""
 
-        return _assembly_line(self.directive.data, arg_str, is_indented=False)
+        return assembly_line(self.directive.data, arg_str, is_indented=False)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2667,7 +2623,9 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
             printer.print_region(self.data)
 
     def assembly_line(self) -> str | None:
-        return _assembly_line(self.directive.data, "", is_indented=False)
+        from xdsl.backend.riscv.printing import assembly_line
+
+        return assembly_line(self.directive.data, "", is_indented=False)
 
 
 @irdl_op_definition
@@ -2943,8 +2901,10 @@ class RsRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -2997,8 +2957,10 @@ class RdRsImmFloatOperation(IRDLOperation, RISCVInstruction, ABC):
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        from xdsl.backend.riscv.printing import print_immediate_value
+
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -3361,11 +3323,13 @@ class FLwOp(RdRsImmFloatOperation):
     traits = frozenset((FLwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
+        from xdsl.backend.riscv.printing import assembly_arg_str, assembly_line
+
         instruction_name = self.assembly_instruction_name()
-        value = _assembly_arg_str(self.rd)
-        imm = _assembly_arg_str(self.immediate)
-        offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        value = assembly_arg_str(self.rd)
+        imm = assembly_arg_str(self.immediate)
+        offset = assembly_arg_str(self.rs1)
+        return assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -3395,11 +3359,13 @@ class FSwOp(RsRsImmFloatOperation):
     traits = frozenset((FSwOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
+        from xdsl.backend.riscv.printing import assembly_arg_str, assembly_line
+
         instruction_name = self.assembly_instruction_name()
-        value = _assembly_arg_str(self.rs2)
-        imm = _assembly_arg_str(self.immediate)
-        offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        value = assembly_arg_str(self.rs2)
+        imm = assembly_arg_str(self.immediate)
+        offset = assembly_arg_str(self.rs1)
+        return assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -3442,9 +3408,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            FuseMultiplyAddD,
-        )
+        from xdsl.transforms.canonicalization_patterns.riscv import FuseMultiplyAddD
 
         return (FuseMultiplyAddD(),)
 
@@ -3595,16 +3559,18 @@ class FLdOp(RdRsImmFloatOperation):
     traits = frozenset((FLdOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
+        from xdsl.backend.riscv.printing import assembly_arg_str, assembly_line
+
         instruction_name = self.assembly_instruction_name()
-        value = _assembly_arg_str(self.rd)
-        imm = _assembly_arg_str(self.immediate)
-        offset = _assembly_arg_str(self.rs1)
+        value = assembly_arg_str(self.rd)
+        imm = assembly_arg_str(self.immediate)
+        offset = assembly_arg_str(self.rs1)
         if isinstance(self.immediate, LabelAttr):
-            return _assembly_line(
+            return assembly_line(
                 instruction_name, f"{value}, {imm}, {offset}", self.comment
             )
         else:
-            return _assembly_line(
+            return assembly_line(
                 instruction_name, f"{value}, {imm}({offset})", self.comment
             )
 
@@ -3634,11 +3600,13 @@ class FSdOp(RsRsImmFloatOperation):
     traits = frozenset((FSdOpHasCanonicalizationPatternTrait(),))
 
     def assembly_line(self) -> str | None:
+        from xdsl.backend.riscv.printing import assembly_arg_str, assembly_line
+
         instruction_name = self.assembly_instruction_name()
-        value = _assembly_arg_str(self.rs2)
-        imm = _assembly_arg_str(self.immediate)
-        offset = _assembly_arg_str(self.rs1)
-        return _assembly_line(
+        value = assembly_arg_str(self.rs2)
+        imm = assembly_arg_str(self.immediate)
+        offset = assembly_arg_str(self.rs1)
+        return assembly_line(
             instruction_name, f"{value}, {imm}({offset})", self.comment
         )
 
@@ -3736,14 +3704,6 @@ def _parse_immediate_value(
         lambda: _parse_optional_immediate_value(parser, integer_type),
         "Expected immediate",
     )
-
-
-def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
-    match immediate:
-        case IntegerAttr():
-            printer.print(immediate.value.data)
-        case LabelAttr():
-            printer.print_string_literal(immediate.data)
 
 
 RISCV = Dialect(

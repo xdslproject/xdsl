@@ -6,7 +6,8 @@ from importlib.metadata import version
 from io import StringIO
 from typing import IO
 
-from xdsl.dialects import riscv, x86
+import xdsl.backend.riscv.printing
+from xdsl.dialects import x86
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
@@ -201,7 +202,7 @@ class xDSLOptMain(CommandLineTool):
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
-            riscv.print_assembly(prog, output)
+            xdsl.backend.riscv.printing.print_assembly(prog, output)
 
         def _output_x86_asm(prog: ModuleOp, output: IO[str]):
             x86.ops.print_assembly(prog, output)
@@ -214,7 +215,7 @@ class xDSLOptMain(CommandLineTool):
                 print("Please install optional dependencies to run riscv emulation")
                 return
 
-            code = riscv.riscv_code(prog)
+            code = xdsl.backend.riscv.printing.riscv_code(prog)
             with redirect_stdout(output):
                 run_riscv(code, unlimited_regs=True, verbosity=0)
 

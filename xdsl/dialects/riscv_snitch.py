@@ -5,6 +5,7 @@ from typing import cast
 
 from typing_extensions import Self
 
+from xdsl.backend.riscv.printing import assembly_arg_str
 from xdsl.dialects import riscv, stream
 from xdsl.dialects.builtin import IntAttr, UnrealizedConversionCastOp
 from xdsl.dialects.riscv import (
@@ -21,14 +22,7 @@ from xdsl.dialects.utils import (
     parse_assignment,
     print_assignment,
 )
-from xdsl.ir import (
-    Attribute,
-    Block,
-    Dialect,
-    Operation,
-    Region,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     attr_def,
@@ -449,6 +443,27 @@ class GetStreamOp(IRDLOperation, RISCVOp):
 
 # endregion
 
+# region XDMA extensions
+
+
+@irdl_op_definition
+class DMSourceOp(IRDLOperation, RISCVOp):
+    name = "riscv_snitch.dmsrc"
+
+    ptrhi = operand_def(riscv.IntRegisterType)
+    ptrlo = operand_def(riscv.IntRegisterType)
+
+    def __init__(self, ptrhi: SSAValue | Operation, ptrlo: SSAValue | Operation):
+        super().__init__(operands=[ptrhi, ptrlo])
+
+    def assembly_line(self) -> str | None:
+        return (
+            f"    dmsrc {assembly_arg_str(self.ptrhi)}, {assembly_arg_str(self.ptrlo)}"
+        )
+
+
+# endregion
+
 RISCV_Snitch = Dialect(
     "riscv_snitch",
     [
@@ -460,6 +475,7 @@ RISCV_Snitch = Dialect(
         ReadOp,
         WriteOp,
         GetStreamOp,
+        DMSourceOp,
     ],
     [],
 )

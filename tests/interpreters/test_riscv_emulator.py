@@ -3,6 +3,7 @@ from io import StringIO
 
 import pytest
 
+import xdsl.backend.riscv.printing
 from xdsl.builder import Builder
 from xdsl.dialects import riscv, riscv_debug, riscv_func
 from xdsl.dialects.builtin import ModuleOp
@@ -37,7 +38,7 @@ def test_simple():
 
     RISCVRegisterAllocation().apply(ctx, module)
 
-    code = riscv.riscv_code(module)
+    code = xdsl.backend.riscv.printing.riscv_code(module)
 
     with StringIO() as stream, redirect_stdout(stream):
         run_riscv(
@@ -156,7 +157,7 @@ def test_multiply_add():
 
     RISCVRegisterAllocation().apply(ctx, module)
 
-    code = riscv.riscv_code(module)
+    code = xdsl.backend.riscv.printing.riscv_code(module)
     with StringIO() as stream, redirect_stdout(stream):
         run_riscv(
             code,
