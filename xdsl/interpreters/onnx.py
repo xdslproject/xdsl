@@ -311,8 +311,8 @@ class OnnxFunctions(InterpreterFunctions):
 
         strides = tuple(value.value.data for value in op.strides)
 
-        if not all(stride == 1 for stride in strides):
-            raise NotImplementedError("Only 1 stride supported")
+        # if not all(stride == 1 for stride in strides):
+        #     raise NotImplementedError("Only 1 stride supported")
 
         if len(strides) != 2:
             raise NotImplementedError("Only 2d max pooling supported")

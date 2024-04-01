@@ -503,7 +503,7 @@ def test_onnx_max_pool_single_out():
     op = onnx.MaxPoolSingleOut(
         TestSSAValue(TensorType(f32, [1, 1, 4, 4])),
         StringAttr("NOTSET"),
-        AnyIntegerAttr(1, i64),
+        AnyIntegerAttr(0, i64),
         ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
         ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
         pads=ArrayAttr(
@@ -523,3 +523,32 @@ def test_onnx_max_pool_single_out():
     assert b == ShapedArray(
         TypedPtr.new_float32([6, 7, 8, 10, 11, 12, 14, 15, 16]), [1, 1, 3, 3]
     )
+
+
+def test_onnx_max_pool_single_out_strides_two():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(OnnxFunctions())
+    op = onnx.MaxPoolSingleOut(
+        TestSSAValue(TensorType(f32, [1, 1, 4, 4])),
+        StringAttr("NOTSET"),
+        AnyIntegerAttr(0, i64),
+        ArrayAttr([AnyIntegerAttr(1, i64), AnyIntegerAttr(1, i64)]),
+        ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
+        pads=ArrayAttr(
+            [
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+                AnyIntegerAttr(0, i64),
+            ]
+        ),
+        storage_order=AnyIntegerAttr(0, i64),
+        strides=ArrayAttr([AnyIntegerAttr(2, i64), AnyIntegerAttr(2, i64)]),
+    )
+    a = ShapedArray(
+        TypedPtr.new_float32([1, 1, 2, 4, 5, 6, 7, 8, 3, 2, 1, 0, 1, 2, 3, 4]),
+        [1, 1, 4, 4],
+    )
+    (b,) = interpreter.run_op(op, (a,))
+
+    assert b == ShapedArray(TypedPtr.new_float32([6, 8, 3, 4]), [1, 1, 2, 2])
