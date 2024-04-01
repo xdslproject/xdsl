@@ -386,7 +386,7 @@ class OnnxFunctions(InterpreterFunctions):
             dtype=matrix.dtype,
         )
 
-        # do convolution
+        # do maxpool
         for k in range(matrix.shape[0]):
             for l in range(matrix.shape[1]):
                 for i in range(0, m_height - ky + 1, strides[0]):
