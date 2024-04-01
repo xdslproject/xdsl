@@ -15,7 +15,7 @@ riscv_func.func @main() {
 
   riscv_snitch.dmsrc %0, %1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> ()
   riscv_snitch.dmdst %0, %1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> ()
-  %1 = riscv_snitch.dmcpyi %0, 0 : (!riscv.reg<a1>) -> (!riscv.reg<a0>) 
+  %2 = riscv_snitch.dmcpyi %0, 0 : (!riscv.reg<a1>) -> !riscv.reg<a2>
 
   riscv_func.return
 }

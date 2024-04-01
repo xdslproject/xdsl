@@ -59,12 +59,12 @@ riscv_func.func @xfrep() {
 riscv_func.func @xdma() {
   %reg = riscv.get_register : () -> !riscv.reg<>
   riscv_snitch.dmsrc %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
-  riscv_snitch.dmdst %reg, %reg : (!riscv.reg<>, !riscv.rec<>) -> ()
-  %dest = riscv_snitch.dmcpyi %reg, 0+ :(!riscv.reg<>) -> !riscv.reg<>
+  riscv_snitch.dmdst %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+  %dest = riscv_snitch.dmcpyi %reg, 0 : (!riscv.reg<>) -> !riscv.reg<>
   // CHECK: %reg = riscv.get_register : () -> !riscv.reg<>
   // CHECK-NEXT: riscv_snitch.dmsrc %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
   // CHECK-NEXT: riscv_snitch.dmdst %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
-  // CHECK-NEXT: %dest = riscv_snitch.dmcpyi %reg, 0+ : (!riscv.reg<>) -> (!riscv.reg<>)
+  // CHECK-NEXT: %dest = riscv_snitch.dmcpyi %reg, 0 : (!riscv.reg<>) -> !riscv.reg<>
 
   riscv_func.return
 }
@@ -103,11 +103,9 @@ riscv_func.func @xdma() {
 // CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
 // CHECK-GENERIC-NEXT:     %reg = "riscv.get_register"() : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmsrc"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv_snitch.dmdst"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     %dest = "riscv_snitch.dmcpyi"(%reg) <{"config" = 0 : ui5}> : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "xdma", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
-
-
- %reg = "riscv.get_register"() : () -> !riscv.reg<a0>
-"riscv_snitch.dmcpyi"(%reg) <{"config" = 0 : ui5}> {"someone_esles_attributes" = 100} : (!riscv.reg<a0>) -> !riscv.reg<a1>
 

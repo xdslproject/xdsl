@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import AbstractSet, Set, cast
+from typing import cast
 
 from typing_extensions import Self
 
-from xdsl.backend.riscv.printing import assembly_arg_str
 from xdsl.dialects import riscv, stream
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -490,13 +489,18 @@ class DMCopyImmOp(IRDLOperation, RISCVInstruction):
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(UImm5Attr)
 
-    def __init__(self, size: SSAValue | Operation, config: int | UImm5Attr):
+    def __init__(
+        self,
+        size: SSAValue | Operation,
+        config: int | UImm5Attr,
+        result_type: IntRegisterType = IntRegisterType.unallocated(),
+    ):
         if isinstance(config, int):
             config = IntegerAttr(config, IntegerType(5, signedness=Signedness.UNSIGNED))
         super().__init__(
             operands=[size],
             properties={"config": config},
-            result_types=[IntRegisterType.unallocated()],
+            result_types=[result_type],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -520,8 +524,9 @@ class DMCopyImmOp(IRDLOperation, RISCVInstruction):
         config = parser.parse_integer()
         attrs = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
-        parser.parse_function_type()
-        op = cls(size, config)
+        signature = parser.parse_function_type()
+        result_type, *_ = signature.outputs
+        op = cls(size, config, cast(IntRegisterType, result_type))
         if attrs:
             op.attributes.update(attrs)
         return op
