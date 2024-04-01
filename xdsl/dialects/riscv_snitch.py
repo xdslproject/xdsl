@@ -453,8 +453,8 @@ class GetStreamOp(IRDLOperation, RISCVOp):
 class DMSourceOp(IRDLOperation, RISCVOp):
     name = "riscv_snitch.dmsrc"
 
-    ptrhi = operand_def(riscv.IntRegisterType)
     ptrlo = operand_def(riscv.IntRegisterType)
+    ptrhi = operand_def(riscv.IntRegisterType)
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
@@ -468,8 +468,8 @@ class DMSourceOp(IRDLOperation, RISCVOp):
 class DMDestinationOp(IRDLOperation, RISCVOp):
     name = "riscv_snitch.dmdst"
 
-    ptrhi = operand_def(riscv.IntRegisterType)
     ptrlo = operand_def(riscv.IntRegisterType)
+    ptrhi = operand_def(riscv.IntRegisterType)
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
