@@ -32,6 +32,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
@@ -383,6 +384,37 @@ def test_prop_name(program: str, generic_program: str):
 
     check_equivalence(program, generic_program, ctx)
     check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.optional_attribute",
+            '"test.optional_attribute"() : () -> ()',
+        ),
+        (
+            "test.optional_attribute attr i32",
+            '"test.optional_attribute"() {"attr" = i32} : () -> ()',
+        ),
+    ],
+)
+def test_optional_attribute(program: str, generic_program: str):
+    """Test the parsing of optional operands"""
+
+    @irdl_op_definition
+    class OptionalAttributeOp(IRDLOperation):
+        name = "test.optional_attribute"
+        attr = opt_attr_def(Attribute)
+
+        assembly_format = "(`attr` $attr^)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalAttributeOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
 
 
 ################################################################################
