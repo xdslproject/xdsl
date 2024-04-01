@@ -106,3 +106,8 @@ riscv_func.func @xdma() {
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "xdma", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
+
+
+ %reg = "riscv.get_register"() : () -> !riscv.reg<a0>
+"riscv_snitch.dmcpyi"(%reg) <{"config" = 0 : ui5}> {"someone_esles_attributes" = 100} : (!riscv.reg<a0>) -> !riscv.reg<a1>
+

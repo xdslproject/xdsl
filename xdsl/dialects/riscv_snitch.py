@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
+from typing import AbstractSet, Set, cast
 
 from typing_extensions import Self
 
 from xdsl.backend.riscv.printing import assembly_arg_str
 from xdsl.dialects import riscv, stream
-from xdsl.dialects.builtin import IntAttr, UnrealizedConversionCastOp
+from xdsl.dialects.builtin import (
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    Signedness,
+    UnrealizedConversionCastOp,
+)
 from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
     IntRegisterType,
@@ -16,7 +22,7 @@ from xdsl.dialects.riscv import (
     Registers,
     RISCVInstruction,
     RISCVOp,
-    UImm5Attr
+    UImm5Attr,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -29,6 +35,7 @@ from xdsl.irdl import (
     attr_def,
     irdl_op_definition,
     operand_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -47,8 +54,6 @@ from xdsl.traits import (
     ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
-
-from xdsl.irdl import prop_def
 
 # region Snitch Extensions
 
@@ -450,7 +455,7 @@ class GetStreamOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class DMSourceOp(IRDLOperation, RISCVOp):
+class DMSourceOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
     ptrlo = operand_def(riscv.IntRegisterType)
@@ -459,13 +464,12 @@ class DMSourceOp(IRDLOperation, RISCVOp):
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
 
-    def assembly_line(self) -> str | None:
-        return (
-            f"    dmsrc {assembly_arg_str(self.ptrlo)}, {assembly_arg_str(self.ptrhi)}"
-        )
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.ptrlo, self.ptrhi
+
 
 @irdl_op_definition
-class DMDestinationOp(IRDLOperation, RISCVOp):
+class DMDestinationOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
     ptrlo = operand_def(riscv.IntRegisterType)
@@ -474,26 +478,54 @@ class DMDestinationOp(IRDLOperation, RISCVOp):
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
 
-    def assembly_line(self) -> str | None:
-        return (
-            f"    dmdst {assembly_arg_str(self.ptrlo)}, {assembly_arg_str(self.ptrhi)}"
-        )
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.ptrlo, self.ptrhi
+
 
 @irdl_op_definition
-class DMCopyImmOp(IRDLOperation, RISCVOp):
+class DMCopyImmOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmcpyi"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(UImm5Attr)
 
-    def __init__(self, size: SSAValue | Operation, config: UImm5Attr):
-        super().__init__(operands=[size], properties={"config": config}, result_types=[IntRegisterType.unallocated()])
-
-    def assembly_line(self) -> str | None:
-        return (
-            f"    dmcpyi {assembly_arg_str(self.dest)}, {assembly_arg_str(self.size)}, {assembly_arg_str(self.config)}"
+    def __init__(self, size: SSAValue | Operation, config: int | UImm5Attr):
+        if isinstance(config, int):
+            config = IntegerAttr(config, IntegerType(5, signedness=Signedness.UNSIGNED))
+        super().__init__(
+            operands=[size],
+            properties={"config": config},
+            result_types=[IntRegisterType.unallocated()],
         )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.dest, self.size, self.config
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ")
+        printer.print_operand(self.size)
+        printer.print_string(", ")
+        printer.print(self.config.value.data)
+        if self.attributes:
+            printer.print(" ")
+            printer.print_attr_dict(self.attributes)
+        printer.print(" : ")
+        printer.print_operation_type(self)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        size = parser.parse_operand()
+        parser.parse_punctuation(",")
+        config = parser.parse_integer()
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        parser.parse_function_type()
+        op = cls(size, config)
+        if attrs:
+            op.attributes.update(attrs)
+        return op
+
 
 # endregion
 
@@ -510,7 +542,7 @@ RISCV_Snitch = Dialect(
         GetStreamOp,
         DMSourceOp,
         DMDestinationOp,
-        DMCopyImmOp
+        DMCopyImmOp,
     ],
     [],
 )
