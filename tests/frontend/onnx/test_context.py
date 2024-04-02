@@ -144,38 +144,18 @@ def test_visit_graph_sub():
     # initialize context
     ctx = Ctx()
 
-    # define input and output names
-    input1_name = "input1"
-    input2_name = "input2"
-    output_name = "output"
+    # create graph composed only of one Sub operation
+    graph = _create_graph_binary_op("Sub", "sub_graph")
 
-    # define Sub node
-    sub_node = helper.make_node(
-        op_type="Sub",
-        inputs=[input1_name, input2_name],
-        outputs=[output_name],
-    )
-
-    # create graph (composed of just one Sub operation)
-    graph = helper.make_graph(
-        nodes=[sub_node],
-        name="sub_graph",
-        inputs=[
-            helper.make_tensor_value_info(input1_name, TensorProto.FLOAT, [None, None]),
-            helper.make_tensor_value_info(input2_name, TensorProto.FLOAT, [None, None]),
-        ],
-        outputs=[
-            helper.make_tensor_value_info(output_name, TensorProto.FLOAT, [None, None]),
-        ],
-    )
-
+    # run visit graph
     visit_graph(graph, ctx)
 
+    # check value_by_names keys
     keys = list(ctx.value_by_name.keys())
     assert keys == ["input1", "input2", "output"]
 
+    # check generated ir
     gen_ir = ctx.value_by_name[keys[2]].owner
-    print(gen_ir)
     assert (
         str(gen_ir)
         == "%0 = onnx.Sub(%1, %2) : (tensor<0x0xf32>, tensor<0x0xf32>) -> tensor<0x0xf32>"
