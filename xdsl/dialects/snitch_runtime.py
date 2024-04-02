@@ -31,7 +31,7 @@ class SnitchRuntimeBaseOperation(IRDLOperation, ABC):
     routines to manage system level aspects of snitch systems.
 
     This dialect is modeled after:
-    https://github.com/pulp-platform/snitch/tree/b9fe5550e26ea878fb734cfc37d161f564252305/sw/snRuntime
+    https://github.com/pulp-platform/snitch_cluster/tree/main/sw/snRuntime
     """
 
     pass
@@ -539,15 +539,18 @@ class SsrRepeatOp(SnitchRuntimeBaseOperation, ABC):
     """
 
     name = "snrt.ssr_repeat"
-    dm: Operand = operand_def(ssr_dm)
-    count: Operand = operand_def(IndexType)
+    dm: Operand = prop_def(IntegerAttr[ssr_dm])
+    count: Operand = operand_def(i32)
 
     def __init__(
         self,
-        dm: Operation | SSAValue,
+        dm: int | IntegerAttr,
         count: Operation | SSAValue,
     ):
-        super().__init__(operands=[dm, count])
+        if isinstance(dm, int):
+            dm = IntegerAttr(dm, ssr_dm)
+
+        super().__init__(operands=[count], properties={"dm": dm})
 
 
 @irdl_op_definition
