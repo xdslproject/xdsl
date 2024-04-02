@@ -519,8 +519,8 @@ class DMCopyOp(IRDLOperation, RISCVInstruction):
     config = operand_def(riscv.IntRegisterType)
 
     def __init__(
-            self, 
-            size: SSAValue | Operation, 
+            self,
+            size: SSAValue | Operation,
             config: SSAValue | Operation,
             result_type: IntRegisterType = IntRegisterType.unallocated()):
         super().__init__(
@@ -539,7 +539,7 @@ class DMStatOp(IRDLOperation, RISCVInstruction):
     status = operand_def(riscv.IntRegisterType)
 
     def __init__(
-            self, 
+            self,
             status: SSAValue | Operation,
             result_type: IntRegisterType = IntRegisterType.unallocated()):
         super().__init__(
