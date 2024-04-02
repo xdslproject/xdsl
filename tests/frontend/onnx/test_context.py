@@ -36,32 +36,13 @@ def test_visit_node_add():
     # initialize context
     ctx = Ctx()
 
-    # define input and output names
-    input1_name = "input1"
-    input2_name = "input2"
-    output_name = "output"
+    # create graph composed only of one Add operation
+    graph, add_node = _create_graph_binary_op("Add", "add_graph")
 
-    # define Add node
-    add_node = helper.make_node(
-        op_type="Add",  # Operation type, addition
-        inputs=[input1_name, input2_name],  # Input names
-        outputs=[output_name],  # Output name
-    )
-
-    # create graph (composed of just one Add operation)
-    graph = helper.make_graph(
-        nodes=[add_node],
-        name="add_graph",
-        inputs=[
-            helper.make_tensor_value_info(input1_name, TensorProto.FLOAT, [None, None]),
-            helper.make_tensor_value_info(input2_name, TensorProto.FLOAT, [None, None]),
-        ],
-        outputs=[
-            helper.make_tensor_value_info(output_name, TensorProto.FLOAT, [None, None]),
-        ],
-    )
-
+    # visit graph
     visit_graph(graph, ctx)
+
+    # visit node (test passes if no exceptions are raised)
     visit_node(add_node, ctx)
 
 
