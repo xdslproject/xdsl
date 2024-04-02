@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from xdsl.backend.riscv.printing import riscv_code
+from xdsl.dialects.riscv import riscv_code
 from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.builtin import BuiltinFunctions

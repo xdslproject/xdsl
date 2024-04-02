@@ -1,7 +1,6 @@
 from io import StringIO
 from pathlib import Path
 
-import xdsl.backend.riscv.printing
 from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRiscvPass
 from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
     ConvertFuncToRiscvFuncPass,
@@ -14,7 +13,16 @@ from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
     ConvertRiscvScfToRiscvCfPass,
 )
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
-from xdsl.dialects import affine, arith, func, memref, printf, riscv, riscv_func, scf
+from xdsl.dialects import (
+    affine,
+    arith,
+    func,
+    memref,
+    printf,
+    riscv,
+    riscv_func,
+    scf,
+)
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.ir import MLContext
 from xdsl.transforms.canonicalize import CanonicalizePass
@@ -150,7 +158,7 @@ def compile(program: str) -> str:
     transform(ctx, op, target="riscv-lowered")
 
     io = StringIO()
-    xdsl.backend.riscv.printing.print_assembly(op, io)
+    riscv.print_assembly(op, io)
 
     return io.getvalue()
 
