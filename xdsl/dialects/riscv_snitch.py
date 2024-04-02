@@ -451,6 +451,8 @@ class GetStreamOp(IRDLOperation, RISCVOp):
 # endregion
 
 # region XDMA extensions
+# Documentation for these operations:
+# https://pulp-platform.github.io/snitch_cluster/rm/custom_instructions.html
 
 
 @irdl_op_definition
