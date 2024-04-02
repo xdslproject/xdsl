@@ -482,6 +482,62 @@ class DMDestinationOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
+class DMStrideOp(IRDLOperation, RISCVInstruction):
+    name = "riscv_snitch.dmstr"
+
+    srcstrd = operand_def(riscv.IntRegisterType)
+    dststrd = operand_def(riscv.IntRegisterType)
+
+    def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
+        super().__init__(operands=[srcstrd, dststrd])
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.srcstrd, self.dststrd
+
+
+@irdl_op_definition
+class DMRepOp(IRDLOperation, RISCVInstruction):
+    name = "riscv_snitch.dmrep"
+
+    reps = operand_def(riscv.IntRegisterType)
+
+    def __init__(self, reps: SSAValue | Operation):
+        super().__init__(operands=[reps])
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.reps,)
+
+
+@irdl_op_definition
+class DMCopyOp(IRDLOperation, RISCVInstruction):
+    name = "riscv_snitch.dmcpy"
+
+    dest = result_def(riscv.IntRegisterType)
+    size = operand_def(riscv.IntRegisterType)
+    config = operand_def(riscv.IntRegisterType)
+
+    def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
+        super().__init__(operands=[srcstrd, dststrd])
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.srcstrd, self.dststrd
+
+
+@irdl_op_definition
+class DMStatOp(IRDLOperation, RISCVInstruction):
+    name = "riscv_snitch.dmstat"
+
+    dest = result_def(riscv.IntRegisterType)
+    status = operand_def(riscv.IntRegisterType)
+
+    def __init__(self, reps: SSAValue | Operation):
+        super().__init__(operands=[reps])
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.reps,)
+
+
+@irdl_op_definition
 class DMCopyImmOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmcpyi"
 
@@ -532,6 +588,50 @@ class DMCopyImmOp(IRDLOperation, RISCVInstruction):
         return op
 
 
+@irdl_op_definition
+class DMStatImmOp(IRDLOperation, RISCVInstruction):
+    name = "riscv_snitch.dmstati"
+
+    dest = result_def(riscv.IntRegisterType)
+    status = prop_def(UImm5Attr)
+
+    def __init__(
+        self,
+        status: int | UImm5Attr,
+        result_type: IntRegisterType = IntRegisterType.unallocated(),
+    ):
+        if isinstance(status, int):
+            status = IntegerAttr(status, IntegerType(5, signedness=Signedness.UNSIGNED))
+        super().__init__(
+            properties={"status": status},
+            result_types=[result_type],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.dest, self.status
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ")
+        printer.print(self.status.value.data)
+        if self.attributes:
+            printer.print(" ")
+            printer.print_attr_dict(self.attributes)
+        printer.print(" : ")
+        printer.print_operation_type(self)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        status = parser.parse_integer()
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        signature = parser.parse_function_type()
+        result_type, *_ = signature.outputs
+        op = cls(status, cast(IntRegisterType, result_type))
+        if attrs:
+            op.attributes.update(attrs)
+        return op
+
+
 # endregion
 
 RISCV_Snitch = Dialect(
@@ -547,7 +647,12 @@ RISCV_Snitch = Dialect(
         GetStreamOp,
         DMSourceOp,
         DMDestinationOp,
+        DMStrideOp,
+        DMRepOp,
+        DMCopyOp,
         DMCopyImmOp,
+        DMStatOp,
+        DMStatImmOp,
     ],
     [],
 )
