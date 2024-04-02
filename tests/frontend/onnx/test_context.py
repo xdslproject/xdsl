@@ -4,6 +4,7 @@ from onnx import TensorProto, helper
 try:
     from xdsl.frontend.onnx.context import (
         Ctx,  # noqa: E402
+        build_module,  # noqa: E402
         visit_graph,  # noqa: E402
         visit_node,  # noqa: E402
     )
@@ -177,3 +178,43 @@ def test_visit_graph_sub():
         str(gen_ir)
         == "%0 = onnx.Sub(%1, %2) : (tensor<0x0xf32>, tensor<0x0xf32>) -> tensor<0x0xf32>"
     )
+
+
+def test_build_module():
+    # define input and output names
+    input1_name = "input1"
+    input2_name = "input2"
+    output_name = "output"
+
+    # define Add node
+    add_node = helper.make_node(
+        op_type="Add",  # Operation type, addition
+        inputs=[input1_name, input2_name],  # Input names
+        outputs=[output_name],  # Output name
+    )
+
+    # create graph (composed of just one Add operation)
+    graph = helper.make_graph(
+        nodes=[add_node],
+        name="add_graph",
+        inputs=[
+            helper.make_tensor_value_info(input1_name, TensorProto.FLOAT, [None, None]),
+            helper.make_tensor_value_info(input2_name, TensorProto.FLOAT, [None, None]),
+        ],
+        outputs=[
+            helper.make_tensor_value_info(output_name, TensorProto.FLOAT, [None, None]),
+        ],
+    )
+
+    module = build_module(graph)
+
+    expected = (
+        "builtin.module {\n"
+        + "  func.func @add_graph(%0 : tensor<0x0xf32>, %1 : tensor<0x0xf32>) -> tensor<0x0xf32> {\n"
+        + "    %2 = onnx.Add(%0, %1) : (tensor<0x0xf32>, tensor<0x0xf32>) -> tensor<0x0xf32>\n"
+        + "    func.return %2 : tensor<0x0xf32>\n"
+        + "  }\n"
+        + "}"
+    )
+
+    assert str(module) == expected
