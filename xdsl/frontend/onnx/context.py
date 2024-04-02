@@ -3,10 +3,9 @@ from onnx import GraphProto, NodeProto, ValueInfoProto
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, onnx
 from xdsl.dialects.builtin import ModuleOp
+from xdsl.frontend.onnx.type import get_type
 from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import IRDLOperation
-
-from .type import get_type
 
 OP_BY_OP_TYPE: dict[str, type[IRDLOperation]] = {
     "Add": onnx.Add,
