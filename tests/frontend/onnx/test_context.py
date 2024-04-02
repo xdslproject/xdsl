@@ -103,7 +103,7 @@ def test_visit_graph_add():
     ctx = Ctx()
 
     # create graph composed only of one Add operation
-    graph = _create_graph_binary_op("Add", "add_graph")
+    graph, _ = _create_graph_binary_op("Add", "add_graph")
 
     # visit graph
     visit_graph(graph, ctx)
@@ -126,7 +126,7 @@ def test_visit_graph_sub():
     ctx = Ctx()
 
     # create graph composed only of one Sub operation
-    graph = _create_graph_binary_op("Sub", "sub_graph")
+    graph, _ = _create_graph_binary_op("Sub", "sub_graph")
 
     # run visit graph
     visit_graph(graph, ctx)
@@ -145,7 +145,7 @@ def test_visit_graph_sub():
 
 def test_build_module():
     # create graph composed only of one Add operation
-    graph = _create_graph_binary_op("Add", "add_graph")
+    graph, _ = _create_graph_binary_op("Add", "add_graph")
 
     # create module
     module = build_module(graph)
@@ -223,4 +223,4 @@ def _create_graph_binary_op(op_name: str, graph_name: str):
         ],
     )
 
-    return graph
+    return graph, op_node
