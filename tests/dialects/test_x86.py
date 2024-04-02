@@ -10,7 +10,7 @@ def test_add_op():
     r2 = TestSSAValue(x86.Registers.RDX)
     add_op = x86.AddOp(r1, r2, result=x86.Registers.RAX)
 
-    print(add_op.assembly_line())
+    assert add_op.assembly_line() == "    add rax, rdx"
 
 
 def test_mov_op():
@@ -18,7 +18,7 @@ def test_mov_op():
     r2 = TestSSAValue(x86.Registers.RDX)
     mov_op = x86.MovOp(r1, r2, result=x86.Registers.RAX)
 
-    print(mov_op.assembly_line())
+    assert mov_op.assembly_line() == "    mov rax, rdx"
 
 
 def test_sub_op():
@@ -26,7 +26,7 @@ def test_sub_op():
     r2 = TestSSAValue(x86.Registers.RDX)
     sub_op = x86.SubOp(r1, r2, result=x86.Registers.RAX)
 
-    print(sub_op.assembly_line())
+    assert sub_op.assembly_line() == "    sub rax, rdx"
 
 
 def test_imul_op():
@@ -34,7 +34,7 @@ def test_imul_op():
     r2 = TestSSAValue(x86.Registers.RDX)
     imul_op = x86.ImulOp(r1, r2, result=x86.Registers.RAX)
 
-    print(imul_op.assembly_line())
+    assert imul_op.assembly_line() == "    imul rax, rdx"
 
 
 def test_idiv_op():
@@ -43,7 +43,7 @@ def test_idiv_op():
         r1,
     )
 
-    print(idiv_op.assembly_line())
+    assert idiv_op.assembly_line() == "    idiv rax"
 
 
 def test_and_op():
@@ -51,7 +51,7 @@ def test_and_op():
     r2 = TestSSAValue(x86.Registers.RDX)
     and_op = x86.AndOp(r1, r2, result=x86.Registers.RAX)
 
-    print(and_op.assembly_line())
+    assert and_op.assembly_line() == "    and rax, rdx"
 
 
 def test_or_op():
@@ -59,7 +59,7 @@ def test_or_op():
     r2 = TestSSAValue(x86.Registers.RDX)
     or_op = x86.OrOp(r1, r2, result=x86.Registers.RAX)
 
-    print(or_op.assembly_line())
+    assert or_op.assembly_line() == "    or rax, rdx"
 
 
 def test_xor_op():
@@ -67,14 +67,14 @@ def test_xor_op():
     r2 = TestSSAValue(x86.Registers.RDX)
     xor_op = x86.XorOp(r1, r2, result=x86.Registers.RAX)
 
-    print(xor_op.assembly_line())
+    assert xor_op.assembly_line() == "    xor rax, rdx"
 
 
 def test_not_op():
     r1 = TestSSAValue(x86.Registers.RDX)
     not_op = x86.NotOp(r1, destination=x86.Registers.RDX)
 
-    print(not_op.assembly_line())
+    assert not_op.assembly_line() == "    not rdx"
 
 
 def test_push_op():
@@ -88,7 +88,7 @@ def test_push_op():
     push_op = x86.PushOp(source=r1)
     push_op.verify()
 
-    print(push_op.assembly_line())
+    assert push_op.assembly_line() == "    push rdx"
 
 
 def test_pop_op():
@@ -102,7 +102,7 @@ def test_pop_op():
     pop_op = x86.PopOp(destination=x86.Registers.RDX)
     pop_op.verify()
 
-    print(pop_op.assembly_line())
+    assert pop_op.assembly_line() == "    pop rdx"
 
 
 def test_vfmadd231pd_op():
@@ -111,7 +111,7 @@ def test_vfmadd231pd_op():
     r3 = TestSSAValue(x86.Registers.ZMM2)
     vfmadd231pd_op = x86.Vfmadd231pdOp(r1, r2, r3, result=x86.Registers.ZMM0)
 
-    print(vfmadd231pd_op.assembly_line())
+    assert vfmadd231pd_op.assembly_line() == "    vfmadd231pd zmm0, zmm1, zmm2"
 
 
 def test_vmovapd_op():
@@ -119,7 +119,7 @@ def test_vmovapd_op():
     r2 = TestSSAValue(x86.Registers.RAX)
     vmovapd_op = x86.VmovapdOp(r1, r2, offset=0x10, result=x86.Registers.ZMM0)
 
-    print(vmovapd_op.assembly_line())
+    assert vmovapd_op.assembly_line() == "    vmovapd zmm0, [rax + 16]"
 
 
 def test_vbroadcastsd_op():
@@ -127,28 +127,28 @@ def test_vbroadcastsd_op():
     r2 = TestSSAValue(x86.Registers.RAX)
     vbroadcastsd_op = x86.VbroadcastsdOp(r1, r2, result=x86.Registers.ZMM0)
 
-    print(vbroadcastsd_op.assembly_line())
+    assert vbroadcastsd_op.assembly_line() == "    vbroadcastsd zmm0, [rax]"
 
 
 def test_directive():
     directive = x86.DirectiveOp(".text", None)
 
-    print(directive.assembly_line())
+    assert directive.assembly_line() == ".text"
 
 
 def test_mimov_op():
     r1 = TestSSAValue(x86.Registers.RAX)
-    mimov_op = x86.MIMovOp(r1, immediate=16, offset=4, result=x86.Registers.RAX)
+    mimov_op = x86.MIMovOp(r1, immediate=16, offset=4)
 
-    print(mimov_op.assembly_line())
+    assert mimov_op.assembly_line() == "    mov [rax + 4],  16"
 
 
 def test_mrmov_op():
     r1 = TestSSAValue(x86.Registers.RAX)
     r2 = TestSSAValue(x86.Registers.RDX)
-    mrmov_op = x86.MRMovOp(r1, r2, offset=4, result=x86.Registers.RAX)
+    mrmov_op = x86.MRMovOp(r1, r2, offset=4)
 
-    print(mrmov_op.assembly_line())
+    assert mrmov_op.assembly_line() == "    mov [rax + 4], rdx"
 
 
 def test_rmmov_op():
@@ -156,4 +156,32 @@ def test_rmmov_op():
     r2 = TestSSAValue(x86.Registers.RDX)
     rmmov_op = x86.RMMovOp(r1, r2, offset=4, result=x86.Registers.RAX)
 
-    print(rmmov_op.assembly_line())
+    assert rmmov_op.assembly_line() == "    mov rax, [rdx + 4]"
+
+
+def test_inc_op():
+    r1 = TestSSAValue(x86.Registers.RAX)
+    inc_op = x86.IncOp(r1, destination=x86.Registers.RAX)
+
+    assert inc_op.assembly_line() == "    inc rax"
+
+
+def test_dec_op():
+    r1 = TestSSAValue(x86.Registers.RAX)
+    dec_op = x86.DecOp(r1, destination=x86.Registers.RAX)
+
+    assert dec_op.assembly_line() == "    dec rax"
+
+
+# def test_cmp_op():
+#     r1 = TestSSAValue(x86.Registers.RAX)
+#     r2 = TestSSAValue(x86.Registers.RDX)
+#     cmp_op = x86.CmpOp(r1, r2, result=x86.Registers.RAX)
+
+#     print(cmp_op.assembly_line())
+
+
+def test_jmp_op():
+    jmp_op = x86.JmpOp("label")
+
+    assert jmp_op.assembly_line() == "    jmp label"

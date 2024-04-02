@@ -382,7 +382,8 @@ class X86Instruction(X86Op):
 
     def assembly_line(self) -> str | None:
         # default assembly code generator
-        instruction_name = self.assembly_instruction_name()
+
+        instruction_name = self.assembly_instruction_name().split("_", 1)[-1]
         arg_str = ", ".join(
             _assembly_arg_str(arg)
             for arg in self.assembly_line_args()
@@ -471,8 +472,6 @@ class ROperation(Generic[R1InvT], SingleOperandInstruction):
     def verify_(self) -> None:
         if self.source is None and self.destination is None:
             raise VerifyException("Either source or destination must be specified")
-        if self.source is not None and self.destination is not None:
-            raise VerifyException("Cannot specify both source and destination")
         return super().verify_()
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -502,7 +501,7 @@ class SubOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/sub
     """
 
-    name = "x86.sub"
+    name = "x86.rr_sub"
 
 
 @irdl_op_definition
@@ -541,6 +540,14 @@ class NotOp(ROperation[GeneralRegisterType]):
 
     name = "x86.not"
 
+    def verify_(self) -> None:
+        if self.source is None:
+            raise VerifyException("Source register must be specified")
+        if self.destination is None:
+            raise VerifyException("destination register must be specified")
+        else:
+            return super().verify_()
+
 
 @irdl_op_definition
 class AndOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
@@ -578,7 +585,7 @@ class XorOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/xor
     """
 
-    name = "x86.xor"
+    name = "x86.rr_xor"
 
 
 @irdl_op_definition
@@ -626,6 +633,54 @@ class PopOp(ROperation[GeneralRegisterType]):
             raise VerifyException("Destination register must be specified")
         else:
             return super().verify_()
+
+
+@irdl_op_definition
+class IncOp(ROperation[GeneralRegisterType]):
+    """
+    Increments the value of r1 by 1.
+
+    x[r1] = x[r1] + 1
+
+    https://www.felixcloutier.com/x86/inc
+    """
+
+    name = "x86.inc"
+
+
+@irdl_op_definition
+class DecOp(ROperation[GeneralRegisterType]):
+    """
+    Decrements the value of r1 by 1.
+
+    x[r1] = x[r1] - 1
+
+    https://www.felixcloutier.com/x86/dec
+    """
+
+    name = "x86.dec"
+
+
+class NegOp(ROperation[GeneralRegisterType]):
+    """
+    Negates the value of r1.
+
+    x[r1] = -x[r1]
+
+    https://www.felixcloutier.com/x86/neg
+    """
+
+    name = "x86.neg"
+
+
+class CmpOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Compares r1 and r2 and sets the flags in the EFLAGS register accordingly.
+
+    https://www.felixcloutier.com/x86/cmp
+    """
+
+    name = "x86.rr_cmp"
 
 
 class RRROperation(Generic[R1InvT, R2InvT, R3InvT], TripleOperandInstruction):
@@ -703,7 +758,9 @@ class RMOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = _parse_optional_immediate_value(parser, IntegerType(12, Signedness.SIGNED))
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
         if temp is not None:
             attributes["offset"] = temp
         return attributes
@@ -715,7 +772,7 @@ class RMOperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
         return {"offset"}
 
     def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name().split('_', 1)[-1]
+        instruction_name = self.assembly_instruction_name().split("_", 1)[-1]
         destination = _assembly_arg_str(self.r1)
         source = _assembly_arg_str(self.r2)
         if self.offset is not None:
@@ -741,6 +798,7 @@ class RMMovOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
 
     name = "x86.rm_mov"
 
+
 @irdl_op_definition
 class RMImulOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
     """
@@ -753,6 +811,7 @@ class RMImulOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
 
     name = "x86.rm_imul"
 
+
 @irdl_op_definition
 class RMAddOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
     """
@@ -764,6 +823,7 @@ class RMAddOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.rm_add"
+
 
 class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
     """
@@ -805,7 +865,9 @@ class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = _parse_optional_immediate_value(parser, IntegerType(12, Signedness.SIGNED))
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
         if temp is not None:
             attributes["offset"] = temp
         return attributes
@@ -816,7 +878,7 @@ class MIOperation(Generic[R1InvT], DoubleOperandInstruction):
         return {"immediate"}
 
     def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
+        instruction_name = self.assembly_instruction_name().split("_", 1)[-1]
         destination = _assembly_arg_str(self.r1)
         immediate = _assembly_arg_str(self.immediate)
         if self.offset is not None:
@@ -854,7 +916,6 @@ class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
     r2 = operand_def(R2InvT)
     offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
 
-
     def __init__(
         self,
         r1: Operation | SSAValue,
@@ -883,7 +944,9 @@ class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = _parse_optional_immediate_value(parser, IntegerType(12, Signedness.SIGNED))
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(12, Signedness.SIGNED)
+        )
         if temp is not None:
             attributes["offset"] = temp
         return attributes
@@ -895,7 +958,7 @@ class MROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
         return {"offset"}
 
     def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
+        instruction_name = self.assembly_instruction_name().split("_", 1)[-1]
         destination = _assembly_arg_str(self.r1)
         source = _assembly_arg_str(self.r2)
         if self.offset is not None:
@@ -1095,7 +1158,6 @@ def _parse_optional_immediate_value(
         return LabelAttr(immediate)
 
 
-
 def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
@@ -1134,6 +1196,59 @@ class GetAVXRegisterOp(GetAnyRegisterOperation[AVXRegisterType]):
     name = "x86.get_avx_register"
 
 
+class SOperation(SingleOperandInstruction):
+    """
+    A base class for x86 operations that have one register.
+    """
+
+    destination: LabelAttr = attr_def(LabelAttr)
+
+    def __init__(
+        self,
+        destination: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(destination, str):
+            destination = LabelAttr(destination)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[],
+            attributes={
+                "destination": destination,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.destination,)
+
+
+@irdl_op_definition
+class JOp(SOperation):
+    """
+    Jump to the label specified in destination.
+
+    https://www.felixcloutier.com/x86/jmp
+    """
+
+    name = "x86.je"
+
+
+@irdl_op_definition
+class JmpOp(SOperation):
+    """
+    Jump to the label specified in destination.
+
+    https://www.felixcloutier.com/x86/jmp
+    """
+
+    name = "x86.jmp"
+
+
 X86 = Dialect(
     "x86",
     [
@@ -1159,6 +1274,10 @@ X86 = Dialect(
         RMMovOp,
         RMImulOp,
         RMAddOp,
+        IncOp,
+        DecOp,
+        NegOp,
+        CmpOp,
     ],
     [
         GeneralRegisterType,
