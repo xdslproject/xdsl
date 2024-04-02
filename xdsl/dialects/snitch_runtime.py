@@ -14,7 +14,7 @@ from xdsl.irdl import (
     operand_def,
     prop_def,
     result_def,
-    var_operand_def,
+    var_operand_def, prop_def,
 )
 from xdsl.utils.exceptions import VerifyException
 
