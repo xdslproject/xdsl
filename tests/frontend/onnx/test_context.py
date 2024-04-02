@@ -1,5 +1,6 @@
+import onnx
 import pytest
-from onnx import TensorProto, helper
+from onnx import TensorProto, ValueInfoProto, helper
 
 try:
     from xdsl.frontend.onnx.context import (
@@ -7,6 +8,7 @@ try:
         build_module,  # noqa: E402
         visit_graph,  # noqa: E402
         visit_node,  # noqa: E402
+        visit_value_info,  # noqa: E402
     )
 except ImportError as exc:
     print(exc)
@@ -218,3 +220,36 @@ def test_build_module():
     )
 
     assert str(module) == expected
+
+
+def test_visit_value_info():
+    # initialize context
+    ctx = Ctx()
+    print(ctx.type_by_name.keys())
+
+    # create ValueInfoProto input tensor
+    input_value_info = ValueInfoProto()
+    input_value_info.name = "input_tensor"
+
+    # define the type of the input tensor
+    input_tensor_type = input_value_info.type.tensor_type
+    input_tensor_type.elem_type = TensorProto.FLOAT
+    input_tensor_type.shape.dim.extend(
+        [
+            onnx.TensorShapeProto.Dimension(dim_value=1),
+            onnx.TensorShapeProto.Dimension(dim_value=3),
+            onnx.TensorShapeProto.Dimension(dim_value=224),
+            onnx.TensorShapeProto.Dimension(dim_value=224),
+        ]
+    )
+
+    # run visit_value_info with empty context
+    visit_value_info(input_value_info, ctx)
+
+    # check keys in context
+    keys = list(ctx.type_by_name.keys())
+    assert keys == ["input_tensor"]
+
+    # check type info
+    type_info = str(ctx.type_by_name["input_tensor"])
+    assert type_info == "tensor<1x3x224x224xf32>"
