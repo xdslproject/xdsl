@@ -522,7 +522,7 @@ class DMCopyOp(IRDLOperation, RISCVInstruction):
         super().__init__(operands=[srcstrd, dststrd])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.srcstrd, self.dststrd
+        return self.dest, self.size, self.config
 
 
 @irdl_op_definition
@@ -536,7 +536,7 @@ class DMStatOp(IRDLOperation, RISCVInstruction):
         super().__init__(operands=[reps])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.reps,)
+        return self.dest, self.status
 
 
 @irdl_op_definition

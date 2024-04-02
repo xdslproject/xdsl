@@ -15,15 +15,29 @@ riscv_func.func @main() {
 
   riscv_snitch.dmsrc %0, %1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> ()
   riscv_snitch.dmdst %0, %1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> ()
-  %2 = riscv_snitch.dmcpyi %0, 0 : (!riscv.reg<a0>) -> !riscv.reg<a2>
+
+  riscv_snitch.dmstr %0, %1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> ()
+  riscv_snitch.dmrep %0 : (!riscv.reg<a0>) -> ()
+
+  %a = riscv_snitch.dmcpy %0, %1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<zero>
+  %b = riscv_snitch.dmstat %0 : (!riscv.reg<a0>) -> !riscv.reg<zero>
+
+  %c = riscv_snitch.dmcpyi %0, 0 : (!riscv.reg<a0>) -> !riscv.reg<a2>
+
+  %d = riscv_snitch.dmstati 0 : () -> !riscv.reg<a2>
 
   riscv_func.return
 }
 
-// CHECK:        main:
+// CHECK-NEXT: main:
 // CHECK-NEXT:       frep.o a0, 1, 0, 0
 // CHECK-NEXT:       fmv.d ft1, ft0
 // CHECK-NEXT:       dmsrc a0, a1
 // CHECK-NEXT:       dmdst a0, a1
+// CHECK-NEXT:       dmstr a0, a1
+// CHECK-NEXT:       dmrep a0
+// CHECK-NEXT:       dmcpy zero, a0, a1
+// CHECK-NEXT:       dmstat zero, a0
 // CHECK-NEXT:       dmcpyi a2, a0, 0
+// CHECK-NEXT:       dmstati a2, 0
 // CHECK-NEXT:       ret
