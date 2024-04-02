@@ -519,13 +519,12 @@ class DMCopyOp(IRDLOperation, RISCVInstruction):
     config = operand_def(riscv.IntRegisterType)
 
     def __init__(
-            self,
-            size: SSAValue | Operation,
-            config: SSAValue | Operation,
-            result_type: IntRegisterType = IntRegisterType.unallocated()):
-        super().__init__(
-            operands=[size, config],
-            result_types=[result_type])
+        self,
+        size: SSAValue | Operation,
+        config: SSAValue | Operation,
+        result_type: IntRegisterType = IntRegisterType.unallocated(),
+    ):
+        super().__init__(operands=[size, config], result_types=[result_type])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.dest, self.size, self.config
@@ -539,12 +538,11 @@ class DMStatOp(IRDLOperation, RISCVInstruction):
     status = operand_def(riscv.IntRegisterType)
 
     def __init__(
-            self,
-            status: SSAValue | Operation,
-            result_type: IntRegisterType = IntRegisterType.unallocated()):
-        super().__init__(
-            operands=[status],
-            result_types=[result_type])
+        self,
+        status: SSAValue | Operation,
+        result_type: IntRegisterType = IntRegisterType.unallocated(),
+    ):
+        super().__init__(operands=[status], result_types=[result_type])
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.dest, self.status
