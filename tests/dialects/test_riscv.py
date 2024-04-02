@@ -1,6 +1,5 @@
 import pytest
 
-import xdsl.backend.riscv.printing
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -99,7 +98,7 @@ def test_comment_op():
 
     assert comment_op.comment.data == "my comment"
 
-    code = xdsl.backend.riscv.printing.riscv_code(ModuleOp([comment_op]))
+    code = riscv.riscv_code(ModuleOp([comment_op]))
     assert code == "    # my comment\n"
 
 
@@ -109,7 +108,7 @@ def test_label_op_without_comment():
 
     assert label_op.label.data == label_str
 
-    code = xdsl.backend.riscv.printing.riscv_code(ModuleOp([label_op]))
+    code = riscv.riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:\n"
 
 
@@ -119,7 +118,7 @@ def test_label_op_with_comment():
 
     assert label_op.label.data == label_str
 
-    code = xdsl.backend.riscv.printing.riscv_code(ModuleOp([label_op]))
+    code = riscv.riscv_code(ModuleOp([label_op]))
     assert code == f"{label_str}:                                         # my label\n"
 
 
@@ -130,7 +129,7 @@ def test_return_op():
 
     assert return_op.comment.data == "my comment"
 
-    code = xdsl.backend.riscv.printing.riscv_code(ModuleOp([return_op]))
+    code = riscv.riscv_code(ModuleOp([return_op]))
     assert code == "    ebreak                                       # my comment\n"
 
 
