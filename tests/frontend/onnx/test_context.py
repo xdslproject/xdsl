@@ -183,33 +183,13 @@ def test_visit_graph_sub():
 
 
 def test_build_module():
-    # define input and output names
-    input1_name = "input1"
-    input2_name = "input2"
-    output_name = "output"
+    # create graph composed only of one Add operation
+    graph = _create_graph_binary_op("Add", "add_graph")
 
-    # define Add node
-    add_node = helper.make_node(
-        op_type="Add",  # Operation type, addition
-        inputs=[input1_name, input2_name],  # Input names
-        outputs=[output_name],  # Output name
-    )
-
-    # create graph (composed of just one Add operation)
-    graph = helper.make_graph(
-        nodes=[add_node],
-        name="add_graph",
-        inputs=[
-            helper.make_tensor_value_info(input1_name, TensorProto.FLOAT, [None, None]),
-            helper.make_tensor_value_info(input2_name, TensorProto.FLOAT, [None, None]),
-        ],
-        outputs=[
-            helper.make_tensor_value_info(output_name, TensorProto.FLOAT, [None, None]),
-        ],
-    )
-
+    # create module
     module = build_module(graph)
 
+    # define expected output
     expected = (
         "builtin.module {\n"
         + "  func.func @add_graph(%0 : tensor<0x0xf32>, %1 : tensor<0x0xf32>) -> tensor<0x0xf32> {\n"
@@ -219,6 +199,7 @@ def test_build_module():
         + "}"
     )
 
+    # check output
     assert str(module) == expected
 
 
@@ -253,3 +234,32 @@ def test_visit_value_info():
     # check type info
     type_info = str(ctx.type_by_name["input_tensor"])
     assert type_info == "tensor<1x3x224x224xf32>"
+
+
+def _create_graph_binary_op(op_name: str, graph_name: str):
+    # define input and output names
+    input1_name = "input1"
+    input2_name = "input2"
+    output_name = "output"
+
+    # define op node
+    op_node = helper.make_node(
+        op_type=op_name,
+        inputs=[input1_name, input2_name],
+        outputs=[output_name],
+    )
+
+    # create graph (composed of just one operation)
+    graph = helper.make_graph(
+        nodes=[op_node],
+        name=graph_name,
+        inputs=[
+            helper.make_tensor_value_info(input1_name, TensorProto.FLOAT, [None, None]),
+            helper.make_tensor_value_info(input2_name, TensorProto.FLOAT, [None, None]),
+        ],
+        outputs=[
+            helper.make_tensor_value_info(output_name, TensorProto.FLOAT, [None, None]),
+        ],
+    )
+
+    return graph
