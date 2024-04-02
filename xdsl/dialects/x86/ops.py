@@ -210,6 +210,72 @@ class AddOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.add"
 
 
+@irdl_op_definition
+class SubOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    subtracts r2 from r1 and stores the result in r1.
+    x[r1] = x[r1] - x[r2]
+    https://www.felixcloutier.com/x86/sub
+    """
+
+    name = "x86.sub"
+
+
+@irdl_op_definition
+class ImulOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the registers r1 and r2 and stores the result in r1.
+    x[r1] = x[r1] * x[r2]
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.imul"
+
+
+@irdl_op_definition
+class AndOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise and of r1 and r2, stored in r1
+    x[r1] = x[r1] & x[r2]
+    https://www.felixcloutier.com/x86/and
+    """
+
+    name = "x86.and"
+
+
+@irdl_op_definition
+class OrOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise or of r1 and r2, stored in r1
+    x[r1] = x[r1] | x[r2]
+    https://www.felixcloutier.com/x86/or
+    """
+
+    name = "x86.or"
+
+
+@irdl_op_definition
+class XorOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise xor of r1 and r2, stored in r1
+    x[r1] = x[r1] ^ x[r2]
+    https://www.felixcloutier.com/x86/xor
+    """
+
+    name = "x86.xor"
+
+
+@irdl_op_definition
+class MovOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Copies the value of r1 into r2.
+    x[r1] = x[r2]
+    https://www.felixcloutier..com/x86/mov
+    """
+
+    name = "x86.mov"
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:
