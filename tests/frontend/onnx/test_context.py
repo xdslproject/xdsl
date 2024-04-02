@@ -62,6 +62,39 @@ def test_visit_node_add():
     visit_node(add_node, ctx)
 
 
+def test_visit_node_sub():
+    # initialize context
+    ctx = Ctx()
+
+    # define input and output names
+    input1_name = "input1"
+    input2_name = "input2"
+    output_name = "output"
+
+    # define Sub node
+    sub_node = helper.make_node(
+        op_type="Sub",
+        inputs=[input1_name, input2_name],
+        outputs=[output_name],
+    )
+
+    # create graph (composed of just one Sub operation)
+    graph = helper.make_graph(
+        nodes=[sub_node],
+        name="sub_graph",
+        inputs=[
+            helper.make_tensor_value_info(input1_name, TensorProto.FLOAT, [None, None]),
+            helper.make_tensor_value_info(input2_name, TensorProto.FLOAT, [None, None]),
+        ],
+        outputs=[
+            helper.make_tensor_value_info(output_name, TensorProto.FLOAT, [None, None]),
+        ],
+    )
+
+    visit_graph(graph, ctx)
+    visit_node(sub_node, ctx)
+
+
 def test_visit_graph_add():
     # initialize context
     ctx = Ctx()
