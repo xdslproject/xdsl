@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Annotated, Generic, TypeVar
 
-from xdsl.dialects.builtin import IndexType, i32, i64
+from xdsl.dialects.builtin import IndexType, i32, i64, AnyIntegerAttr, IntegerAttr
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -13,7 +13,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
-    var_operand_def,
+    var_operand_def, prop_def,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -569,17 +569,26 @@ class SsrDisableOp(NoOperandNoResultBaseOperation):
 
 
 class SsrReadWriteBaseOperation(SnitchRuntimeBaseOperation, ABC):
-    dm: Operand = operand_def(ssr_dm)
-    dim: Operand = operand_def(ssr_dim)
+    dm: Operand = prop_def(IntegerAttr[ssr_dm])
+    dim: Operand = prop_def(IntegerAttr[ssr_dim])
     ptr: Operand = operand_def(i32)
 
     def __init__(
         self,
-        dm: Operation | SSAValue,
-        dim: Operation | SSAValue,
+        dm: int | IntegerAttr,
+        dim: int | IntegerAttr,
         ptr: Operation | SSAValue,
     ):
-        super().__init__(operands=[dm, dim, ptr])
+        if isinstance(dm, int):
+            dm = IntegerAttr(dm, ssr_dim)
+
+        if isinstance(dim, int):
+            dim = IntegerAttr(dim, ssr_dim)
+
+        super().__init__(operands=[ptr], properties={
+            "dm": dm,
+            "dim": dim,
+        })
 
 
 @irdl_op_definition
