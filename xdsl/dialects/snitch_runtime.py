@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Annotated, Generic, TypeVar
 
-from xdsl.dialects.builtin import AnyIntegerAttr, IndexType, IntegerAttr, i32, i64
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32, i64
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -310,8 +310,8 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     """
 
     T = Annotated[Attribute, ConstraintVar("T"), _T]
-    dst: Operand = operand_def(T)
-    src: Operand = operand_def(T)
+    dst: Operand = operand_def(_T)
+    src: Operand = operand_def(_T)
     size: Operand = operand_def(IndexType)
     transfer_id: OpResult = result_def(tx_id)
 
@@ -330,8 +330,8 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     """
 
     T = Annotated[Attribute, ConstraintVar("T"), _T]
-    dst: Operand = operand_def(T)
-    src: Operand = operand_def(T)
+    dst: Operand = operand_def(_T)
+    src: Operand = operand_def(_T)
     dst_stride: Operand = operand_def(IndexType)
     src_stride: Operand = operand_def(IndexType)
     size: Operand = operand_def(IndexType)
@@ -411,34 +411,6 @@ class DmaWaitAllOp(NoOperandNoResultBaseOperation):
     name = "snrt.dma_wait_all"
 
 
-"""
-The number of data movers determines the number of
-independent memory address patterns a core can keep track
-of. Since the data movers are tied to individual registers,
-there need to be at least the same number of registers with
-stream semantics as there are data movers. Multiple SSRs
-may address the same data mover, for example to use the
-data mover both in integer and FP instructions.
-for more info check https://arxiv.org/pdf/1911.08356.pdf
-
-The different SSR data movers.
-    SNRT_SSR_DM0 = 0,
-    SNRT_SSR_DM1 = 1,
-    SNRT_SSR_DM2 = 2,
-"""
-ssr_dm = i32
-
-"""
-The different dimensions - those determine how many levels of nesting a loop can have, used in read and write operations.
-The snitch system handles cases with up to 4, but this can be extended.
-    SNRT_SSR_1D = 0,
-    SNRT_SSR_2D = 1,
-    SNRT_SSR_3D = 2,
-    SNRT_SSR_4D = 3,
-"""
-ssr_dim = i32
-
-
 class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     """
     Configure an SSR data mover for an n-dimensional loop nest.
@@ -452,7 +424,7 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     }
     """
 
-    data_mover: Operand = operand_def(ssr_dm)
+    data_mover: Operand = operand_def(i32)
     bounds: VarOperand = var_operand_def(IndexType)
     strides: VarOperand = var_operand_def(IndexType)
     irdl_options = [AttrSizedOperandSegments()]
@@ -540,16 +512,16 @@ class SsrRepeatOp(SnitchRuntimeBaseOperation, ABC):
     """
 
     name = "snrt.ssr_repeat"
-    dm: Operand = prop_def(IntegerAttr[ssr_dm])
+    dm: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
     count: Operand = operand_def(i32)
 
     def __init__(
         self,
-        dm: int | IntegerAttr,
+        dm: int | IntegerAttr[IntegerType],
         count: Operation | SSAValue,
     ):
         if isinstance(dm, int):
-            dm = IntegerAttr(dm, ssr_dm)
+            dm = IntegerAttr(dm, i32)
 
         super().__init__(operands=[count], properties={"dm": dm})
 
@@ -573,21 +545,21 @@ class SsrDisableOp(NoOperandNoResultBaseOperation):
 
 
 class SsrReadWriteBaseOperation(SnitchRuntimeBaseOperation, ABC):
-    dm: Operand = prop_def(IntegerAttr[ssr_dm])
-    dim: Operand = prop_def(IntegerAttr[ssr_dim])
+    dm: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
+    dim: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
     ptr: Operand = operand_def(i32)
 
     def __init__(
         self,
-        dm: int | IntegerAttr,
-        dim: int | IntegerAttr,
+        dm: int | IntegerAttr[IntegerType],
+        dim: int | IntegerAttr[IntegerType],
         ptr: Operation | SSAValue,
     ):
         if isinstance(dm, int):
-            dm = IntegerAttr(dm, ssr_dim)
+            dm = IntegerAttr(dm, i32)
 
         if isinstance(dim, int):
-            dim = IntegerAttr(dim, ssr_dim)
+            dim = IntegerAttr(dim, i32)
 
         super().__init__(
             operands=[ptr],
