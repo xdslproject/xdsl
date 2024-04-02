@@ -29,7 +29,7 @@ def test_visit_node_unknown_op_name():
         visit_node(node=node, ctx=ctx)
 
 
-def test_visit_node_add():
+def test_visit_graph_add():
     # initialize context
     ctx = Ctx()
 
@@ -71,7 +71,7 @@ def test_visit_node_add():
     )
 
 
-def test_visit_node_sub():
+def test_visit_graph_sub():
     # initialize context
     ctx = Ctx()
 
