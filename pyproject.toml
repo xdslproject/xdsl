@@ -45,12 +45,14 @@ enableTypeIgnoreComments = false
 typeCheckingMode = "strict"
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
+    "tests/dialects/test_memref.py",
+    "tests/frontend/onnx/test_context.py",
+    "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "tests/frontend/onnx/test_type.py",
-    "tests/dialects/test_memref.py",
-    "xdsl/interpreters/experimental/wgpu.py",
+    "xdsl/frontend/onnx/context.py",
     "xdsl/frontend/onnx/type.py",
+    "xdsl/interpreters/experimental/wgpu.py",
     "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
@@ -59,7 +61,7 @@ typeCheckingMode = "strict"
     "tests/filecheck/frontend/dialects/arith.py",
     "tests/filecheck/frontend/dialects/scf.py",
     "tests/filecheck/frontend/programs/invalid.py",
-    "xdsl/_version.py",
+    "xdsl/_version.py"
 ]
 
 [tool.isort]

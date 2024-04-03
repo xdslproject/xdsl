@@ -3,9 +3,9 @@ import pytest
 
 try:
     from onnx import (
-        TensorProto,  # noqa: E402
-        ValueInfoProto,  # noqa: E402
-        helper,  # noqa: E402
+        TensorProto,
+        ValueInfoProto,
+        helper,
     )
 
     from xdsl.frontend.onnx.context import (
