@@ -81,7 +81,6 @@ def test_visit_graph_add():
 
     # check expected generated ir
     gen_ir = ctx.value_by_name[keys[2]].owner
-    print(gen_ir)
     assert (
         str(gen_ir)
         == "%0 = onnx.Add(%1, %2) : (tensor<0x0xf32>, tensor<0x0xf32>) -> tensor<0x0xf32>"
@@ -132,7 +131,6 @@ def test_build_module():
 def test_visit_value_info():
     # initialize context
     ctx = OnnxXdslMapping()
-    print(ctx.type_by_name.keys())
 
     # create ValueInfoProto input tensor
     input_value_info = ValueInfoProto()
