@@ -305,7 +305,7 @@ def test_linalg_pooling_nchw_max():
     )
 
 
-def test_linalg_pooling_nchw_max_strides_2():
+def test_linalg_pooling_nchw_max_strides_two():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.PoolingNchwMaxOp(
