@@ -356,7 +356,7 @@ class ConvOpLowering(RewritePattern):
                     (conv.res.type,),
                 ),
                 linalg.AddOp(
-                    (conv.bias),
+                    (conv.bias,),
                     (conv_op.results[0],),
                     res=(conv.res.type,),
                 ),
