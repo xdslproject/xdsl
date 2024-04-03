@@ -204,7 +204,7 @@ class LowerDMAStart1DWidePtr(RewritePattern):
 class LowerDMAStart2DBase(RewritePattern, ABC):
     any_reg = riscv.IntRegisterType.unallocated()
 
-    def gen_insns(
+    def generate_dma_instructions(
         self,
         dst_low: SSAValue | Operation,
         dst_high: SSAValue | Operation,
@@ -215,11 +215,16 @@ class LowerDMAStart2DBase(RewritePattern, ABC):
         src_stride: SSAValue | Operation,
         repeat: SSAValue | Operation,
     ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
-        # dmsrc a0, a1
-        # dmdst a0, a1
-        # dmstr a5, a6
-        # dmrep a7
-        # dmcpyi a0, a4, 0b10
+        """
+        Common function to generate the following sequence of operations:
+            dmsrc %src_low, %src_high
+            dmdst %dst_low, %dst_high
+            dmstr %src_stride, %dst_stride
+            dmrep %repeat
+            %tx_id = dmcpyi %size, 0b10
+            %tx_id_i32 unrealized_conversion_cast %tx_id to i32
+        """
+
         return [
             riscv_snitch.DMSourceOp(src_low, src_high),
             riscv_snitch.DMDestinationOp(dst_low, dst_high),
@@ -230,9 +235,15 @@ class LowerDMAStart2DBase(RewritePattern, ABC):
         ], tx_id.results
 
     def cast_i32(self, input_val: SSAValue):
+        """
+        Cast an i32 to riscv registers
+        """
         return builtin.UnrealizedConversionCastOp.get([input_val], [self.any_reg])
 
     def cast_i64(self, input_val: SSAValue):
+        """
+        Cast an i64 to two riscv registers
+        """
         return builtin.UnrealizedConversionCastOp.get(
             [input_val], [self.any_reg, self.any_reg]
         )
@@ -243,6 +254,80 @@ class LowerDMAStart2DWideptr(LowerDMAStart2DBase):
     def match_and_rewrite(
         self, op: snitch_runtime.DmaStart2DWideptrOp, rewriter: PatternRewriter, /
     ):
+        """
+        Lowers to the equivalent of the snitch_runtime implementation:
+
+        inline snrt_dma_txid_t snrt_dma_start_2d_wideptr(uint64_t dst, uint64_t src,
+                                                         size_t size, size_t dst_stride,
+                                                         size_t src_stride,
+                                                         size_t repeat) {
+            // Current DMA does not allow transfers with size == 0 (blocks)
+            // TODO(colluca) remove this check once new DMA is integrated
+            if (size > 0) {
+                register uint32_t reg_dst_low asm("a0") = dst >> 0;       // 10
+                register uint32_t reg_dst_high asm("a1") = dst >> 32;     // 11
+                register uint32_t reg_src_low asm("a2") = src >> 0;       // 12
+                register uint32_t reg_src_high asm("a3") = src >> 32;     // 13
+                register uint32_t reg_size asm("a4") = size;              // 14
+                register uint32_t reg_dst_stride asm("a5") = dst_stride;  // 15
+                register uint32_t reg_src_stride asm("a6") = src_stride;  // 16
+                register uint32_t reg_repeat asm("a7") = repeat;          // 17
+
+                // dmsrc a0, a1
+                asm volatile(
+                    ".word (0b0000000 << 25) | \
+                        (     (13) << 20) | \
+                        (     (12) << 15) | \
+                        (    0b000 << 12) | \
+                        (0b0101011 <<  0)   \n" ::"r"(reg_src_high),
+                    "r"(reg_src_low));
+
+                // dmdst a0, a1
+                asm volatile(
+                    ".word (0b0000001 << 25) | \
+                        (     (11) << 20) | \
+                        (     (10) << 15) | \
+                        (    0b000 << 12) | \
+                        (0b0101011 <<  0)   \n" ::"r"(reg_dst_high),
+                    "r"(reg_dst_low));
+
+                // dmstr a5, a6
+                asm volatile(
+                    ".word (0b0000110 << 25) | \
+                        (     (15) << 20) | \
+                        (     (16) << 15) | \
+                        (    0b000 << 12) | \
+                        (0b0101011 <<  0)   \n"
+                    :
+                    : "r"(reg_dst_stride), "r"(reg_src_stride));
+
+                // dmrep a7
+                asm volatile(
+                    ".word (0b0000111 << 25) | \
+                        (     (17) << 15) | \
+                        (    0b000 << 12) | \
+                        (0b0101011 <<  0)   \n"
+                    :
+                    : "r"(reg_repeat));
+
+                // dmcpyi a0, a4, 0b10
+                register uint32_t reg_txid asm("a0");  // 10
+                asm volatile(
+                    ".word (0b0000010 << 25) | \
+                        (  0b00010 << 20) | \
+                        (     (14) << 15) | \
+                        (    0b000 << 12) | \
+                        (     (10) <<  7) | \
+                        (0b0101011 <<  0)   \n"
+                    : "=r"(reg_txid)
+                    : "r"(reg_size));
+
+                return reg_txid;
+            } else {
+                return -1;
+            }
+        }
+        """
         rewriter.insert_op_before_matched_op(
             [
                 dst := self.cast_i64(op.dst),
@@ -254,7 +339,7 @@ class LowerDMAStart2DWideptr(LowerDMAStart2DBase):
             ]
         )
         rewriter.replace_matched_op(
-            *self.gen_insns(
+            *self.generate_dma_instructions(
                 dst.results[0],
                 dst.results[1],
                 src.results[0],
@@ -272,8 +357,20 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
     def match_and_rewrite(
         self, op: snitch_runtime.DmaStart2DOp, rewriter: PatternRewriter, /
     ):
+        """
+        Lower to the equivalent snitch_runtime implementation:
+
+        /// Initiate an asynchronous 2D DMA transfer.
+        inline snrt_dma_txid_t snrt_dma_start_2d(void *dst, const void *src,
+                                                 size_t size, size_t dst_stride,
+                                                 size_t src_stride, size_t repeat) {
+            return snrt_dma_start_2d_wideptr((size_t)dst, (size_t)src, size, dst_stride,
+                                             src_stride, repeat);
+        }
+        """
         rewriter.insert_op_before_matched_op(
             [
+                # we use zero register for the ptr_high registers
                 zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
                 dst := self.cast_i32(op.dst),
                 src := self.cast_i32(op.src),
@@ -283,8 +380,9 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
                 repeat := self.cast_i32(op.size),
             ]
         )
+        # generate the dma setup instructions with `zero` for the ptr_high values
         rewriter.replace_matched_op(
-            *self.gen_insns(dst, zero, src, zero, size, dst_stride, src_stride, repeat)
+            *self.generate_dma_instructions(dst, zero, src, zero, size, dst_stride, src_stride, repeat)
         )
 
 
