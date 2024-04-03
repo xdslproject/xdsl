@@ -63,6 +63,50 @@ class LowerSSRDisable(RewritePattern):
         )
 
 
+class LowerDMAStart1D(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.DmaStart1DOp, rewriter: PatternRewriter, /
+    ):
+        """
+        Lowers to:
+
+        /// Initiate an asynchronous 1D DMA transfer.
+        inline snrt_dma_txid_t snrt_dma_start_1d(void *dst, const void *src,
+                                                size_t size) {
+            return snrt_dma_start_1d_wideptr((size_t)dst, (size_t)src, size);
+        }
+        """
+        reg_t = riscv.IntRegisterType.unallocated()
+        rewriter.replace_matched_op(
+            [
+                zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                # "Take a void* (assumed 32bit) and make it a 32 bit-wide RISC-V register"
+                i32_dst := builtin.UnrealizedConversionCastOp.get(
+                    [op.dst],
+                    [reg_t],
+                ),
+                # "Take a void* (assumed 32bit) and make it a 32 bit-wide RISC-V register"
+                i32_src := builtin.UnrealizedConversionCastOp.get(
+                    [op.src],
+                    [reg_t],
+                ),
+                # "Convert an IR-level i32 to a RISC-V register"
+                i32_size := builtin.UnrealizedConversionCastOp.get(
+                    [op.size],
+                    [reg_t],
+                ),
+                riscv_snitch.DMSourceOp(i32_src, zero),
+                riscv_snitch.DMDestinationOp(i32_dst, zero),
+                copy_imm := riscv_snitch.DMCopyImmOp(i32_size, 0),
+                tx_id := builtin.UnrealizedConversionCastOp.get(
+                    [copy_imm], [builtin.i32]
+                ),
+            ],
+            new_results=tx_id.results,
+        )
+
+
 class LowerDMAStart1DWidePtr(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -163,6 +207,7 @@ class ConvertSnrtToRISCV(ModulePass):
                 [
                     LowerClusterHWBarrier(),
                     LowerSSRDisable(),
+                    LowerDMAStart1D(),
                     LowerDMAStart1DWidePtr(),
                 ]
             )
