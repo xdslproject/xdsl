@@ -1,12 +1,11 @@
 import onnx
 import pytest
 
+from xdsl.builder import ImplicitBuilder
+from xdsl.dialects import func
+
 try:
-    from onnx import (
-        TensorProto,
-        ValueInfoProto,
-        helper,
-    )
+    from onnx import GraphProto, TensorProto, ValueInfoProto, helper
 
     from xdsl.frontend.onnx.context import (
         OnnxXdslMapping,
@@ -41,14 +40,24 @@ def test_visit_node_add():
     # initialize context
     ctx = OnnxXdslMapping()
 
-    # create graph composed only of one Add operation
-    graph, add_node = _create_graph_binary_op("Add", "add_graph")
+    # create graph composed only of one Sub operation
+    graph, sub_node = _create_graph_binary_op("Add", "add_graph")
 
-    # visit graph
-    visit_graph(graph, ctx)
+    # update context
+    _update_context(graph, ctx)
 
-    # visit node (test passes if no exceptions are raised)
-    visit_node(add_node, ctx)
+    # expected output before visinting the op node
+    expected_output_pre = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 0>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 0>}"""
+
+    assert str(ctx.value_by_name) == expected_output_pre
+
+    # visit node
+    visit_node(sub_node, ctx)
+
+    # expected output after visinting the op node
+    expected_output_post = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 1>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 1>, 'output': <OpResult[tensor<0x0xf32>] index: 0, operation: onnx.Add, uses: 0>}"""
+
+    assert str(ctx.value_by_name) == expected_output_post
 
 
 def test_visit_node_sub():
@@ -58,11 +67,21 @@ def test_visit_node_sub():
     # create graph composed only of one Sub operation
     graph, sub_node = _create_graph_binary_op("Sub", "sub_graph")
 
-    # visit graph
-    visit_graph(graph, ctx)
+    # update context
+    _update_context(graph, ctx)
 
-    # visit node (test passes if no exceptions are raised)
+    # expected output before visinting the op node
+    expected_output_pre = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 0>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 0>}"""
+
+    assert str(ctx.value_by_name) == expected_output_pre
+
+    # visit node
     visit_node(sub_node, ctx)
+
+    # expected output after visinting the op node
+    expected_output_post = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 1>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 1>, 'output': <OpResult[tensor<0x0xf32>] index: 0, operation: onnx.Sub, uses: 0>}"""
+
+    assert str(ctx.value_by_name) == expected_output_post
 
 
 def test_visit_graph_add():
@@ -191,3 +210,14 @@ def _create_graph_binary_op(op_name: str, graph_name: str):
     )
 
     return graph, op_node
+
+
+def _update_context(graph: GraphProto, ctx: OnnxXdslMapping):
+    name = graph.name
+    input_types = tuple(visit_value_info(input, ctx) for input in graph.input)
+    output_types = tuple(visit_value_info(output, ctx) for output in graph.output)
+
+    fn = func.FuncOp(name, (input_types, output_types))
+    with ImplicitBuilder(fn.body) as args:
+        for input, arg in zip(graph.input, args, strict=True):
+            ctx.value_by_name[input.name] = arg
