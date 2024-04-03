@@ -328,6 +328,42 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
         )
 
 
+@dataclass
+class ConvOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, conv: onnx.Conv, rewriter: PatternRewriter, /):
+
+        dilations = tuple(value.value.data for value in conv.dilations.data)
+        strides = tuple(value.value.data for value in conv.strides.data)
+
+        if conv.group.value.data != 1:
+            raise NotImplementedError("Only 1 group supported")
+
+        if not all(dilation == 1 for dilation in dilations):
+            raise NotImplementedError("Only 1 dilation supported")
+
+        rewriter.replace_matched_op(
+            (
+                empty := tensor.EmptyOp((), conv.res.type),
+                conv_op := linalg.Conv2DNchwFchwOp(
+                    DenseIntOrFPElementsAttr.tensor_from_list(dilations, i64, [2]),
+                    DenseIntOrFPElementsAttr.tensor_from_list(strides, i64, [2]),
+                    (
+                        conv.data,
+                        conv.weight,
+                    ),
+                    (empty.tensor,),
+                    (conv.res.type,),
+                ),
+                linalg.AddOp(
+                    (conv.bias, conv_op.results[0]),
+                    (empty.tensor,),
+                    res=(conv.res.type,),
+                ),
+            )
+        )
+
+
 @dataclass(frozen=True)
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
@@ -342,6 +378,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
                     ReshapeOpLowering(),
                     GemmOpLowering(),
                     MaxPoolSingleOutOpLowering(),
+                    ConvOpLowering(),
                 ]
             ),
             apply_recursively=False,
