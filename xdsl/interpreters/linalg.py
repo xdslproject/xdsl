@@ -172,7 +172,6 @@ class LinalgFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
 
         input, kernel_filter, res = args[0], args[1], args[2]
-        print(op.strides)
         assert isinstance(input, ShapedArray)
         assert isinstance(kernel_filter, ShapedArray)
         assert isinstance(res, ShapedArray)
@@ -192,6 +191,12 @@ class LinalgFunctions(InterpreterFunctions):
 
         ky, kx = kernel_filter.shape[0], kernel_filter.shape[1]
 
+        # convert input into a numpy like array
+        input_data = [
+            [input.data[r * m_width + c] for c in range(m_width)]
+            for r in range(m_height)
+        ]
+        print(input_data)
         output = [
             [[[0] * out_width for _ in range(out_height)] for _ in range(m_width)]
             for _ in range(m_height)
@@ -201,8 +206,6 @@ class LinalgFunctions(InterpreterFunctions):
             for l in range(input.shape[1]):
                 for i in range(0, m_height - ky + 1, strides[0]):
                     for j in range(0, m_width - kx + 1, strides[0]):
-                        output[k][l][i // strides[0]][j // strides[0]] = max(
-                            input.data[k][l][i : i + ky][j + kx]
-                        )
+                        output[k][l][i // strides[0]][j // strides[0]] = max(input_data)
 
-        print(output)
+        # print(output)
