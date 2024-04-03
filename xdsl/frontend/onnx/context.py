@@ -14,7 +14,7 @@ OP_BY_OP_TYPE: dict[str, type[IRDLOperation]] = {
 """Associate the name of the operations with the respective operation in ONNX dialect."""
 
 
-class Ctx:
+class OnnxXdslMapping:
     """The representation of the onnx context."""
 
     type_by_name: dict[str, Attribute]
@@ -25,7 +25,7 @@ class Ctx:
         self.value_by_name = {}
 
 
-def visit_node(node: NodeProto, ctx: Ctx) -> None:
+def visit_node(node: NodeProto, ctx: OnnxXdslMapping) -> None:
     """Update the onnx context with the current node of the onnx graph."""
     if node.op_type not in OP_BY_OP_TYPE:
         raise ValueError(f"Unknown ONNX op name {node.op_type}")
@@ -45,14 +45,14 @@ def build_module(graph: GraphProto) -> ModuleOp:
     """Create the ModuleOp based on the onnx graph provided."""
     module = ModuleOp([])
 
-    ctx = Ctx()
+    ctx = OnnxXdslMapping()
     with ImplicitBuilder(module.body):
         visit_graph(graph, ctx)
 
     return module
 
 
-def visit_graph(g: GraphProto, ctx: Ctx) -> None:
+def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> None:
     """Visit the onnx graph to update the onnx context."""
     name = g.name
 
@@ -72,7 +72,7 @@ def visit_graph(g: GraphProto, ctx: Ctx) -> None:
         func.Return(*returned_values)
 
 
-def visit_value_info(i: ValueInfoProto, ctx: Ctx) -> Attribute:
+def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
     """Given the onnx ValueInforProto, it returns the corresponding Attribute stored in the context."""
     name = i.name
     t = get_type(i.type)
