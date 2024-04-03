@@ -6,6 +6,7 @@ Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e
 [2] https://circt.llvm.org/docs/RationaleSymbols/
 """
 
+from abc import ABC
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
@@ -156,13 +157,10 @@ class InnerSymbolTableTrait(OpTrait):
                 f"Operation {op.name} must have trait {trait.__name__}"
             )
 
-        # InnerSymbolTable's must be directly nested within an InnerRefNamespaceTrait,
+        # InnerSymbolTable's must be directly nested within an InnerRefNamespaceTrait (or similar),
         # however don’t test InnerRefNamespace’s symbol lookups
         parent = op.parent_op()
-        if (
-            parent is None
-            or len(parent.get_traits_of_type(trait := InnerRefNamespaceTrait)) != 1
-        ):
+        if parent is None or not parent.has_trait(trait := InnerRefNamespaceLike):
             raise VerifyException(
                 f"Operation {op.name} with trait {type(self).__name__} must have a parent with trait {trait.__name__}"
             )
@@ -254,6 +252,16 @@ class InnerRefNamespaceTrait(OpTrait):
             inner_ref_user_op_trait = inner_op.get_trait(InnerRefUserOpInterfaceTrait)
             if inner_ref_user_op_trait is not None:
                 inner_ref_user_op_trait.verify_inner_refs(inner_op, namespace)
+
+
+class InnerRefNamespaceLike(ABC, OpTrait):
+    """Trait-metaclass to check whether an operation is explicitly an IRN or appears compatible."""
+
+    ...
+
+
+InnerRefNamespaceLike.register(SymbolTable)
+InnerRefNamespaceLike.register(InnerRefNamespaceTrait)
 
 
 @dataclass
@@ -624,12 +632,13 @@ class HWModuleOp(IRDLOperation):
 
     body: SingleBlockRegion = region_def("single_block")
 
-    # TODO: add InnerSymbolTableTrait (https://github.com/xdslproject/xdsl/issues/2402)
     traits = traits_def(
         lambda: frozenset(
             (
                 SymbolOpInterface(),
                 IsolatedFromAbove(),
+                InnerRefNamespaceTrait(),
+                SymbolTable(),
                 SingleBlockImplicitTerminator(OutputOp),
             )
         )
