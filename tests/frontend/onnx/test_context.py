@@ -9,7 +9,7 @@ try:
     )
 
     from xdsl.frontend.onnx.context import (
-        Ctx,  # noqa: E402
+        OnnxXdslMapping,
         build_module,  # noqa: E402
         visit_graph,  # noqa: E402
         visit_node,  # noqa: E402
@@ -32,14 +32,14 @@ def test_visit_node_unknown_op_name():
     node = helper.make_node(
         **node_attributes, inputs=["input1", "input2"], outputs=["output"]
     )
-    ctx = Ctx()
+    ctx = OnnxXdslMapping()
     with pytest.raises(ValueError, match="Unknown ONNX op name dummy_op"):
         visit_node(node=node, ctx=ctx)
 
 
 def test_visit_node_add():
     # initialize context
-    ctx = Ctx()
+    ctx = OnnxXdslMapping()
 
     # create graph composed only of one Add operation
     graph, add_node = _create_graph_binary_op("Add", "add_graph")
@@ -53,7 +53,7 @@ def test_visit_node_add():
 
 def test_visit_node_sub():
     # initialize context
-    ctx = Ctx()
+    ctx = OnnxXdslMapping()
 
     # create graph composed only of one Sub operation
     graph, sub_node = _create_graph_binary_op("Sub", "sub_graph")
@@ -67,7 +67,7 @@ def test_visit_node_sub():
 
 def test_visit_graph_add():
     # initialize context
-    ctx = Ctx()
+    ctx = OnnxXdslMapping()
 
     # create graph composed only of one Add operation
     graph, _ = _create_graph_binary_op("Add", "add_graph")
@@ -90,7 +90,7 @@ def test_visit_graph_add():
 
 def test_visit_graph_sub():
     # initialize context
-    ctx = Ctx()
+    ctx = OnnxXdslMapping()
 
     # create graph composed only of one Sub operation
     graph, _ = _create_graph_binary_op("Sub", "sub_graph")
@@ -131,7 +131,7 @@ def test_build_module():
 
 def test_visit_value_info():
     # initialize context
-    ctx = Ctx()
+    ctx = OnnxXdslMapping()
     print(ctx.type_by_name.keys())
 
     # create ValueInfoProto input tensor
