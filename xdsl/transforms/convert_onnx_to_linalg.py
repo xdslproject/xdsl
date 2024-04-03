@@ -343,7 +343,7 @@ class ConvOpLowering(RewritePattern):
         if not all(dilation == 1 for dilation in dilations):
             raise NotImplementedError("Only 1 dilation supported")
 
-        empty = (tensor.EmptyOp((), conv.res.type),)
+        empty = tensor.EmptyOp((), conv.res.type)
         conv_op = linalg.Conv2DNchwFchwOp(
             DenseIntOrFPElementsAttr.tensor_from_list(dilations, i64, [2]),
             DenseIntOrFPElementsAttr.tensor_from_list(strides, i64, [2]),
@@ -354,37 +354,18 @@ class ConvOpLowering(RewritePattern):
             (empty.tensor,),
             (conv.res.type,),
         )
-        rewriter.insert_op_before_matched_op([empty, conv_op])
+        conv_ops = (
+            empty,
+            conv_op,
+        )
         if not isinstance(conv.bias.type, NoneType):
-            linalg.AddOp(
+            add_bias = linalg.AddOp(
                 (conv.bias,),
                 (conv_op.results[0],),
                 res=(conv.res.type,),
             )
-            # rewriter.replace_matched_op(
-            #
-            # )
-
-        # rewriter.replace_matched_op(
-        #     (
-        #         empty := tensor.EmptyOp((), conv.res.type),
-        #         conv_op := linalg.Conv2DNchwFchwOp(
-        #             DenseIntOrFPElementsAttr.tensor_from_list(dilations, i64, [2]),
-        #             DenseIntOrFPElementsAttr.tensor_from_list(strides, i64, [2]),
-        #             (
-        #                 conv.data,
-        #                 conv.weight,
-        #             ),
-        #             (empty.tensor,),
-        #             (conv.res.type,),
-        #         ),
-        #         linalg.AddOp(
-        #             (conv.bias,),
-        #             (conv_op.results[0],),
-        #             res=(conv.res.type,),
-        #         ),
-        #     )
-        # )
+            conv_ops.append(add_bias)
+        rewriter.replace_matched_op(conv_ops)
 
 
 @dataclass(frozen=True)
