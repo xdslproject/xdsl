@@ -55,9 +55,9 @@ well as examples of implementing custom compilers, like a database compiler.
 There also exists a small documentation showing how to connect xDSL with MLIR
 for users interested in that use case.
 
-- [A Database example](https://xdsl.dev/xdsl/retro/notebooks/?path=database_example.ipynb)
-- [A simple introduction](https://xdsl.dev/xdsl/retro/notebooks/?path=tutorial.ipynb)
-- [A DSL for defining new IRs](https://xdsl.dev/xdsl/retro/notebooks/?path=irdl.ipynb)
+- [A Database example](https://xdsl.dev/xdsl/lab/index.html?path=database_example.ipynb)
+- [A simple introduction](https://xdsl.dev/xdsl/lab/index.html?path=tutorial.ipynb)
+- [A DSL for defining new IRs](https://xdsl.dev/xdsl/lab/index.html?path=irdl.ipynb)
 - [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
 
 We provide a Makefile containing a lot of common tasks, which might provide
