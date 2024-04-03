@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from enum import auto
 from typing import cast
@@ -13,6 +14,7 @@ from xdsl.dialects.builtin import (
     AnyTensorType,
     ArrayAttr,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     IntegerType,
     MemRefType,
     ShapedType,
@@ -420,6 +422,10 @@ class FillOp(IRDLOperation):
     """
     Fills the output tensor with the given value.
 
+    Works for arbitrary ranked output tensors since the operation performs scalar accesses
+    only and is thus rank polymorphic. Numeric casting is performed on the value operand,
+    promoting it to the same data type as the output.
+
     See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgfill-linalgfillop
     """
 
@@ -432,7 +438,7 @@ class FillOp(IRDLOperation):
 
     assembly_format = (
         "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+        "`outs` `(` $outputs `:` type($outputs) `)` (`->` type($res)^)? attr-dict"
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
@@ -644,6 +650,108 @@ class MatmulOp(IRDLOperation):
         )
 
 
+class PoolingOpsBase(IRDLOperation, ABC):
+    """Base class for linalg pooling operations."""
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "attr-dict `ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res)"
+    )
+
+    strides = attr_def(DenseIntOrFPElementsAttr)
+    dilations = attr_def(DenseIntOrFPElementsAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        dilations: Attribute,
+        strides: Attribute,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            attributes={
+                "dilations": dilations,
+                "strides": strides,
+            },
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
+@irdl_op_definition
+class PoolingNchwMaxOp(PoolingOpsBase):
+    """
+    Performs max pooling
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgpooling_nchw_max-linalgpoolingnchwmaxop
+    """
+
+    name = "linalg.pooling_nchw_max"
+
+
+class ConvOpsBase(IRDLOperation, ABC):
+    """Base class for linalg convolution operations."""
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "attr-dict `ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res)"
+    )
+
+    strides = attr_def(DenseIntOrFPElementsAttr)
+    dilations = attr_def(DenseIntOrFPElementsAttr)
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        dilations: Attribute,
+        strides: Attribute,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            attributes={
+                "dilations": dilations,
+                "strides": strides,
+            },
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
+@irdl_op_definition
+class Conv2DNchwFchwOp(ConvOpsBase):
+    """
+    Performs 2-D convolution
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgconv_2d_nchw_fchw-linalgconv2dnchwfchwop
+    """
+
+    name = "linalg.conv_2d_nchw_fchw"
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -654,6 +762,8 @@ Linalg = Dialect(
         MulOp,
         TransposeOp,
         MatmulOp,
+        PoolingNchwMaxOp,
+        Conv2DNchwFchwOp,
     ],
     [
         IteratorTypeAttr,

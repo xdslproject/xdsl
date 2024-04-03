@@ -10,7 +10,7 @@ from typing import IO, ClassVar
 from riscemu.core import Instruction, Int32
 from riscemu.instructions.instruction_set import InstructionSet
 
-from xdsl.interpreters.riscv import RawPtr
+from xdsl.interpreters.ptr import RawPtr
 
 
 # Define a RISC-V ISA extension by subclassing InstructionSet

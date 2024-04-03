@@ -14,15 +14,20 @@ from xdsl.utils.exceptions import ParseError
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
+    def get_affine():
+        from xdsl.dialects.affine import Affine
+
+        return Affine
+
     def get_aie():
         from xdsl.dialects.experimental.aie import AIE
 
         return AIE
 
-    def get_affine():
-        from xdsl.dialects.affine import Affine
+    def get_air():
+        from xdsl.dialects.experimental.air import AIR
 
-        return Affine
+        return AIR
 
     def get_arith():
         from xdsl.dialects.arith import Arith
@@ -239,9 +244,15 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Vector
 
+    def get_x86():
+        from xdsl.dialects.x86 import X86
+
+        return X86
+
     return {
-        "aie": get_aie,
         "affine": get_affine,
+        "aie": get_aie,
+        "air": get_air,
         "arith": get_arith,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
@@ -285,6 +296,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "tensor": get_tensor,
         "test": get_test,
         "vector": get_vector,
+        "x86": get_x86,
     }
 
 
@@ -340,6 +352,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import constant_fold_interp
 
         return constant_fold_interp.ConstantFoldInterpPass
+
+    def get_convert_snrt_to_riscv():
+        from xdsl.transforms import snrt_to_riscv_asm
+
+        return snrt_to_riscv_asm.ConvertSnrtToRISCV
 
     def get_convert_stencil_to_ll_mlir():
         from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
@@ -528,10 +545,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_unroll.StencilUnrollPass
 
-    def get_test_lower_linalg_to_snitch():
-        from xdsl.transforms import test_lower_linalg_to_snitch
+    def get_test_lower_snitch_stream_to_asm():
+        from xdsl.transforms import test_lower_snitch_stream_to_asm
 
-        return test_lower_linalg_to_snitch.TestLowerSnitchStreamToAsm
+        return test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm
 
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -553,6 +570,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "convert-snrt-to-riscv-asm": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
@@ -581,7 +599,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-unroll": get_stencil_unroll,
-        "test-lower-snitch-stream-to-asm": get_test_lower_linalg_to_snitch,
+        "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
     }
 
 

@@ -1,4 +1,4 @@
-// RUN: xdsl-run --wgpu %s | filecheck %s
+// RUN: xdsl-run --wgpu --index-bitwidth=32 %s | filecheck %s
 
 builtin.module attributes {gpu.container_module} {
   "gpu.module"() ({

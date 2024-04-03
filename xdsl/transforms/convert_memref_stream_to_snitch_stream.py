@@ -106,11 +106,9 @@ class StreamOpLowering(RewritePattern):
             for map, shape in zip(op.indexing_maps, shapes, strict=True)
         )
         bounds = tuple(bound.data for bound in op.bounds)
-        # snitch_stream stride patterns are from innermost out
-        # TODO: make consistent
         stride_patterns = tuple(
             snitch_stream.StridePattern.from_bounds_and_strides(
-                bounds[: len(strides)][::-1], strides[::-1]
+                bounds[: len(strides)], strides
             ).simplified()
             for strides in all_strides
         )

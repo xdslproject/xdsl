@@ -147,7 +147,6 @@ def test_inline_block_at_end():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   "test.op"() ({
-  ^0:
   }) : () -> ()
   %1 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
