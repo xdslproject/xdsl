@@ -1,8 +1,13 @@
 import onnx
 import pytest
-from onnx import TensorProto, ValueInfoProto, helper
 
 try:
+    from onnx import (
+        TensorProto,  # noqa: E402
+        ValueInfoProto,  # noqa: E402
+        helper,  # noqa: E402
+    )
+
     from xdsl.frontend.onnx.context import (
         Ctx,  # noqa: E402
         build_module,  # noqa: E402
