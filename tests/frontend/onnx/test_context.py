@@ -10,10 +10,10 @@ try:
 
     from xdsl.frontend.onnx.context import (
         OnnxXdslMapping,
-        build_module,  # noqa: E402
-        visit_graph,  # noqa: E402
-        visit_node,  # noqa: E402
-        visit_value_info,  # noqa: E402
+        build_module,
+        visit_graph,
+        visit_node,
+        visit_value_info,
     )
 except ImportError as exc:
     print(exc)
