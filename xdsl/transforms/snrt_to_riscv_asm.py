@@ -160,6 +160,10 @@ class ConvertSnrtToRISCV(ModulePass):
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [LowerClusterHWBarrier(), LowerSSRDisable(), LowerDMAStart1DWidePtr(),]
+                [
+                    LowerClusterHWBarrier(),
+                    LowerSSRDisable(),
+                    LowerDMAStart1DWidePtr(),
+                ]
             )
         ).rewrite_module(op)
