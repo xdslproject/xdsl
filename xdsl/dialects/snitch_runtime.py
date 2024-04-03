@@ -312,7 +312,9 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
     T = Annotated[Attribute, ConstraintVar("T"), _T]
     dst: Operand = operand_def(_T)
     src: Operand = operand_def(_T)
-    size: Operand = operand_def(IndexType)
+    # Pylance was complaining about the below.
+    # size: Operand = operand_def(Annotated[Attribute, i32])
+    size: Operand = operand_def(i32)
     transfer_id: OpResult = result_def(tx_id)
 
     def __init__(
