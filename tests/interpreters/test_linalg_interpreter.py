@@ -278,18 +278,19 @@ def test_linalg_pooling_nchw_max():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     op = linalg.PoolingNchwMaxOp(
-        DenseIntOrFPElementsAttr.tensor_from_list(1, i64, [2]),
-        DenseIntOrFPElementsAttr.tensor_from_list(1, i64, [2]),
+        DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
+        DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
         (
             TestSSAValue(TensorType(f32, [1, 1, 4, 4])),
             TestSSAValue(TensorType(f32, [2, 2])),
         ),
         (TestSSAValue(TensorType(f32, [1, 1, 3, 3])),),
-        TensorType(f32, [1, 1, 3, 3]),
+        (TensorType(f32, [1, 1, 3, 3]),),
     )
     a = ShapedArray(TypedPtr.new_float32(range(1, 17)), [1, 1, 4, 4])
     b = ShapedArray(TypedPtr.new_float32([1, 1, 1, 1]), [2, 2])
-    (b,) = interpreter.run_op(op, (a,))
+    c = ShapedArray(TypedPtr.new_float32([0.0] * 9), [1, 1, 3, 3])
+    (b,) = interpreter.run_op(op, (a, b, c))
     assert b == ShapedArray(
         TypedPtr.new_float32([6, 7, 8, 10, 11, 12, 14, 15, 16]), [1, 1, 3, 3]
     )

@@ -172,6 +172,7 @@ class LinalgFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
 
         input, kernel_filter, res = args[0], args[1], args[2]
+        print(op.strides)
         assert isinstance(input, ShapedArray)
         assert isinstance(kernel_filter, ShapedArray)
         assert isinstance(res, ShapedArray)
@@ -182,24 +183,24 @@ class LinalgFunctions(InterpreterFunctions):
 
         strides_shape = op.strides.get_shape()
         strides = tuple(value.value.data for value in op.strides.data)
-        if len(strides_shape) != 2:
+        if strides_shape[0] != 2:
             raise NotImplementedError("Only 2d max pooling supported")
 
         m_height, m_width = input.shape[2:]
-        out_height = int((m_height - kernel_filter.shape[2]) // strides[0] + 1)
-        out_width = int((m_width - kernel_filter.shape[3]) // strides[0] + 1)
+        out_height = int((m_height - kernel_filter.shape[0]) // strides[0] + 1)
+        out_width = int((m_width - kernel_filter.shape[1]) // strides[0] + 1)
 
         ky, kx = kernel_filter.shape[0], kernel_filter.shape[1]
 
         output = [
             [[[0] * out_width for _ in range(out_height)] for _ in range(m_width)]
-            for _ in range(m_height[0])
+            for _ in range(m_height)
         ]
 
         for k in range(input.shape[0]):
             for l in range(input.shape[1]):
                 for i in range(0, m_height - ky + 1, strides[0]):
-                    for j in range(0, m_width - kx + 1, strides[1]):
+                    for j in range(0, m_width - kx + 1, strides[0]):
                         output[k][l][i // strides[0]][j // strides[0]] = max(
                             input.data[k][l][i : i + ky][j + kx]
                         )
