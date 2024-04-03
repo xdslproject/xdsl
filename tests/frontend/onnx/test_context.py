@@ -117,12 +117,16 @@ def test_build_module():
     module = build_module(graph)
 
     # define expected output
-    expected = """builtin.module {
+    expected = """
+builtin.module {
   func.func @add_graph(%0 : tensor<0x0xf32>, %1 : tensor<0x0xf32>) -> tensor<0x0xf32> {
     %2 = onnx.Add(%0, %1) : (tensor<0x0xf32>, tensor<0x0xf32>) -> tensor<0x0xf32>
     func.return %2 : tensor<0x0xf32>
   }
 }"""
+
+    # remove first new line
+    expected = expected[1:]
 
     # check output
     assert str(module) == expected
