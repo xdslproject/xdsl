@@ -354,9 +354,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return constant_fold_interp.ConstantFoldInterpPass
 
     def get_convert_snrt_to_riscv():
-        from xdsl.transforms import snrt_to_riscv_asm
+        from xdsl.transforms import convert_snrt_to_riscv
 
-        return snrt_to_riscv_asm.ConvertSnrtToRISCV
+        return convert_snrt_to_riscv.ConvertSnrtToRISCV
 
     def get_convert_stencil_to_ll_mlir():
         from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
@@ -364,9 +364,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass
 
     def get_convert_riscv_scf_to_riscv_cf():
-        from xdsl.backend.riscv.lowering import (
-            convert_riscv_scf_to_riscv_cf,
-        )
+        from xdsl.backend.riscv.lowering import convert_riscv_scf_to_riscv_cf
 
         return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
 
@@ -570,7 +568,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
-        "convert-snrt-to-riscv-asm": get_convert_snrt_to_riscv,
+        "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
