@@ -80,7 +80,8 @@
 // CHECK-NEXT:  %t20, %t21, %t22 = "test.op"() : () -> (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
 // CHECK-NEXT:  %res_conv_2 = tensor.empty() : tensor<1x1x3x3xf32>
 // CHECK-NEXT:  %res_conv_2_1 = linalg.conv_2d_nchw_fchw {"dilations" = dense<1> : tensor<2xi64>, "strides" = dense<1> : tensor<2xi64>} ins(%t20, %t21 : tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>) outs(%res_conv_2 : tensor<1x1x3x3xf32>) -> tensor<1x1x3x3xf32>
-// CHECK-NEXT:  %res_conv_2_2 = linalg.add ins(%t22, %res_conv_2_1 : none, tensor<1x1x3x3xf32>) outs(%res_conv_2 : tensor<1x1x3x3xf32>) -> tensor<1x1x3x3xf32>
+// CHECK-NEXT:  %res_conv_2_2 = linalg.add ins(%t22 : none) outs(%res_conv_2_1 : tensor<1x1x3x3xf32>) -> tensor<1x1x3x3xf32>
+
 
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
