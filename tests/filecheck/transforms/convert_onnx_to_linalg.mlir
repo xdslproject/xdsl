@@ -81,6 +81,13 @@
 // CHECK-NEXT:  %res_conv_2 = tensor.empty() : tensor<1x1x3x3xf32>
 // CHECK-NEXT:  %res_conv_2_1 = linalg.conv_2d_nchw_fchw {"dilations" = dense<1> : tensor<2xi64>, "strides" = dense<1> : tensor<2xi64>} ins(%t20, %t21 : tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>) outs(%res_conv_2 : tensor<1x1x3x3xf32>) -> tensor<1x1x3x3xf32>
 
+%t23, %t24, %t25 = "test.op"() : () -> (tensor<1x8x14x14xf32>, tensor<16x8x5x5xf32>, tensor<16xf32>)
+%res_conv_3 = "onnx.Conv"(%t23, %t24, %t25) {onnx_node_name = "/Conv", "auto_pad" = "SAME_UPPER", "group" = 1 : i64, "kernel_shape" = [5 : i64, 5 : i64], "dilations" = [1 : i64, 1 : i64], "strides" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0: i64, 0 : i64]} : (tensor<1x8x14x14xf32>, tensor<16x8x5x5xf32>, tensor<16xf32>) -> tensor<1x16x14x14xf32>
+
+// CHECK-NEXT:   %t23, %t24, %t25 = "test.op"() : () -> (tensor<1x8x14x14xf32>, tensor<16x8x5x5xf32>, tensor<16xf32>)
+// CHECK-NEXT:   %res_conv_3 = tensor.empty() : tensor<1x16x14x14xf32>
+// CHECK-NEXT:   %res_conv_3_1 = linalg.conv_2d_nchw_fchw {"dilations" = dense<1> : tensor<2xi64>, "strides" = dense<1> : tensor<2xi64>} ins(%t23, %t24 : tensor<1x8x14x14xf32>, tensor<16x8x5x5xf32>) outs(%res_conv_3 : tensor<1x16x14x14xf32>) -> tensor<1x16x14x14xf32>
+// CHECK-NEXT:   %res_conv_3_2 = linalg.add ins(%t25 : tensor<16xf32>) outs(%res_conv_3_1 : tensor<1x16x14x14xf32>) -> tensor<1x16x14x14xf32>
 
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
