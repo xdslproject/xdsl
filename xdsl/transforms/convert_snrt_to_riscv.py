@@ -382,7 +382,16 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
         )
         # generate the dma setup instructions with `zero` for the ptr_high values
         rewriter.replace_matched_op(
-            *self.generate_dma_instructions(dst, zero, src, zero, size, dst_stride, src_stride, repeat)
+            *self.generate_dma_instructions(
+                dst,
+                zero,
+                src,
+                zero,
+                size,
+                dst_stride,
+                src_stride,
+                repeat,
+            )
         )
 
 
