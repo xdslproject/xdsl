@@ -20,7 +20,7 @@ from xdsl.ir import Block, Region
 from xdsl.transforms import (
     canonicalize,
     individual_rewrite,
-    test_lower_linalg_to_snitch,
+    test_lower_snitch_stream_to_asm,
 )
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
@@ -330,7 +330,7 @@ async def test_rewrites():
                 ),
                 AvailablePass(
                     display_name="test-lower-snitch-stream-to-asm",
-                    module_pass=test_lower_linalg_to_snitch.TestLowerSnitchStreamToAsm,
+                    module_pass=test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm,
                     pass_spec=None,
                 ),
                 AvailablePass(

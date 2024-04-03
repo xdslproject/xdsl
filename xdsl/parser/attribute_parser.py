@@ -606,7 +606,7 @@ class AttrParser(BaseParser):
             self.parse_optional_builtin_int_or_float_attr,
             self._parse_optional_array_attr,
             self._parse_optional_symref_attr,
-            self._parse_optional_location,
+            self.parse_optional_location,
             self._parse_optional_builtin_dict_attr,
             self.parse_optional_type,
             self._parse_optional_builtin_parametrized_attr,
@@ -1079,7 +1079,7 @@ class AttrParser(BaseParser):
 
         return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
-    def _parse_optional_location(self) -> LocationAttr | None:
+    def parse_optional_location(self) -> LocationAttr | None:
         """
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`

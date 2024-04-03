@@ -4,13 +4,13 @@ import pytest
 from xdsl.dialects.builtin import Float32Type, TensorType, f32, f64
 
 try:
-    from onnx import TensorShapeProto, TypeProto  # noqa: E402
+    from onnx import TensorShapeProto, TypeProto
 
     from xdsl.frontend.onnx.type import (
-        get_elem_type,  # noqa: E402
-        get_shape,  # noqa: E402
-        get_tensor_type,  # noqa: E402
-        get_type,  # noqa: E402
+        get_elem_type,
+        get_shape,
+        get_tensor_type,
+        get_type,
     )
     from xdsl.utils.hints import isa
 except ImportError as exc:

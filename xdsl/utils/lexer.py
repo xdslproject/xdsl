@@ -506,7 +506,9 @@ class Lexer:
             f"Unexpected character: {current_char}",
         )
 
-    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")
+    IDENTIFIER_SUFFIX = r"[a-zA-Z0-9_$.]*"
+    bare_identifier_regex = re.compile(r"[a-zA-Z_]" + IDENTIFIER_SUFFIX)
+    bare_identifier_suffix_regex = re.compile(IDENTIFIER_SUFFIX)
 
     def _lex_bare_identifier(self, start_pos: Position) -> Token:
         """

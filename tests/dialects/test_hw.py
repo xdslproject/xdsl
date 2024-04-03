@@ -120,12 +120,12 @@ def test_inner_symbol_table_interface():
     no_trait_circ = TestOp(regions=[[mod_no_trait_circ, OutputOp()]])
     with pytest.raises(
         VerifyException,
-        match="Operation module with trait InnerSymbolTableTrait must have a parent with trait InnerRefNamespaceTrait",
+        match="Operation module with trait InnerSymbolTableTrait must have a parent with trait InnerRefNamespaceLike",
     ):
         mod_no_trait_circ.verify()
     with pytest.raises(
         VerifyException,
-        match="Operation module with trait InnerSymbolTableTrait must have a parent with trait InnerRefNamespaceTrait",
+        match="Operation module with trait InnerSymbolTableTrait must have a parent with trait InnerRefNamespaceLike",
     ):
         no_trait_circ.verify()
 

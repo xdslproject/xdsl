@@ -1,4 +1,3 @@
-from enum import Enum
 from math import prod
 from typing import Any, cast
 
@@ -10,21 +9,11 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
+from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir import Attribute
 from xdsl.traits import SymbolTable
-from xdsl.utils.exceptions import InterpretationError
-
-
-class MemrefValue(Enum):
-    Uninitialized = 1
-    """
-    A value marking areas of a memref that are uninitialized.
-    """
-    Deallocated = 2
-    """
-    Marks a memref as deallocated (freed).
-    """
 
 
 @register_impls
@@ -37,18 +26,17 @@ class MemrefFunctions(InterpreterFunctions):
 
         shape = memref_type.get_shape()
         size = prod(shape)
-        data = [MemrefValue.Uninitialized] * size
+        xtype = xtype_for_el_type(
+            memref_type.get_element_type(), interpreter.index_bitwidth
+        )
 
-        shaped_array = ShapedArray(data, list(shape))
+        shaped_array = ShapedArray(TypedPtr.zeros(size, xtype=xtype), list(shape))
         return (shaped_array,)
 
     @impl(memref.Dealloc)
     def run_dealloc(
         self, interpreter: Interpreter, op: memref.Dealloc, args: PythonValues
     ) -> PythonValues:
-        (shaped_array,) = args
-        for i in range(len(shaped_array.data)):
-            shaped_array.data[i] = MemrefValue.Deallocated
         return ()
 
     @impl(memref.Store)
@@ -75,14 +63,6 @@ class MemrefFunctions(InterpreterFunctions):
         indices = tuple(indices)
         value = shaped_array.load(indices)
 
-        if isinstance(value, MemrefValue):
-            state = (
-                "uninitialized" if value == MemrefValue.Uninitialized else "deallocated"
-            )
-            raise InterpretationError(
-                f"Cannot load {state} value from memref {shaped_array}"
-            )
-
         return (value,)
 
     @impl(memref.GetGlobal)
@@ -99,5 +79,8 @@ class MemrefFunctions(InterpreterFunctions):
         data = [el.value.data for el in initial_value.data]
         shape = initial_value.get_shape()
         assert shape is not None
-        shaped_array = ShapedArray(data, list(shape))
+        xtype = xtype_for_el_type(
+            initial_value.get_element_type(), interpreter.index_bitwidth
+        )
+        shaped_array = ShapedArray(TypedPtr.new(data, xtype=xtype), list(shape))
         return (shaped_array,)

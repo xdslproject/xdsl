@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.interpreter import Interpreter
+from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 
@@ -26,4 +27,4 @@ def test_values():
         DenseIntOrFPElementsAttr.create_dense_int(
             TensorType(i32, [2, 3]), list(range(6))
         )
-    ) == ShapedArray(list(range(6)), [2, 3])
+    ) == ShapedArray(ptr.TypedPtr.new_int32(list(range(6))), [2, 3])
