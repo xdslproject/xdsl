@@ -306,9 +306,11 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
             (
                 empty := tensor.EmptyOp((), kernel_shape),
                 init := tensor.EmptyOp((), max_pool_single_out.output.type),
-                zero := arith.Constant(FloatAttr(-1e308, f64)),
+                # Since we're unable to represent +/- infinity,
+                # we currently use the maximum value by sys
+                cst := arith.Constant(FloatAttr(-1e308, f64)),
                 fill := linalg.FillOp(
-                    (zero.result,),
+                    (cst.result,),
                     (init.tensor,),
                     (max_pool_single_out.output.type,),
                 ),
