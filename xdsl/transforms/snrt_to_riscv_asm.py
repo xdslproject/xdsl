@@ -1,6 +1,9 @@
+from abc import ABC
+from typing import Sequence
+
 from xdsl.dialects import builtin, riscv, riscv_snitch, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.ir import MLContext
+from xdsl.ir import MLContext, SSAValue, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -198,6 +201,91 @@ class LowerDMAStart1DWidePtr(RewritePattern):
         )
 
 
+class LowerDMAStart2DBase(RewritePattern, ABC):
+    any_reg = riscv.IntRegisterType.unallocated()
+
+    def gen_insns(
+        self,
+        dst_low: SSAValue | Operation,
+        dst_high: SSAValue | Operation,
+        src_low: SSAValue | Operation,
+        src_high: SSAValue | Operation,
+        size: SSAValue | Operation,
+        dst_stride: SSAValue | Operation,
+        src_stride: SSAValue | Operation,
+        repeat: SSAValue | Operation,
+    ) -> tuple[Sequence[Operation], SSAValue]:
+        # dmsrc a0, a1
+        # dmdst a0, a1
+        # dmstr a5, a6
+        # dmrep a7
+        # dmcpyi a0, a4, 0b10
+        return [
+            riscv_snitch.DMSourceOp(src_low, src_high),
+            riscv_snitch.DMDestinationOp(dst_low, dst_high),
+            riscv_snitch.DMStrideOp(src_stride, dst_stride),
+            riscv_snitch.DMRepOp(repeat),
+            cpy_op := riscv_snitch.DMCopyImmOp(size, 0b10)
+        ], cpy_op.dest
+
+    def cast_i32(self, input_val: SSAValue):
+        return builtin.UnrealizedConversionCastOp.get(
+            [input_val],
+            [self.any_reg]
+        )
+    def cast_i64(self, input_val: SSAValue):
+        return builtin.UnrealizedConversionCastOp.get(
+            [input_val],
+            [self.any_reg, self.any_reg]
+        )
+
+class LowerDMAStart2DWideptr(LowerDMAStart2DBase):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: snitch_runtime.DmaStart2DWideptrOp, rewriter: PatternRewriter, /):
+        rewriter.insert_op_before_matched_op([
+            dst := self.cast_i64(op.dst),
+            src := self.cast_i64(op.src),
+            src_stride := self.cast_i32(op.src_stride),
+            dst_stride := self.cast_i32(op.dst_stride),
+            size := self.cast_i32(op.size),
+            repeat := self.cast_i32(op.size),
+        ])
+        rewriter.replace_matched_op(
+            *self.gen_insns(
+                dst.results[0], dst.results[1],
+                src.results[0], src.results[1],
+                size,
+                dst_stride,
+                src_stride,
+                repeat
+            )
+        )
+
+
+class LowerDMAStart2D(LowerDMAStart2DBase):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: snitch_runtime.DmaStart2DWideptrOp, rewriter: PatternRewriter, /):
+        rewriter.insert_op_before_matched_op([
+            zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+            dst := self.cast_i32(op.dst),
+            src := self.cast_i32(op.src),
+            src_stride := self.cast_i32(op.src_stride),
+            dst_stride := self.cast_i32(op.dst_stride),
+            size := self.cast_i32(op.size),
+            repeat := self.cast_i32(op.size),
+        ])
+        rewriter.replace_matched_op(
+            *self.gen_insns(
+                dst, zero,
+                src, zero,
+                size,
+                dst_stride,
+                src_stride,
+                repeat
+            )
+        )
+
+
 class ConvertSnrtToRISCV(ModulePass):
     name = "convert-snrt-to-riscv-asm"
 
@@ -209,6 +297,8 @@ class ConvertSnrtToRISCV(ModulePass):
                     LowerSSRDisable(),
                     LowerDMAStart1D(),
                     LowerDMAStart1DWidePtr(),
+                    LowerDMAStart2D(),
+                    LowerDMAStart2DWideptr(),
                 ]
             )
         ).rewrite_module(op)
