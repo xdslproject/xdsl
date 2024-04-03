@@ -364,7 +364,7 @@ class ConvOpLowering(RewritePattern):
                 (conv_op.results[0],),
                 res=(conv.res.type,),
             )
-            conv_ops.append(add_bias)
+            conv_ops += (add_bias,)
         rewriter.replace_matched_op(conv_ops)
 
 
