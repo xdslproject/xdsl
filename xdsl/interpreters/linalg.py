@@ -2,6 +2,7 @@ from itertools import product
 from typing import Any, cast
 
 from xdsl.dialects import linalg
+from xdsl.dialects.builtin import TensorType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -170,7 +171,6 @@ class LinalgFunctions(InterpreterFunctions):
         op: linalg.PoolingNchwMaxOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-
         input, kernel_filter, res = args[0], args[1], args[2]
         assert isinstance(input, ShapedArray)
         assert isinstance(kernel_filter, ShapedArray)
@@ -180,15 +180,14 @@ class LinalgFunctions(InterpreterFunctions):
         res = cast(ShapedArray[float], res)
         assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
 
-        strides_shape = op.strides.get_shape()
+        strides_type = op.strides.type
+        assert isinstance(strides_type, TensorType)
+        (strides_shape,) = strides_type.get_shape()
         strides = tuple(value.value.data for value in op.strides.data)
-        if strides_shape[0] != 2:
+        if strides_shape != 2:
             raise NotImplementedError("Only 2d max pooling supported")
 
         m_height, m_width = input.shape[2:]
-        out_height = int((m_height - kernel_filter.shape[0]) // strides[0] + 1)
-        out_width = int((m_width - kernel_filter.shape[1]) // strides[0] + 1)
-
         ky, kx = kernel_filter.shape[0], kernel_filter.shape[1]
 
         # convert input into a numpy like array
@@ -196,16 +195,17 @@ class LinalgFunctions(InterpreterFunctions):
             [input.data[r * m_width + c] for c in range(m_width)]
             for r in range(m_height)
         ]
-        print(input_data)
-        output = [
-            [[[0] * out_width for _ in range(out_height)] for _ in range(m_width)]
-            for _ in range(m_height)
-        ]
 
-        for k in range(input.shape[0]):
-            for l in range(input.shape[1]):
-                for i in range(0, m_height - ky + 1, strides[0]):
-                    for j in range(0, m_width - kx + 1, strides[0]):
-                        output[k][l][i // strides[0]][j // strides[0]] = max(input_data)
-
-        # print(output)
+        output: list[float] = []
+        for k in range(0, m_height - ky + 1, int(strides[0])):
+            for l in range(0, m_width - kx + 1, int(strides[0])):
+                block_max_value = float("-inf")
+                for i in range(k, k + ky):
+                    for j in range(l, l + kx):
+                        block_max_value = max(block_max_value, input_data[i][j])
+                output.append(block_max_value)
+        for i in range(len(output)):
+            res.data_ptr[i] = output[i]
+        if len(op.results) > 0:
+            return (res,)
+        return ()
