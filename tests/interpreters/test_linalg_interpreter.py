@@ -334,3 +334,42 @@ def test_linalg_pooling_nchw_max_strides_2():
     c = ShapedArray(TypedPtr.new_float32([0.0] * 4), [1, 1, 2, 2])
     (b,) = interpreter.run_op(op, (a, b, c))
     assert b == ShapedArray(TypedPtr.new_float32([6.0, 8.0, 3.0, 4.0]), [1, 1, 2, 2])
+
+
+def test_linalg_conv_2d_nchw_fchw():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    op = linalg.Conv2DNchwFchwOp(
+        DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
+        DenseIntOrFPElementsAttr.tensor_from_list([1], i64, [2]),
+        (
+            TestSSAValue(TensorType(f32, [1, 1, 5, 5])),
+            TestSSAValue(TensorType(f32, [1, 1, 3, 3])),
+        ),
+        (TestSSAValue(TensorType(f32, [1, 1, 3, 3])),),
+        (TensorType(f32, [1, 1, 3, 3]),),
+    )
+    a = ShapedArray(TypedPtr.new_float32(list(range(25))), [1, 1, 5, 5])
+    b = ShapedArray(
+        TypedPtr.new_float32(
+            [
+                1,
+            ]
+            * 9
+        ),
+        [1, 1, 3, 3],
+    )
+    c = ShapedArray(
+        TypedPtr.new_float32(
+            [
+                0.0,
+            ]
+            * 9
+        ),
+        [1, 1, 3, 3],
+    )
+    (c,) = interpreter.run_op(op, (a, b, c))
+    assert c == ShapedArray(
+        TypedPtr.new_float32([54, 63, 72, 99, 108, 117, 144, 153, 162]),
+        [1, 1, 3, 3],
+    )

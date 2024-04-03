@@ -209,3 +209,50 @@ class LinalgFunctions(InterpreterFunctions):
         if len(op.results) > 0:
             return (res,)
         return ()
+
+    @impl(linalg.Conv2DNchwFchwOp)
+    def run_conv_2d_nchw_fchw(
+        self,
+        interpreter: Interpreter,
+        op: linalg.Conv2DNchwFchwOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+
+        input, kernel_filter, res = args[0], args[1], args[2]
+        assert isinstance(input, ShapedArray)
+        assert isinstance(kernel_filter, ShapedArray)
+        assert isinstance(res, ShapedArray)
+        input = cast(ShapedArray[float], input)
+        kernel_filter = cast(ShapedArray[float], kernel_filter)
+        res = cast(ShapedArray[float], res)
+        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
+
+        m_height, m_width = input.shape[2:]
+        ky, kx = kernel_filter.shape[2], kernel_filter.shape[3]
+        strides = tuple(value.value.data for value in op.strides.data)
+        # convert input into a numpy like array
+        input_data = [
+            [input.data[r * m_width + c] for c in range(m_width)]
+            for r in range(m_height)
+        ]
+        # convert kernel into a numpy like array
+        kernel_data = [
+            [
+                kernel_filter.data[r * kernel_filter.shape[3] + c]
+                for c in range(kernel_filter.shape[3])
+            ]
+            for r in range(kernel_filter.shape[2])
+        ]
+        output: list[float] = []
+        for k in range(0, m_height - ky + 1, int(strides[0])):
+            for l in range(0, m_width - kx + 1, int(strides[0])):
+                conv_value: float = 0.0
+                for i in range(k, k + ky):
+                    for j in range(l, l + kx):
+                        conv_value += input_data[i][j] * kernel_data[i - k][j - l]
+                output.append(conv_value)
+        for i in range(len(output)):
+            res.data_ptr[i] = output[i]
+        if len(op.results) > 0:
+            return (res,)
+        return ()
