@@ -53,7 +53,12 @@ def build_module(graph: GraphProto) -> ModuleOp:
 
 
 def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> None:
-    """Visit the onnx graph to update the onnx context."""
+    """
+    Visit the onnx graph to update the onnx context.
+    The nodes of the graph are visited only if all the inputs have already been visited.
+    When the node is visited, the associated state switches from 0 to 2.
+    The process is iterated until all the nodes are generated.
+    """
     name = g.name
 
     input_types = tuple(visit_value_info(input, ctx) for input in g.input)
@@ -61,12 +66,19 @@ def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> None:
 
     fn = func.FuncOp(name, (input_types, output_types))
 
+    #
+    state: dict[str, int] = _generate_node_state_init(g)
+
     with ImplicitBuilder(fn.body) as args:
         for input, arg in zip(g.input, args, strict=True):
             ctx.value_by_name[input.name] = arg
 
-        for node in g.node:
-            visit_node(node, ctx)
+        while _all_nodes_generated(state) is False:
+            for node in g.node:
+                ready: bool = _all_input_generated(node, state)
+                if ready:
+                    visit_node(node, ctx)
+                    state[node.name] = 2
 
         returned_values = tuple(ctx.value_by_name[output.name] for output in g.output)
         func.Return(*returned_values)
@@ -78,3 +90,41 @@ def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
     t = get_type(i.type)
     ctx.type_by_name[name] = t
     return t
+
+
+def _generate_node_state_init(graph: GraphProto) -> dict[str, int]:
+    """
+    Generate the init state of the graph. It returns a dictionary with the information of visited nodes.
+    The keys are the names of the nodes, while the related value is an integer representing the visiting state.
+    The integer can assume two values: 0 if the node has not been visited yet, 2 if the node was visited.
+    Op nodes are initialised to 0, while inputs and outputs are initialsed to 2.
+    """
+    init_state: dict[str, int] = {}
+
+    for node in graph.node:
+        init_state[node.name] = 0
+
+    for input in graph.input:
+        init_state[input.name] = 2
+
+    for output in graph.output:
+        init_state[output.name] = 2
+
+    return init_state
+
+
+def _all_input_generated(node: NodeProto, state: dict[str, int]) -> bool:
+    """Check if all the input of a given node were visited."""
+    for input_name in node.input:
+        if state[input_name] != 2:
+            return False
+    return True
+
+
+def _all_nodes_generated(state: dict[str, int]) -> bool:
+    """Check if all the nodes of the graph were visisted."""
+    state_keys: list[str] = list(state.keys())
+    for key in state_keys:
+        if state[key] != 2:
+            return False
+    return True
