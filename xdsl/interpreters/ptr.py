@@ -86,7 +86,7 @@ class XType(Generic[_TCov]):
 
 
 int32 = XType(int, "<i")
-int64 = XType(int, "<I")
+int64 = XType(int, "<q")
 float32 = XType(float, "<f")
 float64 = XType(float, "<d")
 
