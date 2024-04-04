@@ -126,7 +126,7 @@ class CompRegOp(IRDLOperation):
         if (self.reset is not None and self.reset_value is None) or (
             self.reset_value is not None and self.reset is None
         ):
-            raise VerifyException("both reset and reset_value must be set when one is")
+            raise VerifyException("Both reset and reset_value must be set when one is")
 
 
 Seq = Dialect(
