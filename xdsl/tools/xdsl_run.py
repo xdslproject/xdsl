@@ -62,6 +62,7 @@ class xDSLRunMain(CommandLineTool):
         arg_parser.add_argument(
             "--index-bitwidth",
             choices=(32, 64),
+            default=Interpreter.DEFAULT_BITWIDTH,
             type=int,
             nargs="?",
             help="Bitwidth of the index type representation.",
