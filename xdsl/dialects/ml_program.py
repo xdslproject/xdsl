@@ -129,7 +129,7 @@ class GlobalLoadConstant(IRDLOperation):
 
     name = "ml_program.global_load_const"
 
-    global_ = attr_def(SymbolRefAttr)
+    global_ = attr_def(SymbolRefAttr, attr_name="global")
     result = result_def()
 
     def __init__(
@@ -153,12 +153,12 @@ class GlobalLoadConstant(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         attrs = parser.parse_optional_attr_dict()
-        global_ = parser.parse_attribute()
+        global_attr = parser.parse_attribute()
         parser.parse_punctuation(":")
         result_type = parser.parse_attribute()
 
         global_const = cls(
-            global_,
+            global_attr,
             result_type,
         )
         global_const.attributes |= attrs
