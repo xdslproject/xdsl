@@ -60,6 +60,7 @@ def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> IRDLOperation:
     When the node is visited, the associated state switches from 0 to 2.
     The process is iterated until all the nodes are generated.
     """
+
     name = g.name
 
     input_types = tuple(visit_value_info(input, ctx) for input in g.input)
@@ -67,25 +68,23 @@ def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> IRDLOperation:
 
     fn = func.FuncOp(name, (input_types, output_types))
 
-    state: dict[str, int] = _generate_node_state_init(g)
-
     for input, arg in zip(g.input, fn.body.block.args, strict=True):
         ctx.value_by_name[input.name] = arg
 
-    while _all_nodes_generated(state) is False:
-        for node in g.node:
-            ready: bool = _all_input_generated(node, state)
-            if ready and state[node.name] == 0:
-                results = visit_node(node, ctx)
-                fn.body.block.add_op(results)
-                state[node.name] = 2
+    linearized: list[NodeProto] = []
+    nodes: list[NodeProto] = []
+    for node in g.node:
+        nodes.append(node)
+    for node in nodes:
+        _linearize_dag(node, nodes, linearized)
+
+    for node in linearized:
+        results = visit_node(node, ctx)
+        fn.body.block.add_op(results)
 
     returned_values = tuple(ctx.value_by_name[output.name] for output in g.output)
-    print(returned_values)
     retfn = func.Return(*returned_values)
     fn.body.block.add_op(retfn)
-
-    print(ctx.type_by_name)
 
     return fn
 
@@ -98,39 +97,24 @@ def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
     return t
 
 
-def _generate_node_state_init(graph: GraphProto) -> dict[str, int]:
-    """
-    Generate the init state of the graph. It returns a dictionary with the information of visited nodes.
-    The keys are the names of the nodes, while the related value is an integer representing the visiting state.
-    The integer can assume two values: 0 if the node has not been visited yet, 2 if the node was visited.
-    Op nodes are initialised to 0, while inputs and outputs are initialsed to 2.
-    """
-    init_state: dict[str, int] = {}
-
-    for node in graph.node:
-        init_state[node.name] = 0
-
-    for input in graph.input:
-        init_state[input.name] = 2
-
-    for output in graph.output:
-        init_state[output.name] = 2
-
-    return init_state
+def _linearize_dag(
+    node: NodeProto, nodes: list[NodeProto], linearized: list[NodeProto]
+) -> None:
+    if node in linearized:
+        return
+    inputs: list[NodeProto] = _get_input_nodes(node, nodes)
+    for input in inputs:
+        _linearize_dag(input, nodes, linearized)
+    linearized.append(node)
 
 
-def _all_input_generated(node: NodeProto, state: dict[str, int]) -> bool:
-    """Check if all the input of a given node were visited."""
-    for input_name in node.input:
-        if state[input_name] != 2:
-            return False
-    return True
-
-
-def _all_nodes_generated(state: dict[str, int]) -> bool:
-    """Check if all the nodes of the graph were visisted."""
-    state_keys: list[str] = list(state.keys())
-    for key in state_keys:
-        if state[key] != 2:
-            return False
-    return True
+def _get_input_nodes(node: NodeProto, nodes: list[NodeProto]) -> list[NodeProto]:
+    inputs: list[NodeProto] = []
+    input_names = node.input
+    for curr_node in nodes:
+        output_names = curr_node.output
+        for output_name in output_names:
+            if output_name in input_names:
+                inputs.append(curr_node)
+                break
+    return inputs
