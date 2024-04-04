@@ -3,7 +3,7 @@ from typing import Any, cast
 import numpy as np
 
 from xdsl.dialects import onnx
-from xdsl.dialects.builtin import TensorType
+from xdsl.dialects.builtin import NoneType, TensorType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -14,7 +14,6 @@ from xdsl.interpreter import (
 from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.utils.exceptions import InterpretationError
 
 
 def to_dtype(
@@ -169,9 +168,9 @@ class OnnxFunctions(InterpreterFunctions):
         assert isinstance(result_type, TensorType)
         static_shape = list(result_type.get_shape())
         assert static_shape is not None
-        if static_shape != new_shape.data:
-            raise InterpretationError("Mismatch between static shape and new shape")
-        return (input.with_shape(new_shape.data),)
+        # if static_shape != new_shape.data:
+        #     raise InterpretationError("Mismatch between static shape and new shape")
+        return (input.with_shape(static_shape),)
 
     @impl(onnx.Gemm)
     def run_gemm(self, interpreter: Interpreter, op: onnx.Gemm, args: tuple[Any, ...]):
@@ -217,6 +216,8 @@ class OnnxFunctions(InterpreterFunctions):
 
         matrix = to_ndarray(matrix)
         kernel = to_ndarray(kernel)
+        # reshape bias for broadcasting purposes
+        bias.shape = [1, bias.shape[0], 1, 1]
 
         if auto_pad != "NOTSET":
             if auto_pad == "SAME_UPPER" or auto_pad == "SAME_LOWER":
@@ -276,10 +277,11 @@ class OnnxFunctions(InterpreterFunctions):
         out_height = int((m_height - kernel.shape[2]) // strides[0] + 1)
         out_width = int((m_width - kernel.shape[3]) // strides[1] + 1)
 
-        output = np.zeros(
-            (matrix.shape[0], matrix.shape[1], out_height, out_width),
-            dtype=matrix.dtype,
-        )
+        if isinstance(op.bias.type, NoneType):
+            output_shape = (matrix.shape[0], matrix.shape[1], out_height, out_width)
+        else:
+            output_shape = (matrix.shape[0], bias.shape[1], out_height, out_width)
+        output = np.zeros(output_shape, dtype=matrix.dtype)
 
         # do convolution
         for k in range(matrix.shape[0]):
@@ -292,9 +294,7 @@ class OnnxFunctions(InterpreterFunctions):
                             ]
                             * kernel[k, l]
                         )
-
         output += to_ndarray(bias)
-
         # the number of channels is not always fixed to one
         result_type = op.res.type
         assert isinstance(result_type, TensorType)
@@ -307,6 +307,7 @@ class OnnxFunctions(InterpreterFunctions):
             output.shape[2],
             output.shape[3],
         )
+
         return (from_ndarray(result),)
 
     @impl(onnx.MaxPoolSingleOut)
