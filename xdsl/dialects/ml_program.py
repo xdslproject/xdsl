@@ -129,24 +129,24 @@ class GlobalLoadConstant(IRDLOperation):
 
     name = "ml_program.global_load_const"
 
-    global_attr = attr_def(SymbolRefAttr)
+    global_ = attr_def(SymbolRefAttr, attr_name="global")
     result = result_def()
 
     def __init__(
         self,
-        global_attr: Attribute,
+        global_: Attribute,
         result_type: Attribute | None,
     ):
         super().__init__(
             attributes={
-                "global_attr": global_attr,
+                "global": global_,
             },
             result_types=[result_type],
         )
 
     def print(self, printer: Printer):
         printer.print_string(" ")
-        printer.print_attribute(self.global_attr)
+        printer.print_attribute(self.global_)
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
