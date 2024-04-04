@@ -35,9 +35,8 @@ def visit_node(node: NodeProto, ctx: OnnxXdslMapping) -> IRDLOperation:
     result_types = tuple(ctx.type_by_name[name] for name in node.output)
 
     op = op.build(operands=operands, result_types=result_types)
-    op_res = op.build(operands=operands, result_types=result_types).results
 
-    for output_name, result in zip(node.output, op_res, strict=True):
+    for output_name, result in zip(node.output, op.results, strict=True):
         ctx.value_by_name[output_name] = result
 
     return op
@@ -70,21 +69,23 @@ def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> IRDLOperation:
 
     state: dict[str, int] = _generate_node_state_init(g)
 
-    # with ImplicitBuilder(fn.body) as args:
-
     for input, arg in zip(g.input, fn.body.block.args, strict=True):
         ctx.value_by_name[input.name] = arg
 
     while _all_nodes_generated(state) is False:
         for node in g.node:
             ready: bool = _all_input_generated(node, state)
-            if ready:
+            if ready and state[node.name] == 0:
                 results = visit_node(node, ctx)
                 fn.body.block.add_op(results)
                 state[node.name] = 2
 
     returned_values = tuple(ctx.value_by_name[output.name] for output in g.output)
-    func.Return(*returned_values)
+    print(returned_values)
+    retfn = func.Return(*returned_values)
+    fn.body.block.add_op(retfn)
+
+    print(ctx.type_by_name)
 
     return fn
 
