@@ -1,6 +1,5 @@
 from onnx import GraphProto, NodeProto, ValueInfoProto
 
-from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, onnx
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.onnx.type import get_type
@@ -25,7 +24,7 @@ class OnnxXdslMapping:
         self.value_by_name = {}
 
 
-def visit_node(node: NodeProto, ctx: OnnxXdslMapping) -> None:
+def visit_node(node: NodeProto, ctx: OnnxXdslMapping) -> IRDLOperation:
     """Update the onnx context with the current node of the onnx graph."""
     if node.op_type not in OP_BY_OP_TYPE:
         raise ValueError(f"Unknown ONNX op name {node.op_type}")
@@ -35,10 +34,13 @@ def visit_node(node: NodeProto, ctx: OnnxXdslMapping) -> None:
     operands = tuple(ctx.value_by_name[name] for name in node.input)
     result_types = tuple(ctx.type_by_name[name] for name in node.output)
 
-    results = op.build(operands=operands, result_types=result_types).results
+    op = op.build(operands=operands, result_types=result_types)
+    op_res = op.build(operands=operands, result_types=result_types).results
 
-    for output_name, result in zip(node.output, results, strict=True):
+    for output_name, result in zip(node.output, op_res, strict=True):
         ctx.value_by_name[output_name] = result
+
+    return op
 
 
 def build_module(graph: GraphProto) -> ModuleOp:
@@ -46,13 +48,13 @@ def build_module(graph: GraphProto) -> ModuleOp:
     module = ModuleOp([])
 
     ctx = OnnxXdslMapping()
-    with ImplicitBuilder(module.body):
-        visit_graph(graph, ctx)
+    fn = visit_graph(graph, ctx)
+    module.regions[0].block.add_op(fn)
 
     return module
 
 
-def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> None:
+def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> IRDLOperation:
     """
     Visit the onnx graph to update the onnx context.
     The nodes of the graph are visited only if all the inputs have already been visited.
@@ -66,22 +68,25 @@ def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> None:
 
     fn = func.FuncOp(name, (input_types, output_types))
 
-    #
     state: dict[str, int] = _generate_node_state_init(g)
 
-    with ImplicitBuilder(fn.body) as args:
-        for input, arg in zip(g.input, args, strict=True):
-            ctx.value_by_name[input.name] = arg
+    # with ImplicitBuilder(fn.body) as args:
 
-        while _all_nodes_generated(state) is False:
-            for node in g.node:
-                ready: bool = _all_input_generated(node, state)
-                if ready:
-                    visit_node(node, ctx)
-                    state[node.name] = 2
+    for input, arg in zip(g.input, fn.body.block.args, strict=True):
+        ctx.value_by_name[input.name] = arg
 
-        returned_values = tuple(ctx.value_by_name[output.name] for output in g.output)
-        func.Return(*returned_values)
+    while _all_nodes_generated(state) is False:
+        for node in g.node:
+            ready: bool = _all_input_generated(node, state)
+            if ready:
+                results = visit_node(node, ctx)
+                fn.body.block.add_op(results)
+                state[node.name] = 2
+
+    returned_values = tuple(ctx.value_by_name[output.name] for output in g.output)
+    func.Return(*returned_values)
+
+    return fn
 
 
 def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
