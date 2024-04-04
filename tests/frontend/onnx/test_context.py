@@ -183,6 +183,29 @@ def test_visit_value_info():
     assert type_info == "tensor<1x3x224x224xf32>"
 
 
+def test_addition_model():
+    # load the onnx model
+    model = onnx.load("tests/frontend/onnx/addition_model.onnx")
+
+    # access the graph
+    graph = model.graph
+
+    # expected output
+    expected_output = """
+builtin.module {
+  func.func @add_graph(%0 : tensor<0x0xf32>, %1 : tensor<0x0xf32>) -> tensor<0x0xf32> {
+    %2 = onnx.Add(%0, %1) : (tensor<0x0xf32>, tensor<0x0xf32>) -> tensor<0x0xf32>
+    func.return %2 : tensor<0x0xf32>
+  }
+}"""
+    expected_output = expected_output[1:]
+
+    # module
+    module = build_module(graph)
+
+    assert str(module) == expected_output
+
+
 def _create_graph_binary_op(op_name: str, graph_name: str):
     # define input and output names
     input1_name = "input1"
