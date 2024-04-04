@@ -100,6 +100,9 @@ def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
 def _linearize_dag(
     node: NodeProto, nodes: list[NodeProto], linearized: list[NodeProto]
 ) -> None:
+    """
+    Linearization of the DAG. The nodes are sorted so that for each nodes of the list, the dependencies are only on the "left".
+    """
     if node in linearized:
         return
     inputs: list[NodeProto] = _get_input_nodes(node, nodes)
@@ -109,6 +112,9 @@ def _linearize_dag(
 
 
 def _get_input_nodes(node: NodeProto, nodes: list[NodeProto]) -> list[NodeProto]:
+    """
+    Get the references of the input nodes of a given node.
+    """
     inputs: list[NodeProto] = []
     input_names = node.input
     for curr_node in nodes:
