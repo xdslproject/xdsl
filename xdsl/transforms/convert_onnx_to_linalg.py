@@ -102,7 +102,7 @@ class ConstantOpLowering(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, constant: onnx.Constant, rewriter: PatternRewriter, /):
-        attr_value = list(constant.attributes.values())[1]
+        attr_value = list(constant.attributes.values())[0]
         constant_name = self.make_unique_name()
         global_op = ml_program.Global(
             StringAttr(constant_name),
