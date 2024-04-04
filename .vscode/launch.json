@@ -22,6 +22,12 @@
             "justMyCode": true,
             "args": [
                 "${file}",
+                "--symbol",
+                "main_graph",
+                "--args",
+                "dense<0.0> : tensor<1x1x28x28xf32>",
+                "--verbose",
+                "--onnx"
             ]
         },
         {
