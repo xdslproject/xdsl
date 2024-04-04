@@ -74,7 +74,8 @@ class LinalgFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
         assert lhs.shape == rhs.shape == res.shape
         for i in range(len(lhs.data)):
             res.data_ptr[i] = lhs.data_ptr[i] + rhs.data_ptr[i]
@@ -91,7 +92,8 @@ class LinalgFunctions(InterpreterFunctions):
         assert isinstance(res, ShapedArray)
         operand = cast(ShapedArray[float], operand)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
         for i in range(len(res.data)):
             res.data_ptr[i] = operand.data_ptr[0]
         if len(op.results) > 0:
@@ -109,7 +111,8 @@ class LinalgFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
         assert lhs.shape == rhs.shape == res.shape
         for i in range(len(lhs.data)):
             res.data_ptr[i] = lhs.data_ptr[i] * rhs.data_ptr[i]
@@ -126,7 +129,8 @@ class LinalgFunctions(InterpreterFunctions):
         assert isinstance(res, ShapedArray)
         operand = cast(ShapedArray[float], operand)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
         assert len(operand.shape) == 2
         assert len(res.shape) == 2
         rows, cols = operand.shape
@@ -148,7 +152,8 @@ class LinalgFunctions(InterpreterFunctions):
         lhs = cast(ShapedArray[float], lhs)
         rhs = cast(ShapedArray[float], rhs)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
         rows = lhs.shape[0]
         cols = rhs.shape[1]
         assert rows == cols
@@ -178,8 +183,8 @@ class LinalgFunctions(InterpreterFunctions):
         input = cast(ShapedArray[float], input)
         kernel_filter = cast(ShapedArray[float], kernel_filter)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
-
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
         strides_type = op.strides.type
         assert isinstance(strides_type, TensorType)
         (strides_shape,) = strides_type.get_shape()
@@ -225,8 +230,8 @@ class LinalgFunctions(InterpreterFunctions):
         input = cast(ShapedArray[float], input)
         kernel_filter = cast(ShapedArray[float], kernel_filter)
         res = cast(ShapedArray[float], res)
-        assert all(res.data_ptr[i] == 0.0 for i in range(len(res.data)))
-
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
         m_height, m_width = input.shape[2:]
         ky, kx = kernel_filter.shape[2], kernel_filter.shape[3]
         strides = tuple(value.value.data for value in op.strides.data)
