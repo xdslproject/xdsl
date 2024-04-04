@@ -1,6 +1,6 @@
 // RUN: xdsl-run --verbose %s | filecheck %s
 // RUN: xdsl-run %s --symbol main_graph --args "dense<1.0> : tensor<1x1x28x28xf32>" --verbose | filecheck %s
-// RUN: xdsl-opt -p convert-onnx-to-linalg %s | xdsl-run | filecheck %s
+// RUN: xdsl-opt %s -p convert-onnx-to-linalg  mlir-opt[-linalg-generalize-named-ops] --print-op-generic  | xdsl-run | filecheck %s
 
 module attributes {llvm.data_layout = "e-m:o-i64:64-i128:128-n32:64-S128", llvm.target_triple = "arm64-apple-darwin23.1.0", "onnx-mlir.symbol-postfix" = "mnist"} {
   func.func @main_graph(%arg0: tensor<1x1x28x28xf32>) -> tensor<1x10xf32> attributes {input_names = ["input.1"], output_names = ["19"]} {
