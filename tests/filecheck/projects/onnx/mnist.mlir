@@ -1,4 +1,3 @@
-// RUN: xdsl-run --verbose %s | filecheck %s
 // RUN: xdsl-run %s --symbol main_graph --args "dense<1.0> : tensor<1x1x28x28xf32>" --verbose | filecheck %s
 // RUN: xdsl-opt %s -p "convert-onnx-to-linalg,mlir-opt[linalg-generalize-named-ops]" | xdsl-run | filecheck %s
 

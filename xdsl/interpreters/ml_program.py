@@ -24,7 +24,7 @@ class MLProgramFunctions(InterpreterFunctions):
         op: ml_program.GlobalLoadConstant,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        global_op = SymbolTable.lookup_symbol(op, op.global_attr)
+        global_op = SymbolTable.lookup_symbol(op, op.global_)
         assert isinstance(global_op, ml_program.Global)
         global_value = global_op.value
         assert isinstance(global_value, DenseIntOrFPElementsAttr)
