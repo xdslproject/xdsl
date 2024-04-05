@@ -71,6 +71,10 @@ class StateType(ParametrizedAttribute, TypeAttribute):
 
 
 class AcceleratorSymbolOpTrait(SymbolOpInterface):
+    """
+    Symbol op trait to define multiple accelerator names.
+    """
+
     def get_sym_attr_name(self, op: Operation) -> StringAttr | None:
         assert isinstance(op, AcceleratorOp)
         return StringAttr(op.name_prop.string_value())
