@@ -1,14 +1,23 @@
 """
 Lower Data-Layout Trees into LLVM struct types (and other things)
 """
-import abc
-from typing import cast, TypeVar, Iterable, Self
-from dataclasses import dataclass
 
-from xdsl.dialects import arith, builtin, llvm, printf, func
-from xdsl.dialects.builtin import SymbolRefAttr, ModuleOp, StringAttr
+import abc
+from dataclasses import dataclass
+from typing import Iterable, Self, TypeVar, cast
+
+from xdsl.dialects import arith, builtin, func, llvm, printf
+from xdsl.dialects.builtin import ModuleOp, StringAttr, SymbolRefAttr
 from xdsl.dialects.experimental import dlt
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue, Region, BlockArgument, OpResult
+from xdsl.ir import (
+    Attribute,
+    BlockArgument,
+    MLContext,
+    Operation,
+    OpResult,
+    Region,
+    SSAValue,
+)
 from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -19,8 +28,9 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.printer import Printer
 
+
 @dataclass(frozen=True)
-class ElementsUse():
+class ElementsUse:
     op: Operation
     operand: Operand
     member_specifers: frozenset[dlt.MemberAttr]
@@ -34,12 +44,11 @@ class Trace(abc.ABC):
         self.parent = parent
 
     @staticmethod
-    def base_node()->"TraceNode":
-        return TraceNode([],[],None)
-
+    def base_node() -> "TraceNode":
+        return TraceNode([], [], None)
 
     @abc.abstractmethod
-    def constraints(self)-> tuple[set[dlt.MemberAttr], set[dlt.DimensionAttr]]:
+    def constraints(self) -> tuple[set[dlt.MemberAttr], set[dlt.DimensionAttr]]:
         pass
 
 
@@ -48,18 +57,30 @@ class TraceNode(Trace):
     dimensions: set[dlt.DimensionAttr]
     children: list[Trace]
 
-    def __init__(self, member_specifiers: Iterable[dlt.MemberAttr], dimensions: Iterable[dlt.DimensionAttr], parent: "TraceNode") -> None:
+    def __init__(
+        self,
+        member_specifiers: Iterable[dlt.MemberAttr],
+        dimensions: Iterable[dlt.DimensionAttr],
+        parent: "TraceNode",
+    ) -> None:
         self.member_specifiers = set(member_specifiers)
         self.dimensions = set(dimensions)
         self.children = []
         super().__init__(parent)
 
-    def child_like(self, member_specifiers: Iterable[dlt.MemberAttr], dimensions: Iterable[dlt.DimensionAttr]) -> Self:
+    def child_like(
+        self,
+        member_specifiers: Iterable[dlt.MemberAttr],
+        dimensions: Iterable[dlt.DimensionAttr],
+    ) -> Self:
         member_specifiers = set(member_specifiers)
         dimensions = set(dimensions)
         for child in self.children:
             if isinstance(child, TraceNode):
-                if child.member_specifiers == member_specifiers and child.dimensions == dimensions:
+                if (
+                    child.member_specifiers == member_specifiers
+                    and child.dimensions == dimensions
+                ):
                     return child
         new_node = TraceNode(member_specifiers, dimensions, self)
         self.children.append(new_node)
@@ -99,11 +120,12 @@ class DLTLayoutRewriter(RewritePattern):
                 return self._get_base(operand.op.tree)
             elif isinstance(operand.op, dlt.AllocOp):
                 return operand.op.res
-            else: assert False
+            else:
+                assert False
         elif isinstance(operand, BlockArgument):
-                return operand
-        else: assert False
-
+            return operand
+        else:
+            assert False
 
     def _for_each_op(self, regions: list[Region], func):
         regions: list[Region] = regions.copy()
@@ -123,26 +145,34 @@ class DLTLayoutRewriter(RewritePattern):
         while not isinstance(module, ModuleOp):
             module = module.parent.parent.parent
 
-        funcs: dict[StringAttr, tuple[func.FuncOp, list[func.Call]]] = scope.get_function_map()
+        funcs: dict[StringAttr, tuple[func.FuncOp, list[func.Call]]] = (
+            scope.get_function_map()
+        )
 
-
-
-        layout_entry_points: list[tuple[Operation, int]] = [] # int == -1 for AllocOp, and the argument index of the PtrType for FuncOp
+        layout_entry_points: list[tuple[Operation, int]] = (
+            []
+        )  # int == -1 for AllocOp, and the argument index of the PtrType for FuncOp
         layout_entry_point_operands: list[SSAValue] = []
-        entry_point_layouts: list[dlt.Layout] = []  # int == -1 for AllocOp, and the argument index of the PtrType for FuncOp
-        named_abstract_layouts: dict[str, tuple[dlt.Layout, set[int]]] = {} # ints are indices into layout_entry_points
+        entry_point_layouts: list[dlt.Layout] = (
+            []
+        )  # int == -1 for AllocOp, and the argument index of the PtrType for FuncOp
+        named_abstract_layouts: dict[str, tuple[dlt.Layout, set[int]]] = (
+            {}
+        )  # ints are indices into layout_entry_points
         for op in scope.walk():
             if isinstance(op, dlt.AllocOp):
                 op: dlt.AllocOp = op
                 assert isinstance(op.res.type, dlt.PtrType)
                 for layout in op.res.type.layout.walk():
                     if isinstance(layout, dlt.NamedLayoutAttr):
-                        l, s = named_abstract_layouts.setdefault(layout.abstract_name.data, (layout, set()))
+                        l, s = named_abstract_layouts.setdefault(
+                            layout.abstract_name.data, (layout, set())
+                        )
                         if l != layout:
                             assert False
                         assert l == layout
                         s.add(len(layout_entry_points))
-                layout_entry_points.append((op,-1))
+                layout_entry_points.append((op, -1))
                 layout_entry_point_operands.append(op.res)
                 entry_point_layouts.append(op.res.type.layout)
             elif isinstance(op, func.FuncOp):
@@ -151,7 +181,9 @@ class DLTLayoutRewriter(RewritePattern):
                     if isinstance(input, dlt.PtrType):
                         for layout in input.layout.walk():
                             if isinstance(layout, dlt.NamedLayoutAttr):
-                                l, s = named_abstract_layouts.setdefault(layout.abstract_name.data, (layout, set()))
+                                l, s = named_abstract_layouts.setdefault(
+                                    layout.abstract_name.data, (layout, set())
+                                )
                                 assert l == layout
                                 s.add(len(layout_entry_points))
                         layout_entry_points.append((op, i))
@@ -179,7 +211,9 @@ class DLTLayoutRewriter(RewritePattern):
                     else:
                         assert isinstance(op, dlt.SetOp)
                         base_type = op.set_type
-                    elem_type_type = ptr_type.contents_type.with_selection(ms, ds, base_type)
+                    elem_type_type = ptr_type.contents_type.with_selection(
+                        ms, ds, base_type
+                    )
                     elem = elem_type_type.get_single_element()
                     assert elem is not None
                     element_uses_map.setdefault((base_idx, elem), set()).add(use)
@@ -189,23 +223,34 @@ class DLTLayoutRewriter(RewritePattern):
                     use = ElementsUse(op, op.src, src_ms, src_ds)
                     src_base_idx = layout_entry_point_operands.index(src_base)
                     uses_map.setdefault(src_base_idx, set()).add(use)
-                    elem_type_type = src_base.type.contents_type.with_selection(src_ms, src_ds, op.copy_type)
+                    elem_type_type = src_base.type.contents_type.with_selection(
+                        src_ms, src_ds, op.copy_type
+                    )
                     for elem in elem_type_type.elements:
                         element_uses_map.setdefault((src_base_idx, elem)).add(use)
                 dst_bases = _get_deep_base(op.dst, funcs)
                 for dst_base, dst_ms, dst_ds in dst_bases:
-                    uses_map.setdefault(layout_entry_point_operands.index(dst_base), set()).add(ElementsUse(op, op.dst, dst_ms, dst_ds))
+                    uses_map.setdefault(
+                        layout_entry_point_operands.index(dst_base), set()
+                    ).add(ElementsUse(op, op.dst, dst_ms, dst_ds))
             elif isinstance(op, dlt.AllocOp):
                 for initialValue in op.initialValues:
                     bases = _get_deep_base(initialValue, funcs)
                     for base, ms, ds in bases:
-                        uses_map.setdefault(layout_entry_point_operands.index(base), set()).add(ElementsUse(op, initialValue, ms, ds))
+                        uses_map.setdefault(
+                            layout_entry_point_operands.index(base), set()
+                        ).add(ElementsUse(op, initialValue, ms, ds))
 
         use_traces: dict[int, TraceNode] = {}
-        def add_traces(operand: Operand, trace: TraceNode, seen_funcs: set[func.FuncOp] = set()):
+
+        def add_traces(
+            operand: Operand, trace: TraceNode, seen_funcs: set[func.FuncOp] = set()
+        ):
             for use in operand.uses:
                 if isinstance(use.operation, dlt.SelectOp):
-                    child_node = trace.child_like(use.operation.members, use.operation.dimensions)
+                    child_node = trace.child_like(
+                        use.operation.members, use.operation.dimensions
+                    )
                     add_traces(use.operation.res, child_node, seen_funcs)
                 elif isinstance(use.operation, dlt.IterateOp):
                     op: dlt.IterateOp = use.operation
@@ -214,24 +259,32 @@ class DLTLayoutRewriter(RewritePattern):
                         # This is an Iter_arg
                         add_traces(block_arg, trace, seen_funcs)
                     else:
-                        child_node = trace.child_like([], {dim for ds in dims for dim in ds})
+                        child_node = trace.child_like(
+                            [], {dim for ds in dims for dim in ds}
+                        )
                         add_traces(block_arg, child_node, seen_funcs)
                 elif isinstance(use.operation, dlt.IterateYieldOp):
                     iter_op = use.operation.parent_op()
                     assert isinstance(iter_op, dlt.IterateOp)
                     res = iter_op.get_result_for_yield_use()
                     add_traces(res, trace, seen_funcs)
-                elif isinstance(use.operation, dlt.GetOp | dlt.SetOp | dlt.ExtractExtentOp):
+                elif isinstance(
+                    use.operation, dlt.GetOp | dlt.SetOp | dlt.ExtractExtentOp
+                ):
                     ms, ds = trace.constraints()
                     bases = _get_deep_base(operand, funcs)
                     for base, b_ms, b_ds in bases:
                         assert frozenset(ms) == b_ms
                         assert frozenset(ds) == b_ds
-                    elem_use = ElementsUse(use.operation, operand, frozenset(ms), frozenset(ds))
+                    elem_use = ElementsUse(
+                        use.operation, operand, frozenset(ms), frozenset(ds)
+                    )
                     trace.add_leaf(elem_use)
                 elif isinstance(use.operation, dlt.CopyOp):
                     ms, ds = trace.constraints()
-                    elem_use = ElementsUse(use.operation, operand, frozenset(ms), frozenset(ds))
+                    elem_use = ElementsUse(
+                        use.operation, operand, frozenset(ms), frozenset(ds)
+                    )
                     trace.add_leaf(elem_use)
                 elif isinstance(use.operation, func.Call):
                     op, calls = funcs[use.operation.callee.root_reference]
@@ -241,20 +294,26 @@ class DLTLayoutRewriter(RewritePattern):
                 elif isinstance(use.operation, func.Return):
                     func_op = use.operation.parent_op()
                     assert isinstance(func_op, func.FuncOp)
-                    if func_op.sym_visibility is None or func_op.sym_visibility.data != "private":
+                    if (
+                        func_op.sym_visibility is None
+                        or func_op.sym_visibility.data != "private"
+                    ):
                         ms, ds = trace.constraints()
-                        elem_use = ElementsUse(use.operation, operand, frozenset(ms), frozenset(ds))
+                        elem_use = ElementsUse(
+                            use.operation, operand, frozenset(ms), frozenset(ds)
+                        )
                         trace.add_leaf(elem_use)
                     op, calls = funcs[func_op.sym_name]
                     for call in calls:
                         add_traces(call.results[use.index], trace, seen_funcs)
                 else:
-                    raise NotImplementedError(f"Not implemented for type: {type(use.operation)} : {use.operation}")
+                    raise NotImplementedError(
+                        f"Not implemented for type: {type(use.operation)} : {use.operation}"
+                    )
 
         for i, operand in enumerate(layout_entry_point_operands):
             use_traces[i] = Trace.base_node()
             add_traces(operand, use_traces[i])
-
 
         # print(layout_entry_points)
         # print(uses_map)
@@ -262,16 +321,23 @@ class DLTLayoutRewriter(RewritePattern):
         name_map = {}
         new_entry_point_layouts = _make_dense_layouts(entry_point_layouts, name_map)
 
-
         def propergate_operands(operand: SSAValue):
             assert isinstance(operand.type, dlt.PtrType)
             for use in operand.uses:
                 if isinstance(use.operation, dlt.SelectOp):
                     op: dlt.SelectOp = use.operation
                     assert operand == op.operands[use.index]
-                    new_res_type = dlt.SelectOp.calculateResultType(operand.type, op.members, op.dimensions)
+                    new_res_type = dlt.SelectOp.calculateResultType(
+                        operand.type, op.members, op.dimensions
+                    )
                     if new_res_type != op.res.type:
-                        new_op = dlt.SelectOp(op.tree, op.members, op.dimensions, op.values, result_type=new_res_type)
+                        new_op = dlt.SelectOp(
+                            op.tree,
+                            op.members,
+                            op.dimensions,
+                            op.values,
+                            result_type=new_res_type,
+                        )
                         rewriter.replace_op(op, new_op)
                         propergate_operands(new_op.res)
                 elif isinstance(use.operation, dlt.IterateOp):
@@ -299,10 +365,16 @@ class DLTLayoutRewriter(RewritePattern):
                     else:
                         # this is a tensor arg, so there are dimensions to select.
                         selected_dims = [d for ds in dims for d in ds]
-                        new_inner_type = dlt.SelectOp.calculateResultType(operand.type, [], selected_dims)
-                        assert block_arg.type.contents_type == new_inner_type.contents_type
+                        new_inner_type = dlt.SelectOp.calculateResultType(
+                            operand.type, [], selected_dims
+                        )
+                        assert (
+                            block_arg.type.contents_type == new_inner_type.contents_type
+                        )
                         if block_arg.type != new_inner_type:
-                            rewriter.modify_block_argument_type(block_arg, new_inner_type)
+                            rewriter.modify_block_argument_type(
+                                block_arg, new_inner_type
+                            )
                             propergate_operands(block_arg)
                 elif isinstance(use.operation, dlt.GetOp):
                     pass
@@ -313,12 +385,16 @@ class DLTLayoutRewriter(RewritePattern):
                 elif isinstance(use.operation, dlt.ExtractExtentOp):
                     pass
                 elif isinstance(use.operation, func.FuncOp):
-                    raise NotImplementedError(f"cannot propagate dlt ptr type through {use.operation}")
+                    raise NotImplementedError(
+                        f"cannot propagate dlt ptr type through {use.operation}"
+                    )
                 elif isinstance(use.operation, func.Call):
                     call_op = cast(func.Call, use.operation)
                     func_name = call_op.callee.root_reference
                     if func_name not in funcs:
-                        raise NotImplementedError(f"cannot propagate dlt ptr type through call to unknown function: {use.operation}")
+                        raise NotImplementedError(
+                            f"cannot propagate dlt ptr type through call to unknown function: {use.operation}"
+                        )
                     func_op, calls = funcs[func_name]
                     if func_op.args[use.index].type != operand.type:
                         func_op.replace_argument_type(use.index, operand.type)
@@ -335,7 +411,9 @@ class DLTLayoutRewriter(RewritePattern):
                         rewriter.handle_operation_modification(call)
                         propergate_operands(call_operand)
                 else:
-                    raise NotImplementedError(f"cannot propagate dlt ptr type through {use.operation}")
+                    raise NotImplementedError(
+                        f"cannot propagate dlt ptr type through {use.operation}"
+                    )
 
         def update_and_propagate(operation: tuple[Operation, int], layout: dlt.Layout):
             op, idx = operation
@@ -345,10 +423,16 @@ class DLTLayoutRewriter(RewritePattern):
                 assert idx == -1
                 new_contents = layout.contents_type
                 if op_res_type.contents_type != new_contents:
-                    raise ValueError(f"New layout is incompatible with existing type. Expected type {op_res_type.contents_type} but got {new_contents} from {layout}")
+                    raise ValueError(
+                        f"New layout is incompatible with existing type. Expected type {op_res_type.contents_type} but got {new_contents} from {layout}"
+                    )
                 new_ptr_type = op_res_type.with_new_layout(layout)
                 if op_res_type != new_ptr_type:
-                    new_alloc_op = dlt.AllocOp(operands=[op.initialValues, op.init_extent_sizes], attributes=op.attributes, result_types=[new_ptr_type])
+                    new_alloc_op = dlt.AllocOp(
+                        operands=[op.initialValues, op.init_extent_sizes],
+                        attributes=op.attributes,
+                        result_types=[new_ptr_type],
+                    )
                     rewriter.replace_op(op, new_alloc_op)
                     propergate_operands(new_alloc_op.res)
             elif isinstance(op, func.FuncOp):
@@ -358,7 +442,9 @@ class DLTLayoutRewriter(RewritePattern):
                 block_arg = op.args[idx]
                 assert isinstance(block_arg.type, dlt.PtrType)
                 if block_arg.type.contents_type != new_contents:
-                    raise ValueError(f"New layout is incompatible with existing type. Expected type {function_type.inputs.data[idx].contents_type} but got {new_contents} from {layout}")
+                    raise ValueError(
+                        f"New layout is incompatible with existing type. Expected type {function_type.inputs.data[idx].contents_type} but got {new_contents} from {layout}"
+                    )
                 new_type = block_arg.type.with_new_layout(layout)
                 if block_arg.type != new_type:
                     op.replace_argument_type(block_arg, new_type)
@@ -393,7 +479,7 @@ def _make_dense_layouts(layout: T, map: dict[str, dlt.Layout]) -> T:
         if len(sub_layouts) == 1:
             sub_layout = sub_layouts[0]
         else:
-            assert len(sub_layouts)>1
+            assert len(sub_layouts) > 1
             sub_layout = dlt.StructLayoutAttr(sub_layouts)
         dimensions = list(layout.dimensions)
         for dim in dimensions:
@@ -407,15 +493,26 @@ def _make_dense_layouts(layout: T, map: dict[str, dlt.Layout]) -> T:
         return layout.from_new_children(children)
 
 
-def _get_deep_base(operand: SSAValue, func_map: dict[StringAttr, tuple[func.FuncOp, list[func.Call]]], func_ops_seen: frozenset[func.FuncOp] = frozenset()) -> set[tuple[SSAValue, frozenset[dlt.MemberAttr], frozenset[dlt.DimensionAttr]]]:
+def _get_deep_base(
+    operand: SSAValue,
+    func_map: dict[StringAttr, tuple[func.FuncOp, list[func.Call]]],
+    func_ops_seen: frozenset[func.FuncOp] = frozenset(),
+) -> set[tuple[SSAValue, frozenset[dlt.MemberAttr], frozenset[dlt.DimensionAttr]]]:
     assert isinstance(operand.type, dlt.PtrType)
     if isinstance(operand, OpResult):
         op = operand.op
         if isinstance(op, dlt.AllocOp):
-            return {(op.res,frozenset(),frozenset())}
+            return {(op.res, frozenset(), frozenset())}
         elif isinstance(op, dlt.SelectOp):
             inits = _get_deep_base(op.tree, func_map, func_ops_seen)
-            return {(init, ms.union({m for m in op.members}), ds.union({d for d in op.dimensions})) for (init, ms, ds) in inits}
+            return {
+                (
+                    init,
+                    ms.union({m for m in op.members}),
+                    ds.union({d for d in op.dimensions}),
+                )
+                for (init, ms, ds) in inits
+            }
         elif isinstance(op, dlt.IterateOp):
             yield_arg = op.get_yield_arg_for_result(operand)
             return _get_deep_base(yield_arg, func_map, func_ops_seen)
@@ -429,14 +526,22 @@ def _get_deep_base(operand: SSAValue, func_map: dict[StringAttr, tuple[func.Func
             return _get_deep_base(input_arg, func_map, func_ops_seen)
         elif isinstance(parent_op, func.FuncOp):
             op, calls = func_map[parent_op.sym_name]
-            args = [call.arguments[arg_index] for call in calls if parent_op not in func_ops_seen]
+            args = [
+                call.arguments[arg_index]
+                for call in calls
+                if parent_op not in func_ops_seen
+            ]
             func_ops_seen = func_ops_seen | frozenset([parent_op])
             if parent_op.sym_visibility == StringAttr("public"):
-                public_arg = {(operand,frozenset(),frozenset())}
+                public_arg = {(operand, frozenset(), frozenset())}
             else:
                 public_arg = set()
-            results = {a for arg in args for a in _get_deep_base(arg, func_map, func_ops_seen)} | public_arg
-            if len(results) > 1: # If a func has more than one entry point we must ensure they are named
+            results = {
+                a for arg in args for a in _get_deep_base(arg, func_map, func_ops_seen)
+            } | public_arg
+            if (
+                len(results) > 1
+            ):  # If a func has more than one entry point we must ensure they are named
                 layout_name = None
                 layout = None
                 for arg in args + ([operand] if public_arg else []):
