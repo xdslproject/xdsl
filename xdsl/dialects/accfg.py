@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
     ArrayAttr,
     DictionaryAttr,
     IntegerAttr,
@@ -104,8 +105,8 @@ class AcceleratorOp(IRDLOperation):
         self,
         name: str | StringAttr | SymbolRefAttr,
         fields: dict[str, int] | DictionaryAttr,
-        launch: int | IntegerAttr,
-        barrier: int | IntegerAttr,
+        launch: int | AnyIntegerAttr,
+        barrier: int | AnyIntegerAttr,
     ):
         if not isinstance(fields, DictionaryAttr):
             fields = DictionaryAttr(
@@ -132,14 +133,14 @@ class AcceleratorOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        for name, val in self.fields.data.items():
+        for _, val in self.fields.data.items():
             if not isinstance(val, IntegerAttr):
                 raise VerifyException("fields must only contain IntegerAttr!")
 
     def field_names(self) -> tuple[str, ...]:
         return tuple(self.fields.data.keys())
 
-    def field_items(self) -> Iterable[tuple[str, IntegerAttr]]:
+    def field_items(self) -> Iterable[tuple[str, AnyIntegerAttr]]:
         for name, val in self.fields.data.items():
             assert isinstance(val, IntegerAttr)
             yield name, val
