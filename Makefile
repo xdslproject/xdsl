@@ -78,6 +78,9 @@ black:
 coverage: coverage-tests coverage-filecheck-tests
 	coverage combine --append
 
+conditional-coverage:
+	if ! [[ -e .coverage ]]; then make coverage; fi
+
 # run coverage over tests
 coverage-tests:
 	COVERAGE_FILE=${TESTS_COVERAGE_FILE} pytest -W error --cov --cov-config=.coveragerc
@@ -87,9 +90,9 @@ coverage-filecheck-tests:
 	lit -v tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
-coverage-report-html: coverage
+coverage-report-html: conditional-coverage
 	coverage html
 
 # generate markdown coverage report
-coverage-report-md: coverage
+coverage-report-md: conditional-coverage
 	coverage report --format=markdown
