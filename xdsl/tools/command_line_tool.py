@@ -309,6 +309,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     """Return the list of all available passes."""
 
+    def get_accfg_dedup():
+        from xdsl.transforms import accfg_dedup
+
+        return accfg_dedup.AccfgDeduplicate
+
     def get_arith_add_fastmath():
         from xdsl.transforms import arith_add_fastmath
 
@@ -555,6 +560,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm
 
     return {
+        "accfg-dedup": get_accfg_dedup,
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
         "canonicalize-dmp": get_canonicalize_dmp,
