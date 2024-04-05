@@ -87,9 +87,9 @@ coverage-filecheck-tests:
 	lit -v tests/filecheck/ -DCOVERAGE
 
 # generate html coverage report
-coverage-report-html:
+coverage-report-html: coverage
 	coverage html
 
 # generate markdown coverage report
-coverage-report-md:
+coverage-report-md: coverage
 	coverage report --format=markdown
