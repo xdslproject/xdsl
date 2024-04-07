@@ -42,7 +42,7 @@ class xDSLRunMain(CommandLineTool):
         )
         arg_parser.add_argument(
             "--onnx",
-            default=True,
+            default=False,
             action="store_true",
             help="Enable the onnx-compilation interpreter.",
         )
