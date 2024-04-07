@@ -15,11 +15,11 @@
 // CHECK-NEXT:     %t2 = "test.op"() : () -> tensor<3x4xf32>
 // CHECK-NEXT:     %res_relu = tensor.empty() : tensor<3x4xf32>
 // CHECK-NEXT:     %res_relu_1 = arith.constant 0.000000e+00 : f32
-// CHECK-NEXT:     %res_relu_2 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%t2 : tensor<3x4xf64>) outs(%res_relu : tensor<3x4xf32>) {
+// CHECK-NEXT:     %res_relu_2 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%t2 : tensor<3x4xf32>) outs(%res_relu : tensor<3x4xf32>) {
 // CHECK-NEXT:     ^0(%0 : f32, %1 : f32):
 // CHECK-NEXT:       %2 = arith.maximumf %0, %res_relu_1 : f32
 // CHECK-NEXT:       linalg.yield %2 : f32
-// CHECK-NEXT:    } -> tensor<3x4xf64>
+// CHECK-NEXT:    } -> tensor<3x4xf32>
 
 %t3,%t4 = "test.op"(): () -> (tensor<20x2xf32>, tensor<2xi64>)
 %res_reshape = "onnx.Reshape"(%t3, %t4) {onnx_node_name = "/Reshape"}: (tensor<20x2xf32>, tensor<2xi64>) -> tensor<1x40xf32>
@@ -87,7 +87,7 @@
 // CHECK-NEXT:   %t23, %t24, %t25 = "test.op"() : () -> (tensor<1x8x14x14xf32>, tensor<16x8x5x5xf32>, tensor<16xf32>)
 // CHECK-NEXT:   %res_conv_3 = tensor.empty() : tensor<1x16x14x14xf32>
 // CHECK-NEXT:   %res_conv_3_1 = linalg.conv_2d_nchw_fchw {"dilations" = dense<1> : tensor<2xi64>, "strides" = dense<1> : tensor<2xi64>} ins(%t23, %t24 : tensor<1x8x14x14xf32>, tensor<16x8x5x5xf32>) outs(%res_conv_3 : tensor<1x16x14x14xf32>) -> tensor<1x16x14x14xf32>
-// CHECK-NEXT:   %res_conv_3_2 = linalg.add ins(%t25 : tensor<16xf32>) outs(%res_conv_3_1 : tensor<1x16x14x14xf32>) -> tensor<1x16x14x14xf32>
+// CHECK-NEXT:   %res_conv_3_2 = linalg.add ins(%t25, %res_conv_3_1 : tensor<16xf32>, tensor<1x16x14x14xf32>) outs(%res_conv_3_1 : tensor<1x16x14x14xf32>) -> tensor<1x16x14x14xf32>
 
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
