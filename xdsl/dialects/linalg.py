@@ -788,7 +788,7 @@ class BroadcastOp(IRDLOperation):
         assert isinstance(input_type := self.input.type, TensorType | MemRefType)
         assert isinstance(init_type := self.init.type, TensorType | MemRefType)
 
-        dimensions_shape = cast(list[int], self.dimensions.as_tuple())
+        dimensions_shape = self.dimensions.as_tuple()
 
         input_shape = input_type.get_shape()
         init_shape = init_type.get_shape()
