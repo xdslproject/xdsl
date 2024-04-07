@@ -1,10 +1,10 @@
 // RUN: mlir-opt %s --linalg-generalize-named-ops  | xdsl-opt | filecheck %s
 
-module attributes  {"llvm.data_layout" = "e-m:o-i64:64-i128:128-n32:64-S128", "llvm.target_triple" = "arm64-apple-darwin23.1.0", "onnx-mlir.symbol-postfix" = "mnist"} {
+builtin.module attributes  {"llvm.data_layout" = "e-m:o-i64:64-i128:128-n32:64-S128", "llvm.target_triple" = "arm64-apple-darwin23.1.0", "onnx-mlir.symbol-postfix" = "mnist"} {
   func.func @main_graph(%arg0 : tensor<1x1x28x28xf32>) -> tensor<1x10xf32>  attributes {"input_names" = ["input.1"], "output_names" = ["19"]}{
     %0 = ml_program.global_load_const @onnx_constant_1 : tensor<2xi64>
     %1 = ml_program.global_load_const @onnx_constant_2 : tensor<10x1x5x5xf32>
-    %2 = ml_program.global_load_const @onnx_constant_3 : tensor<1x10x24x24xf32>
+    %2 = ml_program.global_load_const @onnx_constant_3 : tensor<10xf32>
     %3 = ml_program.global_load_const @onnx_constant_4 : tensor<20x10x5x5xf32>
     %4 = ml_program.global_load_const @onnx_constant_5 : tensor<20xf32>
     %5 = ml_program.global_load_const @onnx_constant_6 : tensor<50x320xf32>
@@ -13,7 +13,7 @@ module attributes  {"llvm.data_layout" = "e-m:o-i64:64-i128:128-n32:64-S128", "l
     %8 = ml_program.global_load_const @onnx_constant_9 : tensor<10xf32>
     %9 = tensor.empty() : tensor<1x10x24x24xf32>
     %10 = linalg.conv_2d_nchw_fchw {"dilations" = dense<1> : tensor<2xi64>, "strides" = dense<1> : tensor<2xi64>} ins(%arg0, %1 : tensor<1x1x28x28xf32>, tensor<10x1x5x5xf32>) outs(%9 : tensor<1x10x24x24xf32>) -> tensor<1x10x24x24xf32>
-    %11 = linalg.add ins(%2, %10 : tensor<1x10x24x24xf32>, tensor<1x10x24x24xf32>) outs(%10 : tensor<1x10x24x24xf32>) -> tensor<1x10x24x24xf32>
+    %11 = linalg.add ins(%2, %10 : tensor<10xf32>, tensor<1x10x24x24xf32>) outs(%10 : tensor<1x10x24x24xf32>) -> tensor<1x10x24x24xf32>
     %12 = tensor.empty() : tensor<1x10x24x24xf32>
     %13 = arith.constant 0.000000e+00 : f32
     %14 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%11 : tensor<1x10x24x24xf32>) outs(%12 : tensor<1x10x24x24xf32>) {
@@ -31,7 +31,7 @@ module attributes  {"llvm.data_layout" = "e-m:o-i64:64-i128:128-n32:64-S128", "l
     %25 = linalg.add ins(%4, %24 : tensor<20xf32>, tensor<1x20x8x8xf32>) outs(%24 : tensor<1x20x8x8xf32>) -> tensor<1x20x8x8xf32>
     %26 = tensor.empty() : tensor<1x20x8x8xf32>
     %27 = arith.constant 0.000000e+00 : f32
-    %28 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel"]} ins(%25 : tensor<1x20x8x8xf32>) outs(%26 : tensor<1x20x8x8xf32>) {
+    %28 = linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%25 : tensor<1x20x8x8xf32>) outs(%26 : tensor<1x20x8x8xf32>) {
     ^1(%29 : f32, %30 : f32):
       %31 = arith.maximumf %29, %27 : f32
       linalg.yield %31 : f32
@@ -72,6 +72,5 @@ module attributes  {"llvm.data_layout" = "e-m:o-i64:64-i128:128-n32:64-S128", "l
   ml_program.global private @onnx_constant_8(dense<5.608376e-01> : tensor<10x50xf32>) : tensor<10x50xf32>
   ml_program.global private @onnx_constant_9(dense<[-1.636385e-01, -2.030399e-02, 1.214530e-01, 1.311745e-01, -1.271445e-01, 2.372866e-02, -1.297138e-01, -1.380079e-01, 1.668115e-01, -1.186569e-01]> : tensor<10xf32>) : tensor<10xf32>
 }
-
 
 
