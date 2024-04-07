@@ -9,17 +9,17 @@
 // CHECK-NEXT:     %res_add = tensor.empty() : tensor<3x2xf32>
 // CHECK-NEXT:     %res_add_1 = linalg.add ins(%t0, %t1 : tensor<3x2xf32>, tensor<3x2xf32>) outs(%res_add : tensor<3x2xf32>) -> tensor<3x2xf32>
 
-%t2 = "test.op"() : () -> (tensor<3x4xf64>)
-%res_relu = "onnx.Relu"(%t2) {onnx_node_name = "/Relu"}: (tensor<3x4xf64>) -> tensor<3x4xf64>
+%t2 = "test.op"() : () -> (tensor<3x4xf32>)
+%res_relu = "onnx.Relu"(%t2) {onnx_node_name = "/Relu"}: (tensor<3x4xf32>) -> tensor<3x4xf32>
 
-// CHECK-NEXT:     %t2 = "test.op"() : () -> tensor<3x4xf64>
-// CHECK-NEXT:     %res_relu = tensor.empty() : tensor<3x4xf64>
-// CHECK-NEXT:     %res_relu_1 = arith.constant 0.000000e+00 : f64
-// CHECK-NEXT:     %res_relu_2 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%t2 : tensor<3x4xf64>) outs(%res_relu : tensor<3x4xf64>) {
-// CHECK-NEXT:     ^0(%0 : f64, %1 : f64):
-// CHECK-NEXT:       %2 = arith.maximumf %0, %res_relu_1 : f64
-// CHECK-NEXT:       linalg.yield %2 : f64
-// CHECK-NEXT:    } -> tensor<3x4xf64>
+// CHECK-NEXT:     %t2 = "test.op"() : () -> tensor<3x4xf32>
+// CHECK-NEXT:     %res_relu = tensor.empty() : tensor<3x4xf32>
+// CHECK-NEXT:     %res_relu_1 = arith.constant 0.000000e+00 : f32
+// CHECK-NEXT:     %res_relu_2 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%t2 : tensor<3x4xf32>) outs(%res_relu : tensor<3x4xf32>) {
+// CHECK-NEXT:     ^0(%0 : f32, %1 : f32):
+// CHECK-NEXT:       %2 = arith.maximumf %0, %res_relu_1 : f32
+// CHECK-NEXT:       linalg.yield %2 : f32
+// CHECK-NEXT:    } -> tensor<3x4xf32>
 
 %t3,%t4 = "test.op"(): () -> (tensor<20x2xf32>, tensor<2xi64>)
 %res_reshape = "onnx.Reshape"(%t3, %t4) {onnx_node_name = "/Reshape"}: (tensor<20x2xf32>, tensor<2xi64>) -> tensor<1x40xf32>
