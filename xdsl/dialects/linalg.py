@@ -752,6 +752,116 @@ class Conv2DNchwFchwOp(ConvOpsBase):
     name = "linalg.conv_2d_nchw_fchw"
 
 
+@irdl_op_definition
+class BroadcastOp(IRDLOperation):
+    """
+    Static broadcast operator
+
+    Broadcast the input into the given shape by adding dimensions
+    """
+
+    name = "linalg.broadcast"
+
+    input = operand_def(MemRefType | AnyTensorType)
+    init = operand_def(MemRefType | AnyTensorType)
+    result = var_result_def(AnyTensorType)
+
+    dimensions = attr_def(DenseArrayBase)
+
+    def __init__(
+        self,
+        input: SSAValue,
+        init: SSAValue,
+        dimensions: Attribute,
+        result: Attribute | None = None,
+    ):
+        super().__init__(
+            attributes={
+                "dimensions": dimensions,
+            },
+            operands=(input, init),
+            result_types=(result,),
+        )
+
+    def verify_(self) -> None:
+
+        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
+        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+
+        dimensions_shape = self.dimensions.as_tuple()
+
+        input_shape = input_type.get_shape()
+        init_shape = init_type.get_shape()
+
+        if (input_and_dims_rank := (len(input_shape) + len(dimensions_shape))) != (
+            init_rank := len(init_shape)
+        ):
+            raise VerifyException(
+                f"Input rank plus added dimensions ({input_and_dims_rank}) does not match output rank ({init_rank})"
+            )
+
+        for index, dim in enumerate(dimensions_shape):
+            if dim < 0 or dim >= init_rank:
+                raise VerifyException(
+                    f"Dimension {index} is out of range.  Expected range: [0, {init_rank - 1}], got: {dim}"
+                )
+
+        # intialise an array to store the dimensions being mapped
+        dimensions_map: list[int] = []
+        for dim in range(init_rank):
+            if dim not in dimensions_shape:
+                dimensions_map.append(dim)
+
+        for input_dim_index, init_dim_index in enumerate(dimensions_map):
+            if input_shape[input_dim_index] != init_shape[init_dim_index]:
+                raise VerifyException(
+                    f"input dimension {input_dim_index} should match output dimension {init_dim_index}. "
+                    f"input: {input_shape[input_dim_index]}, output: {init_shape[init_dim_index]}"
+                )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ins(")
+        printer.print(self.input)
+        printer.print_string(":")
+        printer.print(self.input.type)
+        printer.print_string(")")
+        printer.print_string(" outs(")
+        printer.print(self.init)
+        printer.print_string(":")
+        printer.print(self.init.type)
+        printer.print_string(") ")
+        printer.print_string("dimensions")
+        printer.print_string(" = ")
+        printer.print(list(self.dimensions.as_tuple()))
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_characters("ins")
+        parser.parse_punctuation("(")
+        input = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_characters("outs")
+        parser.parse_punctuation("(")
+        init = parser.parse_operand()
+        parser.parse_punctuation(":")
+        result = parser.parse_type()
+        parser.parse_punctuation(")")
+        parser.parse_keyword("dimensions")
+        parser.parse_punctuation("=")
+        dimensions = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_integer
+        )
+        broadcast = cls(
+            input,
+            init,
+            DenseArrayBase.create_dense_int_or_index(i64, dimensions),
+            result,
+        )
+        return broadcast
+
+
 Linalg = Dialect(
     "linalg",
     [
@@ -764,6 +874,7 @@ Linalg = Dialect(
         MatmulOp,
         PoolingNchwMaxOp,
         Conv2DNchwFchwOp,
+        BroadcastOp,
     ],
     [
         IteratorTypeAttr,
