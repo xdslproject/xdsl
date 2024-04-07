@@ -75,7 +75,7 @@ class ReluOpLowering(RewritePattern):
                     (relu.operand,),
                     (empty.tensor,),
                     body,
-                    (affine_map,) * len(body.block.args),
+                    (affine_map, affine_map),
                     (linalg.IteratorTypeAttr.parallel(),) * operand_rank,
                     (relu.res.type,),
                 ),
