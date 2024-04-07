@@ -1,7 +1,7 @@
 // RUN: xdsl-run %s | filecheck %s
 // RUN: xdsl-opt %s -p convert-onnx-to-linalg
 // RUN: xdsl-run %s --symbol main_graph --args "dense<1.0> : tensor<1x1x28x28xf32>" --verbose | filecheck %s
-// RUN: xdsl-opt %s -p "convert-onnx-to-linalg,mlir-opt[linalg-named-op-conversion]" | xdsl-run | filecheck %s
+// RUN: xdsl-opt %s -p "convert-onnx-to-linalg,mlir-opt[linalg-generalize-named-ops]" | xdsl-run | filecheck %s
 // RUN: mlir-opt %s | xdsl-opt | filecheck %s
 
 module attributes {llvm.data_layout = "e-m:o-i64:64-i128:128-n32:64-S128", llvm.target_triple = "arm64-apple-darwin23.1.0", "onnx-mlir.symbol-postfix" = "mnist"} {

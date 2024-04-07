@@ -63,7 +63,10 @@ class ReluOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
         body = Region(Block(arg_types=(f32, f32)))
-        affine_map = AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0, d1)))
+        operand = relu.operand.type
+        assert isinstance(operand, TensorType)
+        operand_rank = len(operand.get_shape())
+        affine_map = AffineMapAttr(AffineMap.identity(operand_rank))
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), relu.res.type),
@@ -72,14 +75,8 @@ class ReluOpLowering(RewritePattern):
                     (relu.operand,),
                     (empty.tensor,),
                     body,
-                    (
-                        affine_map,
-                        affine_map,
-                    ),
-                    (
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                    ),
+                    (affine_map,) * len(body.block.args),
+                    (linalg.IteratorTypeAttr.parallel(),) * operand_rank,
                     (relu.res.type,),
                 ),
             )
@@ -362,7 +359,7 @@ class ConvOpLowering(RewritePattern):
         )
         if not isinstance(conv.bias.type, NoneType):
             add_bias = linalg.AddOp(
-                (conv.bias,),
+                (conv.bias, conv_op.results[0]),
                 (conv_op.results[0],),
                 res=(conv.res.type,),
             )
