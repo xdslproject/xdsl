@@ -217,6 +217,7 @@ class OnnxFunctions(InterpreterFunctions):
         matrix = to_ndarray(matrix)
         kernel = to_ndarray(kernel)
         # reshape bias for broadcasting purposes
+        # bias
         bias.shape = [1, bias.shape[0], 1, 1]
 
         if auto_pad != "NOTSET":
@@ -397,7 +398,7 @@ class OnnxFunctions(InterpreterFunctions):
             dtype=matrix.dtype,
         )
 
-        # do maxpool computation
+        # # do maxpool computation
         for k in range(matrix.shape[0]):
             for l in range(matrix.shape[1]):
                 for i in range(0, m_height - ky + 1, strides[0]):

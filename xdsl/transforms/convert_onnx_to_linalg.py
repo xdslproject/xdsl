@@ -249,12 +249,19 @@ class GemmOpLowering(RewritePattern):
             beta_res = beta_mul_result.res[0]
             rewriter.insert_op_before_matched_op([constant, beta_mul_result])
 
+        # dims: list[int] = [0]
+        # dimensions = DenseArrayBase.create_dense_int_or_index(i64, dims)
+
         # this is beta * c result else its just c
         if beta_res is not None:
             beta_mul_result = beta_res
         else:
             beta_mul_result = gemm.tensor_c
 
+        dims: list[int] = [0]
+        dimensions = DenseArrayBase.create_dense_int_or_index(i64, dims)
+
+        # if the beta and gemm is the same we want to not broadcast
         # (A * B) + beta * C
         rewriter.replace_matched_op(
             (
@@ -268,9 +275,15 @@ class GemmOpLowering(RewritePattern):
                     (empty.tensor,),
                     res=(gemm.res_tensor.type,),
                 ),
+                add_broadcast := linalg.BroadcastOp(
+                    beta_mul_result,
+                    mat_mul_res.results[0],
+                    dimensions,
+                    gemm.res_tensor.type,
+                ),
                 # (A * B) + beta * C
                 linalg.AddOp(
-                    (mat_mul_res.results[0], beta_mul_result),
+                    (add_broadcast, mat_mul_res.results[0]),
                     (mat_mul_res.results[0],),
                     res=(mat_mul_res.results[0].type,),
                 ),
@@ -333,6 +346,9 @@ class ConvOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, conv: onnx.Conv, rewriter: PatternRewriter, /):
 
+        dims: list[int] = [0, 2, 3]
+        dimensions = DenseArrayBase.create_dense_int_or_index(i64, dims)
+
         dilations = tuple(value.value.data for value in conv.dilations.data)
         strides = tuple(value.value.data for value in conv.strides.data)
 
@@ -358,12 +374,18 @@ class ConvOpLowering(RewritePattern):
             conv_op,
         )
         if not isinstance(conv.bias.type, NoneType):
+            add_broadcast = linalg.BroadcastOp(
+                conv.bias, conv_op.results[0], dimensions, conv.res.type
+            )
             add_bias = linalg.AddOp(
-                (conv.bias, conv_op.results[0]),
+                (add_broadcast.results[0], conv_op.results[0]),
                 (conv_op.results[0],),
                 res=(conv.res.type,),
             )
-            conv_ops += (add_bias,)
+            conv_ops += (
+                add_broadcast,
+                add_bias,
+            )
         rewriter.replace_matched_op(conv_ops)
 
 

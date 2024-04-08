@@ -280,8 +280,12 @@ class LinalgFunctions(InterpreterFunctions):
         if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
             raise NotImplementedError()
         # get dimensions array
-        dims = op.dimensions.as_tuple()
-        dimensions_map: list[int] = []
-        for dim in range(len(res.shape)):
-            if dim not in dims:
-                dimensions_map.append(dim)
+        array_datas = []
+        for data in input.data:
+            array_data = [data] * (res.shape[2] * res.shape[3])
+            array_datas += array_data
+        for i in range(len(array_datas)):
+            res.data_ptr[i] = array_datas[i]
+        if len(op.results) > 0:
+            return (res,)
+        return ()
