@@ -15,7 +15,6 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 
 # these targets don't produce files:
 .PHONY: ${VENV_DIR}/ clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
-.PHONY: coverage coverage-pytest-tests coverage-filecheck-tests coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
 ${VENV_DIR}/: requirements.txt
@@ -75,32 +74,31 @@ black:
 	black $${staged_files:-xdsl}
 
 # run coverage over all tests and combine data files
-.coverage: .coverage_pytest .coverage_filecheck
-	coverage combine --keep .coverage_pytest .coverage_filecheck
+coverage: coverage-tests coverage-filecheck ${COVERAGE_FILE}
 
-.coverage_pytest:
-	make coverage-pytest-tests
+# merge coverage files
+${COVERAGE_FILE}: ${TESTS_COVERAGE_FILE} ${FILECHECK_COVERAGE_FILE}
+	coverage combine --keep --data-file=$@ $^
 
-.coverage_filecheck:
-	make coverage-filecheck-tests
+${TESTS_COVERAGE_FILE}: coverage-tests
 
-coverage: coverage-pytest-tests coverage-filecheck-tests
-	coverage combine --keep .coverage_pytest .coverage_filecheck
+${FILECHECK_COVERAGE_FILE}: coverage-filecheck
 
 # run coverage over tests
-coverage-pytest-tests:
+coverage-tests:
 	COVERAGE_FILE=${TESTS_COVERAGE_FILE} pytest -W error --cov --cov-config=.coveragerc
-	coverage combine --append --data-file=.coverage_pytest ${TESTS_COVERAGE_FILE}
 
 # run coverage over filecheck tests
-coverage-filecheck-tests:
+coverage-filecheck:
 	lit -v tests/filecheck/ -DCOVERAGE
-	coverage combine --append --data-file=.coverage_filecheck .coverage.*
+	coverage combine --data-file=${FILECHECK_COVERAGE_FILE} .coverage.*
+
+.PHONY: coverage coverage-tests coverage-filecheck
 
 # generate html coverage report
-coverage-report-html: .coverage
+coverage-report-html: ${COVERAGE_FILE}
 	coverage html
 
 # generate markdown coverage report
-coverage-report-md: .coverage
+coverage-report-md: ${COVERAGE_FILE}
 	coverage report --format=markdown
