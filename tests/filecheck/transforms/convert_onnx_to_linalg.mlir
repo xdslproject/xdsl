@@ -21,6 +21,7 @@
 // CHECK-NEXT:       linalg.yield %2 : f32
 // CHECK-NEXT:    } -> tensor<3x4xf32>
 
+
 %t3,%t4 = "test.op"(): () -> (tensor<20x2xf32>, tensor<2xi64>)
 %res_reshape = "onnx.Reshape"(%t3, %t4) {onnx_node_name = "/Reshape"}: (tensor<20x2xf32>, tensor<2xi64>) -> tensor<1x40xf32>
 
@@ -88,6 +89,20 @@
 // CHECK-NEXT:   %res_conv_3 = tensor.empty() : tensor<1x16x14x14xf32>
 // CHECK-NEXT:   %res_conv_3_1 = linalg.conv_2d_nchw_fchw {"dilations" = dense<1> : tensor<2xi64>, "strides" = dense<1> : tensor<2xi64>} ins(%t23, %t24 : tensor<1x8x14x14xf32>, tensor<16x8x5x5xf32>) outs(%res_conv_3 : tensor<1x16x14x14xf32>) -> tensor<1x16x14x14xf32>
 // CHECK-NEXT:   %res_conv_3_2 = linalg.add ins(%t25 : tensor<16xf32>) outs(%res_conv_3_1 : tensor<1x16x14x14xf32>) -> tensor<1x16x14x14xf32>
+
+
+%t27 = "test.op"() : () -> (tensor<3x4xf64>)
+%res_relu_3 = "onnx.Relu"(%t27) {onnx_node_name = "/Relu"}: (tensor<3x4xf64>) -> tensor<3x4xf64>
+
+// CHECK-NEXT:   %t27 = "test.op"() : () -> tensor<3x4xf64>
+// CHECK-NEXT:   %res_relu_3 = tensor.empty() : tensor<3x4xf64>
+// CHECK-NEXT:   %res_relu_3_1 = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:   %res_relu_3_2 = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%t27 : tensor<3x4xf64>) outs(%res_relu_3 : tensor<3x4xf64>) {
+// CHECK-NEXT:   ^1(%11 : f64, %12 : f64):
+// CHECK-NEXT:     %13 = arith.maximumf %11, %res_relu_3_1 : f64
+// CHECK-NEXT:     linalg.yield %13 : f64
+// CHECK-NEXT:   } -> tensor<3x4xf64>
+
 
 
 %res_constant = "onnx.Constant"() {onnx_node_name = "/Constant", "value" = dense<1> : tensor<1xi64>}: () -> tensor<1xi64>
