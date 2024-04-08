@@ -41,6 +41,7 @@ htmlcov/
 .tox/
 .nox/
 .coverage
+.coveragepart.*
 .coverage.*
 .coverage_pytest
 .coverage_filecheck

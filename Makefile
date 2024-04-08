@@ -8,7 +8,8 @@ VENV_DIR ?= venv
 COVERAGE_FILE ?= .coverage
 
 # use different coverage data file per coverage run, otherwise combine complains
-TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
+TESTS_COVERAGE_FILE = ${COVERAGE_FILE}part.tests
+FILECHECK_COVERAGE_FILE = ${COVERAGE_FILE}part.filecheck
 
 # make tasks run all commands in a single shell
 .ONESHELL:
@@ -24,7 +25,7 @@ ${VENV_DIR}/: requirements.txt
 
 # remove all caches and the venv
 clean:
-	rm -rf ${VENV_DIR} .pytest_cache *.egg-info .coverage.*
+	rm -rf ${VENV_DIR} .pytest_cache *.egg-info .coverage.* .coveragepart*
 
 # run filecheck tests
 filecheck:
@@ -73,16 +74,14 @@ black:
 	# run black on all of xdsl if no staged files exist
 	black $${staged_files:-xdsl}
 
+# canned recipe combining coverage data files
+define merge-coverages =
+coverage combine --keep --data-file=${COVERAGE_FILE} ${TESTS_COVERAGE_FILE} ${FILECHECK_COVERAGE_FILE}
+endef
+
 # run coverage over all tests and combine data files
-coverage: coverage-tests coverage-filecheck ${COVERAGE_FILE}
-
-# merge coverage files
-${COVERAGE_FILE}: ${TESTS_COVERAGE_FILE} ${FILECHECK_COVERAGE_FILE}
-	coverage combine --keep --data-file=$@ $^
-
-${TESTS_COVERAGE_FILE}: coverage-tests
-
-${FILECHECK_COVERAGE_FILE}: coverage-filecheck
+coverage: coverage-tests coverage-filecheck
+	$(merge-coverages)
 
 # run coverage over tests
 coverage-tests:
@@ -94,6 +93,10 @@ coverage-filecheck:
 	coverage combine --data-file=${FILECHECK_COVERAGE_FILE} .coverage.*
 
 .PHONY: coverage coverage-tests coverage-filecheck
+
+# update merged coverage file when partial coverage is re-run
+${COVERAGE_FILE}: ${TESTS_COVERAGE_FILE} ${FILECHECK_COVERAGE_FILE}
+	$(merge-coverages)
 
 # generate html coverage report
 coverage-report-html: ${COVERAGE_FILE}
