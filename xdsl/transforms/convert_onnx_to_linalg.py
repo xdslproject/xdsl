@@ -62,15 +62,15 @@ class AddOpLowering(RewritePattern):
 class ReluOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
-        body = Region(Block(arg_types=(f32, f32)))
         operand = relu.operand.type
         assert isinstance(operand, TensorType)
         operand_rank = len(operand.get_shape())
+        body = Region(Block(arg_types=(operand.element_type, operand.element_type)))
         affine_map = AffineMapAttr(AffineMap.identity(operand_rank))
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), relu.res.type),
-                zero := arith.Constant(FloatAttr(0, f32)),
+                zero := arith.Constant(FloatAttr(0, operand.element_type)),
                 linalg.Generic(
                     (relu.operand,),
                     (empty.tensor,),
