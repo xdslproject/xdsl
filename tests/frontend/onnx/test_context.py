@@ -6,7 +6,7 @@ from xdsl.ir import Attribute
 try:
     from onnx import TensorProto, ValueInfoProto
 
-    from xdsl.frontend.onnx.context import (
+    from xdsl.frontend.onnx.ir_builder import (
         OnnxXdslMapping,
         visit_value_info,
     )
