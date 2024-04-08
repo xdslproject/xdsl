@@ -16,9 +16,10 @@ class OnnxXdslMapping:
 def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
     """Given the onnx ValueInforProto, it returns the corresponding Attribute stored in the context."""
     name = i.name
-    t = get_type(i.type)
-    if name not in list(ctx.type_by_name.keys()):
-        ctx.type_by_name[name] = t
-        return t
-    else:
+
+    if name in ctx.type_by_name:
         return ctx.type_by_name[name]
+
+    t = get_type(i.type)
+    ctx.type_by_name[name] = t
+    return t
