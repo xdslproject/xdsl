@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
@@ -66,12 +66,13 @@ class ReluOpLowering(RewritePattern):
         assert isinstance(operand, TensorType)
         operand = cast(TensorType[Attribute], operand)
         operand_rank = len(operand.get_shape())
-        body = Region(Block(arg_types=(operand.element_type, operand.element_type)))
+        element_type = cast(FloatAttr[Any], operand.element_type)
+        body = Region(Block(arg_types=(element_type, element_type)))
         affine_map = AffineMapAttr(AffineMap.identity(operand_rank))
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), relu.res.type),
-                zero := arith.Constant(FloatAttr(0, operand.element_type)),
+                zero := arith.Constant(FloatAttr(0.0, element_type)),
                 linalg.Generic(
                     (relu.operand,),
                     (empty.tensor,),
