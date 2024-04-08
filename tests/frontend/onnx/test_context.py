@@ -1,6 +1,8 @@
 import onnx
 import pytest
 
+from xdsl.ir import Attribute
+
 try:
     from onnx import TensorProto, ValueInfoProto
 
@@ -68,15 +70,24 @@ def test_visit_value_info_multiple_time():
     # run visit_value_info with empty context
     t1 = visit_value_info(input_value_info, ctx)
 
+    # check type info
+    assert isinstance(t1, Attribute)
+    assert str(t1) == "tensor<1x3x224x224xf32>"
+
     # check keys in context
     keys = list(ctx.type_by_name.keys())
     assert keys == ["input_tensor"]
 
-    # run visit_value_info with empty context
+    # run visit_value_info again
     t2 = visit_value_info(input_value_info, ctx)
 
+    # check type info
+    assert isinstance(t2, Attribute)
+    assert str(t2) == "tensor<1x3x224x224xf32>"
+
     # check keys in context
     keys = list(ctx.type_by_name.keys())
     assert keys == ["input_tensor"]
 
+    # check it is returned the same reference
     assert t1 is t2
