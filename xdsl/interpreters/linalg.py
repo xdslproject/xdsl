@@ -261,3 +261,27 @@ class LinalgFunctions(InterpreterFunctions):
         if len(op.results) > 0:
             return (res,)
         return ()
+
+    @impl(linalg.BroadcastOp)
+    def run_broadcast(
+        self,
+        interpreter: Interpreter,
+        op: linalg.BroadcastOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        input, res = (
+            args[0],
+            args[1],
+        )
+        assert isinstance(input, ShapedArray)
+        assert isinstance(res, ShapedArray)
+        input = cast(ShapedArray[float], input)
+        res = cast(ShapedArray[float], res)
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
+        # get dimensions array
+        dims = op.dimensions.as_tuple()
+        dimensions_map: list[int] = []
+        for dim in range(len(res.shape)):
+            if dim not in dims:
+                dimensions_map.append(dim)
