@@ -64,6 +64,7 @@ class ReluOpLowering(RewritePattern):
     def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
         operand = relu.operand.type
         assert isinstance(operand, TensorType)
+        operand = cast(TensorType[Attribute], operand)
         operand_rank = len(operand.get_shape())
         body = Region(Block(arg_types=(operand.element_type, operand.element_type)))
         affine_map = AffineMapAttr(AffineMap.identity(operand_rank))
