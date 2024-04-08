@@ -25,13 +25,11 @@ class LinalgFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "library_call not yet supported in linalg.generic interpreter"
             )
-        if op.res:
-            raise NotImplementedError(
-                "results not yet supported in linalg.generic interpreter"
-            )
-
+        # if op.res:
+        #     raise NotImplementedError(
+        #         "results not yet supported in linalg.generic interpreter"
+        #     )
         inputs_count = len(op.inputs)
-
         outputs: tuple[ShapedArray[float], ...] = args[inputs_count:]
 
         indexing_maps = op.get_indexing_maps()
@@ -54,7 +52,8 @@ class LinalgFunctions(InterpreterFunctions):
             ):
                 result_indices = indexing_map.eval(indices, ())
                 outputs[0].store(result_indices, res)
-
+            if len(op.results) > 0:
+                return (outputs[0],)
         return ()
 
     @impl_terminator(linalg.YieldOp)

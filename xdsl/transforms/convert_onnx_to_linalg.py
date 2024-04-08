@@ -14,7 +14,6 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     f32,
-    f64,
     i64,
 )
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region
@@ -321,7 +320,7 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
                 init := tensor.EmptyOp((), max_pool_single_out.output.type),
                 # Since we're unable to represent +/- infinity,
                 # we currently use the maximum value by sys
-                cst := arith.Constant(FloatAttr(-1e308, f64)),
+                cst := arith.Constant(FloatAttr(-1e308, f32)),
                 fill := linalg.FillOp(
                     (cst.result,),
                     (init.tensor,),

@@ -168,6 +168,7 @@ class OnnxFunctions(InterpreterFunctions):
         assert isinstance(result_type, TensorType)
         static_shape = list(result_type.get_shape())
         assert static_shape is not None
+        #
         # if static_shape != new_shape.data:
         #     raise InterpretationError("Mismatch between static shape and new shape")
         return (input.with_shape(static_shape),)
@@ -191,6 +192,8 @@ class OnnxFunctions(InterpreterFunctions):
         nd_b = to_ndarray(b)
         nd_c = to_ndarray(c)
 
+        nd_c.shape = [1, nd_c.shape[0]]
+
         if op.trans_a is not None and op.trans_a.value.data == 1:
             nd_a = np.transpose(nd_a)
 
@@ -198,7 +201,6 @@ class OnnxFunctions(InterpreterFunctions):
             nd_b = np.transpose(nd_b)
 
         result = alpha * nd_a @ nd_b + beta * nd_c
-
         return (from_ndarray(result),)
 
     @impl(onnx.Conv)
@@ -295,12 +297,16 @@ class OnnxFunctions(InterpreterFunctions):
                             ]
                             * kernel[k, l]
                         )
+
+        if matrix.shape[1] == 1:
+            for i in range(1, output_shape[1]):
+                output[0, i] = output[0, 0]
         output += to_ndarray(bias)
+
         # the number of channels is not always fixed to one
         result_type = op.res.type
         assert isinstance(result_type, TensorType)
         static_shape = list(result_type.get_shape())
-
         result = np.array(output)
         assert tuple(result.shape) == (
             1,
