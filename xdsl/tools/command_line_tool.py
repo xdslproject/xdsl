@@ -14,6 +14,11 @@ from xdsl.utils.exceptions import ParseError
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
+    def get_accfg():
+        from xdsl.dialects.accfg import ACCFG
+
+        return ACCFG
+
     def get_affine():
         from xdsl.dialects.affine import Affine
 
@@ -250,6 +255,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return X86
 
     return {
+        "accfg": get_accfg,
         "affine": get_affine,
         "aie": get_aie,
         "air": get_air,
