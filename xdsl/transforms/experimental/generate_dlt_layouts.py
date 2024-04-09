@@ -327,9 +327,10 @@ class DLTLayoutRewriter(RewritePattern):
                 if isinstance(use.operation, dlt.SelectOp):
                     op: dlt.SelectOp = use.operation
                     assert operand == op.operands[use.index]
+                    current_ident = cast(dlt.PtrType, op.res.type).identification
                     new_res_type = dlt.SelectOp.calculateResultType(
                         operand.type, op.members, op.dimensions
-                    )
+                    ).as_not_base().with_identification(current_ident)
                     if new_res_type != op.res.type:
                         new_op = dlt.SelectOp(
                             op.tree,
@@ -365,9 +366,10 @@ class DLTLayoutRewriter(RewritePattern):
                     else:
                         # this is a tensor arg, so there are dimensions to select.
                         selected_dims = [d for ds in dims for d in ds]
+                        current_ident = block_arg.type.identification
                         new_inner_type = dlt.SelectOp.calculateResultType(
                             operand.type, [], selected_dims
-                        )
+                        ).as_not_base().with_identification(current_ident)
                         assert (
                             block_arg.type.contents_type == new_inner_type.contents_type
                         )
@@ -426,7 +428,7 @@ class DLTLayoutRewriter(RewritePattern):
                     raise ValueError(
                         f"New layout is incompatible with existing type. Expected type {op_res_type.contents_type} but got {new_contents} from {layout}"
                     )
-                new_ptr_type = op_res_type.with_new_layout(layout)
+                new_ptr_type = op_res_type.with_new_layout(layout, preserve_ident=True)
                 if op_res_type != new_ptr_type:
                     new_alloc_op = dlt.AllocOp(
                         operands=[op.initialValues, op.init_extent_sizes],
@@ -445,7 +447,7 @@ class DLTLayoutRewriter(RewritePattern):
                     raise ValueError(
                         f"New layout is incompatible with existing type. Expected type {function_type.inputs.data[idx].contents_type} but got {new_contents} from {layout}"
                     )
-                new_type = block_arg.type.with_new_layout(layout)
+                new_type = block_arg.type.with_new_layout(layout, preserve_ident=True)
                 if block_arg.type != new_type:
                     op.replace_argument_type(block_arg, new_type)
                     propergate_operands(block_arg)

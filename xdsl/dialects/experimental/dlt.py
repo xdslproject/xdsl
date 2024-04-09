@@ -1231,6 +1231,10 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             base=False,
         )
 
+    @property
+    def has_identity(self):
+        return self.identification.data != ""
+
     def with_identification(self, identity: str | StringAttr) -> PtrType:
         return PtrType(
             self.contents_type,
@@ -1243,7 +1247,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
         )
 
 
-    def with_layout_name(self, name: str | StringAttr) -> PtrType:
+    def with_layout_name(self, name: str | StringAttr, preserve_ident=False) -> PtrType:
         return PtrType(
             self.contents_type,
             NamedLayoutAttr(name, self.layout),
@@ -1251,9 +1255,10 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             self.filled_dimensions,
             self.filled_extents,
             base=self.is_base,
+            identity=self.identification if preserve_ident else ""
         )
 
-    def with_new_layout(self, layout: Layout, remove_bloat=False) -> PtrType:
+    def with_new_layout(self, layout: Layout, remove_bloat=False, preserve_ident=False) -> PtrType:
         filled_members = set(self.filled_members)
         filled_dimensions = list(self.filled_dimensions)
         filled_extents = list(self.filled_extents)
@@ -1280,6 +1285,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             ArrayAttr(filled_dimensions),
             ArrayAttr(filled_extents),
             base=self.is_base,
+            identity=self.identification if preserve_ident else ""
         )
 
     def verify(self) -> None:
@@ -1632,6 +1638,8 @@ class SelectOp(DTLLayoutScopedOp):
                 f"should result in {derived_output_contents_type}, but result type given has: "
                 f"{res_type.contents_type}"
             )
+        if res_type.is_base:
+            raise VerifyException("Once selected, a Ptr-Type cannot be a memory handle base")
         # maybe we should calculate if the layouts are valid here too, but this requires some infrastructure for finding
         # sub-layouts from the layout given the selected members and dimensions - and there is not a unique answer as
         # we don't *need* to enforce that the layout is minimal at all steps given the filled_members and
