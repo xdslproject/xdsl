@@ -28,12 +28,18 @@ def infer_state_of(state_var: SSAValue) -> State:
     """
     owner = state_var.owner
     match owner:
+        # If the owner is a setup op that has no previous state,
+        # return all values of the previous state as an op.
         case accfg.SetupOp(in_state=None) as setup_op:
             return {name: val for name, val in setup_op.iter_params()}
+        # If the owner is a setup op with a previous state,
+        # update the state with all the values declared there.
         case accfg.SetupOp(in_state=st) as setup_op if st is not None:
             in_state = infer_state_of(st)
             in_state.update(dict(setup_op.iter_params()))
             return in_state
+        # If the owner is an scf.if that has two possible setups
+        # only update the state that is set in both possible setups
         case scf.If() as if_op:
             return state_union(*infer_states_for_if(if_op, state_var))
         case Block():
