@@ -46,6 +46,7 @@ jobs:
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
         pip install -r requirements.txt
+        pip install --upgrade coverage
         # install onnx dependencies
         pip install -e ".[onnx]"
 
