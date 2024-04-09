@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -15,7 +16,7 @@ from xdsl.dialects.utils import (
     parse_assignment,
     print_assignment,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue, Use
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -39,7 +40,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     SingleBlockImplicitTerminator,
-    ensure_terminator,
+    UseDefChain, ensure_terminator,
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
@@ -53,6 +54,10 @@ class While(IRDLOperation):
     res: VarOpResult = var_result_def(AnyAttr())
     before_region: Region = region_def()
     after_region: Region = region_def()
+
+    traits = frozenset([
+        UseDefChain(lambda use: {use.operation.before_region.block.args[use.index]})
+                        ])
 
     def __init__(
         self,
@@ -154,8 +159,27 @@ class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
     traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While)])
+        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While),
+                           UseDefChain(Yield.use_def_chain_for)
+                           ])
     )
+
+    @staticmethod
+    def use_def_chain_for(use: Use) -> set[SSAValue]:
+        if not isinstance(use.operation, Yield):
+            raise ValueError("use.operation must be a Yield")
+        self = typing.cast(Yield, use.operation)
+        parent_op = self.parent_op()
+        if isinstance(parent_op, For):
+            return {self.parent_block().args[use.index+1], parent_op.res[use.index]}
+        elif isinstance(parent_op, If):
+            return {parent_op.output[use.index]}
+        elif isinstance(parent_op, ParallelOp):
+            raise ValueError("Yield in a ParallelOp must have exactly zero arguments")
+        elif isinstance(parent_op, While):
+            return {parent_op.before_region.block.args[use.index], parent_op.res[use.index]}
+        else:
+            raise ValueError(f"A Yield's parent cannot be {type(parent_op)}")
 
 
 @irdl_op_definition
@@ -222,8 +246,11 @@ class For(IRDLOperation):
     body: Region = region_def("single_block")
 
     traits = frozenset(
-        [SingleBlockImplicitTerminator(Yield), ForOpHasCanonicalizationPatternsTrait()]
-    )
+        [SingleBlockImplicitTerminator(Yield), ForOpHasCanonicalizationPatternsTrait(),
+         UseDefChain(lambda use:
+                     {use.operation.body.block.args[use.index - 2], use.operation.res[use.index - 3]}
+                     if use.index >= 3 else set())
+         ])
 
     def __init__(
         self,
@@ -395,7 +422,17 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+    traits = frozenset([SingleBlockImplicitTerminator(Yield),
+                        UseDefChain(
+                            lambda use:
+                            set([r_op for r_op in self.body.block.ops if isinstance(r_op, ReduceOp)][val_idx]
+                                .body.block.args
+                                ).union({self.res[val_idx]})
+                            if (val_idx := use.index-len((self := use.operation).lowerBound+self.upperBound+self.steps)
+                                ) > 0
+                            else set()
+                        )
+                        ])
 
     def __init__(
         self,
@@ -527,6 +564,8 @@ class ReduceOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
+    traits = frozenset([UseDefChain(lambda use: set(use.operation.body.args))])
+
     def __init__(
         self,
         argument: SSAValue | Operation,
@@ -581,7 +620,17 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator()])
+    traits = frozenset([HasParent(ReduceOp), IsTerminator(),
+                        UseDefChain(
+                            lambda use:
+                            set((reduce_op := use.operation.parent_op()).body.block.args)
+                            .union(reduce_op.parent_op().res[
+                                [op for op in reduce_op.parent_op().body.block.ops if isinstance(op, ReduceOp)]
+                                   .index(reduce_op)
+                                                               ]
+                                   )
+                        )
+                        ])
 
     def __init__(self, result: SSAValue | Operation):
         super().__init__(operands=[result])
@@ -600,7 +649,14 @@ class Condition(IRDLOperation):
     cond: Operand = operand_def(IntegerType(1))
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(While), IsTerminator()])
+    traits = frozenset([HasParent(While), IsTerminator(),
+                        UseDefChain(
+                            lambda use:
+                            use.operation.parent_op().after_region.block.args[use.index-1]
+                            if use.index >= 1
+                            else set()
+                        )
+                        ])
 
     def __init__(
         self,

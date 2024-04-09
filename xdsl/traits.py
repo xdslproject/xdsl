@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
-    from xdsl.ir import Operation, Region
+    from xdsl.dialects.builtin import ModuleOp, StringAttr, SymbolRefAttr
+    from xdsl.ir import Operation, Region, SSAValue, Use
     from xdsl.pattern_rewriter import RewritePattern
 
 
@@ -398,3 +398,74 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class HasAncestor(OpTrait):
+    """
+    Constrain the operation to have a specific parent operation somewhere up the line before the ModuleOp
+    """
+
+    parameters: tuple[type[Operation], bool]
+
+    def __init__(self, ancestor_type: type[Operation], weak: bool = False):
+        if not ancestor_type:
+            raise ValueError("ancestor_type must not be empty")
+        parameters = (ancestor_type, weak)
+        super().__init__(parameters)
+
+    def verify(self, op: Operation) -> None:
+        ancestor_type, weak  = self.parameters
+        parent = op.parent_op()
+        while not isinstance(parent, ModuleOp) and (weak or parent is not None):
+            if parent is None:
+                return
+            elif isinstance(parent, ancestor_type):
+                return
+            else:
+                parent = parent.parent_op()
+        raise VerifyException(
+            f"'{op.name}' expects an ancestor op '{self.parameters[0].name}'"
+        )
+
+
+Op_Var = TypeVar("Op_Var", bound="Operation")
+
+
+@dataclass(frozen=True)
+class UseDefChain(OpTrait, Generic[Op_Var]):
+    """
+    Allow for use-def chain following by implementation of a function to get the definitions (OpResults or
+    BlockArguments) that are on the control-flow path from an internal yield operation to somewhere else within the
+    Operation.
+    """
+
+    parameters: Callable[[Use], set[SSAValue]]
+
+    def __init__(self, func: Callable[[Use], set[SSAValue]]):
+        parameters: Callable[[Use], set[SSAValue]] = func
+        super().__init__(parameters)
+
+    @property
+    def get_following_defs(self) -> Callable[[Use], set[SSAValue]]:
+        return self.parameters
+
+    @staticmethod
+    def get_defs_following_from(use: Use) -> set[SSAValue]:
+        op: Op_Var = use.operation
+        traits = [trait for trait in op.get_traits_of_type(UseDefChain)]
+        if len(traits) < 1:
+            raise ValueError("Cannot attain uses of yielded operands if parent op does not implement the UseDefChain "
+                             "Trait")
+        results = {result for trait in traits for result in trait.get_following_defs(use)}
+        if not all(result.type == use.operation.operands[use.index] for result in results):
+            # It should be the case that all the types are the same as we want to track control-flow, not changes in
+            # values or type.
+            raise ValueError(f"Results have different type from input - {use.operation} should not verify, or trait for"
+                             f" {type(use.operation)} is probably mal-formed.")
+        return results
+
+    @staticmethod
+    def has_implementation_for(use: Use) -> bool:
+        op = use.operation
+        return len([trait for trait in op.get_traits_of_type(UseDefChain)]) > 0
