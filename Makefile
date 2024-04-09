@@ -79,24 +79,40 @@ define merge-coverages =
 coverage combine --keep --data-file=${COVERAGE_FILE} ${TESTS_COVERAGE_FILE} ${FILECHECK_COVERAGE_FILE}
 endef
 
+# canned recipe to generate filecheck coverage
+define filecheck-coverage =
+lit -v tests/filecheck/ -DCOVERAGE
+coverage combine --data-file=${FILECHECK_COVERAGE_FILE} .coverage.*
+endef
+
+# canned recipe to generate tests coverage
+define tests-coverage =
+COVERAGE_FILE=${TESTS_COVERAGE_FILE} pytest -W error --cov --cov-config=.coveragerc
+endef
+
 # run coverage over all tests and combine data files
 coverage: coverage-tests coverage-filecheck
 	$(merge-coverages)
 
 # run coverage over tests
 coverage-tests:
-	COVERAGE_FILE=${TESTS_COVERAGE_FILE} pytest -W error --cov --cov-config=.coveragerc
+	${tests-coverage}
 
 # run coverage over filecheck tests
 coverage-filecheck:
-	lit -v tests/filecheck/ -DCOVERAGE
-	coverage combine --data-file=${FILECHECK_COVERAGE_FILE} .coverage.*
+	${filecheck-coverage}
 
 .PHONY: coverage coverage-tests coverage-filecheck
 
 # update merged coverage file when partial coverage is re-run
 ${COVERAGE_FILE}: ${TESTS_COVERAGE_FILE} ${FILECHECK_COVERAGE_FILE}
 	$(merge-coverages)
+
+${TESTS_COVERAGE_FILE}:
+	$(tests-coverage)
+
+${FILECHECK_COVERAGE_FILE}:
+	$(filecheck-coverage)
 
 # generate html coverage report
 coverage-report-html: ${COVERAGE_FILE}
