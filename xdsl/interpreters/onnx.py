@@ -215,6 +215,7 @@ class OnnxFunctions(InterpreterFunctions):
         bias = cast(ShapedArray[float], bias)
 
         matrix = to_ndarray(matrix)
+        matrix = matrix / 255.0
         kernel = to_ndarray(kernel)
         # reshape bias for broadcasting purposes
         # bias
@@ -319,6 +320,7 @@ class OnnxFunctions(InterpreterFunctions):
     ):
         matrix = args[0]
         matrix = to_ndarray(matrix)
+        matrix = matrix / 255.0
         m, n = matrix.shape[2], matrix.shape[3]
         kernel_shape = tuple(value.value.data for value in op.kernel_shape)
         strides_shape = tuple(value.value.data for value in op.strides)
