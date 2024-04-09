@@ -192,14 +192,13 @@ class OnnxFunctions(InterpreterFunctions):
         nd_b = to_ndarray(b)
         nd_c = to_ndarray(c)
 
-        nd_c.shape = [1, nd_c.shape[0]]
-
         if op.trans_a is not None and op.trans_a.value.data == 1:
             nd_a = np.transpose(nd_a)
 
         if op.trans_b is not None and op.trans_b.value.data == 1:
             nd_b = np.transpose(nd_b)
 
+        print(nd_a)
         result = alpha * nd_a @ nd_b + beta * nd_c
         return (from_ndarray(result),)
 
@@ -286,16 +285,16 @@ class OnnxFunctions(InterpreterFunctions):
             output_shape = (matrix.shape[0], bias.shape[1], out_height, out_width)
         output = np.zeros(output_shape, dtype=matrix.dtype)
 
+        kernel_shape = tuple(value.value.data for value in op.kernel_shape)
+        ky, kx = kernel_shape
+
         # # do convolution
         for k in range(matrix.shape[0]):
             for l in range(matrix.shape[1]):
-                for i in range(0, m_height - kernel.shape[2] + 1, strides[0]):
-                    for j in range(0, m_width - kernel.shape[3] + 1, strides[1]):
+                for i in range(0, m_height - ky + 1, strides[0]):
+                    for j in range(0, m_width - kx + 1, strides[1]):
                         output[k, l, i // strides[0], j // strides[1]] = np.sum(
-                            padded_matrix[
-                                k, l, i : i + kernel.shape[2], j : j + kernel.shape[3]
-                            ]
-                            * kernel[k, l]
+                            padded_matrix[k, l, i : i + ky, j : j + kx] * kernel[k, l]
                         )
             for i in range(1, output_shape[1]):
                 output[0, i] = output[0, 0]
