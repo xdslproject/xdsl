@@ -99,7 +99,15 @@ class AcceleratorOp(IRDLOperation):
 
     launch_addr = prop_def(IntegerAttr)
 
-    barrier = prop_def(IntegerAttr)  # TODO: this will be reworked in a later version
+    # TODO: the barrier field will likely be changed in the future
+
+    # The exact translation of accfg.await is not final,
+    # and as such the information required for this on the accfg.accelerator
+    # op will probably change again in the future.
+    # We're looking into ways of generalizing this aspect currently,
+    # but this is a thing that actually works for snitch now.
+
+    barrier = prop_def(IntegerAttr)
 
     def __init__(
         self,
@@ -274,7 +282,7 @@ class SetupOp(IRDLOperation):
         )
 
     def iter_params(self) -> Iterable[tuple[str, SSAValue]]:
-        return zip((p.data for p in self.param_names), self.values)
+        return zip((p.data for p in self.param_names), self.values, strict=True)
 
     def verify_(self) -> None:
         # that accelerator on input matches output
