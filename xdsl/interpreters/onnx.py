@@ -15,6 +15,9 @@ from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
 
+mean = 0.1307
+std = 0.3081
+
 
 def to_dtype(
     xtype: ptr.XType[int] | ptr.XType[float],
@@ -198,7 +201,6 @@ class OnnxFunctions(InterpreterFunctions):
         if op.trans_b is not None and op.trans_b.value.data == 1:
             nd_b = np.transpose(nd_b)
 
-        print(nd_a)
         result = alpha * nd_a @ nd_b + beta * nd_c
         return (from_ndarray(result),)
 
@@ -215,7 +217,7 @@ class OnnxFunctions(InterpreterFunctions):
         bias = cast(ShapedArray[float], bias)
 
         matrix = to_ndarray(matrix)
-        matrix = matrix / 255.0
+        matrix = matrix // 255.0
         kernel = to_ndarray(kernel)
         # reshape bias for broadcasting purposes
         # bias
@@ -314,149 +316,150 @@ class OnnxFunctions(InterpreterFunctions):
 
         return (from_ndarray(result),)
 
-    @impl(onnx.MaxPoolSingleOut)
-    def run_max_pool_single_out(
-        self, interpreter: Interpreter, op: onnx.MaxPoolSingleOut, args: tuple[Any, ...]
-    ):
-        matrix = args[0]
-        matrix = to_ndarray(matrix)
-        matrix = matrix / 255.0
-        m, n = matrix.shape[2], matrix.shape[3]
-        kernel_shape = tuple(value.value.data for value in op.kernel_shape)
-        strides_shape = tuple(value.value.data for value in op.strides)
-        ky, kx = kernel_shape
-        sy, sx = strides_shape
-        n_channels = matrix.shape[1]
-        n_images = matrix.shape[0]
-
-        output_width = int((n - kx) / sx) + 1
-        output_height = int((m - ky) / sy) + 1
-
-        output = np.zeros((n_images, n_channels, output_height, output_width))
-
-        for i in range(n_images):
-            for channel_index in range(n_channels):
-                c = 0
-                for height in range(0, m, sy):
-                    if height + ky <= m:
-                        image_rectangle = matrix[
-                            i, channel_index, height : height + ky, :
-                        ]
-                        for width in range(0, n, sx):
-                            if width + kx <= n:
-                                image_square = image_rectangle[:, width : width + kx]
-                                output[
-                                    i,
-                                    channel_index,
-                                    c // output_width,
-                                    c % output_width,
-                                ] = np.max(image_square)
-                                c += 1
-        result: Any = output
-        print(result)
-        return (from_ndarray(result),)
-
-    #
     # @impl(onnx.MaxPoolSingleOut)
     # def run_max_pool_single_out(
     #     self, interpreter: Interpreter, op: onnx.MaxPoolSingleOut, args: tuple[Any, ...]
     # ):
-    #     kernel_shape = tuple(value.value.data for value in op.kernel_shape)
-    #
-    #     if len(kernel_shape) != 2:
-    #         raise NotImplementedError("Only 2d max pooling supported")
-    #     ky, kx = kernel_shape
-    #
-    #     strides = tuple(value.value.data for value in op.strides)
-    #
-    #     if len(strides) != 2:
-    #         raise NotImplementedError("Only 2d max pooling supported")
-    #
-    #     # initialise the attributes used
-    #     auto_pad = op.auto_pad.data
-    #     (matrix,) = args
-    #     pads: list[int] = [value.value.data for value in op.pads]
-    #
-    #     matrix = cast(ShapedArray[float], matrix)
-    #
+    #     matrix = args[0]
     #     matrix = to_ndarray(matrix)
+    #     matrix = (matrix / 255.0)
+    #     matrix = (matrix - mean) / std
+    #     m, n = matrix.shape[2], matrix.shape[3]
+    #     kernel_shape = tuple(value.value.data for value in op.kernel_shape)
+    #     strides_shape = tuple(value.value.data for value in op.strides)
+    #     ky, kx = kernel_shape
+    #     sy, sx = strides_shape
+    #     n_channels = matrix.shape[1]
+    #     n_images = matrix.shape[0]
     #
-    #     if auto_pad != "NOTSET":
-    #         if auto_pad == "SAME_UPPER" or auto_pad == "SAME_LOWER":
-    #             out_height = int(np.ceil(matrix.shape[2] / strides[0]))
-    #             out_width = int(np.ceil(matrix.shape[3] / strides[1]))
+    #     output_width = int((n - kx) / sx) + 1
+    #     output_height = int((m - ky) / sy) + 1
     #
-    #             pad_along_height = max(
-    #                 (out_height - 1) * strides[0] + ky - matrix.shape[2], 0
-    #             )
-    #             pad_along_width = max(
-    #                 (out_width - 1) * strides[1] + kx - matrix.shape[3], 0
-    #             )
+    #     output = np.zeros((n_images, n_channels, output_height, output_width))
     #
-    #             if auto_pad == "SAME_UPPER":
-    #                 pad_top = pad_along_height // 2
-    #                 pad_bottom = pad_along_height - pad_top
-    #                 pad_left = pad_along_width // 2
-    #                 pad_right = pad_along_width - pad_left
-    #             else:
-    #                 pad_bottom = pad_along_height // 2
-    #                 pad_top = pad_along_height - pad_bottom
-    #                 pad_right = pad_along_width // 2
-    #                 pad_left = pad_along_width - pad_right
-    #
-    #             pads = [pad_top, pad_bottom, pad_left, pad_right]
-    #
-    #         elif auto_pad == "VALID":
-    #             pads = [0, 0, 0, 0]  # set padding to all zeros
-    #
-    #     if pads:
-    #         # case of asymmetric padding
-    #         pad_values = [
-    #             (pads[i], pads[i + len(pads) // 2]) for i in range(len(pads) // 2)
-    #         ]
-    #
-    #         # pad input matrix
-    #         padded_matrix = np.pad(
-    #             matrix,
-    #             (
-    #                 (0, 0),
-    #                 (0, 0),
-    #                 (pad_values[0][0], pad_values[0][1]),
-    #                 (pad_values[1][0], pad_values[1][1]),
-    #             ),
-    #             mode="constant",
-    #         )
-    #
-    #         # padded shape case
-    #         m_height, m_width = padded_matrix.shape[2:]
-    #
-    #     else:
-    #         m_height, m_width = matrix.shape[2:]
-    #
-    #         padded_matrix = matrix
-    #
-    #     # based on strides calculate the output shape
-    #     out_height = int((m_height - ky) // strides[0] + 1)
-    #     out_width = int((m_width - kx) // strides[1] + 1)
-    #
-    #     result = np.zeros(
-    #         (matrix.shape[0], matrix.shape[1], out_height, out_width),
-    #         dtype=matrix.dtype,
-    #     )
-    #
-    #     # # do maxpool computation
-    #     for k in range(matrix.shape[0]):
-    #         for l in range(matrix.shape[1]):
-    #             for i in range(0, m_height - ky + 1, strides[0]):
-    #                 for j in range(0, m_width - kx + 1, strides[1]):
-    #                     result[k, l, i // strides[0], j // strides[1]] = np.nanmax(
-    #                         padded_matrix[k, l, i : i + ky, j : j + kx]
-    #                     )
-    #
-    #     # Numpy has two types of ndarray: ndarray and NDArray, weirdly they don't seem
-    #     # to be compatible, despite one being a typealias for the other...
-    #     output: Any = result
-    #     return (from_ndarray(output),)
+    #     for i in range(n_images):
+    #         for channel_index in range(n_channels):
+    #             c = 0
+    #             for height in range(0, m, sy):
+    #                 if height + ky <= m:
+    #                     image_rectangle = matrix[
+    #                         i, channel_index, height : height + ky, :
+    #                     ]
+    #                     for width in range(0, n, sx):
+    #                         if width + kx <= n:
+    #                             image_square = image_rectangle[:, width : width + kx]
+    #                             output[
+    #                                 i,
+    #                                 channel_index,
+    #                                 c // output_width,
+    #                                 c % output_width,
+    #                             ] = np.max(image_square)
+    #                             c += 1
+    #     result: Any = output
+    #     return (from_ndarray(result),)
+
+    @impl(onnx.MaxPoolSingleOut)
+    def run_max_pool_single_out(
+        self, interpreter: Interpreter, op: onnx.MaxPoolSingleOut, args: tuple[Any, ...]
+    ):
+        kernel_shape = tuple(value.value.data for value in op.kernel_shape)
+
+        if len(kernel_shape) != 2:
+            raise NotImplementedError("Only 2d max pooling supported")
+        ky, kx = kernel_shape
+
+        strides = tuple(value.value.data for value in op.strides)
+
+        if len(strides) != 2:
+            raise NotImplementedError("Only 2d max pooling supported")
+
+        # initialise the attributes used
+        auto_pad = op.auto_pad.data
+        (matrix,) = args
+        pads: list[int] = [value.value.data for value in op.pads]
+
+        matrix = cast(ShapedArray[float], matrix)
+
+        matrix = to_ndarray(matrix)
+
+        matrix = matrix // 255.0
+
+        if auto_pad != "NOTSET":
+            if auto_pad == "SAME_UPPER" or auto_pad == "SAME_LOWER":
+                out_height = int(np.ceil(matrix.shape[2] / strides[0]))
+                out_width = int(np.ceil(matrix.shape[3] / strides[1]))
+
+                pad_along_height = max(
+                    (out_height - 1) * strides[0] + ky - matrix.shape[2], 0
+                )
+                pad_along_width = max(
+                    (out_width - 1) * strides[1] + kx - matrix.shape[3], 0
+                )
+
+                if auto_pad == "SAME_UPPER":
+                    pad_top = pad_along_height // 2
+                    pad_bottom = pad_along_height - pad_top
+                    pad_left = pad_along_width // 2
+                    pad_right = pad_along_width - pad_left
+                else:
+                    pad_bottom = pad_along_height // 2
+                    pad_top = pad_along_height - pad_bottom
+                    pad_right = pad_along_width // 2
+                    pad_left = pad_along_width - pad_right
+
+                pads = [pad_top, pad_bottom, pad_left, pad_right]
+
+            elif auto_pad == "VALID":
+                pads = [0, 0, 0, 0]  # set padding to all zeros
+
+        if pads:
+            # case of asymmetric padding
+            pad_values = [
+                (pads[i], pads[i + len(pads) // 2]) for i in range(len(pads) // 2)
+            ]
+
+            # pad input matrix
+            padded_matrix = np.pad(
+                matrix,
+                (
+                    (0, 0),
+                    (0, 0),
+                    (pad_values[0][0], pad_values[0][1]),
+                    (pad_values[1][0], pad_values[1][1]),
+                ),
+                mode="constant",
+            )
+
+            # padded shape case
+            m_height, m_width = padded_matrix.shape[2:]
+
+        else:
+            m_height, m_width = matrix.shape[2:]
+
+            padded_matrix = matrix
+
+        # based on strides calculate the output shape
+        out_height = int((m_height - ky) // strides[0] + 1)
+        out_width = int((m_width - kx) // strides[1] + 1)
+
+        result = np.zeros(
+            (matrix.shape[0], matrix.shape[1], out_height, out_width),
+            dtype=matrix.dtype,
+        )
+
+        # # do maxpool computation
+        for k in range(matrix.shape[0]):
+            for l in range(matrix.shape[1]):
+                for i in range(0, m_height - ky + 1, strides[0]):
+                    for j in range(0, m_width - kx + 1, strides[1]):
+                        result[k, l, i // strides[0], j // strides[1]] = np.nanmax(
+                            padded_matrix[k, l, i : i + ky, j : j + kx]
+                        )
+
+        # Numpy has two types of ndarray: ndarray and NDArray, weirdly they don't seem
+        # to be compatible, despite one being a typealias for the other...
+        output: Any = result
+        return (from_ndarray(output),)
 
     @impl(onnx.EntryPoint)
     def run_entry_point(
