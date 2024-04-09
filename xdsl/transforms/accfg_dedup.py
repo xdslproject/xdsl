@@ -141,7 +141,7 @@ class AccfgDeduplicate(ModulePass):
     hoist: bool = True
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        patterns = [
+        patterns: list[RewritePattern] = [
             SimplifyRedundantSetupCalls(),
         ]
 
