@@ -286,7 +286,7 @@ class OnnxFunctions(InterpreterFunctions):
             output_shape = (matrix.shape[0], bias.shape[1], out_height, out_width)
         output = np.zeros(output_shape, dtype=matrix.dtype)
 
-        # do convolution
+        # # do convolution
         for k in range(matrix.shape[0]):
             for l in range(matrix.shape[1]):
                 for i in range(0, m_height - kernel.shape[2] + 1, strides[0]):
@@ -297,8 +297,6 @@ class OnnxFunctions(InterpreterFunctions):
                             ]
                             * kernel[k, l]
                         )
-
-        if matrix.shape[1] == 1:
             for i in range(1, output_shape[1]):
                 output[0, i] = output[0, 0]
         output += to_ndarray(bias)
