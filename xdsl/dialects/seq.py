@@ -4,14 +4,19 @@ CIRCT’s seq dialect
 [1] https://circt.llvm.org/docs/Dialects/Seq/
 """
 
+from typing import Annotated
+
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntegerAttr,
     IntegerType,
     TypeAttribute,
+    i1,
 )
-from xdsl.ir import Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
     ParametrizedAttribute,
@@ -19,6 +24,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_operand_def,
     result_def,
 )
 from xdsl.parser import Parser
@@ -77,10 +83,57 @@ class ClockDivider(IRDLOperation):
         printer.print(self.pow2.value.data)
 
 
+@irdl_op_definition
+class CompRegOp(IRDLOperation):
+    """
+    Register a value, storing it for one cycle.
+    """
+
+    name = "seq.compreg"
+
+    DataType = Annotated[Attribute, ConstraintVar("DataType")]
+
+    input = operand_def(DataType)
+    clk = operand_def(clock)
+    reset = opt_operand_def(i1)
+    reset_value = opt_operand_def(DataType)
+    data = result_def(DataType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    assembly_format = (
+        "$input `,` $clk (`reset` $reset^ `,` $reset_value)? attr-dict "
+        "`:` type($input)"
+    )
+
+    def __init__(
+        self,
+        input: SSAValue,
+        clk: SSAValue,
+        reset: tuple[SSAValue, SSAValue] | None = None,
+    ):
+        super().__init__(
+            operands=[
+                input,
+                clk,
+                reset[0] if reset is not None else None,
+                reset[1] if reset is not None else None,
+            ],
+            result_types=[input.type],
+        )
+
+    def verify_(self):
+        if (self.reset is not None and self.reset_value is None) or (
+            self.reset_value is not None and self.reset is None
+        ):
+            raise VerifyException("Both reset and reset_value must be set when one is")
+
+
 Seq = Dialect(
     "seq",
     [
         ClockDivider,
+        CompRegOp,
     ],
     [
         ClockType,

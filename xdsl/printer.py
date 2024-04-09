@@ -67,6 +67,7 @@ from xdsl.ir import (
 )
 from xdsl.traits import IsTerminator
 from xdsl.utils.diagnostic import Diagnostic, OperationInformation
+from xdsl.utils.lexer import Lexer
 
 indentNumSpaces = 2
 
@@ -176,7 +177,7 @@ class Printer:
     V = TypeVar("V")
 
     def print_list(
-        self, elems: Iterable[T], print_fn: Callable[[T], None], delimiter: str = ", "
+        self, elems: Iterable[T], print_fn: Callable[[T], Any], delimiter: str = ", "
     ) -> None:
         for i, elem in enumerate(elems):
             if i:
@@ -226,18 +227,20 @@ class Printer:
         self.print_list(op.results, self.print)
         self.print(" = ")
 
-    def get_ssa_value(self, value:SSAValue) -> str:
+    def get_ssa_value(self, value: SSAValue) -> str:
         if value in self._ssa_values:
             return f"%{self._ssa_values[value]}"
         else:
             return f"%?"
 
-    def print_ssa_value(self, value: SSAValue) -> None:
+    def print_ssa_value(self, value: SSAValue) -> str:
         """
         Print an SSA value in the printer. This assigns a name to the value if the value
         does not have one in the current printing context.
         If the value has a name hint, it will use it as a prefix, and otherwise assign
         a number as the name. Numbers are assigned in order.
+
+        Returns the name used for printing the value.
         """
         if value in self._ssa_values:
             name = self._ssa_values[value]
@@ -252,6 +255,7 @@ class Printer:
             self._ssa_values[value] = name
 
         self.print(f"%{name}")
+        return name
 
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
@@ -363,6 +367,16 @@ class Printer:
     def print_string_literal(self, string: str):
         self.print(json.dumps(string))
 
+    def print_identifier_or_string_literal(self, string: str):
+        """
+        Prints the provided string as an identifier if it is one,
+        and as a string literal otherwise.
+        """
+        if Lexer.bare_identifier_regex.fullmatch(string) is None:
+            self.print_string_literal(string)
+            return
+        self.print(string)
+
     def print_bytes_literal(self, bytestring: bytes):
         self.print('"')
         for byte in bytestring:
@@ -421,9 +435,11 @@ class Printer:
             return
 
         if isinstance(attribute, SymbolRefAttr):
-            self.print(f"@{attribute.root_reference.data}")
+            self.print("@")
+            self.print_identifier_or_string_literal(attribute.root_reference.data)
             for ref in attribute.nested_references.data:
-                self.print(f"::@{ref.data}")
+                self.print("::@")
+                self.print_identifier_or_string_literal(ref.data)
             return
 
         if isinstance(attribute, IntegerAttr):

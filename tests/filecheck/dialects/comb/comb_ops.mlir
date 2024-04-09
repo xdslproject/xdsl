@@ -48,11 +48,20 @@
   %xor = comb.xor %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %xor = comb.xor %lhsi32, %rhsi32 : i32
 
-  %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : i64, "two_state"} : (i1, i1) -> i1
-  // CHECK-NEXT: %icmp = comb.icmp slt, %lhsi1, %rhsi1 : i1
+  %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : i64, "twoState"} : (i1, i1) -> i1
+  // CHECK-NEXT: %icmp = comb.icmp bin slt %lhsi1, %rhsi1 : i1
+
+  %icmp2 = comb.icmp eq %lhsi1, %rhsi1 : i1
+  // CHECK-NEXT: %icmp2 = comb.icmp eq %lhsi1, %rhsi1 : i1
+
+  %icmp_bin = comb.icmp bin eq %lhsi1, %rhsi1 : i1
+  // CHECK-NEXT: %icmp_bin = comb.icmp bin eq %lhsi1, %rhsi1 : i1
 
   %parity = comb.parity %lhsi1 : i1
   // CHECK-NEXT: %parity = comb.parity %lhsi1 : i1
+
+  %parity_bin = comb.parity bin %lhsi1 : i1
+  // CHECK-NEXT: %parity_bin = comb.parity bin %lhsi1 : i1
 
   %extract = comb.extract %lhsi32 from 1 : (i32) -> i3
   // CHECK-NEXT: %extract = comb.extract %lhsi32 from 1 : (i32) -> i3
@@ -63,7 +72,6 @@
   %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
 
-  %replicate = comb.replicate %lhsi32 : (i32) -> i32
-  // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : i32
-  }) : () -> ()
-  
+  %replicate = comb.replicate %lhsi32 : (i32) -> i64
+  // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : (i32) -> i64
+}) : () -> ()
