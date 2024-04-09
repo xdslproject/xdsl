@@ -6,11 +6,14 @@ from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     FloatAttr,
     ModuleOp,
+    NoneType,
     StringAttr,
     SymbolRefAttr,
     TensorType,
+    f32,
     f64,
     i64,
 )
@@ -276,6 +279,95 @@ class GemmOpLowering(RewritePattern):
         )
 
 
+@dataclass
+class MaxPoolSingleOutOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, max_pool_single_out: onnx.MaxPoolSingleOut, rewriter: PatternRewriter, /
+    ):
+        kernel: list[int] = [
+            value.value.data for value in max_pool_single_out.kernel_shape.data
+        ]
+        dilations: list[int] = [
+            value.value.data for value in max_pool_single_out.dilations.data
+        ]
+        strides: list[int] = [
+            value.value.data for value in max_pool_single_out.strides.data
+        ]
+        kernel_shape = TensorType(f32, kernel)
+
+        # Lowering with `storage_order = 1` attribute not supported"
+        if (
+            max_pool_single_out.storage_order.value.data != 0
+            and max_pool_single_out.storage_order
+        ):
+            raise NotImplementedError()
+
+        rewriter.replace_matched_op(
+            (
+                empty := tensor.EmptyOp((), kernel_shape),
+                init := tensor.EmptyOp((), max_pool_single_out.output.type),
+                # Since we're unable to represent +/- infinity,
+                # we currently use the maximum value by sys
+                cst := arith.Constant(FloatAttr(-1e308, f64)),
+                fill := linalg.FillOp(
+                    (cst.result,),
+                    (init.tensor,),
+                    (max_pool_single_out.output.type,),
+                ),
+                linalg.PoolingNchwMaxOp(
+                    DenseIntOrFPElementsAttr.tensor_from_list(dilations, i64, [2]),
+                    DenseIntOrFPElementsAttr.tensor_from_list(strides, i64, [2]),
+                    (
+                        max_pool_single_out.data,
+                        empty.tensor,
+                    ),
+                    (fill.results[0],),
+                    (max_pool_single_out.output.type,),
+                ),
+            )
+        )
+
+
+@dataclass
+class ConvOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, conv: onnx.Conv, rewriter: PatternRewriter, /):
+
+        dilations = tuple(value.value.data for value in conv.dilations.data)
+        strides = tuple(value.value.data for value in conv.strides.data)
+
+        if conv.group.value.data != 1:
+            raise NotImplementedError("Only 1 group supported")
+
+        if not all(dilation == 1 for dilation in dilations):
+            raise NotImplementedError("Only 1 dilation supported")
+
+        empty = tensor.EmptyOp((), conv.res.type)
+        conv_op = linalg.Conv2DNchwFchwOp(
+            DenseIntOrFPElementsAttr.tensor_from_list(dilations, i64, [2]),
+            DenseIntOrFPElementsAttr.tensor_from_list(strides, i64, [2]),
+            (
+                conv.data,
+                conv.weight,
+            ),
+            (empty.tensor,),
+            (conv.res.type,),
+        )
+        conv_ops = (
+            empty,
+            conv_op,
+        )
+        if not isinstance(conv.bias.type, NoneType):
+            add_bias = linalg.AddOp(
+                (conv.bias,),
+                (conv_op.results[0],),
+                res=(conv.res.type,),
+            )
+            conv_ops += (add_bias,)
+        rewriter.replace_matched_op(conv_ops)
+
+
 @dataclass(frozen=True)
 class ConvertOnnxToLinalgPass(ModulePass):
     name = "convert-onnx-to-linalg"
@@ -289,6 +381,8 @@ class ConvertOnnxToLinalgPass(ModulePass):
                     ConstantOpLowering(),
                     ReshapeOpLowering(),
                     GemmOpLowering(),
+                    MaxPoolSingleOutOpLowering(),
+                    ConvOpLowering(),
                 ]
             ),
             apply_recursively=False,
