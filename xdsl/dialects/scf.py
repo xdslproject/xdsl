@@ -1,22 +1,17 @@
 from __future__ import annotations
 
-import typing
 from collections.abc import Sequence
 from typing import Annotated
 
 from typing_extensions import Self
 
-from xdsl.dialects.builtin import (
-    AnySignlessIntegerOrIndexType,
-    IndexType,
-    IntegerType,
-)
+from xdsl.dialects.builtin import AnySignlessIntegerOrIndexType, IndexType, IntegerType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_assignment,
     print_assignment,
 )
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue, Use
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
@@ -40,7 +35,8 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     SingleBlockImplicitTerminator,
-    UseDefChain, ensure_terminator,
+    UseDefChain,
+    ensure_terminator,
 )
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
@@ -55,9 +51,9 @@ class While(IRDLOperation):
     before_region: Region = region_def()
     after_region: Region = region_def()
 
-    traits = frozenset([
-        UseDefChain(lambda use: {use.operation.before_region.block.args[use.index]})
-                        ])
+    traits = frozenset(
+        [UseDefChain[Self](lambda self, index: {self.before_region.block.args[index]})]
+    )
 
     def __init__(
         self,
@@ -159,25 +155,25 @@ class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
     traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While),
-                           UseDefChain(Yield.use_def_chain_for)
-                           ])
+        lambda: frozenset(
+            [
+                IsTerminator(),
+                HasParent(For, If, ParallelOp, While),
+                UseDefChain[Yield](Yield.use_def_chain_for_operand),
+            ]
+        )
     )
 
-    @staticmethod
-    def use_def_chain_for(use: Use) -> set[SSAValue]:
-        if not isinstance(use.operation, Yield):
-            raise ValueError("use.operation must be a Yield")
-        self = typing.cast(Yield, use.operation)
+    def use_def_chain_for_operand(self, index: int) -> set[SSAValue]:
         parent_op = self.parent_op()
         if isinstance(parent_op, For):
-            return {self.parent_block().args[use.index+1], parent_op.res[use.index]}
+            return {self.parent_block().args[index + 1], parent_op.res[index]}
         elif isinstance(parent_op, If):
-            return {parent_op.output[use.index]}
+            return {parent_op.output[index]}
         elif isinstance(parent_op, ParallelOp):
             raise ValueError("Yield in a ParallelOp must have exactly zero arguments")
         elif isinstance(parent_op, While):
-            return {parent_op.before_region.block.args[use.index], parent_op.res[use.index]}
+            return {parent_op.before_region.block.args[index], parent_op.res[index]}
         else:
             raise ValueError(f"A Yield's parent cannot be {type(parent_op)}")
 
@@ -246,11 +242,18 @@ class For(IRDLOperation):
     body: Region = region_def("single_block")
 
     traits = frozenset(
-        [SingleBlockImplicitTerminator(Yield), ForOpHasCanonicalizationPatternsTrait(),
-         UseDefChain(lambda use:
-                     {use.operation.body.block.args[use.index - 2], use.operation.res[use.index - 3]}
-                     if use.index >= 3 else set())
-         ])
+        [
+            SingleBlockImplicitTerminator(Yield),
+            ForOpHasCanonicalizationPatternsTrait(),
+            UseDefChain[Self](
+                lambda self, index: (
+                    {self.body.block.args[index - 2], self.res[index - 3]}
+                    if index >= 3
+                    else set()
+                )
+            ),
+        ]
+    )
 
     def __init__(
         self,
@@ -422,17 +425,28 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield),
-                        UseDefChain(
-                            lambda use:
-                            set([r_op for r_op in self.body.block.ops if isinstance(r_op, ReduceOp)][val_idx]
-                                .body.block.args
-                                ).union({self.res[val_idx]})
-                            if (val_idx := use.index-len((self := use.operation).lowerBound+self.upperBound+self.steps)
-                                ) > 0
-                            else set()
-                        )
-                        ])
+    traits = frozenset(
+        [
+            SingleBlockImplicitTerminator(Yield),
+            UseDefChain[Self](
+                lambda self, index: (
+                    set(
+                        [
+                            r_op
+                            for r_op in self.body.block.ops
+                            if isinstance(r_op, ReduceOp)
+                        ][val_idx].body.block.args
+                    ).union({self.res[val_idx]})
+                    if (
+                        val_idx := index
+                        - len(self.lowerBound + self.upperBound + self.steps)
+                    )
+                    > 0
+                    else set()
+                )
+            ),
+        ]
+    )
 
     def __init__(
         self,
@@ -564,7 +578,7 @@ class ReduceOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([UseDefChain(lambda use: set(use.operation.body.args))])
+    traits = frozenset([UseDefChain[Self](lambda self, index: set(self.body.args))])
 
     def __init__(
         self,
@@ -620,17 +634,25 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator(),
-                        UseDefChain(
-                            lambda use:
-                            set((reduce_op := use.operation.parent_op()).body.block.args)
-                            .union(reduce_op.parent_op().res[
-                                [op for op in reduce_op.parent_op().body.block.ops if isinstance(op, ReduceOp)]
-                                   .index(reduce_op)
-                                                               ]
-                                   )
-                        )
-                        ])
+    traits = frozenset(
+        [
+            HasParent(ReduceOp),
+            IsTerminator(),
+            UseDefChain[Self](
+                lambda self, index: set(
+                    (reduce_op := self.parent_op()).body.block.args
+                ).union(
+                    reduce_op.parent_op().res[
+                        [
+                            op
+                            for op in reduce_op.parent_op().body.block.ops
+                            if isinstance(op, ReduceOp)
+                        ].index(reduce_op)
+                    ]
+                )
+            ),
+        ]
+    )
 
     def __init__(self, result: SSAValue | Operation):
         super().__init__(operands=[result])
@@ -649,14 +671,19 @@ class Condition(IRDLOperation):
     cond: Operand = operand_def(IntegerType(1))
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(While), IsTerminator(),
-                        UseDefChain(
-                            lambda use:
-                            use.operation.parent_op().after_region.block.args[use.index-1]
-                            if use.index >= 1
-                            else set()
-                        )
-                        ])
+    traits = frozenset(
+        [
+            HasParent(While),
+            IsTerminator(),
+            UseDefChain[Self](
+                lambda self, index: (
+                    self.parent_op().after_region.block.args[index - 1]
+                    if index >= 1
+                    else set()
+                )
+            ),
+        ]
+    )
 
     def __init__(
         self,

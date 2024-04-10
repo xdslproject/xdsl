@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import abc
+import collections
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -415,7 +416,7 @@ class HasAncestor(OpTrait):
         super().__init__(parameters)
 
     def verify(self, op: Operation) -> None:
-        ancestor_type, weak  = self.parameters
+        ancestor_type, weak = self.parameters
         parent = op.parent_op()
         while not isinstance(parent, ModuleOp) and (weak or parent is not None):
             if parent is None:
@@ -440,14 +441,14 @@ class UseDefChain(OpTrait, Generic[Op_Var]):
     Operation.
     """
 
-    parameters: Callable[[Use], set[SSAValue]]
+    parameters: collections.Callable[[Op_Var, int], set[SSAValue]]
 
-    def __init__(self, func: Callable[[Use], set[SSAValue]]):
-        parameters: Callable[[Use], set[SSAValue]] = func
+    def __init__(self, func: collections.Callable[[Op_Var, int], set[SSAValue]]):
+        parameters: collections.Callable[[Op_Var, int], set[SSAValue]] = func
         super().__init__(parameters)
 
     @property
-    def get_following_defs(self) -> Callable[[Use], set[SSAValue]]:
+    def get_following_defs(self) -> collections.Callable[[Op_Var, int], set[SSAValue]]:
         return self.parameters
 
     @staticmethod
@@ -455,14 +456,24 @@ class UseDefChain(OpTrait, Generic[Op_Var]):
         op: Op_Var = use.operation
         traits = [trait for trait in op.get_traits_of_type(UseDefChain)]
         if len(traits) < 1:
-            raise ValueError("Cannot attain uses of yielded operands if parent op does not implement the UseDefChain "
-                             "Trait")
-        results = {result for trait in traits for result in trait.get_following_defs(use)}
-        if not all(result.type == use.operation.operands[use.index] for result in results):
+            raise ValueError(
+                "Cannot attain uses of yielded operands if parent op does not implement the UseDefChain "
+                "Trait"
+            )
+        results = {
+            result
+            for trait in traits
+            for result in trait.get_following_defs(use.operation, use.index)
+        }
+        if not all(
+            result.type == use.operation.operands[use.index] for result in results
+        ):
             # It should be the case that all the types are the same as we want to track control-flow, not changes in
             # values or type.
-            raise ValueError(f"Results have different type from input - {use.operation} should not verify, or trait for"
-                             f" {type(use.operation)} is probably mal-formed.")
+            raise ValueError(
+                f"Results have different type from input - {use.operation} should not verify, or trait for"
+                f" {type(use.operation)} is probably mal-formed."
+            )
         return results
 
     @staticmethod
