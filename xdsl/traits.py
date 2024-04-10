@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import abc
-import collections
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
-    from xdsl.dialects.builtin import ModuleOp, StringAttr, SymbolRefAttr
-    from xdsl.ir import Operation, Region, SSAValue, Use
+    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
+    from xdsl.ir import BlockArgument, Operation, OpResult, Region, SSAValue, Use
     from xdsl.pattern_rewriter import RewritePattern
 
 
@@ -401,42 +400,75 @@ class HasCanonicalisationPatternsTrait(OpTrait):
         raise NotImplementedError()
 
 
-
 Op_Var = TypeVar("Op_Var", bound="Operation")
 
 
 @dataclass(frozen=True)
-class UseDefChain(OpTrait, Generic[Op_Var]):
+class UseDefChainTrait(OpTrait, Generic[Op_Var]):
     """
     Allow for use-def chain following by implementation of a function to get the definitions (OpResults or
     BlockArguments) that are on the control-flow path from an internal yield operation to somewhere else within the
     Operation.
     """
 
-    parameters: collections.Callable[[Op_Var, int], set[SSAValue]]
+    @classmethod
+    @abc.abstractmethod
+    def get_defs_following_from_operand_for(
+        cls, op: Op_Var, index: int
+    ) -> set[SSAValue]:
+        raise NotImplementedError()
 
-    def __init__(self, func: collections.Callable[[Op_Var, int], set[SSAValue]]):
-        parameters: collections.Callable[[Op_Var, int], set[SSAValue]] = func
-        super().__init__(parameters)
+    @classmethod
+    @abc.abstractmethod
+    def get_operands_leading_to_op_result_for(cls, op: Op_Var, index: int) -> set[Use]:
+        raise NotImplementedError()
 
-    @property
-    def get_following_defs(self) -> collections.Callable[[Op_Var, int], set[SSAValue]]:
-        return self.parameters
+    @classmethod
+    @abc.abstractmethod
+    def get_operands_leading_to_block_argument_for(
+        cls, op: Op_Var, arg: BlockArgument
+    ) -> set[Use]:
+        raise NotImplementedError()
+
+    # @classmethod
+    # def get_operands_leading_to_def(cls, ssa_value: SSAValue) -> set[Use]:
+    #     if isinstance(ssa_value.owner, Operation):
+    #         result = cast(OpResult, ssa_value)
+    #         return cls.get_operands_leading_to_op_result(result.op, result.index)
+    #     elif isinstance(ssa_value.owner, Block):
+    #         arg = cast(BlockArgument, ssa_value)
+    #         return cls.get_operands_leading_to_block_argument(arg.block.parent_op(), arg)
+    #     else:
+    #         raise NotImplementedError(f"UseDefChainTrait does not support ssa values that are: {type(ssa_value)}")
 
     @staticmethod
-    def get_defs_following_from(use: Use) -> set[SSAValue]:
-        op: Op_Var = use.operation
-        traits = [trait for trait in op.get_traits_of_type(UseDefChain)]
+    def _get_UseDefChainTraits_for(op: Operation):
+        traits = [trait for trait in op.get_traits_of_type(UseDefChainTrait)]
         if len(traits) < 1:
             raise ValueError(
-                "Cannot attain uses of yielded operands if parent op does not implement the UseDefChain "
-                "Trait"
+                "Cannot attain uses of operands if parent op does not implement the UseDefChainTrait"
             )
+        return traits
+
+    @staticmethod
+    def has_implementation_for_operand(use: Use) -> bool:
+        return (
+            len([trait for trait in use.operation.get_traits_of_type(UseDefChainTrait)])
+            > 0
+        )
+
+    @staticmethod
+    def get_defs_following_from_operand(use: Use) -> set[SSAValue]:
+        op = use.operation
+
         results = {
             result
-            for trait in traits
-            for result in trait.get_following_defs(use.operation, use.index)
+            for trait in UseDefChainTrait._get_UseDefChainTraits_for(op)
+            for result in trait.get_defs_following_from_operand_for(
+                use.operation, use.index
+            )
         }
+
         if not all(
             result.type == use.operation.operands[use.index].type for result in results
         ):
@@ -449,6 +481,58 @@ class UseDefChain(OpTrait, Generic[Op_Var]):
         return results
 
     @staticmethod
-    def has_implementation_for(use: Use) -> bool:
-        op = use.operation
-        return len([trait for trait in op.get_traits_of_type(UseDefChain)]) > 0
+    def has_implementation_for_op_result(op_result: OpResult) -> bool:
+        return (
+            len([trait for trait in op_result.op.get_traits_of_type(UseDefChainTrait)])
+            > 0
+        )
+
+    @staticmethod
+    def get_operands_leading_to_op_result(op_result: OpResult) -> set[Use]:
+        op = op_result.op
+        uses = {
+            use
+            for trait in UseDefChainTrait._get_UseDefChainTraits_for(op)
+            for use in trait.get_operands_leading_to_op_result_for(op, op_result.index)
+        }
+        if not all(
+            use.operation.operands[use.index].type == op_result.type for use in uses
+        ):
+            # It should be the case that all the types are the same as we want to track control-flow, not changes in
+            # values or type.
+            raise ValueError(
+                f"Uses have different type from input - This should not verify, or trait for"
+                f" {type(op)} is probably mal-formed."
+            )
+        return uses
+
+    @staticmethod
+    def has_implementation_for_block_argument(arg: BlockArgument) -> bool:
+        return (
+            len(
+                [
+                    trait
+                    for trait in arg.owner.parent_op().get_traits_of_type(
+                        UseDefChainTrait
+                    )
+                ]
+            )
+            > 0
+        )
+
+    @staticmethod
+    def get_operands_leading_to_block_argument(arg: BlockArgument) -> set[Use]:
+        op = arg.owner.parent_op()
+        uses = {
+            use
+            for trait in UseDefChainTrait._get_UseDefChainTraits_for(op)
+            for use in trait.get_operands_leading_to_block_argument_for(op, arg)
+        }
+        if not all(use.operation.operands[use.index].type == arg.type for use in uses):
+            # It should be the case that all the types are the same as we want to track control-flow, not changes in
+            # values or type.
+            raise ValueError(
+                f"Uses have different type from input - This should not verify, or trait for"
+                f" {type(op)} is probably mal-formed."
+            )
+        return uses
