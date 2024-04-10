@@ -717,7 +717,7 @@ class ReduceOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([HasParent(ParallelOp), ReduceOpUseDefChainTrait()])
+    traits = frozenset([ReduceOpUseDefChainTrait()])
 
     def __init__(
         self,
