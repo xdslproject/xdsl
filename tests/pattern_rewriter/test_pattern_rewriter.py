@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 
 import pytest
@@ -1629,3 +1630,50 @@ def test_no_change():
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         expect_rewrite=False,
     )
+
+
+def test_error():
+
+    prog = """\
+builtin.module {
+  "test.op"() {"erroneous" = false} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {"erroneous" = true} : () -> ()
+  "test.op"() : () -> ()
+}
+"""
+    expected = """\
+Error while applying pattern: Expected operation to not be erroneous!
+
+"builtin.module"() ({
+  "test.op"() {"erroneous" = false} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {"erroneous" = true} : () -> ()
+  ^^^^^^^^^--------------------------------------------------------------
+  | Error while applying pattern: Expected operation to not be erroneous!
+  -----------------------------------------------------------------------
+  "test.op"() : () -> ()
+}) : () -> ()
+
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
+            if matched_op.attributes.get(
+                "erroneous", IntegerAttr.from_int_and_width(0, 1)
+            ) == IntegerAttr.from_int_and_width(1, 1):
+                raise ValueError("Expected operation to not be erroneous!")
+            return
+
+    ctx = MLContext(allow_unregistered=True)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(test.Test)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_module()
+
+    walker = PatternRewriteWalker(Rewrite())
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        walker.rewrite_module(module)
