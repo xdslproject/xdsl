@@ -217,7 +217,6 @@ class OnnxFunctions(InterpreterFunctions):
         bias = cast(ShapedArray[float], bias)
 
         matrix = to_ndarray(matrix)
-        matrix = matrix // 255.0
         kernel = to_ndarray(kernel)
         # reshape bias for broadcasting purposes
         # bias
@@ -298,8 +297,8 @@ class OnnxFunctions(InterpreterFunctions):
                         output[k, l, i // strides[0], j // strides[1]] = np.sum(
                             padded_matrix[k, l, i : i + ky, j : j + kx] * kernel[k, l]
                         )
-            for i in range(1, output_shape[1]):
-                output[0, i] = output[0, 0]
+            # for i in range(1, output_shape[1]):
+            #     output[0, i] = output[0, 0]
         output += to_ndarray(bias)
 
         # the number of channels is not always fixed to one
@@ -322,8 +321,7 @@ class OnnxFunctions(InterpreterFunctions):
     # ):
     #     matrix = args[0]
     #     matrix = to_ndarray(matrix)
-    #     matrix = (matrix / 255.0)
-    #     matrix = (matrix - mean) / std
+    #     # matrix = (matrix / 255.0)
     #     m, n = matrix.shape[2], matrix.shape[3]
     #     kernel_shape = tuple(value.value.data for value in op.kernel_shape)
     #     strides_shape = tuple(value.value.data for value in op.strides)
@@ -381,8 +379,6 @@ class OnnxFunctions(InterpreterFunctions):
         matrix = cast(ShapedArray[float], matrix)
 
         matrix = to_ndarray(matrix)
-
-        matrix = matrix // 255.0
 
         if auto_pad != "NOTSET":
             if auto_pad == "SAME_UPPER" or auto_pad == "SAME_LOWER":

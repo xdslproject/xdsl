@@ -5,6 +5,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AnyFloat,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -314,13 +315,19 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
         ):
             raise NotImplementedError()
 
+        operand_type = max_pool_single_out.data.type
+        assert isinstance(operand_type, TensorType)
+        operand_type = cast(TensorType[Attribute], operand_type)
+
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), kernel_shape),
                 init := tensor.EmptyOp((), max_pool_single_out.output.type),
                 # Since we're unable to represent +/- infinity,
                 # we currently use the maximum value by sys
-                cst := arith.Constant(FloatAttr(-1e308, f32)),
+                cst := arith.Constant(
+                    FloatAttr(-1e308, cast(AnyFloat, operand_type.element_type))
+                ),
                 fill := linalg.FillOp(
                     (cst.result,),
                     (init.tensor,),
