@@ -401,34 +401,6 @@ class HasCanonicalisationPatternsTrait(OpTrait):
         raise NotImplementedError()
 
 
-@dataclass(frozen=True)
-class HasAncestor(OpTrait):
-    """
-    Constrain the operation to have a specific parent operation somewhere up the line before the ModuleOp
-    """
-
-    parameters: tuple[type[Operation], bool]
-
-    def __init__(self, ancestor_type: type[Operation], weak: bool = False):
-        if not ancestor_type:
-            raise ValueError("ancestor_type must not be empty")
-        parameters = (ancestor_type, weak)
-        super().__init__(parameters)
-
-    def verify(self, op: Operation) -> None:
-        ancestor_type, weak = self.parameters
-        parent = op.parent_op()
-        while not isinstance(parent, ModuleOp) and (weak or parent is not None):
-            if parent is None:
-                return
-            elif isinstance(parent, ancestor_type):
-                return
-            else:
-                parent = parent.parent_op()
-        raise VerifyException(
-            f"'{op.name}' expects an ancestor op '{self.parameters[0].name}'"
-        )
-
 
 Op_Var = TypeVar("Op_Var", bound="Operation")
 
@@ -466,7 +438,7 @@ class UseDefChain(OpTrait, Generic[Op_Var]):
             for result in trait.get_following_defs(use.operation, use.index)
         }
         if not all(
-            result.type == use.operation.operands[use.index] for result in results
+            result.type == use.operation.operands[use.index].type for result in results
         ):
             # It should be the case that all the types are the same as we want to track control-flow, not changes in
             # values or type.
