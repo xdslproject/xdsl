@@ -7,7 +7,7 @@ from operator import add, lt, neg
 from typing import Generic, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
-from xdsl.dialects.builtin import AnyFloat, AnyIntegerAttr, ArrayAttr, IntAttr
+from xdsl.dialects.builtin import AnyIntegerAttr, ArrayAttr, IntAttr
 from xdsl.ir import (
     Attribute,
     Block,
@@ -292,10 +292,10 @@ class TempType(
 @irdl_attr_definition
 class ResultType(ParametrizedAttribute, TypeAttribute):
     name = "stencil.result"
-    elem: ParameterDef[AnyFloat]
+    elem: ParameterDef[Attribute]
 
-    def __init__(self, float_t: AnyFloat) -> None:
-        super().__init__([float_t])
+    def __init__(self, type: Attribute) -> None:
+        super().__init__([type])
 
 
 @irdl_op_definition
@@ -742,7 +742,7 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "stencil.return"
-    arg: VarOperand = var_operand_def(ResultType | AnyFloat)
+    arg: VarOperand = var_operand_def(Attribute)
     unroll = opt_prop_def(IndexAttr)
 
     @property

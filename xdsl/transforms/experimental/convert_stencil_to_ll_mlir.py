@@ -168,19 +168,25 @@ class IndexOpToLoopSSA(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: IndexOp, rewriter: PatternRewriter, /):
-        # We do not currently support an offset in indexop, therefore check
-        # that this is all set to zero as otherwise it will not be handled
-        for offset in op.offset:
-            assert offset == 0
         enclosing_loops = list(IndexOpToLoopSSA.discover_enclosing_loops(op))
         # The first block argument is the loop iterator
-        loop_op = enclosing_loops[op.dim.value.data]
+        loop_op = enclosing_loops[0]
         assert isa(loop_op, scf.For) or isa(loop_op, scf.ParallelOp)
         assert len(loop_op.body.blocks) == 1
         assert len(loop_op.body.block.args) >= 1
-        replacement_ssa = loop_op.body.block.args[0]
-        op.results[0].replace_by(replacement_ssa)
-        rewriter.erase_op(op)
+        replacement_ssa = loop_op.body.block.args[op.dim.value.data]
+        offset = op.offset.array.data[op.dim.value.data].data
+        if offset == 0:
+            rewriter.replace_matched_op([], [replacement_ssa])
+        else:
+            rewriter.replace_matched_op(
+                [
+                    offset_op := arith.Constant.from_int_and_width(
+                        offset, builtin.IndexType()
+                    ),
+                    arith.Addi(replacement_ssa, offset_op),
+                ]
+            )
 
 
 class LoadOpToMemref(RewritePattern):
