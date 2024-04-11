@@ -7,6 +7,11 @@
 
 %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.comptime_struct
 
+csl.func @returning_func() -> i32 {
+  %c = arith.constant 10 : i32
+  csl.return %c : i32
+}
+
 csl.func @initialize() {
   %lb = arith.constant   0 : i16
   %ub = arith.constant  24 : i16
@@ -64,8 +69,11 @@ csl.func @initialize() {
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "b", "sym_visibility" = "public", "type" = memref<4xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "y", "sym_visibility" = "public", "type" = memref<4xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: const thing : comptime_struct = @import_module("<thing>");
-// CHECK-NEXT:
-// CHECK-NEXT: fn initialize() {
+// CHECK-NEXT: fn returning_func() i32 {
+// CHECK-NEXT:   const c : i32 = 10;
+// CHECK-NEXT:   return c;
+// CHECK-NEXT: }
+// CHECK-NEXT: fn initialize() void {
 // CHECK-NEXT:   const lb : i16 = 0;
 // CHECK-NEXT:   const ub : i16 = 24;
 // CHECK-NEXT:   const step : i16 = 1;
