@@ -13,37 +13,42 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import SymbolTable
 
-SPEZIALIZE_ON_VALS_ATTR = "specialize_on_vals"
+PIN_CONSTANT_VALS = "pin_to_constants"
 
 
-class FunctionSpecializationPattern(RewritePattern):
+class FunctionConstantPinning(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, func_op: func.FuncOp, rewriter: PatternRewriter, /):
-        # check if the function contains a "specialize_on_vals" annotated operation
-        split_op = func_contains_specialization_annotation(func_op)
-        if split_op is None:
+        # can't rewrite nested functions yet
+        if not isinstance(func_op.parent_op(), builtin.ModuleOp):
             return
 
+        # check if the function contains a "pin_to_constants" annotated operation
+        split_op = func_contains_pinning_annotation(func_op)
+        if split_op is None:
+            return
         # can't do splits on multi-value ops
         if len(split_op.results) != 1:
             return
 
-        # get list of vals to specialize on:
-        specialization_vals = get_op_specialization(split_op)
-        # drop malformed or empty specializations:
-        if specialization_vals is None or len(specialization_vals) == 0:
-            split_op.attributes.pop(SPEZIALIZE_ON_VALS_ATTR)
+        # get list of vals to pin:
+        pinned_vals = get_pinned_vals_for_op(split_op)
+        # drop malformed or empty pinning:
+        if pinned_vals is None or len(pinned_vals) == 0:
+            split_op.attributes.pop(PIN_CONSTANT_VALS)
             return
 
         return_types = tuple(func_op.function_type.outputs)
 
         function_remainder = split_op.next_op
-        assert function_remainder is not None, "Can't specialize on terminator!"
+        if function_remainder is None:
+            # "Can't ping values for terminator"
+            return
 
-        # grab the first value to specialize on:
-        val = specialization_vals.pop()
-        # generate the specialized function:
-        new_func = specialize_function(func_op, val, rewriter)
+        # grab the first value to pin:
+        val = pinned_vals.pop()
+        # generate the function containing pinned value:
+        new_func = generate_func_with_pinned_val(func_op, val, rewriter)
         # insert the specialized function after the generic function (the one we matched on)
         rewriter.insert_op_after_matched_op(new_func)
         # insert a compare to the value we specialize and, and branch on if we are equal
@@ -93,18 +98,16 @@ class FunctionSpecializationPattern(RewritePattern):
         # return the results of the scf.if
         rewriter.replace_op(function_remainder, func.Return(*scf_if.results))
 
-        # remove specialization attribute
-        if specialization_vals:
-            split_op.attributes[SPEZIALIZE_ON_VALS_ATTR] = ArrayAttr(
-                specialization_vals
-            )
+        # remove pinning attribute
+        if pinned_vals:
+            split_op.attributes[PIN_CONSTANT_VALS] = ArrayAttr(pinned_vals)
         else:
-            split_op.attributes.pop(SPEZIALIZE_ON_VALS_ATTR)
+            split_op.attributes.pop(PIN_CONSTANT_VALS)
 
 
-def specialize_function(
+def generate_func_with_pinned_val(
     func_op: func.FuncOp,
-    specialization: Attribute,
+    pin: Attribute,
     rewriter: PatternRewriter,
 ):
     """
@@ -114,63 +117,64 @@ def specialize_function(
     This will do the following things:
     - clone the function
     - rename it to be uniquely named inside the module
-    - erase all operations up until the specialized operation
-    - replace the specialized operation with a constant instantiation
+    - erase all operations up until the operation producing the pinned value
+    - replace the operation with a constant instantiation
     """
     # clone the function including the body:
     new_func = func_op.clone()
     # get the module op
     module = func_op.parent_op()
+    # checked before calling
     assert isinstance(module, builtin.ModuleOp), "func must be top-level functions!"
     # generate a new name and set it:
     new_func.sym_name = StringAttr(
-        unique_specialized_name(module, new_func.sym_name.data, "specialized")
+        unique_pinned_name(module, new_func.sym_name.data, "pinned")
     )
 
     # find the first operation that is structurally equivalent, this will always give us the exact same operation
-    # that was matched, simply because the function `func_contains_specialization_annotation` returns
+    # that was matched, simply because the function `func_contains_pinning_annotation` returns
     # the first occurrence of any operation with the attribute.
     for op in new_func.body.ops:
         # replace specialized op by constant
-        if SPEZIALIZE_ON_VALS_ATTR in op.attributes:
+        if PIN_CONSTANT_VALS in op.attributes:
             # find ops that came before, so we can erase them
             for bad_ops in ops_between_op_and_func_start(func_op, op):
                 rewriter.erase_op(bad_ops)
             # then check that we really just have one result (sanity check)
             assert (
                 len(op.results) == 1
-            ), "Specializations only work on single return operations"
+            ), "Constant pinning only work on single return operations"
             # replace op by constant
-            rewriter.replace_op(op, arith.Constant(specialization, op.results[0].type))
+            rewriter.replace_op(op, arith.Constant(pin, op.results[0].type))
             # don't look at more operations inside the function
             break
     # return the newly created func op
     return new_func
 
 
-def func_contains_specialization_annotation(funcop: func.FuncOp) -> Operation | None:
+def func_contains_pinning_annotation(funcop: func.FuncOp) -> Operation | None:
     """
-    Return the first operation inside the function that has a "specialize_on_vals" attribute.
+    Return the first operation inside the function that has a "pin_to_constants" attribute.
 
     Only works on top-level operations, we can't handle nested things right now.
     """
     for op in funcop.body.block.ops:
-        if SPEZIALIZE_ON_VALS_ATTR in op.attributes:
+        if PIN_CONSTANT_VALS in op.attributes:
             return op
 
 
-def get_op_specialization(op: Operation) -> list[Attribute] | None:
+def get_pinned_vals_for_op(op: Operation) -> list[Attribute] | None:
     """
-    Reads the "specialize_on_vals" attribute of an operation, checks for valid
-    formatting, and return the list of attributes that should be specialized on.
+    Reads the "pin_to_constants" attribute of an operation, checks for valid
+    formatting, and return the list of attribute values that should be pinned.
     """
-    specialize_attr = op.attributes.get(SPEZIALIZE_ON_VALS_ATTR)
-    if not specialize_attr:
+    pin_attr = op.attributes.get(PIN_CONSTANT_VALS)
+    if not pin_attr:
         return None
-    if not isinstance(specialize_attr, ArrayAttr):
+    if not isinstance(pin_attr, ArrayAttr):
         return None
 
-    return list(cast(ArrayAttr[Attribute], specialize_attr))
+    return list(cast(ArrayAttr[Attribute], pin_attr))
 
 
 def ops_between_op_and_func_start(
@@ -196,9 +200,9 @@ def ops_between_op_and_func_start(
         yield op
 
 
-def unique_specialized_name(module: builtin.ModuleOp, name: str, hint: str) -> str:
+def unique_pinned_name(module: builtin.ModuleOp, name: str, hint: str) -> str:
     """
-    Generate a new specialized name that is unique to the module
+    Generate a new name that is unique to the module
     """
     # try just name + hint
     proposed_name = f"{name}_{hint}"
@@ -216,8 +220,8 @@ def unique_specialized_name(module: builtin.ModuleOp, name: str, hint: str) -> s
     return proposed_name
 
 
-class FunctionSpecializationPass(ModulePass):
-    name = "function-specialization"
+class FunctionConstantPinningPass(ModulePass):
+    name = "function-constant-pinning"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(FunctionSpecializationPattern()).rewrite_module(op)
+        PatternRewriteWalker(FunctionConstantPinning()).rewrite_module(op)

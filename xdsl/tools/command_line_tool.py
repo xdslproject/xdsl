@@ -500,10 +500,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_scf_to_riscv_scf.ConvertScfToRiscvPass
 
-    def get_function_specialization():
-        from xdsl.transforms.function_specialization import FunctionSpecializationPass
+    def get_function_constant_pinning():
+        from xdsl.transforms.function_specialization import FunctionConstantPinningPass
 
-        return FunctionSpecializationPass
+        return FunctionConstantPinningPass
 
     def get_lower_scf_for_to_labels():
         from xdsl.backend.riscv import riscv_scf_to_asm
@@ -575,7 +575,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
-        "function-specialization": get_function_specialization,
+        "function-constant-pinning": get_function_constant_pinning,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
