@@ -478,7 +478,9 @@ class UseDefChainTrait(OpTrait):
     def get_operands_leading_to_block_argument(arg: BlockArgument) -> set[Use]:
         op = arg.owner.parent_op()
         if op is None:
-            raise ValueError("Cannot trace operands leading to a block argument if block has no owning operation.")
+            raise ValueError(
+                "Cannot trace operands leading to a block argument if block has no owning operation."
+            )
         uses = {
             use
             for trait in UseDefChainTrait._get_traits_for(op)
