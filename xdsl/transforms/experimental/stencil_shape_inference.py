@@ -6,6 +6,7 @@ from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     BufferOp,
+    DynAccessOp,
     FieldType,
     IndexAttr,
     LoadOp,
@@ -115,6 +116,32 @@ class AccessOpShapeInference(RewritePattern):
         op.temp.type = ntype
 
 
+class DynAccessOpShapeInference(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: DynAccessOp, rewriter: PatternRewriter):
+        apply = op.parent_op()
+        assert isinstance(apply, ApplyOp)
+        assert isa(op.temp.type, TempType[Attribute])
+        assert isinstance(op.temp, BlockArgument)
+        assert op.temp.block.parent_op() is apply
+        assert isa(apply.res[0].type, TempType[Attribute]), f"{apply.res[0]}"
+
+        temp_type = op.temp.type
+        temp_lb = None
+        temp_ub = None
+        if isinstance(temp_type.bounds, StencilBoundsAttr):
+            temp_lb = temp_type.bounds.lb
+            temp_ub = temp_type.bounds.ub
+        output_size = apply.res[0].type.bounds
+        assert isinstance(output_size, StencilBoundsAttr)
+
+        lb = IndexAttr.min(output_size.lb + op.lb, temp_lb)
+        ub = IndexAttr.max(output_size.ub + op.ub, temp_ub)
+        ntype = TempType(tuple(zip(lb, ub)), temp_type.element_type)
+
+        op.temp.type = ntype
+
+
 class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -140,9 +167,10 @@ class BufferOpShapeInference(RewritePattern):
 
 ShapeInference = GreedyRewritePatternApplier(
     [
+        AccessOpShapeInference(),
         ApplyOpShapeInference(),
         BufferOpShapeInference(),
-        AccessOpShapeInference(),
+        DynAccessOpShapeInference(),
         LoadOpShapeInference(),
         StoreOpShapeInference(),
     ]
