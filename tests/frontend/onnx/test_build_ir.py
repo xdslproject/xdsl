@@ -139,6 +139,11 @@ def _create_graph_binary_op(op_name: str, graph_name: str):
     input2_name = "input2"
     output_name = "output"
 
+    # define input shapes
+    input1_shape = [64]
+    input2_shape = [64]
+    output_shape = [64]
+
     # define op node
     op_node = helper.make_node(
         op_type=op_name,
@@ -151,11 +156,11 @@ def _create_graph_binary_op(op_name: str, graph_name: str):
         nodes=[op_node],
         name=graph_name,
         inputs=[
-            helper.make_tensor_value_info(input1_name, TensorProto.FLOAT, [None, None]),
-            helper.make_tensor_value_info(input2_name, TensorProto.FLOAT, [None, None]),
+            helper.make_tensor_value_info(input1_name, TensorProto.FLOAT, input1_shape),
+            helper.make_tensor_value_info(input2_name, TensorProto.FLOAT, input2_shape),
         ],
         outputs=[
-            helper.make_tensor_value_info(output_name, TensorProto.FLOAT, [None, None]),
+            helper.make_tensor_value_info(output_name, TensorProto.FLOAT, output_shape),
         ],
     )
 
