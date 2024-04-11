@@ -29,7 +29,7 @@ class CslPrintContext:
 
     _prefix: str = field(default="")
 
-    def print(self, text: str, prefix: str = "", end : str="\n"):
+    def print(self, text: str, prefix: str = "", end: str = "\n"):
         """
         Print `text` line by line, prefixed by self._prefix and prefix.
         """
@@ -179,7 +179,7 @@ class CslPrintContext:
                     self.descend().print_block(bdy.block)
                     self.print("}")
                 case csl.ReturnOp(ret_val=None):
-                    self.print(f"return;")
+                    self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
                     self.print(f"return {self._get_variable_name_for(val)};")
                 case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
