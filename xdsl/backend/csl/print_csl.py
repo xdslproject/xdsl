@@ -171,11 +171,11 @@ class CslPrintContext:
                     self.print(
                         f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {struct_var}.{field.data};"
                     )
-                case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(
-                    ftyp.inputs
-                ) == 0 and len(ftyp.outputs) == 0:
-                    # only functions without input / outputs supported for now.
-                    self.print(f"\nfn {name.data}() {{")
+                case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(ftyp.inputs) == 0:
+                    ret = 'void' if len(ftyp.outputs) == 0 else self.mlir_type_to_csl_type(
+                        ftyp.outputs.data[0])
+                    # only functions without input supported for now.
+                    self.print(f"fn {name.data}() {ret} {{")
                     self.descend().print_block(bdy.block)
                     self.print("}")
                 case csl.ReturnOp(ret_val=None):
