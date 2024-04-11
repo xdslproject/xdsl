@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
     SignednessAttr,
 )
 from xdsl.ir import Attribute, Block, SSAValue
-from xdsl.utils.hints import isa
 
 
 @dataclass
