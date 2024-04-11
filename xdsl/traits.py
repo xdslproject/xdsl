@@ -8,6 +8,7 @@ from xdsl.utils.exceptions import VerifyException, ComplexVerifyException
 
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, ModuleOp
+    from xdsl.ir import BlockArgument, Operation, OpResult, Region, SSAValue, Use
     from xdsl.ir import Operation, Region
     from xdsl.pattern_rewriter import RewritePattern
 
@@ -442,3 +443,92 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class UseDefChainTrait(OpTrait):
+    """
+    Allow for use-def chain following by implementation of a function to get the definitions (OpResults or
+    BlockArguments) that are on the control-flow path from an internal yield operation to somewhere else within the
+    Operation.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def get_defs_following_from_operand_for(
+        cls, op: Operation, index: int
+    ) -> set[SSAValue]:
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def get_operands_leading_to_block_argument_for(
+        cls, op: Operation, arg: BlockArgument
+    ) -> set[Use]:
+        raise NotImplementedError()
+
+    # @classmethod
+    # def get_operands_leading_to_def(cls, ssa_value: SSAValue) -> set[Use]:
+    #     if isinstance(ssa_value.owner, Operation):
+    #         result = cast(OpResult, ssa_value)
+    #         return cls.get_operands_leading_to_op_result(result.op, result.index)
+    #     elif isinstance(ssa_value.owner, Block):
+    #         arg = cast(BlockArgument, ssa_value)
+    #         return cls.get_operands_leading_to_block_argument(arg.block.parent_op(), arg)
+    #     else:
+    #         raise NotImplementedError(f"UseDefChainTrait does not support ssa values that are: {type(ssa_value)}")
+
+    @staticmethod
+    def _get_traits_for(op: Operation) -> set[UseDefChainTrait]:
+        ops: list[Operation] = []
+        current_op: None | Operation = op
+        while current_op is not None:
+            ops.append(current_op)
+            current_op = current_op.parent_op()
+        traits = {
+            trait for op in ops for trait in op.get_traits_of_type(UseDefChainTrait)
+        }
+        return traits
+
+    @staticmethod
+    def get_defs_following_from_operand(use: Use) -> set[SSAValue]:
+        op = use.operation
+        results = {
+            result
+            for trait in UseDefChainTrait._get_traits_for(op)
+            for result in trait.get_defs_following_from_operand_for(
+                use.operation, use.index
+            )
+        }
+        return results
+
+    @staticmethod
+    def get_operands_leading_to_op_result(op_result: OpResult) -> set[Use]:
+        op = op_result.op
+        uses = {
+            use
+            for trait in UseDefChainTrait._get_traits_for(op)
+            for use in trait.get_operands_leading_to_op_result_for(op, op_result.index)
+        }
+        return uses
+
+    @staticmethod
+    def get_operands_leading_to_block_argument(arg: BlockArgument) -> set[Use]:
+        op = arg.owner.parent_op()
+        if op is None:
+            raise ValueError(
+                "Cannot trace operands leading to a block argument if block has no owning operation."
+            )
+        uses = {
+            use
+            for trait in UseDefChainTrait._get_traits_for(op)
+            for use in trait.get_operands_leading_to_block_argument_for(op, arg)
+        }
+        return uses
