@@ -1,14 +1,12 @@
 import onnx
 import pytest
 
-from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import func
 from xdsl.dialects.builtin import TensorType, f32
 from xdsl.ir import Attribute
 from xdsl.utils.test_value import TestSSAValue
 
 try:
-    from onnx import GraphProto, TensorProto, ValueInfoProto, helper
+    from onnx import TensorProto, ValueInfoProto, helper
 
     from xdsl.frontend.onnx.ir_builder import (
         OnnxXdslMapping,
@@ -196,14 +194,3 @@ def _create_graph_binary_op(op_name: str, graph_name: str):
     )
 
     return graph, op_node
-
-
-def _update_context(graph: GraphProto, ctx: OnnxXdslMapping):
-    name = graph.name
-    input_types = tuple(visit_value_info(input, ctx) for input in graph.input)
-    output_types = tuple(visit_value_info(output, ctx) for output in graph.output)
-
-    fn = func.FuncOp(name, (input_types, output_types))
-    with ImplicitBuilder(fn.body) as args:
-        for input, arg in zip(graph.input, args, strict=True):
-            ctx.value_by_name[input.name] = arg
