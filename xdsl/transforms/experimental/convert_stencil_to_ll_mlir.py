@@ -5,7 +5,7 @@ from typing import TypeVar, cast
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, memref, scf
-from xdsl.dialects.builtin import MemRefType
+from xdsl.dialects.builtin import MemRefType, UnrealizedConversionCastOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -18,10 +18,12 @@ from xdsl.dialects.stencil import (
     IndexAttr,
     IndexOp,
     LoadOp,
+    ResultType,
     ReturnOp,
     StencilBoundsAttr,
     StencilType,
     StoreOp,
+    StoreResultOp,
     TempType,
 )
 from xdsl.ir import (
@@ -100,6 +102,28 @@ def update_return_target(
                 targets[i] = new_target
 
 
+def _find_result_store(result: SSAValue) -> tuple[StoreResultOp, ...]:
+    while True:
+        match owner := result.owner:
+            case StoreResultOp():
+                return (owner,)
+            case scf.If():
+                assert isinstance(result, OpResult)
+                index = result.index
+                yield_true = owner.true_region.ops.last
+                assert isinstance(yield_true, scf.Yield)
+                yield_false = owner.false_region.ops.last
+                assert isinstance(yield_false, scf.Yield)
+                true_stores = _find_result_store(yield_true.arguments[index])
+                false_stores = _find_result_store(yield_false.arguments[index])
+                return true_stores + false_stores
+
+            case _:
+                raise ValueError(
+                    "Could not find the corresponding stencil.store_result"
+                )
+
+
 @dataclass
 class ReturnOpToMemref(RewritePattern):
     return_target: dict[ReturnOp, list[SSAValue | None]]
@@ -122,6 +146,7 @@ class ReturnOpToMemref(RewritePattern):
                 unroll = IndexAttr.get(*([1] * dims))
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
+                arg = op.arg[j * unroll_factor + k]
                 assert (block := op.parent_block()) is not None
                 args = cast(list[SSAValue], collectBlockArguments(dims, block))
 
@@ -135,9 +160,23 @@ class ReturnOpToMemref(RewritePattern):
                         store_list.append(constant_op)
                         store_list.append(add_op)
 
-                store_list.append(
-                    memref.Store.get(op.arg[j * unroll_factor + k], target, args)
-                )
+                if isinstance(arg.type, ResultType):
+                    result_owner = _find_result_store(arg)
+                    for owner in result_owner:
+                        if owner.args:
+                            store = memref.Store.get(owner.args[0], target, args)
+                            rewriter.replace_op(
+                                owner,
+                                store,
+                                new_results=[owner.args[0]],
+                            )
+                        else:
+                            dummy = UnrealizedConversionCastOp.get([], [arg.type.elem])
+                            rewriter.replace_op(owner, dummy)
+
+                else:
+                    store = memref.Store.get(arg, target, args)
+                    store_list.append(store)
 
         rewriter.replace_matched_op([*store_list])
 
@@ -499,6 +538,12 @@ class StencilTypeConversion(TypeConversionPattern):
         return StencilToMemRefType(typ)
 
 
+class ResultTypeConversion(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: ResultType) -> Attribute:
+        return typ.elem
+
+
 @dataclass(frozen=True)
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
@@ -530,6 +575,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     StencilTypeConversion(recursive=True),
+                    ResultTypeConversion(recursive=True),
                     BufferOpCleanUp(),
                 ]
             )
