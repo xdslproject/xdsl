@@ -100,13 +100,16 @@ class CompRegOp(IRDLOperation):
     clk = operand_def(clock)
     reset = opt_operand_def(i1)
     reset_value = opt_operand_def(DataType)
+    power_on_value = opt_operand_def(DataType)
     data = result_def(DataType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
     assembly_format = (
-        "(`sym` $inner_sym^)? $input `,` $clk (`reset` $reset^ `,` $reset_value)? attr-dict "
-        "`:` type($input)"
+        "(`sym` $inner_sym^)? $input `,` $clk "
+        "(`reset` $reset^ `,` $reset_value)? "
+        "(`powerOn` $power_on_value^)? "
+        "attr-dict `:` type($input)"
     )
 
     def __init__(
@@ -114,6 +117,7 @@ class CompRegOp(IRDLOperation):
         input: SSAValue,
         clk: SSAValue,
         reset: tuple[SSAValue, SSAValue] | None = None,
+        power_on_value: SSAValue | None = None,
     ):
         super().__init__(
             operands=[
@@ -121,14 +125,13 @@ class CompRegOp(IRDLOperation):
                 clk,
                 reset[0] if reset is not None else None,
                 reset[1] if reset is not None else None,
+                power_on_value,
             ],
             result_types=[input.type],
         )
 
     def verify_(self):
-        if (self.reset is not None and self.reset_value is None) or (
-            self.reset_value is not None and self.reset is None
-        ):
+        if (self.reset is None) != (self.reset_value is None):
             raise VerifyException("Both reset and reset_value must be set when one is")
 
 
