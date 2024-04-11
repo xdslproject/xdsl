@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -400,11 +400,8 @@ class HasCanonicalisationPatternsTrait(OpTrait):
         raise NotImplementedError()
 
 
-Op_Var = TypeVar("Op_Var", bound="Operation")
-
-
 @dataclass(frozen=True)
-class UseDefChainTrait(OpTrait, Generic[Op_Var]):
+class UseDefChainTrait(OpTrait):
     """
     Allow for use-def chain following by implementation of a function to get the definitions (OpResults or
     BlockArguments) that are on the control-flow path from an internal yield operation to somewhere else within the
@@ -414,19 +411,21 @@ class UseDefChainTrait(OpTrait, Generic[Op_Var]):
     @classmethod
     @abc.abstractmethod
     def get_defs_following_from_operand_for(
-        cls, op: Op_Var, index: int
+        cls, op: Operation, index: int
     ) -> set[SSAValue]:
         raise NotImplementedError()
 
     @classmethod
     @abc.abstractmethod
-    def get_operands_leading_to_op_result_for(cls, op: Op_Var, index: int) -> set[Use]:
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
         raise NotImplementedError()
 
     @classmethod
     @abc.abstractmethod
     def get_operands_leading_to_block_argument_for(
-        cls, op: Op_Var, arg: BlockArgument
+        cls, op: Operation, arg: BlockArgument
     ) -> set[Use]:
         raise NotImplementedError()
 
@@ -442,97 +441,47 @@ class UseDefChainTrait(OpTrait, Generic[Op_Var]):
     #         raise NotImplementedError(f"UseDefChainTrait does not support ssa values that are: {type(ssa_value)}")
 
     @staticmethod
-    def _get_UseDefChainTraits_for(op: Operation):
-        traits = [trait for trait in op.get_traits_of_type(UseDefChainTrait)]
-        if len(traits) < 1:
-            raise ValueError(
-                "Cannot attain uses of operands if parent op does not implement the UseDefChainTrait"
-            )
+    def _get_traits_for(op: Operation) -> set[UseDefChainTrait]:
+        ops: list[Operation] = []
+        current_op: None | Operation = op
+        while current_op is not None:
+            ops.append(current_op)
+            current_op = current_op.parent_op()
+        traits = {
+            trait for op in ops for trait in op.get_traits_of_type(UseDefChainTrait)
+        }
         return traits
-
-    @staticmethod
-    def has_implementation_for_operand(use: Use) -> bool:
-        return (
-            len([trait for trait in use.operation.get_traits_of_type(UseDefChainTrait)])
-            > 0
-        )
 
     @staticmethod
     def get_defs_following_from_operand(use: Use) -> set[SSAValue]:
         op = use.operation
-
         results = {
             result
-            for trait in UseDefChainTrait._get_UseDefChainTraits_for(op)
+            for trait in UseDefChainTrait._get_traits_for(op)
             for result in trait.get_defs_following_from_operand_for(
                 use.operation, use.index
             )
         }
-
-        if not all(
-            result.type == use.operation.operands[use.index].type for result in results
-        ):
-            # It should be the case that all the types are the same as we want to track control-flow, not changes in
-            # values or type.
-            raise ValueError(
-                f"Results have different type from input - {use.operation} should not verify, or trait for"
-                f" {type(use.operation)} is probably mal-formed."
-            )
         return results
-
-    @staticmethod
-    def has_implementation_for_op_result(op_result: OpResult) -> bool:
-        return (
-            len([trait for trait in op_result.op.get_traits_of_type(UseDefChainTrait)])
-            > 0
-        )
 
     @staticmethod
     def get_operands_leading_to_op_result(op_result: OpResult) -> set[Use]:
         op = op_result.op
         uses = {
             use
-            for trait in UseDefChainTrait._get_UseDefChainTraits_for(op)
+            for trait in UseDefChainTrait._get_traits_for(op)
             for use in trait.get_operands_leading_to_op_result_for(op, op_result.index)
         }
-        if not all(
-            use.operation.operands[use.index].type == op_result.type for use in uses
-        ):
-            # It should be the case that all the types are the same as we want to track control-flow, not changes in
-            # values or type.
-            raise ValueError(
-                f"Uses have different type from input - This should not verify, or trait for"
-                f" {type(op)} is probably mal-formed."
-            )
         return uses
-
-    @staticmethod
-    def has_implementation_for_block_argument(arg: BlockArgument) -> bool:
-        return (
-            len(
-                [
-                    trait
-                    for trait in arg.owner.parent_op().get_traits_of_type(
-                        UseDefChainTrait
-                    )
-                ]
-            )
-            > 0
-        )
 
     @staticmethod
     def get_operands_leading_to_block_argument(arg: BlockArgument) -> set[Use]:
         op = arg.owner.parent_op()
+        if op is None:
+            raise ValueError("Cannot trace operands leading to a block argument if block has no owning operation.")
         uses = {
             use
-            for trait in UseDefChainTrait._get_UseDefChainTraits_for(op)
+            for trait in UseDefChainTrait._get_traits_for(op)
             for use in trait.get_operands_leading_to_block_argument_for(op, arg)
         }
-        if not all(use.operation.operands[use.index].type == arg.type for use in uses):
-            # It should be the case that all the types are the same as we want to track control-flow, not changes in
-            # values or type.
-            raise ValueError(
-                f"Uses have different type from input - This should not verify, or trait for"
-                f" {type(op)} is probably mal-formed."
-            )
         return uses

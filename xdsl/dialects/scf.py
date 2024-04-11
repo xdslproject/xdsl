@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import typing
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -52,26 +51,48 @@ from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
 
-class WhileUseDefChainTrait(UseDefChainTrait["While"]):
+class WhileUseDefChainTrait(UseDefChainTrait):
 
     @classmethod
     def get_defs_following_from_operand_for(
-        cls, op: While, index: int
+        cls, op: Operation, index: int
     ) -> set[SSAValue]:
-        return {op.before_region.block.args[index]}
+        if isinstance(op, While):
+            return {op.before_region.block.args[index]}
+        elif isinstance(op, Yield):
+            parent_op = op.parent_op()
+            if isinstance(parent_op, While):
+                return {parent_op.before_region.block.args[index], parent_op.res[index]}
+        return set()
 
     @classmethod
-    def get_operands_leading_to_op_result_for(cls, op: While, index: int) -> set[Use]:
-        return {Use(op, index), Use(op.after_region.block.last_op, index)}
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        if isinstance(op, While):
+            uses = {Use(op, index)}
+            yield_op = op.after_region.block.last_op
+            if isinstance(yield_op, Yield):
+                uses.add(Use(yield_op, index))
+            return uses
+        return set()
 
     @classmethod
     def get_operands_leading_to_block_argument_for(
-        cls, op: While, arg: BlockArgument
+        cls, op: Operation, arg: BlockArgument
     ) -> set[Use]:
-        if arg.block in op.before_region.blocks:
-            return {Use(op, arg.index), Use(op.after_region.block.last_op, arg.index)}
-        elif arg.block in op.after_region.blocks:
-            return {Use(op.before_region.block.last_op, 1 + arg.index)}
+        if isinstance(op, While):
+            if arg.block in op.before_region.blocks:
+                uses = {Use(op, arg.index)}
+                yield_op = op.after_region.block.last_op
+                if isinstance(yield_op, Yield):
+                    uses.add(Use(yield_op, arg.index))
+                return uses
+            elif arg.block in op.after_region.blocks:
+                condition_op = op.before_region.block.last_op
+                if isinstance(condition_op, Condition):
+                    return {Use(condition_op, 1 + arg.index)}
+        return set()
 
 
 @irdl_op_definition
@@ -180,35 +201,6 @@ class While(IRDLOperation):
         return op
 
 
-class YieldUseDefChainTrait(UseDefChainTrait["Yield"]):
-
-    @classmethod
-    def get_defs_following_from_operand_for(
-        cls, op: Yield, index: int
-    ) -> set[SSAValue]:
-        parent_op = op.parent_op()
-        if isinstance(parent_op, For):
-            return {op.parent_block().args[index + 1], parent_op.res[index]}
-        elif isinstance(parent_op, If):
-            return {parent_op.output[index]}
-        elif isinstance(parent_op, ParallelOp):
-            raise ValueError("Yield in a ParallelOp must have exactly zero arguments")
-        elif isinstance(parent_op, While):
-            return {parent_op.before_region.block.args[index], parent_op.res[index]}
-        else:
-            raise ValueError(f"A Yield's parent cannot be {type(parent_op)}")
-
-    @classmethod
-    def get_operands_leading_to_op_result_for(cls, op: Yield, index: int) -> set[Use]:
-        raise ValueError("Yield has no results")
-
-    @classmethod
-    def get_operands_leading_to_block_argument_for(
-        cls, op: Yield, arg: BlockArgument
-    ) -> set[Use]:
-        raise ValueError("Yield has no regions with blocks with arguments")
-
-
 @irdl_op_definition
 class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
@@ -218,30 +210,43 @@ class Yield(AbstractYieldOperation[Attribute]):
             [
                 IsTerminator(),
                 HasParent(For, If, ParallelOp, While),
-                YieldUseDefChainTrait(),
             ]
         )
     )
 
 
-class IfUseDefChainTrait(UseDefChainTrait["If"]):
+class IfUseDefChainTrait(UseDefChainTrait):
 
     @classmethod
-    def get_defs_following_from_operand_for(cls, op: If, index: int) -> set[SSAValue]:
+    def get_defs_following_from_operand_for(
+        cls, op: Operation, index: int
+    ) -> set[SSAValue]:
+        if isinstance(op, Yield):
+            parent_op = op.parent_op()
+            if isinstance(parent_op, If):
+                return {parent_op.output[index]}
         return set()
 
     @classmethod
-    def get_operands_leading_to_op_result_for(cls, op: If, index: int) -> set[Use]:
-        return {
-            Use(op.true_region.block.last_op, index),
-            Use(op.false_region.block.last_op, index),
-        }
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        if isinstance(op, If):
+            uses: set[Use] = set()
+            true_yield_op = op.true_region.block.last_op
+            if isinstance(true_yield_op, Yield):
+                uses.add(Use(true_yield_op, index))
+            false_yield_op = op.false_region.block.last_op
+            if isinstance(false_yield_op, Yield):
+                uses.add(Use(false_yield_op, index))
+            return uses
+        return set()
 
     @classmethod
     def get_operands_leading_to_block_argument_for(
-        cls, op: If, arg: BlockArgument
+        cls, op: Operation, arg: BlockArgument
     ) -> set[Use]:
-        raise ValueError("If has no regions with blocks with arguments")
+        return set()
 
 
 @irdl_op_definition
@@ -291,27 +296,40 @@ class ForOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
         return (SimplifyTrivialLoops(),)
 
 
-class ForUseDefChainTrait(UseDefChainTrait["For"]):
+class ForUseDefChainTrait(UseDefChainTrait):
 
     @classmethod
-    def get_defs_following_from_operand_for(cls, op: For, index: int) -> set[SSAValue]:
-        if index >= 3:
-            return {op.body.block.args[index - 2], op.res[index - 3]}
-        else:
-            return set()
+    def get_defs_following_from_operand_for(
+        cls, op: Operation, index: int
+    ) -> set[SSAValue]:
+        if isinstance(op, For):
+            if index >= 3:
+                return {op.body.block.args[index - 2], op.res[index - 3]}
+        elif isinstance(op, Yield):
+            parent_op = op.parent_op()
+            if isinstance(parent_op, For):
+                return {parent_op.body.block.args[index + 1], parent_op.res[index]}
+        return set()
 
     @classmethod
-    def get_operands_leading_to_op_result_for(cls, op: For, index: int) -> set[Use]:
-        return {Use(op, 3 + index), Use(op.body.block.last_op, index)}
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        if isinstance(op, For):
+            uses = {Use(op, 3 + index)}
+            yield_op = op.body.block.last_op
+            if isinstance(yield_op, Yield):
+                uses.add(Use(yield_op, index))
+            return uses
+        return set()
 
     @classmethod
     def get_operands_leading_to_block_argument_for(
-        cls, op: For, arg: BlockArgument
+        cls, op: Operation, arg: BlockArgument
     ) -> set[Use]:
-        if arg.index == 0:
-            return set()
-        else:
+        if isinstance(op, For) and arg.index > 0:
             return {Use(op, 3 + (arg.index - 1))}
+        return set()
 
 
 @irdl_op_definition
@@ -495,41 +513,69 @@ class For(IRDLOperation):
         return for_op
 
 
-class ParallelOpUseDefChainTrait(UseDefChainTrait["ParallelOp"]):
+class ParallelOpUseDefChainTrait(UseDefChainTrait):
 
     @classmethod
     def get_defs_following_from_operand_for(
-        cls, op: ParallelOp, index: int
+        cls, op: Operation, index: int
     ) -> set[SSAValue]:
-        other_operands = len(op.lowerBound) + len(op.upperBound) + len(op.step)
-        val_idx = index - other_operands
-        if val_idx < 0:
-            return set()
-        else:
-            reduce_ops: list[ReduceOp] = [
-                r_op for r_op in op.body.block.ops if isinstance(r_op, ReduceOp)
-            ]
-            return {*reduce_ops[val_idx].body.block.args, op.res[val_idx]}
+        if isinstance(op, ParallelOp):
+            other_operands = len(op.lowerBound) + len(op.upperBound) + len(op.step)
+            val_idx = index - other_operands
+            if val_idx >= 0:
+                reduce_ops: list[ReduceOp] = [
+                    r_op for r_op in op.body.block.ops if isinstance(r_op, ReduceOp)
+                ]
+                return {*reduce_ops[val_idx].body.block.args, op.res[val_idx]}
+        elif isinstance(op, ReduceReturnOp):
+            parent_op = op.parent_op()
+            if isinstance(parent_op, ReduceOp):
+                parallel_op = parent_op.parent_op()
+                if isinstance(parallel_op, ParallelOp):
+                    reduce_ops: list[ReduceOp] = [
+                        r_op
+                        for r_op in parallel_op.body.block.ops
+                        if isinstance(r_op, ReduceOp)
+                    ]
+                    index = reduce_ops.index(parent_op)
+                    return {parallel_op.res[index]}
+        return set()
 
     @classmethod
     def get_operands_leading_to_op_result_for(
-        cls, op: ParallelOp, index: int
+        cls, op: Operation, index: int
     ) -> set[Use]:
-        other_operands = len(op.lowerBound) + len(op.upperBound) + len(op.step)
-        reduce_ops: list[ReduceOp] = [
-            r_op for r_op in op.body.block.ops if isinstance(r_op, ReduceOp)
-        ]
-        this_reduce_op = reduce_ops[index]
-        reduce_return_op: ReduceReturnOp = typing.cast(
-            ReduceReturnOp, this_reduce_op.body.block.last_op
-        )
-        return {Use(op, other_operands + index), Use(reduce_return_op, 0)}
+        if isinstance(op, ParallelOp):
+            other_operands = len(op.lowerBound) + len(op.upperBound) + len(op.step)
+            reduce_ops = [
+                r_op for r_op in op.body.block.ops if isinstance(r_op, ReduceOp)
+            ]
+            this_reduce_op = reduce_ops[index]
+            reduce_return_op = this_reduce_op.body.block.last_op
+            if isinstance(reduce_return_op, ReduceReturnOp):
+                return {Use(op, other_operands + index), Use(reduce_return_op, 0)}
+        return set()
 
     @classmethod
     def get_operands_leading_to_block_argument_for(
-        cls, op: ParallelOp, arg: BlockArgument
+        cls, op: Operation, arg: BlockArgument
     ) -> set[Use]:
-        return cls.get_operands_leading_to_op_result_for(op, arg.index)
+        if isinstance(op, ReduceOp):
+            parallel_op = op.parent_op()
+            if isinstance(parallel_op, ParallelOp):
+                reduce_ops = [
+                    r_op
+                    for r_op in parallel_op.body.block.ops
+                    if isinstance(r_op, ReduceOp)
+                ]
+                index = reduce_ops.index(op)
+                other_args = (
+                    len(parallel_op.lowerBound)
+                    + len(parallel_op.upperBound)
+                    + len(parallel_op.step)
+                )
+                return {Use(parallel_op, other_args + index)}
+        return set()
 
 
 @irdl_op_definition
@@ -675,39 +721,35 @@ class ParallelOp(IRDLOperation):
         return None
 
 
-class ReduceOpUseDefChainTrait(UseDefChainTrait["ReduceOp"]):
+class ReduceOpUseDefChainTrait(UseDefChainTrait):
 
     @classmethod
     def get_defs_following_from_operand_for(
-        cls, op: ReduceOp, index: int
+        cls, op: Operation, index: int
     ) -> set[SSAValue]:
-        return set(op.body.block.args)
+        if isinstance(op, ReduceOp):
+            return set(op.body.block.args)
+        elif isinstance(op, ReduceReturnOp):
+            parent_op = op.parent_op()
+            if isinstance(parent_op, ReduceOp):
+                return set(parent_op.body.block.args)
+        return set()
 
     @classmethod
     def get_operands_leading_to_op_result_for(
-        cls, op: ReduceOp, index: int
+        cls, op: Operation, index: int
     ) -> set[Use]:
-        raise ValueError("ReduceOp has no results")
+        return set()
 
     @classmethod
     def get_operands_leading_to_block_argument_for(
-        cls, op: ReduceOp, arg: BlockArgument
+        cls, op: Operation, arg: BlockArgument
     ) -> set[Use]:
-        reduce_ops: list[ReduceOp] = [
-            r_op for r_op in op.parent_block().ops if isinstance(r_op, ReduceOp)
-        ]
-        index = reduce_ops.index(op)
-        parallel_op = typing.cast(ParallelOp, op.parent_op())
-        other_args = (
-            len(parallel_op.lowerBound)
-            + len(parallel_op.upperBound)
-            + len(parallel_op.step)
-        )
-        return {
-            Use(op, 0),
-            Use(op.body.block.last_op, 0),
-            Use(op.parent_op(), other_args + index),
-        }
+        if isinstance(op, ReduceOp):
+            reduce_return_op = op.body.block.last_op
+            if isinstance(reduce_return_op, ReduceReturnOp):
+                return {Use(op, 0), Use(reduce_return_op, 0)}
+        return set()
 
 
 @irdl_op_definition
@@ -768,42 +810,12 @@ class ReduceOp(IRDLOperation):
             )
 
 
-class ReduceReturnOpUseDefChainTrait(UseDefChainTrait["ReduceReturnOp"]):
-
-    @classmethod
-    def get_defs_following_from_operand_for(
-        cls, op: ReduceReturnOp, index: int
-    ) -> set[SSAValue]:
-        reduce_op = typing.cast(ReduceOp, op.parent_op())
-        reduce_ops: list[ReduceOp] = [
-            r_op for r_op in reduce_op.parent_block().ops if isinstance(r_op, ReduceOp)
-        ]
-        parallel_op = typing.cast(ParallelOp, reduce_op.parent_op())
-        return set(op.parent_block().args).union(
-            {parallel_op.res[reduce_ops.index(reduce_op)]}
-        )
-
-    @classmethod
-    def get_operands_leading_to_op_result_for(
-        cls, op: ReduceReturnOp, index: int
-    ) -> set[Use]:
-        raise ValueError("ReduceOp has no results")
-
-    @classmethod
-    def get_operands_leading_to_block_argument_for(
-        cls, op: ReduceReturnOp, arg: BlockArgument
-    ) -> set[Use]:
-        raise ValueError("ReduceReturnOp has no regions with blocks with arguments")
-
-
 @irdl_op_definition
 class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
-    traits = frozenset(
-        [HasParent(ReduceOp), IsTerminator(), ReduceReturnOpUseDefChainTrait()]
-    )
+    traits = frozenset([HasParent(ReduceOp), IsTerminator()])
 
     def __init__(self, result: SSAValue | Operation):
         super().__init__(operands=[result])
@@ -816,28 +828,32 @@ class ReduceReturnOp(IRDLOperation):
         return ReduceReturnOp(result)
 
 
-class ConditionUseDefChainTrait(UseDefChainTrait["Condition"]):
+class ConditionUseDefChainTrait(UseDefChainTrait):
 
     @classmethod
     def get_defs_following_from_operand_for(
-        cls, op: Condition, index: int
+        cls, op: Operation, index: int
     ) -> set[SSAValue]:
-        if index > 0:
-            while_op = typing.cast(While, op.parent_op())
-            return {while_op.after_region.block.args[index - 1]}
-        else:
-            set()
+        if isinstance(op, Condition) and index > 0:
+            while_op = op.parent_op()
+            if isinstance(while_op, While):
+                return {while_op.after_region.block.args[index - 1]}
+        return set()
 
     @classmethod
     def get_operands_leading_to_op_result_for(
-        cls, op: Condition, index: int
+        cls, op: Operation, index: int
     ) -> set[Use]:
+        if not isinstance(op, Condition):
+            return set()
         raise ValueError("Condition has no results")
 
     @classmethod
     def get_operands_leading_to_block_argument_for(
-        cls, op: Condition, arg: BlockArgument
+        cls, op: Operation, arg: BlockArgument
     ) -> set[Use]:
+        if not isinstance(op, Condition):
+            return set()
         raise ValueError("Condition has no regions with blocks with arguments")
 
 
