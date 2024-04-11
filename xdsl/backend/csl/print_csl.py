@@ -143,23 +143,9 @@ class CslPrintContext:
                     self.print("}")
                 case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
                     idx, *_ = bdy.block.args
-                    if (
-                        isinstance(lower.owner, arith.Constant)
-                        and isinstance(stp.owner, arith.Constant)
-                        and isa(lower.owner.value, IntegerAttr[IntegerType])
-                        and isa(stp.owner.value, IntegerAttr[IntegerType])
-                        and lower.owner.value.value.data == 0
-                        and stp.owner.value.value.data == 1
-                    ):
-                        # implicit lb==0 and step==1
-                        self.print(
-                            f"for(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(upper)})) |{self._get_variable_name_for(idx)}| {{"
-                        )
-                    else:
-                        # state lower bound and step explicitly
-                        self.print(
-                            f"for(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
-                        )
+                    self.print(
+                        f"for(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
+                    )
                     self.descend().print_block(bdy.block)
                     self.print("}")
                 case anyop:
