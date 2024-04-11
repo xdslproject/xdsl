@@ -297,8 +297,9 @@ class OnnxFunctions(InterpreterFunctions):
                         output[k, l, i // strides[0], j // strides[1]] = np.sum(
                             padded_matrix[k, l, i : i + ky, j : j + kx] * kernel[k, l]
                         )
-            # for i in range(1, output_shape[1]):
-            #     output[0, i] = output[0, 0]
+            # this ensures that it maps correctly to the number of output channels
+            for i in range(1, output_shape[1]):
+                output[0, i] = output[0, 0]
         output += to_ndarray(bias)
 
         # the number of channels is not always fixed to one
