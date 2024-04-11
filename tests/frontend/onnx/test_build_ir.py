@@ -86,7 +86,7 @@ def test_visit_node_add():
     ctx = OnnxXdslMapping()
 
     # create graph composed only of one Sub operation
-    graph, sub_node = _create_graph_binary_op("Add", "add_graph")
+    graph, add_node = _create_graph_binary_op("Add", "add_graph")
 
     # update context
     _update_context(graph, ctx)
@@ -97,7 +97,7 @@ def test_visit_node_add():
     assert str(ctx.value_by_name) == expected_output_pre
 
     # visit node
-    op = visit_node(sub_node, ctx)
+    op = visit_node(add_node, ctx)
 
     assert op.name == "onnx.Add"
 
