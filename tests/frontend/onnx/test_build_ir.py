@@ -97,7 +97,9 @@ def test_visit_node_add():
     assert str(ctx.value_by_name) == expected_output_pre
 
     # visit node
-    visit_node(sub_node, ctx)
+    op = visit_node(sub_node, ctx)
+
+    assert op.name == "onnx.Add"
 
     # expected output after visinting the op node
     expected_output_post = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 1>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 1>, 'output': <OpResult[tensor<0x0xf32>] index: 0, operation: onnx.Add, uses: 0>}"""
@@ -121,7 +123,9 @@ def test_visit_node_sub():
     assert str(ctx.value_by_name) == expected_output_pre
 
     # visit node
-    visit_node(sub_node, ctx)
+    op = visit_node(sub_node, ctx)
+
+    assert op.name == "onnx.Sub"
 
     # expected output after visinting the op node
     expected_output_post = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 1>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 1>, 'output': <OpResult[tensor<0x0xf32>] index: 0, operation: onnx.Sub, uses: 0>}"""

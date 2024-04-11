@@ -23,7 +23,7 @@ class OnnxXdslMapping:
         self.value_by_name = {}
 
 
-def visit_node(node: NodeProto, ctx: OnnxXdslMapping) -> None:
+def visit_node(node: NodeProto, ctx: OnnxXdslMapping) -> type[IRDLOperation]:
     """Update the onnx context with the current node of the onnx graph."""
     if node.op_type not in OP_BY_OP_TYPE:
         raise ValueError(f"Unknown ONNX op name {node.op_type}")
@@ -37,6 +37,8 @@ def visit_node(node: NodeProto, ctx: OnnxXdslMapping) -> None:
 
     for output_name, result in zip(node.output, results, strict=True):
         ctx.value_by_name[output_name] = result
+
+    return op
 
 
 def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
