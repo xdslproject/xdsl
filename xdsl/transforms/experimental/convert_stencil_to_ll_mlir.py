@@ -18,10 +18,12 @@ from xdsl.dialects.stencil import (
     IndexAttr,
     IndexOp,
     LoadOp,
+    ResultType,
     ReturnOp,
     StencilBoundsAttr,
     StencilType,
     StoreOp,
+    StoreResultOp,
     TempType,
 )
 from xdsl.ir import (
@@ -122,6 +124,7 @@ class ReturnOpToMemref(RewritePattern):
                 unroll = IndexAttr.get(*([1] * dims))
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
+                arg = op.arg[j * unroll_factor + k]
                 assert (block := op.parent_block()) is not None
                 args = cast(list[SSAValue], collectBlockArguments(dims, block))
 
@@ -135,9 +138,19 @@ class ReturnOpToMemref(RewritePattern):
                         store_list.append(constant_op)
                         store_list.append(add_op)
 
-                store_list.append(
-                    memref.Store.get(op.arg[j * unroll_factor + k], target, args)
-                )
+                store = memref.Store.get(arg, target, args)
+                if isinstance(arg.type, ResultType):
+                    if isinstance(arg.owner, StoreResultOp):
+                        rewriter.replace_op(
+                            arg.owner,
+                            store,
+                            new_results=[arg.owner.args[0]],
+                            safe_erase=False,
+                        )
+                    else:
+                        raise NotImplementedError("Oopsie Woopsie")
+                else:
+                    store_list.append(store)
 
         rewriter.replace_matched_op([*store_list])
 
