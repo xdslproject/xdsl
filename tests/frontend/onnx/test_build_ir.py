@@ -3,7 +3,9 @@ import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func
+from xdsl.dialects.builtin import TensorType, f32
 from xdsl.ir import Attribute
+from xdsl.utils.test_value import TestSSAValue
 
 try:
     from onnx import GraphProto, TensorProto, ValueInfoProto, helper
@@ -85,14 +87,25 @@ def test_visit_node_add():
     # initialize context
     ctx = OnnxXdslMapping()
 
-    # create graph composed only of one Sub operation
-    graph, add_node = _create_graph_binary_op("Add", "add_graph")
+    # create graph composed only of one Add operation
+    _, add_node = _create_graph_binary_op("Add", "add_graph")
 
-    # update context
-    _update_context(graph, ctx)
+    lhs = TestSSAValue(TensorType(f32, [64]))
+    rhs = TestSSAValue(TensorType(f32, [64]))
+    ctx.value_by_name["input1"] = lhs
+    ctx.value_by_name["input2"] = rhs
+
+    lhs_type = TensorType(f32, [64])
+    rhs_type = TensorType(f32, [64])
+    out_type = TensorType(f32, [64])
+    ctx.type_by_name["input1"] = lhs_type
+    ctx.type_by_name["input2"] = rhs_type
+    ctx.type_by_name["output"] = out_type
 
     # expected output before visinting the op node
-    expected_output_pre = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 0>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 0>}"""
+    expected_input1 = """'input1': TestSSAValue(type=TensorType(parameters=(ArrayAttr(data=(IntAttr(data=64),)), Float32Type(parameters=()), NoneAttr(parameters=())), shape=ArrayAttr(data=(IntAttr(data=64),)), element_type=Float32Type(parameters=()), encoding=NoneAttr(parameters=())), _name=None)"""
+    expected_input2 = """'input2': TestSSAValue(type=TensorType(parameters=(ArrayAttr(data=(IntAttr(data=64),)), Float32Type(parameters=()), NoneAttr(parameters=())), shape=ArrayAttr(data=(IntAttr(data=64),)), element_type=Float32Type(parameters=()), encoding=NoneAttr(parameters=())), _name=None)"""
+    expected_output_pre = "{" + expected_input1 + ", " + expected_input2 + "}"
 
     assert str(ctx.value_by_name) == expected_output_pre
 
@@ -102,7 +115,10 @@ def test_visit_node_add():
     assert op.name == "onnx.Add"
 
     # expected output after visinting the op node
-    expected_output_post = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 1>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 1>, 'output': <OpResult[tensor<0x0xf32>] index: 0, operation: onnx.Add, uses: 0>}"""
+    expected_out = """'output': <OpResult[tensor<64xf32>] index: 0, operation: onnx.Add, uses: 0>"""
+    expected_output_post = (
+        "{" + expected_input1 + ", " + expected_input2 + ", " + expected_out + "}"
+    )
 
     assert str(ctx.value_by_name) == expected_output_post
 
@@ -112,13 +128,24 @@ def test_visit_node_sub():
     ctx = OnnxXdslMapping()
 
     # create graph composed only of one Sub operation
-    graph, sub_node = _create_graph_binary_op("Sub", "sub_graph")
+    _, sub_node = _create_graph_binary_op("Sub", "sub_graph")
 
-    # update context
-    _update_context(graph, ctx)
+    lhs = TestSSAValue(TensorType(f32, [64]))
+    rhs = TestSSAValue(TensorType(f32, [64]))
+    ctx.value_by_name["input1"] = lhs
+    ctx.value_by_name["input2"] = rhs
+
+    lhs_type = TensorType(f32, [64])
+    rhs_type = TensorType(f32, [64])
+    out_type = TensorType(f32, [64])
+    ctx.type_by_name["input1"] = lhs_type
+    ctx.type_by_name["input2"] = rhs_type
+    ctx.type_by_name["output"] = out_type
 
     # expected output before visinting the op node
-    expected_output_pre = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 0>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 0>}"""
+    expected_input1 = """'input1': TestSSAValue(type=TensorType(parameters=(ArrayAttr(data=(IntAttr(data=64),)), Float32Type(parameters=()), NoneAttr(parameters=())), shape=ArrayAttr(data=(IntAttr(data=64),)), element_type=Float32Type(parameters=()), encoding=NoneAttr(parameters=())), _name=None)"""
+    expected_input2 = """'input2': TestSSAValue(type=TensorType(parameters=(ArrayAttr(data=(IntAttr(data=64),)), Float32Type(parameters=()), NoneAttr(parameters=())), shape=ArrayAttr(data=(IntAttr(data=64),)), element_type=Float32Type(parameters=()), encoding=NoneAttr(parameters=())), _name=None)"""
+    expected_output_pre = "{" + expected_input1 + ", " + expected_input2 + "}"
 
     assert str(ctx.value_by_name) == expected_output_pre
 
@@ -128,7 +155,11 @@ def test_visit_node_sub():
     assert op.name == "onnx.Sub"
 
     # expected output after visinting the op node
-    expected_output_post = """{'input1': <BlockArgument[tensor<0x0xf32>] index: 0, uses: 1>, 'input2': <BlockArgument[tensor<0x0xf32>] index: 1, uses: 1>, 'output': <OpResult[tensor<0x0xf32>] index: 0, operation: onnx.Sub, uses: 0>}"""
+
+    expected_out = """'output': <OpResult[tensor<64xf32>] index: 0, operation: onnx.Sub, uses: 0>"""
+    expected_output_post = (
+        "{" + expected_input1 + ", " + expected_input2 + ", " + expected_out + "}"
+    )
 
     assert str(ctx.value_by_name) == expected_output_post
 
