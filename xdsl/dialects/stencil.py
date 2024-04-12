@@ -451,7 +451,21 @@ class CombineOp(IRDLOperation):
     values have the order upper/lower, lowerext, upperext.
 
     Example:
-      %result = stencil.combine 2 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
+      %res1, %res2 = stencil.combine 1 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
+    Can be illustrated as:
+
+    dim   1       offset                   offset
+         ┌──►      (=11)                    (=11)
+       0 │          │                        │
+         ▼ ┌────────┼─────────┐     ┌────────┼─────────┐
+           │        │         │     │        │         │
+           │        │         │     │        │         │
+      %res1│  lower │ upper   │     │lowerext│         │%res2
+           │    %0  │   %1    │     │    %0  │         │
+           │        │         │     │        │         │
+           │        │         │     │        │         │
+           └────────┼─────────┘     └────────┼─────────┘
+                    │                        │
     """
 
     name = "stencil.combine"
