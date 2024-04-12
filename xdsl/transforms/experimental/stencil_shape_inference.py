@@ -95,6 +95,7 @@ class CombineOpShapeInference(RewritePattern):
             ub = IndexAttr.max(c_bound, ub)
             bounds = StencilBoundsAttr(zip(lb, ub))
             l.type = TempType(bounds, l.type.element_type)
+
         # Handle combined upper results
         for c, u in zip(combined_res, op.upper, strict=True):
             c_type = cast(TempType[Attribute], c.type)
