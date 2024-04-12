@@ -19,3 +19,5 @@
 // CHECK: mov rax, rdx
 x86.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: push rax
+%pop = x86.pop : () -> (!x86.reg<rax>)
+// CHECK: pop rax
