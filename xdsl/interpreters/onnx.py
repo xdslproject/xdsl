@@ -3,7 +3,7 @@ from typing import Any, cast
 import numpy as np
 
 from xdsl.dialects import onnx
-from xdsl.dialects.builtin import NoneType, TensorType
+from xdsl.dialects.builtin import TensorType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -14,6 +14,7 @@ from xdsl.interpreter import (
 from xdsl.interpreters import ptr
 from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.utils.exceptions import InterpretationError
 
 mean = 0.1307
 std = 0.3081
@@ -170,10 +171,17 @@ class OnnxFunctions(InterpreterFunctions):
         result_type = op.reshaped.type
         assert isinstance(result_type, TensorType)
         static_shape = list(result_type.get_shape())
+        # replace -1 in new shape with corresponding value from result shape
+        new_shape_arr = np.array(new_shape.data, dtype=int)
+        new_shape_arr = np.where(new_shape_arr == -1, static_shape, new_shape_arr)
         assert static_shape is not None
-        #
-        # if static_shape != new_shape.data:
-        #     raise InterpretationError("Mismatch between static shape and new shape")
+        if static_shape != new_shape_arr.tolist():
+            raise InterpretationError(
+                "Mismatch between static shape and new shape: "
+                + str(static_shape)
+                + " vs "
+                + str(new_shape.data)
+            )
         return (input.with_shape(static_shape),)
 
     @impl(onnx.Gemm)
@@ -220,7 +228,8 @@ class OnnxFunctions(InterpreterFunctions):
         kernel = to_ndarray(kernel)
         # reshape bias for broadcasting purposes
         # bias
-        bias.shape = [1, bias.shape[0], 1, 1]
+        # bias.shape = [1, bias.shape[0], 1, 1]
+        bias = from_ndarray(np.expand_dims(to_ndarray(bias), axis=(0, 2, 3)))
 
         if auto_pad != "NOTSET":
             if auto_pad == "SAME_UPPER" or auto_pad == "SAME_LOWER":
@@ -280,10 +289,10 @@ class OnnxFunctions(InterpreterFunctions):
         out_height = int((m_height - kernel.shape[2]) // strides[0] + 1)
         out_width = int((m_width - kernel.shape[3]) // strides[1] + 1)
 
-        if isinstance(op.bias.type, NoneType):
-            output_shape = (matrix.shape[0], matrix.shape[1], out_height, out_width)
-        else:
-            output_shape = (matrix.shape[0], bias.shape[1], out_height, out_width)
+        # if isinstance(op.bias.type, NoneType):
+        #     output_shape = (matrix.shape[0], matrix.shape[1], out_height, out_width)
+        # else:
+        output_shape = (1, matrix.shape[0], out_height, out_width)
         output = np.zeros(output_shape, dtype=matrix.dtype)
 
         kernel_shape = tuple(value.value.data for value in op.kernel_shape)
@@ -294,68 +303,25 @@ class OnnxFunctions(InterpreterFunctions):
             for l in range(matrix.shape[1]):
                 for i in range(0, m_height - ky + 1, strides[0]):
                     for j in range(0, m_width - kx + 1, strides[1]):
-                        output[k, l, i // strides[0], j // strides[1]] = np.sum(
+                        output[0, k, i // strides[0], j // strides[1]] = np.sum(
                             padded_matrix[k, l, i : i + ky, j : j + kx] * kernel[k, l]
                         )
             # this ensures that it maps correctly to the number of output channels
-            for i in range(1, output_shape[1]):
-                output[0, i] = output[0, 0]
-        output += to_ndarray(bias)
+        result = output + to_ndarray(bias)
+        # output += to_ndarray(bias)
 
         # the number of channels is not always fixed to one
         result_type = op.res.type
         assert isinstance(result_type, TensorType)
-        static_shape = list(result_type.get_shape())
-        result = np.array(output)
-        assert tuple(result.shape) == (
-            1,
-            static_shape[1],
-            output.shape[2],
-            output.shape[3],
-        )
-
+        list(result_type.get_shape())
+        # result = np.array(output)
+        # assert tuple(result.shape) == (
+        #     1,
+        #     static_shape[1],
+        #     output.shape[2],
+        #     output.shape[3],
+        # )
         return (from_ndarray(result),)
-
-    # @impl(onnx.MaxPoolSingleOut)
-    # def run_max_pool_single_out(
-    #     self, interpreter: Interpreter, op: onnx.MaxPoolSingleOut, args: tuple[Any, ...]
-    # ):
-    #     matrix = args[0]
-    #     matrix = to_ndarray(matrix)
-    #     # matrix = (matrix / 255.0)
-    #     m, n = matrix.shape[2], matrix.shape[3]
-    #     kernel_shape = tuple(value.value.data for value in op.kernel_shape)
-    #     strides_shape = tuple(value.value.data for value in op.strides)
-    #     ky, kx = kernel_shape
-    #     sy, sx = strides_shape
-    #     n_channels = matrix.shape[1]
-    #     n_images = matrix.shape[0]
-    #
-    #     output_width = int((n - kx) / sx) + 1
-    #     output_height = int((m - ky) / sy) + 1
-    #
-    #     output = np.zeros((n_images, n_channels, output_height, output_width))
-    #
-    #     for i in range(n_images):
-    #         for channel_index in range(n_channels):
-    #             c = 0
-    #             for height in range(0, m, sy):
-    #                 if height + ky <= m:
-    #                     image_rectangle = matrix[
-    #                         i, channel_index, height : height + ky, :
-    #                     ]
-    #                     for width in range(0, n, sx):
-    #                         if width + kx <= n:
-    #                             image_square = image_rectangle[:, width : width + kx]
-    #                             output[
-    #                                 i,
-    #                                 channel_index,
-    #                                 c // output_width,
-    #                                 c % output_width,
-    #                             ] = np.max(image_square)
-    #                             c += 1
-    #     result: Any = output
-    #     return (from_ndarray(result),)
 
     @impl(onnx.MaxPoolSingleOut)
     def run_max_pool_single_out(
@@ -449,7 +415,7 @@ class OnnxFunctions(InterpreterFunctions):
             for l in range(matrix.shape[1]):
                 for i in range(0, m_height - ky + 1, strides[0]):
                     for j in range(0, m_width - kx + 1, strides[1]):
-                        result[k, l, i // strides[0], j // strides[1]] = np.nanmax(
+                        result[0, k, i // strides[0], j // strides[1]] = np.nanmax(
                             padded_matrix[k, l, i : i + ky, j : j + kx]
                         )
 

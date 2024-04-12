@@ -359,10 +359,10 @@ class GetGlobal(IRDLOperation):
     name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
     @staticmethod
-    def get(name: str, return_type: Attribute) -> GetGlobal:
-        return GetGlobal.build(
-            result_types=[return_type], properties={"name": SymbolRefAttr(name)}
-        )
+    def get(name: str | SymbolRefAttr, return_type: Attribute) -> GetGlobal:
+        if isinstance(name, str):
+            name = SymbolRefAttr(name)
+        return GetGlobal.build(result_types=[return_type], properties={"name": name})
 
     assembly_format = "$name `:` type($memref) attr-dict"
 
