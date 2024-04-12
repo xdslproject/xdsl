@@ -22,13 +22,10 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
-    opt_operand_def,
-    opt_result_def,
     result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from .register import GeneralRegisterType, X86RegisterType
@@ -285,20 +282,18 @@ class MovOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.mov"
 
 
-class ROperation(Generic[R1InvT], SingleOperandInstruction):
+class ROperationSrc(Generic[R1InvT], SingleOperandInstruction):
     """
-    A base class for x86 operations that have one register.
+    A base class for x86 operations that have one source register.
     """
 
-    source = opt_operand_def(R1InvT)
-    destination = opt_result_def(R1InvT)
+    source = operand_def(R1InvT)
 
     def __init__(
         self,
-        source: Operation | SSAValue | None = None,
+        source: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        destination: R1InvT | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -308,87 +303,21 @@ class ROperation(Generic[R1InvT], SingleOperandInstruction):
             attributes={
                 "comment": comment,
             },
-            result_types=[destination],
+            result_types=[],
         )
 
-    def verify_(self) -> None:
-        if self.source is None and self.destination is None:
-            raise VerifyException("Either source or destination must be specified")
-        return super().verify_()
-
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.destination,) if self.destination else (self.source,)
+        return (self.source,)
 
 
 @irdl_op_definition
-class IdivOp(ROperation[GeneralRegisterType]):
-    """
-    Divide rdx:rax by x[r1]. Store quotient in rax and store remainder in rdx.
-    https://www.felixcloutier.com/x86/idiv
-    """
-
-    name = "x86.idiv"
-
-    def verify_(self) -> None:
-        if self.source is None:
-            raise VerifyException("Source register must be specified")
-        if self.destination is not None:
-            raise VerifyException("Destination register cannot be specified")
-        else:
-            return super().verify_()
-
-
-@irdl_op_definition
-class NotOp(ROperation[GeneralRegisterType]):
-    """
-    bitwise not of r1, stored in r1
-    x[r1] = ~x[r1]
-    https://www.felixcloutier.com/x86/not
-    """
-
-    name = "x86.not"
-
-    def verify_(self) -> None:
-        if self.source is None or self.destination is None:
-            raise VerifyException("Source register and destination must be specified")
-        else:
-            return super().verify_()
-
-
-@irdl_op_definition
-class PushOp(ROperation[GeneralRegisterType]):
+class PushOp(ROperationSrc[GeneralRegisterType]):
     """
     Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
     https://www.felixcloutier.com/x86/push
     """
 
     name = "x86.push"
-
-    def verify_(self) -> None:
-        if self.source is None:
-            raise VerifyException("Source register must be specified")
-        if self.destination is not None:
-            raise VerifyException("Destination register cannot be specified")
-        else:
-            return super().verify_()
-
-
-@irdl_op_definition
-class PopOp(ROperation[GeneralRegisterType]):
-    """
-    Copies the value at the top of the stack into r1 and increases %rsp.
-    https://www.felixcloutier.com/x86/pop
-    """
-
-    name = "x86.pop"
-
-    def verify_(self) -> None:
-        if self.destination is None:
-            raise VerifyException("Destination register must be specified")
-        if self.source is not None:
-            raise VerifyException("Source register cannot be specified")
-        else:
-            return super().verify_()
 
 
 # region Assembly printing
