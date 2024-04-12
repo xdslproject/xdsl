@@ -20,6 +20,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
     ParameterDef,
@@ -441,6 +442,47 @@ class CastOp(IRDLOperation):
 
 
 @irdl_op_definition
+class CombineOp(IRDLOperation):
+    """
+        Combines the results computed on a lower with the results computed on
+        an upper domain. The operation combines the domain at a given index/offset
+        in a given dimension. Optional extra operands allow to combine values
+        that are only written / defined on the lower or upper subdomain. The result
+        values have the order upper/lower, lowerext, upperext.
+
+        Example:
+          `%res1, %res2 = stencil.combine 1 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>`
+        Can be illustrated as:
+    ```
+        dim   1       offset                   offset
+             ┌──►      (=11)                    (=11)
+           0 │          │                        │
+             ▼ ┌────────┼─────────┐     ┌────────┼─────────┐
+               │        │         │     │        │         │
+               │        │         │     │        │         │
+          %res1│  lower │ upper   │     │lowerext│         │%res2
+               │    %0  │   %1    │     │    %0  │         │
+               │        │         │     │        │         │
+               │        │         │     │        │         │
+               └────────┼─────────┘     └────────┼─────────┘
+                        │                        │
+    ```
+    """
+
+    name = "stencil.combine"
+
+    dim = attr_def(AnyIntegerAttr)
+    index = attr_def(AnyIntegerAttr)
+    lower = var_operand_def(TempType)
+    upper = var_operand_def(TempType)
+    lowerext = var_operand_def(TempType)
+    upperext = var_operand_def(TempType)
+    results_ = var_result_def(TempType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+@irdl_op_definition
 class DynAccessOp(IRDLOperation):
     """
     This operation accesses a temporary element given a dynamic offset.
@@ -703,9 +745,9 @@ class BufferOp(IRDLOperation):
                 f"Expected operand and result type to be equal, got ({self.temp.type}) "
                 f"-> {self.res.type}"
             )
-        if not isinstance(self.temp.owner, ApplyOp):
+        if not isinstance(self.temp.owner, ApplyOp | CombineOp):
             raise VerifyException(
-                f"Expected stencil.buffer to buffer a stencil.apply's output, got "
+                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
                 f"{self.temp.owner}"
             )
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
@@ -924,6 +966,7 @@ Stencil = Dialect(
     "stencil",
     [
         CastOp,
+        CombineOp,
         DynAccessOp,
         ExternalLoadOp,
         ExternalStoreOp,
