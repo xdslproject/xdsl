@@ -690,7 +690,7 @@ func.func @if_lowering(%arg0: f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, 
       "stencil.return"(%7) : (f64) -> ()
     }) : () -> !stencil.temp<[33,65]x[2,66]xf64>
     %9 = "stencil.combine"(%2, %5) {"dim" = 0 : i64, "index" = 33 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
-    "stencil.store"(%9, %1) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<[1,65]x[2,66]xf64>, !stencil.field<[-3,67]x[-3,67]xf64>) -> ()
+    "stencil.store"(%9, %1) {"lb" = #stencil.index<1, 2>, "ub" = #stencil.index<65, 66>} : (!stencil.temp<[1,65]x[2,66]xf64>, !stencil.field<[-3,67]x[-3,67]xf64>) -> ()
     func.return
   }
 
