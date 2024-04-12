@@ -322,7 +322,7 @@ class PushOp(ROperationSrc[GeneralRegisterType]):
 
 class ROperationDst(Generic[R1InvT], SingleOperandInstruction):
     """
-    A base class for x86 operations that have one register.
+    A base class for x86 operations that have one destination register.
     """
 
     destination = result_def(R1InvT)
