@@ -398,59 +398,12 @@ class ApplyOpToParallel(RewritePattern):
 
         p.body.insert_block(body.detach_block(0), 0)
 
-        # # Handle returnd values
-        # for result in op.res:
-        #     assert isa(
-        #         result.type, TempType[Attribute]
-        #     ), f"Expected return value to be a !{TempType.name}"
-        #     assert isinstance(
-        #         result.type.bounds, StencilBoundsAttr
-        #     ), f"Expected output to be sized before lowering. {result.type}"
-        #     shape = result.type.get_shape()
-        #     element_type = result.type.element_type
-
-        #     # If it is buffered, allocate the buffer
-        #     if any(isinstance(use.operation, BufferOp) for use in result.uses):
-        #         alloc = memref.Alloc.get(element_type, shape=shape)
-        #         alloc_type = alloc.memref.type
-        #         assert isa(alloc_type, MemRefType[Attribute])
-
-        #         offset = list(-result.type.bounds.lb)
-
-        #         view = memref.Subview.from_static_parameters(
-        #             alloc,
-        #             alloc_type,
-        #             offset,
-        #             shape,
-        #             [1] * result.type.get_num_dims(),
-        #         )
-        #         rewriter.insert_op_before_matched_op((alloc, view))
-        #         update_return_target(self.return_targets, result, view.result)
-
-        # deallocs: list[Operation] = []
-        # # Handle input buffer deallocation
-        # for input in op.args:
-        #     # Is this input a temp buffer?
-        #     if isinstance(input.type, TempType) and isinstance(input.owner, BufferOp):
-        #         block = op.parent_block()
-        #         assert block is not None
-        #         self_index = block.get_operation_index(op)
-        #         # Is it its last use?
-        #         if not any(
-        #             use.operation.parent_block() is block
-        #             and block.get_operation_index(use.operation) > self_index
-        #             for use in input.uses
-        #         ):
-        #             # Then deallocate it
-        #             deallocs.append(memref.Dealloc.get(input))
-
         # Get the maybe updated results
         new_results: list[SSAValue | None] = []
         new_results = self.return_targets[return_op]
         # Replace with the loop and necessary constants.
         assert isa(boilerplate_ops, list[Operation])
         rewriter.insert_op_before_matched_op([*boilerplate_ops, p])
-        # rewriter.insert_op_after_matched_op([*deallocs])
         rewriter.replace_matched_op([], new_results)
 
 
@@ -541,12 +494,6 @@ class StencilStoreToSubview(RewritePattern):
             update_return_target(self.return_targets, field, subview.result)
 
 
-class BufferOpCleanUp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([], [op.temp])
-
-
 class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
@@ -571,9 +518,6 @@ class CombineOpCleanup(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter, /):
-        # rewriter.replace_matched_op(
-        #     UnrealizedConversionCastOp.get([], [r.type for r in op.results])
-        # )
         rewriter.erase_matched_op()
 
 
@@ -683,7 +627,6 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     CombineOpCleanup(),
-                    # BufferOpCleanUp(),
                     StencilTypeConversion(recursive=True),
                     ResultTypeConversion(recursive=True),
                 ]
