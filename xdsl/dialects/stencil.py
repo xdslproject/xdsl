@@ -20,6 +20,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
     ParameterDef,
@@ -438,6 +439,34 @@ class CastOp(IRDLOperation):
             raise VerifyException(
                 "If input shape is not dynamic, it must be the same as output"
             )
+
+
+@irdl_op_definition
+class CombineOp(IRDLOperation):
+    """
+    Combines the results computed on a lower with the results computed on
+    an upper domain. The operation combines the domain at a given index/offset
+    in a given dimension. Optional extra operands allow to combine values
+    that are only written / defined on the lower or upper subdomain. The result
+    values have the order upper/lower, lowerext, upperext.
+
+    Example:
+      %result = stencil.combine 2 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
+    """
+
+    name = "stencil.combine"
+
+    dim = attr_def(AnyIntegerAttr)
+    index = attr_def(AnyIntegerAttr)
+    lower = var_operand_def(TempType)
+    upper = var_operand_def(TempType)
+    lowerext = var_operand_def(TempType)
+    upperext = var_operand_def(TempType)
+    lb = opt_attr_def(IndexAttr)
+    ub = opt_attr_def(IndexAttr)
+    _results = var_result_def(TempType)
+
+    irdl_options = [AttrSizedOperandSegments()]
 
 
 @irdl_op_definition
@@ -924,6 +953,7 @@ Stencil = Dialect(
     "stencil",
     [
         CastOp,
+        CombineOp,
         DynAccessOp,
         ExternalLoadOp,
         ExternalStoreOp,
