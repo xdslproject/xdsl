@@ -732,9 +732,9 @@ class BufferOp(IRDLOperation):
                 f"Expected operand and result type to be equal, got ({self.temp.type}) "
                 f"-> {self.res.type}"
             )
-        if not isinstance(self.temp.owner, ApplyOp):
+        if not isinstance(self.temp.owner, ApplyOp | CombineOp):
             raise VerifyException(
-                f"Expected stencil.buffer to buffer a stencil.apply's output, got "
+                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
                 f"{self.temp.owner}"
             )
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
