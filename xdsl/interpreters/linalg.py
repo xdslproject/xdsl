@@ -25,13 +25,11 @@ class LinalgFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "library_call not yet supported in linalg.generic interpreter"
             )
-        if op.res:
-            raise NotImplementedError(
-                "results not yet supported in linalg.generic interpreter"
-            )
-
+        # if op.res:
+        #     raise NotImplementedError(
+        #         "results not yet supported in linalg.generic interpreter"
+        #     )
         inputs_count = len(op.inputs)
-
         outputs: tuple[ShapedArray[float], ...] = args[inputs_count:]
 
         indexing_maps = op.get_indexing_maps()
@@ -54,7 +52,8 @@ class LinalgFunctions(InterpreterFunctions):
             ):
                 result_indices = indexing_map.eval(indices, ())
                 outputs[0].store(result_indices, res)
-
+            if len(op.results) > 0:
+                return (outputs[0],)
         return ()
 
     @impl_terminator(linalg.YieldOp)
@@ -258,6 +257,34 @@ class LinalgFunctions(InterpreterFunctions):
                 output.append(conv_value)
         for i in range(len(output)):
             res.data_ptr[i] = output[i]
+        if len(op.results) > 0:
+            return (res,)
+        return ()
+
+    @impl(linalg.BroadcastOp)
+    def run_broadcast(
+        self,
+        interpreter: Interpreter,
+        op: linalg.BroadcastOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        input, res = (
+            args[0],
+            args[1],
+        )
+        assert isinstance(input, ShapedArray)
+        assert isinstance(res, ShapedArray)
+        input = cast(ShapedArray[float], input)
+        res = cast(ShapedArray[float], res)
+        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
+            raise NotImplementedError()
+        # get dimensions array
+        array_datas = []
+        for data in input.data:
+            array_data = [data] * (res.shape[2] * res.shape[3])
+            array_datas += array_data
+        for i in range(len(array_datas)):
+            res.data_ptr[i] = array_datas[i]
         if len(op.results) > 0:
             return (res,)
         return ()

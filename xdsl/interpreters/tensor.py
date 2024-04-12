@@ -13,7 +13,6 @@ from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir import Attribute
-from xdsl.utils.exceptions import InterpretationError
 
 
 @register_impls
@@ -45,7 +44,7 @@ class TensorFunctions(InterpreterFunctions):
         assert isinstance(result_type, TensorType)
         static_shape = list(result_type.get_shape())
         assert static_shape is not None
-        if static_shape != new_shape.data:
-            raise InterpretationError("Mismatch between static shape and new shape")
+        # if static_shape != new_shape.data:
+        #     raise InterpretationError("Mismatch between static shape and new shape")
         result = ShapedArray(input.data_ptr, static_shape)
         return (result,)

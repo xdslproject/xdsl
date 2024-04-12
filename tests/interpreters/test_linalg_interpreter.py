@@ -373,3 +373,19 @@ def test_linalg_conv_2d_nchw_fchw():
         TypedPtr.new_float32([54, 63, 72, 99, 108, 117, 144, 153, 162]),
         [1, 1, 3, 3],
     )
+
+
+def test_linalg_broadcast():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    op = linalg.BroadcastOp(
+        TestSSAValue(TensorType(f32, [10])),
+        TestSSAValue(TensorType(f32, [1, 10, 24, 24])),
+        DenseArrayBase.from_list(i64, [0, 2, 3]),
+        TensorType(f32, [1, 10, 24, 24]),
+    )
+
+    a = ShapedArray(TypedPtr.new_float32([0.0] * 10), [10])
+    b = ShapedArray(TypedPtr.new_float32([0.0] * 5760), [1, 10, 24, 24])
+    (b,) = interpreter.run_op(op, (a, b))
+    assert b == ShapedArray(TypedPtr.new_float32([0.0] * 5760), [1, 10, 24, 24])

@@ -5,6 +5,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AnyFloat,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -14,7 +15,6 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     f32,
-    f64,
     i64,
 )
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region
@@ -62,24 +62,21 @@ class AddOpLowering(RewritePattern):
 class ReluOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
-        body = Region(Block(arg_types=(f64, f64)))
-        affine_map = AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0, d1)))
+        body = Region(Block(arg_types=(f32, f32)))
+        operand = relu.operand.type
+        assert isinstance(operand, TensorType)
+        operand_rank = len(operand.get_shape())
+        affine_map = AffineMapAttr(AffineMap.identity(operand_rank))
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), relu.res.type),
-                zero := arith.Constant(FloatAttr(0, f64)),
+                zero := arith.Constant(FloatAttr(0, f32)),
                 linalg.Generic(
                     (relu.operand,),
                     (empty.tensor,),
                     body,
-                    (
-                        affine_map,
-                        affine_map,
-                    ),
-                    (
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                    ),
+                    (affine_map,) * len(body.block.args),
+                    (linalg.IteratorTypeAttr.parallel(),) * operand_rank,
                     (relu.res.type,),
                 ),
             )
@@ -99,7 +96,9 @@ class ConstantOpLowering(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, constant: onnx.Constant, rewriter: PatternRewriter, /):
-        attr_value = list(constant.attributes.values())[1]
+        attr_value = list(constant.attributes.values())[0]
+        if not isinstance(attr_value, DenseIntOrFPElementsAttr):
+            attr_value = list(constant.attributes.values())[1]
         constant_name = self.make_unique_name()
         global_op = ml_program.Global(
             StringAttr(constant_name),
@@ -250,12 +249,19 @@ class GemmOpLowering(RewritePattern):
             beta_res = beta_mul_result.res[0]
             rewriter.insert_op_before_matched_op([constant, beta_mul_result])
 
+        # dims: list[int] = [0]
+        # dimensions = DenseArrayBase.create_dense_int_or_index(i64, dims)
+
         # this is beta * c result else its just c
         if beta_res is not None:
             beta_mul_result = beta_res
         else:
             beta_mul_result = gemm.tensor_c
 
+        dims: list[int] = [0]
+        dimensions = DenseArrayBase.create_dense_int_or_index(i64, dims)
+
+        # if the beta and gemm is the same we want to not broadcast
         # (A * B) + beta * C
         rewriter.replace_matched_op(
             (
@@ -269,9 +275,15 @@ class GemmOpLowering(RewritePattern):
                     (empty.tensor,),
                     res=(gemm.res_tensor.type,),
                 ),
+                add_broadcast := linalg.BroadcastOp(
+                    beta_mul_result,
+                    mat_mul_res.results[0],
+                    dimensions,
+                    gemm.res_tensor.type,
+                ),
                 # (A * B) + beta * C
                 linalg.AddOp(
-                    (mat_mul_res.results[0], beta_mul_result),
+                    (add_broadcast, mat_mul_res.results[0]),
                     (mat_mul_res.results[0],),
                     res=(mat_mul_res.results[0].type,),
                 ),
@@ -303,13 +315,19 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
         ):
             raise NotImplementedError()
 
+        operand_type = max_pool_single_out.data.type
+        assert isinstance(operand_type, TensorType)
+        operand_type = cast(TensorType[Attribute], operand_type)
+
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), kernel_shape),
                 init := tensor.EmptyOp((), max_pool_single_out.output.type),
                 # Since we're unable to represent +/- infinity,
                 # we currently use the maximum value by sys
-                cst := arith.Constant(FloatAttr(-1e308, f64)),
+                cst := arith.Constant(
+                    FloatAttr(-1e308, cast(AnyFloat, operand_type.element_type))
+                ),
                 fill := linalg.FillOp(
                     (cst.result,),
                     (init.tensor,),
@@ -333,6 +351,9 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
 class ConvOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, conv: onnx.Conv, rewriter: PatternRewriter, /):
+
+        dims: list[int] = [0, 2, 3]
+        dimensions = DenseArrayBase.create_dense_int_or_index(i64, dims)
 
         dilations = tuple(value.value.data for value in conv.dilations.data)
         strides = tuple(value.value.data for value in conv.strides.data)
@@ -359,12 +380,18 @@ class ConvOpLowering(RewritePattern):
             conv_op,
         )
         if not isinstance(conv.bias.type, NoneType):
+            add_broadcast = linalg.BroadcastOp(
+                conv.bias, conv_op.results[0], dimensions, conv.res.type
+            )
             add_bias = linalg.AddOp(
-                (conv.bias,),
+                (add_broadcast.results[0], conv_op.results[0]),
                 (conv_op.results[0],),
                 res=(conv.res.type,),
             )
-            conv_ops += (add_bias,)
+            conv_ops += (
+                add_broadcast,
+                add_bias,
+            )
         rewriter.replace_matched_op(conv_ops)
 
 

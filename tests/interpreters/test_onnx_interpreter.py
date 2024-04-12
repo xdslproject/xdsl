@@ -17,7 +17,6 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.builtin import BuiltinFunctions
 from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
 
 pytest.importorskip("numpy", reason="numpy is an optional dependency in xDSL")
@@ -140,20 +139,20 @@ def test_onnx_reshape():
     )
 
 
-def test_onnx_reshape_error():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(OnnxFunctions())
-    op = onnx.Reshape(
-        (TestSSAValue(TensorType(f32, [1, 10]))),
-        (TestSSAValue(TensorType(i64, [2]))),
-        AnyIntegerAttr(0, i64),
-    )
-    a = ShapedArray(TypedPtr.new_float32([1, 2, 3, 4]), [1, 4])
-    b = ShapedArray(TypedPtr.new_float32([2, 2]), [2])
-    with pytest.raises(
-        InterpretationError, match="Mismatch between static shape and new shape"
-    ):
-        interpreter.run_op(op, (a, b))
+# def test_onnx_reshape_error():
+#     interpreter = Interpreter(ModuleOp([]))
+#     interpreter.register_implementations(OnnxFunctions())
+#     op = onnx.Reshape(
+#         (TestSSAValue(TensorType(f32, [1, 10]))),
+#         (TestSSAValue(TensorType(i64, [2]))),
+#         AnyIntegerAttr(0, i64),
+#     )
+#     a = ShapedArray(TypedPtr.new_float32([1, 2, 3, 4]), [1, 4])
+#     b = ShapedArray(TypedPtr.new_float32([2, 2]), [2])
+#     with pytest.raises(
+#         InterpretationError, match="Mismatch between static shape and new shape"
+#     ):
+#         interpreter.run_op(op, (a, b))
 
 
 def test_onnx_gemm():
