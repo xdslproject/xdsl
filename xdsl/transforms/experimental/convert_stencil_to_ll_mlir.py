@@ -5,13 +5,17 @@ from typing import TypeVar, cast
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, memref, scf
-from xdsl.dialects.builtin import MemRefType, UnrealizedConversionCastOp
+from xdsl.dialects.builtin import (
+    MemRefType,
+    UnrealizedConversionCastOp,
+)
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     BufferOp,
     CastOp,
+    CombineOp,
     ExternalLoadOp,
     ExternalStoreOp,
     FieldType,
@@ -35,6 +39,7 @@ from xdsl.ir import (
     OpResult,
     Region,
     SSAValue,
+    Use,
 )
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -497,6 +502,46 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
         rewriter.erase_matched_op()
 
 
+class CombineOpCleanup(RewritePattern):
+    """
+    Just remove `stencil.combine`s as they are just used for return target analysis.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter, /):
+        rewriter.erase_matched_op()
+
+
+def _get_use_target(use: Use) -> SSAValue | None:
+    match store := use.operation:
+        case StoreOp():
+            return store.field
+        case BufferOp():
+            return store.temp
+        case CombineOp():
+            # If the use is a lower
+            if use.index < len(store.lower):
+                temp = store.results[use.index]
+            elif use.index < len(store.lower) + len(store.upper):
+                temp = store.results[use.index - len(store.lower)]
+            elif use.index < len(store.lower) + len(store.upper) + len(store.lowerext):
+                temp = store.results[use.index - len(store.lower)]
+            else:
+                temp = store.results[use.index - len(store.lower) - len(store.lowerext)]
+            temp_uses = temp.uses
+            match len(temp_uses):
+                case 0:
+                    return None
+                case 1:
+                    target = _get_use_target(list(temp_uses)[0])
+                    return target
+                case _:
+                    raise ValueError("Each stencil result should be stored only once.")
+        case _:
+            # Should be unreachable
+            raise ValueError(f"Unexpected store type {store}")
+
+
 def return_target_analysis(module: builtin.ModuleOp):
     return_targets: dict[ReturnOp, list[SSAValue | None]] = {}
 
@@ -510,9 +555,9 @@ def return_target_analysis(module: builtin.ModuleOp):
         return_targets[op] = []
         for res in list(apply.res):
             store = [
-                use.operation
+                use
                 for use in list(res.uses)
-                if isinstance(use.operation, StoreOp | BufferOp)
+                if isinstance(use.operation, StoreOp | BufferOp | CombineOp)
             ]
 
             if len(store) > 1:
@@ -521,11 +566,8 @@ def return_target_analysis(module: builtin.ModuleOp):
 
             elif len(store) == 0:
                 field = None
-            elif isinstance(store[0], StoreOp):
-                field = store[0].field
-            # then it's a BufferOp
             else:
-                field = store[0].temp
+                field = _get_use_target(store[0])
 
             return_targets[op].append(field)
 
@@ -574,9 +616,10 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         type_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    BufferOpCleanUp(),
+                    CombineOpCleanup(),
                     StencilTypeConversion(recursive=True),
                     ResultTypeConversion(recursive=True),
-                    BufferOpCleanUp(),
                 ]
             )
         )
