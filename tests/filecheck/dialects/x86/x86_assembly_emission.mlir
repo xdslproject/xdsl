@@ -19,3 +19,8 @@
 // CHECK: mov rax, rdx
 x86.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: push rax
+<<<<<<< HEAD
+=======
+%not = x86.not %0 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: not rax
+>>>>>>> d693bd63 (support for single operand instructions with both source and destination)
