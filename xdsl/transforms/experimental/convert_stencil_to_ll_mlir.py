@@ -292,13 +292,23 @@ class BufferOpToMemref(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter, /):
+        # The current lowering simply allocate at block entry and deallocates at block
+        # exit.
+        # One could be smarter, e.g., aim precisly at where the first and last need is
+        # But first, this requires more code with stencil.combine in the mix.
+        # And second, do we want to be that smart? We use it iterated either way, so
+        # probably always hoping to hoist (de)allocations out of the loop anyway?
         temp_t = op.temp.type
         assert isa(temp_t, TempType[Attribute])
         temp_bounds = temp_t.bounds
         assert isa(temp_bounds, StencilBoundsAttr)
-        owner = op.temp.owner
 
-        # TODO If we're buffering a CombineOp, we need to make sure the buffer is allocated before the combined computations!
+        block = op.parent_block()
+        assert block is not None
+        first_op = block.first_op
+        assert first_op is not None
+        last_op = block.last_op
+        assert last_op is not None
 
         alloc = memref.Alloc.get(temp_t.get_element_type(), shape=temp_t.get_shape())
         alloc_type = alloc.memref.type
@@ -313,8 +323,9 @@ class BufferOpToMemref(RewritePattern):
             temp_t.get_shape(),
             [1] * temp_t.get_num_dims(),
         )
-        rewriter.insert_op_before(alloc, owner)
-        rewriter.insert_op_before(view, owner)
+
+        rewriter.insert_op_before(alloc, first_op)
+        rewriter.insert_op_before(view, first_op)
 
         update_return_target(self.return_targets, op.temp, view.result)
 
@@ -325,21 +336,7 @@ class BufferOpToMemref(RewritePattern):
             rewriter.erase_matched_op()
             return
 
-        last_use_op = list(op.res.uses)[0].operation
-        last_use_index = -1
-        block = op.parent_block()
-        assert block is not None
-
-        for use in op.res.uses:
-            use_op = use.operation
-            while use_op.parent_block() is not block:
-                use_op = use_op.parent_op()
-                assert use_op is not None
-            index = block.get_operation_index(use_op)
-            if index > last_use_index:
-                last_use_index = index
-                last_use_op = use_op
-        rewriter.insert_op_after(dealloc, last_use_op)
+        rewriter.insert_op_before(dealloc, last_op)
         rewriter.replace_matched_op([], [view.result])
 
 
