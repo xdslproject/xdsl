@@ -444,28 +444,29 @@ class CastOp(IRDLOperation):
 @irdl_op_definition
 class CombineOp(IRDLOperation):
     """
-    Combines the results computed on a lower with the results computed on
-    an upper domain. The operation combines the domain at a given index/offset
-    in a given dimension. Optional extra operands allow to combine values
-    that are only written / defined on the lower or upper subdomain. The result
-    values have the order upper/lower, lowerext, upperext.
+        Combines the results computed on a lower with the results computed on
+        an upper domain. The operation combines the domain at a given index/offset
+        in a given dimension. Optional extra operands allow to combine values
+        that are only written / defined on the lower or upper subdomain. The result
+        values have the order upper/lower, lowerext, upperext.
 
-    Example:
-      %res1, %res2 = stencil.combine 1 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>
-    Can be illustrated as:
-
-    dim   1       offset                   offset
-         ┌──►      (=11)                    (=11)
-       0 │          │                        │
-         ▼ ┌────────┼─────────┐     ┌────────┼─────────┐
-           │        │         │     │        │         │
-           │        │         │     │        │         │
-      %res1│  lower │ upper   │     │lowerext│         │%res2
-           │    %0  │   %1    │     │    %0  │         │
-           │        │         │     │        │         │
-           │        │         │     │        │         │
-           └────────┼─────────┘     └────────┼─────────┘
-                    │                        │
+        Example:
+          `%res1, %res2 = stencil.combine 1 at 11 lower = (%0 : !stencil.temp<?x?x?xf64>) upper = (%1 : !stencil.temp<?x?x?xf64>) lowerext = (%2 : !stencil.temp<?x?x?xf64>): !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>`
+        Can be illustrated as:
+    ```
+        dim   1       offset                   offset
+             ┌──►      (=11)                    (=11)
+           0 │          │                        │
+             ▼ ┌────────┼─────────┐     ┌────────┼─────────┐
+               │        │         │     │        │         │
+               │        │         │     │        │         │
+          %res1│  lower │ upper   │     │lowerext│         │%res2
+               │    %0  │   %1    │     │    %0  │         │
+               │        │         │     │        │         │
+               │        │         │     │        │         │
+               └────────┼─────────┘     └────────┼─────────┘
+                        │                        │
+    ```
     """
 
     name = "stencil.combine"
