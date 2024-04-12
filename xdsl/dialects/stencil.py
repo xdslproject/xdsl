@@ -464,7 +464,7 @@ class CombineOp(IRDLOperation):
     upperext = var_operand_def(TempType)
     lb = opt_attr_def(IndexAttr)
     ub = opt_attr_def(IndexAttr)
-    _results = var_result_def(TempType)
+    results_ = var_result_def(TempType)
 
     irdl_options = [AttrSizedOperandSegments()]
 

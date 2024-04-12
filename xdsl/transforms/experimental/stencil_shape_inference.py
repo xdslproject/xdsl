@@ -6,6 +6,7 @@ from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     BufferOp,
+    CombineOp,
     DynAccessOp,
     FieldType,
     IndexAttr,
@@ -60,6 +61,53 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
     assert shape_lb is not None
     assert shape_ub is not None
     return shape_lb, shape_ub
+
+
+class CombineOpShapeInference(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter, /):
+        # Get each result group
+        combined_res = op.results_[0 : len(op.lower)]
+        op.results_[len(op.lower) : len(op.lower) + len(op.lowerext)]
+        op.results_[len(op.lower) + len(op.lowerext) :]
+
+        # Handle combined results
+        for c, l, u in zip(combined_res, op.lower, op.upper, strict=True):
+            c_type = cast(TempType[Attribute], c.type)
+            assert isinstance(c_type.bounds, StencilBoundsAttr)
+            # Get the inferred bounds on the combined result
+            c_bounds = c_type.bounds
+            assert isa(l.type, TempType[Attribute])
+            assert isa(u.type, TempType[Attribute])
+
+            # Recover existing bounds on the lower and upper input if any
+            l_lb = None
+            l_ub = None
+            if isinstance(l.type.bounds, StencilBoundsAttr):
+                l_lb = l.type.bounds.lb
+                l_ub = l.type.bounds.ub
+            u_lb = None
+            u_ub = None
+            if isinstance(u.type.bounds, StencilBoundsAttr):
+                u_lb = u.type.bounds.lb
+                u_ub = u.type.bounds.ub
+
+            # Compute the new extreme bounds as usual.
+            l_lb = IndexAttr.min(c_bounds.lb, l_lb)
+            u_ub = IndexAttr.max(c_bounds.ub, u_ub)
+            # Compute the combine bounds
+            u_c_bound_c = list(c_bounds.lb)
+            u_c_bound_c[op.dim.value.data] = op.index.value.data
+            l_c_bound_c = list(c_bounds.ub)
+            l_c_bound_c[op.dim.value.data] = op.index.value.data
+            u_c_bound = IndexAttr.get(*u_c_bound_c)
+            l_c_bound = IndexAttr.get(*l_c_bound_c)
+            l_ub = IndexAttr.max(l_c_bound, l_ub)
+            u_lb = IndexAttr.min(u_c_bound, u_lb)
+            l_bounds = StencilBoundsAttr(zip(l_lb, l_ub))
+            u_bounds = StencilBoundsAttr(zip(u_lb, u_ub))
+            l.type = TempType(l_bounds, l.type.element_type)
+            u.type = TempType(u_bounds, u.type.element_type)
 
 
 class LoadOpShapeInference(RewritePattern):
@@ -170,6 +218,7 @@ ShapeInference = GreedyRewritePatternApplier(
         AccessOpShapeInference(),
         ApplyOpShapeInference(),
         BufferOpShapeInference(),
+        CombineOpShapeInference(),
         DynAccessOpShapeInference(),
         LoadOpShapeInference(),
         StoreOpShapeInference(),

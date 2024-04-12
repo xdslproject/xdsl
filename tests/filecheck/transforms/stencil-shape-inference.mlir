@@ -194,7 +194,7 @@ func.func @dyn_access(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x
   %1 = "stencil.cast"(%arg1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
   %2 = "stencil.load"(%0) : (!stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> !stencil.temp<?x?x?xf64>
   %3 = "stencil.apply"(%2) ( {
-  ^bb0(%arg2: !stencil.temp<?x?x?xf64>):  // no predecessors
+  ^bb0(%arg2: !stencil.temp<?x?x?xf64>):
     %c0 = arith.constant 0 : index
     %4 = "stencil.dyn_access"(%arg2, %c0, %c0, %c0) {lb = #stencil.index<-1, -2, 0>, ub = #stencil.index<1, 2, 0>} : (!stencil.temp<?x?x?xf64>, index, index, index) -> f64
     %5 = "stencil.store_result"(%4) : (f64) -> !stencil.result<f64>
@@ -217,6 +217,52 @@ func.func @dyn_access(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x
 // CHECK-NEXT:        "stencil.return"(%5) : (!stencil.result<f64>) -> ()
 // CHECK-NEXT:      }) : (!stencil.temp<[-1,65]x[-2,66]x[0,60]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
 // CHECK-NEXT:      "stencil.store"(%3, %1) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 60>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
+
+// -----
+
+func.func @combine(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>) attributes {stencil.program} {
+  %0 = "stencil.cast"(%arg0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
+    %1 = "stencil.cast"(%arg1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
+    %2 = "stencil.load"(%0) : (!stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> !stencil.temp<?x?x?xf64>
+    %3 = "stencil.apply"(%2) ( {
+    ^bb0(%arg2: !stencil.temp<?x?x?xf64>):
+      %6 = "stencil.access"(%arg2) {offset = #stencil.index<0, 0, 0>} : (!stencil.temp<?x?x?xf64>) -> f64
+      %7 = "stencil.store_result"(%6) : (f64) -> !stencil.result<f64>
+      "stencil.return"(%7) : (!stencil.result<f64>) -> ()
+    }) : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
+    %4 = "stencil.apply"(%2) ( {
+    ^bb0(%arg2: !stencil.temp<?x?x?xf64>):
+      %6 = "stencil.access"(%arg2) {offset = #stencil.index<0, 0, 0>} : (!stencil.temp<?x?x?xf64>) -> f64
+      %7 = "stencil.store_result"(%6) : (f64) -> !stencil.result<f64>
+      "stencil.return"(%7) : (!stencil.result<f64>) -> ()
+    }) : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
+    %5 = "stencil.combine"(%3, %4) {dim = 0 : i64, index = 32 : i64, operandSegmentSizes = array<i32:1, 1, 0, 0>} : (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
+    "stencil.store"(%5, %1) {lb = #stencil.index<0, 0, 0>, ub = #stencil.index<64, 64, 60>} : (!stencil.temp<?x?x?xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
+  return
+}
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    func.func @combine(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>)  attributes {"stencil.program"}{
+// CHECK-NEXT:      %0 = "stencil.cast"(%arg0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
+// CHECK-NEXT:      %1 = "stencil.cast"(%arg1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
+// CHECK-NEXT:      %2 = "stencil.load"(%0) : (!stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> !stencil.temp<[0,32]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      %3 = "stencil.apply"(%2) ({
+// CHECK-NEXT:      ^0(%arg2 : !stencil.temp<[0,32]x[0,64]x[0,60]xf64>):
+// CHECK-NEXT:        %4 = "stencil.access"(%arg2) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>) -> f64
+// CHECK-NEXT:        %5 = "stencil.store_result"(%4) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        "stencil.return"(%5) : (!stencil.result<f64>) -> ()
+// CHECK-NEXT:      }) : (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,32]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      %6 = "stencil.apply"(%2) ({
+// CHECK-NEXT:      ^1(%arg2_1 : !stencil.temp<[32,64]x[0,64]x[0,60]xf64>):
+// CHECK-NEXT:        %7 = "stencil.access"(%arg2_1) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<[32,64]x[0,64]x[0,60]xf64>) -> f64
+// CHECK-NEXT:        %8 = "stencil.store_result"(%7) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        "stencil.return"(%8) : (!stencil.result<f64>) -> ()
+// CHECK-NEXT:      }) : (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>) -> !stencil.temp<[32,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      %9 = "stencil.combine"(%3, %6) {"dim" = 0 : i64, "index" = 32 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>, !stencil.temp<[32,64]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      "stencil.store"(%9, %1) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 60>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
