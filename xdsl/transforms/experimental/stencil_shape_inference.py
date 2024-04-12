@@ -133,7 +133,7 @@ class CombineOpShapeInference(RewritePattern):
                 lb = o.type.bounds.lb
                 ub = o.type.bounds.ub
 
-            ub_c = list(r_bounds.lb)
+            ub_c = list(r_bounds.ub)
             ub_c[op.dim.value.data] = op.index.value.data
 
             ub_c = IndexAttr.get(*ub_c)
