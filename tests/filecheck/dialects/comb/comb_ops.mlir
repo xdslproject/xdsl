@@ -8,6 +8,7 @@
   %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
   %lhsf64, %rhsf64 = "test.op"() : () -> (f64, f64)
   %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)
+  %lhstest, %rhstest = "test.op"() : () -> (!test.type<"test">, !test.type<"test">)
 
   %add = comb.add %lhsi32, %rhsi32 : i32
   // CHECK: %add = comb.add %lhsi32, %rhsi32 : i32
@@ -74,6 +75,9 @@
 
   %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
+
+  %mux_exotic = comb.mux %lhsi1, %lhstest, %rhstest : !test.type<"test">
+  // CHECK-NEXT: %mux_exotic = comb.mux %lhsi1, %lhstest, %rhstest : !test.type<"test">
 
   %replicate = comb.replicate %lhsi32 : (i32) -> i64
   // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : (i32) -> i64

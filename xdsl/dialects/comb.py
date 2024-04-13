@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, UnitAttr, i32, i64
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
@@ -561,7 +561,7 @@ class MuxOp(IRDLOperation):
 
     name = "comb.mux"
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T = Annotated[TypeAttribute, ConstraintVar("T")]
 
     cond: Operand = operand_def(IntegerType(1))
     true_value: Operand = operand_def(T)
