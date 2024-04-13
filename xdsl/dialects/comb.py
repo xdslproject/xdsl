@@ -391,7 +391,7 @@ class ExtractOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     low_bit: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
-        IntegerAttr[Annotated[IntegerType, i32]]
+        IntegerAttr[Annotated[IntegerType, i32]], attr_name="lowBit"
     )
     result: OpResult = result_def(IntegerType)
 
@@ -403,7 +403,7 @@ class ExtractOp(IRDLOperation):
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
-            attributes={"low_bit": low_bit},
+            attributes={"lowBit": low_bit},
             operands=[operand],
             result_types=[result_type],
         )
