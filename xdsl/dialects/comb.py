@@ -555,7 +555,7 @@ class MuxOp(IRDLOperation):
 
     name = "comb.mux"
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T = Annotated[Attribute, ConstraintVar("T")]
 
     cond: Operand = operand_def(IntegerType(1))
     true_value: Operand = operand_def(T)
