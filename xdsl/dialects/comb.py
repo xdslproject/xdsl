@@ -115,8 +115,14 @@ class VariadicCombOperation(IRDLOperation, ABC):
         result_type: Attribute | None = None,
     ):
         if result_type is None:
+            if len(input_list) == 0:
+                raise ValueError("cannot infer type from zero inputs")
             result_type = SSAValue.get(input_list[0]).type
-        super().__init__(operands=input_list, result_types=[result_type])
+        super().__init__(operands=[input_list], result_types=[result_type])
+
+    def verify_(self) -> None:
+        if len(self.inputs) == 0:
+            raise VerifyException("op expected 1 or more operands, but found 0")
 
     @classmethod
     def parse(cls, parser: Parser):
