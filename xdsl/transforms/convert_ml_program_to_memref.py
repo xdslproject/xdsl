@@ -1,5 +1,11 @@
-from xdsl.dialects import memref, ml_program
-from xdsl.dialects.builtin import ModuleOp, UnitAttr, UnrealizedConversionCastOp
+from typing import Any, cast
+
+from xdsl.dialects import bufferization, memref, ml_program
+from xdsl.dialects.builtin import (
+    ModuleOp,
+    TensorType,
+    UnitAttr,
+)
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -20,11 +26,14 @@ class ConvertGlobalPattern(RewritePattern):
             raise NotImplementedError(
                 "Converting ml_program.global with no value not implemented"
             )
+        assert isinstance(op_type := op.type, TensorType)
+        op_type = cast(TensorType[Any], op_type)
+        new_type = memref.MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace_matched_op(
             (
                 memref.Global.get(
                     op.sym_name,
-                    op.type,
+                    new_type,
                     op.value,
                     op.sym_visibility,
                     UnitAttr() if op.is_mutable is None else None,
@@ -38,10 +47,13 @@ class ConvertGlobalLoadConst(RewritePattern):
     def match_and_rewrite(
         self, op: ml_program.GlobalLoadConstant, rewriter: PatternRewriter
     ) -> None:
+        assert isinstance(op_type := op.result.type, TensorType)
+        op_type = cast(TensorType[Any], op_type)
+        new_type = memref.MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace_matched_op(
             (
-                mem := memref.GetGlobal.get(op.global_attr, op.result.type),
-                UnrealizedConversionCastOp.get(mem.results, (op.result.type,)),
+                mem := memref.GetGlobal.get(op.global_attr, new_type),
+                bufferization.ToTensorOp(mem.memref),
             )
         )
 
