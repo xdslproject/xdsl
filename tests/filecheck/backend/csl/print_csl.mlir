@@ -12,6 +12,10 @@ csl.func @returning_func() -> i32 {
   csl.return %c : i32
 }
 
+csl.func @func_with_arguments(%a1: i32, %a2: !csl.comptime_struct) {
+  csl.return
+}
+
 csl.func @initialize() {
   %lb = arith.constant   0 : i16
   %ub = arith.constant  24 : i16
@@ -72,6 +76,9 @@ csl.func @initialize() {
 // CHECK-NEXT: fn returning_func() i32 {
 // CHECK-NEXT:   const c : i32 = 10;
 // CHECK-NEXT:   return c;
+// CHECK-NEXT: }
+// CHECK-NEXT: fn func_with_arguments(a1 : i32, a2 : comptime_struct) void {
+// CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: fn initialize() void {
 // CHECK-NEXT:   const lb : i16 = 0;
