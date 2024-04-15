@@ -69,7 +69,6 @@ class HasParent(OpTrait):
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
 
 
-
 @dataclass(frozen=True)
 class HasAncestor(OpTrait):
     """Constraint the operation to have a specific parent operation somewhere up the line"""

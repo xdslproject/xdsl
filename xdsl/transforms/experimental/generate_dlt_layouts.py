@@ -430,11 +430,9 @@ class DLTLayoutRewriter(RewritePattern):
                     )
                 new_ptr_type = op_res_type.with_new_layout(layout, preserve_ident=True)
                 if op_res_type != new_ptr_type:
-                    new_alloc_op = dlt.AllocOp(
-                        operands=[op.initialValues, op.init_extent_sizes],
-                        attributes=op.attributes,
-                        result_types=[new_ptr_type],
-                    )
+                    new_alloc_op = dlt.AllocOp(new_ptr_type,
+                                               op.init_extent_mapping(),
+                                               op.initialValues)
                     rewriter.replace_op(op, new_alloc_op)
                     propergate_operands(new_alloc_op.res)
             elif isinstance(op, func.FuncOp):

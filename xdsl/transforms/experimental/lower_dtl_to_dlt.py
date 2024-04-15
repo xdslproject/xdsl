@@ -674,13 +674,8 @@ class DTLDenseRewriter(RewritePattern):
 
         dlt_type = dlt.TypeType(_elementAttrs(elements))
 
-        alloc = dlt.AllocOp(
-            operands=[[], extent_vars],
-            attributes={"init_extents": builtin.ArrayAttr(init_time_extents)},
-            result_types=[
-                dlt.PtrType(dlt_type, extents=builtin.ArrayAttr(init_time_extents), base=True)
-            ],
-        )
+        alloc = dlt.AllocOp(dlt.PtrType(dlt_type, extents=builtin.ArrayAttr(init_time_extents), base=True),
+                            unknown_extents)
         ops.append(alloc)
         selector_ops, ptr_elements = self._get_new_element_selector(elements, alloc.res)
         ops.extend(selector_ops)

@@ -38,7 +38,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     NoTerminator,
-    SingleBlockImplicitTerminator,
+    SingleBlockImplicitTerminator, UseDefChainTrait,
 )
 from xdsl.utils.exceptions import ComplexVerifyException
 from xdsl.utils.hints import isa
@@ -1895,6 +1895,49 @@ class IterateYieldOp(AbstractYieldOperation[Attribute], DTLLayoutScopedOp):
     traits = traits_def(lambda: frozenset([IsTerminator(), HasParent(IterateOp)]))
 
 
+class IterateUseDefChainTrait(UseDefChainTrait):
+
+    @classmethod
+    def get_defs_following_from_operand_for(
+        cls, op: Operation, index: int
+    ) -> set[SSAValue]:
+        if isinstance(op, IterateOp):
+            other_args = len(op.extent_args) + len(op.tensors)
+            if index >= other_args:
+                arg_index = index - other_args
+                other_block_args = len(op.extents) + len(op.tensors)
+                return {op.body.block.args[other_block_args + arg_index], op.res[arg_index]}
+        elif isinstance(op, IterateYieldOp):
+            parent_op = op.parent_op()
+            if isinstance(parent_op, IterateOp):
+                return {parent_op.body.block.args[index + 1], parent_op.res[index]}
+        return set()
+
+    @classmethod
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        if isinstance(op, IterateOp):
+            other_args = len(op.extent_args) + len(op.tensors)
+            uses = {Use(op, other_args + index)}
+            yield_op = op.body.block.last_op
+            if isinstance(yield_op, IterateYieldOp):
+                uses.add(Use(yield_op, index))
+            return uses
+        return set()
+
+    @classmethod
+    def get_operands_leading_to_block_argument_for(
+        cls, op: Operation, arg: BlockArgument
+    ) -> set[Use]:
+        if isinstance(op, IterateOp):
+            other_block_args = len(op.extents) + len(op.tensors)
+            if arg.index >= other_block_args:
+                other_args = len(op.extent_args) + len(op.tensors)
+                return {Use(op, other_args + (arg.index - other_block_args))}
+        return set()
+
+
 @irdl_op_definition
 class IterateOp(DTLLayoutScopedOp):
     name = "dlt.iterate"  # Iterate over a multiple dimension-extent pairs, given some context tensors that might be used inside.
@@ -2201,6 +2244,24 @@ class AllocOp(DTLLayoutScopedOp):
     res: OpResult = result_def(PtrType)
 
     irdl_options = [AttrSizedOperandSegments()]
+
+    def __init__(self, ptr: PtrType|TypeType, extents: dict[InitDefinedExtentAttr, SSAValue], initial_values: Sequence[SSAValue] = None) -> None:
+        if len(extents) > 0:
+            extents, extent_vars = zip(*extents.items())
+        else:
+            extents, extent_vars = [],[]
+        if isinstance(ptr, TypeType):
+            ptr = PtrType(ptr).as_base()
+        if initial_values is None:
+            initial_values = []
+
+        super().__init__(
+            operands=[initial_values, extent_vars],
+            attributes={"init_extents": builtin.ArrayAttr(extents)},
+            result_types=[ptr],)
+
+    def init_extent_mapping(self):
+        return {e: s for e, s in zip(self.init_extents, self.init_extent_sizes)}
 
     def verify_(self) -> None:
         res_type = cast(PtrType, self.res.type)
