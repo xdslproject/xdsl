@@ -1,6 +1,7 @@
-from onnx import NodeProto, ValueInfoProto
+from onnx import GraphProto, NodeProto, ValueInfoProto
 
-from xdsl.dialects import onnx
+from xdsl.dialects import func, onnx
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.onnx.type import get_type
 from xdsl.ir import Attribute, SSAValue
 from xdsl.irdl import IRDLOperation
@@ -52,3 +53,43 @@ def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
     t = get_type(i.type)
     ctx.type_by_name[name] = t
     return t
+
+
+def build_module(graph: GraphProto) -> ModuleOp:
+    """Create the ModuleOp based on the onnx graph provided."""
+    module = ModuleOp([])
+
+    ctx = OnnxXdslMapping()
+    fn = visit_graph(graph, ctx)
+    module.regions[0].block.add_op(fn)
+
+    return module
+
+
+def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> IRDLOperation:
+    """
+    Visit the onnx graph to update the onnx context.
+    The nodes of the graph are visited only if all the inputs have already been visited.
+    When the node is visited, the associated state switches from 0 to 2.
+    The process is iterated until all the nodes are generated.
+    """
+
+    name = g.name
+
+    input_types = tuple(visit_value_info(input, ctx) for input in g.input)
+    output_types = tuple(visit_value_info(output, ctx) for output in g.output)
+
+    fn = func.FuncOp(name, (input_types, output_types))
+
+    for input, arg in zip(g.input, fn.body.block.args, strict=True):
+        ctx.value_by_name[input.name] = arg
+
+    for node in g.node:
+        results = visit_node(node, ctx)
+        fn.body.block.add_op(results)
+
+    returned_values = tuple(ctx.value_by_name[output.name] for output in g.output)
+    retfn = func.Return(*returned_values)
+    fn.body.block.add_op(retfn)
+
+    return fn
