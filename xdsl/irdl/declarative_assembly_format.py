@@ -482,7 +482,7 @@ class OptionalOperandVariable(OperandVariable, OptionalVariable):
             printer.print(" ")
         operand = getattr(op, self.name)
         if operand:
-            printer.print_ssa_value(op.operands[self.index])
+            printer.print_ssa_value(operand)
             state.last_was_punctuation = False
             state.should_emit_space = True
 
@@ -719,6 +719,36 @@ class AttributeVariable(FormatDirective):
             printer.print_attribute(op.properties[self.attr_name])
         else:
             printer.print_attribute(op.attributes[self.attr_name])
+
+
+class OptionalAttributeVariable(AttributeVariable, OptionalVariable):
+    """
+    An optional attribute variable, with the following format:
+      operand-directive ::= ( percent-ident )?
+    The directive will request a space to be printed after.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        if attribute := parser.parse_optional_attribute():
+            if self.is_property:
+                state.properties[self.attr_name] = attribute
+            else:
+                state.attributes[self.attr_name] = attribute
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        if self.is_property:
+            attr = op.properties.get(self.attr_name)
+        else:
+            attr = op.attributes.get(self.attr_name)
+        if attr:
+            printer.print_attribute(attr)
+            state.should_emit_space = True
+            state.last_was_punctuation = False
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return getattr(op, self.attr_name) is not None
 
 
 @dataclass(frozen=True)
