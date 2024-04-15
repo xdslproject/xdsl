@@ -11,6 +11,7 @@ try:
 
     from xdsl.frontend.onnx.ir_builder import (
         OnnxXdslMapping,
+        build_module,
         visit_graph,
         visit_node,
         visit_value_info,
@@ -184,6 +185,29 @@ def test_visit_graph_sub():
         str(gen_ir)
         == "%0 = onnx.Sub(%1, %2) : (tensor<64xf32>, tensor<64xf32>) -> tensor<64xf32>"
     )
+
+
+def test_build_module():
+    # create graph composed only of one Add operation
+    graph, _ = _create_graph_binary_op("Add", "add_graph")
+
+    # create module
+    module = build_module(graph)
+
+    # define expected output
+    expected = """
+builtin.module {
+  func.func @add_graph(%0 : tensor<64xf32>, %1 : tensor<64xf32>) -> tensor<64xf32> {
+    %2 = onnx.Add(%0, %1) : (tensor<64xf32>, tensor<64xf32>) -> tensor<64xf32>
+    func.return %2 : tensor<64xf32>
+  }
+}"""
+
+    # remove first new line
+    expected = expected[1:]
+
+    # check output
+    assert str(module) == expected
 
 
 def _create_graph_binary_op(op_name: str, graph_name: str):
