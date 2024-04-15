@@ -164,6 +164,28 @@ def test_visit_graph_add():
     )
 
 
+def test_visit_graph_sub():
+    # initialize context
+    ctx = OnnxXdslMapping()
+
+    # create graph composed only of one Sub operation
+    graph, _ = _create_graph_binary_op("Sub", "sub_graph")
+
+    # run visit graph
+    visit_graph(graph, ctx)
+
+    # check value_by_names keys
+    keys = list(ctx.value_by_name.keys())
+    assert keys == ["input1", "input2", "output"]
+
+    # check generated ir
+    gen_ir = ctx.value_by_name[keys[2]].owner
+    assert (
+        str(gen_ir)
+        == "%0 = onnx.Sub(%1, %2) : (tensor<64xf32>, tensor<64xf32>) -> tensor<64xf32>"
+    )
+
+
 def _create_graph_binary_op(op_name: str, graph_name: str):
     # define input and output names
     input1_name = "input1"
