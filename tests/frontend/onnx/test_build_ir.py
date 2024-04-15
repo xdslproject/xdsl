@@ -144,11 +144,11 @@ def test_visit_node_sub():
     op = visit_node(sub_node, ctx)
 
     assert isinstance(op, Sub)
-
-    # sub_op = Sub(lhs, rhs, out_type)
-    # op_block = Block([sub_op])
-    #
-    # assert op.is_structurally_equivalent(op_block)
+    assert op.lhs is lhs
+    assert op.rhs is rhs
+    assert op.res is ctx.value_by_name["output"]
+    assert not op.attributes
+    assert not op.regions
 
 
 def _create_graph_binary_op(op_name: str, graph_name: str):
