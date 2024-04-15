@@ -146,8 +146,6 @@ class ReturnOpToMemref(RewritePattern):
 
         for j in range(n_res):
             target = self.return_target[op][j]
-            # if target is None:
-            #     continue
 
             unroll = op.unroll
             if unroll is None:
