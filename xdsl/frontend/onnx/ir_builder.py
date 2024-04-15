@@ -57,11 +57,10 @@ def visit_value_info(i: ValueInfoProto, ctx: OnnxXdslMapping) -> Attribute:
 
 def build_module(graph: GraphProto) -> ModuleOp:
     """Create the ModuleOp based on the onnx graph provided."""
-    module = ModuleOp([])
 
     ctx = OnnxXdslMapping()
     fn = visit_graph(graph, ctx)
-    module.regions[0].block.add_op(fn)
+    module = ModuleOp([fn])
 
     return module
 
