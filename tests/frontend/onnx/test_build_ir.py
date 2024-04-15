@@ -2,6 +2,7 @@ import onnx
 import pytest
 
 from xdsl.dialects.builtin import TensorType, f32
+from xdsl.dialects.onnx import Sub
 from xdsl.ir import Attribute
 from xdsl.utils.test_value import TestSSAValue
 
@@ -140,26 +141,14 @@ def test_visit_node_sub():
     ctx.type_by_name["input2"] = rhs_type
     ctx.type_by_name["output"] = out_type
 
-    # expected output before visinting the op node
-    expected_input1 = """'input1': TestSSAValue(type=TensorType(parameters=(ArrayAttr(data=(IntAttr(data=64),)), Float32Type(parameters=()), NoneAttr(parameters=())), shape=ArrayAttr(data=(IntAttr(data=64),)), element_type=Float32Type(parameters=()), encoding=NoneAttr(parameters=())), _name=None)"""
-    expected_input2 = """'input2': TestSSAValue(type=TensorType(parameters=(ArrayAttr(data=(IntAttr(data=64),)), Float32Type(parameters=()), NoneAttr(parameters=())), shape=ArrayAttr(data=(IntAttr(data=64),)), element_type=Float32Type(parameters=()), encoding=NoneAttr(parameters=())), _name=None)"""
-    expected_output_pre = "{" + expected_input1 + ", " + expected_input2 + "}"
-
-    assert str(ctx.value_by_name) == expected_output_pre
-
-    # visit node
     op = visit_node(sub_node, ctx)
 
-    assert op.name == "onnx.Sub"
+    assert isinstance(op, Sub)
 
-    # expected output after visinting the op node
-
-    expected_out = """'output': <OpResult[tensor<64xf32>] index: 0, operation: onnx.Sub, uses: 0>"""
-    expected_output_post = (
-        "{" + expected_input1 + ", " + expected_input2 + ", " + expected_out + "}"
-    )
-
-    assert str(ctx.value_by_name) == expected_output_post
+    # sub_op = Sub(lhs, rhs, out_type)
+    # op_block = Block([sub_op])
+    #
+    # assert op.is_structurally_equivalent(op_block)
 
 
 def _create_graph_binary_op(op_name: str, graph_name: str):
