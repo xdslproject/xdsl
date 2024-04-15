@@ -154,7 +154,8 @@ class CslPrintContext:
                 case csl.MemberCallOp(
                     struct=struct, field=field, args=args, result=res
                 ):
-                    args = ", ".join(self._get_variable_name_for(arg) for arg in args)
+                    args = ", ".join(self._get_variable_name_for(arg)
+                                     for arg in args)
                     struct_var = self._get_variable_name_for(struct)
 
                     text = ""
@@ -171,11 +172,13 @@ class CslPrintContext:
                     self.print(
                         f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {struct_var}.{field.data};"
                     )
-                case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(ftyp.inputs) == 0:
+                case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp):
+                    args = ", ".join(
+                        f"{self._get_variable_name_for(arg)} : {self.mlir_type_to_csl_type(arg.type)}" for arg in bdy.block.args)
                     ret = 'void' if len(ftyp.outputs) == 0 else self.mlir_type_to_csl_type(
                         ftyp.outputs.data[0])
                     # only functions without input supported for now.
-                    self.print(f"fn {name.data}() {ret} {{")
+                    self.print(f"fn {name.data}({args}) {ret} {{")
                     self.descend().print_block(bdy.block)
                     self.print("}")
                 case csl.ReturnOp(ret_val=None):
