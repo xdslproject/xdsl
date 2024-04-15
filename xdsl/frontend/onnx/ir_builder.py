@@ -69,9 +69,6 @@ def build_module(graph: GraphProto) -> ModuleOp:
 def visit_graph(g: GraphProto, ctx: OnnxXdslMapping) -> IRDLOperation:
     """
     Visit the onnx graph to update the onnx context.
-    The nodes of the graph are visited only if all the inputs have already been visited.
-    When the node is visited, the associated state switches from 0 to 2.
-    The process is iterated until all the nodes are generated.
     """
 
     name = g.name
