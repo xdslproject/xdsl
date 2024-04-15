@@ -520,21 +520,35 @@ class CombineOpCleanup(RewritePattern):
 
 
 def _get_use_target(use: Use) -> SSAValue | None:
+    """
+    Given the use of a `stencil.temp`, return the target `stencil.field` of this use.
+    """
     match store := use.operation:
         case StoreOp():
+            # If it's a store, just return the field it is stored to. It will be lowered
+            # to the corresponding memref.
             return store.field
         case BufferOp():
+            # If it's a buffer, return the buffer itself. It will be lowered to the
+            # allocated memref.
             return store.temp
         case CombineOp():
-            # If the use is a lower
+            # If it's a combine, recurse to find the target of the combined
+            # `stencil.temp`
             if use.index < len(store.lower):
+                # If it's the nth lower arg, the combined temp is the nth combined.
                 temp = store.results[use.index]
             elif use.index < len(store.lower) + len(store.upper):
+                # If it's the nth upper arg, the combined temp is the nth combined.
                 temp = store.results[use.index - len(store.lower)]
             elif use.index < len(store.lower) + len(store.upper) + len(store.lowerext):
+                # If it's the nth lowerext arg, the combined temp is the (lower+n)th
+                # combined.
                 temp = store.results[use.index - len(store.lower)]
             else:
                 temp = store.results[use.index - len(store.lower) - len(store.lowerext)]
+                # If it's the nth upperext arg, the combined temp is the
+                # (lower+lowerext+n)th combined.
             temp_uses = temp.uses
             match len(temp_uses):
                 case 0:
