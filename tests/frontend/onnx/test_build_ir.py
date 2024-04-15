@@ -11,6 +11,8 @@ try:
 
     from xdsl.frontend.onnx.ir_builder import (
         OnnxXdslMapping,
+        build_module,
+        visit_graph,
         visit_node,
         visit_value_info,
     )
@@ -139,6 +141,73 @@ def test_visit_node_sub():
     assert op.res is ctx.value_by_name["output"]
     assert not op.attributes
     assert not op.regions
+
+
+def test_visit_graph_add():
+    # initialize context
+    ctx = OnnxXdslMapping()
+
+    # create graph composed only of one Add operation
+    graph, _ = _create_graph_binary_op("Add", "add_graph")
+
+    # visit graph
+    visit_graph(graph, ctx)
+
+    # check value_by_name keys
+    keys = list(ctx.value_by_name.keys())
+    assert keys == ["input1", "input2", "output"]
+
+    # check expected generated ir
+    gen_ir = ctx.value_by_name[keys[2]].owner
+    assert (
+        str(gen_ir)
+        == "%0 = onnx.Add(%1, %2) : (tensor<64xf32>, tensor<64xf32>) -> tensor<64xf32>"
+    )
+
+
+def test_visit_graph_sub():
+    # initialize context
+    ctx = OnnxXdslMapping()
+
+    # create graph composed only of one Sub operation
+    graph, _ = _create_graph_binary_op("Sub", "sub_graph")
+
+    # run visit graph
+    visit_graph(graph, ctx)
+
+    # check value_by_names keys
+    keys = list(ctx.value_by_name.keys())
+    assert keys == ["input1", "input2", "output"]
+
+    # check generated ir
+    gen_ir = ctx.value_by_name[keys[2]].owner
+    assert (
+        str(gen_ir)
+        == "%0 = onnx.Sub(%1, %2) : (tensor<64xf32>, tensor<64xf32>) -> tensor<64xf32>"
+    )
+
+
+def test_build_module():
+    # create graph composed only of one Add operation
+    graph, _ = _create_graph_binary_op("Add", "add_graph")
+
+    # create module
+    module = build_module(graph)
+
+    # define expected output
+    expected = """
+builtin.module {
+  func.func @add_graph(%0 : tensor<64xf32>, %1 : tensor<64xf32>) -> tensor<64xf32> {
+    %2 = onnx.Add(%0, %1) : (tensor<64xf32>, tensor<64xf32>) -> tensor<64xf32>
+    func.return %2 : tensor<64xf32>
+  }
+}"""
+
+    # remove first new line
+    expected = expected[1:]
+
+    # check output
+    assert str(module) == expected
 
 
 def _create_graph_binary_op(op_name: str, graph_name: str):
