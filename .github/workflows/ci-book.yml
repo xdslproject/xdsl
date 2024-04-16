@@ -1,7 +1,7 @@
 # This workflow ensures the book can still be built.
 # CI checking of Python code in the book happens in the regular CI pytest.
 
-name: CI - Book building
+name: CI - Book Building
 
 on:
   # Trigger the workflow on push or pull request,
