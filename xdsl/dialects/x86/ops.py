@@ -349,7 +349,7 @@ class ROperationSrcDst(Generic[R1InvT], SingleOperandInstruction):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.source,
+        return (self.source,)
 
 
 @irdl_op_definition
