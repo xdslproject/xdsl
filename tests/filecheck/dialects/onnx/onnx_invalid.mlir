@@ -484,3 +484,12 @@ builtin.module {
 
 }
 
+// -----
+
+builtin.module {
+  %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2xi8>)
+
+  // CHECK: Operation does not verify: operands must have the same type
+  %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2xi8>) -> tensor<2x2xf32>
+}
+
