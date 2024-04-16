@@ -73,12 +73,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             ]
         )
 
-    @staticmethod
-    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
-        return [ub - lb for lb, ub in zip(lb, ub)]
-
-    # TODO : come to an agreement on, do we want to allow that kind of things
-    # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
         return IndexAttr.get(*(map(neg, self)))
 
