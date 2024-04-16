@@ -1,5 +1,5 @@
-# This workflow ensures the book can still be built.
-# CI checking of Python code in the book happens in the regular CI pytest.
+# This workflow ensures the book can still be built after being modified.
+# CI checking of Python code inside the book happens separately, in ci-core.yml.
 
 name: CI - Book Building
 
