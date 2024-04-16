@@ -860,6 +860,32 @@ class EntryPoint(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class MatMul(IRDLOperation):
+    """
+    The operation MatMul performs matrix multiplication between two input matrices, A and B, and returns the result as matrix Y.
+    Matrix multiplication is a fundamental operation in linear algebra, where each element of the resulting matrix Y is computed by taking the
+    dot product of the corresponding row of matrix A and column of matrix B.
+    """
+
+    name = "onnx.MatMul"
+
+    # describe annotated type
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+
+    # input matrices
+    matrix_A = operand_def(TensorType[T])
+    matrix_B = operand_def(TensorType[T])
+
+    # output matrices
+    matrix_Y = result_def(TensorType[T])
+
+    assembly_format = (
+        "`(` $matrix_A `,` $matrix_B `)` attr-dict `:` `(` type($matrix_A) `,"
+        "` type($matrix_B) `)` `->` type($matrix_Y) "
+    )
+
+
 ONNX = Dialect(
     "onnx",
     [
@@ -870,6 +896,7 @@ ONNX = Dialect(
         Div,
         EntryPoint,
         Gemm,
+        MatMul,
         MaxPoolSingleOut,
         Mul,
         Relu,
