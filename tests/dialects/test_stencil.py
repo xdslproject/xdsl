@@ -222,18 +222,6 @@ def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
     assert stencil_index_attr.array == expected_array_attr
 
 
-def test_create_index_attr_from_list_edge_case1():
-    with pytest.raises(VerifyException) as exc_info:
-        IndexAttr.get()
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
-
-
-def test_create_index_attr_from_list_edge_case2():
-    with pytest.raises(VerifyException) as exc_info:
-        IndexAttr.get(*[1] * 4)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 4."
-
-
 @pytest.mark.parametrize(
     "indices1, indices2",
     (([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])),
@@ -389,21 +377,6 @@ def test_stencil_fieldtype_constructor(
     )
 
 
-@pytest.mark.parametrize(
-    "attr, bounds",
-    (
-        (i32, []),
-        (i64, []),
-    ),
-)
-def test_stencil_fieldtype_constructor_empty_list(
-    attr: IntegerType, bounds: list[tuple[int, int]]
-):
-    with pytest.raises(VerifyException) as exc_info:
-        FieldType(bounds, attr)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
-
-
 def test_stencil_load():
     field_type = FieldType([(0, 1), (0, 1)], f32)
     result_type_val1 = TestSSAValue(field_type)
@@ -478,21 +451,6 @@ def test_stencil_temptype_constructor(
     assert stencil_temptype.get_num_dims() == len(dims)
     assert isinstance(stencil_temptype.bounds, StencilBoundsAttr)
     assert tuple(zip(stencil_temptype.bounds.lb, stencil_temptype.bounds.ub)) == dims
-
-
-@pytest.mark.parametrize(
-    "attr, dims",
-    (
-        (i32, []),
-        (i64, []),
-    ),
-)
-def test_stencil_temptype_constructor_empty_list(
-    attr: IntegerType, dims: list[tuple[int, int]]
-):
-    with pytest.raises(VerifyException) as exc_info:
-        TempType(dims, attr)
-    assert exc_info.value.args[0] == "Expected 1 to 3 indexes for stencil.index, got 0."
 
 
 @pytest.mark.parametrize(

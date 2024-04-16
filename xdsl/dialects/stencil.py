@@ -63,13 +63,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     def print_parameters(self, printer: Printer) -> None:
         printer.print(f'<{", ".join(str(e) for e in self)}>')
 
-    def verify(self) -> None:
-        l = len(self)
-        if l < 1 or l > 3:
-            raise VerifyException(
-                f"Expected 1 to 3 indexes for stencil.index, got {l}."
-            )
-
     @staticmethod
     def get(*indices: int | IntAttr):
         return IndexAttr(
