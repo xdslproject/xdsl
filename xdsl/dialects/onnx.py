@@ -924,7 +924,6 @@ class MatMul(IRDLOperation):
             res_shape.append(matrix_B_shape[1])
 
         matrix_Y_type_shape = list(matrix_Y_type.get_shape())
-        res_shape.reverse()
         if (
             len(res_shape) != len(matrix_Y_type_shape)
             or res_shape != matrix_Y_type_shape
