@@ -49,3 +49,9 @@ jobs:
         export PYTHONPATH=$(pwd)
         lit -v tests/filecheck/
         lit -v docs/Toy/examples/
+    
+    - name: Execute book tests
+      run: |
+        for f in docs/book/**/*.py; do
+          python "$f";
+        done

@@ -1,0 +1,30 @@
+# This workflow ensures the book can still be built.
+# CI checking of Python code in the book happens in the regular CI pytest.
+
+name: CI - Book building
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the main branch, and if the book
+  # has been modified.
+  push:
+    branches:
+      - main
+    paths:
+      - docs/book/**
+  pull_request:
+    paths:
+      - docs/book/**
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v2.0.0
+        with:
+          mdbook-version: '0.4.37'
+
+      - run: mdbook build docs/book
