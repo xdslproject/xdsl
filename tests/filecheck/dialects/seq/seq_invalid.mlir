@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt --verify-diagnostics --parsing-diagnostics --split-input-file %s | filecheck %s
 
 builtin.module {
   %clk = "test.op"() : () -> (!seq.clock)
@@ -27,4 +27,11 @@ builtin.module {
 
   // CHECK: Both reset and reset_value must be set when one is
   %compreg_reset = "seq.compreg"(%data, %clk, %data) {"operandSegmentSizes" = array<i32: 1, 1, 0, 1, 0>} : (i14, !seq.clock, i14) -> i14
+}
+
+// -----
+
+builtin.module {
+  // CHECK: Expected either low or high clock value
+  %clock = seq.const_clock foobar
 }
