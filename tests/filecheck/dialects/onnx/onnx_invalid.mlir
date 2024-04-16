@@ -493,3 +493,11 @@ builtin.module {
   %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2xi8>) -> tensor<2x2xf32>
 }
 
+// -----
+
+builtin.module {
+  %t0, %t1 = "test.op"() : () -> (tensor<2x4x3xf32>, tensor<4x2xf32>)
+
+  // CHECK: Operation does not verify: matrix A must be a 2D tensor
+  %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4x3xf32>, tensor<4x2xf32>) -> tensor<2x2xf32>
+}
