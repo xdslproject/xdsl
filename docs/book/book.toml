@@ -1,0 +1,6 @@
+[book]
+authors = ["xDSL Community"]
+language = "en"
+multilingual = false
+src = "src"
+title = "The xDSL Book"
