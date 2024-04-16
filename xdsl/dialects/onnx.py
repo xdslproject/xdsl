@@ -903,7 +903,7 @@ class MatMul(IRDLOperation):
             or not isinstance(matrix_B_type := self.matrix_B.type, TensorType)
             or not isinstance(matrix_Y_type := self.matrix_Y.type, TensorType)
         ):
-            assert False, "onnx operands and result must be of type TensorType"
+            raise VerifyException("input matrix A should be a 2D tensor")
 
         # check shape compatibility
         matrix_A_shape = matrix_A_type.get_shape()
