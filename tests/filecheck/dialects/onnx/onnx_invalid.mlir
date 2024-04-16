@@ -489,7 +489,7 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2xi8>)
 
-  // CHECK: Operation does not verify: operands must have the same type
+  // CHECK: Operation does not verify: onnx operands and result must be of type TensorType
   %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2xi8>) -> tensor<2x2xf32>
 }
 
@@ -498,7 +498,7 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (tensor<2x4x3xf32>, tensor<4x2xf32>)
 
-  // CHECK: Operation does not verify: matrix A must be a 2D tensor
+  // CHECK: Operation does not verify: input matrix A should be a 2D tensor
   %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4x3xf32>, tensor<4x2xf32>) -> tensor<2x2xf32>
 }
 
@@ -507,7 +507,7 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2x3xf32>)
 
-  // CHECK: Operation does not verify: matrix B must be a 2D tensor
+  // CHECK: Operation does not verify: input matrix B should be a 2D tensor
   %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2x3xf32>) -> tensor<2x2xf32>
 }
 
@@ -516,6 +516,6 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<5x2xf32>)
 
-  // CHECK: Operation does not verify: matrix A shape[1] must be equal to matrix B shape[0]
+  // CHECK: Operation does not verify: operands have incompatible shapes: (2, 4) and (5, 2)
   %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<5x2xf32>) -> tensor<2x2xf32>
 }
