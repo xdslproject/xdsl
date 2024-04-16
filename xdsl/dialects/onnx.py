@@ -885,6 +885,16 @@ class MatMul(IRDLOperation):
         "` type($matrix_B) `)` `->` type($matrix_Y) "
     )
 
+    def __init__(
+        self,
+        matrix_A: SSAValue,
+        matrix_B: SSAValue,
+    ):
+        super().__init__(
+            operands=[matrix_A, matrix_B],
+            result_types=[matrix_A.type],
+        )
+
 
 ONNX = Dialect(
     "onnx",
