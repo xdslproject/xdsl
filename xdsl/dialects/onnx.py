@@ -895,6 +895,44 @@ class MatMul(IRDLOperation):
             result_types=[matrix_A.type],
         )
 
+    def verify_(self) -> None:
+        # store dimensions of tensor A and tensor B
+        res_shape: list[int] = []
+        if (
+            not isinstance(matrix_A_type := self.matrix_A.type, TensorType)
+            or not isinstance(matrix_B_type := self.matrix_B.type, TensorType)
+            or not isinstance(matrix_Y_type := self.matrix_Y.type, TensorType)
+        ):
+            assert False, "onnx operands and result must be of type TensorType"
+
+        # check shape compatibility
+        matrix_A_shape = matrix_A_type.get_shape()
+        matrix_B_shape = matrix_B_type.get_shape()
+
+        if matrix_A_type.get_num_dims() != 2:
+            raise VerifyException("input matrix A should be a 2D tensor")
+
+        if matrix_B_type.get_num_dims() != 2:
+            raise VerifyException("input matrix B should be a 2D tensor")
+
+        if matrix_A_shape[1] != matrix_B_shape[0]:
+            raise VerifyException(
+                f"operands have incompatible shapes: {matrix_A_shape} and {matrix_B_shape}"
+            )
+        else:
+            res_shape.append(matrix_A_shape[0])
+            res_shape.append(matrix_B_shape[1])
+
+        matrix_Y_type_shape = list(matrix_Y_type.get_shape())
+        res_shape.reverse()
+        if (
+            len(res_shape) != len(matrix_Y_type_shape)
+            or res_shape != matrix_Y_type_shape
+        ):
+            raise VerifyException(
+                f"result shape {res_shape} does not match result type {self.matrix_Y.type}"
+            )
+
 
 ONNX = Dialect(
     "onnx",
