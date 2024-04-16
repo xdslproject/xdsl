@@ -904,5 +904,6 @@ ONNX = Dialect(
         Relu,
         Reshape,
         Sub,
+        Transpose,
     ],
 )
