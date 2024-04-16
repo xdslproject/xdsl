@@ -881,6 +881,13 @@ class Transpose(IRDLOperation):
         "`)` `->` type($tensor_output) "
     )
 
+    def __init__(self, tensor_input: SSAValue, perm: Attribute):
+        super().__init__(
+            attributes={"perm": perm},
+            operands=[tensor_input],
+            result_types=[tensor_input.type],
+        )
+
 
 ONNX = Dialect(
     "onnx",
