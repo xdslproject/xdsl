@@ -53,5 +53,6 @@ jobs:
     - name: Execute book tests
       run: |
         for f in docs/book/**/*.py; do
+          echo "Running book code: '$f'";
           python "$f";
         done
