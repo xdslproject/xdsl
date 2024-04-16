@@ -142,21 +142,21 @@ class ReturnOpToMemref(RewritePattern):
         parallel = op.parent_op()
         assert isinstance(parallel, scf.ParallelOp)
 
-        dims = len(parallel.lowerBound)
+        n_dims = len(parallel.lowerBound)
 
         for j in range(n_res):
             target = self.return_target[op][j]
 
             unroll = op.unroll
             if unroll is None:
-                unroll = IndexAttr.get(*([1] * dims))
+                unroll = IndexAttr.get(*([1] * n_dims))
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 arg = op.arg[j * unroll_factor + k]
                 assert (block := op.parent_block()) is not None
-                args = cast(list[SSAValue], collectBlockArguments(dims, block))
+                args = cast(list[SSAValue], collectBlockArguments(n_dims, block))
 
-                for i in range(dims):
+                for i in range(n_dims):
                     if offset[i] != 0:
                         constant_op = arith.Constant.from_int_and_width(
                             offset[i], builtin.IndexType()
