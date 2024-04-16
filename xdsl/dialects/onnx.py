@@ -860,6 +860,28 @@ class EntryPoint(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class Transpose(IRDLOperation):
+    """
+    The transpose_tensor function takes a tensor as input and returns its transpose.
+    Transposing a tensor means flipping its dimensions, so that rows become columns and vice versa.
+    """
+
+    name = "onnx.Transpose"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    tensor_input = operand_def(TensorType[T])
+
+    perm = opt_attr_def(IntegerAttr, attr_name="perm")
+
+    tensor_output = result_def(TensorType[T])
+
+    assembly_format = (
+        "`(` $tensor_input `)` attr-dict `:` `(` type($tensor_input) "
+        "`)` `->` type($tensor_output) "
+    )
+
+
 ONNX = Dialect(
     "onnx",
     [
