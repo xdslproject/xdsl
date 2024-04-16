@@ -1,4 +1,3 @@
 # Passes
 
-TODO: First introduce the notion of passes, show how we can then use xDSLOptMain to
-TODO: register a custom binary that runs them.
+TODO: First introduce the notion of passes, show how we can then use xDSLOptMain to register a custom binary that runs them.
