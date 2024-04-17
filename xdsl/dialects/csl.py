@@ -6,6 +6,7 @@ from xdsl.dialects import func
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr
 from xdsl.dialects.utils import (
     parse_func_op_like,
+    parse_call_op_like,
     parse_return_op_like,
     print_func_op_like,
     print_return_op_like,
@@ -101,6 +102,36 @@ class MemberCallOp(IRDLOperation):
 
 
 @irdl_op_definition
+class CallOp(IRDLOperation):
+    """
+    Call a regular function or task by name
+    """
+    name = "csl.call"
+    callee = prop_def(StringAttr)
+    args = var_operand_def(Attribute)
+    result = opt_result_def(Attribute)
+    # TODO(dk949): not 100% sure what this does?
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def __init__(self, callee: str | StringAttr, arguments: Sequence[SSAValue | Operation], return_types: Sequence[Attribute]):
+        if isinstance(callee, str):
+            callee = StringAttr(callee)
+        super().__init__(
+            operands=[arguments],
+            result_types=[return_types],
+            properties={"callee": callee},
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> CallOp:
+        callee, args, results, extra_attributes = parse_call_op_like(
+            parser, reserved_attr_names=("callee",)
+        )
+        assert extra_attributes is None or len(extra_attributes.data) == 0, f"CallOp does not take any extra attributes, got {extra_attributes}"
+        return CallOp(callee.string_value(), args, results)
+
+
+@irdl_op_definition
 class FuncOp(IRDLOperation):
     """
     Almost the same as func.func, but only has one result, and is not isolated from above.
@@ -130,9 +161,11 @@ class FuncOp(IRDLOperation):
     ):
         if isinstance(function_type, tuple):
             inputs, output = function_type
-            function_type = FunctionType.from_lists(inputs, [output] if output else [])
+            function_type = FunctionType.from_lists(
+                inputs, [output] if output else [])
         if len(function_type.outputs) > 1:
-            raise ValueError("Can't have a csl.function return more than one value!")
+            raise ValueError(
+                "Can't have a csl.function return more than one value!")
         if not isinstance(region, Region):
             region = Region(Block(arg_types=function_type.inputs))
         properties: dict[str, Attribute | None] = {
@@ -166,14 +199,17 @@ class FuncOp(IRDLOperation):
             extra_attrs,
             arg_attrs,
         ) = parse_func_op_like(
-            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+            parser, reserved_attr_names=(
+                "sym_name", "function_type", "sym_visibility")
         )
 
-        assert len(return_types) <= 1, "csl.func can't have more than one result type!"
+        assert len(
+            return_types) <= 1, "csl.func can't have more than one result type!"
 
         func = cls(
             name=name,
-            function_type=(input_types, return_types[0] if return_types else None),
+            function_type=(
+                input_types, return_types[0] if return_types else None),
             region=region,
             arg_attrs=arg_attrs,
         )
@@ -243,6 +279,7 @@ CSL = Dialect(
         ImportModuleConstOp,
         MemberCallOp,
         MemberAccessOp,
+        CallOp,
     ],
     [
         ComptimeStructType,
