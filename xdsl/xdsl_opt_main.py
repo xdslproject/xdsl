@@ -6,6 +6,7 @@ from importlib.metadata import version
 from io import StringIO
 from typing import IO
 
+from xdsl.backend.csl.print_csl import print_to_csl
 from xdsl.dialects import riscv, x86
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext
@@ -222,6 +223,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
+        self.available_targets["csl"] = print_to_csl
 
     def setup_pipeline(self):
         """

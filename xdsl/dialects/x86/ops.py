@@ -160,6 +160,12 @@ class X86Instruction(X86Op):
         return _assembly_line(instruction_name, arg_str, self.comment)
 
 
+class SingleOperandInstruction(IRDLOperation, X86Instruction, ABC):
+    """
+    Base class for instructions that take a single operand.
+    """
+
+
 class DoubleOperandInstruction(IRDLOperation, X86Instruction, ABC):
     """
     Base class for instructions that take two operands.
@@ -274,6 +280,44 @@ class MovOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.mov"
+
+
+class ROperationSrc(Generic[R1InvT], SingleOperandInstruction):
+    """
+    A base class for x86 operations that have one source register.
+    """
+
+    source = operand_def(R1InvT)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.source,)
+
+
+@irdl_op_definition
+class PushOp(ROperationSrc[GeneralRegisterType]):
+    """
+    Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
+    https://www.felixcloutier.com/x86/push
+    """
+
+    name = "x86.push"
 
 
 # region Assembly printing

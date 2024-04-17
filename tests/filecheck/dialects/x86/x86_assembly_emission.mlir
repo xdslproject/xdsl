@@ -17,3 +17,5 @@
 // CHECK: xor rax, rdx
 %mov = x86.mov %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: mov rax, rdx
+x86.push %0 : (!x86.reg<rax>) -> ()
+// CHECK: push rax

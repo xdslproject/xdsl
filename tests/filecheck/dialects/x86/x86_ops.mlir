@@ -18,3 +18,5 @@
 // CHECK-NEXT: %{{.*}} = x86.xor %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 %mov = x86.mov %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.mov %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+x86.push %0 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.push %{{.*}} : (!x86.reg<>)
