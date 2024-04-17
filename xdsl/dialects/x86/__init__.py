@@ -1,6 +1,16 @@
 from xdsl.ir import Dialect
 
-from .ops import AddOp, AndOp, GetRegisterOp, ImulOp, MovOp, OrOp, SubOp, XorOp
+from .ops import (
+    AddOp,
+    AndOp,
+    GetRegisterOp,
+    ImulOp,
+    MovOp,
+    OrOp,
+    PushOp,
+    SubOp,
+    XorOp,
+)
 from .register import GeneralRegisterType
 
 X86 = Dialect(
@@ -13,6 +23,7 @@ X86 = Dialect(
         OrOp,
         XorOp,
         MovOp,
+        PushOp,
         GetRegisterOp,
     ],
     [
