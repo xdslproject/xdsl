@@ -37,24 +37,25 @@ class RiscvToLLVMPattern(RewritePattern):
         inputs: list[SSAValue | OpResult] = []
         res_types: list[Attribute] = []
 
-        # convert assembly args to strings for correct inline asms
+        # populate assembly_args_str and constraints
         for arg in op.assembly_line_args():
 
+            # invalid argument
             if not arg:
-                continue
+                return
 
+            # ssa value used as an output operand
             elif (
                 isinstance(arg, OpResult)
                 and isinstance(arg.type, IntRegisterType)
                 and arg.op is op
             ):
-                # ssa value used as output
                 res_types.append(builtin.i32)
                 assembly_args_str.append(f"${len(inputs) + len(res_types) - 1}")
                 constraints.append("=r")
 
+            # ssa value used as an input operand
             elif isinstance(arg, SSAValue) and isinstance(arg.type, IntRegisterType):
-                # ssa value used as input
                 if arg.type == IntRegisterType("zero"):
                     assembly_args_str.append("x0")
                 else:
@@ -64,30 +65,34 @@ class RiscvToLLVMPattern(RewritePattern):
                     constraints.append("r")
                     assembly_args_str.append(f"${len(inputs) + len(res_types) - 1}")
 
+            # constant value used as an immediate
             elif isinstance(arg, IntegerAttr):
-                # immediate value
                 assembly_args_str.append(str(arg.value.data))
 
-        pass
+            # not supported argument
+            else:
+                return
 
-        if op.assembly_instruction_name() in custom_ops:
+        # construct asm_string
+        iname = op.assembly_instruction_name()
+
+        if iname in custom_ops:
             # generate custom insn inline assembly instruction
-            asm_string = custom_ops[op.assembly_instruction_name()].format(
-                *assembly_args_str
-            )
+            asm_string = custom_ops[iname].format(*assembly_args_str)
 
         else:
-            # generate riscv inline assembly instruction
-            asm_string = (
-                op.assembly_instruction_name() + " " + ", ".join(assembly_args_str)
-            )
+            # generate generic riscv inline assembly instruction
+            asm_string = iname + " " + ", ".join(assembly_args_str)
 
+        # construct constraints_string
         constraints_string = ",".join(constraints)
 
+        # construct llvm inline asm op
         ops_to_insert.append(
             new_op := InlineAsmOp(asm_string, constraints_string, inputs, res_types)
         )
 
+        # cast output back to original type if necessary
         if res_types:
             ops_to_insert.append(
                 output_op := UnrealizedConversionCastOp.get(
@@ -102,6 +107,16 @@ class RiscvToLLVMPattern(RewritePattern):
 
 
 class ConvertRiscvToLLVMPass(ModulePass):
+    """
+    Convert RISC-V instructions to LLVM inline assembly.
+    This allows for the use of an LLVM backend instead of direct
+    RISC-V assembly generation. Additionaly, custom ops are
+    implemented using .insn directives, to avoid the need for
+    a custom LLVM backend.
+
+    Only integer register types are supported.
+    """
+
     name = "convert-riscv-to-llvm"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
