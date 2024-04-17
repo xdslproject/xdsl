@@ -32,6 +32,8 @@ class RiscvToLLVMPattern(RewritePattern):
     def match_and_rewrite(self, op: RISCVInstruction, rewriter: PatternRewriter):
 
         ops_to_insert: list[Operation] = []
+
+        # inputs for the llvm inline asm op
         assembly_args_str: list[str] = []
         constraints: list[str] = []
         inputs: list[SSAValue | OpResult] = []
