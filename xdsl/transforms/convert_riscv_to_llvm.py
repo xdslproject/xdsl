@@ -15,14 +15,14 @@ from xdsl.pattern_rewriter import (
 # for custom ops see
 # https://pulp-platform.github.io/snitch_cluster/rm/custom_instructions.html
 custom_ops = {
-    "dmsrc": ".insn i 0x2b, 0, 0, x0, {0}, {1}",
-    "dmdst": ".insn i 0x2b, 0, 1, x0, {0}, {1}",
-    "dmcpyi": ".insn i 0x2b, 0, 2, {0}, {1}, {2}",
-    "dmcpy": ".insn i 0x2b, 0, 3, {0}, {1}, {2}",
-    "dmstati": ".insn i 0x2b, 0, 4, {0}, {1}, {2}",
-    "dmstat": ".insn i 0x2b, 0, 5, {0}, {1}, {2}",
-    "dmstr": ".insn i 0x2b, 0, 6, x0, {0}, {1}",
-    "dmrep": ".insn i 0x2b, 0, 7, x0, {0}, x0",
+    "dmsrc": ".insn r 0x2b, 0, 0, x0, {0}, {1}",
+    "dmdst": ".insn r 0x2b, 0, 1, x0, {0}, {1}",
+    "dmcpyi": ".insn r 0x2b, 0, 2, {0}, {1}, {2}",
+    "dmcpy": ".insn r 0x2b, 0, 3, {0}, {1}, {2}",
+    "dmstati": ".insn r 0x2b, 0, 4, {0}, {1}, {2}",
+    "dmstat": ".insn r 0x2b, 0, 5, {0}, {1}, {2}",
+    "dmstr": ".insn r 0x2b, 0, 6, x0, {0}, {1}",
+    "dmrep": ".insn r 0x2b, 0, 7, x0, {0}, x0",
 }
 
 
