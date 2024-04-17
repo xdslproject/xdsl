@@ -191,7 +191,7 @@ def test_visit_graph_matmul():
     # initialize context
     ctx = OnnxXdslMapping()
 
-    # create graph composed only of one Sub operation
+    # create graph composed only of one MatMul operation
     graph, _ = _create_graph_binary_op("MatMul", "matmul_graph")
 
     # run visit graph
