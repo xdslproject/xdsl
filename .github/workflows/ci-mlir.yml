@@ -130,6 +130,5 @@ jobs:
         with: |
           fail_ci_if_error: true
           verbose: true
-          directory: ${GITHUB_WORKSPACE}/../
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
