@@ -9,10 +9,12 @@
 
 csl.func @returning_func() -> i32 {
   %c = arith.constant 10 : i32
+  csl.call @func_with_arguments(%c, %thing) : (i32, !csl.comptime_struct) -> ()
   csl.return %c : i32
 }
 
 csl.func @func_with_arguments(%a1: i32, %a2: !csl.comptime_struct) {
+  %res = csl.call @returning_func() : () -> i32
   csl.return
 }
 
@@ -75,9 +77,11 @@ csl.func @initialize() {
 // CHECK-NEXT: const thing : comptime_struct = @import_module("<thing>");
 // CHECK-NEXT: fn returning_func() i32 {
 // CHECK-NEXT:   const c : i32 = 10;
+// CHECK-NEXT:   func_with_arguments(c, thing);
 // CHECK-NEXT:   return c;
 // CHECK-NEXT: }
 // CHECK-NEXT: fn func_with_arguments(a1 : i32, a2 : comptime_struct) void {
+// CHECK-NEXT:   const res : i32 = returning_func();
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: fn initialize() void {
