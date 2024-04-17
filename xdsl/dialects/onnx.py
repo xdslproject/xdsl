@@ -7,6 +7,7 @@ from typing import Annotated, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    Any,
     AnyFloat,
     AnyIntegerAttr,
     AnyTensorType,
@@ -892,18 +893,15 @@ class MatMul(IRDLOperation):
     ):
         super().__init__(
             operands=[matrix_A, matrix_B],
-            result_types=[matrix_A.type],
+            result_types=[self.matrix_Y.type],
         )
 
     def verify_(self) -> None:
         # store dimensions of tensor A and tensor B
         res_shape: list[int] = []
-        if (
-            not isinstance(matrix_A_type := self.matrix_A.type, TensorType)
-            or not isinstance(matrix_B_type := self.matrix_B.type, TensorType)
-            or not isinstance(matrix_Y_type := self.matrix_Y.type, TensorType)
-        ):
-            raise VerifyException("input matrix A should be a 2D tensor")
+        matrix_A_type = cast(TensorType[Any], self.matrix_A.type)
+        matrix_B_type = cast(TensorType[Any], self.matrix_B.type)
+        matrix_Y_type = cast(TensorType[Any], self.matrix_Y.type)
 
         # check shape compatibility
         matrix_A_shape = matrix_A_type.get_shape()
