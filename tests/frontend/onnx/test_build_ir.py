@@ -187,6 +187,28 @@ def test_visit_graph_sub():
     )
 
 
+def test_visit_graph_matmul():
+    # initialize context
+    ctx = OnnxXdslMapping()
+
+    # create graph composed only of one Sub operation
+    graph, _ = _create_graph_binary_op("MatMul", "matmul_graph")
+
+    # run visit graph
+    visit_graph(graph, ctx)
+
+    # check value_by_names keys
+    keys = list(ctx.value_by_name.keys())
+    assert keys == ["input1", "input2", "output"]
+
+    # check generated ir
+    gen_ir = ctx.value_by_name[keys[2]].owner
+    assert (
+        str(gen_ir)
+        == "%0 = onnx.MatMul(%1, %2) : (tensor<64xf32>, tensor<64xf32>) -> tensor<64xf32>"
+    )
+
+
 def test_build_module():
     # create graph composed only of one Add operation
     graph, _ = _create_graph_binary_op("Add", "add_graph")
