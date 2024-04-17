@@ -872,7 +872,7 @@ class Transpose(IRDLOperation):
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     tensor_input = operand_def(TensorType[T])
 
-    perm = opt_attr_def(IntegerAttr, attr_name="perm")
+    perm = opt_attr_def(ArrayAttr[AnyIntegerAttr], attr_name="perm")
 
     tensor_output = result_def(TensorType[T])
 
@@ -887,6 +887,25 @@ class Transpose(IRDLOperation):
             operands=[tensor_input],
             result_types=[tensor_input.type],
         )
+
+    def verify_(self) -> None:
+        if not isinstance(
+            tensor_input_type := self.tensor_input.type, TensorType
+        ) or not isinstance(tensor_output_type := self.tensor_output.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        tensor_input_type.get_shape()
+        tensor_output_type.get_shape()
+
+        # numbers in perm cannot be repeated
+
+        # numbers in perm must be between 0 and len(tensor_input_shape)-1
+
+        # len(tensor_input_shape) must be equal to len(perm)
+
+        # check output shape
 
 
 ONNX = Dialect(
