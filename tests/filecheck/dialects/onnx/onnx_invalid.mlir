@@ -483,39 +483,3 @@ builtin.module {
   %res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t0) {"onnx_node_name" = "/MaxPoolSingleOut", "auto_pad"  = "NOTSET", "ceil_mode" = 0 : i64, "kernel_shape" = [3 : i64, 3 : i64], "dilations" = [1 : i64, 1 : i64], "pads" = [0 : i64, 0 : i64, 0 : i64, 0 : i64, 0: i64], "storage_order" = 0 : i64, "strides" = [1 : i64, 1 : i64]} : (tensor<5x5x32x32xf32>) -> tensor<5x5x32x32xf32>
 
 }
-
-//// -----
-//
-//builtin.module {
-//  %t0, %t1, %t2 = "test.op"() : () -> (tensor<2x4x3xf32>, tensor<4x2xf32>, tensor<2x2xf32>)
-//
-//  // CHECK: Operation does not verify: input matrix A should be a 2D tensor
-//  %res_matmul =  "onnx.MatMul"(%t0, %t1, %t2) {onnx_node_name = "/MatMul"} : (tensor<2x4x3xf32>, tensor<4x2xf32>) -> tensor<2x2xf32>
-//}
-//
-//// -----
-//
-//builtin.module {
-//  %t0, %t1, %t2 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2x3xf32>, tensor<2x2xf32>)
-//
-//  // CHECK: Operation does not verify: input matrix B should be a 2D tensor
-//  %res_matmul =  "onnx.MatMul"(%t0, %t1, %t2) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2x3xf32>) -> tensor<2x2xf32>
-//}
-//
-//// -----
-//
-//builtin.module {
-//  %t0, %t1, %t2 = "test.op"() : () -> (tensor<2x4xf32>, tensor<5x2xf32>, tensor<2x2xf32>)
-//
-//  // CHECK: Operation does not verify: operands have incompatible shapes: (2, 4) and (5, 2)
-//  %res_matmul =  "onnx.MatMul"(%t0, %t1, %t2) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<5x2xf32>) -> tensor<2x2xf32>
-//}
-//
-//// -----
-//
-//builtin.module {
-//  %t0, %t1, %t2 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2xf32>, tensor<2x2xf32>)
-//
-//  // CHECK: Operation does not verify: result shape (2, 2) does not match result type (2, 3)
-//  %res_matmul =  "onnx.MatMul"(%t0, %t1, %t2) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2xf32>) -> tensor<2x3xf32>
-//}
