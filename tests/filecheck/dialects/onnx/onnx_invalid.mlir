@@ -516,6 +516,6 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<5x2xf32>)
 
-  // CHECK: Operation does not verify: operands have incompatible shapes: (2, 4) and (5, 2)
+  // CHECK: Operation does not verify: output has incompatible shape
   %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<5x2xf32>) -> tensor<2x3xf32>
 }
