@@ -517,6 +517,6 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2xf32>)
 
-  // CHECK: Operation does not verify: result shape [2, 2] does not match result type (2, 3)
+  // CHECK: Operation does not verify: result shape [2, 2] does not match result type [2, 3]
   %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2xf32>) -> tensor<2x3xf32>
 }
