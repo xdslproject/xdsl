@@ -890,11 +890,11 @@ class MatMul(IRDLOperation):
         self,
         matrix_A: SSAValue,
         matrix_B: SSAValue,
-        matrix_Y: SSAValue,
+        matrix_Y_type: Attribute,
     ):
         super().__init__(
             operands=[matrix_A, matrix_B],
-            result_types=[matrix_Y.type],
+            result_types=[matrix_Y_type],
         )
 
     def verify_(self) -> None:
