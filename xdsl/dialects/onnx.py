@@ -928,7 +928,7 @@ class MatMul(IRDLOperation):
             or res_shape != matrix_Y_type_shape
         ):
             raise VerifyException(
-                f"result shape {res_shape} does not match result type {self.matrix_Y.type}"
+                f"result shape {res_shape} does not match result type {matrix_Y_type_shape}"
             )
 
 
