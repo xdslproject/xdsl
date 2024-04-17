@@ -22,7 +22,7 @@ custom_ops = {
     "dmstati": ".insn i 0x2b, 0, 4, {0}, {1}, {2}",
     "dmstat": ".insn i 0x2b, 0, 5, {0}, {1}, {2}",
     "dmstr": ".insn i 0x2b, 0, 6, x0, {0}, {1}",
-    "dmrep": ".insn i 0x2b, 0, 7, x0, {0}, {1}",
+    "dmrep": ".insn i 0x2b, 0, 7, x0, {0}, x0",
 }
 
 
