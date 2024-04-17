@@ -2,7 +2,7 @@ import onnx
 import pytest
 
 from xdsl.dialects.builtin import TensorType, f32
-from xdsl.dialects.onnx import Add, Sub
+from xdsl.dialects.onnx import Add, MatMul, Sub
 from xdsl.ir import Attribute
 from xdsl.utils.test_value import TestSSAValue
 
@@ -89,7 +89,7 @@ def test_visit_node_add():
     ctx = OnnxXdslMapping()
 
     # create graph composed only of one Add operation
-    _, add_node = _create_graph_binary_op("Add", "add_graph")
+    _, add_node = _create_graph_binary_op("Add", "add_graph", [64], [64], [64])
 
     lhs = TestSSAValue(TensorType(f32, [64]))
     rhs = TestSSAValue(TensorType(f32, [64]))
@@ -119,7 +119,7 @@ def test_visit_node_sub():
     ctx = OnnxXdslMapping()
 
     # create graph composed only of one Sub operation
-    _, sub_node = _create_graph_binary_op("Sub", "sub_graph")
+    _, sub_node = _create_graph_binary_op("Sub", "sub_graph", [64], [64], [64])
 
     lhs = TestSSAValue(TensorType(f32, [64]))
     rhs = TestSSAValue(TensorType(f32, [64]))
@@ -143,12 +143,44 @@ def test_visit_node_sub():
     assert not op.regions
 
 
+def test_visit_node_matmul():
+    # initialize context
+    ctx = OnnxXdslMapping()
+
+    # create graph composed only of one Sub operation
+    _, matmul_node = _create_graph_binary_op(
+        "MatMul", "matmul_graph", [64, 128], [128, 64], [64, 64]
+    )
+
+    lhs = TestSSAValue(TensorType(f32, [64, 128]))
+    rhs = TestSSAValue(TensorType(f32, [128, 64]))
+    ctx.value_by_name["input1"] = lhs
+    ctx.value_by_name["input2"] = rhs
+
+    lhs_type = TensorType(f32, [64, 128])
+    rhs_type = TensorType(f32, [128, 64])
+    out_type = TensorType(f32, [64, 64])
+    ctx.type_by_name["input1"] = lhs_type
+    ctx.type_by_name["input2"] = rhs_type
+    ctx.type_by_name["output"] = out_type
+
+    op = visit_node(matmul_node, ctx)
+    op.verify()
+
+    assert isinstance(op, MatMul)
+    assert op.matrix_A is lhs
+    assert op.matrix_B is rhs
+    assert op.matrix_Y is ctx.value_by_name["output"]
+    assert not op.attributes
+    assert not op.regions
+
+
 def test_visit_graph_add():
     # initialize context
     ctx = OnnxXdslMapping()
 
     # create graph composed only of one Add operation
-    graph, _ = _create_graph_binary_op("Add", "add_graph")
+    graph, _ = _create_graph_binary_op("Add", "add_graph", [64], [64], [64])
 
     # visit graph
     visit_graph(graph, ctx)
@@ -170,7 +202,7 @@ def test_visit_graph_sub():
     ctx = OnnxXdslMapping()
 
     # create graph composed only of one Sub operation
-    graph, _ = _create_graph_binary_op("Sub", "sub_graph")
+    graph, _ = _create_graph_binary_op("Sub", "sub_graph", [64], [64], [64])
 
     # run visit graph
     visit_graph(graph, ctx)
@@ -192,7 +224,7 @@ def test_visit_graph_matmul():
     ctx = OnnxXdslMapping()
 
     # create graph composed only of one MatMul operation
-    graph, _ = _create_graph_binary_op("MatMul", "matmul_graph")
+    graph, _ = _create_graph_binary_op("MatMul", "matmul_graph", [64], [64], [64])
 
     # run visit graph
     visit_graph(graph, ctx)
@@ -211,7 +243,7 @@ def test_visit_graph_matmul():
 
 def test_build_module():
     # create graph composed only of one Add operation
-    graph, _ = _create_graph_binary_op("Add", "add_graph")
+    graph, _ = _create_graph_binary_op("Add", "add_graph", [64], [64], [64])
 
     # create module
     module = build_module(graph)
@@ -232,16 +264,22 @@ builtin.module {
     assert str(module) == expected
 
 
-def _create_graph_binary_op(op_name: str, graph_name: str):
+def _create_graph_binary_op(
+    op_name: str,
+    graph_name: str,
+    dim_in1: list[int],
+    dim_in2: list[int],
+    dim_out: list[int],
+):
     # define input and output names
     input1_name = "input1"
     input2_name = "input2"
     output_name = "output"
 
     # define input shapes
-    input1_shape = [64]
-    input2_shape = [64]
-    output_shape = [64]
+    input1_shape = dim_in1
+    input2_shape = dim_in2
+    output_shape = dim_out
 
     # define op node
     op_node = helper.make_node(
