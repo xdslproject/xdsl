@@ -151,12 +151,14 @@ class CslPrintContext:
                     self.print(
                         f'const {name} : comptime_struct = @import_module("{module.data}"{params_str});'
                     )
-                case csl.MemberCallOp(
-                    struct=struct, field=field, args=args, result=res
-                ):
+                case csl.MemberCallOp(field=callee, args=args, result=res) \
+                        | csl.CallOp(callee=callee, args=args, result=res) as call:
                     args = ", ".join(self._get_variable_name_for(arg)
                                      for arg in args)
-                    struct_var = self._get_variable_name_for(struct)
+                    if struct := getattr(call, "struct", None):
+                        struct_str = f"{self._get_variable_name_for(struct)}."
+                    else:
+                        struct_str = ""
 
                     text = ""
                     if res is not None:
@@ -165,7 +167,7 @@ class CslPrintContext:
                             f"const {name} : {self.mlir_type_to_csl_type(res.type)} = "
                         )
 
-                    self.print(f"{text}{struct_var}.{field.data}({args});")
+                    self.print(f"{text}{struct_str}{callee.data}({args});")
                 case csl.MemberAccessOp(struct=struct, field=field, result=res):
                     name = self._get_variable_name_for(res)
                     struct_var = self._get_variable_name_for(struct)
