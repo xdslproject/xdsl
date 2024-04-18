@@ -383,6 +383,11 @@ class ParamAttrConstraint(AttrConstraint):
 
 @dataclass(init=False)
 class MessageConstraint(AttrConstraint):
+    """
+    Attach a message to a constraint, to provide more context when the constraint
+    is not satisfied.
+    """
+
     constr: AttrConstraint
     message: str
 
