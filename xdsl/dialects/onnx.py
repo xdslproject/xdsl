@@ -900,6 +900,14 @@ class Transpose(IRDLOperation):
         tensor_output_type.get_shape()
 
         # numbers in perm cannot be repeated
+        if self.perm is not None:
+
+            for _, int_attr in enumerate(self.perm.data):
+                count = self.perm.data.count(int_attr.value)
+                if count != 1:
+                    raise VerifyException(
+                        "permutation can not contain more than one occurrence of the same dimension"
+                    )
 
         # numbers in perm must be between 0 and len(tensor_input_shape)-1
 
