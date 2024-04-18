@@ -896,8 +896,9 @@ class Transpose(IRDLOperation):
                 False
             ), "onnx elementwise operation operands and result must be of type TensorType"
 
-        tensor_input_type.get_shape()
-        tensor_output_type.get_shape()
+        tensor_input_shape = tensor_input_type.get_shape()
+        tensor_output_shape = tensor_output_type.get_shape()
+        print(tensor_output_shape)
 
         # numbers in perm cannot be repeated
         if self.perm is not None:
@@ -910,8 +911,23 @@ class Transpose(IRDLOperation):
                     )
 
         # numbers in perm must be between 0 and len(tensor_input_shape)-1
+        if self.perm is not None:
+            perm_size = len(self.perm.data)
+            for _, int_attr in enumerate(self.perm.data):
+                int_attr = int_attr.value.data
+                if int_attr < 0 or int_attr >= perm_size:
+                    raise VerifyException(
+                        "permutation can only contain values between 0 and perm_size-1"
+                    )
 
         # len(tensor_input_shape) must be equal to len(perm)
+        if self.perm is not None:
+            perm_size = len(self.perm.data)
+            input_size = len(tensor_input_shape)
+            if perm_size != input_size:
+                raise VerifyException(
+                    "permutation and inputs dimensions must have the same size"
+                )
 
         # check output shape
 
