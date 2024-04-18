@@ -81,7 +81,7 @@
 %res_matmul = "onnx.MatMul"(%t9, %t10) {onnx_node_name = "/MatMul"}: (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>
 // CHECK: %res_matmul = onnx.MatMul(%t9, %t10) {"onnx_node_name" = "/MatMul"} : (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>%res_transpose = "onnx.Transpose"(%t8) {onnx_node_name = "/Transpose", "perm" = [1, 0] : <2xi32>}: (tensor<3x4xf32>) -> tensor<4x3xf32>
 
-%res_transpose = "onnx.Transpose"(%t8) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64] : <2xi32>}: (tensor<3x4xf32>) -> tensor<4x3xf32>
+%res_transpose = "onnx.Transpose"(%t8) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64]}: (tensor<3x4xf32>) -> tensor<4x3xf32>
 // CHECK:  %res_transpose = onnx.Transpose(%t8) {"onnx_node_name" = "/Transpose", "perm" = [1 : i64, 0 : i64]} : (tensor<3x4xf32>) -> tensor<4x3xf32>
 
 
