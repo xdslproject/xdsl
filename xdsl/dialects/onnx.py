@@ -907,17 +907,17 @@ class Transpose(IRDLOperation):
                 count = self.perm.data.count(attr_value)
                 if count != 1:
                     raise VerifyException(
-                        "permutation can not contain more than one occurrence of the same dimension: "
+                        "permutation can not contain more than one occurrence of the same dimension: dimension #{attr_value} appears {count} times."
                     )
 
         # numbers in perm must be between 0 and len(tensor_input_shape)-1
         if self.perm is not None:
             perm_size = len(self.perm.data)
-            for _, int_attr in enumerate(self.perm.data):
+            for int_index, int_attr in enumerate(self.perm.data):
                 int_attr_val = int_attr.value.data
                 if int_attr_val < 0 or int_attr_val >= perm_size:
                     raise VerifyException(
-                        "permutation can only contain values between 0 and perm_size-1"
+                        "permutation can only contain values between 0 and {perm_size}-1: dimension #{int_index} value is {int_attr_val}"
                     )
 
         # len(tensor_input_shape) must be equal to len(perm)
@@ -926,7 +926,7 @@ class Transpose(IRDLOperation):
             input_size = len(tensor_input_shape)
             if perm_size != input_size:
                 raise VerifyException(
-                    "permutation and inputs dimensions must have the same size"
+                    "permutation and inputs dimensions must have the same size: #dimensions input is {input_size}, #dimension perimutation is {perm_size}"
                 )
 
         # check output shape
