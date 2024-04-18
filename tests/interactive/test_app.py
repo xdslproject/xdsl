@@ -2,6 +2,7 @@ from typing import Any, cast
 
 import pytest
 from textual.screen import Screen
+from textual.widgets import Tree
 
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
@@ -505,7 +506,10 @@ async def test_argument_pass_screen():
 
         assert distribute_stencil_node is not None
 
-        app.passes_tree.select_node(distribute_stencil_node)
+        # When running in a test, node selection does not send the expected event
+        # app.passes_tree.select_node(distribute_stencil_node)
+        # For now, trigger the expected method directly
+        app.update_pass_pipeline(Tree.NodeSelected(distribute_stencil_node))
         await pilot.pause()
 
         arg_screen_str: type[Screen[Any]] = AddArguments
