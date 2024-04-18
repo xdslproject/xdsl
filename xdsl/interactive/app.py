@@ -364,7 +364,9 @@ class InputApp(App[None]):
         screen dismissal and appends the pass to the pass_pipeline variable.
         """
 
-        def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
+        def add_pass_with_arguments_to_pass_pipeline(
+            concatenated_arg_val: str | None,
+        ) -> None:
             """
             Called when AddArguments Screen is dismissed. This function attempts to parse
             the returned string, and if successful, adds it to the pass_pipeline variable.
@@ -372,6 +374,10 @@ class InputApp(App[None]):
             Parse Error.
             """
             try:
+                # if screen was dismissed and user 1) cleared the screen 2) made no changes
+                if concatenated_arg_val is None:
+                    return
+
                 new_pass_with_arguments = list(
                     parse_pipeline(
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
