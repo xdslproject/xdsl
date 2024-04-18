@@ -394,10 +394,7 @@ class MessageConstraint(AttrConstraint):
     def __init__(
         self, constr: AttrConstraint | Attribute | type[Attribute], message: str
     ):
-        if isinstance(constr, type):
-            constr = BaseAttr(constr)
-        elif isinstance(constr, Attribute):
-            constr = EqAttrConstraint(constr)
+        self.constr = attr_constr_coercion(constr)
 
         self.constr = constr
         self.message = message
