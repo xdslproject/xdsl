@@ -5,13 +5,17 @@ from typing import TypeVar, cast
 from warnings import warn
 
 from xdsl.dialects import arith, builtin, memref, scf
-from xdsl.dialects.builtin import MemRefType, UnrealizedConversionCastOp
+from xdsl.dialects.builtin import (
+    MemRefType,
+    UnrealizedConversionCastOp,
+)
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     BufferOp,
     CastOp,
+    CombineOp,
     ExternalLoadOp,
     ExternalStoreOp,
     FieldType,
@@ -35,6 +39,7 @@ from xdsl.ir import (
     OpResult,
     Region,
     SSAValue,
+    Use,
 )
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -94,7 +99,7 @@ def collectBlockArguments(number: int, block: Block):
 def update_return_target(
     return_targets: dict[ReturnOp, list[SSAValue | None]],
     old_target: SSAValue,
-    new_target: SSAValue,
+    new_target: SSAValue | None,
 ):
     for targets in return_targets.values():
         for i, target in enumerate(targets):
@@ -134,23 +139,24 @@ class ReturnOpToMemref(RewritePattern):
         n_res = len(op.arg) // unroll_factor
 
         store_list: list[Operation] = []
+        parallel = op.parent_op()
+        assert isinstance(parallel, scf.ParallelOp)
+
+        n_dims = len(parallel.lowerBound)
+
         for j in range(n_res):
             target = self.return_target[op][j]
-            if target is None:
-                continue
-            assert isinstance(target.type, builtin.ShapedType)
-            dims = target.type.get_num_dims()
 
             unroll = op.unroll
             if unroll is None:
-                unroll = IndexAttr.get(*([1] * dims))
+                unroll = IndexAttr.get(*([1] * n_dims))
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 arg = op.arg[j * unroll_factor + k]
                 assert (block := op.parent_block()) is not None
-                args = cast(list[SSAValue], collectBlockArguments(dims, block))
+                args = cast(list[SSAValue], collectBlockArguments(n_dims, block))
 
-                for i in range(dims):
+                for i in range(n_dims):
                     if offset[i] != 0:
                         constant_op = arith.Constant.from_int_and_width(
                             offset[i], builtin.IndexType()
@@ -164,7 +170,10 @@ class ReturnOpToMemref(RewritePattern):
                     result_owner = _find_result_store(arg)
                     for owner in result_owner:
                         if owner.args:
-                            store = memref.Store.get(owner.args[0], target, args)
+                            if target is not None:
+                                store = memref.Store.get(owner.args[0], target, args)
+                            else:
+                                store = list[Operation]()
                             rewriter.replace_op(
                                 owner,
                                 store,
@@ -175,8 +184,9 @@ class ReturnOpToMemref(RewritePattern):
                             rewriter.replace_op(owner, dummy)
 
                 else:
-                    store = memref.Store.get(arg, target, args)
-                    store_list.append(store)
+                    if target is not None:
+                        store = memref.Store.get(arg, target, args)
+                        store_list.append(store)
 
         rewriter.replace_matched_op([*store_list])
 
@@ -274,6 +284,61 @@ def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter, dim: int):
 
 
 @dataclass
+class BufferOpToMemref(RewritePattern):
+
+    return_targets: dict[ReturnOp, list[SSAValue | None]]
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter, /):
+        # The current lowering simply allocate at block entry and deallocates at block
+        # exit.
+        # One could be smarter, e.g., aim precisly at where the first and last need is
+        # But first, this requires more code with stencil.combine in the mix.
+        # And second, do we want to be that smart? We use it iterated either way, so
+        # probably always hoping to hoist (de)allocations out of the loop anyway?
+        temp_t = op.temp.type
+        assert isa(temp_t, TempType[Attribute])
+        temp_bounds = temp_t.bounds
+        assert isa(temp_bounds, StencilBoundsAttr)
+
+        block = op.parent_block()
+        assert block is not None
+        first_op = block.first_op
+        assert first_op is not None
+        last_op = block.last_op
+        assert last_op is not None
+
+        alloc = memref.Alloc.get(temp_t.get_element_type(), shape=temp_t.get_shape())
+        alloc_type = alloc.memref.type
+        assert isa(alloc_type, MemRefType[Attribute])
+
+        offset = list(-temp_bounds.lb)
+
+        view = memref.Subview.from_static_parameters(
+            alloc,
+            alloc_type,
+            offset,
+            temp_t.get_shape(),
+            [1] * temp_t.get_num_dims(),
+        )
+
+        rewriter.insert_op_before(alloc, first_op)
+        rewriter.insert_op_before(view, first_op)
+
+        update_return_target(self.return_targets, op.temp, view.result)
+
+        dealloc = memref.Dealloc.get(alloc.memref)
+
+        if not op.res.uses:
+            rewriter.insert_op_after(dealloc, op)
+            rewriter.erase_matched_op()
+            return
+
+        rewriter.insert_op_before(dealloc, last_op)
+        rewriter.replace_matched_op([], [view.result])
+
+
+@dataclass
 class ApplyOpToParallel(RewritePattern):
     return_targets: dict[ReturnOp, list[SSAValue | None]]
 
@@ -331,59 +396,12 @@ class ApplyOpToParallel(RewritePattern):
 
         p.body.insert_block(body.detach_block(0), 0)
 
-        # Handle returnd values
-        for result in op.res:
-            assert isa(
-                result.type, TempType[Attribute]
-            ), f"Expected return value to be a !{TempType.name}"
-            assert isinstance(
-                result.type.bounds, StencilBoundsAttr
-            ), f"Expected output to be sized before lowering. {result.type}"
-            shape = result.type.get_shape()
-            element_type = result.type.element_type
-
-            # If it is buffered, allocate the buffer
-            if any(isinstance(use.operation, BufferOp) for use in result.uses):
-                alloc = memref.Alloc.get(element_type, shape=shape)
-                alloc_type = alloc.memref.type
-                assert isa(alloc_type, MemRefType[Attribute])
-
-                offset = list(-result.type.bounds.lb)
-
-                view = memref.Subview.from_static_parameters(
-                    alloc,
-                    alloc_type,
-                    offset,
-                    shape,
-                    [1] * result.type.get_num_dims(),
-                )
-                rewriter.insert_op_before_matched_op((alloc, view))
-                update_return_target(self.return_targets, result, view.result)
-
-        deallocs: list[Operation] = []
-        # Handle input buffer deallocation
-        for input in op.args:
-            # Is this input a temp buffer?
-            if isinstance(input.type, TempType) and isinstance(input.owner, BufferOp):
-                block = op.parent_block()
-                assert block is not None
-                self_index = block.get_operation_index(op)
-                # Is it its last use?
-                if not any(
-                    use.operation.parent_block() is block
-                    and block.get_operation_index(use.operation) > self_index
-                    for use in input.uses
-                ):
-                    # Then deallocate it
-                    deallocs.append(memref.Dealloc.get(input))
-
         # Get the maybe updated results
         new_results: list[SSAValue | None] = []
         new_results = self.return_targets[return_op]
         # Replace with the loop and necessary constants.
         assert isa(boilerplate_ops, list[Operation])
         rewriter.insert_op_before_matched_op([*boilerplate_ops, p])
-        rewriter.insert_op_after_matched_op([*deallocs])
         rewriter.replace_matched_op([], new_results)
 
 
@@ -474,12 +492,6 @@ class StencilStoreToSubview(RewritePattern):
             update_return_target(self.return_targets, field, subview.result)
 
 
-class BufferOpCleanUp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([], [op.temp])
-
-
 class TrivialExternalLoadOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
@@ -497,6 +509,60 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
         rewriter.erase_matched_op()
 
 
+class CombineOpCleanup(RewritePattern):
+    """
+    Just remove `stencil.combine`s as they are just used for return target analysis.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter, /):
+        rewriter.erase_matched_op()
+
+
+def _get_use_target(use: Use) -> SSAValue | None:
+    """
+    Given the use of a `stencil.temp`, return the target `stencil.field` of this use.
+    """
+    match store := use.operation:
+        case StoreOp():
+            # If it's a store, just return the field it is stored to. It will be lowered
+            # to the corresponding memref.
+            return store.field
+        case BufferOp():
+            # If it's a buffer, return the buffer itself. It will be lowered to the
+            # allocated memref.
+            return store.temp
+        case CombineOp():
+            # If it's a combine, recurse to find the target of the combined
+            # `stencil.temp`
+            if use.index < len(store.lower):
+                # If it's the nth lower arg, the combined temp is the nth combined.
+                temp = store.results[use.index]
+            elif use.index < len(store.lower) + len(store.upper):
+                # If it's the nth upper arg, the combined temp is the nth combined.
+                temp = store.results[use.index - len(store.lower)]
+            elif use.index < len(store.lower) + len(store.upper) + len(store.lowerext):
+                # If it's the nth lowerext arg, the combined temp is the (lower+n)th
+                # combined.
+                temp = store.results[use.index - len(store.lower)]
+            else:
+                temp = store.results[use.index - len(store.lower) - len(store.lowerext)]
+                # If it's the nth upperext arg, the combined temp is the
+                # (lower+lowerext+n)th combined.
+            temp_uses = temp.uses
+            match len(temp_uses):
+                case 0:
+                    return None
+                case 1:
+                    target = _get_use_target(list(temp_uses)[0])
+                    return target
+                case _:
+                    raise ValueError("Each stencil result should be stored only once.")
+        case _:
+            # Should be unreachable
+            raise ValueError(f"Unexpected store type {store}")
+
+
 def return_target_analysis(module: builtin.ModuleOp):
     return_targets: dict[ReturnOp, list[SSAValue | None]] = {}
 
@@ -510,9 +576,9 @@ def return_target_analysis(module: builtin.ModuleOp):
         return_targets[op] = []
         for res in list(apply.res):
             store = [
-                use.operation
+                use
                 for use in list(res.uses)
-                if isinstance(use.operation, StoreOp | BufferOp)
+                if isinstance(use.operation, StoreOp | BufferOp | CombineOp)
             ]
 
             if len(store) > 1:
@@ -521,11 +587,8 @@ def return_target_analysis(module: builtin.ModuleOp):
 
             elif len(store) == 0:
                 field = None
-            elif isinstance(store[0], StoreOp):
-                field = store[0].field
-            # then it's a BufferOp
             else:
-                field = store[0].temp
+                field = _get_use_target(store[0])
 
             return_targets[op].append(field)
 
@@ -557,6 +620,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ApplyOpToParallel(return_targets),
+                    BufferOpToMemref(return_targets),
                     StencilStoreToSubview(return_targets),
                     CastOpToMemref(),
                     LoadOpToMemref(),
@@ -574,10 +638,11 @@ class ConvertStencilToLLMLIRPass(ModulePass):
         type_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    CombineOpCleanup(),
                     StencilTypeConversion(recursive=True),
                     ResultTypeConversion(recursive=True),
-                    BufferOpCleanUp(),
                 ]
-            )
+            ),
+            walk_reverse=True,
         )
         type_pass.rewrite_module(op)

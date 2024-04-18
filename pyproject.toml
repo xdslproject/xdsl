@@ -14,7 +14,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.15.1", "textual==0.56.2", "pyclip==0.7"]
+extras = ["riscemu==2.2.5", "wgpu==0.15.1", "textual==0.56.4", "pyclip==0.7"]
 onnx = ["onnx-weekly"]
 
 [project.urls]
@@ -50,7 +50,7 @@ typeCheckingMode = "strict"
     "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "xdsl/frontend/onnx/build_ir.py",
+    "xdsl/frontend/onnx/ir_builder.py",
     "xdsl/frontend/onnx/type.py",
     "xdsl/interpreters/experimental/wgpu.py",
     "xdsl/interpreters/onnx.py",

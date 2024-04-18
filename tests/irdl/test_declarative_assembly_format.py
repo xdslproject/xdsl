@@ -1246,12 +1246,12 @@ def test_optional_group_optional_operand_anchor(
     [
         (
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
-            "test.optional_group(%0, %1 : i32, i64)",
+            "test.optional_group %0, %1 : i32, i64",
             '%0, %1 = "test.op"() : () -> (i32, i64)\n'
             '"test.optional_group"(%0, %1) : (i32, i64) -> ()',
         ),
         (
-            '%0 = "test.op"() : () -> i32\n' "test.optional_group(%0 : i32)",
+            '%0 = "test.op"() : () -> i32\n' "test.optional_group %0 : i32",
             '%0 = "test.op"() : () -> i32\n' '"test.optional_group"(%0) : (i32) -> ()',
         ),
         (
@@ -1270,7 +1270,7 @@ def test_optional_group_variadic_operand_anchor(
 
         args = var_operand_def()
 
-        assembly_format = "(`(` $args^ `:` type($args) `)`)? attr-dict"
+        assembly_format = "($args^ `:` type($args))? attr-dict"
 
     ctx = MLContext()
     ctx.load_op(OptionalGroupOp)

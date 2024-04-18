@@ -45,7 +45,7 @@ from xdsl.irdl.declarative_assembly_format import (
     PunctuationDirective,
     ResultTypeDirective,
     ResultVariable,
-    TypeDirective,
+    VariableDirective,
     VariadicLikeFormatDirective,
     VariadicLikeTypeDirective,
     VariadicLikeVariable,
@@ -175,7 +175,8 @@ class FormatParser(BaseParser):
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
                 case VariadicLikeVariable(), VariadicLikeVariable() if not (
-                    isinstance(a, TypeDirective) or isinstance(b, TypeDirective)
+                    isinstance(a, VariadicLikeTypeDirective)
+                    or isinstance(b, VariadicLikeTypeDirective)
                 ):
                     self.raise_error(
                         "A variadic operand variable cannot be followed by another variadic operand variable."
@@ -288,7 +289,7 @@ class FormatParser(BaseParser):
 
     def parse_optional_variable(
         self,
-    ) -> OperandVariable | ResultVariable | AttributeVariable | None:
+    ) -> VariableDirective | AttributeVariable | None:
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
@@ -426,6 +427,8 @@ class FormatParser(BaseParser):
                 res = ResultTypeDirective(name, index)
             case AttributeVariable():
                 self.raise_error("can only take the type of an operand or result")
+            case _:
+                raise ValueError(f"Unexpected variable type {type(variable)}")
 
         self.parse_punctuation(")")
         self.context = previous_context
@@ -436,7 +439,7 @@ class FormatParser(BaseParser):
         Parse an optional group, with the following format:
           group ::= `(` then-elements `)` `?`
         """
-        then_elements: tuple[FormatDirective, ...] = ()
+        then_elements = tuple[FormatDirective, ...]()
         anchor: FormatDirective | None = None
 
         while not self.parse_optional_punctuation(")"):
