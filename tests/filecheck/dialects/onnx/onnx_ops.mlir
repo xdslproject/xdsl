@@ -78,6 +78,7 @@
 %res_gemm_3 = "onnx.Gemm"(%t27, %t28, %t29) {onnx_node_name = "/Gemm", "alpha" = 1.000000e+00 : f32, "beta" = 1.000000e+00 : f32, "transA" = 0 : si64, "transB" = 1 : si64}: (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>) -> tensor<1x50xf32>
 // CHECK:  %res_gemm_3 = onnx.Gemm(%t27, %t28, %t29) {"onnx_node_name" = "/Gemm", "alpha" = 1.000000e+00 : f32, "beta" = 1.000000e+00 : f32, "transA" = 0 : si64, "transB" = 1 : si64} : (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>) -> tensor<1x50xf32>
 
-
+%res_transpose = "onnx.Transpose"(%t8) {onnx_node_name = "/Transpose", "perm" = [1, 0] : <2xi32>}: (tensor<3x4xf32>) -> tensor<4x3xf32>
+// CHECK:  %res_transpose = onnx.Transpose(%t8) {"onnx_node_name" = "/Transpose", "perm" = [1, 0] : <2xi32>} : (tensor<3x4xf32>) -> tensor<4x3xf32>
 
 
