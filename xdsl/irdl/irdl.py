@@ -381,6 +381,35 @@ class ParamAttrConstraint(AttrConstraint):
         return None
 
 
+@dataclass(init=False)
+class MessageConstraint(AttrConstraint):
+    constr: AttrConstraint
+    message: str
+
+    def __init__(
+        self, constr: AttrConstraint | Attribute | type[Attribute], message: str
+    ):
+        if isinstance(constr, type):
+            constr = BaseAttr(constr)
+        elif isinstance(constr, Attribute):
+            constr = EqAttrConstraint(constr)
+
+        self.constr = constr
+        self.message = message
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        try:
+            return self.constr.verify(attr, constraint_vars)
+        except VerifyException as e:
+            raise VerifyException(e.args[0] + f"\n{self.message}", *e.args[1:])
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return self.constr.get_unique_base()
+
+
 def _irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[Any],
     *,

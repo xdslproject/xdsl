@@ -11,7 +11,14 @@ from typing import Annotated, Any, Generic, TypeAlias, TypeVar, cast
 
 import pytest
 
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    NoneAttr,
+    Signedness,
+)
 from xdsl.ir import (
     Attribute,
     Data,
@@ -26,6 +33,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintVar,
     GenericData,
+    MessageConstraint,
     ParamAttrDef,
     ParameterDef,
     irdl_attr_definition,
@@ -480,6 +488,51 @@ def test_nested_param_attr_constraint_fail():
     with pytest.raises(Exception) as e:
         NestedParamConstrAttr((NestedParamWrapperAttr(ParamWrapperAttr(IntData(-42))),))
     assert e.value.args[0] == "Expected positive integer, got -42."
+
+
+################################################################################
+# Informative Constraint
+################################################################################
+
+
+@irdl_attr_definition
+class InformativeAttr(ParametrizedAttribute):
+    name = "test.informative"
+
+    param: ParameterDef[
+        Annotated[
+            Attribute,
+            MessageConstraint(
+                NoneAttr,
+                "Dear user, here's what this constraint means in your abstraction.",
+            ),
+        ]
+    ]
+
+
+def test_informative_attribute():
+    okay = InformativeAttr((NoneAttr(),))
+    okay.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match="#test.int<42> should be of base attribute none\nDear user, here's what this constraint means in your abstraction.",
+    ):
+        InformativeAttr((IntData(42),))
+
+
+def test_informative_constraint():
+    """
+    Test the verifier of an informative constraint.
+    """
+    constr = MessageConstraint(NoneAttr(), "User-enlightening message.")
+    with pytest.raises(
+        VerifyException,
+        match="Expected attribute #none but got #builtin.int<1>\nUser-enlightening message.",
+    ):
+        constr.verify(IntAttr(1), {})
+    assert constr.get_resolved_variables() == set()
+    assert constr.get_unique_base() == NoneAttr
 
 
 ################################################################################
