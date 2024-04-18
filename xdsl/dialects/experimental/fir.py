@@ -1,3 +1,9 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import dataclass
+from enum import Enum
+
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
@@ -11,7 +17,14 @@ from xdsl.dialects.builtin import (
     TupleType,
     UnitAttr,
 )
-from xdsl.ir import Attribute, Dialect, OpResult, ParametrizedAttribute, TypeAttribute
+from xdsl.ir import (
+    Attribute,
+    Data,
+    Dialect,
+    OpResult,
+    ParametrizedAttribute,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -22,13 +35,13 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     VarRegion,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
     opt_result_def,
+    prop_def,
     result_def,
     var_operand_def,
     var_region_def,
@@ -36,7 +49,80 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import SymbolOpInterface
+from xdsl.traits import IsTerminator, SymbolOpInterface
+
+
+class FortranVariableFlags(Enum):
+    NOATTRIBUTES = (
+        "None"  # First character is meant to be capitalised unlike the others
+    )
+    ALLOCATABLE = "allocatable"
+    ASYNCHRONOUS = "asynchronous"
+    BIND_C = "bind_c"
+    CONTIGUOUS = "contiguous"
+    INTENT_IN = "intent_in"
+    INTENT_INOUT = "intent_inout"
+    INTENT_OUT = "intent_out"
+    OPTIONAL = "optional"
+    PARAMETER = "parameter"
+    POINTER = "pointer"
+    TARGET = "target"
+    VALUE = "value"
+    VOLATILE = "volatile"
+    HOSTASSOC = "host_assoc"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> set[FortranVariableFlags] | None:
+        for option in FortranVariableFlags:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+
+        return None
+
+
+@dataclass(frozen=True)
+class FortranVariableFlagsAttrBase(Data[tuple[FortranVariableFlags, ...]]):
+
+    @property
+    def flags(self) -> set[FortranVariableFlags]:
+        """
+        Returns a copy of the Fortran variable flags.
+        """
+        return set(self.data)
+
+    def __init__(self, flags: Sequence[FortranVariableFlags]):
+        flags_: set[FortranVariableFlags] = set(flags)
+
+        super().__init__(tuple(flags_))
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[FortranVariableFlags, ...]:
+        with parser.in_angle_brackets():
+            flags = FortranVariableFlags.try_parse(parser)
+            if flags is None:
+                return tuple()
+
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: FortranVariableFlags.try_parse(parser),
+                    "fortran variable flag expected",
+                )
+                flags.update(flag)
+
+            return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            # make sure we emit flags in a consistent order
+            printer.print(
+                ",".join(flag.value for flag in FortranVariableFlags if flag in flags)
+            )
+
+
+@irdl_attr_definition
+class FortranVariableFlagsAttr(FortranVariableFlagsAttrBase):
+    name = "fir.var_attrs"
 
 
 @irdl_attr_definition
@@ -214,7 +300,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             type1 = parser.parse_optional_type()
             while type1 is None:
                 shape.append(parse_interval())
-                parser.parse_characters("x")
+                parser.parse_shape_delimiter()
                 type1 = parser.parse_optional_type()
         parser.parse_characters(">")
         return [ArrayAttr(shape), type1, type2]
@@ -391,7 +477,7 @@ class AddressOf(IRDLOperation):
     """
 
     name = "fir.address_of"
-    symbol: SymbolRefAttr = attr_def(SymbolRefAttr)
+    symbol: SymbolRefAttr = prop_def(SymbolRefAttr)
     resTy: OpResult = result_def()
     regs: VarRegion = var_region_def()
 
@@ -409,15 +495,15 @@ class Allocmem(IRDLOperation):
     """
 
     name = "fir.allocmem"
-    in_type: Attribute = attr_def(Attribute)
-    uniq_name: StringAttr | None = opt_attr_def(StringAttr)
+    in_type: Attribute = prop_def(Attribute)
+    uniq_name: StringAttr | None = opt_prop_def(StringAttr)
     typeparams: VarOperand = var_operand_def()
     shape: VarOperand = var_operand_def()
 
     result_0: OpResult = result_def()
     regs: VarRegion = var_region_def()
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
 @irdl_op_definition
@@ -482,16 +568,16 @@ class Alloca(IRDLOperation):
     """
 
     name = "fir.alloca"
-    in_type: Attribute = attr_def(Attribute)
-    uniq_name: StringAttr | None = opt_attr_def(StringAttr)
-    bindc_name: StringAttr | None = opt_attr_def(StringAttr)
+    in_type: Attribute = prop_def(Attribute)
+    uniq_name: StringAttr | None = opt_prop_def(StringAttr)
+    bindc_name: StringAttr | None = opt_prop_def(StringAttr)
     typeparams: VarOperand = var_operand_def()
     shape: VarOperand = var_operand_def()
     result_0: OpResult = result_def()
     regs: VarRegion = var_region_def()
-    valuebyref: UnitAttr | None = opt_attr_def(UnitAttr)
+    valuebyref: UnitAttr | None = opt_prop_def(UnitAttr)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
 @irdl_op_definition
@@ -977,7 +1063,7 @@ class Call(IRDLOperation):
     """
 
     name = "fir.call"
-    callee: Attribute = attr_def(Attribute)
+    callee: Attribute = prop_def(Attribute)
     result_0: OptOpResult = opt_result_def()
     args: VarOperand = var_operand_def()
     regs: VarRegion = var_region_def()
@@ -1079,11 +1165,56 @@ class CoordinateOf(IRDLOperation):
     """
 
     name = "fir.coordinate_of"
-    baseType: Attribute = attr_def(Attribute)
+    baseType: Attribute = prop_def(Attribute)
     ref: Operand = operand_def()
     coor: VarOperand = var_operand_def()
     result_0: OpResult = result_def()
     regs: VarRegion = var_region_def()
+
+
+@irdl_op_definition
+class Declare(IRDLOperation):
+    """
+    Tie the properties of a Fortran variable to an address. The properties
+    include bounds, length parameters, and Fortran attributes.
+
+    The memref argument describes the storage of the variable. It may be a
+    raw address (fir.ref<T>), or a box or class value or address (fir.box<T>,
+    fir.ref<fir.box<T>>, fir.class<T>, fir.ref<fir.class<T>>).
+
+    The shape argument encodes explicit extents and lower bounds. It must be
+    provided if the memref is the raw address of an array.
+    The shape argument must not be provided if memref operand is a box or
+    class value or address, unless the shape is a shift (encodes lower bounds)
+    and the memref if a box value (this covers assumed shapes with local lower
+    bounds).
+
+    The typeparams values are meant to carry the non-deferred length parameters
+    (this includes both Fortran assumed and explicit length parameters).
+    It must always be provided for characters and parametrized derived types
+    when memref is not a box value or address.
+
+    Example:
+
+    CHARACTER(n), OPTIONAL, TARGET :: c(10:, 20:)
+
+    Can be represented as:
+    func.func @foo(%arg0: !fir.box<!fir.array<?x?x!fir.char<1,?>>>, %arg1: !fir.ref<i64>) {
+      %c10 = arith.constant 10 : index
+      %c20 = arith.constant 20 : index
+      %1 = fir.load %ag1 : fir.ref<i64>
+      %2 = fir.shift %c10, %c20 : (index, index) -> !fir.shift<2>
+      %3 = fir.declare %arg0(%2) typeparams %1 {fortran_attrs = #fir.var_attrs<optional, target>, uniq_name = "c"}
+      // ... uses %3 as "c"
+    }
+    """
+
+    name = "fir.declare"
+    memref: Operand = operand_def()
+    shape: Operand = operand_def()
+    typeparams: VarOperand = var_operand_def()
+    uniq_name: StringAttr = prop_def(StringAttr)
+    fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
 
 
 @irdl_op_definition
@@ -1118,7 +1249,7 @@ class Dispatch(IRDLOperation):
     """
 
     name = "fir.dispatch"
-    pass_arg_pos: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    pass_arg_pos: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
     object: Operand = operand_def()
     args: Operand = operand_def()
     result_0: OpResult = result_def()
@@ -1143,7 +1274,7 @@ class DispatchTable(IRDLOperation):
 
     name = "fir.dispatch_table"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = prop_def(StringAttr)
     regs: VarRegion = var_region_def()
 
     traits = frozenset([SymbolOpInterface()])
@@ -1182,7 +1313,7 @@ class DoLoop(IRDLOperation):
     lowerBound: Operand = operand_def()
     upperBound: Operand = operand_def()
     step: Operand = operand_def()
-    finalValue: Attribute | None = opt_attr_def(Attribute)
+    finalValue: Attribute | None = opt_prop_def(Attribute)
     initArgs: Operand = operand_def()
     _results: VarOpResult = var_result_def()
     regs: VarRegion = var_region_def()
@@ -1245,7 +1376,7 @@ class Embox(IRDLOperation):
     result_0: OpResult = result_def()
     regs: VarRegion = var_region_def()
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
 @irdl_op_definition
@@ -1408,15 +1539,11 @@ class Global(IRDLOperation):
 
     name = "fir.global"
     regs: VarRegion = var_region_def()
-    sym_name: StringAttr = attr_def(StringAttr)
-    symref: SymbolRefAttr = attr_def(SymbolRefAttr)
-    type: (
-        IntegerType | AnyFloat | SequenceType | BoxType | CharacterType | ReferenceType
-    ) = attr_def(
-        IntegerType | AnyFloat | SequenceType | BoxType | CharacterType | ReferenceType
-    )
-    linkName: StringAttr | None = opt_attr_def(StringAttr)
-    constant: UnitAttr | None = opt_attr_def(UnitAttr)
+    sym_name: StringAttr = prop_def(StringAttr)
+    symref: SymbolRefAttr = prop_def(SymbolRefAttr)
+    type: Attribute = prop_def(Attribute)
+    linkName: StringAttr | None = opt_prop_def(StringAttr)
+    constant: UnitAttr | None = opt_prop_def(UnitAttr)
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -1441,6 +1568,8 @@ class HasValue(IRDLOperation):
     name = "fir.has_value"
     resval: Operand = operand_def()
     regs: VarRegion = var_region_def()
+
+    traits = frozenset([IsTerminator()])
 
 
 @irdl_op_definition
@@ -1698,6 +1827,8 @@ class Result(IRDLOperation):
     name = "fir.result"
     regs: VarRegion = var_region_def()
     _results: OptOperand = opt_operand_def()
+
+    traits = frozenset([IsTerminator()])
 
 
 @irdl_op_definition
@@ -1957,8 +2088,8 @@ class StringLit(IRDLOperation):
     """
 
     name = "fir.string_lit"
-    size: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    value: StringAttr = attr_def(StringAttr)
+    size: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
+    value: StringAttr = prop_def(StringAttr)
     result_0: OpResult = result_def()
 
 
@@ -2134,6 +2265,7 @@ FIR = Dialect(
         ZeroBits,
     ],
     [
+        FortranVariableFlagsAttr,
         ReferenceType,
         DeferredAttr,
         LLVMPointerType,
