@@ -506,8 +506,9 @@ async def test_argument_pass_screen():
 
         assert distribute_stencil_node is not None
 
+        # Ideally, we would like to trigger the event like this:
+        # `app.passes_tree.select_node(distribute_stencil_node)`
         # When running in a test, node selection does not send the expected event
-        # app.passes_tree.select_node(distribute_stencil_node)
         # For now, trigger the expected method directly
         app.update_pass_pipeline(Tree.NodeSelected(distribute_stencil_node))
         await pilot.pause()
