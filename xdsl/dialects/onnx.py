@@ -976,7 +976,7 @@ class Transpose(IRDLOperation):
 
             for _, int_attr in enumerate(self.perm.data):
                 attr_value = int_attr.value.data
-                count = self.perm.data.count(attr_value)
+                count = self.perm.data.count(int_attr)
                 if count != 1:
                     raise VerifyException(
                         f"permutation can not contain more than one occurrence of the same dimension: dimension #{attr_value} appears {count} times."
