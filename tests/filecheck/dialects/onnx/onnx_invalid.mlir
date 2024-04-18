@@ -513,10 +513,17 @@ builtin.module {
 
 // -----
 
-
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2xf32>)
 
   // CHECK: Operation does not verify: result shape [2, 2] does not match result type [2, 3]
   %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2xf32>) -> tensor<2x3xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<3x4xf32>)
+  // CHECK: Operation does not verify: permutation can not contain more than one occurrence of the same dimension: dimension #1 appears 2 times.
+  %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 1 : i64]}: (tensor<3x4xf32>) -> tensor<4x3xf32>
 }
