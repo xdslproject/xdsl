@@ -986,6 +986,7 @@ class Transpose(IRDLOperation):
         if self.perm is not None:
             perm_size = len(self.perm.data)
             for int_index, int_attr in enumerate(self.perm.data):
+                int_index = int_index + 0
                 int_attr_val = int_attr.value.data
                 if int_attr_val < 0 or int_attr_val >= perm_size:
                     raise VerifyException(
