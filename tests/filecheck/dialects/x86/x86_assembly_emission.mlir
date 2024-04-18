@@ -2,6 +2,7 @@
 
 %0 = x86.get_register : () -> !x86.reg<rax>
 %1 = x86.get_register : () -> !x86.reg<rdx>
+%rsp = x86.get_register : () -> !x86.reg<rsp>
 
 %add = x86.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: add rax, rdx
@@ -19,5 +20,5 @@
 // CHECK: mov rax, rdx
 x86.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: push rax
-%pop = x86.pop : () -> (!x86.reg<rax>)
+%pop, %poprsp = x86.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<rax>, !x86.reg<rsp>)
 // CHECK: pop rax
