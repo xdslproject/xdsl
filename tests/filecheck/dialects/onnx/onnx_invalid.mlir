@@ -543,3 +543,11 @@ builtin.module {
   // CHECK: Operation does not verify: permutation and inputs dimensions must have the same size: #dimensions input is 3, #dimension perimutation is 2
   %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64]}: (tensor<1x3x4xf32>) -> tensor<3x1x4xf32>
 }
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<3x4xf32>)
+  // CHECK: Operation does not verify: incorrect output shape: output dimension #0 should be equal to 4
+  %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64]}: (tensor<3x4xf32>) -> tensor<3x3xf32>
+}
