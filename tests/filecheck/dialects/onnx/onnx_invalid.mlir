@@ -527,3 +527,19 @@ builtin.module {
   // CHECK: Operation does not verify: permutation can not contain more than one occurrence of the same dimension: dimension #1 appears 2 times.
   %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 1 : i64]}: (tensor<3x4xf32>) -> tensor<4x3xf32>
 }
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<3x4xf32>)
+  // CHECK: Operation does not verify: permutation can only contain values between 0 and 2-1: dimension #1 value is 2
+  %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 2 : i64]}: (tensor<3x4xf32>) -> tensor<4x3xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<1x3x4xf32>)
+  // CHECK: Operation does not verify: permutation and inputs dimensions must have the same size: #dimensions input is 3, #dimension perimutation is 2
+  %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64]}: (tensor<1x3x4xf32>) -> tensor<3x1x4xf32>
+}
