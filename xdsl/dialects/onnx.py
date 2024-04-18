@@ -898,24 +898,24 @@ class Transpose(IRDLOperation):
 
         tensor_input_shape = tensor_input_type.get_shape()
         tensor_output_shape = tensor_output_type.get_shape()
-        print(tensor_output_shape)
 
         # numbers in perm cannot be repeated
         if self.perm is not None:
 
             for _, int_attr in enumerate(self.perm.data):
-                count = self.perm.data.count(int_attr.value)
+                attr_value = int_attr.value.data
+                count = self.perm.data.count(attr_value)
                 if count != 1:
                     raise VerifyException(
-                        "permutation can not contain more than one occurrence of the same dimension"
+                        "permutation can not contain more than one occurrence of the same dimension: "
                     )
 
         # numbers in perm must be between 0 and len(tensor_input_shape)-1
         if self.perm is not None:
             perm_size = len(self.perm.data)
             for _, int_attr in enumerate(self.perm.data):
-                int_attr = int_attr.value.data
-                if int_attr < 0 or int_attr >= perm_size:
+                int_attr_val = int_attr.value.data
+                if int_attr_val < 0 or int_attr_val >= perm_size:
                     raise VerifyException(
                         "permutation can only contain values between 0 and perm_size-1"
                     )
@@ -930,6 +930,13 @@ class Transpose(IRDLOperation):
                 )
 
         # check output shape
+        if self.perm is not None:
+            for index_attr, int_attr in enumerate(self.perm.data):
+                int_attr_val = int_attr.value.data
+                if tensor_output_shape[index_attr] != tensor_input_shape[int_attr_val]:
+                    raise VerifyException(
+                        "incorrect output shape: output dimension #{index_attr} should be equal to {tensor_input_shape[int_attr_val]}"
+                    )
 
 
 ONNX = Dialect(
