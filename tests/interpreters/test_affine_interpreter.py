@@ -8,6 +8,7 @@ from xdsl.interpreters.affine import AffineFunctions
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir.affine import AffineMap
 from xdsl.utils.test_value import TestSSAValue
@@ -81,8 +82,12 @@ def test_functions():
     res = interpreter.call_op("my_func", ())
 
     assert res == (
-        ShapedArray(data=[0, 1, 2, 1, 2, 3], shape=[2, 3]),
-        ShapedArray(data=[0, 1, 1, 2, 2, 3], shape=[3, 2]),
+        ShapedArray(
+            TypedPtr.new_index([0, 1, 2, 1, 2, 3], interpreter.index_bitwidth), [2, 3]
+        ),
+        ShapedArray(
+            TypedPtr.new_index([0, 1, 1, 2, 2, 3], interpreter.index_bitwidth), [3, 2]
+        ),
     )
 
 

@@ -312,10 +312,10 @@ class Signedness(Enum):
         """
         match self:
             case Signedness.SIGNLESS:
-                min_value = -(1 << (bitwidth - 1))
+                min_value = -((1 << bitwidth) >> 1)
                 max_value = 1 << bitwidth
             case Signedness.SIGNED:
-                min_value = -(1 << (bitwidth - 1))
+                min_value = -((1 << bitwidth) >> 1)
                 max_value = 1 << (bitwidth - 1)
             case Signedness.UNSIGNED:
                 min_value = 0

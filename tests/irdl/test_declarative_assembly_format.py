@@ -8,7 +8,7 @@ from typing import Annotated, Generic, TypeVar
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.test import Test
+from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
     MLContext,
@@ -32,6 +32,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
@@ -383,6 +384,68 @@ def test_prop_name(program: str, generic_program: str):
 
     check_equivalence(program, generic_program, ctx)
     check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.optional_property",
+            '"test.optional_property"() : () -> ()',
+        ),
+        (
+            "test.optional_property prop i32",
+            '"test.optional_property"() <{"prop" = i32}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_property(program: str, generic_program: str):
+    """Test the parsing of optional operands"""
+
+    @irdl_op_definition
+    class OptionalPropertyOp(IRDLOperation):
+        name = "test.optional_property"
+        prop = opt_prop_def(Attribute)
+
+        assembly_format = "(`prop` $prop^)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalPropertyOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.optional_attribute",
+            '"test.optional_attribute"() : () -> ()',
+        ),
+        (
+            "test.optional_attribute attr i32",
+            '"test.optional_attribute"() {"attr" = i32} : () -> ()',
+        ),
+    ],
+)
+def test_optional_attribute(program: str, generic_program: str):
+    """Test the parsing of optional operands"""
+
+    @irdl_op_definition
+    class OptionalAttributeOp(IRDLOperation):
+        name = "test.optional_attribute"
+        attr = opt_attr_def(Attribute)
+
+        assembly_format = "(`attr` $attr^)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalAttributeOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
 
 
 ################################################################################
@@ -1318,3 +1381,40 @@ def test_optional_group_checkers(format: str, error: str):
             mandatory_arg = operand_def()
 
             assembly_format = format
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0()",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0) : (!test.type<"index">) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0, %0) : (!test.type<"index">, !test.type<"index">) -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> !test.type<"index">\n' "test.mixed %0(%0, %0)",
+            '%0 = "test.op"() : () -> !test.type<"index">\n'
+            '"test.mixed"(%0, %0, %0) : (!test.type<"index">, !test.type<"index">, !test.type<"index">) -> ()',
+        ),
+    ],
+)
+def test_variadic_and_single_mixed(program: str, generic_program: str):
+    @irdl_op_definition
+    class MixedOp(IRDLOperation):
+        name = "test.mixed"
+        var = var_operand_def(TestType("index"))
+        sin = operand_def(TestType("index"))
+
+        assembly_format = "$sin `(` $var `)` attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(MixedOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)

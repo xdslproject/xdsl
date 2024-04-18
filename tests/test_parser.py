@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    LocationAttr,
     StringAttr,
     SymbolRefAttr,
     i32,
@@ -846,3 +847,9 @@ def test_properties_retrocompatibility():
         VerifyException, match="Operation does not verify: property second expected"
     ):
         wrong_op.verify()
+
+
+def test_parse_location():
+    ctx = MLContext()
+    attr = Parser(ctx, "loc(unknown)").parse_optional_location()
+    assert attr == LocationAttr()

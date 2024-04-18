@@ -1,5 +1,7 @@
+import re
 from collections.abc import Sequence
 
+import pytest
 from conftest import assert_print_op
 
 from xdsl.dialects import test
@@ -39,6 +41,7 @@ def rewrite_and_compare(
     op_modified: int = 0,
     op_replaced: int = 0,
     block_created: int = 0,
+    expect_rewrite: bool = True,
 ):
     ctx = MLContext(allow_unregistered=True)
     ctx.load_dialect(Builtin)
@@ -82,7 +85,7 @@ def rewrite_and_compare(
     module = parser.parse_module()
 
     walker.listener = listener
-    walker.rewrite_module(module)
+    did_rewrite = walker.rewrite_module(module)
 
     assert_print_op(module, expected_prog, None)
 
@@ -91,6 +94,7 @@ def rewrite_and_compare(
     assert num_op_modified == op_modified
     assert num_op_replaced == op_replaced
     assert num_block_created == block_created
+    assert did_rewrite == expect_rewrite
 
 
 def test_non_recursive_rewrite():
@@ -573,11 +577,11 @@ def test_operation_deletion_failure():
     walker = PatternRewriteWalker(Rewrite())
 
     # Check that the rewrite fails
-    try:
+    with pytest.raises(
+        Exception,
+        match="Attempting to delete SSA value that still has uses of result of operation",
+    ):
         walker.rewrite_module(module)
-        assert False
-    except Exception:
-        pass
 
 
 def test_delete_inner_op():
@@ -1341,6 +1345,38 @@ def test_inline_region_at_end():
     )
 
 
+def test_erased_ssavalue():
+    prog = """\
+builtin.module {
+  "test.op"() ({
+    %0 = "test.op"() : () -> i32
+    "test.op"(%0) : (i32) -> ()
+  }) : () -> ()
+}
+  """
+
+    expected = """\
+"builtin.module"() ({
+  "test.op"() ({
+  ^0:
+  }) : () -> ()
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.results or op.operands:
+                rewriter.erase_matched_op(safe_erase=False)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_removed=2,
+    )
+
+
 def test_type_conversion():
     """Test rewriter on ops without results"""
     prog = """\
@@ -1497,3 +1533,147 @@ def test_type_conversion():
         op_replaced=4,
         op_modified=4,
     )
+
+    class RewriteMaybe(TypeConversionPattern):
+        @attr_type_rewrite_pattern
+        def convert_type(self, typ: IntegerType) -> IndexType | None:
+            return IndexType() if typ.width.data >= 8 else None
+
+    prog = """\
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : i6):
+  }) : () -> ()
+  %0 = "test.op"() {"nested" = memref<*xi4>} : () -> i6
+  %1 = "test.op"() {"type" = () -> memref<*xi32>} : () -> f32
+  %2 = "test.op"() <{"prop" = memref<*xi4>}> : () -> i32
+  %3 = "test.op"(%0, %1) : (i6, f32) -> memref<*xi32>
+  %4 = "arith.addi"(%0, %0) : (i6, i6) -> i6
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  "func.func"() ({
+  ^0(%arg : i6):
+  }) : () -> ()
+  %0 = "test.op"() {"nested" = memref<*xi4>} : () -> i6
+  %1 = "test.op"() {"type" = () -> memref<*xindex>} : () -> f32
+  %2 = "test.op"() <{"prop" = memref<*xi4>}> : () -> index
+  %3 = "test.op"(%0, %1) : (i6, f32) -> memref<*xindex>
+  %4 = "arith.addi"(%0, %0) : (i6, i6) -> i6
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(RewriteMaybe(recursive=True), apply_recursively=True),
+        op_inserted=3,
+        op_removed=3,
+        op_replaced=3,
+        op_modified=1,
+    )
+
+    prog = """\
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = i32}} : () -> ()
+}) : () -> ()
+"""
+
+    expected_recursive = """
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = index}} : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(recursive=False)),
+        expect_rewrite=False,
+    )
+
+    rewrite_and_compare(
+        prog,
+        expected_recursive,
+        PatternRewriteWalker(Rewrite(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+    )
+
+
+def test_no_change():
+    """Test that doing nothing successfully does not report doing something."""
+
+    prog = """\
+"builtin.module"() ({
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
+            return
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        expect_rewrite=False,
+    )
+
+
+def test_error():
+
+    prog = """\
+builtin.module {
+  "test.op"() {"erroneous" = false} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {"erroneous" = true} : () -> ()
+  "test.op"() : () -> ()
+}
+"""
+    expected = """\
+Error while applying pattern: Expected operation to not be erroneous!
+
+"builtin.module"() ({
+  "test.op"() {"erroneous" = false} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {"erroneous" = true} : () -> ()
+  ^^^^^^^^^--------------------------------------------------------------
+  | Error while applying pattern: Expected operation to not be erroneous!
+  -----------------------------------------------------------------------
+  "test.op"() : () -> ()
+}) : () -> ()
+
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
+            if matched_op.attributes.get(
+                "erroneous", IntegerAttr.from_int_and_width(0, 1)
+            ) == IntegerAttr.from_int_and_width(1, 1):
+                raise ValueError("Expected operation to not be erroneous!")
+            return
+
+    ctx = MLContext(allow_unregistered=True)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(test.Test)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_module()
+
+    walker = PatternRewriteWalker(Rewrite())
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        walker.rewrite_module(module)

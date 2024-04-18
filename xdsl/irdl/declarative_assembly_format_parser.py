@@ -15,8 +15,10 @@ from xdsl.ir import Attribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     OpDef,
+    OptAttributeDef,
     OptionalDef,
     OptOperandDef,
+    OptPropertyDef,
     OptResultDef,
     ParsePropInAttrDict,
     VariadicDef,
@@ -33,6 +35,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandOrResult,
     OperandTypeDirective,
     OperandVariable,
+    OptionalAttributeVariable,
     OptionalGroupDirective,
     OptionallyParsableDirective,
     OptionalOperandTypeDirective,
@@ -357,7 +360,18 @@ class FormatParser(BaseParser):
                         )
                     self.seen_attributes.add(attr_name)
 
-            return AttributeVariable(variable_name, attr_or_prop == "property")
+            attr_def = (
+                self.op_def.properties.get(attr_name)
+                if attr_or_prop == "property"
+                else self.op_def.attributes.get(attr_name)
+            )
+            match attr_def:
+                case OptAttributeDef() | OptPropertyDef():
+                    return OptionalAttributeVariable(
+                        variable_name, attr_or_prop == "property"
+                    )
+                case _:
+                    return AttributeVariable(variable_name, attr_or_prop == "property")
 
         self.raise_error(
             "expected variable to refer to an operand, "

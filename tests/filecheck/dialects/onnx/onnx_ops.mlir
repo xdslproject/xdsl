@@ -13,6 +13,7 @@
 %t20,%t21,%t22 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
 %t23,%t24,%t25 = "test.op"(): () ->  (tensor<1x1x7x5xf32>, tensor<1x1x3x3xf32>, none)
 %t26 = "test.op"(): () ->  (tensor<5x5x32x32xf32>)
+%t27, %t28, %t29 = "test.op"(): () -> (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>)
 
 %res_add = "onnx.Add"(%t0, %t1) {onnx_node_name = "/Add"} : (tensor<1x2x6xf32>, tensor<1x2x6xf32>) -> tensor<1x2x6xf32>
 // CHECK: %res_add = onnx.Add(%t0, %t1) {"onnx_node_name" = "/Add"} : (tensor<1x2x6xf32>, tensor<1x2x6xf32>) -> tensor<1x2x6xf32>
@@ -74,8 +75,10 @@
 %res_constant_2 = onnx.Constant dense<[5, 5, 16, 2]> : tensor<4xi64>
 //CHECK: %res_constant_2 = onnx.Constant dense<[5, 5, 16, 2]> : tensor<4xi64>
 
+%res_gemm_3 = "onnx.Gemm"(%t27, %t28, %t29) {onnx_node_name = "/Gemm", "alpha" = 1.000000e+00 : f32, "beta" = 1.000000e+00 : f32, "transA" = 0 : si64, "transB" = 1 : si64}: (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>) -> tensor<1x50xf32>
+// CHECK:  %res_gemm_3 = onnx.Gemm(%t27, %t28, %t29) {"onnx_node_name" = "/Gemm", "alpha" = 1.000000e+00 : f32, "beta" = 1.000000e+00 : f32, "transA" = 0 : si64, "transB" = 1 : si64} : (tensor<1x320xf32>, tensor<50x320xf32>, tensor<50xf32>) -> tensor<1x50xf32>
 
-
-
+%res_matmul = "onnx.MatMul"(%t9, %t10) {onnx_node_name = "/MatMul"}: (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>
+// CHECK: %res_matmul = onnx.MatMul(%t9, %t10) {"onnx_node_name" = "/MatMul"} : (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>
 
 

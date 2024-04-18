@@ -731,6 +731,22 @@ class ThreadIdOp(IRDLOperation):
 
 
 @irdl_op_definition
+class WaitOp(IRDLOperation):
+    name = "gpu.wait"
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
+
+    def __init__(
+        self,
+        async_dependencies: Sequence[SSAValue | Operation] | None = None,
+    ):
+        super().__init__(
+            operands=[async_dependencies],
+            result_types=[[AsyncTokenType()]],
+        )
+
+
+@irdl_op_definition
 class YieldOp(IRDLOperation):
     name = "gpu.yield"
     values: VarOperand = var_operand_def(Attribute)
@@ -779,9 +795,11 @@ GPU = Dialect(
         SubgroupSizeOp,
         TerminatorOp,
         ThreadIdOp,
+        WaitOp,
         YieldOp,
     ],
     [
+        AsyncTokenType,
         AllReduceOpAttr,
         DimensionAttr,
         ProcessorAttr,

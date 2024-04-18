@@ -7,6 +7,7 @@ from typing import Annotated, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    Any,
     AnyFloat,
     AnyIntegerAttr,
     AnyTensorType,
@@ -302,11 +303,11 @@ class Gemm(IRDLOperation):
         if tensor_b_type.get_num_dims() != 2:
             raise VerifyException("tensor B should be a 2D tensor")
 
-        if self.trans_a is not None:
-            list(tensor_a_shape).reverse()
+        if self.trans_a is not None and self.trans_a.value.data == 1:
+            tensor_a_shape = tuple(reversed(tensor_a_shape))
 
-        if self.trans_b is not None:
-            list(tensor_b_shape).reverse()
+        if self.trans_b is not None and self.trans_b.value.data == 1:
+            tensor_b_shape = tuple(reversed(tensor_b_shape))
 
         if self.beta is not None:
             c_dims = tensor_c_type.get_num_dims()
@@ -322,7 +323,7 @@ class Gemm(IRDLOperation):
             res_shape.append(tensor_b_shape[1])
 
         # Build tensor of tensor (A * B) computation
-        tensors_res = TensorType(IntegerType(32), res_shape)
+        tensors_res = TensorType(tensor_a_type.element_type, res_shape)
         verify_unidirectional_broadcast_shape(
             tensors_res, tensor_c_type, res_tensor_type
         )
@@ -860,6 +861,77 @@ class EntryPoint(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class MatMul(IRDLOperation):
+    """
+    The operation MatMul performs matrix multiplication between two input matrices, A and B, and returns the result as matrix Y.
+    Matrix multiplication is a fundamental operation in linear algebra, where each element of the resulting matrix Y is computed by taking the
+    dot product of the corresponding row of matrix A and column of matrix B.
+    """
+
+    name = "onnx.MatMul"
+
+    # describe annotated type
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+
+    # input matrices
+    matrix_A = operand_def(TensorType[T])
+    matrix_B = operand_def(TensorType[T])
+
+    # output matrices
+    matrix_Y = result_def(TensorType[T])
+
+    assembly_format = (
+        "`(` $matrix_A `,` $matrix_B `)` attr-dict `:` `(` type($matrix_A) `,"
+        "` type($matrix_B) `)` `->` type($matrix_Y) "
+    )
+
+    def __init__(
+        self,
+        matrix_A: SSAValue,
+        matrix_B: SSAValue,
+        matrix_Y_type: Attribute,
+    ):
+        super().__init__(
+            operands=[matrix_A, matrix_B],
+            result_types=[matrix_Y_type],
+        )
+
+    def verify_(self) -> None:
+        # store dimensions of tensor A and tensor B
+        res_shape: list[int] = []
+        matrix_A_type = cast(TensorType[Any], self.matrix_A.type)
+        matrix_B_type = cast(TensorType[Any], self.matrix_B.type)
+        matrix_Y_type = cast(TensorType[Any], self.matrix_Y.type)
+
+        # check shape compatibility
+        matrix_A_shape = matrix_A_type.get_shape()
+        matrix_B_shape = matrix_B_type.get_shape()
+
+        if matrix_A_type.get_num_dims() != 2:
+            raise VerifyException("input matrix A should be a 2D tensor")
+
+        if matrix_B_type.get_num_dims() != 2:
+            raise VerifyException("input matrix B should be a 2D tensor")
+
+        if matrix_A_shape[1] != matrix_B_shape[0]:
+            raise VerifyException(
+                f"operands have incompatible shapes: {matrix_A_shape} and {matrix_B_shape}"
+            )
+        else:
+            res_shape.append(matrix_A_shape[0])
+            res_shape.append(matrix_B_shape[1])
+
+        matrix_Y_type_shape = list(matrix_Y_type.get_shape())
+        if (
+            len(res_shape) != len(matrix_Y_type_shape)
+            or res_shape != matrix_Y_type_shape
+        ):
+            raise VerifyException(
+                f"result shape {res_shape} does not match result type {matrix_Y_type_shape}"
+            )
+
+
 ONNX = Dialect(
     "onnx",
     [
@@ -870,6 +942,7 @@ ONNX = Dialect(
         Div,
         EntryPoint,
         Gemm,
+        MatMul,
         MaxPoolSingleOut,
         Mul,
         Relu,
