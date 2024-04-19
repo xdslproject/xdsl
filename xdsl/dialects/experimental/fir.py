@@ -1,3 +1,14 @@
+"""
+The Fortran IR (FIR) dialect that is used by Flang.
+
+This is used in two ways, firstly it is mixed with HLFIR, and this
+FIR+HLFIR is the first MLIR representation of a Fortran code in the
+compilation pipeline. Secondly, the HLFIR+FIR is then lowered to FIR
+only, before this is then lowered to LLVM IR.
+
+For more details see https://flang.llvm.org/docs/FortranIR.html
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
