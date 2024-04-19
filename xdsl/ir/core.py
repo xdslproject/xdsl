@@ -15,6 +15,7 @@ from typing import (
     Protocol,
     TypeVar,
     cast,
+    final,
     get_args,
     get_origin,
     overload,
@@ -22,6 +23,7 @@ from typing import (
 
 from typing_extensions import Self
 
+from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
 from xdsl.utils.deprecation import deprecated
@@ -32,7 +34,6 @@ from xdsl.utils.str_enum import StrEnum
 if TYPE_CHECKING:
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
-    from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
 
@@ -72,6 +73,9 @@ class MLContext:
     _loaded_dialects: dict[str, Dialect] = field(default_factory=dict)
     _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict)
     _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict)
+    _loaded_builtin_syntax_attrs: dict[str, type[BuiltinSyntaxAttribute]] = field(
+        default_factory=dict
+    )
     _registered_dialects: dict[str, Callable[[], Dialect]] = field(default_factory=dict)
     """
     A dictionary of all registered dialects that are not yet loaded. This is used to
@@ -84,6 +88,7 @@ class MLContext:
             self._loaded_dialects.copy(),
             self._loaded_ops.copy(),
             self._loaded_attrs.copy(),
+            self._loaded_builtin_syntax_attrs.copy(),
             self._registered_dialects.copy(),
         )
 
@@ -100,6 +105,15 @@ class MLContext:
         Returns all the loaded attributes. Not valid across mutations of this object.
         """
         return self._loaded_attrs.values()
+
+    @property
+    def loaded_builtin_syntax_attrs(
+        self,
+    ) -> Iterable[type[BuiltinSyntaxAttribute]]:
+        """
+        Returns all the loaded attributes. Not valid across mutations of this object.
+        """
+        return self._loaded_builtin_syntax_attrs.values()
 
     @property
     def loaded_dialects(self) -> Iterable[Dialect]:
@@ -164,6 +178,8 @@ class MLContext:
         if attr.name in self._loaded_attrs:
             raise Exception(f"Attribute {attr.name} has already been loaded")
         self._loaded_attrs[attr.name] = attr
+        if issubclass(attr, BuiltinSyntaxAttribute):
+            self._loaded_builtin_syntax_attrs[attr.name] = attr
 
     def get_optional_op(self, name: str) -> type[Operation] | None:
         """
@@ -507,6 +523,42 @@ AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
 
 
+class BuiltinSyntaxAttribute(Attribute, ABC):
+    """
+    This class is used for Attributes having builtin syntax. They will be specially
+    handled by the parser instead of generically.
+    as described at https://mlir.llvm.org/docs/LangRef.
+    """
+
+    @classmethod
+    @abstractmethod
+    def parse_optional(cls, parser: AttrParser) -> Self | None: ...
+
+    @classmethod
+    @final
+    def parse(cls, parser: AttrParser) -> Self:
+        if result := cls.parse_optional(parser):
+            return result
+        parser.raise_error(f"Expected {cls.name}.")
+
+    @abstractmethod
+    def print(self, printer: Printer) -> None: ...
+
+
+class BuiltinSyntaxTrivialType(BuiltinSyntaxAttribute):
+    """
+    Helper for builtin types with no parameters and simply identified by their names.
+    """
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        if parser.parse_optional_keyword(cls.name) is not None:
+            return cls()
+
+    def print(self, printer: Printer) -> None:
+        return printer.print(self.name)
+
+
 @dataclass(frozen=True)
 class Data(Generic[DataElement], Attribute, ABC):
     """An attribute represented by a Python structure."""
@@ -541,6 +593,24 @@ class Data(Generic[DataElement], Attribute, ABC):
     @abstractmethod
     def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
+
+
+class BuiltinSyntaxData(BuiltinSyntaxAttribute, Data[DataElement]):
+    """
+    Builtin syntax helper when the only custom bit is eliding the name prefix.
+    """
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser) -> Self | None:
+        if parser.parse_optional_keyword(cls.name) is None:
+            return
+        with parser.in_angle_brackets():
+            return cls.new(cls.parse_parameter(parser))
+
+    def print(self, printer: Printer) -> None:
+        printer.print(self.name)
+        with printer.in_angle_brackets():
+            self.print_parameter(printer)
 
 
 EnumType = TypeVar("EnumType", bound=StrEnum)
@@ -664,6 +734,24 @@ class ParametrizedAttribute(Attribute):
         attr_def = t.get_irdl_definition()
         attr_def.verify(self)
         super()._verify()
+
+
+class BuiltinSyntaxParametrizedAttribute(ParametrizedAttribute, BuiltinSyntaxAttribute):
+    """
+    Builtin syntax helper when the only custom bit is eliding the name prefix.
+    """
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser) -> Self | None:
+        if parser.parse_optional_keyword(cls.name) is None:
+            return
+        with parser.in_angle_brackets():
+            return cls.new(cls.parse_parameters(parser))
+
+    def print(self, printer: Printer) -> None:
+        printer.print(self.name)
+        with printer.in_angle_brackets():
+            self.print_parameters(printer)
 
 
 @dataclass(init=False)

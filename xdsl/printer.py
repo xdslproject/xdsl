@@ -5,57 +5,18 @@ from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    AffineSetAttr,
-    AnyFloatAttr,
-    AnyIntegerAttr,
-    AnyUnrankedMemrefType,
-    AnyUnrankedTensorType,
-    AnyVectorType,
-    ArrayAttr,
-    BFloat16Type,
-    BytesAttr,
-    ComplexType,
-    DenseArrayBase,
-    DenseIntOrFPElementsAttr,
-    DenseResourceAttr,
-    DictionaryAttr,
-    Float16Type,
-    Float32Type,
-    Float64Type,
-    Float80Type,
-    Float128Type,
-    FloatAttr,
-    FloatData,
     FunctionType,
-    IndexType,
-    IntAttr,
-    IntegerAttr,
-    IntegerType,
-    LocationAttr,
-    MemRefType,
-    NoneAttr,
-    NoneType,
-    OpaqueAttr,
-    Signedness,
-    StridedLayoutAttr,
-    StringAttr,
-    SymbolRefAttr,
-    TensorType,
     UnitAttr,
-    UnrankedMemrefType,
-    UnrankedTensorType,
-    UnregisteredAttr,
     UnregisteredOp,
-    VectorType,
 )
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
+    BuiltinSyntaxAttribute,
     Data,
     OpaqueSyntaxAttribute,
     Operation,
@@ -384,311 +345,86 @@ class Printer:
         self.print('"')
 
     def print_attribute(self, attribute: Attribute) -> None:
-        if isinstance(attribute, UnitAttr):
-            return
+        if isinstance(attribute, BuiltinSyntaxAttribute):
+            return attribute.print(self)
 
-        if isinstance(attribute, LocationAttr):
-            self.print("loc(unknown)")
-            return
+        # if isinstance(attribute, TensorType):
+        #     attribute = cast(AnyVectorType, attribute)
+        #     self.print("tensor<")
+        #     self.print_list(
+        #         attribute.shape.data,
+        #         lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
+        #         "x",
+        #     )
+        #     if len(attribute.shape.data) != 0:
+        #         self.print("x")
+        #     self.print(attribute.element_type)
+        #     if isinstance(attribute, TensorType) and attribute.encoding != NoneAttr():
+        #         self.print(", ")
+        #         self.print(attribute.encoding)
+        #     self.print(">")
+        #     return
 
-        if isinstance(attribute, IntegerType):
-            if attribute.signedness.data == Signedness.SIGNLESS:
-                self.print("i")
-            elif attribute.signedness.data == Signedness.SIGNED:
-                self.print("si")
-            elif attribute.signedness.data == Signedness.UNSIGNED:
-                self.print("ui")
-            self.print(attribute.width.data)
-            return
+        # if isinstance(attribute, VectorType):
+        #     attribute = cast(AnyVectorType, attribute)
+        #     shape = attribute.get_shape()
 
-        if isinstance(attribute, BFloat16Type):
-            self.print("bf16")
-            return
-        if isinstance(attribute, Float16Type):
-            self.print("f16")
-            return
-        if isinstance(attribute, Float32Type):
-            self.print("f32")
-            return
-        if isinstance(attribute, Float64Type):
-            self.print("f64")
-            return
-        if isinstance(attribute, Float80Type):
-            self.print("f80")
-            return
-        if isinstance(attribute, Float128Type):
-            self.print("f128")
-            return
+        #     # Separate the dimensions between the static and the scalable ones
+        #     if attribute.get_num_scalable_dims() == 0:
+        #         static_dimensions = shape
+        #         scalable_dimensions = ()
+        #     else:
+        #         static_dimensions = shape[: -attribute.get_num_scalable_dims()]
+        #         scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]
 
-        if isinstance(attribute, StringAttr):
-            self.print_string_literal(attribute.data)
-            return
+        #     self.print("vector<")
+        #     if len(static_dimensions) != 0:
+        #         self.print_list(static_dimensions, lambda x: self.print(x), "x")
+        #         self.print("x")
 
-        if isinstance(attribute, BytesAttr):
-            self.print_bytes_literal(attribute.data)
-            return
+        #     if len(scalable_dimensions) != 0:
+        #         self.print("[")
+        #         self.print_list(scalable_dimensions, lambda x: self.print(x), "x")
+        #         self.print("]")
+        #         self.print("x")
 
-        if isinstance(attribute, SymbolRefAttr):
-            self.print("@")
-            self.print_identifier_or_string_literal(attribute.root_reference.data)
-            for ref in attribute.nested_references.data:
-                self.print("::@")
-                self.print_identifier_or_string_literal(ref.data)
-            return
+        #     self.print(attribute.element_type)
+        #     self.print(">")
+        #     return
 
-        if isinstance(attribute, IntegerAttr):
-            attribute = cast(AnyIntegerAttr, attribute)
+        # if isinstance(attribute, UnrankedTensorType):
+        #     attribute = cast(AnyUnrankedTensorType, attribute)
+        #     self.print("tensor<*x")
+        #     self.print(attribute.element_type)
+        #     self.print(">")
+        #     return
 
-            # boolean shorthands
-            if (
-                isinstance((attr_type := attribute.type), IntegerType)
-                and attr_type.width.data == 1
-            ):
-                self.print("false" if attribute.value.data == 0 else "true")
-                return
+        # if isinstance(attribute, MemRefType):
+        #     attribute = cast(MemRefType[Attribute], attribute)
+        #     self.print("memref<")
+        #     if attribute.shape.data:
+        #         self.print_list(
+        #             attribute.shape.data,
+        #             lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
+        #             "x",
+        #         )
+        #         self.print("x")
+        #     self.print(attribute.element_type)
+        #     if not isinstance(attribute.layout, NoneAttr):
+        #         self.print(", ", attribute.layout)
+        #     if not isinstance(attribute.memory_space, NoneAttr):
+        #         self.print(", ", attribute.memory_space)
+        #     self.print(">")
+        #     return
 
-            width = attribute.parameters[0]
-            attr_type = attribute.parameters[1]
-            assert isinstance(width, IntAttr)
-            self.print(width.data)
-            self.print(" : ")
-            self.print_attribute(attr_type)
-            return
-
-        if isinstance(attribute, FloatAttr):
-            value = attribute.value
-            attr_type = cast(
-                FloatAttr[Float16Type | Float32Type | Float64Type], attribute
-            ).type
-            self.print(f"{value.data:.6e}")
-            self.print(" : ")
-            self.print_attribute(attr_type)
-            return
-
-        # Complex types have MLIR shorthands but XDSL does not.
-        if isinstance(attribute, ComplexType):
-            self.print("complex<", attribute.element_type, ">")
-            return
-
-        if isinstance(attribute, ArrayAttr):
-            attribute = cast(ArrayAttr[Attribute], attribute)
-            self.print_string("[")
-            self.print_list(attribute.data, self.print_attribute)
-            self.print_string("]")
-            return
-
-        if isinstance(attribute, DenseArrayBase):
-            self.print("array<", attribute.elt_type)
-            data = cast(ArrayAttr[IntAttr | FloatData], attribute.data)
-            if len(data.data) == 0:
-                self.print(">")
-                return
-            self.print(": ")
-            self.print_list(data.data, lambda x: self.print(x.data))
-            self.print(">")
-            return
-
-        if isinstance(attribute, DictionaryAttr):
-            self.print_attr_dict(attribute.data)
-            return
-
-        if isinstance(attribute, FunctionType):
-            self.print("(")
-            self.print_list(attribute.inputs.data, self.print_attribute)
-            self.print(") -> ")
-            outputs = attribute.outputs.data
-            if len(outputs) == 1 and not isinstance(outputs[0], FunctionType):
-                self.print_attribute(outputs[0])
-            else:
-                self.print("(")
-                self.print_list(outputs, self.print_attribute)
-                self.print(")")
-            return
-
-        if isinstance(attribute, DenseIntOrFPElementsAttr):
-
-            def print_one_elem(val: Attribute):
-                if isinstance(val, IntegerAttr):
-                    self.print(val.value.data)
-                elif isinstance(val, FloatAttr):
-                    self.print(f"{val.value.data:.6e}")
-                else:
-                    raise Exception(
-                        "unexpected attribute type "
-                        "in DenseIntOrFPElementsAttr: "
-                        f"{type(val)}"
-                    )
-
-            def print_dense_list(
-                array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
-                shape: Sequence[int],
-            ):
-                self.print("[")
-                if len(shape) > 1:
-                    k = len(array) // shape[0]
-                    self.print_list(
-                        (array[i : i + k] for i in range(0, len(array), k)),
-                        lambda subarray: print_dense_list(subarray, shape[1:]),
-                    )
-                else:
-                    self.print_list(array, print_one_elem)
-                self.print("]")
-
-            self.print("dense<")
-            data = attribute.data.data
-            shape = (
-                attribute.get_shape() if attribute.shape_is_complete else (len(data),)
-            )
-            assert shape is not None, "If shape is complete, then it cannot be None"
-            if len(data) == 0:
-                pass
-            elif data.count(data[0]) == len(data):
-                print_one_elem(data[0])
-            else:
-                print_dense_list(data, shape)
-            self.print("> : ")
-            self.print(attribute.type)
-            return
-
-        if isinstance(attribute, DenseResourceAttr):
-            handle = attribute.resource_handle.data
-            self.print(f"dense_resource<{handle}> : ", attribute.type)
-            return
-
-        if isinstance(attribute, TensorType):
-            attribute = cast(AnyVectorType, attribute)
-            self.print("tensor<")
-            self.print_list(
-                attribute.shape.data,
-                lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
-                "x",
-            )
-            if len(attribute.shape.data) != 0:
-                self.print("x")
-            self.print(attribute.element_type)
-            if isinstance(attribute, TensorType) and attribute.encoding != NoneAttr():
-                self.print(", ")
-                self.print(attribute.encoding)
-            self.print(">")
-            return
-
-        if isinstance(attribute, VectorType):
-            attribute = cast(AnyVectorType, attribute)
-            shape = attribute.get_shape()
-
-            # Separate the dimensions between the static and the scalable ones
-            if attribute.get_num_scalable_dims() == 0:
-                static_dimensions = shape
-                scalable_dimensions = ()
-            else:
-                static_dimensions = shape[: -attribute.get_num_scalable_dims()]
-                scalable_dimensions = shape[-attribute.get_num_scalable_dims() :]
-
-            self.print("vector<")
-            if len(static_dimensions) != 0:
-                self.print_list(static_dimensions, lambda x: self.print(x), "x")
-                self.print("x")
-
-            if len(scalable_dimensions) != 0:
-                self.print("[")
-                self.print_list(scalable_dimensions, lambda x: self.print(x), "x")
-                self.print("]")
-                self.print("x")
-
-            self.print(attribute.element_type)
-            self.print(">")
-            return
-
-        if isinstance(attribute, UnrankedTensorType):
-            attribute = cast(AnyUnrankedTensorType, attribute)
-            self.print("tensor<*x")
-            self.print(attribute.element_type)
-            self.print(">")
-            return
-
-        if isinstance(attribute, StridedLayoutAttr):
-            self.print("strided<[")
-
-            def print_int_or_question(value: IntAttr | NoneAttr) -> None:
-                self.print(value.data if isinstance(value, IntAttr) else "?")
-
-            self.print_list(attribute.strides.data, print_int_or_question, ", ")
-            self.print("]")
-            if attribute.offset == IntAttr(0):
-                self.print(">")
-                return
-            self.print(", offset: ")
-            print_int_or_question(attribute.offset)
-            self.print(">")
-            return
-
-        if isinstance(attribute, MemRefType):
-            attribute = cast(MemRefType[Attribute], attribute)
-            self.print("memref<")
-            if attribute.shape.data:
-                self.print_list(
-                    attribute.shape.data,
-                    lambda x: self.print(x.data) if x.data != -1 else self.print("?"),
-                    "x",
-                )
-                self.print("x")
-            self.print(attribute.element_type)
-            if not isinstance(attribute.layout, NoneAttr):
-                self.print(", ", attribute.layout)
-            if not isinstance(attribute.memory_space, NoneAttr):
-                self.print(", ", attribute.memory_space)
-            self.print(">")
-            return
-
-        if isinstance(attribute, UnrankedMemrefType):
-            attribute = cast(AnyUnrankedMemrefType, attribute)
-            self.print("memref<*x")
-            self.print(attribute.element_type)
-            if not isinstance(attribute.memory_space, NoneAttr):
-                self.print(", ", attribute.memory_space)
-            self.print(">")
-            return
-
-        if isinstance(attribute, IndexType):
-            self.print("index")
-            return
-
-        if isinstance(attribute, NoneType):
-            self.print("none")
-            return
-
-        if isinstance(attribute, OpaqueAttr):
-            self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
-            if not isinstance(attribute.type, NoneAttr):
-                self.print(" : ", attribute.type)
-            return
-
-        if isinstance(attribute, AffineMapAttr):
-            self.print("affine_map<")
-            self.print(attribute.data)
-            self.print(">")
-            return
-
-        if isinstance(attribute, AffineSetAttr):
-            self.print("affine_set<")
-            self.print(attribute.data)
-            self.print(">")
-            return
-
-        if isinstance(attribute, UnregisteredAttr):
-            # Do not print `!` or `#` for unregistered builtin attributes
-            self.print("!" if attribute.is_type.data else "#")
-            if attribute.is_opaque.data:
-                self.print(attribute.attr_name.data.replace(".", "<", 1))
-                self.print(attribute.value.data)
-                self.print(">")
-            else:
-                self.print(attribute.attr_name.data)
-                if attribute.value.data:
-                    self.print("<")
-                    self.print(attribute.value.data)
-                    self.print(">")
-            return
+        # if isinstance(attribute, UnrankedMemrefType):
+        #     attribute = cast(AnyUnrankedMemrefType, attribute)
+        #     self.print("memref<*x")
+        #     self.print(attribute.element_type)
+        #     if not isinstance(attribute.memory_space, NoneAttr):
+        #         self.print(", ", attribute.memory_space)
+        #     self.print(">")
+        #     return
 
         # Print dialect attributes
         self.print("!" if isinstance(attribute, TypeAttribute) else "#")

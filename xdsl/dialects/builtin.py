@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import math
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
 from typing import (
-    TYPE_CHECKING,
     Annotated,
     Any,
     Generic,
@@ -24,6 +25,10 @@ from xdsl.ir import (
     AttributeInvT,
     Block,
     BlockOps,
+    BuiltinSyntaxAttribute,
+    BuiltinSyntaxData,
+    BuiltinSyntaxParametrizedAttribute,
+    BuiltinSyntaxTrivialType,
     Data,
     Dialect,
     Operation,
@@ -53,6 +58,8 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import AttrParser, Parser
+from xdsl.printer import Printer
 from xdsl.traits import (
     IsolatedFromAbove,
     NoTerminator,
@@ -62,10 +69,7 @@ from xdsl.traits import (
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-
-if TYPE_CHECKING:
-    from xdsl.parser import AttrParser, Parser
-    from xdsl.printer import Printer
+from xdsl.utils.lexer import Token
 
 
 class ShapedType(ABC):
@@ -123,7 +127,11 @@ class ArrayOfConstraint(AttrConstraint):
 
 
 @irdl_attr_definition
-class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT]):
+class ArrayAttr(
+    BuiltinSyntaxAttribute,
+    GenericData[tuple[AttributeCovT, ...]],
+    Iterable[AttributeCovT],
+):
     name = "array"
 
     def __init__(self, param: Iterable[AttributeCovT]) -> None:
@@ -138,6 +146,18 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
             # the type system can't ensure that the elements are of type _ArrayAttrT
             result = cast(tuple[AttributeCovT, ...], tuple(data))
             return result
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        data = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_optional_attribute
+        )
+        if data is None:
+            return None
+        return cls(data)
+
+    def print(self, printer: Printer):
+        self.print_parameter(printer)
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_string("[")
@@ -174,29 +194,40 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
-class StringAttr(Data[str]):
+class StringAttr(BuiltinSyntaxAttribute, Data[str]):
     name = "string"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> str:
-        with parser.in_angle_brackets():
-            return parser.parse_str_literal()
+    def parse_optional(cls, parser: AttrParser):
+        # String literal
+        if (str_lit := parser.parse_optional_str_literal()) is not None:
+            return StringAttr(str_lit)
+        return None
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string_literal(self.data)
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f'"{self.data}"')
+        printer.print_string_literal(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> str:
+        return parser.parse_str_literal()
 
 
 @irdl_attr_definition
-class BytesAttr(Data[bytes]):
+class BytesAttr(BuiltinSyntaxAttribute, Data[bytes]):
     name = "bytes"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> bytes:
-        with parser.in_angle_brackets():
-            return parser.parse_bytes_literal()
+    def parse_optional(cls, parser: AttrParser):
+        # String literal
+        if (str_lit := parser.parse_optional_bytes_literal()) is not None:
+            return BytesAttr(str_lit)
+        return None
 
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f'"{self.data}"')
+    def print(self, printer: Printer) -> None:
+        printer.print_bytes_literal(self.data)
 
 
 @irdl_attr_definition
@@ -211,7 +242,7 @@ class SymbolNameAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class SymbolRefAttr(ParametrizedAttribute):
+class SymbolRefAttr(BuiltinSyntaxAttribute, ParametrizedAttribute):
     name = "symbol_ref"
     root_reference: ParameterDef[StringAttr]
     nested_references: ParameterDef[ArrayAttr[StringAttr]]
@@ -234,6 +265,30 @@ class SymbolRefAttr(ParametrizedAttribute):
         for ref in self.nested_references.data:
             root += "." + ref.data
         return root
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        # Parse the root symbol
+        sym_root = parser.parse_optional_symbol_name()
+        if sym_root is None:
+            return None
+
+        # Parse nested symbols
+        refs: list[StringAttr] = []
+        with parser.backtrack():
+            while parser.parse_optional_punctuation(":") is not None:
+                parser.parse_punctuation(":")
+                refs.append(parser.parse_symbol_name())
+
+        return SymbolRefAttr(sym_root, ArrayAttr(refs))
+
+    def print(self, printer: Printer) -> None:
+        printer.print("@")
+        printer.print_identifier_or_string_literal(self.root_reference.data)
+        for ref in self.nested_references.data:
+            printer.print("::@")
+            printer.print_identifier_or_string_literal(ref.data)
+        return
 
 
 @dataclass
@@ -353,10 +408,12 @@ class SignednessAttr(Data[Signedness]):
 
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, TypeAttribute):
+class IntegerType(BuiltinSyntaxAttribute, ParametrizedAttribute, TypeAttribute):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
+
+    _regex = re.compile(r"^([su]?i)(\d+)$")
 
     def __init__(
         self,
@@ -371,6 +428,26 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
 
     def value_range(self) -> tuple[int, int]:
         return self.signedness.data.value_range(self.width.data)
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        if (match := parser.parse_optional_regex(cls._regex)) is not None:
+            signedness = {
+                "s": Signedness.SIGNED,
+                "u": Signedness.UNSIGNED,
+                "i": Signedness.SIGNLESS,
+            }
+            return IntegerType(int(match.group(2)), signedness[match.group(1)])
+
+    def print(self, printer: Printer) -> None:
+        if self.signedness.data == Signedness.SIGNLESS:
+            printer.print("i")
+        elif self.signedness.data == Signedness.SIGNED:
+            printer.print("si")
+        elif self.signedness.data == Signedness.UNSIGNED:
+            printer.print("ui")
+        printer.print(self.width.data)
+        return
 
 
 i64 = IntegerType(64)
@@ -388,12 +465,19 @@ AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstr
 
 
 @irdl_attr_definition
-class UnitAttr(ParametrizedAttribute):
+class UnitAttr(BuiltinSyntaxAttribute, ParametrizedAttribute):
     name = "unit"
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        return None
+
+    def print(self, printer: Printer):
+        pass
 
 
 @irdl_attr_definition
-class LocationAttr(ParametrizedAttribute):
+class LocationAttr(BuiltinSyntaxAttribute, ParametrizedAttribute):
     """
     An attribute representing source code location.
     Only supports unknown locations for now.
@@ -401,9 +485,21 @@ class LocationAttr(ParametrizedAttribute):
 
     name = "loc"
 
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        with parser.backtrack():
+            parser.parse_characters("loc")
+            parser.parse_punctuation("(")
+            parser.parse_characters("unknown")
+            parser.parse_punctuation(")")
+            return LocationAttr()
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string("loc(unknown)")
+
 
 @irdl_attr_definition
-class IndexType(ParametrizedAttribute):
+class IndexType(BuiltinSyntaxTrivialType, ParametrizedAttribute):
     name = "index"
 
 
@@ -418,7 +514,9 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 
 
 @irdl_attr_definition
-class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
+class IntegerAttr(
+    BuiltinSyntaxAttribute, Generic[_IntegerAttrType], ParametrizedAttribute
+):
     name = "integer"
     value: ParameterDef[IntAttr]
     type: ParameterDef[_IntegerAttrType]
@@ -443,6 +541,37 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
         super().__init__([value, value_type])
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        value = parser.parse_optional_integer()
+        if value is None:
+            return
+        if parser.parse_optional_punctuation(":") is not None:
+            value_type = IndexType.parse_optional(parser)
+            if value_type is None:
+                value_type = IntegerType.parse_optional(parser)
+            if value_type is None:
+                raise ValueError("Expected integer type")
+        else:
+            value_type = i64
+        return cast(IntegerAttr[_IntegerAttrType], IntegerAttr(value, value_type))
+
+    def print(self, printer: Printer):
+        # boolean shorthands
+        if (
+            isinstance((attr_type := self.type), IntegerType)
+            and attr_type.width.data == 1
+        ):
+            printer.print("false" if self.value.data == 0 else "true")
+            return
+
+        width = self.parameters[0]
+        attr_type = self.parameters[1]
+        assert isinstance(width, IntAttr)
+        printer.print(width.data)
+        printer.print(" : ")
+        printer.print_attribute(attr_type)
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
@@ -470,7 +599,7 @@ AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(ABC):
+class _FloatType(BuiltinSyntaxTrivialType, ABC):
     @property
     @abstractmethod
     def get_bitwidth(self) -> int:
@@ -553,7 +682,7 @@ _FloatAttrType = TypeVar("_FloatAttrType", bound=AnyFloat, covariant=True)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
+class FloatAttr(BuiltinSyntaxAttribute, Generic[_FloatAttrType], ParametrizedAttribute):
     name = "float"
 
     value: ParameterDef[FloatData]
@@ -587,12 +716,46 @@ class FloatAttr(Generic[_FloatAttrType], ParametrizedAttribute):
                 raise ValueError(f"Invalid bitwidth: {type}")
         super().__init__([data_attr, type])
 
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        is_negative = parser._parse_optional_token(Token.Kind.MINUS) is not None
+        value = parser.parse_number()
+        if is_negative:
+            value = -value
+        if parser.parse_optional_punctuation(":") is not None:
+            float_type = None
+            for ft in {
+                BFloat16Type,
+                Float16Type,
+                Float32Type,
+                Float64Type,
+                Float80Type,
+                Float128Type,
+            }:
+                float_type = ft.parse_optional(parser)
+                if float_type is not None:
+                    break
+            if float_type is None:
+                raise ValueError("Expected float type")
+        else:
+            if isinstance(value, int):
+                return None
+            float_type = Float64Type()
+        return FloatAttr(value, float_type)
+
+    def print(self, printer: Printer) -> None:
+        value = self.value
+        printer.print(f"{value.data:.6e}")
+        printer.print(" : ")
+        printer.print_attribute(self.type)
+        return
+
 
 AnyFloatAttr: TypeAlias = FloatAttr[AnyFloat]
 
 
 @irdl_attr_definition
-class ComplexType(ParametrizedAttribute, TypeAttribute):
+class ComplexType(BuiltinSyntaxParametrizedAttribute, TypeAttribute):
     name = "complex"
     element_type: ParameterDef[IntegerType | AnyFloat]
 
@@ -601,7 +764,7 @@ class ComplexType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class DictionaryAttr(GenericData[dict[str, Attribute]]):
+class DictionaryAttr(BuiltinSyntaxAttribute, GenericData[dict[str, Attribute]]):
     name = "dictionary"
 
     @classmethod
@@ -609,6 +772,17 @@ class DictionaryAttr(GenericData[dict[str, Attribute]]):
         return parser.parse_optional_dictionary_attr_dict()
 
     def print_parameter(self, printer: Printer) -> None:
+        printer.print_attr_dict(self.data)
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+
+        attrs = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.BRACES, parser._parse_attribute_entry
+        )
+        return DictionaryAttr(attrs)
+
+    def print(self, printer: Printer):
         printer.print_attr_dict(self.data)
 
     @staticmethod
@@ -634,7 +808,7 @@ class TupleType(ParametrizedAttribute):
 @irdl_attr_definition
 class VectorType(
     Generic[AttributeCovT],
-    ParametrizedAttribute,
+    BuiltinSyntaxParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
@@ -716,7 +890,7 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 @irdl_attr_definition
 class TensorType(
     Generic[AttributeCovT],
-    ParametrizedAttribute,
+    BuiltinSyntaxParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
@@ -778,7 +952,9 @@ AnyTensorType: TypeAlias = TensorType[Attribute]
 
 
 @irdl_attr_definition
-class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
+class UnrankedTensorType(
+    Generic[AttributeCovT], BuiltinSyntaxParametrizedAttribute, TypeAttribute
+):
     name = "unranked_tensor"
 
     element_type: ParameterDef[AttributeCovT]
@@ -883,7 +1059,8 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
-    ParametrizedAttribute, ContainerType[IntegerType | IndexType | AnyFloat]
+    BuiltinSyntaxParametrizedAttribute,
+    ContainerType[IntegerType | IndexType | AnyFloat],
 ):
     name = "dense"
     type: ParameterDef[
@@ -1025,9 +1202,110 @@ class DenseIntOrFPElementsAttr(
         t = TensorType(data_type, shape)
         return DenseIntOrFPElementsAttr.from_list(t, data)
 
+    @staticmethod
+    def parse_parameters(cls, parser: AttrParser):
+        parser.parse_punctuation("<", " in dense attribute")
+        if parser.parse_optional_punctuation(">") is not None:
+            # Empty case
+            dense_contents = None
+        else:
+            if (hex_string := parser.parse_optional_str_literal()) is not None:
+                dense_contents, shape = hex_string, None
+            else:
+                # Expect a tensor literal instead
+                dense_contents = parser._parse_tensor_literal()
+            parser.parse_punctuation(">", " in dense attribute")
+
+        # Parse the dense type and check for correctness
+        parser.parse_punctuation(":", " in dense attribute")
+        type = parser._parse_dense_literal_type()
+        type_shape = list(type.get_shape())
+        type_num_values = math.prod(type_shape)
+
+        if dense_contents is None:
+            # Empty case
+            if type_num_values != 0:
+                parser.raise_error(
+                    "Expected at least one element in the dense literal, but got None"
+                )
+            data_values = []
+        elif isinstance(dense_contents, str):
+            # Hex-encoded string case
+            # Get values and shape in case of hex_string (requires parsed type)
+            data_values, shape = parser._parse_builtin_dense_attr_hex(
+                dense_contents, type
+            )
+            # For splat attributes any shape is fine
+            if shape and type_num_values != shape[0]:
+                parser.raise_error(
+                    f"Shape mismatch in dense literal. Expected {type_num_values} "
+                    f"elements from the type, but got {shape[0]} elements."
+                )
+        else:
+            # Tensor literal case
+            dense_values, shape = dense_contents
+            data_values = [
+                value.to_type(parser, type.element_type) for value in dense_values
+            ]
+            # Elements from _parse_tensor_literal need to be converted to values.
+            if shape:
+                # Check that the shape matches the data when given a shaped data.
+                # For splat attributes any shape is fine
+                if type_shape != shape:
+                    parser.raise_error(
+                        f"Shape mismatch in dense literal. Expected {type_shape} "
+                        f"shape from the type, but got {shape} shape."
+                    )
+            else:
+                assert len(data_values) == 1, "Fatal error in parser"
+                data_values *= type_num_values
+
+        return DenseIntOrFPElementsAttr.from_list(type, data_values).parameters
+
+    def print_parameters(self, printer: Printer) -> None:
+        def print_one_elem(val: Attribute):
+            if isinstance(val, IntegerAttr):
+                printer.print(val.value.data)
+            elif isinstance(val, FloatAttr):
+                printer.print(f"{val.value.data:.6e}")
+            else:
+                raise Exception(
+                    "unexpected attribute type "
+                    "in DenseIntOrFPElementsAttr: "
+                    f"{type(val)}"
+                )
+
+        def print_dense_list(
+            array: Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
+            shape: Sequence[int],
+        ):
+            printer.print("[")
+            if len(shape) > 1:
+                k = len(array) // shape[0]
+                printer.print_list(
+                    (array[i : i + k] for i in range(0, len(array), k)),
+                    lambda subarray: print_dense_list(subarray, shape[1:]),
+                )
+            else:
+                printer.print_list(array, print_one_elem)
+            printer.print("]")
+
+        printer.print("<")
+        data = self.data.data
+        shape = self.get_shape() if self.shape_is_complete else (len(data),)
+        assert shape is not None, "If shape is complete, then it cannot be None"
+        if len(data) == 0:
+            pass
+        elif data.count(data[0]) == len(data):
+            print_one_elem(data[0])
+        else:
+            print_dense_list(data, shape)
+        printer.print("> : ")
+        printer.print(self.type)
+
 
 @irdl_attr_definition
-class DenseResourceAttr(ParametrizedAttribute):
+class DenseResourceAttr(BuiltinSyntaxParametrizedAttribute):
     name = "dense_resource"
 
     resource_handle: ParameterDef[StringAttr]
@@ -1041,9 +1319,22 @@ class DenseResourceAttr(ParametrizedAttribute):
             handle = StringAttr(handle)
         return DenseResourceAttr([handle, type])
 
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser):
+        parser.parse_characters("<", " in dense_resource attribute")
+        resource_handle = StringAttr(parser.parse_identifier(" for resource handle"))
+        parser.parse_characters(">", " in dense_resource attribute")
+        parser.parse_characters(":", " in dense_resource attribute")
+        type = parser.parse_type()
+        return resource_handle, type
+
+    def print_parameters(self, printer: Printer) -> None:
+        handle = self.resource_handle.data
+        printer.print(f"dense_resource<{handle}> : {self.type}")
+
 
 @irdl_attr_definition
-class DenseArrayBase(ParametrizedAttribute):
+class DenseArrayBase(BuiltinSyntaxParametrizedAttribute):
     name = "array"
 
     elt_type: ParameterDef[IntegerType | AnyFloat]
@@ -1129,9 +1420,42 @@ class DenseArrayBase(ParametrizedAttribute):
         """
         return tuple(x.data for x in self.data.data)
 
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser):
+        parser.parse_characters("<", " in dense array")
+        element_type = parser.parse_attribute()
+
+        if not isinstance(element_type, IntegerType | AnyFloat):
+            parser.raise_error(
+                "dense array element type must be an " "integer or floating point type",
+            )
+
+        # Empty array
+        if parser.parse_optional_punctuation(">"):
+            return DenseArrayBase.from_list(element_type, []).parameters
+
+        parser.parse_characters(":", " in dense array")
+
+        values = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_number
+        )
+        parser.parse_characters(">", " in dense array")
+
+        return DenseArrayBase.from_list(element_type, values).parameters
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print("array<", self.elt_type)
+        data = cast(ArrayAttr[IntAttr | FloatData], self.data)
+        if len(data.data) == 0:
+            printer.print(">")
+            return
+        printer.print(": ")
+        printer.print_list(data.data, lambda x: printer.print(x.data))
+        printer.print(">")
+
 
 @irdl_attr_definition
-class FunctionType(ParametrizedAttribute, TypeAttribute):
+class FunctionType(BuiltinSyntaxAttribute, ParametrizedAttribute, TypeAttribute):
     name = "fun"
 
     inputs: ParameterDef[ArrayAttr[Attribute]]
@@ -1149,9 +1473,46 @@ class FunctionType(ParametrizedAttribute, TypeAttribute):
     ) -> FunctionType:
         return FunctionType([inputs, outputs])
 
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        """
+        Parse a function type, if present.
+            function-type ::= type-list `->` (type | type-list)
+            type-list     ::= `(` `)` | `(` type (`,` type)* `)`
+        """
+
+        # Parse the arguments
+        args = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_type
+        )
+        if args is None:
+            return
+
+        parser.parse_punctuation("->")
+
+        # Parse the returns
+        returns = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_type
+        )
+        if returns is None:
+            returns = [parser.parse_type()]
+        return FunctionType.from_lists(args, returns)
+
+    def print(self, printer: Printer) -> None:
+        printer.print("(")
+        printer.print_list(self.inputs.data, printer.print_attribute)
+        printer.print(") -> ")
+        outputs = self.outputs.data
+        if len(outputs) == 1 and not isinstance(outputs[0], FunctionType):
+            printer.print_attribute(outputs[0])
+        else:
+            printer.print("(")
+            printer.print_list(outputs, printer.print_attribute)
+            printer.print(")")
+
 
 @irdl_attr_definition
-class OpaqueAttr(ParametrizedAttribute):
+class OpaqueAttr(BuiltinSyntaxParametrizedAttribute):
     name = "opaque"
 
     ident: ParameterDef[StringAttr]
@@ -1162,9 +1523,30 @@ class OpaqueAttr(ParametrizedAttribute):
     def from_strings(name: str, value: str, type: Attribute = NoneAttr()) -> OpaqueAttr:
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.ident)
+            printer.print(", ")
+            printer.print_attribute(self.value)
+        if not isinstance(self.type, NoneAttr):
+            printer.print(" : ")
+            printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser):
+        with parser.in_angle_brackets():
+            ident = StringAttr.parse(parser)
+            parser.parse_punctuation(",")
+            value = StringAttr.parse(parser)
+        if parser.parse_optional_punctuation(":") is not None:
+            type = parser.parse_attribute()
+        else:
+            type = NoneAttr()
+        return ident, value, type
+
 
 @irdl_attr_definition
-class StridedLayoutAttr(ParametrizedAttribute):
+class StridedLayoutAttr(BuiltinSyntaxParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
     See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
@@ -1204,9 +1586,42 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
         super().__init__([strides, offset])
 
+    @classmethod
+    def parse_parameters(self, parser: AttrParser):
+        with parser.in_angle_brackets():
+            strides = parser.parse_comma_separated_list(
+                parser.Delimiter.SQUARE, parser._parse_int_or_question
+            )
+
+            # Convert to the attribute expected input
+            strides = ArrayAttr(
+                NoneAttr() if stride == "?" else IntAttr(stride) for stride in strides
+            )
+
+            if parser.parse_optional_punctuation(","):
+                parser.parse_keyword("offset")
+                parser.parse_punctuation(":")
+                offset = parser._parse_int_or_question()
+                offset = NoneAttr() if offset == "?" else IntAttr(offset)
+            else:
+                offset = NoneAttr()
+            return strides, offset
+
+    def print_parameters(self, printer: Printer) -> None:
+        def print_int_or_question(value: IntAttr | NoneAttr) -> None:
+            printer.print(value.data if isinstance(value, IntAttr) else "?")
+
+        with printer.in_angle_brackets():
+            printer.print_list(self.strides.data, print_int_or_question, ", ")
+            printer.print("]")
+            if self.offset == IntAttr(0):
+                return
+            printer.print(", offset: ")
+            print_int_or_question(self.offset)
+
 
 @irdl_attr_definition
-class AffineMapAttr(Data[AffineMap]):
+class AffineMapAttr(BuiltinSyntaxData[AffineMap]):
     """An Attribute containing an AffineMap object."""
 
     name = "affine_map"
@@ -1226,7 +1641,7 @@ class AffineMapAttr(Data[AffineMap]):
 
 
 @irdl_attr_definition
-class AffineSetAttr(Data[AffineSet]):
+class AffineSetAttr(BuiltinSyntaxData[AffineSet]):
     """An attribute containing an AffineSet object."""
 
     name = "affine_set"
@@ -1348,7 +1763,7 @@ class UnregisteredOp(Operation, ABC):
         return UnregisteredOpWithName
 
 
-class UnregisteredAttr(ParametrizedAttribute, ABC):
+class UnregisteredAttr(BuiltinSyntaxAttribute, ABC):
     """
     An unregistered attribute or type.
 
@@ -1418,6 +1833,20 @@ class UnregisteredAttr(ParametrizedAttribute, ABC):
             return UnregisteredAttrWithName
         else:
             return UnregisteredAttrTypeWithName
+
+    def print(self, printer: Printer) -> None:
+        printer.print("!" if self.is_type.data else "#")
+        if self.is_opaque.data:
+            printer.print(self.attr_name.data.replace(".", "<", 1))
+            printer.print(self.value.data)
+            printer.print(">")
+        else:
+            printer.print(self.attr_name.data)
+            if self.value.data:
+                printer.print("<")
+                printer.print(self.value.data)
+                printer.print(">")
+        return
 
 
 @irdl_op_definition
@@ -1497,14 +1926,23 @@ _UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit", bound=Att
 
 
 @irdl_attr_definition
-class NoneType(ParametrizedAttribute, TypeAttribute):
+class NoneType(ParametrizedAttribute, TypeAttribute, BuiltinSyntaxAttribute):
     name = "none_type"
+
+    @classmethod
+    def parse_optional(cls, parser: AttrParser):
+        if parser.parse_optional_keyword("none"):
+            return NoneType()
+        return None
+
+    def print(self, printer: Printer) -> None:
+        return printer.print("none")
 
 
 @irdl_attr_definition
 class MemRefType(
     Generic[_MemRefTypeElement],
-    ParametrizedAttribute,
+    BuiltinSyntaxParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[_MemRefTypeElement],
@@ -1594,7 +2032,7 @@ class MemRefType(
 
 @irdl_attr_definition
 class UnrankedMemrefType(
-    Generic[_UnrankedMemrefTypeElems], ParametrizedAttribute, TypeAttribute
+    Generic[_UnrankedMemrefTypeElems], BuiltinSyntaxParametrizedAttribute, TypeAttribute
 ):
     name = "unranked_memref"
 

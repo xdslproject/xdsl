@@ -437,6 +437,29 @@ class BaseParser:
             "bytes literal expected" + context_msg,
         )
 
+    def _parse_optional_symref(self) -> list[str, ...] | None:
+        """
+        Parse a symbol reference attribute, if present.
+          symbol-attr ::= symbol-ref-id (`::` symbol-ref-id)*
+          symbol-ref-id ::= at-ident
+        """
+        # Parse the root symbol
+        sym_root = self.parse_optional_symbol_name()
+        if sym_root is None:
+            return None
+
+        # Parse nested symbols
+        refs: list[str] = []
+        while self._current_token.kind == Token.Kind.COLON:
+            # Parse `::`. As in MLIR, this require to backtrack if a single `:` is given.
+            pos = self._current_token.span.start
+            self._consume_token(Token.Kind.COLON)
+            if self._parse_optional_token(Token.Kind.COLON) is None:
+                self._resume_from(pos)
+                break
+
+            refs.append(self.parse_symbol_name())
+
     def parse_optional_identifier(self) -> str | None:
         """
         Parse an identifier, if present, with syntax:
