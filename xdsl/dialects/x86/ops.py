@@ -320,6 +320,48 @@ class PushOp(ROperationSrc[GeneralRegisterType]):
     name = "x86.push"
 
 
+class ROperationDst(Generic[R1InvT], SingleOperandInstruction):
+    """
+    A base class for x86 operations that have one destination register.
+    """
+
+    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    destination = result_def(R1InvT)
+    rsp_output = result_def(GeneralRegisterType("rsp"))
+
+    def __init__(
+        self,
+        *,
+        comment: str | StringAttr | None = None,
+        rsp_input: Operation | SSAValue,
+        destination: R1InvT,
+        rsp_output: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rsp_input],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[destination, rsp_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.destination,)
+
+
+@irdl_op_definition
+class PopOp(ROperationDst[GeneralRegisterType]):
+    """
+    Copies the value at the top of the stack into r1 and increases %rsp.
+    https://www.felixcloutier.com/x86/pop
+    """
+
+    name = "x86.pop"
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:
