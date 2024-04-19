@@ -971,6 +971,24 @@ class Squeeze(IRDLOperation):
             result_types=[input_tensor.type],
         )
 
+    def verify_(self) -> None:
+        if not isinstance(axes_type := self.axes.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        axes_shape = axes_type.get_shape()
+
+        # shape of axes must be [1]
+        if axes_shape != (1,):
+            raise VerifyException(
+                f"axes tensor must have shape: (1,), in this case: {axes_shape}"
+            )
+
+        # axes out of bounds: the axes value must between 0 and len(input_tensor.shape)-1
+
+        # output shape
+
 
 ONNX = Dialect(
     "onnx",
