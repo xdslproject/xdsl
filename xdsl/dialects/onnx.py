@@ -932,6 +932,57 @@ class MatMul(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class Sigmoid(IRDLOperation):
+    """
+    Applies the sigmoid function element-wise to all elements of the input tensor.
+    The sigmoid function, denoted by sigma(x), is a common mathematical function used in machine learning and neural networks. It is defined as:
+    sigma(x) = 1 / (1 + e^-x)
+    where e is the base of the natural logarithm. The sigmoid function maps any real-valued number to the range of [0, 1].
+    The sigmoid function is used as an activation function.
+
+    Args:
+    - input_tensor (TensorType): The input tensor to which the sigmoid function will be applied.
+
+    Returns:
+    - output_tensor (TensorType): The output tensor after applying the sigmoid function element-wise to the input tensor.
+    """
+
+    name = "onnx.Sigmoid"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    input_tensor = operand_def(TensorType[T])
+    output_tensor = result_def(TensorType[T])
+
+    assembly_format = "`(` $input_tensor`)` attr-dict `:` `(` type($input_tensor) `)` `->` type($output_tensor) "
+
+    def __init__(
+        self,
+        input_tensor: SSAValue,
+    ):
+        super().__init__(
+            operands=[input_tensor],
+            result_types=[input_tensor.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(
+            input_tensor_type := self.input_tensor.type, TensorType
+        ) or not isinstance(output_tensor_type := self.output_tensor.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        input_tensor_shape = input_tensor_type.get_shape()
+        output_tensor_shape = output_tensor_type.get_shape()
+
+        # check if input tensor and output tensor have the same shape
+        if input_tensor_shape != output_tensor_shape:
+            raise VerifyException(
+                f"tensor input shape {input_tensor_shape} must be equal to tensor output shape {output_tensor_shape}"
+            )
+
+
 ONNX = Dialect(
     "onnx",
     [
@@ -947,6 +998,7 @@ ONNX = Dialect(
         Mul,
         Relu,
         Reshape,
+        Sigmoid,
         Sub,
     ],
 )
