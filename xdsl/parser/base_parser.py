@@ -77,6 +77,15 @@ class BaseParser:
         finally:
             self.parse_punctuation(">")
 
+    @contextmanager
+    def backtrack(self, pos: Position | ParserState | None = None):
+        if pos is None:
+            pos = self.pos
+        try:
+            yield
+        except ParseError:
+            self._resume_from(pos)
+
     def raise_error(
         self,
         msg: str,

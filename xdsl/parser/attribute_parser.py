@@ -1067,15 +1067,10 @@ class AttrParser(BaseParser):
 
         # Parse nested symbols
         refs: list[StringAttr] = []
-        while self._current_token.kind == Token.Kind.COLON:
-            # Parse `::`. As in MLIR, this require to backtrack if a single `:` is given.
-            pos = self._current_token.span.start
-            self._consume_token(Token.Kind.COLON)
-            if self._parse_optional_token(Token.Kind.COLON) is None:
-                self._resume_from(pos)
-                break
-
-            refs.append(self.parse_symbol_name())
+        with self.backtrack():
+            while self._parse_optional_token(Token.Kind.COLON) is not None:
+                self._parse_token(Token.Kind.COLON, "")
+                refs.append(self.parse_symbol_name())
 
         return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
@@ -1084,16 +1079,12 @@ class AttrParser(BaseParser):
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`
         """
-        snapshot = self._current_token.span.start
-        if (
-            self.parse_optional_characters("loc")
-            and self.parse_optional_punctuation("(")
-            and self.parse_optional_characters("unknown")
-            and self.parse_optional_punctuation(")")
-        ):
+        with self.backtrack():
+            self.parse_characters("loc")
+            self.parse_punctuation("(")
+            self.parse_characters("unknown")
+            self.parse_punctuation(")")
             return LocationAttr()
-        self._resume_from(snapshot)
-        return None
 
     def parse_optional_builtin_int_or_float_attr(
         self,
