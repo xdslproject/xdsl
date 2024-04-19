@@ -948,6 +948,19 @@ class Squeeze(IRDLOperation):
         output_tensor: The squeezed tensor.
     """
 
+    name = "onnx.Squeeze"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    input_tensor = operand_def(TensorType[T])
+    axes = operand_def(TensorType[IntegerType])
+
+    output_tensor = result_def(TensorType[T])
+
+    assembly_format = (
+        "`(` $input_tensor `,` $axes `)` attr-dict `:` `(` type($input_tensor) `,"
+        "` type($axes)`)` `->` type($output_tensor) "
+    )
+
 
 ONNX = Dialect(
     "onnx",
