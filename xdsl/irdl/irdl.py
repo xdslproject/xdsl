@@ -401,7 +401,7 @@ class MessageConstraint(AttrConstraint):
         try:
             return self.constr.verify(attr, constraint_vars)
         except VerifyException as e:
-            raise VerifyException(e.args[0] + f"\n{self.message}", *e.args[1:])
+            raise VerifyException(f"{self.message}\n{e.args[0]}", *e.args[1:])
 
     def get_resolved_variables(self) -> set[str]:
         return self.constr.get_resolved_variables()

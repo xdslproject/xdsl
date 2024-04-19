@@ -516,7 +516,7 @@ def test_informative_attribute():
 
     with pytest.raises(
         VerifyException,
-        match="#test.int<42> should be of base attribute none\nDear user, here's what this constraint means in your abstraction.",
+        match="Dear user, here's what this constraint means in your abstraction.\n#test.int<42> should be of base attribute none",
     ):
         InformativeAttr((IntData(42),))
 
@@ -528,7 +528,7 @@ def test_informative_constraint():
     constr = MessageConstraint(NoneAttr(), "User-enlightening message.")
     with pytest.raises(
         VerifyException,
-        match="Expected attribute #none but got #builtin.int<1>\nUser-enlightening message.",
+        match="User-enlightening message.\nExpected attribute #none but got #builtin.int<1>",
     ):
         constr.verify(IntAttr(1), {})
     assert constr.get_resolved_variables() == set()
