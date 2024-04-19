@@ -2,7 +2,7 @@ import onnx
 import pytest
 
 from xdsl.dialects.builtin import TensorType, f32
-from xdsl.dialects.onnx import Add, MatMul, Sub
+from xdsl.dialects.onnx import Add, MatMul, Sub, Transpose
 from xdsl.ir import Attribute
 from xdsl.utils.test_value import TestSSAValue
 
@@ -175,6 +175,33 @@ def test_visit_node_matmul():
     assert not op.regions
 
 
+def test_visit_node_transpose():
+    # initialize context
+    ctx = OnnxXdslMapping()
+
+    # create graph composed only of one Sub operation
+    _, transpose_node = _create_transpose_op(
+        graph_name="transpose_graph", dim_in=[64, 128], dim_out=[128, 64], perm=[1, 0]
+    )
+
+    in_value = TestSSAValue(TensorType(f32, [64, 128]))
+    ctx.value_by_name["input"] = in_value
+
+    in_type = TensorType(f32, [64, 128])
+    out_type = TensorType(f32, [128, 64])
+    ctx.type_by_name["input"] = in_type
+    ctx.type_by_name["output"] = out_type
+
+    op = visit_node(transpose_node, ctx)
+    op.verify()
+
+    assert isinstance(op, Transpose)
+    assert op.tensor_input is in_value
+    assert op.tensor_output is ctx.value_by_name["output"]
+    assert not op.attributes
+    assert not op.regions
+
+
 def test_visit_graph_add():
     # initialize context
     ctx = OnnxXdslMapping()
@@ -241,6 +268,30 @@ def test_visit_graph_matmul():
     )
 
 
+def test_visit_graph_transpose():
+    # initialize context
+    ctx = OnnxXdslMapping()
+
+    # create graph composed only of one Transpose operation
+    graph, _ = _create_graph_binary_op(
+        "Transpose", "transpose_graph", [64, 128], [128, 64], [1, 0]
+    )
+
+    # run visit graph
+    visit_graph(graph, ctx)
+
+    # check value_by_names keys
+    keys = list(ctx.value_by_name.keys())
+    assert keys == ["input", "output"]
+
+    # check generated ir
+    gen_ir = ctx.value_by_name[keys[1]].owner
+    assert (
+        str(gen_ir)
+        == "%0 = onnx.Transpose(%1) : (tensor<64x128xf32>) -> tensor<128x64xf32>"
+    )
+
+
 def test_build_module():
     # create graph composed only of one Add operation
     graph, _ = _create_graph_binary_op("Add", "add_graph", [64], [64], [64])
@@ -302,3 +353,30 @@ def _create_graph_binary_op(
     )
 
     return graph, op_node
+
+
+def _create_transpose_op(
+    graph_name: str, dim_in: list[int], dim_out: list[int], perm: list[int]
+):
+    # create input tensor
+    input_tensor = helper.make_tensor_value_info(
+        "input", onnx.TensorProto.FLOAT, dim_in
+    )
+
+    # create output tensor
+    output_tensor = helper.make_tensor_value_info(
+        "output", onnx.TensorProto.FLOAT, dim_out
+    )
+
+    # create transpose operation
+    transpose_node = helper.make_node("Transpose", ["input"], ["output"], perm=perm)
+
+    # create onnx graph
+    graph_def = helper.make_graph(
+        [transpose_node], graph_name, [input_tensor], [output_tensor]
+    )
+
+    # create onnx model
+    model = helper.make_model(graph_def, producer_name=graph_name)
+
+    return model, transpose_node
