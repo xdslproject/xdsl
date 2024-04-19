@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
 
+from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyIntegerAttr,
@@ -35,6 +36,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     VarRegion,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -462,6 +464,7 @@ class Addc(IRDLOperation):
     name = "fir.addc"
     lhs: Operand = operand_def()
     rhs: Operand = operand_def()
+    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     result: OpResult = result_def()
     regs: VarRegion = var_region_def()
 
@@ -1064,6 +1067,7 @@ class Call(IRDLOperation):
 
     name = "fir.call"
     callee: Attribute = prop_def(Attribute)
+    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     result_0: OptOpResult = opt_result_def()
     args: VarOperand = var_operand_def()
     regs: VarRegion = var_region_def()
@@ -1285,6 +1289,7 @@ class Divc(IRDLOperation):
     name = "fir.divc"
     lhs: Operand = operand_def()
     rhs: Operand = operand_def()
+    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     result: OpResult = result_def()
     regs: VarRegion = var_region_def()
 
@@ -1741,6 +1746,7 @@ class Mulc(IRDLOperation):
     name = "fir.mulc"
     lhs: Operand = operand_def()
     rhs: Operand = operand_def()
+    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     result: OpResult = result_def()
     regs: VarRegion = var_region_def()
 
@@ -2088,8 +2094,8 @@ class StringLit(IRDLOperation):
     """
 
     name = "fir.string_lit"
-    size: IntegerAttr[IntegerType] = prop_def(IntegerAttr[IntegerType])
-    value: StringAttr = prop_def(StringAttr)
+    size: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
+    value: StringAttr = attr_def(StringAttr)
     result_0: OpResult = result_def()
 
 
@@ -2098,6 +2104,7 @@ class Subc(IRDLOperation):
     name = "fir.subc"
     lhs: Operand = operand_def()
     rhs: Operand = operand_def()
+    fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     result: OpResult = result_def()
     regs: VarRegion = var_region_def()
 
