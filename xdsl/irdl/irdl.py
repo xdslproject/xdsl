@@ -395,8 +395,6 @@ class MessageConstraint(AttrConstraint):
         self, constr: AttrConstraint | Attribute | type[Attribute], message: str
     ):
         self.constr = attr_constr_coercion(constr)
-
-        self.constr = constr
         self.message = message
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
