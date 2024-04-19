@@ -81,4 +81,5 @@
 %res_matmul = "onnx.MatMul"(%t9, %t10) {onnx_node_name = "/MatMul"}: (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>
 // CHECK: %res_matmul = onnx.MatMul(%t9, %t10) {"onnx_node_name" = "/MatMul"} : (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>
 
-
+%res_sigmoid = "onnx.Sigmoid"(%t8) {onnx_node_name = "/Sigmoid"}: (tensor<3x4xf32>) -> tensor<3x4xf32>
+// CHECK: %res_sigmoid = onnx.Sigmoid(%t8) {"onnx_node_name" = "/Sigmoid"} : (tensor<3x4xf32>) -> tensor<3x4xf32>

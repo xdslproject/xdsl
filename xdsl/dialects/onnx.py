@@ -979,7 +979,7 @@ class Sigmoid(IRDLOperation):
         # check if input tensor and output tensor have the same shape
         if input_tensor_shape != output_tensor_shape:
             raise VerifyException(
-                f"tensor input shape {input_tensor_shape} must be equal to tensor output shape {output_tensor_shape}"
+                f"tensor input shape {input_tensor_shape} is not equal to tensor output shape {output_tensor_shape}"
             )
 
 
