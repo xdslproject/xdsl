@@ -961,6 +961,16 @@ class Squeeze(IRDLOperation):
         "` type($axes)`)` `->` type($output_tensor) "
     )
 
+    def __init__(
+        self,
+        input_tensor: SSAValue,
+        axes: SSAValue,
+    ):
+        super().__init__(
+            operands=[input_tensor, axes],
+            result_types=[input_tensor.type],
+        )
+
 
 ONNX = Dialect(
     "onnx",
