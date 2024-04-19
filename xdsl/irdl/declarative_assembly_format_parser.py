@@ -13,6 +13,7 @@ from itertools import pairwise
 
 from xdsl.ir import Attribute
 from xdsl.irdl import (
+    AttributeDef,
     AttrSizedOperandSegments,
     OpDef,
     OptAttributeDef,
@@ -21,6 +22,7 @@ from xdsl.irdl import (
     OptPropertyDef,
     OptResultDef,
     ParsePropInAttrDict,
+    PropertyDef,
     VariadicDef,
     VarOperandDef,
     VarResultDef,
@@ -369,10 +371,18 @@ class FormatParser(BaseParser):
             match attr_def:
                 case OptAttributeDef() | OptPropertyDef():
                     return OptionalAttributeVariable(
-                        variable_name, attr_or_prop == "property"
+                        variable_name,
+                        attr_or_prop == "property",
+                        attr_def.constr.get_unique_base(),
                     )
-                case _:
-                    return AttributeVariable(variable_name, attr_or_prop == "property")
+                case AttributeDef() | PropertyDef():
+                    return AttributeVariable(
+                        variable_name,
+                        attr_or_prop == "property",
+                        attr_def.constr.get_unique_base(),
+                    )
+                case None:
+                    pass
 
         self.raise_error(
             "expected variable to refer to an operand, "

@@ -9,9 +9,16 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
-from xdsl.ir import Attribute, SSAValue
+from xdsl.dialects.builtin import Builtin
+from xdsl.ir import (
+    Attribute,
+    Data,
+    OpaqueSyntaxAttribute,
+    ParametrizedAttribute,
+    SSAValue,
+)
 from xdsl.irdl import (
     IRDLOperation,
     IRDLOperationInvT,
@@ -285,9 +292,7 @@ class OptionallyParsableDirective(FormatDirective, ABC):
         self.parse_optional(parser, state)
 
 
-class VariadicLikeFormatDirective(
-    AnchorableDirective, OptionallyParsableDirective, ABC
-):
+class VariadicLikeFormatDirective(AnchorableDirective, ABC):
     """
     Baseclass to help keep typechecking simple.
     VariadicLike is mostly Variadic or Optional: Whatever directive that can accept
@@ -441,7 +446,9 @@ class OperandVariable(VariableDirective):
 
 
 @dataclass(frozen=True)
-class VariadicOperandVariable(VariadicVariable, VariableDirective):
+class VariadicOperandVariable(
+    VariadicVariable, VariableDirective, OptionallyParsableDirective
+):
     """
     A variadic operand variable, with the following format:
       operand-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -467,7 +474,7 @@ class VariadicOperandVariable(VariadicVariable, VariableDirective):
             state.should_emit_space = True
 
 
-class OptionalOperandVariable(OptionalVariable):
+class OptionalOperandVariable(OptionalVariable, OptionallyParsableDirective):
     """
     An optional operand variable, with the following format:
       operand-directive ::= ( percent-ident )?
@@ -512,7 +519,9 @@ class OperandTypeDirective(TypeDirective):
 
 
 @dataclass(frozen=True)
-class VariadicOperandTypeDirective(TypeDirective, VariadicTypeDirective):
+class VariadicOperandTypeDirective(
+    TypeDirective, VariadicTypeDirective, OptionallyParsableDirective
+):
     """
     A variadic operand variable, with the following format:
       operand-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -538,7 +547,7 @@ class VariadicOperandTypeDirective(TypeDirective, VariadicTypeDirective):
         state.should_emit_space = True
 
 
-class OptionalOperandTypeDirective(OptionalTypeDirective):
+class OptionalOperandTypeDirective(OptionalTypeDirective, OptionallyParsableDirective):
     """
     An optional operand variable type directive, with the following format:
       operand-type-directive ::= ( type(dollar-ident) )?
@@ -585,7 +594,9 @@ class ResultVariable(VariableDirective):
 
 
 @dataclass(frozen=True)
-class VariadicResultVariable(ResultVariable, VariadicVariable):
+class VariadicResultVariable(
+    ResultVariable, VariadicVariable, OptionallyParsableDirective
+):
     """
     A variadic result variable, with the following format:
       result-directive ::= percent-ident (( `,` percent-id )* )?
@@ -607,7 +618,7 @@ class VariadicResultVariable(ResultVariable, VariadicVariable):
         )
 
 
-class OptionalResultVariable(OptionalVariable):
+class OptionalResultVariable(OptionalVariable, OptionallyParsableDirective):
     """
     An optional result variable, with the following format:
       result-directive ::= ( percent-ident )?
@@ -650,7 +661,9 @@ class ResultTypeDirective(TypeDirective):
 
 
 @dataclass(frozen=True)
-class VariadicResultTypeDirective(TypeDirective, VariadicTypeDirective):
+class VariadicResultTypeDirective(
+    TypeDirective, VariadicTypeDirective, OptionallyParsableDirective
+):
     """
     A variadic result variable type directive, with the following format:
       variadic-result-type-directive ::= ( percent-ident ( `,` percent-id )* )?
@@ -676,7 +689,9 @@ class VariadicResultTypeDirective(TypeDirective, VariadicTypeDirective):
         state.should_emit_space = True
 
 
-class OptionalResultTypeDirective(TypeDirective, OptionalTypeDirective):
+class OptionalResultTypeDirective(
+    TypeDirective, OptionalTypeDirective, OptionallyParsableDirective
+):
     """
     An optional result variable type directive, with the following format:
       result-type-directive ::= ( type(dollar-ident) )?
@@ -708,27 +723,58 @@ class AttributeVariable(FormatDirective):
     The directive will request a space to be printed right after.
     """
 
-    attr_name: str
+    name: str
     """The attribute name as it should be in the attribute or property dictionary."""
     is_property: bool
     """Should this attribute be put in the attribute or property dictionary."""
+    unique_base: type[Attribute] | None
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        attribute = parser.parse_attribute()
-        if self.is_property:
-            state.properties[self.attr_name] = attribute
+        builtin_attributes = Builtin.attributes
+        if (
+            self.unique_base is None
+            or self.unique_base in builtin_attributes
+            or issubclass(self.unique_base, OpaqueSyntaxAttribute)
+        ):
+            attr = parser.parse_attribute()
         else:
-            state.attributes[self.attr_name] = attribute
+            if issubclass(self.unique_base, ParametrizedAttribute):
+                attr = self.unique_base(self.unique_base.parse_parameters(parser))
+            elif issubclass(self.unique_base, Data):
+                unique_base = cast(type[Data[Any]], self.unique_base)
+                attr = unique_base(unique_base.parse_parameter(parser))
+            else:
+                raise ValueError("Attributes must be Data or ParameterizedAttribute!")
+        if self.is_property:
+            state.properties[self.name] = attr
+        else:
+            state.attributes[self.name] = attr
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
         state.should_emit_space = True
         state.last_was_punctuation = False
+
         if self.is_property:
-            printer.print_attribute(op.properties[self.attr_name])
+            attr = op.properties[self.name]
         else:
-            printer.print_attribute(op.attributes[self.attr_name])
+            attr = op.attributes[self.name]
+
+        builtin_attributes = Builtin.attributes
+        if (
+            self.unique_base is None
+            or self.unique_base in builtin_attributes
+            or issubclass(self.unique_base, OpaqueSyntaxAttribute)
+        ):
+            printer.print_attribute(attr)
+        else:
+            if isinstance(attr, ParametrizedAttribute):
+                attr.print_parameters(printer)
+            elif isinstance(attr, Data):
+                attr.print_parameter(printer)
+            else:
+                raise ValueError("Attributes must be Data or ParameterizedAttribute!")
 
 
 class OptionalAttributeVariable(AttributeVariable, OptionalVariable):
@@ -737,29 +783,6 @@ class OptionalAttributeVariable(AttributeVariable, OptionalVariable):
       operand-directive ::= ( percent-ident )?
     The directive will request a space to be printed after.
     """
-
-    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        if attribute := parser.parse_optional_attribute():
-            if self.is_property:
-                state.properties[self.attr_name] = attribute
-            else:
-                state.attributes[self.attr_name] = attribute
-        return attribute is not None
-
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
-        if self.is_property:
-            attr = op.properties.get(self.attr_name)
-        else:
-            attr = op.attributes.get(self.attr_name)
-        if attr:
-            printer.print_attribute(attr)
-            state.should_emit_space = True
-            state.last_was_punctuation = False
-
-    def is_present(self, op: IRDLOperation) -> bool:
-        return getattr(op, self.attr_name) is not None
 
 
 @dataclass(frozen=True)
