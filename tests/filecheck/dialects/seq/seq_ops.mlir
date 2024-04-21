@@ -16,8 +16,8 @@ builtin.module {
   // CHECK: %compreg_poweron = seq.compreg %data, %clk powerOn %on : i14
   %compreg_all = seq.compreg %data, %clk reset %bool, %data powerOn %on : i14
   // CHECK: %compreg_all = seq.compreg %data, %clk reset %bool, %data powerOn %on : i14
-  %compreg_sym = seq.compreg sym #hw<innerSym@foo> %data, %clk : i14
-  // CHECK: %compreg_sym = seq.compreg sym #hw<innerSym@foo> %data, %clk : i14
+  %compreg_sym = seq.compreg sym @foo %data, %clk : i14
+  // CHECK: %compreg_sym = seq.compreg sym @foo %data, %clk : i14
 
   %const_low = seq.const_clock low
   // CHECK: %const_low = seq.const_clock low

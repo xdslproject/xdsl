@@ -15,7 +15,6 @@ from xdsl.dialects.builtin import Builtin
 from xdsl.ir import (
     Attribute,
     Data,
-    OpaqueSyntaxAttribute,
     ParametrizedAttribute,
     SSAValue,
 )
@@ -731,18 +730,14 @@ class AttributeVariable(FormatDirective):
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         builtin_attributes = Builtin.attributes
-        if (
-            self.unique_base is None
-            or self.unique_base in builtin_attributes
-            or issubclass(self.unique_base, OpaqueSyntaxAttribute)
-        ):
+        if self.unique_base is None or self.unique_base in builtin_attributes:
             attr = parser.parse_attribute()
         else:
             if issubclass(self.unique_base, ParametrizedAttribute):
-                attr = self.unique_base(self.unique_base.parse_parameters(parser))
+                attr = self.unique_base.new(self.unique_base.parse_parameters(parser))
             elif issubclass(self.unique_base, Data):
                 unique_base = cast(type[Data[Any]], self.unique_base)
-                attr = unique_base(unique_base.parse_parameter(parser))
+                attr = unique_base.new(unique_base.parse_parameter(parser))
             else:
                 raise ValueError("Attributes must be Data or ParameterizedAttribute!")
         if self.is_property:
@@ -762,11 +757,7 @@ class AttributeVariable(FormatDirective):
             attr = op.attributes[self.name]
 
         builtin_attributes = Builtin.attributes
-        if (
-            self.unique_base is None
-            or self.unique_base in builtin_attributes
-            or issubclass(self.unique_base, OpaqueSyntaxAttribute)
-        ):
+        if self.unique_base is None or self.unique_base in builtin_attributes:
             printer.print_attribute(attr)
         else:
             if isinstance(attr, ParametrizedAttribute):
