@@ -8,7 +8,7 @@ func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
       %6 = arith.addf %4, %5 : f64
       "stencil.return"(%6) : (f64) -> ()
     }) : (f64) -> !stencil.temp<[1,65]x[2,66]x[3,63]xf64>
-    "stencil.store"(%3, %2) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<[1,65]x[2,66]x[3,63]xf64>, !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>) -> ()
+    "stencil.store"(%3, %2) {"lb" = #stencil.index[1, 2, 3], "ub" = #stencil.index[65, 66, 63]} : (!stencil.temp<[1,65]x[2,66]x[3,63]xf64>, !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>) -> ()
     func.return
   }
 // CHECK:         func.func @stencil_init_float(%{{.*}} : f64, %{{.*}} : !stencil.field<?x?x?xf64>) {
@@ -31,9 +31,9 @@ func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        "stencil.return"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"unroll" = #stencil.index<1, 8, 1>}> : (f64, f64, f64, f64, f64, f64, f64, f64) -> ()
+// CHECK-NEXT:        "stencil.return"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"unroll" = #stencil.index[1, 8, 1]}> : (f64, f64, f64, f64, f64, f64, f64, f64) -> ()
 // CHECK-NEXT:      }) : (f64) -> !stencil.temp<[1,65]x[2,66]x[3,63]xf64>
-// CHECK-NEXT:      "stencil.store"(%{{.*}}, %{{.*}}) {"lb" = #stencil.index<1, 2, 3>, "ub" = #stencil.index<65, 66, 63>} : (!stencil.temp<[1,65]x[2,66]x[3,63]xf64>, !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>) -> ()
+// CHECK-NEXT:      "stencil.store"(%{{.*}}, %{{.*}}) {"lb" = #stencil.index[1, 2, 3], "ub" = #stencil.index[65, 66, 63]} : (!stencil.temp<[1,65]x[2,66]x[3,63]xf64>, !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -43,10 +43,10 @@ func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
     %2 = "stencil.load"(%1) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<[-1,68]xf64>
     %3 = "stencil.apply"(%2) ({
     ^0(%4 : !stencil.temp<[-1,68]xf64>):
-      %5 = "stencil.access"(%4) {"offset" = #stencil.index<-1>} : (!stencil.temp<[-1,68]xf64>) -> f64
+      %5 = "stencil.access"(%4) {"offset" = #stencil.index[-1]} : (!stencil.temp<[-1,68]xf64>) -> f64
       "stencil.return"(%5) : (f64) -> ()
     }) : (!stencil.temp<[-1,68]xf64>) -> !stencil.temp<[0,68]xf64>
-    "stencil.store"(%3, %outc) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<[0,68]xf64>, !stencil.field<[0,1024]xf64>) -> ()
+    "stencil.store"(%3, %outc) {"lb" = #stencil.index[0], "ub" = #stencil.index[68]} : (!stencil.temp<[0,68]xf64>, !stencil.field<[0,1024]xf64>) -> ()
     func.return
   }
 
@@ -56,10 +56,10 @@ func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
 // CHECK-NEXT:      %{{.*}} = "stencil.load"(%{{.*}}) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<[-1,68]xf64>
 // CHECK-NEXT:      %{{.*}} = "stencil.apply"(%{{.*}}) ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stencil.temp<[-1,68]xf64>):
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1>} : (!stencil.temp<[-1,68]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1]} : (!stencil.temp<[-1,68]xf64>) -> f64
 // CHECK-NEXT:        "stencil.return"(%{{.*}}) : (f64) -> ()
 // CHECK-NEXT:      }) : (!stencil.temp<[-1,68]xf64>) -> !stencil.temp<[0,68]xf64>
-// CHECK-NEXT:      "stencil.store"(%{{.*}}, %{{.*}}) {"lb" = #stencil.index<0>, "ub" = #stencil.index<68>} : (!stencil.temp<[0,68]xf64>, !stencil.field<[0,1024]xf64>) -> ()
+// CHECK-NEXT:      "stencil.store"(%{{.*}}, %{{.*}}) {"lb" = #stencil.index[0], "ub" = #stencil.index[68]} : (!stencil.temp<[0,68]xf64>, !stencil.field<[0,1024]xf64>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -70,11 +70,11 @@ func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
     %6 = "stencil.load"(%3) : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
     %7, %8 = "stencil.apply"(%6) ({
     ^0(%9 : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>):
-      %10 = "stencil.access"(%9) {"offset" = #stencil.index<-1, 0, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-      %11 = "stencil.access"(%9) {"offset" = #stencil.index<1, 0, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-      %12 = "stencil.access"(%9) {"offset" = #stencil.index<0, 1, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-      %13 = "stencil.access"(%9) {"offset" = #stencil.index<0, -1, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-      %14 = "stencil.access"(%9) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+      %10 = "stencil.access"(%9) {"offset" = #stencil.index[-1, 0, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+      %11 = "stencil.access"(%9) {"offset" = #stencil.index[1, 0, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+      %12 = "stencil.access"(%9) {"offset" = #stencil.index[0, 1, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+      %13 = "stencil.access"(%9) {"offset" = #stencil.index[0, -1, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+      %14 = "stencil.access"(%9) {"offset" = #stencil.index[0, 0, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
       %15 = arith.addf %10, %11 : f64
       %16 = arith.addf %12, %13 : f64
       %17 = arith.addf %15, %16 : f64
@@ -83,7 +83,7 @@ func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
       %19 = arith.addf %18, %17 : f64
       "stencil.return"(%19, %18) : (f64, f64) -> ()
     }) : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.temp<[0,64]x[0,64]x[0,64]xf64>)
-    "stencil.store"(%7, %4) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
+    "stencil.store"(%7, %4) {"lb" = #stencil.index[0, 0, 0], "ub" = #stencil.index[64, 64, 64]} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
     func.return
   }
 
@@ -94,97 +94,97 @@ func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
 // CHECK-NEXT:      %{{.*}} = "stencil.load"(%{{.*}}) : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
 // CHECK-NEXT:      %{{.*}}, %{{.*}} = "stencil.apply"(%{{.*}}) ({
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>):
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1, 0, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<1, 0, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 1, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, -1, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1, 0, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[1, 0, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 1, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, -1, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 0, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1, 1, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<1, 1, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 2, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 0, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 1, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1, 1, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[1, 1, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 2, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 0, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 1, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1, 2, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<1, 2, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 3, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 1, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 2, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1, 2, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[1, 2, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 3, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 1, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 2, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1, 3, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<1, 3, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 4, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 2, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 3, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1, 3, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[1, 3, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 4, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 2, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 3, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1, 4, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<1, 4, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 5, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 3, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 4, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1, 4, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[1, 4, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 5, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 3, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 4, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1, 5, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<1, 5, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 6, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 4, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 5, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1, 5, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[1, 5, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 6, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 4, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 5, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1, 6, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<1, 6, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 7, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 5, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 6, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1, 6, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[1, 6, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 7, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 5, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 6, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<-1, 7, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<1, 7, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 8, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 6, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
-// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index<0, 7, 0>} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[-1, 7, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[1, 7, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 8, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 6, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
+// CHECK-NEXT:        %{{.*}} = "stencil.access"(%{{.*}}) {"offset" = #stencil.index[0, 7, 0]} : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.constant -4.000000e+00 : f64
 // CHECK-NEXT:        %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:        "stencil.return"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"unroll" = #stencil.index<1, 8, 1>}> : (f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64) -> ()
+// CHECK-NEXT:        "stencil.return"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"unroll" = #stencil.index[1, 8, 1]}> : (f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64, f64) -> ()
 // CHECK-NEXT:      }) : (!stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.temp<[0,64]x[0,64]x[0,64]xf64>)
-// CHECK-NEXT:      "stencil.store"(%{{.*}}, %{{.*}}) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
+// CHECK-NEXT:      "stencil.store"(%{{.*}}, %{{.*}}) {"lb" = #stencil.index[0, 0, 0], "ub" = #stencil.index[64, 64, 64]} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -200,8 +200,8 @@ func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<
     %7 = "stencil.dyn_access"(%arg2, %4, %5, %6) {lb = #stencil.index<0, 0, 0>, ub = #stencil.index<0, 0, 0>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, index, index, index) -> f64
     %8 = "stencil.store_result"(%7) : (f64) -> !stencil.result<f64>
     "stencil.return"(%8) : (!stencil.result<f64>) -> ()
-  }) {lb = #stencil.index<0, 0, 0>, ub = [64, 64, 60]} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-  "stencil.store"(%3, %1) {lb = #stencil.index<0, 0, 0>, ub = #stencil.index<64, 64, 60>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
+  }) {lb = #stencil.index[0, 0, 0], ub = [64, 64, 60]} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+  "stencil.store"(%3, %1) {lb = #stencil.index[0, 0, 0], ub = #stencil.index[64, 64, 60]} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
   return
 }
 
@@ -251,8 +251,8 @@ func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<
 // CHECK-NEXT:        %167 = "stencil.index"() {"dim" = 2 : index, "offset" = #stencil.index<0, 7, 0>} : () -> index
 // CHECK-NEXT:        %168 = "stencil.dyn_access"(%129, %165, %166, %167) {"lb" = #stencil.index<0, 7, 0>, "ub" = #stencil.index<0, 7, 0>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, index, index, index) -> f64
 // CHECK-NEXT:        %169 = "stencil.store_result"(%168) : (f64) -> !stencil.result<f64>
-// CHECK-NEXT:        "stencil.return"(%134, %139, %144, %149, %154, %159, %164, %169) <{"unroll" = #stencil.index<1, 8, 1>}> : (!stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>) -> ()
+// CHECK-NEXT:        "stencil.return"(%134, %139, %144, %149, %154, %159, %164, %169) <{"unroll" = #stencil.index[1, 8, 1]}> : (!stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>) -> ()
 // CHECK-NEXT:      }) : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:      "stencil.store"(%128, %126) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 60>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
+// CHECK-NEXT:      "stencil.store"(%128, %126) {"lb" = #stencil.index[0, 0, 0], "ub" = #stencil.index[64, 64, 60]} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }

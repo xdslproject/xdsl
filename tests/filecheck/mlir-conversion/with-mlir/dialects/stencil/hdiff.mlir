@@ -8,11 +8,11 @@
     %6 = "stencil.load"(%3) : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
     %8 = "stencil.apply"(%6) ({
     ^1(%9 : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>):
-      %10 = "stencil.access"(%9) {"offset" = #stencil.index<-1, 0, 0>} : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %11 = "stencil.access"(%9) {"offset" = #stencil.index<1, 0, 0>} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %12 = "stencil.access"(%9) {"offset" = #stencil.index<0, 1, 0>} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %13 = "stencil.access"(%9) {"offset" = #stencil.index<0, -1, 0>} : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %14 = "stencil.access"(%9) {"offset" = #stencil.index<0, 0, 0>} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
+      %10 = "stencil.access"(%9) {"offset" = #stencil.index[-1, 0, 0]} : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
+      %11 = "stencil.access"(%9) {"offset" = #stencil.index[1, 0, 0]} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
+      %12 = "stencil.access"(%9) {"offset" = #stencil.index[0, 1, 0]} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
+      %13 = "stencil.access"(%9) {"offset" = #stencil.index[0, -1, 0]} : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
+      %14 = "stencil.access"(%9) {"offset" = #stencil.index[0, 0, 0]} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
       %15 = "arith.addf"(%10, %11) : (f64, f64) -> f64
       %16 = "arith.addf"(%12, %13) : (f64, f64) -> f64
       %17 = "arith.addf"(%15, %16) : (f64, f64) -> f64
@@ -21,7 +21,7 @@
       %19 = "arith.addf"(%18, %17) : (f64, f64) -> f64
       "stencil.return"(%19) : (f64) -> ()
     }) : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
-    "stencil.store"(%8, %4) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 64>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
+    "stencil.store"(%8, %4) {"lb" = #stencil.index[0, 0, 0], "ub" = #stencil.index[64, 64, 64]} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
     "func.return"() : () -> ()
   }) {"function_type" = (!stencil.field<?x?x?xf64>, !stencil.field<?x?x?xf64>) -> (), "sym_name" = "stencil_hdiff"} : () -> ()
 }) : () -> ()

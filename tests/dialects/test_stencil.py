@@ -746,14 +746,14 @@ builtin.module {
     %2 = "stencil.load"(%0) : (!stencil.field<[-1,7]xf32>) -> !stencil.temp<?xf32>
     %3 = "stencil.apply"(%2) ({
     ^0(%4 : !stencil.temp<?xf32>):
-      %5 = "stencil.access"(%4) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf32>) -> f32
-      %6 = "stencil.access"(%4) {"offset" = #stencil.index<0>} : (!stencil.temp<?xf32>) -> f32
-      %7 = "stencil.access"(%4) {"offset" = #stencil.index<1>} : (!stencil.temp<?xf32>) -> f32
+      %5 = "stencil.access"(%4) {"offset" = #stencil.index[-1]} : (!stencil.temp<?xf32>) -> f32
+      %6 = "stencil.access"(%4) {"offset" = #stencil.index[0]} : (!stencil.temp<?xf32>) -> f32
+      %7 = "stencil.access"(%4) {"offset" = #stencil.index[1]} : (!stencil.temp<?xf32>) -> f32
       %8 = arith.addf %5, %6 : f32
       %9 = arith.addf %8, %7 : f32
       "stencil.return"(%9) : (f32) -> ()
     }) : (!stencil.temp<?xf32>) -> !stencil.temp<?xf32>
-    "stencil.store"(%3, %1) {"lb" = #stencil.index<0>, "ub" = #stencil.index<6>} : (!stencil.temp<?xf32>, !stencil.field<[-1,7]xf32>) -> ()
+    "stencil.store"(%3, %1) {"lb" = #stencil.index[0], "ub" = #stencil.index[6]} : (!stencil.temp<?xf32>, !stencil.field<[-1,7]xf32>) -> ()
   }
 }
 """  # noqa

@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Block,
+    BlockArgument,
     Dialect,
     Operation,
     OpResult,
@@ -50,7 +51,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -69,12 +70,12 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
         ints = parser.parse_comma_separated_list(
-            parser.Delimiter.ANGLE, lambda: parser.parse_integer(allow_boolean=False)
+            parser.Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False)
         )
         return [ArrayAttr(IntAttr(i) for i in ints)]
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print(f'<{", ".join(str(e) for e in self)}>')
+        printer.print(f'[{", ".join(str(e) for e in self)}]')
 
     def verify(self) -> None:
         l = len(self)
@@ -338,6 +339,55 @@ class ApplyOp(IRDLOperation):
 
     traits = frozenset([IsolatedFromAbove()])
 
+    def print(self, printer: Printer):
+        def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
+            printer.print(args[0])
+            printer.print(" = ")
+            printer.print(args[1])
+            printer.print(" : ")
+            printer.print(args[2])
+
+        printer.print("(")
+        printer.print_list(
+            zip(self.region.block.args, self.args, (a.type for a in self.args)),
+            print_assign_argument,
+        )
+        printer.print(") -> (")
+        printer.print_list((r.type for r in self.res), printer.print_attribute)
+        printer.print(") ")
+        printer.print_op_attributes(self.attributes, print_keyword=True)
+        printer.print_region(self.region, print_entry_block_args=False)
+
+    @classmethod
+    def parse(cls: type[ApplyOp], parser: Parser):
+        def parse_assign_args():
+            arg = parser.parse_argument(expect_type=False)
+            parser.parse_punctuation("=")
+            value = parser.parse_operand()
+            parser.parse_punctuation(":")
+            type = parser.parse_attribute()
+            arg = arg.resolve(type)
+            return arg, value
+
+        assign_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parse_assign_args
+        )
+        args, operands = zip(*assign_args)
+        parser.parse_punctuation("->")
+        result_types = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_attribute
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        if attrs is not None:
+            attrs = attrs.data
+        region = parser.parse_region(args)
+        return cls(
+            operands=operands,
+            result_types=result_types,
+            regions=[region],
+            attributes=attrs,
+        )
+
     @staticmethod
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
@@ -404,7 +454,7 @@ class CastOp(IRDLOperation):
     This operation casts dynamically shaped input fields to statically shaped fields.
 
     Example:
-        %0 = stencil.cast %in ([-3, -3, 0] : [67, 67, 60]) : (!stencil.field<?x?x?xf64>) -> !stencil.field<70x70x60xf64> # noqa
+        %0 = stencil.cast %in : !stencil.field<?x?x?xf64> -> !stencil.field<70x70x60xf64> # noqa
     """
 
     name = "stencil.cast"
@@ -432,6 +482,10 @@ class CastOp(IRDLOperation):
                 ),
             ],
         )
+    )
+
+    assembly_format = (
+        "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
     @staticmethod
@@ -507,6 +561,8 @@ class CombineOp(IRDLOperation):
     upperext = var_operand_def(TempType)
     results_ = var_result_def(TempType)
 
+    assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
+
     irdl_options = [AttrSizedOperandSegments()]
 
 
@@ -519,7 +575,7 @@ class DynAccessOp(IRDLOperation):
     iteration domain of the parent apply operation.
 
     Example:
-      %0 = stencil.dyn_access %temp (%i, %j, %k) in [-1, -1, -1] : [1, 1, 1] : !stencil.temp<?x?x?xf64> -> f64
+      %0 = stencil.dyn_access %temp [%i, %j, %k] in [-1, -1, -1] : [1, 1, 1] : !stencil.temp<?x?x?xf64>
     """
 
     name = "stencil.dyn_access"
@@ -549,6 +605,10 @@ class DynAccessOp(IRDLOperation):
         )
     )
 
+    assembly_format = (
+        "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
+    )
+
     def __init__(
         self,
         temp: SSAValue | Operation,
@@ -571,12 +631,16 @@ class ExternalLoadOp(IRDLOperation):
     This operation loads from an external field type, e.g. to bring data into the stencil
 
     Example:
-      %0 = stencil.external_load %in : (!fir.array<128x128xf64>) -> !stencil.field<128x128xf64> # noqa
+      %0 = stencil.external_load %in : !fir.array<128x128xf64> -> !stencil.field<128x128xf64>
     """
 
     name = "stencil.external_load"
     field: Operand = operand_def(Attribute)
     result: OpResult = result_def(FieldType[Attribute] | memref.MemRefType[Attribute])
+
+    assembly_format = (
+        "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
+    )
 
     @staticmethod
     def get(
@@ -599,6 +663,10 @@ class ExternalStoreOp(IRDLOperation):
     temp: Operand = operand_def(FieldType)
     field: Operand = operand_def(Attribute)
 
+    assembly_format = (
+        "$temp `to` $field attr-dict-with-keyword `:` type($temp) `to` type($field)"
+    )
+
 
 @irdl_op_definition
 class IndexOp(IRDLOperation):
@@ -608,13 +676,15 @@ class IndexOp(IRDLOperation):
     The offset is specified relative to the current position.
 
     Example:
-      %0 = stencil.index 0 [-1, 0, 0] : index
+      %0 = stencil.index 0 [-1, 0, 0]
     """
 
     name = "stencil.index"
     dim = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
     offset = attr_def(IndexAttr)
-    idx = result_def(builtin.IndexType)
+    idx = result_def(builtin.IndexType())
+
+    assembly_format = "$dim $offset attr-dict-with-keyword"
 
 
 @irdl_op_definition
@@ -628,7 +698,7 @@ class AccessOp(IRDLOperation):
     dimensions than the result.
 
     Example:
-      %0 = stencil.access %temp [-1, 0, 0] : !stencil.temp<?x?x?xf64> -> f64
+      %0 = stencil.access %temp [-1, 0, 0] : !stencil.temp<?x?x?xf64>
     """
 
     T = Annotated[Attribute, ConstraintVar("T")]
@@ -656,6 +726,8 @@ class AccessOp(IRDLOperation):
     )
 
     traits = frozenset([HasParent(ApplyOp)])
+
+    assembly_format = "$temp $offset attr-dict-with-keyword `:` type($temp)"
 
     @staticmethod
     def get(
@@ -741,7 +813,7 @@ class LoadOp(IRDLOperation):
     This operation takes a field and returns its values.
 
     Example:
-      %0 = stencil.load %field : (!stencil.field<70x70x60xf64>) -> !stencil.temp<?x?x?xf64>
+      %0 = stencil.load %field : !stencil.field<70x70x60xf64> -> !stencil.temp<?x?x?xf64>
     """
 
     name = "stencil.load"
@@ -770,6 +842,8 @@ class LoadOp(IRDLOperation):
             ],
         )
     )
+
+    assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
 
     @staticmethod
     def get(
@@ -813,7 +887,7 @@ class BufferOp(IRDLOperation):
     Prevents fusion of consecutive stencil.apply operations.
 
     Example:
-      %0 = stencil.buffer %buffered : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
+      %0 = stencil.buffer %buffered : (!stencil.temp<?x?x?xf64>)
     """
 
     name = "stencil.buffer"
@@ -832,6 +906,8 @@ class BufferOp(IRDLOperation):
             "Expected operand and result type to be equal.",
         )
     )
+
+    assembly_format = "$temp attr-dict-with-keyword `:` type($temp)"
 
     def __init__(self, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
@@ -856,7 +932,7 @@ class StoreOp(IRDLOperation):
     This operation writes values to a field on a user defined range.
 
     Example:
-      stencil.store %temp to %field ([0,0,0] : [64,64,60]) : !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>  # noqa
+      stencil.store %temp to %field ([-3, -3, 0] : [67, 67, 60]): !stencil.temp<?x?x?xf64> to !stencil.field<70x70x60xf64>  # noqa
     """
 
     name = "stencil.store"
@@ -889,6 +965,8 @@ class StoreOp(IRDLOperation):
     )
     lb: IndexAttr = attr_def(IndexAttr)
     ub: IndexAttr = attr_def(IndexAttr)
+
+    assembly_format = "$temp `to` $field `` `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
     @staticmethod
     def get(
@@ -955,8 +1033,10 @@ class ReturnOp(IRDLOperation):
 
     name = "stencil.return"
 
-    arg: VarOperand = var_operand_def(Attribute)
+    arg = var_operand_def(Attribute)
     unroll = opt_prop_def(IndexAttr)
+
+    assembly_format = "$arg (`unroll` $unroll^)? attr-dict-with-keyword `:` type($arg)"
 
     @property
     def unroll_factor(self) -> int:
