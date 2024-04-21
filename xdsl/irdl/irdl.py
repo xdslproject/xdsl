@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 def error(op: Operation, msg: str, e: Exception):
     diag = Diagnostic()
     diag.add_message(op, msg)
-    diag.raise_exception(f"{op.name} operation does not verify", op, type(e), e)
+    diag.raise_exception(msg, op, type(e), e)
 
 
 class IRDLAnnotations(Enum):
