@@ -284,8 +284,13 @@ def test_nested_constraint_var():
         VerifyException,
         match=re.escape(
             """\
-Operation does not verify: Expected operand and result to have the same shape.
+Operation does not verify: result at position 0 does not verify!
+Expected operand and result to have the same shape.
 Underlying verification failure: attribute [#builtin.int<1>, #builtin.int<2>] expected from variable 'S', but got [#builtin.int<3>, #builtin.int<4>]
+
+%0 = "test.nested_constraint_var_op"(%1) : (memref<1x2xindex>) -> memref<3x4xindex>
+
+
 
 %0 = "test.nested_constraint_var_op"(%1) : (memref<1x2xindex>) -> memref<3x4xindex>
 
@@ -301,8 +306,13 @@ Underlying verification failure: attribute [#builtin.int<1>, #builtin.int<2>] ex
         VerifyException,
         match=re.escape(
             """\
-Operation does not verify: Expected operand and result to have the same shape.
+Operation does not verify: result at position 0 does not verify!
+Expected operand and result to have the same shape.
 Underlying verification failure: attribute [#builtin.int<3>, #builtin.int<4>] expected from variable 'S', but got [#builtin.int<1>, #builtin.int<2>]
+
+%0 = "test.nested_constraint_var_op"(%1) : (memref<3x4xindex>) -> memref<1x2xindex>
+
+
 
 %0 = "test.nested_constraint_var_op"(%1) : (memref<3x4xindex>) -> memref<1x2xindex>
 
