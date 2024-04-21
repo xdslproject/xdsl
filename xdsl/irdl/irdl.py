@@ -47,6 +47,7 @@ from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
     get_type_var_mapping,
+    isa,
 )
 from xdsl.utils.runtime_final import is_runtime_final, runtime_final
 
@@ -224,13 +225,9 @@ def attr_constr_coercion(
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
     """
-    if isinstance(attr, AttrConstraint):
-        return attr
-    if isinstance(attr, Attribute):
-        return EqAttrConstraint(attr)
-    if isclass(attr) and issubclass(attr, Attribute):
-        return BaseAttr(attr)
-    assert False
+    return irdl_to_attr_constraint(
+        attr,
+    )
 
 
 @dataclass
@@ -354,7 +351,7 @@ class ParamAttrConstraint(AttrConstraint):
         self.param_constrs = [attr_constr_coercion(constr) for constr in param_constrs]
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        if not isinstance(attr, self.base_attr):
+        if not isa(attr, self.base_attr):
             raise VerifyException(
                 f"{attr} should be of base attribute {self.base_attr.name}"
             )
@@ -444,7 +441,6 @@ def _irdl_list_to_attr_constraint(
         constraints.append(
             irdl_to_attr_constraint(
                 arg,
-                allow_type_var=allow_type_var,
                 type_var_mapping=type_var_mapping,
             )
         )
@@ -458,7 +454,6 @@ def _irdl_list_to_attr_constraint(
 def irdl_to_attr_constraint(
     irdl: Any,
     *,
-    allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
     if isinstance(irdl, AttrConstraint):
@@ -474,7 +469,6 @@ def irdl_to_attr_constraint(
     if get_origin(irdl) == Annotated:
         return _irdl_list_to_attr_constraint(
             get_args(irdl),
-            allow_type_var=allow_type_var,
             type_var_mapping=type_var_mapping,
         )
 
@@ -495,8 +489,6 @@ def irdl_to_attr_constraint(
     # Type variable case
     # We take the type variable bound constraint.
     if isinstance(irdl, TypeVar):
-        if not allow_type_var:
-            raise Exception("TypeVar in unexpected context.")
         if type_var_mapping:
             if irdl in type_var_mapping:
                 return type_var_mapping[irdl]
@@ -524,9 +516,7 @@ def irdl_to_attr_constraint(
         and issubclass(origin, Generic)
     ):
         args = [
-            irdl_to_attr_constraint(
-                arg, allow_type_var=allow_type_var, type_var_mapping=type_var_mapping
-            )
+            irdl_to_attr_constraint(arg, type_var_mapping=type_var_mapping)
             for arg in get_args(irdl)
         ]
         generic_args = get_type_var_from_generic_class(origin)
@@ -544,9 +534,7 @@ def irdl_to_attr_constraint(
 
         origin_parameters = irdl_param_attr_get_param_type_hints(origin)
         origin_constraints = [
-            irdl_to_attr_constraint(
-                param, allow_type_var=True, type_var_mapping=type_var_mapping
-            )
+            irdl_to_attr_constraint(param, type_var_mapping=type_var_mapping)
             for _, param in origin_parameters
         ]
         return ParamAttrConstraint(origin, origin_constraints)
@@ -563,7 +551,6 @@ def irdl_to_attr_constraint(
             constraints.append(
                 irdl_to_attr_constraint(
                     arg,
-                    allow_type_var=allow_type_var,
                     type_var_mapping=type_var_mapping,
                 )
             )
@@ -2357,7 +2344,7 @@ class ParamAttrDef:
 
         parameters = list[tuple[str, AttrConstraint]]()
         for param_name, param_type in param_hints:
-            constraint = irdl_to_attr_constraint(param_type, allow_type_var=True)
+            constraint = irdl_to_attr_constraint(param_type)
             parameters.append((param_name, constraint))
 
         return ParamAttrDef(name, parameters)

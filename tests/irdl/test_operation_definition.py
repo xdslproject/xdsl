@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated, Generic, TypeVar
 
 import pytest
 
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     DenseArrayBase,
     IndexType,
     IntAttr,
     IntegerType,
+    MemRefType,
     StringAttr,
     i32,
 )
@@ -23,12 +26,14 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintVar,
     IRDLOperation,
+    MessageConstraint,
     OpDef,
     Operand,
     OperandDef,
     OptOperand,
     OptOpResult,
     OptRegion,
+    ParamAttrConstraint,
     PropertyDef,
     RegionDef,
     ResultDef,
@@ -227,6 +232,86 @@ def test_constraint_var_fail_not_satisfy_constraint():
         attributes={"attribute": TestType("foo")},
     )
     with pytest.raises(DiagnosticException):
+        op.verify()
+
+
+@irdl_op_definition
+class NestedConstraintVarOp(IRDLOperation):
+    name = "test.nested_constraint_var_op"
+
+    S = Annotated[ArrayAttr[IntAttr], ConstraintVar("S")]
+
+    operand: Operand = operand_def(
+        ParamAttrConstraint(MemRefType[Attribute], [S, Attribute, Attribute, Attribute])
+    )
+    result: OpResult = result_def(
+        ParamAttrConstraint(
+            MemRefType[Attribute],
+            [
+                MessageConstraint(
+                    S, "Expected operand and result to have the same shape."
+                ),
+                Attribute,
+                Attribute,
+                Attribute,
+            ],
+        )
+    )
+
+
+def test_nested_constraint_var():
+    first_shape = ArrayAttr([IntAttr(1), IntAttr(2)])
+    element_type = IndexType()
+    second_shape = ArrayAttr([IntAttr(3), IntAttr(4)])
+
+    first_type = MemRefType(element_type, first_shape)
+    second_type = MemRefType(element_type, second_shape)
+
+    first_operand = TestSSAValue(first_type)
+    second_operand = TestSSAValue(second_type)
+
+    op = NestedConstraintVarOp.create(
+        operands=[first_operand], result_types=[first_type]
+    )
+    op.verify()
+
+    op = NestedConstraintVarOp.create(
+        operands=[second_operand], result_types=[second_type]
+    )
+    op.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            """\
+Operation does not verify: Expected operand and result to have the same shape.
+Underlying verification failure: attribute [#builtin.int<1>, #builtin.int<2>] expected from variable 'S', but got [#builtin.int<3>, #builtin.int<4>]
+
+%0 = "test.nested_constraint_var_op"(%1) : (memref<1x2xindex>) -> memref<3x4xindex>
+
+"""
+        ),
+    ):
+        op = NestedConstraintVarOp.create(
+            operands=[first_operand], result_types=[second_type]
+        )
+        op.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            """\
+Operation does not verify: Expected operand and result to have the same shape.
+Underlying verification failure: attribute [#builtin.int<3>, #builtin.int<4>] expected from variable 'S', but got [#builtin.int<1>, #builtin.int<2>]
+
+%0 = "test.nested_constraint_var_op"(%1) : (memref<3x4xindex>) -> memref<1x2xindex>
+
+"""
+        ),
+    ):
+        op = NestedConstraintVarOp.create(
+            operands=[second_operand], result_types=[first_type]
+        )
         op.verify()
 
 
