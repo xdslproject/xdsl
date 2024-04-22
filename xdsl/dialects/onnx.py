@@ -982,8 +982,7 @@ class Transpose(IRDLOperation):
                         f"permutation can not contain more than one occurrence of the same dimension: dimension #{attr_value} appears {count} times."
                     )
 
-        # numbers in perm must be between 0 and len(tensor_input_shape)-1
-        if self.perm is not None:
+            # numbers in perm must be between 0 and len(tensor_input_shape)-1
             perm_size = len(self.perm.data)
             for int_index, int_attr in enumerate(self.perm.data):
                 int_index = int_index + 0
@@ -993,8 +992,7 @@ class Transpose(IRDLOperation):
                         f"permutation can only contain values between 0 and {perm_size}-1: dimension #{int_index} value is {int_attr_val}"
                     )
 
-        # len(tensor_input_shape) must be equal to len(perm)
-        if self.perm is not None:
+            # len(tensor_input_shape) must be equal to len(perm)
             perm_size = len(self.perm.data)
             input_size = len(tensor_input_shape)
             if perm_size != input_size:
@@ -1002,8 +1000,7 @@ class Transpose(IRDLOperation):
                     f"permutation and inputs dimensions must have the same size: #dimensions input is {input_size}, #dimension perimutation is {perm_size}"
                 )
 
-        # check output shape
-        if self.perm is not None:
+            # check output shape
             for index_attr, int_attr in enumerate(self.perm.data):
                 int_attr_val = int_attr.value.data
                 if tensor_output_shape[index_attr] != tensor_input_shape[int_attr_val]:

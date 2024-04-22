@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
-from typing import IO, Generic, TypeAlias, TypeVar
+from typing import IO, Annotated, Generic, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
@@ -18,6 +18,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     irdl_op_definition,
     operand_def,
@@ -318,6 +319,90 @@ class PushOp(ROperationSrc[GeneralRegisterType]):
     """
 
     name = "x86.push"
+
+
+class ROperationDst(Generic[R1InvT], SingleOperandInstruction):
+    """
+    A base class for x86 operations that have one destination register.
+    """
+
+    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    destination = result_def(R1InvT)
+    rsp_output = result_def(GeneralRegisterType("rsp"))
+
+    def __init__(
+        self,
+        *,
+        comment: str | StringAttr | None = None,
+        rsp_input: Operation | SSAValue,
+        destination: R1InvT,
+        rsp_output: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rsp_input],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[destination, rsp_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.destination,)
+
+
+@irdl_op_definition
+class PopOp(ROperationDst[GeneralRegisterType]):
+    """
+    Copies the value at the top of the stack into r1 and increases %rsp.
+    https://www.felixcloutier.com/x86/pop
+    """
+
+    name = "x86.pop"
+
+
+class ROperationSrcDst(Generic[R1InvT], SingleOperandInstruction):
+    """
+    A base class for x86 operations that have one register acting as both source and destination.
+    """
+
+    T = Annotated[GeneralRegisterType, ConstraintVar("T")]
+    source = operand_def(R1InvT)
+    destination = result_def(R1InvT)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue | None = None,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.source,)
+
+
+@irdl_op_definition
+class NotOp(ROperationSrcDst[GeneralRegisterType]):
+    """
+    bitwise not of r1, stored in r1
+    x[r1] = ~x[r1]
+    https://www.felixcloutier.com/x86/not
+    """
+
+    name = "x86.not"
 
 
 # region Assembly printing
