@@ -23,3 +23,5 @@ x86.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.push %{{.*}} : (!x86.reg<>)
 %pop, %poprsp = x86.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<>, !x86.reg<rsp>)
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.pop %{{.*}} : (!x86.reg<rsp>) -> (!x86.reg<>, !x86.reg<rsp>)
+%not = x86.not %0 : (!x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.not %{{.*}} : (!x86.reg<>) -> !x86.reg<>
