@@ -950,7 +950,7 @@ class Sigmoid(IRDLOperation):
 
     name = "onnx.Sigmoid"
 
-    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    T = Annotated[TensorType[AnyFloat], ConstraintVar("T")]
     input_tensor = operand_def(TensorType[T])
     output_tensor = result_def(TensorType[T])
 
