@@ -381,6 +381,38 @@ class ParamAttrConstraint(AttrConstraint):
         return None
 
 
+@dataclass(init=False)
+class MessageConstraint(AttrConstraint):
+    """
+    Attach a message to a constraint, to provide more context when the constraint
+    is not satisfied.
+    """
+
+    constr: AttrConstraint
+    message: str
+
+    def __init__(
+        self, constr: AttrConstraint | Attribute | type[Attribute], message: str
+    ):
+        self.constr = attr_constr_coercion(constr)
+        self.message = message
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        try:
+            return self.constr.verify(attr, constraint_vars)
+        except VerifyException as e:
+            raise VerifyException(
+                f"{self.message}\nUnderlying verification failure: {e.args[0]}",
+                *e.args[1:],
+            )
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return self.constr.get_unique_base()
+
+
 def _irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[Any],
     *,

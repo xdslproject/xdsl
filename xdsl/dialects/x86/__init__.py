@@ -6,7 +6,9 @@ from .ops import (
     GetRegisterOp,
     ImulOp,
     MovOp,
+    NotOp,
     OrOp,
+    PopOp,
     PushOp,
     SubOp,
     XorOp,
@@ -24,6 +26,8 @@ X86 = Dialect(
         XorOp,
         MovOp,
         PushOp,
+        PopOp,
+        NotOp,
         GetRegisterOp,
     ],
     [
