@@ -21,8 +21,8 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
-    Data
 )
+from xdsl.ir.core import EnumAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -43,9 +43,7 @@ from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-
-if TYPE_CHECKING:
-    from xdsl.parser import AttrParser
+from xdsl.utils.str_enum import StrEnum
 
 
 def cs2_bitsizeof(type_attr: Attribute) -> int:
@@ -61,7 +59,7 @@ def cs2_bitsizeof(type_attr: Attribute) -> int:
             raise TypeError(f"Cannot get bitsize for type {type_attr}")
 
 
-class TaskKind(Enum):
+class TaskKind(StrEnum):
     LOCAL = "local"
     DATA = "data"
     CONTROL = "control"
@@ -74,21 +72,8 @@ def task_kind_to_color_bits(kind: TaskKind):
 
 
 @irdl_attr_definition
-class TaskKindAttr(Data[TaskKind]):
+class TaskKindAttr(EnumAttribute[TaskKind]):
     name = "csl.task_kind"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> TaskKind:
-        with parser.in_angle_brackets():
-            for kind in TaskKind:
-                if parser.parse_optional_keyword(kind.value):
-                    return kind
-        parser.raise_error(
-            f"Expected one of {', '.join(k.value for k in TaskKind)}")
-
-    def print_parameter(self, printer: Printer) -> None:
-        return printer.print_string(self.data.value)
-
 
 @irdl_attr_definition
 class ComptimeStructType(ParametrizedAttribute, TypeAttribute):
