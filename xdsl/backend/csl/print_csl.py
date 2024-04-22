@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
     FloatAttr,
+    FunctionType,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -15,8 +16,9 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     Signedness,
     SignednessAttr,
+    StringAttr
 )
-from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.ir import Attribute, Block, SSAValue, Region
 
 
 @dataclass
@@ -124,6 +126,27 @@ class CslPrintContext:
             case _:
                 return f"<!unknown type of {attr}>"
 
+    def _task_or_fn(self, introducer: str, name: StringAttr, bdy: Region, ftyp: FunctionType):
+        args = ", ".join(
+            f"{self._get_variable_name_for(arg)} : {self.mlir_type_to_csl_type(arg.type)}" for arg in bdy.block.args)
+        ret = 'void' if len(ftyp.outputs) == 0 else self.mlir_type_to_csl_type(
+            ftyp.outputs.data[0])
+        self.print(f"{introducer} {name.data}({args}) {ret} {{")
+        self.descend().print_block(bdy.block)
+        self.print("}")
+
+    def _wrapp_task_id(self, kind: csl.TaskKind, id: int):
+        if kind == csl.TaskKind.DATA:
+            return f"@get_color({id})"
+        return str(id)
+
+    def _bind_task(self, name: str, kind: csl.TaskKind, id: int):
+        self.print("comptime {")
+        self.print(
+            f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrapp_task_id(kind, id)}));",
+            prefix=' ' * self._INDENT_SIZE)
+        self.print("}")
+
     def print_block(self, body: Block):
         """
         Walks over a block and prints every operation in the block.
@@ -175,15 +198,11 @@ class CslPrintContext:
                     self.print(
                         f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {struct_var}.{field.data};"
                     )
+                case csl.TaskOp(sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id):
+                    self._task_or_fn("task", name, bdy, ftyp)
+                    self._bind_task(name.data, kind.data, id.value.data)
                 case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp):
-                    args = ", ".join(
-                        f"{self._get_variable_name_for(arg)} : {self.mlir_type_to_csl_type(arg.type)}" for arg in bdy.block.args)
-                    ret = 'void' if len(ftyp.outputs) == 0 else self.mlir_type_to_csl_type(
-                        ftyp.outputs.data[0])
-                    # only functions without input supported for now.
-                    self.print(f"fn {name.data}({args}) {ret} {{")
-                    self.descend().print_block(bdy.block)
-                    self.print("}")
+                    self._task_or_fn("fn", name, bdy, ftyp)
                 case csl.ReturnOp(ret_val=None):
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
