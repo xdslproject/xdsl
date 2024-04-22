@@ -379,6 +379,7 @@ class ROperationSrcDst(Generic[R1InvT], SingleOperandInstruction):
             },
             result_types=[destination],
         )
+
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return (self.source,)
 
