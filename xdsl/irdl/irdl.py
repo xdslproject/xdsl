@@ -1822,7 +1822,7 @@ def irdl_op_verify_arg_list(
             error(
                 op,
                 f"{get_construct_name(construct)} at position "
-                f"{arg_idx} does not verify!\n{e}",
+                f"{arg_idx} does not verify:\n{e}",
                 e,
             )
 
