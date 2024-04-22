@@ -7,11 +7,11 @@
 
 %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.comptime_struct
 
-csl.task @local_task() attributes {kind = #csl.task_kind<local>, id = 0 : i5} {
+csl.task @local_task() attributes {kind = #csl<task_kind local>, id = 0 : i5} {
   csl.return
 }
 
-csl.task @data_task(%a: i32) attributes {kind = #csl.task_kind<data>, id = 2 : i5} {
+csl.task @data_task(%a: i32) attributes {kind = #csl<task_kind data>, id = 2 : i5} {
   csl.return
 }
 
