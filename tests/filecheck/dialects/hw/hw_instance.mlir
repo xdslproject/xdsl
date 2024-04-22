@@ -21,6 +21,10 @@ builtin.module {
   // CHECK-GENERIC: "hw.instance"() {"instanceName" = "empty_instance", "moduleName" = @test_empty, "argNames" = [], "resultNames" = []} : () -> ()
   hw.instance "empty_instance" @test_empty() -> ()
 
+  // CHECK: hw.instance "empty_instance_with_attrs" @test_empty() -> () {"foo" = 4 : i32, "bar"}
+  // CHECK-GENERIC: "hw.instance"() {"foo" = 4 : i32, "bar", "instanceName" = "empty_instance_with_attrs", "moduleName" = @test_empty, "argNames" = [], "resultNames" = []} : () -> ()
+  hw.instance "empty_instance_with_attrs" @test_empty() -> () {"foo" = 4 : i32, "bar"}
+
   // CHECK: %{{.*}} = hw.instance "basic_instance" @test_basic(testIn: %{{.*}}: i32) -> (testOut: i32)
   // CHECK-GENERIC: %{{.*}} = "hw.instance"(%{{.*}}) {"instanceName" = "basic_instance", "moduleName" = @test_basic, "argNames" = ["testIn"], "resultNames" = ["testOut"]} : (i32) -> i32
   %res = hw.instance "basic_instance" @test_basic(testIn: %ci32: i32) -> (testOut: i32)

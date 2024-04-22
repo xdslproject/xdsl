@@ -1011,6 +1011,15 @@ class InstanceOp(IRDLOperation):
             lambda x: print_output_port(*x),
         )
         printer.print(")")
+        printer.print_op_attributes(
+            self.attributes,
+            reserved_attr_names=(
+                "instanceName",
+                "moduleName",
+                "argNames",
+                "resultNames",
+            ),
+        )
 
 
 @irdl_op_definition
