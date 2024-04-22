@@ -11,7 +11,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
-from xdsl.dialects.builtin import Builtin
 from xdsl.ir import (
     Attribute,
     Data,
@@ -730,8 +729,7 @@ class AttributeVariable(FormatDirective):
     """The known base class of the Attribute, if any."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        builtin_attributes = Builtin.attributes
-        if self.unique_base is None or self.unique_base in builtin_attributes:
+        if self.unique_base is None:
             attr = parser.parse_attribute()
         else:
             if issubclass(self.unique_base, ParametrizedAttribute):
@@ -757,8 +755,7 @@ class AttributeVariable(FormatDirective):
         else:
             attr = op.attributes[self.name]
 
-        builtin_attributes = Builtin.attributes
-        if self.unique_base is None or self.unique_base in builtin_attributes:
+        if self.unique_base is None:
             printer.print_attribute(attr)
         else:
             if isinstance(attr, ParametrizedAttribute):
