@@ -952,7 +952,7 @@ class Squeeze(IRDLOperation):
 
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     input_tensor = operand_def(TensorType[T])
-    axes = operand_def(TensorType[IntegerType])
+    axes = opt_attr_def(IntegerAttr, attr_name="axes")
 
     output_tensor = result_def(TensorType[T])
 
@@ -972,22 +972,22 @@ class Squeeze(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        if not isinstance(axes_type := self.axes.type, TensorType):
+        if not isinstance(input_tensor_type := self.input_tensor.type, TensorType):
             assert (
                 False
             ), "onnx elementwise operation operands and result must be of type TensorType"
 
-        axes_shape = axes_type.get_shape()
+        input_tensor_shape = input_tensor_type.get_shape()
 
-        # shape of axes must be [1]
-        if axes_shape != (1,):
-            raise VerifyException(
-                f"axes tensor must have shape: (1,), in this case: {axes_shape}"
-            )
+        if self.axes is not None:
+            axes_value = self.axes.value.data
 
-        # axes out of bounds: the axes value must between 0 and len(input_tensor.shape)-1
-
-        # output shape
+            # axes out of bounds: the axes value must between 0 and len(input_tensor.shape)-1
+            if axes_value < 0 or axes_value >= len(input_tensor_shape):
+                max_axes_value = len(input_tensor_shape) - 1
+                raise VerifyException(
+                    f"axes to squeeze must be between 0 and {max_axes_value}, axes: {axes_value}"
+                )
 
 
 ONNX = Dialect(

@@ -81,4 +81,5 @@
 %res_matmul = "onnx.MatMul"(%t9, %t10) {onnx_node_name = "/MatMul"}: (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>
 // CHECK: %res_matmul = onnx.MatMul(%t9, %t10) {"onnx_node_name" = "/MatMul"} : (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>
 
-
+%res_squeeze = "onnx.Squeeze"(%t0) {onnx_node_name = "/Squeeze", "axes" = 0}: (tensor<1x2x6xf32>) -> tensor<2x6xf32>
+// CHECK: %res_squeeze = onnx.Squeeze(%t0) {"onnx_node_name" = "/Squeeze", "axes" = 0} : (tensor<1x2x6xf32>) -> tensor<2x6xf32>
