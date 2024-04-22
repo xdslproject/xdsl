@@ -288,7 +288,7 @@ class FuncOp(IRDLOperation, FuncBase):
         )
 
         assert len(
-            return_types) <= 1, "csl.func can't have more than one result type!"
+            return_types) <= 1, f"{cls.name} can't have more than one result type!"
 
         func = cls(
             name=name,
@@ -395,10 +395,10 @@ class TaskOp(IRDLOperation, FuncBase):
                 or "id" not in extra_attrs.data \
                 or not isa(extra_attrs.data['id'], IntegerAttr[IntegerType]):
             parser.raise_error(
-                "csl.task expected kind and id attributes")
+                f"{cls.name} expected kind and id attributes")
 
         assert len(
-            return_types) <= 1, "csl.task can't have more than one result type!"
+            return_types) <= 1, f"{cls.name} can't have more than one result type!"
 
         task = cls(
             name=name,
