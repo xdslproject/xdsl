@@ -35,6 +35,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypedAttribute,
 )
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
@@ -2285,6 +2286,9 @@ def irdl_param_attr_get_param_type_hints(cls: type[_PAttrT]) -> list[tuple[str, 
     for field_name, field_type in get_type_hints(cls, include_extras=True).items():
         if field_name == "name" or field_name == "parameters":
             continue
+        # Allow type_index as defined by TypedAttribute
+        if issubclass(cls, TypedAttribute) and field_name == "type_index":
+            continue
 
         origin: Any | None = cast(Any | None, get_origin(field_type))
         args = get_args(field_type)
@@ -2397,6 +2401,16 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
 
     for idx, (param_name, _) in enumerate(attr_def.parameters):
         new_fields[param_name] = param_name_field(idx)
+
+    if issubclass(cls, TypedAttribute):
+        parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
+        try:
+            type_index = parameter_names.index("type")
+            new_fields["type_index"] = type_index
+        except ValueError:
+            raise PyRDLAttrDefinitionError(
+                f"TypedAttribute {cls.__name__} should have a 'type' parameter."
+            )
 
     @classmethod
     def get_irdl_definition(cls: type[_PAttrT]):

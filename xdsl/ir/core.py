@@ -671,16 +671,7 @@ class TypedAttribute(ParametrizedAttribute, Generic[AttributeInvT], ABC):
     An attribute with a type.
     """
 
-    @staticmethod
-    @abstractmethod
-    def get_type_parameter_index() -> int: ...
-
-    @abstractmethod
-    def get_type(self) -> AttributeInvT:
-        """
-        Get the type of the attribute.
-        """
-        ...
+    type_index: ClassVar[int]
 
     @classmethod
     @abstractmethod

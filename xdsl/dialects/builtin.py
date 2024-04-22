@@ -451,13 +451,6 @@ class IntegerAttr(
                 f"range [{min_value}, {max_value})"
             )
 
-    @staticmethod
-    def get_type_parameter_index():
-        return 1
-
-    def get_type(self):
-        return self.type
-
     @classmethod
     def parse_with_type(cls, parser: AttrParser, type: IntegerType | IndexType):
         return cls(parser.parse_integer(allow_boolean=(type == i1)), type)
