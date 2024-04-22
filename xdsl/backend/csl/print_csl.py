@@ -21,6 +21,7 @@ from xdsl.ir import Attribute, Block, SSAValue
 
 @dataclass
 class CslPrintContext:
+    _INDENT_SIZE = 2
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -208,7 +209,7 @@ class CslPrintContext:
             output=self.output,
             variables=self.variables.copy(),
             _counter=self._counter,
-            _prefix=self._prefix + "  ",
+            _prefix=self._prefix + (" " * self._INDENT_SIZE),
         )
 
 
