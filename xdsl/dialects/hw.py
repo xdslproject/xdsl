@@ -37,6 +37,7 @@ from xdsl.irdl import (
     IRDLOperation,
     SingleBlockRegion,
     VarOperand,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -44,6 +45,7 @@ from xdsl.irdl import (
     region_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser, BaseParser, Parser
 from xdsl.printer import Printer
@@ -471,6 +473,9 @@ class Direction(Enum):
     def is_input_like(self) -> bool:
         return self == Direction.INPUT
 
+    def is_output_like(self) -> bool:
+        return self == Direction.OUTPUT
+
 
 @irdl_attr_definition
 class DirectionAttr(Data[Direction]):
@@ -817,6 +822,198 @@ class HWModuleOp(IRDLOperation):
 
 
 @irdl_op_definition
+class InstanceOp(IRDLOperation):
+    name = "hw.instance"
+
+    instance_name = attr_def(StringAttr, attr_name="instanceName")
+    module_name: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr, attr_name="moduleName")
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
+    arg_names: ArrayAttr[StringAttr] = attr_def(
+        ArrayAttr[StringAttr], attr_name="argNames"
+    )
+    result_names: ArrayAttr[StringAttr] = attr_def(
+        ArrayAttr[StringAttr], attr_name="resultNames"
+    )
+
+    def __init__(
+        self,
+        instance_name: str,
+        module_name: FlatSymbolRefAttr,
+        inputs: Iterable[tuple[str, SSAValue]],
+        outputs: Iterable[tuple[str, TypeAttribute]],
+    ):
+        arg_names = ArrayAttr(StringAttr(port[0]) for port in inputs)
+        result_names = ArrayAttr(StringAttr(port[0]) for port in outputs)
+        super().__init__(
+            operands=tuple(port[1] for port in inputs),
+            result_types=tuple(port[1] for port in outputs),
+            attributes={
+                "instanceName": StringAttr(instance_name),
+                "moduleName": module_name,
+                "argNames": arg_names,
+                "resultNames": result_names,
+            },
+        )
+
+    def verify_(self) -> None:
+        if len(self.arg_names.data) != len(self.inputs):
+            raise VerifyException(
+                "Instance has a different amount of argument names "
+                f"({len(self.arg_names.data)}) "
+                f"and arguments ({len(self.inputs)})"
+            )
+        if len(self.result_names.data) != len(self.outputs):
+            raise VerifyException(
+                "Instance has a different amount of result names "
+                f"({len(self.result_names.data)}) "
+                f"and results ({len(self.outputs)})"
+            )
+
+        module = SymbolTable.lookup_symbol(self, self.module_name)
+        if module is None:
+            raise VerifyException(f"Module {self.module_name} not found")
+        if not isinstance(module, HWModuleOp):
+            raise VerifyException(
+                f"Module {self.module_name} must be an 'hw.module', found '{module.name}'"
+            )
+
+        def check_same_or_exception(
+            reference: Iterable[str], candidate: Iterable[str], kind: str
+        ):
+            reference_set = set(reference)
+            visited: set[str] = set()
+            for candidate in candidate:
+                if candidate in visited:
+                    raise VerifyException(
+                        f"Multiple definitions for {kind} '{candidate}'"
+                    )
+                visited.add(candidate)
+                if candidate not in reference_set:
+                    raise VerifyException(f"Unknown {kind} '{candidate}'")
+                reference_set.remove(candidate)
+            if len(reference_set) != 0:
+                raise VerifyException(f"Missing {kind} '{reference_set.pop()}'")
+
+        module_args = (
+            port.port_name.data
+            for port in module.module_type.ports
+            if port.dir.data.is_input_like()
+        )
+        result_args = (
+            port.port_name.data
+            for port in module.module_type.ports
+            if port.dir.data.is_output_like()
+        )
+
+        check_same_or_exception(
+            module_args, (arg.data for arg in self.arg_names.data), "input port"
+        )
+
+        check_same_or_exception(
+            result_args,
+            (result.data for result in self.result_names.data),
+            "output port",
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "InstanceOp":
+        instance_name = parser.parse_str_literal("instance name")
+        if parser.parse_optional_keyword("sym") is not None:
+            parser.raise_error("Instance inner symbols are not supported yet")
+        module_name = parser.parse_attribute()
+        if (
+            not isinstance(module_name, SymbolRefAttr)
+            or len(module_name.nested_references.data) != 0
+        ):
+            parser.raise_error("Expected flat symbol reference")
+        if parser.parse_optional_punctuation("<") is not None:
+            parser.raise_error("Instance parameters are not supported yet")
+
+        def parse_input_port():
+            port_name = (
+                parser.parse_optional_str_literal()
+                or parser.parse_optional_identifier()
+            )
+            if port_name is None:
+                parser.raise_error("Expected port name as identifier or string literal")
+            parser.parse_punctuation(":")
+            port_operand = parser.parse_unresolved_operand()
+            parser.parse_punctuation(":")
+            port_type = parser.parse_type()
+            port_value = parser.resolve_operand(port_operand, port_type)
+            return (port_name, port_value)
+
+        def parse_output_port():
+            port_name = (
+                parser.parse_optional_str_literal()
+                or parser.parse_optional_identifier()
+            )
+            if port_name is None:
+                parser.raise_error("Expected port name as identifier or string literal")
+            parser.parse_punctuation(":")
+            port_type = parser.parse_type()
+            return (port_name, port_type)
+
+        input_ports = parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN, parse_input_port, "input port list expected"
+        )
+        parser.parse_punctuation("->")
+        output_ports = parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN, parse_output_port, "output port list expected"
+        )
+        attributes_attr = parser.parse_optional_attr_dict_with_reserved_attr_names(
+            ("instanceName", "moduleName", "argNames", "resultNames")
+        )
+        attributes = attributes_attr.data if attributes_attr is not None else {}
+
+        operands = tuple(port[1] for port in input_ports)
+        result_types = tuple(port[1] for port in output_ports)
+        attributes["instanceName"] = StringAttr(instance_name)
+        attributes["moduleName"] = module_name
+        attributes["argNames"] = ArrayAttr(StringAttr(port[0]) for port in input_ports)
+        attributes["resultNames"] = ArrayAttr(
+            StringAttr(port[0]) for port in output_ports
+        )
+        return cls.create(
+            operands=operands, result_types=result_types, attributes=attributes
+        )
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ")
+        printer.print_attribute(self.instance_name)
+        printer.print(" ")
+        printer.print_attribute(self.module_name)
+
+        def print_input_port(name: str, operand: SSAValue):
+            printer.print_identifier_or_string_literal(name)
+            printer.print(": ")
+            printer.print_operand(operand)
+            printer.print(": ")
+            printer.print_attribute(operand.type)
+
+        def print_output_port(name: str, port_type: Attribute):
+            printer.print_identifier_or_string_literal(name)
+            printer.print(": ")
+            printer.print_attribute(port_type)
+
+        printer.print("(")
+        printer.print_list(
+            zip((name.data for name in self.arg_names), self.operands),
+            lambda x: print_input_port(*x),
+        )
+        printer.print(") -> (")
+        printer.print_list(
+            zip(
+                (name.data for name in self.result_names),
+                (result.type for result in self.results),
+            ),
+            lambda x: print_output_port(*x),
+        )
+        printer.print(")")
+
+
+@irdl_op_definition
 class OutputOp(IRDLOperation):
     name = "hw.output"
 
@@ -877,6 +1074,7 @@ HW = Dialect(
     "hw",
     [
         HWModuleOp,
+        InstanceOp,
         OutputOp,
     ],
     [
