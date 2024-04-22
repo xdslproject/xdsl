@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from enum import Enum
-from typing import TYPE_CHECKING
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr, IntegerType, IntegerAttr
@@ -22,7 +20,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.ir.core import EnumAttribute
+from xdsl.ir.core import EnumAttribute, SpacedOpaqueSyntaxAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -72,7 +70,7 @@ def task_kind_to_color_bits(kind: TaskKind):
 
 
 @irdl_attr_definition
-class TaskKindAttr(EnumAttribute[TaskKind]):
+class TaskKindAttr(EnumAttribute[TaskKind], SpacedOpaqueSyntaxAttribute):
     name = "csl.task_kind"
 
 @irdl_attr_definition
