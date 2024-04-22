@@ -7,6 +7,18 @@
 
 %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.comptime_struct
 
+csl.task @local_task() attributes {kind = #csl.task_kind<local>, id = 0 : i5} {
+  csl.return
+}
+
+csl.task @data_task(%a: i32) attributes {kind = #csl.task_kind<data>, id = 2 : i5} {
+  csl.return
+}
+
+// csl.task @control_task() attributes {kind = #csl.task_kind<control>, id = 42 : i6} {
+//   csl.return
+// }
+
 csl.func @returning_func() -> i32 {
   %c = arith.constant 10 : i32
   csl.call @func_with_arguments(%c, %thing) : (i32, !csl.comptime_struct) -> ()
@@ -75,6 +87,18 @@ csl.func @initialize() {
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "b", "sym_visibility" = "public", "type" = memref<4xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "y", "sym_visibility" = "public", "type" = memref<4xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: const thing : comptime_struct = @import_module("<thing>");
+// CHECK-NEXT: task local_task() void {
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: comptime {
+// CHECK-NEXT:   @bind_local_task(local_task, @get_local_task_id(0));
+// CHECK-NEXT: }
+// CHECK-NEXT: task data_task(a : i32) void {
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: comptime {
+// CHECK-NEXT:   @bind_data_task(data_task, @get_data_task_id(@get_color(2)));
+// CHECK-NEXT: }
 // CHECK-NEXT: fn returning_func() i32 {
 // CHECK-NEXT:   const c : i32 = 10;
 // CHECK-NEXT:   func_with_arguments(c, thing);
