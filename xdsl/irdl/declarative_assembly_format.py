@@ -727,6 +727,7 @@ class AttributeVariable(FormatDirective):
     is_property: bool
     """Should this attribute be put in the attribute or property dictionary."""
     unique_base: type[Attribute] | None
+    """The known base class of the Attribute, if any."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         builtin_attributes = Builtin.attributes
