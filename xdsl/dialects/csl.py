@@ -219,7 +219,7 @@ class FuncBase:
             self.sym_name,
             self.function_type,
             self.body,
-            getattr(self, "attributes", {}),
+            getattr(self, "attributes", {}) | getattr(self, "properties", {}),
             arg_attrs=self.arg_attrs,
             reserved_attr_names=(
                 "sym_name",
