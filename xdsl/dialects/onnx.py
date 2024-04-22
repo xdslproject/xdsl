@@ -1033,10 +1033,7 @@ class Squeeze(IRDLOperation):
 
     output_tensor = result_def(TensorType[T])
 
-    assembly_format = (
-        "`(` $input_tensor `,` $axes `)` attr-dict `:` `(` type($input_tensor) `,"
-        "` type($axes)`)` `->` type($output_tensor) "
-    )
+    assembly_format = "`(` $input_tensor `)` attr-dict `:` `(` type($input_tensor) `)` `->` type($output_tensor) "
 
     def __init__(
         self,
