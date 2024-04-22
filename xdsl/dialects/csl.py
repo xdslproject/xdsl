@@ -183,41 +183,28 @@ class CallOp(IRDLOperation):
         return CallOp(callee.string_value(), args, results)
 
 
-@irdl_op_definition
-class FuncOp(IRDLOperation):
-    """
-    Almost the same as func.func, but only has one result, and is not isolated from above.
-
-    We dropped IsolatedFromAbove because CSL functions often times access global parameters
-    or constants.
-    """
-
-    name = "csl.func"
-
+class FuncBase:
     body: Region = region_def()
     sym_name: StringAttr = prop_def(StringAttr)
     function_type: FunctionType = prop_def(FunctionType)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
-    traits = frozenset([SymbolOpInterface(), func.FuncOpCallableInterface()])
-
-    def __init__(
-        self,
-        name: str,
-        function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
-        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
-        *,
-        arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
-        res_attrs: ArrayAttr[DictionaryAttr] | None = None,
-    ):
+    def _common_props_region(
+            self,
+            name: str,
+            function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
+            region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+            *,
+            arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+            res_attrs: ArrayAttr[DictionaryAttr] | None = None):
         if isinstance(function_type, tuple):
             inputs, output = function_type
             function_type = FunctionType.from_lists(
                 inputs, [output] if output else [])
         if len(function_type.outputs) > 1:
             raise ValueError(
-                "Can't have a csl.function return more than one value!")
+                f"Can't have a {getattr(self,'name', '<unknown>')} return more than one value!")
         if not isinstance(region, Region):
             region = Region(Block(arg_types=function_type.inputs))
         properties: dict[str, Attribute | None] = {
@@ -226,9 +213,9 @@ class FuncOp(IRDLOperation):
             "arg_attrs": arg_attrs,
             "res_attrs": res_attrs,
         }
-        super().__init__(properties=properties, regions=[region])
+        return properties, region
 
-    def verify_(self) -> None:
+    def _common_verify(self):
         # If this is an empty region (external function), then return
         if len(self.body.blocks) == 0:
             return
@@ -240,6 +227,51 @@ class FuncOp(IRDLOperation):
                 "Expected entry block arguments to have the same types as the function "
                 "input types"
             )
+
+    def _common_print(self, printer: Printer):
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            self.function_type,
+            self.body,
+            getattr(self, "attributes", {}),
+            arg_attrs=self.arg_attrs,
+            reserved_attr_names=(
+                "sym_name",
+                "function_type",
+                "sym_visibility",
+                "arg_attrs",
+            ),
+        )
+
+
+@irdl_op_definition
+class FuncOp(IRDLOperation, FuncBase):
+    """
+    Almost the same as func.func, but only has one result, and is not isolated from above.
+
+    We dropped IsolatedFromAbove because CSL functions often times access global parameters
+    or constants.
+    """
+
+    name = "csl.func"
+
+    def __init__(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        *,
+        arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        res_attrs: ArrayAttr[DictionaryAttr] | None = None,
+    ):
+        properties, region = self._common_props_region(
+            name, function_type, region,
+            arg_attrs=arg_attrs, res_attrs=res_attrs)
+        super().__init__(properties=properties, regions=[region])
+
+    def verify_(self) -> None:
+        self._common_verify()
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
@@ -270,26 +302,13 @@ class FuncOp(IRDLOperation):
         return func
 
     def print(self, printer: Printer):
-        print_func_op_like(
-            printer,
-            self.sym_name,
-            self.function_type,
-            self.body,
-            self.attributes,
-            arg_attrs=self.arg_attrs,
-            reserved_attr_names=(
-                "sym_name",
-                "function_type",
-                "sym_visibility",
-                "arg_attrs",
-            ),
-        )
+        self._common_print(printer)
 
 # TODO(dk949): there is a lot of repeated code from FuncOp
 
 
 @irdl_op_definition
-class TaskOp(IRDLOperation):
+class TaskOp(IRDLOperation, FuncBase):
     """
     Represents a task in CSL. All three types of task are represented by this Op.
 
@@ -302,15 +321,8 @@ class TaskOp(IRDLOperation):
 
     name = "csl.task"
 
-    body: Region = region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    function_type: FunctionType = prop_def(FunctionType)
-    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     kind = prop_def(TaskKindAttr)
     id = prop_def(IntegerAttr[IntegerType])
-
-    traits = frozenset([SymbolOpInterface(), func.FuncOpCallableInterface()])
 
     def __init__(
         self,
@@ -323,15 +335,9 @@ class TaskOp(IRDLOperation):
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
         id: IntegerAttr[IntegerType] | int,
     ):
-        if isinstance(function_type, tuple):
-            inputs, output = function_type
-            function_type = FunctionType.from_lists(
-                inputs, [output] if output else [])
-        if len(function_type.outputs) > 1:
-            raise ValueError(
-                "Can't have a csl.function return more than one value!")
-        if not isinstance(region, Region):
-            region = Region(Block(arg_types=function_type.inputs))
+        properties, region = self._common_props_region(
+            name, function_type, region,
+            arg_attrs=arg_attrs, res_attrs=res_attrs)
         if isinstance(task_kind, TaskKind):
             task_kind = TaskKindAttr(task_kind)
         if isinstance(id, int):
@@ -340,30 +346,16 @@ class TaskOp(IRDLOperation):
         assert id.type.width.data == task_kind_to_color_bits(task_kind.data), \
             f"{task_kind.data.value} task id has to have {task_kind_to_color_bits(task_kind.data)} bits, got {id.type.width.data}"
 
-        properties: dict[str, Attribute | None] = {
-            "sym_name": StringAttr(name),
-            "function_type": function_type,
-            "arg_attrs": arg_attrs,
-            "res_attrs": res_attrs,
+        properties |= {
             "kind": task_kind,
             "id": id,
         }
         super().__init__(properties=properties, regions=[region])
 
     def verify_(self) -> None:
-        # If this is an empty region (external function), then return
-        if len(self.body.blocks) == 0:
-            return
-
-        entry_block: Block = self.body.blocks[0]
-        block_arg_types = [arg.type for arg in entry_block.args]
-        if self.function_type.inputs.data != tuple(block_arg_types):
-            raise VerifyException(
-                "Expected entry block arguments to have the same types as the function "
-                "input types"
-            )
+        self._common_verify()
         if len(self.function_type.outputs.data) != 0:
-            raise VerifyException("csl.tasl cannot have return values")
+            raise VerifyException(f"{self.name} cannot have return values")
 
         # TODO(dk949): Need to check at some point that we're not reusing the same color multiple times
         if self.id.type.width.data != task_kind_to_color_bits(self.kind.data):
@@ -420,20 +412,7 @@ class TaskOp(IRDLOperation):
         return task
 
     def print(self, printer: Printer):
-        print_func_op_like(
-            printer,
-            self.sym_name,
-            self.function_type,
-            self.body,
-            self.attributes,
-            arg_attrs=self.arg_attrs,
-            reserved_attr_names=(
-                "sym_name",
-                "function_type",
-                "sym_visibility",
-                "arg_attrs",
-            ),
-        )
+        self._common_print(printer)
 
 
 @irdl_op_definition
