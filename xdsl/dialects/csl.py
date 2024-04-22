@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from xdsl.dialects import func, builtin
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr, IntegerType, IntegerAttr
 from xdsl.dialects.utils import (
     parse_func_op_like,
@@ -40,7 +40,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SymbolOpInterface
+from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -53,8 +53,6 @@ def cs2_bitsizeof(type_attr: Attribute) -> int:
     Get the bit size of a builtin type
     """
     match type_attr:
-        case ComptimeStructType():
-            return 0
         case builtin.Float16Type() | builtin.Float32Type() as f:
             return f.get_bitwidth
         case builtin.IntegerType(width=width):
@@ -184,6 +182,10 @@ class CallOp(IRDLOperation):
 
 
 class FuncBase:
+    """
+    Base class for the shared functionalty of FuncOp and TaskOp
+    """
+
     body: Region = region_def()
     sym_name: StringAttr = prop_def(StringAttr)
     function_type: FunctionType = prop_def(FunctionType)
@@ -303,8 +305,6 @@ class FuncOp(IRDLOperation, FuncBase):
 
     def print(self, printer: Printer):
         self._common_print(printer)
-
-# TODO(dk949): there is a lot of repeated code from FuncOp
 
 
 @irdl_op_definition
