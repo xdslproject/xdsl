@@ -22,3 +22,5 @@ x86.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: push rax
 %pop, %poprsp = x86.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<rax>, !x86.reg<rsp>)
 // CHECK: pop rax
+%not = x86.not %0 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: not rax
