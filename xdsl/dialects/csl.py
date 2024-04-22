@@ -30,6 +30,7 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    attr_def,
     opt_result_def,
     prop_def,
     region_def,
@@ -38,7 +39,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator
+from xdsl.traits import (
+    HasParent,
+    IsTerminator,
+    IsolatedFromAbove,
+    NoTerminator,
+    SymbolOpInterface,
+    SymbolTable)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -63,6 +70,11 @@ class TaskKind(StrEnum):
     CONTROL = "control"
 
 
+class ModuleKind(StrEnum):
+    LAYOUT = "layout"
+    PROGRAM = "program"
+
+
 def task_kind_to_color_bits(kind: TaskKind):
     match kind:
         case TaskKind.LOCAL | TaskKind.DATA: return 5
@@ -73,6 +85,12 @@ def task_kind_to_color_bits(kind: TaskKind):
 class TaskKindAttr(EnumAttribute[TaskKind], SpacedOpaqueSyntaxAttribute):
     name = "csl.task_kind"
 
+
+@irdl_attr_definition
+class ModuleKindAttr(EnumAttribute[ModuleKind], SpacedOpaqueSyntaxAttribute):
+    name = "csl.module_kind"
+
+
 @irdl_attr_definition
 class ComptimeStructType(ParametrizedAttribute, TypeAttribute):
     """
@@ -82,6 +100,50 @@ class ComptimeStructType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "csl.comptime_struct"
+
+
+@irdl_op_definition
+class ModuleOp(IRDLOperation):
+    """
+    Separates layout module from program module
+    """
+
+    name = "csl.module"
+    body: Region = region_def("single_block")
+    kind = prop_def(ModuleKindAttr)
+    sym_name: StringAttr = attr_def(StringAttr)
+
+    traits = frozenset([
+        IsolatedFromAbove(),
+        NoTerminator(),
+        SymbolOpInterface(),
+        SymbolTable(),
+    ])
+
+    def __init__(self, kind: ModuleKindAttr | ModuleKind, ops: Sequence[Operation] | Region):
+        if isinstance(kind, ModuleKind):
+            kind = ModuleKindAttr(kind)
+        props = {"kind": kind}
+        attrs = {"sym_name": StringAttr(kind.data.value)}
+        if not isinstance(ops, Region):
+            ops = Region(Block(ops))
+        super().__init__(properties=props, attributes=attrs, regions=[ops])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ModuleOp:
+        attrs = parser.parse_attribute()
+        if not isinstance(attrs, DictionaryAttr):
+            parser.raise_error("Expected an attribute dictionary")
+        kind = attrs.data.get("kind")
+        if not isinstance(kind, ModuleKindAttr):
+            parser.raise_error(
+                f"Expected kind attribute of type {ModuleKindAttr.name}")
+        region = parser.parse_region()
+        return cls(kind, region)
+
+    def print(self, printer: Printer):
+        printer.print(f" {{kind = {self.properties['kind']}}} ")
+        printer.print(self.body)
 
 
 @irdl_op_definition
@@ -175,6 +237,9 @@ class FuncBase:
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
+    def __get_name(self):
+        return getattr(self, "name", "<unknown>")
+
     def _common_props_region(
             self,
             name: str,
@@ -189,7 +254,7 @@ class FuncBase:
                 inputs, [output] if output else [])
         if len(function_type.outputs) > 1:
             raise ValueError(
-                f"Can't have a {getattr(self,'name', '<unknown>')} return more than one value!")
+                f"Can't have a {self.__get_name()} return more than one value!")
         if not isinstance(region, Region):
             region = Region(Block(arg_types=function_type.inputs))
         properties: dict[str, Attribute | None] = {
@@ -445,9 +510,11 @@ CSL = Dialect(
         MemberAccessOp,
         CallOp,
         TaskOp,
+        ModuleOp,
     ],
     [
         ComptimeStructType,
         TaskKindAttr,
+        ModuleKindAttr,
     ],
 )
