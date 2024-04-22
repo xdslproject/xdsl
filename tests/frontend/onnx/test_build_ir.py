@@ -273,9 +273,7 @@ def test_visit_graph_transpose():
     ctx = OnnxXdslMapping()
 
     # create graph composed only of one Transpose operation
-    graph, _ = _create_graph_binary_op(
-        "Transpose", "transpose_graph", [64, 128], [128, 64], [1, 0]
-    )
+    graph, _ = _create_transpose_op("transpose_graph", [64, 128], [128, 64], [1, 0])
 
     # run visit graph
     visit_graph(graph, ctx)
@@ -376,7 +374,4 @@ def _create_transpose_op(
         [transpose_node], graph_name, [input_tensor], [output_tensor]
     )
 
-    # create onnx model
-    model = helper.make_model(graph_def, producer_name=graph_name)
-
-    return model, transpose_node
+    return graph_def, transpose_node
