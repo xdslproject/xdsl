@@ -558,5 +558,5 @@ builtin.module {
   %t0 = "test.op"() : () -> (tensor<1x2x4xf32>)
 
   // CHECK: Operation does not verify: axes to squeeze must be between 0 and 2, axes: 3
-  %res_squeeze =  "onnx.Squeeze"(%t0) {onnx_node_name = "/Squeeze", "axes" = 3} : (tensor<1x2x4xf32>) -> tensor<2x4xf32>
+  %res_squeeze =  "onnx.Squeeze"(%t0) {onnx_node_name = "/Squeeze", "axes" = 3 : i64} : (tensor<1x2x4xf32>) -> tensor<2x4xf32>
 }
