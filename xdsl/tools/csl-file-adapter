@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+
+import sys
+from xdsl.backend.csl.print_csl import CslPrintContext
+import argparse
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="csl-file-adapter",
+        description="Splits stdin from xdsl-opt into two csl files")
+    parser.add_argument("-l", "--layout", default="layout.csl",
+                        help="Name of the layout file")
+    parser.add_argument("-p", "--program", default="pe_program.csl",
+                        help="Name of the program file")
+    return parser.parse_args()
+
+
+# TODO(dk949): this is a little hacky...
+if __name__ == "__main__":
+    div = f"{CslPrintContext.DIVIDER}\n"
+    file = None
+    try:
+        args = parse_args()
+        file = open(args.layout, "w")
+        for line in sys.stdin:
+            if line == div:
+                file.close()
+                file = open(args.program, "w")
+            else:
+                file.write(line)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    finally:
+        if file:
+            file.close()
