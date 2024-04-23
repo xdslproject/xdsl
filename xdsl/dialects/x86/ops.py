@@ -152,7 +152,7 @@ class X86Instruction(X86Op):
 
     def assembly_line(self) -> str | None:
         # default assembly code generator
-        instruction_name = self.assembly_instruction_name().split("_", 1)[-1]
+        instruction_name = self.assembly_instruction_name()
         arg_str = ", ".join(
             _assembly_arg_str(arg)
             for arg in self.assembly_line_args()
@@ -202,7 +202,7 @@ class AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/add
     """
 
-    name = "x86.rr_add"
+    name = "x86.rr.add"
 
 
 @irdl_op_definition
@@ -213,7 +213,7 @@ class SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/sub
     """
 
-    name = "x86.rr_sub"
+    name = "x86.rr.sub"
 
 
 @irdl_op_definition
@@ -224,7 +224,7 @@ class ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/imul
     """
 
-    name = "x86.rr_imul"
+    name = "x86.rr.imul"
 
 
 @irdl_op_definition
@@ -235,7 +235,7 @@ class AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/and
     """
 
-    name = "x86.rr_and"
+    name = "x86.rr.and"
 
 
 @irdl_op_definition
@@ -246,7 +246,7 @@ class OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/or
     """
 
-    name = "x86.rr_or"
+    name = "x86.rr.or"
 
 
 @irdl_op_definition
@@ -257,7 +257,7 @@ class XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier.com/x86/xor
     """
 
-    name = "x86.rr_xor"
+    name = "x86.rr.xor"
 
 
 @irdl_op_definition
@@ -268,7 +268,7 @@ class MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     https://www.felixcloutier..com/x86/mov
     """
 
-    name = "x86.rr_mov"
+    name = "x86.rr.mov"
 
 
 class M_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
@@ -306,7 +306,7 @@ class PushOp(M_R_Operation[GeneralRegisterType]):
     https://www.felixcloutier.com/x86/push
     """
 
-    name = "x86.r_push"
+    name = "x86.r.push"
 
 
 class R_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
@@ -348,7 +348,7 @@ class PopOp(R_M_Operation[GeneralRegisterType]):
     https://www.felixcloutier.com/x86/pop
     """
 
-    name = "x86.r_pop"
+    name = "x86.r.pop"
 
 
 class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
@@ -390,7 +390,7 @@ class NotOp(R_R_Operation[GeneralRegisterType]):
     https://www.felixcloutier.com/x86/not
     """
 
-    name = "x86.r_not"
+    name = "x86.r.not"
 
 
 # region Assembly printing
