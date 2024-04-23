@@ -883,7 +883,9 @@ class AttrParser(BaseParser):
 
         self.parse_characters(":", " in dense array")
 
-        values = self.parse_comma_separated_list(self.Delimiter.NONE, self.parse_number)
+        values = self.parse_comma_separated_list(
+            self.Delimiter.NONE, self.parse_integer
+        )
         self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
