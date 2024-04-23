@@ -718,7 +718,7 @@ def test_densearray_attr():
     """Test that a DenseArrayAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"arg_attrs" = array<i1: false, true>, "other_attr" = array<i32: 19, 23, 55>} : () -> ()
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"bool_attrs" = array<i1: false, true>, "int_attr" = array<i32: 19, 23, 55>, "float_attr" = array<f32: 0.34>} : () -> ()
     """
 
     ctx = MLContext()
