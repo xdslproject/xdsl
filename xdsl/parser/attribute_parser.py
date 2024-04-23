@@ -884,8 +884,18 @@ class AttrParser(BaseParser):
         self.parse_characters(":", " in dense array")
 
         values = self.parse_comma_separated_list(
-            self.Delimiter.NONE, self.parse_integer
+            self.Delimiter.NONE, self.parse_optional_number
         )
+        # parse_number will handle integers and floats, but not true/false as integers,
+        # whereas parse_integer is integer only (not floats) but handles true/false as
+        # integers. Therefore we try with parse_optional_number first, and if
+        # this can not parse we try with parse_integer. There is a single type,
+        # so if one parsed entry is None then all should be
+        if None in values:
+            assert values.count(None) == len(values)
+            values = self.parse_comma_separated_list(
+                self.Delimiter.NONE, self.parse_integer
+            )
         self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
