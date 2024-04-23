@@ -714,6 +714,23 @@ def test_dictionary_attr():
     assert_print_op(parsed, prog, None)
 
 
+def test_densearray_attr():
+    """Test that a DenseArrayAttr can be parsed and then printed."""
+
+    prog = """
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"arg_attrs" = array<i1: false, true>, "other_attr" = array<i32: 19, 23, 55>} : () -> ()
+    """
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+
+    assert_print_op(parsed, prog, None)
+
+
 def test_print_function_type():
     io = StringIO()
     printer = Printer(stream=io)
