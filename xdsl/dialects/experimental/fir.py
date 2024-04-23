@@ -2236,6 +2236,7 @@ FIR = Dialect(
         Constc,
         Convert,
         CoordinateOf,
+        Declare,
         DtEntry,
         Dispatch,
         DispatchTable,
