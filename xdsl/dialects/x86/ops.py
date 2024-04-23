@@ -161,19 +161,7 @@ class X86Instruction(X86Op):
         return _assembly_line(instruction_name, arg_str, self.comment)
 
 
-class SingleOperandInstruction(IRDLOperation, X86Instruction, ABC):
-    """
-    Base class for instructions that take a single operand.
-    """
-
-
-class DoubleOperandInstruction(IRDLOperation, X86Instruction, ABC):
-    """
-    Base class for instructions that take two operands.
-    """
-
-
-class RROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
+class R_RR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations that have two registers.
     """
@@ -207,83 +195,83 @@ class RROperation(Generic[R1InvT, R2InvT], DoubleOperandInstruction):
 
 
 @irdl_op_definition
-class AddOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+class AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the registers r1 and r2 and stores the result in r1.
     x[r1] = x[r1] + x[r2]
     https://www.felixcloutier.com/x86/add
     """
 
-    name = "x86.add"
+    name = "x86.rr.add"
 
 
 @irdl_op_definition
-class SubOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+class SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     subtracts r2 from r1 and stores the result in r1.
     x[r1] = x[r1] - x[r2]
     https://www.felixcloutier.com/x86/sub
     """
 
-    name = "x86.sub"
+    name = "x86.rr.sub"
 
 
 @irdl_op_definition
-class ImulOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+class ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the registers r1 and r2 and stores the result in r1.
     x[r1] = x[r1] * x[r2]
     https://www.felixcloutier.com/x86/imul
     """
 
-    name = "x86.imul"
+    name = "x86.rr.imul"
 
 
 @irdl_op_definition
-class AndOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+class AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of r1 and r2, stored in r1
     x[r1] = x[r1] & x[r2]
     https://www.felixcloutier.com/x86/and
     """
 
-    name = "x86.and"
+    name = "x86.rr.and"
 
 
 @irdl_op_definition
-class OrOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+class OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of r1 and r2, stored in r1
     x[r1] = x[r1] | x[r2]
     https://www.felixcloutier.com/x86/or
     """
 
-    name = "x86.or"
+    name = "x86.rr.or"
 
 
 @irdl_op_definition
-class XorOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+class XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of r1 and r2, stored in r1
     x[r1] = x[r1] ^ x[r2]
     https://www.felixcloutier.com/x86/xor
     """
 
-    name = "x86.xor"
+    name = "x86.rr.xor"
 
 
 @irdl_op_definition
-class MovOp(RROperation[GeneralRegisterType, GeneralRegisterType]):
+class MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value of r1 into r2.
     x[r1] = x[r2]
     https://www.felixcloutier..com/x86/mov
     """
 
-    name = "x86.mov"
+    name = "x86.rr.mov"
 
 
-class ROperationSrc(Generic[R1InvT], SingleOperandInstruction):
+class M_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations that have one source register.
     """
@@ -312,16 +300,16 @@ class ROperationSrc(Generic[R1InvT], SingleOperandInstruction):
 
 
 @irdl_op_definition
-class PushOp(ROperationSrc[GeneralRegisterType]):
+class PushOp(M_R_Operation[GeneralRegisterType]):
     """
     Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
     https://www.felixcloutier.com/x86/push
     """
 
-    name = "x86.push"
+    name = "x86.r.push"
 
 
-class ROperationDst(Generic[R1InvT], SingleOperandInstruction):
+class R_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations that have one destination register.
     """
@@ -354,16 +342,16 @@ class ROperationDst(Generic[R1InvT], SingleOperandInstruction):
 
 
 @irdl_op_definition
-class PopOp(ROperationDst[GeneralRegisterType]):
+class PopOp(R_M_Operation[GeneralRegisterType]):
     """
     Copies the value at the top of the stack into r1 and increases %rsp.
     https://www.felixcloutier.com/x86/pop
     """
 
-    name = "x86.pop"
+    name = "x86.r.pop"
 
 
-class ROperationSrcDst(Generic[R1InvT], SingleOperandInstruction):
+class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations that have one register acting as both source and destination.
     """
@@ -395,14 +383,14 @@ class ROperationSrcDst(Generic[R1InvT], SingleOperandInstruction):
 
 
 @irdl_op_definition
-class NotOp(ROperationSrcDst[GeneralRegisterType]):
+class NotOp(R_R_Operation[GeneralRegisterType]):
     """
     bitwise not of r1, stored in r1
     x[r1] = ~x[r1]
     https://www.felixcloutier.com/x86/not
     """
 
-    name = "x86.not"
+    name = "x86.r.not"
 
 
 # region Assembly printing
