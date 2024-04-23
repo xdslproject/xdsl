@@ -894,8 +894,19 @@ class AttrParser(BaseParser):
         if None in values:
             assert values.count(None) == len(values)
             values = self.parse_comma_separated_list(
-                self.Delimiter.NONE, self.parse_integer
+                self.Delimiter.NONE, self.parse_optional_integer
             )
+        if None in values:
+            raise ParseError(
+                name,
+                "integer, boolean or float literal expected",
+            )
+
+        # This is needed to keep pyright happy, to remove the None from the lists
+        # types (from parse_optional_number) as this is not compatible with the
+        # types of DenseArrayBase.from_list
+        values = cast(list[int | float], values)
+
         self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
