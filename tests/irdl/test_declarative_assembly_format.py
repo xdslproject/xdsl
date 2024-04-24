@@ -321,6 +321,44 @@ def test_attr_name(program: str, generic_program: str):
     check_roundtrip(program, ctx)
 
 
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.one_attr <5 : i64>",
+            '"test.one_attr"() {"attr" = #test.param<5 : i64>} : () -> ()',
+        ),
+        (
+            'test.one_attr <"hello">',
+            '"test.one_attr"() {"attr" = #test.param<"hello">} : () -> ()',
+        ),
+        (
+            'test.one_attr <#test.param<"nested">>',
+            '"test.one_attr"() {"attr" = #test.param<#test.param<"nested">>} : () -> ()',
+        ),
+    ],
+)
+def test_unqualified_attr(program: str, generic_program: str):
+    @irdl_attr_definition
+    class ParamOne(ParametrizedAttribute):
+        name = "test.param"
+        p: ParameterDef[Attribute]
+
+    @irdl_op_definition
+    class OpWithUnqualifiedAttr(IRDLOperation):
+        name = "test.one_attr"
+
+        attr = attr_def(ParamOne)
+        assembly_format = "$attr attr-dict"
+
+    ctx = MLContext()
+    ctx.load_attr(ParamOne)
+    ctx.load_op(OpWithUnqualifiedAttr)
+
+    check_equivalence(program, generic_program, ctx)
+    check_roundtrip(program, ctx)
+
+
 def test_missing_property_error():
     class OpWithMissingProp(IRDLOperation):
         name = "test.missing_prop"
