@@ -82,6 +82,7 @@ class STFT(IRDLOperation):
         print(output_shape)
         print(n_frame)
 
+        #
         n_dimensions_frame = len(frame_shape)
         if n_dimensions_frame != 1:
             raise VerifyException(
