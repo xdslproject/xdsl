@@ -413,6 +413,16 @@ class UseDefChainTrait(OpTrait):
     def get_defs_following_from_operand_for(
         cls, op: Operation, index: int
     ) -> set[SSAValue]:
+        """
+        Return all OpResults and BlockArguments that this trait defines as being the direct continuation of op.operands[index].
+        For exmple: an scf.for loop has iteration arguments, so the UseDefChainTrait subclass for scf.for loops should, if op is a For
+        Operation, return the block arguments that corrospond to the operand, and the OpResult corosponding to the iterarg
+        (since there might be 0 iterations). If the operand is the lower boumd, upper bound, or step then there are no directly
+        resulting definitions that arise and empty set should be returned. If the op is scf.yield that sits as a child of an scf.for
+        then it is the responsibility of the UseDefChainTrait subclass for scf.for as the operation that defines the behaviour to
+        return the BlockArgument corosponding to the yield's operand in the next iteration, as well as the for loop's OpResult
+        corosponding to the yield's operand.
+        """
         raise NotImplementedError()
 
     @classmethod
@@ -420,6 +430,12 @@ class UseDefChainTrait(OpTrait):
     def get_operands_leading_to_op_result_for(
         cls, op: Operation, index: int
     ) -> set[Use]:
+        """
+        Return all Uses that this trait defines as being the direct predecssor of op.results[index].
+        For exmple: an scf.for loop has iteration arguments that are returned after the iterations, so the UseDefChainTrait subclass
+        for For loops should, if op is a For Operation, return the Use that provides the corrosponding iteration arg to scf.yield,
+        as well as the Use that provides the inital iteration argument to the op (since there might be 0 iterations)
+        """
         raise NotImplementedError()
 
     @classmethod
@@ -427,18 +443,14 @@ class UseDefChainTrait(OpTrait):
     def get_operands_leading_to_block_argument_for(
         cls, op: Operation, arg: BlockArgument
     ) -> set[Use]:
+        """
+        Return all Uses that this trait defines as being the direct predecssor of arg. op is provided as the parent Operation of arg.
+        For exmple: an scf.for loop has iteration arguments in its loop body, so the UseDefChainTrait subclass
+        for For loops should, if op (and so the owning Operation of arg) is a For Operation, return the Use that provides the
+        corrosponding iteration arguemnt to the For loop as well as the Use that provides previous iterations iteration argument -
+        the operand of the bodies scf.Yield.
+        """
         raise NotImplementedError()
-
-    # @classmethod
-    # def get_operands_leading_to_def(cls, ssa_value: SSAValue) -> set[Use]:
-    #     if isinstance(ssa_value.owner, Operation):
-    #         result = cast(OpResult, ssa_value)
-    #         return cls.get_operands_leading_to_op_result(result.op, result.index)
-    #     elif isinstance(ssa_value.owner, Block):
-    #         arg = cast(BlockArgument, ssa_value)
-    #         return cls.get_operands_leading_to_block_argument(arg.block.parent_op(), arg)
-    #     else:
-    #         raise NotImplementedError(f"UseDefChainTrait does not support ssa values that are: {type(ssa_value)}")
 
     @staticmethod
     def _get_traits_for(op: Operation) -> set[UseDefChainTrait]:
