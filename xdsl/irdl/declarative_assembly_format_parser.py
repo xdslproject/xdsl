@@ -11,14 +11,14 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import pairwise
 
+from xdsl.dialects.builtin import Builtin
 from xdsl.ir import Attribute
 from xdsl.irdl import (
+    AttrOrPropDef,
     AttrSizedOperandSegments,
     OpDef,
-    OptAttributeDef,
     OptionalDef,
     OptOperandDef,
-    OptPropertyDef,
     OptResultDef,
     ParsePropInAttrDict,
     VariadicDef,
@@ -366,13 +366,20 @@ class FormatParser(BaseParser):
                 if attr_or_prop == "property"
                 else self.op_def.attributes.get(attr_name)
             )
-            match attr_def:
-                case OptAttributeDef() | OptPropertyDef():
-                    return OptionalAttributeVariable(
-                        variable_name, attr_or_prop == "property"
-                    )
-                case _:
-                    return AttributeVariable(variable_name, attr_or_prop == "property")
+            if isinstance(attr_def, AttrOrPropDef):
+                unique_base = attr_def.constr.get_unique_base()
+                # Always qualify builtin attributes
+                # This is technically an approximation, but appears to be good enough
+                # for xDSL right now.
+                if unique_base is not None and unique_base in Builtin.attributes:
+                    unique_base = None
+                variable_type = (
+                    OptionalAttributeVariable
+                    if isinstance(attr_def, OptionalDef)
+                    else AttributeVariable
+                )
+                is_property = attr_or_prop == "property"
+                return variable_type(variable_name, is_property, unique_base)
 
         self.raise_error(
             "expected variable to refer to an operand, "
