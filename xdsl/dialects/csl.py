@@ -108,6 +108,8 @@ class ModuleOp(IRDLOperation):
     Separates layout module from program module
     """
 
+    # TODO(dk949): This should also probably handle csl `param`s
+
     name = "csl.module"
     body: Region = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
@@ -127,6 +129,8 @@ class ModuleOp(IRDLOperation):
         attrs = {"sym_name": StringAttr(kind.data.value)}
         if not isinstance(ops, Region):
             ops = Region(Block(ops))
+        if len(ops.blocks) == 0:
+            ops = Region(Block([]))
         super().__init__(properties=props, attributes=attrs, regions=[ops])
 
     @classmethod
