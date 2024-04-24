@@ -729,6 +729,7 @@ class AttributeVariable(FormatDirective):
     unique_base: type[Attribute] | None
     """The known base class of the Attribute, if any."""
     unique_type: Attribute | None
+    """The known type of the Attribute, if any."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
         unique_base = self.unique_base
