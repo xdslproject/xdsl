@@ -376,6 +376,7 @@ class FormatParser(BaseParser):
                 unique_type = None
                 if unique_base is not None and issubclass(unique_base, TypedAttribute):
                     constr = attr_def.constr
+                    # TODO: generalize.
                     if isinstance(constr, ParamAttrConstraint):
                         type_constraint = constr.param_constrs[
                             unique_base.get_type_index()
