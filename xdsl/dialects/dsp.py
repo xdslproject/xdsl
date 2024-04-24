@@ -44,9 +44,7 @@ class STFT(IRDLOperation):
     frame_size = opt_attr_def(IntegerAttr, attr_name="frame_size")
     hop_size = opt_attr_def(IntegerAttr, attr_name="hop_size")
 
-    assembly_format = (
-        "`(` $operand `)` attr-dict `:` `(` type($operand) `)` `->` type($res)"
-    )
+    assembly_format = "`(` $frame `,` $n_frame `)` attr-dict `:` `(` type($frame) `,` type($n_frame) `)` `->` type($output)"
 
     def __init__(
         self,
