@@ -390,9 +390,7 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
-_IntegerAttrType = TypeVar(
-    "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
-)
+_IntegerAttrType = TypeVar("_IntegerAttrType", bound=IntegerType | IndexType)
 
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
@@ -403,7 +401,7 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 @irdl_attr_definition
 class IntegerAttr(
     Generic[_IntegerAttrType],
-    TypedAttribute[IntegerType | IndexType],
+    TypedAttribute[_IntegerAttrType],
 ):
     name = "integer"
     value: ParameterDef[IntAttr]

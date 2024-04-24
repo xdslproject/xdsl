@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
+    StringAttr,
 )
 from xdsl.ir import (
     Attribute,
@@ -26,6 +27,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
     StrEnum,
+    TypedAttribute,
 )
 from xdsl.irdl import (
     AnyAttr,
@@ -201,6 +203,33 @@ def test_identifier_enum_guard():
             EnumAttribute[TestNonIdentifierEnum]
         ):
             name = "test.non_identifier_enum"
+
+
+################################################################################
+# Typed Attribute
+################################################################################
+
+
+def test_typed_attribute():
+    with pytest.raises(
+        PyRDLAttrDefinitionError,
+        match="TypedAttribute TypedAttr should have a 'type' parameter.",
+    ):
+
+        @irdl_attr_definition
+        class TypedAttr(TypedAttribute[Attribute]):
+            name = "test.typed"
+
+    with pytest.raises(
+        Exception,
+        match="A TypedAttribute `type` parameter must be of the same type as the type variable in the TypedAttribute base class.",
+    ):
+
+        @irdl_attr_definition
+        class TypedAttrBis(TypedAttribute[IntegerAttr]):
+            name = "test.typed"
+
+            type: ParameterDef[StringAttr]
 
 
 ################################################################################

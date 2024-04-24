@@ -2358,6 +2358,24 @@ class ParamAttrDef:
         name = clsdict["name"]
 
         param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+        if issubclass(pyrdl_def, TypedAttribute):
+            try:
+                param_names = [name for name, _ in param_hints]
+                type_index = param_names.index("type")
+            except ValueError:
+                raise PyRDLAttrDefinitionError(
+                    f"TypedAttribute {pyrdl_def.__name__} should have a 'type' parameter."
+                )
+            typed_hint = param_hints[type_index][1]
+            if get_origin(typed_hint) is Annotated:
+                typed_hint = get_args(typed_hint)[0]
+            type_var = get_type_var_mapping(pyrdl_def)[1][AttributeInvT]
+
+            if typed_hint != type_var:
+                raise ValueError(
+                    "A TypedAttribute `type` parameter must be of the same type"
+                    " as the type variable in the TypedAttribute base class."
+                )
 
         parameters = list[tuple[str, AttrConstraint]]()
         for param_name, param_type in param_hints:
@@ -2404,13 +2422,8 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
 
     if issubclass(cls, TypedAttribute):
         parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
-        try:
-            type_index = parameter_names.index("type")
-            new_fields["type_index"] = type_index
-        except ValueError:
-            raise PyRDLAttrDefinitionError(
-                f"TypedAttribute {cls.__name__} should have a 'type' parameter."
-            )
+        type_index = parameter_names.index("type")
+        new_fields["type_index"] = type_index
 
     cls = cast(type[_PAttrT], cls)
 
