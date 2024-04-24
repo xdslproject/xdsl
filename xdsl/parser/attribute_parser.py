@@ -884,28 +884,8 @@ class AttrParser(BaseParser):
         self.parse_characters(":", " in dense array")
 
         values = self.parse_comma_separated_list(
-            self.Delimiter.NONE, self.parse_optional_number
+            self.Delimiter.NONE, lambda: self.parse_number(allow_boolean=True)
         )
-        # parse_number will handle integers and floats, but not true/false as integers,
-        # whereas parse_integer is integer only (not floats) but handles true/false as
-        # integers. Therefore we try with parse_optional_number first, and if
-        # this can not parse we try with parse_integer. There is a single type,
-        # so if one parsed entry is None then all should be
-        if None in values:
-            assert values.count(None) == len(values)
-            values = self.parse_comma_separated_list(
-                self.Delimiter.NONE, self.parse_optional_integer
-            )
-        if None in values:
-            raise ParseError(
-                name,
-                "integer, boolean or float literal expected",
-            )
-
-        # This is needed to keep pyright happy, to remove the None from the lists
-        # types (from parse_optional_number) as this is not compatible with the
-        # types of DenseArrayBase.from_list
-        values = cast(list[int | float], values)
 
         self.parse_characters(">", " in dense array")
 
