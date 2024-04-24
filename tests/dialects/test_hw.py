@@ -6,7 +6,7 @@ from unittest.mock import ANY, patch
 
 import pytest
 
-from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32
+from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
     HW,
     InnerRefAttr,
@@ -332,8 +332,8 @@ def test_inner_sym_attr():
 
 def test_instance_builder():
     MODULE_CTX = """
-hw.module @module(in %foo: i32, out bar: i32) {
-  hw.output %foo : i32
+hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
+  hw.output %foo, %bar : i32, i64
 }
 """
 
@@ -346,16 +346,16 @@ hw.module @module(in %foo: i32, out bar: i32) {
         inst_op := InstanceOp(
             "test",
             SymbolRefAttr("module"),
-            (("foo", TestSSAValue(i32)),),
-            (("bar", i32),),
+            (("foo", TestSSAValue(i32)), ("bar", TestSSAValue(i64))),
+            (("baz", i32), ("qux", i64)),
         )
     )
 
     inst_op.verify()
     assert inst_op.instance_name == StringAttr("test")
     assert inst_op.module_name == SymbolRefAttr("module")
-    assert inst_op.arg_names.data == (StringAttr("foo"),)
-    assert inst_op.result_names.data == (StringAttr("bar"),)
+    assert inst_op.arg_names.data == (StringAttr("foo"), StringAttr("bar"))
+    assert inst_op.result_names.data == (StringAttr("baz"), StringAttr("qux"))
 
-    assert [op.type for op in inst_op.operands] == [i32]
-    assert [res.type for res in inst_op.results] == [i32]
+    assert [op.type for op in inst_op.operands] == [i32, i64]
+    assert [res.type for res in inst_op.results] == [i32, i64]

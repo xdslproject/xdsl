@@ -823,6 +823,12 @@ class HWModuleOp(IRDLOperation):
 
 @irdl_op_definition
 class InstanceOp(IRDLOperation):
+    """
+    This represents an instance of a module. The inputs and outputs are the
+    referenced module's inputs and outputs. The argNames and resultNames
+    attributes must match the referenced module's input and output names.
+    """
+
     name = "hw.instance"
 
     instance_name = attr_def(StringAttr, attr_name="instanceName")
@@ -835,6 +841,7 @@ class InstanceOp(IRDLOperation):
     result_names: ArrayAttr[StringAttr] = attr_def(
         ArrayAttr[StringAttr], attr_name="resultNames"
     )
+    inner_sym = opt_attr_def(InnerSymAttr)
 
     def __init__(
         self,
@@ -842,18 +849,22 @@ class InstanceOp(IRDLOperation):
         module_name: FlatSymbolRefAttr,
         inputs: Iterable[tuple[str, SSAValue]],
         outputs: Iterable[tuple[str, TypeAttribute]],
+        inner_sym: InnerSymAttr | None = None,
     ):
         arg_names = ArrayAttr(StringAttr(port[0]) for port in inputs)
         result_names = ArrayAttr(StringAttr(port[0]) for port in outputs)
+        attributes: dict[str, Attribute] = {
+            "instanceName": StringAttr(instance_name),
+            "moduleName": module_name,
+            "argNames": arg_names,
+            "resultNames": result_names,
+        }
+        if inner_sym is not None:
+            attributes["inner_sym"] = inner_sym
         super().__init__(
-            operands=tuple(port[1] for port in inputs),
-            result_types=tuple(port[1] for port in outputs),
-            attributes={
-                "instanceName": StringAttr(instance_name),
-                "moduleName": module_name,
-                "argNames": arg_names,
-                "resultNames": result_names,
-            },
+            operands=(tuple(port[1] for port in inputs),),
+            result_types=(tuple(port[1] for port in outputs),),
+            attributes=attributes,
         )
 
     def verify_(self) -> None:
@@ -918,9 +929,12 @@ class InstanceOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> "InstanceOp":
-        instance_name = parser.parse_str_literal("instance name")
+        instance_name = parser.parse_str_literal(" (instance name)")
+        inner_sym = None
         if parser.parse_optional_keyword("sym") is not None:
-            parser.raise_error("Instance inner symbols are not supported yet")
+            inner_sym = parser.parse_attribute()
+            if not isinstance(inner_sym, InnerSymAttr):
+                parser.raise_error("Expected inner symbol attribute")
         module_name = parser.parse_attribute()
         if (
             not isinstance(module_name, SymbolRefAttr)
@@ -963,7 +977,13 @@ class InstanceOp(IRDLOperation):
             Parser.Delimiter.PAREN, parse_output_port, "output port list expected"
         )
         attributes_attr = parser.parse_optional_attr_dict_with_reserved_attr_names(
-            ("instanceName", "moduleName", "argNames", "resultNames")
+            (
+                "instanceName",
+                "moduleName",
+                "argNames",
+                "resultNames",
+                "inner_sym",
+            )
         )
         attributes = attributes_attr.data if attributes_attr is not None else {}
 
@@ -975,6 +995,8 @@ class InstanceOp(IRDLOperation):
         attributes["resultNames"] = ArrayAttr(
             StringAttr(port[0]) for port in output_ports
         )
+        if inner_sym is not None:
+            attributes["inner_sym"] = inner_sym
         return cls.create(
             operands=operands, result_types=result_types, attributes=attributes
         )
@@ -983,6 +1005,10 @@ class InstanceOp(IRDLOperation):
         printer.print(" ")
         printer.print_attribute(self.instance_name)
         printer.print(" ")
+        if self.inner_sym is not None:
+            printer.print("sym ")
+            printer.print_attribute(self.inner_sym)
+            printer.print(" ")
         printer.print_attribute(self.module_name)
 
         def print_input_port(name: str, operand: SSAValue):
@@ -1018,6 +1044,7 @@ class InstanceOp(IRDLOperation):
                 "moduleName",
                 "argNames",
                 "resultNames",
+                "inner_sym",
             ),
         )
 
