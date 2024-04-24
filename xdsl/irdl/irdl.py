@@ -2286,9 +2286,6 @@ def irdl_param_attr_get_param_type_hints(cls: type[_PAttrT]) -> list[tuple[str, 
     for field_name, field_type in get_type_hints(cls, include_extras=True).items():
         if field_name == "name" or field_name == "parameters":
             continue
-        # Allow type_index as defined by TypedAttribute
-        if issubclass(cls, TypedAttribute) and field_name == "type_index":
-            continue
 
         origin: Any | None = cast(Any | None, get_origin(field_type))
         args = get_args(field_type)
@@ -2359,6 +2356,7 @@ class ParamAttrDef:
 
         param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
         if issubclass(pyrdl_def, TypedAttribute):
+            pyrdl_def = cast(type[TypedAttribute[Attribute]], pyrdl_def)
             try:
                 param_names = [name for name, _ in param_hints]
                 type_index = param_names.index("type")
@@ -2423,7 +2421,7 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     if issubclass(cls, TypedAttribute):
         parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
         type_index = parameter_names.index("type")
-        new_fields["type_index"] = type_index
+        new_fields["get_type_index"] = lambda: type_index
 
     cls = cast(type[_PAttrT], cls)
 

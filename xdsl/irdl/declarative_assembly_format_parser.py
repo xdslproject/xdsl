@@ -377,7 +377,9 @@ class FormatParser(BaseParser):
                 if unique_base is not None and issubclass(unique_base, TypedAttribute):
                     constr = attr_def.constr
                     if isinstance(constr, ParamAttrConstraint):
-                        type_constraint = constr.param_constrs[unique_base.type_index]
+                        type_constraint = constr.param_constrs[
+                            unique_base.get_type_index()
+                        ]
                         if type_constraint.can_infer(set()):
                             unique_type = type_constraint.infer({})
                 if (
