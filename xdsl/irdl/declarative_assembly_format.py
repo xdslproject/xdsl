@@ -16,6 +16,7 @@ from xdsl.ir import (
     Data,
     ParametrizedAttribute,
     SSAValue,
+    TypedAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
@@ -727,18 +728,31 @@ class AttributeVariable(FormatDirective):
     """Should this attribute be put in the attribute or property dictionary."""
     unique_base: type[Attribute] | None
     """The known base class of the Attribute, if any."""
+    unique_type: Attribute | None
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
-        if self.unique_base is None:
+        unique_base = self.unique_base
+        if unique_base is None:
             attr = parser.parse_attribute()
+        elif self.unique_type is not None:
+            unique_base = cast(
+                type[TypedAttribute[Attribute]],
+                unique_base,
+            )
+            attr = unique_base.parse_with_type(parser, self.unique_type)
+        elif issubclass(
+            unique_base,
+            ParametrizedAttribute,
+        ):
+            attr = unique_base.new(unique_base.parse_parameters(parser))
+        elif issubclass(unique_base, Data):
+            unique_base = cast(
+                type[Data[Any]],
+                unique_base,
+            )
+            attr = unique_base.new(unique_base.parse_parameter(parser))
         else:
-            if issubclass(self.unique_base, ParametrizedAttribute):
-                attr = self.unique_base.new(self.unique_base.parse_parameters(parser))
-            elif issubclass(self.unique_base, Data):
-                unique_base = cast(type[Data[Any]], self.unique_base)
-                attr = unique_base.new(unique_base.parse_parameter(parser))
-            else:
-                raise ValueError("Attributes must be Data or ParameterizedAttribute!")
+            raise ValueError("Attributes must be Data or ParameterizedAttribute!")
         if self.is_property:
             state.properties[self.name] = attr
         else:
@@ -755,15 +769,15 @@ class AttributeVariable(FormatDirective):
         else:
             attr = op.attributes[self.name]
 
+        if self.unique_type is not None:
+            return cast(TypedAttribute[Attribute], attr).print_without_type(printer)
         if self.unique_base is None:
-            printer.print_attribute(attr)
-        else:
-            if isinstance(attr, ParametrizedAttribute):
-                attr.print_parameters(printer)
-            elif isinstance(attr, Data):
-                attr.print_parameter(printer)
-            else:
-                raise ValueError("Attributes must be Data or ParameterizedAttribute!")
+            return printer.print_attribute(attr)
+        if isinstance(attr, ParametrizedAttribute):
+            return attr.print_parameters(printer)
+        if isinstance(attr, Data):
+            return attr.print_parameter(printer)
+        raise ValueError("Attributes must be Data or ParameterizedAttribute!")
 
 
 class OptionalAttributeVariable(AttributeVariable, OptionalVariable):

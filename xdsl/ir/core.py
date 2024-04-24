@@ -666,6 +666,34 @@ class ParametrizedAttribute(Attribute):
         super()._verify()
 
 
+class TypedAttribute(ParametrizedAttribute, Generic[AttributeInvT], ABC):
+    """
+    An attribute with a type.
+    """
+
+    @staticmethod
+    @abstractmethod
+    def get_type_parameter_index() -> int: ...
+
+    @abstractmethod
+    def get_type(self) -> AttributeInvT:
+        """
+        Get the type of the attribute.
+        """
+        ...
+
+    @classmethod
+    @abstractmethod
+    def parse_with_type(cls, parser: AttrParser, type: AttributeInvT) -> Self:
+        """
+        Parse the attribute with the given type.
+        """
+        ...
+
+    @abstractmethod
+    def print_without_type(self, printer: Printer): ...
+
+
 @dataclass(init=False)
 class IRNode(ABC):
     def is_ancestor(self, op: IRNode) -> bool:

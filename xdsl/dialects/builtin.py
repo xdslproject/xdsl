@@ -31,6 +31,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
@@ -400,7 +401,10 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 
 
 @irdl_attr_definition
-class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
+class IntegerAttr(
+    Generic[_IntegerAttrType],
+    TypedAttribute[IntegerType | IndexType],
+):
     name = "integer"
     value: ParameterDef[IntAttr]
     type: ParameterDef[_IntegerAttrType]
@@ -446,6 +450,20 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
                 f"type {self.type} which supports values in the "
                 f"range [{min_value}, {max_value})"
             )
+
+    @staticmethod
+    def get_type_parameter_index():
+        return 1
+
+    def get_type(self):
+        return self.type
+
+    @classmethod
+    def parse_with_type(cls, parser: AttrParser, type: IntegerType | IndexType):
+        return cls(parser.parse_integer(allow_boolean=(type == i1)), type)
+
+    def print_without_type(self, printer: Printer):
+        return printer.print(self.value.data)
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]

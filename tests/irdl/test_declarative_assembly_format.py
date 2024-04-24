@@ -7,7 +7,7 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, IntegerType, ModuleOp
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
@@ -24,6 +24,7 @@ from xdsl.irdl import (
     ConstraintVar,
     EqAttrConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     ParameterDef,
     ParsePropInAttrDict,
     VarOperand,
@@ -480,6 +481,38 @@ def test_optional_attribute(program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(OptionalAttributeOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.typed_attr 3",
+            '"test.typed_attr"() {"attr" = 3 : i32} : () -> ()',
+        ),
+    ],
+)
+def test_typed_attribute_variable(program: str, generic_program: str):
+    """Test the parsing of optional operands"""
+
+    @irdl_op_definition
+    class TypedAttributeOp(IRDLOperation):
+        name = "test.typed_attr"
+        attr: IntegerAttr[IntegerType] = attr_def(
+            ParamAttrConstraint(
+                IntegerAttr,
+                [IntAttr, IntegerType(32)],
+            )
+        )
+
+        assembly_format = "$attr attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(TypedAttributeOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)

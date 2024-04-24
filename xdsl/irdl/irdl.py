@@ -1064,7 +1064,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -1076,7 +1076,7 @@ def prop_def(
 
 
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -1088,7 +1088,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -1102,7 +1102,7 @@ def attr_def(
 
 
 def opt_attr_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     attr_name: str | None = None,
     default: None = None,

@@ -10,9 +10,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import pairwise
+from typing import cast
 
 from xdsl.dialects.builtin import Builtin
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
@@ -20,6 +21,7 @@ from xdsl.irdl import (
     OptionalDef,
     OptOperandDef,
     OptResultDef,
+    ParamAttrConstraint,
     ParsePropInAttrDict,
     VariadicDef,
     VarOperandDef,
@@ -371,15 +373,34 @@ class FormatParser(BaseParser):
                 # Always qualify builtin attributes
                 # This is technically an approximation, but appears to be good enough
                 # for xDSL right now.
-                if unique_base is not None and unique_base in Builtin.attributes:
+                unique_type = None
+                if unique_base is not None and issubclass(unique_base, TypedAttribute):
+                    constr = attr_def.constr
+                    if isinstance(constr, ParamAttrConstraint):
+                        type_constraint = constr.param_constrs[
+                            unique_base.get_type_parameter_index()
+                        ]
+                        if type_constraint.can_infer(set()):
+                            unique_type = type_constraint.infer({})
+                if (
+                    unique_base is not None
+                    and unique_base in Builtin.attributes
+                    and unique_type is None
+                ):
                     unique_base = None
+
+                # Chill pyright with TypedAttribute without parameter
+                unique_base = cast(type[Attribute] | None, unique_base)
+
                 variable_type = (
                     OptionalAttributeVariable
                     if isinstance(attr_def, OptionalDef)
                     else AttributeVariable
                 )
                 is_property = attr_or_prop == "property"
-                return variable_type(variable_name, is_property, unique_base)
+                return variable_type(
+                    variable_name, is_property, unique_base, unique_type
+                )
 
         self.raise_error(
             "expected variable to refer to an operand, "
