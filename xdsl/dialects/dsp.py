@@ -45,7 +45,7 @@ class STFT(IRDLOperation):
     hop_size = opt_attr_def(IntegerAttr, attr_name="hop_size")
 
     assembly_format = (
-        "`(` $operand`)` attr-dict `:` `(` type($operand) `)` `->` type($res)"
+        "`(` $operand `)` attr-dict `:` `(` type($operand) `)` `->` type($res)"
     )
 
     def __init__(
