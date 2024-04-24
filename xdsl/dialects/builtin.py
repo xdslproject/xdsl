@@ -390,7 +390,9 @@ class IndexType(ParametrizedAttribute):
     name = "index"
 
 
-_IntegerAttrType = TypeVar("_IntegerAttrType", bound=IntegerType | IndexType)
+_IntegerAttrType = TypeVar(
+    "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
+)
 
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
