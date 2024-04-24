@@ -551,3 +551,12 @@ builtin.module {
   // CHECK: Operation does not verify: incorrect output shape: output dimension #0 should be equal to 4
   %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64]}: (tensor<3x4xf32>) -> tensor<3x3xf32>
 }
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<2x256xf32>)
+  %t1 = "arith.constant"() {"value" = 1 : i64}: () -> i64
+  // CHECK: Operation does not verify: frame number of dimensions must be 1. Actual number of dimensions: 2
+  %res_stft = "dsp.STFT"(%t0, %t1) {"frame_size" = 256 : i64, "hop_size" = 128 : i64}: (tensor<2x256xf32>, i64) -> tensor<2x128xf32>
+}

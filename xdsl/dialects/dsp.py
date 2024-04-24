@@ -19,6 +19,7 @@ from xdsl.irdl import (
     opt_attr_def,
     result_def,
 )
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
@@ -35,11 +36,10 @@ class STFT(IRDLOperation):
 
     name = "onnx.STFT"
     T = Annotated[AnyFloat, ConstraintVar("T")]
-    T2 = Annotated[IntegerType, ConstraintVar("T")]
 
     frame = operand_def(TensorType[T])
-    n_frame = operand_def(TensorType[T2])
-    res = result_def(TensorType[T])
+    n_frame = operand_def(IntegerType)
+    output = result_def(TensorType[T])
 
     frame_size = opt_attr_def(IntegerAttr, attr_name="frame_size")
     hop_size = opt_attr_def(IntegerAttr, attr_name="hop_size")
@@ -68,7 +68,25 @@ class STFT(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        pass
+        if (
+            not isinstance(frame_type := self.frame.type, TensorType)
+            or not isinstance(n_frame := self.n_frame.type, IntegerType)
+            or not isinstance(output_type := self.output.type, TensorType)
+        ):
+            assert (
+                False
+            ), "dsp stft operation operands must be TensorType and IntegerType, the result must be of type TensorType"
+
+        frame_shape = frame_type.get_shape()
+        output_shape = output_type.get_shape()
+        print(output_shape)
+        print(n_frame)
+
+        n_dimensions_frame = len(frame_shape)
+        if n_dimensions_frame != 1:
+            raise VerifyException(
+                f"frame number of dimensions must be 1. Actual number of dimensions: {n_dimensions_frame}"
+            )
 
 
 DSP = Dialect(
