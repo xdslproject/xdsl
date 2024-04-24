@@ -216,6 +216,10 @@ class CslPrintContext:
                     )
                     self.descend().print_block(bdy.block)
                     self.print("}")
+                case csl.LayoutOp(body=bdy):
+                    self.print("layout {")
+                    self.descend().print_block(bdy.block)
+                    self.print("}")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
