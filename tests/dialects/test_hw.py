@@ -352,3 +352,10 @@ hw.module @module(in %foo: i32, out bar: i32) {
     )
 
     inst_op.verify()
+    assert inst_op.instance_name == StringAttr("test")
+    assert inst_op.module_name == SymbolRefAttr("module")
+    assert inst_op.arg_names.data == (StringAttr("foo"),)
+    assert inst_op.result_names.data == (StringAttr("bar"),)
+
+    assert [op.type for op in inst_op.operands] == [i32]
+    assert [res.type for res in inst_op.results] == [i32]
