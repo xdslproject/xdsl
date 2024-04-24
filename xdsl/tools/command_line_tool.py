@@ -69,6 +69,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_dsp():
+        from xdsl.dialects.dsp import DSP
+
+        return DSP
+
     def get_fir():
         from xdsl.dialects.experimental.fir import FIR
 
@@ -266,6 +271,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "cmath": get_cmath,
         "comb": get_comb,
         "dmp": get_dmp,
+        "dsp": get_dsp,
         "fir": get_fir,
         "fsm": get_fsm,
         "func": get_func,
