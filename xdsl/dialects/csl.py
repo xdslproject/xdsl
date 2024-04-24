@@ -504,6 +504,37 @@ class ReturnOp(IRDLOperation):
         return op
 
 
+@irdl_op_definition
+class LayoutOp(IRDLOperation):
+    name = "csl.layout"
+
+    body: Region = region_def("single_block")
+
+    traits = frozenset([NoTerminator()])
+
+    def __init__(self, ops: Sequence[Operation] | Region):
+        if not isinstance(ops, Region):
+            ops = Region(Block(ops))
+        if len(ops.blocks) == 0:
+            ops = Region(Block([]))
+        super().__init__(regions=[ops])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> LayoutOp:
+        return cls(parser.parse_region())
+
+    def print(self, printer: Printer):
+        printer.print(' ', self.body)
+
+    def verify_(self) -> None:
+        parent = self.parent_op()
+        if not isinstance(parent, ModuleOp):
+            raise VerifyException(f"Expected parent to be a {ModuleOp.name}")
+        if parent.kind.data != ModuleKind.LAYOUT:
+            raise VerifyException(
+                f"Expected parent module to be a of kind {ModuleKind.LAYOUT.value}")
+
+
 CSL = Dialect(
     "csl",
     [
@@ -515,6 +546,7 @@ CSL = Dialect(
         CallOp,
         TaskOp,
         ModuleOp,
+        LayoutOp,
     ],
     [
         ComptimeStructType,
