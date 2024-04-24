@@ -393,7 +393,6 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
-
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -452,8 +451,16 @@ class IntegerAttr(
             )
 
     @classmethod
-    def parse_with_type(cls, parser: AttrParser, type: IntegerType | IndexType):
-        return cls(parser.parse_integer(allow_boolean=(type == i1)), type)
+    def parse_with_type(
+        cls: type[IntegerAttr[_IntegerAttrType]],
+        parser: AttrParser,
+        type: Attribute,
+    ) -> IntegerAttr[_IntegerAttrType]:
+        assert isinstance(type, IntegerType) or isinstance(type, IndexType)
+        return cast(
+            IntegerAttr[_IntegerAttrType],
+            IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type),
+        )
 
     def print_without_type(self, printer: Printer):
         return printer.print(self.value.data)

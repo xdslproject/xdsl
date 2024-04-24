@@ -676,10 +676,10 @@ class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
 
     @classmethod
     def parse_with_type(
-        cls: type[TypedAttribute[AttributeInvT]],
+        cls: type[TypedAttribute[AttributeCovT]],
         parser: AttrParser,
-        type: AttributeInvT,
-    ) -> type[TypedAttribute[AttributeInvT]]:
+        type: Attribute,
+    ) -> TypedAttribute[AttributeCovT]:
         """
         Parse the attribute with the given type.
         """

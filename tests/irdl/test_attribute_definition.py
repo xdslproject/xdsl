@@ -217,7 +217,9 @@ def test_typed_attribute():
     ):
 
         @irdl_attr_definition
-        class TypedAttr(TypedAttribute[Attribute]):
+        class TypedAttr(  # pyright: ignore[reportUnusedClass]
+            TypedAttribute[Attribute]
+        ):
             name = "test.typed"
 
     with pytest.raises(
@@ -226,7 +228,9 @@ def test_typed_attribute():
     ):
 
         @irdl_attr_definition
-        class TypedAttrBis(TypedAttribute[IntegerAttr]):
+        class TypedAttrBis(  # pyright: ignore[reportUnusedClass]
+            TypedAttribute[IntegerAttr[IndexType]]
+        ):
             name = "test.typed"
 
             type: ParameterDef[StringAttr]
