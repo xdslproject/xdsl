@@ -2412,6 +2412,8 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
                 f"TypedAttribute {cls.__name__} should have a 'type' parameter."
             )
 
+    cls = cast(type[_PAttrT], cls)
+
     @classmethod
     def get_irdl_definition(cls: type[_PAttrT]):
         return attr_def
