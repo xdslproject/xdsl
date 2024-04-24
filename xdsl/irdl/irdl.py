@@ -26,6 +26,7 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     Block,
     Data,
@@ -2367,7 +2368,10 @@ class ParamAttrDef:
             typed_hint = param_hints[type_index][1]
             if get_origin(typed_hint) is Annotated:
                 typed_hint = get_args(typed_hint)[0]
-            type_var = get_type_var_mapping(pyrdl_def)[1][AttributeInvT]
+            # import pdb
+
+            # pdb.set_trace()
+            type_var = get_type_var_mapping(pyrdl_def)[1][AttributeCovT]
 
             if typed_hint != type_var:
                 raise ValueError(
