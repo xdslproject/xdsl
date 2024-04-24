@@ -223,8 +223,8 @@ class IndexOpToLoopSSA(RewritePattern):
         assert isa(loop_op, scf.For) or isa(loop_op, scf.ParallelOp)
         assert len(loop_op.body.blocks) == 1
         assert len(loop_op.body.block.args) >= 1
-        replacement_ssa = loop_op.body.block.args[op.dim.value.data]
-        offset = op.offset.array.data[op.dim.value.data].data
+        replacement_ssa = loop_op.body.block.args[op.dim.data]
+        offset = op.offset.array.data[op.dim.data].data
         if offset == 0:
             rewriter.replace_matched_op([], [replacement_ssa])
         else:

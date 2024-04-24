@@ -90,7 +90,7 @@ class CombineOpShapeInference(RewritePattern):
             lb = IndexAttr.min(c_bounds.lb, lb)
             # Compute the combine bounds
             c_bound_c = list(c_bounds.ub)
-            c_bound_c[op.dim.value.data] = op.index.value.data
+            c_bound_c[op.dim.data] = op.index.data
             c_bound = IndexAttr.get(*c_bound_c)
             ub = IndexAttr.max(c_bound, ub)
             bounds = StencilBoundsAttr(zip(lb, ub))
@@ -115,7 +115,7 @@ class CombineOpShapeInference(RewritePattern):
             ub = IndexAttr.max(c_bounds.ub, ub)
             # Compute the combine bounds
             c_bound_c = list(c_bounds.lb)
-            c_bound_c[op.dim.value.data] = op.index.value.data
+            c_bound_c[op.dim.data] = op.index.data
             c_bound = IndexAttr.get(*c_bound_c)
             lb = IndexAttr.min(c_bound, lb)
             bounds = StencilBoundsAttr(zip(lb, ub))
@@ -135,7 +135,7 @@ class CombineOpShapeInference(RewritePattern):
                 ub = o.type.bounds.ub
 
             ub_c = list(r_bounds.ub)
-            ub_c[op.dim.value.data] = op.index.value.data
+            ub_c[op.dim.data] = op.index.data
 
             ub_c = IndexAttr.get(*ub_c)
 
@@ -158,7 +158,7 @@ class CombineOpShapeInference(RewritePattern):
                 ub = o.type.bounds.ub
 
             lb_c = list(r_bounds.lb)
-            lb_c[op.dim.value.data] = op.index.value.data
+            lb_c[op.dim.data] = op.index.data
 
             lb_c = IndexAttr.get(*lb_c)
 
