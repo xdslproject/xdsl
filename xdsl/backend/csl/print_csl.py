@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO
+from typing import IO, cast
 
 from xdsl.dialects import arith, csl, scf
 from xdsl.dialects.builtin import (
@@ -19,11 +19,13 @@ from xdsl.dialects.builtin import (
     StringAttr
 )
 from xdsl.ir import Attribute, Block, SSAValue, Region
+from xdsl.ir.core import BlockOps
 
 
 @dataclass
 class CslPrintContext:
     _INDENT_SIZE = 2
+    DIVIDER = "// >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //"
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -217,6 +219,13 @@ class CslPrintContext:
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
+    def print_module(self, mod: csl.ModuleOp):
+        # params can be handled here later if needed
+        self.print_block(mod.body.block)
+
+    def print_divider(self):
+        self.print(self.DIVIDER)
+
     def descend(self) -> CslPrintContext:
         """
         Get a sub-context for descending into nested structures.
@@ -232,9 +241,28 @@ class CslPrintContext:
         )
 
 
+def _get_layout_program(ops: BlockOps) -> tuple[csl.ModuleOp, csl.ModuleOp]:
+    ops_list = list(ops)
+    assert all(isinstance(mod, csl.ModuleOp) for mod in ops_list), \
+        "Expected all top level ops to be csl.module"
+    assert (len(ops_list) == 2), "Expected exactly two top level modules"
+    ops_list = cast(list[csl.ModuleOp], ops_list)
+    prog = next(filter(lambda mod: mod.kind.data == csl.ModuleKind.PROGRAM,
+                       ops_list), None)
+    layout = next(filter(lambda mod: mod.kind.data == csl.ModuleKind.LAYOUT,
+                         ops_list), None)
+    assert prog is not None and layout is not None, \
+        "Expected exactly 1 program and exactly 1 layout module"
+
+    return layout, prog
+
+
 def print_to_csl(prog: ModuleOp, output: IO[str]):
     """
     Takes a module op and prints it to the given output stream.
     """
     ctx = CslPrintContext(output)
-    ctx.print_block(prog.body.block)
+    layout, program = _get_layout_program(prog.body.block.ops)
+    ctx.print_module(layout)
+    ctx.print_divider()
+    ctx.print_module(program)
