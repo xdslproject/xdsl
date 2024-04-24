@@ -3,6 +3,7 @@
 import sys
 from xdsl.backend.csl.print_csl import CslPrintContext
 import argparse
+from contextlib import contextmanager
 
 
 def parse_args() -> argparse.Namespace:
@@ -10,10 +11,22 @@ def parse_args() -> argparse.Namespace:
         prog="csl-file-adapter",
         description="Splits stdin from xdsl-opt into two csl files")
     parser.add_argument("-l", "--layout", default="layout.csl",
-                        help="Name of the layout file")
-    parser.add_argument("-p", "--program", default="pe_program.csl",
-                        help="Name of the program file")
+                        help="Path to the layout file")
+    parser.add_argument("-p", "--program", metavar="PATH", default="pe_program.csl",
+                        help="Path to the program file")
+    parser.add_argument("input", nargs='?', metavar="FILE",
+                        default='-', help="Read from FILE instead of stdin. Use - to explicitly request stdin.")
     return parser.parse_args()
+
+
+@contextmanager
+def open_input(name: str):
+    if name == '-':
+        yield sys.stdin
+    else:
+        f = open(name, "r")
+        yield f
+        f.close()
 
 
 # TODO(dk949): this is a little hacky...
@@ -23,12 +36,13 @@ if __name__ == "__main__":
     try:
         args = parse_args()
         file = open(args.layout, "w")
-        for line in sys.stdin:
-            if line == div:
-                file.close()
-                file = open(args.program, "w")
-            else:
-                file.write(line)
+        with open_input(args.input) as input:
+            for line in input:
+                if line == div:
+                    file.close()
+                    file = open(args.program, "w")
+                else:
+                    file.write(line)
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
     finally:
