@@ -4,10 +4,11 @@ import abc
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import VerifyException, ComplexVerifyException
 
 if TYPE_CHECKING:
-    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
+    from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, ModuleOp
+    from xdsl.ir import BlockArgument, Operation, OpResult, Region, SSAValue, Use
     from xdsl.ir import Operation, Region
     from xdsl.pattern_rewriter import RewritePattern
 
@@ -66,6 +67,33 @@ class HasParent(OpTrait):
             )
         names = ", ".join(f"'{p.name}'" for p in self.parameters)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
+
+
+@dataclass(frozen=True)
+class HasAncestor(OpTrait):
+    """Constraint the operation to have a specific parent operation somewhere up the line"""
+
+    parameters: tuple[type[Operation], bool]
+
+    def __init__(self, ancestor_type: type[Operation], weak=False):
+        if not ancestor_type:
+            raise ValueError("ancestor_type must not be empty")
+        parameters = (ancestor_type, weak)
+        super().__init__(parameters)
+
+    def verify(self, op: Operation) -> None:
+        from xdsl.dialects.builtin import ModuleOp
+        ancestor_type, weak  = self.parameters
+        parent = op.parent_op()
+        while parent is not ModuleOp and (weak or parent is not None) :
+            if weak and parent is None:
+                return
+            if isinstance(parent, ancestor_type):
+                return
+            parent = parent.parent_op()
+        raise VerifyException(
+            f"'{op.name}' expects an ancestor op '{self.parameters[0].name}'"
+        )
 
 
 class IsTerminator(OpTrait):
@@ -182,6 +210,7 @@ class IsolatedFromAbove(OpTrait):
         # Start by checking all the passed operation's regions
         regions: list[Region] = op.regions.copy()
 
+        violations = {}
         # While regions are left to check
         while regions:
             # Pop the first one
@@ -191,18 +220,33 @@ class IsolatedFromAbove(OpTrait):
                 # Check every operation of the block
                 for child_op in block.ops:
                     # Check every operand of the operation
-                    for operand in child_op.operands:
+                    for i, operand in enumerate(child_op.operands):
                         # The operand must not be defined out of the IsolatedFromAbove op.
                         if not op.is_ancestor(operand.owner):
-                            raise VerifyException(
-                                "Operation using value defined out of its "
-                                "IsolatedFromAbove parent!"
-                            )
+                            from xdsl.utils.diagnostic import OperationInformation
+                            class ViolationInformation(OperationInformation):
+                                from xdsl.printer import Printer
+                                def __init__(self, i, oper):
+                                    self.i = i
+                                    self.operand = oper
+                                    print(operand)
+                                    print(oper)
+                                def get_info(self, p: Printer) -> str:
+                                    print(operand)
+                                    return f"This operation uses operand[{i}]: {p.get_ssa_value(self.operand)}  ({self.operand}) from outside its IsolatedFromAbove parent!"
+
+                            violations.setdefault(child_op, []).append(ViolationInformation(i, operand))
                     # Check nested regions too; unless the operation is IsolatedFromAbove
                     # too; in which case it will check itself.
                     if not child_op.has_trait(IsolatedFromAbove):
                         regions += child_op.regions
 
+        if violations:
+            raise ComplexVerifyException(
+                "Operation using value defined out of its "
+                "IsolatedFromAbove parent!",
+                map=violations
+            )
 
 class SymbolTable(OpTrait):
     """
@@ -398,3 +442,92 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class UseDefChainTrait(OpTrait):
+    """
+    Allow for use-def chain following by implementation of a function to get the definitions (OpResults or
+    BlockArguments) that are on the control-flow path from an internal yield operation to somewhere else within the
+    Operation.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def get_defs_following_from_operand_for(
+        cls, op: Operation, index: int
+    ) -> set[SSAValue]:
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def get_operands_leading_to_block_argument_for(
+        cls, op: Operation, arg: BlockArgument
+    ) -> set[Use]:
+        raise NotImplementedError()
+
+    # @classmethod
+    # def get_operands_leading_to_def(cls, ssa_value: SSAValue) -> set[Use]:
+    #     if isinstance(ssa_value.owner, Operation):
+    #         result = cast(OpResult, ssa_value)
+    #         return cls.get_operands_leading_to_op_result(result.op, result.index)
+    #     elif isinstance(ssa_value.owner, Block):
+    #         arg = cast(BlockArgument, ssa_value)
+    #         return cls.get_operands_leading_to_block_argument(arg.block.parent_op(), arg)
+    #     else:
+    #         raise NotImplementedError(f"UseDefChainTrait does not support ssa values that are: {type(ssa_value)}")
+
+    @staticmethod
+    def _get_traits_for(op: Operation) -> set[UseDefChainTrait]:
+        ops: list[Operation] = []
+        current_op: None | Operation = op
+        while current_op is not None:
+            ops.append(current_op)
+            current_op = current_op.parent_op()
+        traits = {
+            trait for op in ops for trait in op.get_traits_of_type(UseDefChainTrait)
+        }
+        return traits
+
+    @staticmethod
+    def get_defs_following_from_operand(use: Use) -> set[SSAValue]:
+        op = use.operation
+        results = {
+            result
+            for trait in UseDefChainTrait._get_traits_for(op)
+            for result in trait.get_defs_following_from_operand_for(
+                use.operation, use.index
+            )
+        }
+        return results
+
+    @staticmethod
+    def get_operands_leading_to_op_result(op_result: OpResult) -> set[Use]:
+        op = op_result.op
+        uses = {
+            use
+            for trait in UseDefChainTrait._get_traits_for(op)
+            for use in trait.get_operands_leading_to_op_result_for(op, op_result.index)
+        }
+        return uses
+
+    @staticmethod
+    def get_operands_leading_to_block_argument(arg: BlockArgument) -> set[Use]:
+        op = arg.owner.parent_op()
+        if op is None:
+            raise ValueError(
+                "Cannot trace operands leading to a block argument if block has no owning operation."
+            )
+        uses = {
+            use
+            for trait in UseDefChainTrait._get_traits_for(op)
+            for use in trait.get_operands_leading_to_block_argument_for(op, arg)
+        }
+        return uses

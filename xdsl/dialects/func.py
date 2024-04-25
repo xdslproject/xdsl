@@ -25,7 +25,7 @@ from xdsl.ir import (
     Dialect,
     Operation,
     Region,
-    SSAValue,
+    SSAValue, Use,
 )
 from xdsl.irdl import (
     AnyAttr,
@@ -46,7 +46,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
-    SymbolOpInterface,
+    SymbolOpInterface, SymbolTable, UseDefChainTrait,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -56,6 +56,53 @@ class FuncOpCallableInterface(CallableOpInterface):
     def get_callable_region(cls, op: Operation) -> Region:
         assert isinstance(op, FuncOp)
         return op.body
+
+
+class FuncOpUseDefChainTrait(UseDefChainTrait):
+
+    @classmethod
+    def get_defs_following_from_operand_for(
+        cls, op: Operation, index: int
+    ) -> set[SSAValue]:
+        if isinstance(op, Return):
+            func_op = op.parent_op()
+            assert isinstance(func_op, FuncOp)
+            current_op = func_op.parent_op()
+            top_op = func_op
+            while current_op is not None:
+                top_op = current_op
+                current_op = current_op.parent_op()
+            calls = [child_op for child_op in top_op.walk()
+                     if isinstance(child_op, Call) and SymbolTable.lookup_symbol(child_op, child_op.callee) == func_op]
+            return {call.results[index] for call in calls}
+        return set()
+
+    @classmethod
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        if isinstance(op, Call):
+            func_op = SymbolTable.lookup_symbol(op, op.callee)
+            if isinstance(func_op, FuncOp):
+               return_op = func_op.get_return_op()
+               if return_op is not None:
+                   return {Use(return_op, index)}
+        return set()
+
+    @classmethod
+    def get_operands_leading_to_block_argument_for(
+        cls, op: Operation, arg: BlockArgument
+    ) -> set[Use]:
+        if isinstance(op, FuncOp):
+            current_op = op.parent_op()
+            top_op = op
+            while current_op is not None:
+                top_op = current_op
+                current_op = current_op.parent_op()
+            calls = [child_op for child_op in top_op.walk()
+                     if isinstance(child_op, Call) and SymbolTable.lookup_symbol(child_op, child_op.callee) == op]
+            return {Use(call, arg.index) for call in calls}
+        return set()
 
 
 @irdl_op_definition
@@ -261,6 +308,42 @@ class FuncOp(IRDLOperation):
         function body)
         """
         return len(self.body.blocks) == 0
+
+
+class CallUseDefChainTrait(UseDefChainTrait):
+
+    @classmethod
+    def get_defs_following_from_operand_for(
+        cls, op: Operation, index: int
+    ) -> set[SSAValue]:
+        if isinstance(op, Call):
+            func_op = SymbolTable.lookup_symbol(op, op.callee)
+            if func_op is not None:
+                interface = func_op.get_trait(CallableOpInterface)
+                if interface is not None:
+                    callable_region = interface.get_callable_region(func_op)
+                    if callable_region is not None:
+                        if len(callable_region.blocks) > 0:
+                            return {callable_region.blocks[0].args[index]}
+
+    @classmethod
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        if isinstance(op, Call):
+            func_op = SymbolTable.lookup_symbol(op, op.callee)
+            if isinstance(func_op, FuncOp):
+               return_op = func_op.get_return_op()
+               if return_op is not None:
+                   return {Use(return_op, index)}
+        return set()
+
+    @classmethod
+    def get_operands_leading_to_block_argument_for(
+        cls, op: Operation, arg: BlockArgument
+    ) -> set[Use]:
+        return set()
+
 
 
 @irdl_op_definition

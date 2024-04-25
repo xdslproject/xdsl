@@ -350,7 +350,7 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
             data = IntAttr(data)
         if isinstance(signedness, Signedness):
             signedness = SignednessAttr(signedness)
-        super().__init__([data, signedness])
+        super().__init__(tuple([data, signedness]))
 
     def value_range(self) -> tuple[int, int]:
         return self.signedness.data.value_range(self.width.data)
@@ -427,7 +427,7 @@ class IntegerAttr(
             value = IntAttr(value)
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        super().__init__([value, value_type])
+        super().__init__(tuple([value, value_type]))
 
     @staticmethod
     def from_int_and_width(value: int, width: int) -> IntegerAttr[IntegerType]:
@@ -1500,7 +1500,7 @@ _UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit", bound=Att
 class NoneType(ParametrizedAttribute, TypeAttribute):
     name = "none_type"
 
-
+# In MemRefType's shape parameter a '-1' means an unknown - runtime/dynamic - dimension.
 @irdl_attr_definition
 class MemRefType(
     Generic[_MemRefTypeElement],

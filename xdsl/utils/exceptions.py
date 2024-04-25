@@ -10,9 +10,10 @@ from dataclasses import dataclass
 from typing import Any
 
 if typing.TYPE_CHECKING:
-    from xdsl.ir import Attribute
+    from xdsl.ir import Attribute, Operation
     from xdsl.parser import Span
     from xdsl.utils.parse_pipeline import Token
+    from xdsl.utils.diagnostic import OperationInformation
 
 
 class DiagnosticException(Exception):
@@ -21,6 +22,12 @@ class DiagnosticException(Exception):
 
 class VerifyException(DiagnosticException):
     pass
+
+
+class ComplexVerifyException(VerifyException):
+    def __init__(self, message: str, map: dict[Operation, str | typing.Sequence[str|OperationInformation]]):
+        self.map = {op: ([e] if isinstance(e, str) else e) for op, e in map.items()}
+        super().__init__(message)
 
 
 class PyRDLError(Exception):
