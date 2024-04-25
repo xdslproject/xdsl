@@ -1,0 +1,28 @@
+name: CI - Codecov
+
+on:
+  # Trigger the workflow after ci-mlir completes
+  workflow_run:
+    workflows: [CI - MLIR-based Testing]
+    types: [completed]
+
+jobs:
+  upload-codecov:
+    runs-on: ubuntu-20.04
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        path: xdsl
+
+    - name: Upload coverage to Codecov
+      uses: Wandalen/wretry.action@v1
+      with:
+        action: codecov/codecov-action@v4
+        attempt_delay: 10000
+        attempt_limit: 10
+        with: |
+          fail_ci_if_error: true
+          verbose: true
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
