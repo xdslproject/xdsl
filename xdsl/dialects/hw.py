@@ -235,7 +235,7 @@ class InnerRefUserOpInterfaceTrait(OpTrait):
 
 @dataclass(frozen=True)
 class InnerRefNamespaceTrait(OpTrait):
-    """Trait for operations defining a new scope for InnerRef’s. Operations with this trait must be a SymbolTable."""
+    """Trait for operations defining a new scope for InnerRef's. Operations with this trait must be a SymbolTable."""
 
     def verify(self, op: Operation):
         if not op.has_trait(trait := SymbolTable):
@@ -637,8 +637,6 @@ class HWModuleOp(IRDLOperation):
             (
                 SymbolOpInterface(),
                 IsolatedFromAbove(),
-                InnerRefNamespaceTrait(),
-                SymbolTable(),
                 SingleBlockImplicitTerminator(OutputOp),
             )
         )
