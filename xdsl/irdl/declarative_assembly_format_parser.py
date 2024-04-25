@@ -377,6 +377,7 @@ class FormatParser(BaseParser):
                 if unique_base is not None and issubclass(unique_base, TypedAttribute):
                     constr = attr_def.constr
                     # TODO: generalize.
+                    # https://github.com/xdslproject/xdsl/issues/2499
                     if isinstance(constr, ParamAttrConstraint):
                         type_constraint = constr.param_constrs[
                             unique_base.get_type_index()
