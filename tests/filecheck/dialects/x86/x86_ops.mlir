@@ -25,3 +25,20 @@ x86.r.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.r.pop %{{.*}} : (!x86.reg<rsp>) -> (!x86.reg<>, !x86.reg<rsp>)
 %not = x86.r.not %0 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.r.not %{{.*}} : (!x86.reg<>) -> !x86.reg<>
+
+%rm_add_no_offset  = x86.rm.add %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rm.add %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%rm_add = x86.rm.add %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+// CHECK: %{{.*}} = x86.rm.add %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%rm_sub = x86.rm.sub %0, %1, -8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rm.sub %{{.*}}, %{{.*}}, -8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%rm_imul = x86.rm.imul %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rm.imul %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%rm_and = x86.rm.and %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rm.and %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%rm_or = x86.rm.or %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rm.or %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%rm_xor = x86.rm.xor %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rm.xor %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%rm_mov = x86.rm.mov %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rm.mov %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
