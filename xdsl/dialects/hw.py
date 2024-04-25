@@ -42,6 +42,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     opt_attr_def,
+    opt_prop_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -633,6 +634,7 @@ class HWModuleOp(IRDLOperation):
 
     sym_name: StringAttr = attr_def(StringAttr)
     module_type: ModuleType = attr_def(ModuleType)
+    sym_visibility: StringAttr | None = opt_prop_def(StringAttr)
     parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
     body: SingleBlockRegion = region_def("single_block")
@@ -653,12 +655,16 @@ class HWModuleOp(IRDLOperation):
         module_type: ModuleType,
         body: Region,
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
+        visibility: str | None = None,
     ):
         attributes: dict[str, Attribute] = {
             "sym_name": sym_name,
             "module_type": module_type,
             "parameters": parameters,
         }
+
+        if visibility:
+            attributes["sym_visibility"] = StringAttr(visibility)
 
         return super().__init__(
             attributes=attributes,
