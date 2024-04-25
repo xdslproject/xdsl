@@ -9,9 +9,14 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
     ModuleOp,
+    Signedness,
     StringAttr,
 )
+from xdsl.dialects.riscv import LabelAttr
 from xdsl.ir import (
     Attribute,
     Operation,
@@ -195,7 +200,7 @@ class R_RR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
 
 
 @irdl_op_definition
-class AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RR_AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the registers r1 and r2 and stores the result in r1.
     x[r1] = x[r1] + x[r2]
@@ -206,7 +211,7 @@ class AddOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RR_SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     subtracts r2 from r1 and stores the result in r1.
     x[r1] = x[r1] - x[r2]
@@ -217,7 +222,7 @@ class SubOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RR_ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the registers r1 and r2 and stores the result in r1.
     x[r1] = x[r1] * x[r2]
@@ -228,7 +233,7 @@ class ImulOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RR_AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of r1 and r2, stored in r1
     x[r1] = x[r1] & x[r2]
@@ -239,7 +244,7 @@ class AndOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RR_OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of r1 and r2, stored in r1
     x[r1] = x[r1] | x[r2]
@@ -250,7 +255,7 @@ class OrOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RR_XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of r1 and r2, stored in r1
     x[r1] = x[r1] ^ x[r2]
@@ -261,7 +266,7 @@ class XorOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
+class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value of r1 into r2.
     x[r1] = x[r2]
@@ -300,7 +305,7 @@ class M_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class PushOp(M_R_Operation[GeneralRegisterType]):
+class R_PushOp(M_R_Operation[GeneralRegisterType]):
     """
     Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
     https://www.felixcloutier.com/x86/push
@@ -342,7 +347,7 @@ class R_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class PopOp(R_M_Operation[GeneralRegisterType]):
+class R_PopOp(R_M_Operation[GeneralRegisterType]):
     """
     Copies the value at the top of the stack into r1 and increases %rsp.
     https://www.felixcloutier.com/x86/pop
@@ -383,7 +388,7 @@ class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class NotOp(R_R_Operation[GeneralRegisterType]):
+class R_NotOp(R_R_Operation[GeneralRegisterType]):
     """
     bitwise not of r1, stored in r1
     x[r1] = ~x[r1]
@@ -391,6 +396,158 @@ class NotOp(R_R_Operation[GeneralRegisterType]):
     """
 
     name = "x86.r.not"
+
+
+class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one register and one memory access with an optional offset.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None = None,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        if self.offset is not None:
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        destination = _assembly_arg_str(self.r1)
+        source = _assembly_arg_str(self.r2)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            if self.offset.value.data > 0:
+                return _assembly_line(
+                    instruction_name,
+                    f"{destination}, [{source}+{offset}]",
+                    self.comment,
+                )
+            else:
+                return _assembly_line(
+                    instruction_name, f"{destination}, [{source}{offset}]", self.comment
+                )
+        else:
+            return _assembly_line(
+                instruction_name, f"{destination}, [{source}]", self.comment
+            )
+
+
+@irdl_op_definition
+class RM_AddOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Adds the value from the memory location pointed to by r2 to r1 and stores the result in r1.
+    x[r1] = x[r1] + [x[r2]]
+    https://www.felixcloutier.com/x86/add
+    """
+
+    name = "x86.rm.add"
+
+
+@irdl_op_definition
+class RM_SubOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Subtracts the value from the memory location pointed to by r2 from r1 and stores the result in r1.
+    x[r1] = x[r1] - [x[r2]]
+    https://www.felixcloutier.com/x86/sub
+    """
+
+    name = "x86.rm.sub"
+
+
+@irdl_op_definition
+class RM_ImulOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the value from the memory location pointed to by r2 with r1 and stores the result in r1.
+    x[r1] = x[r1] * [x[r2]]
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.rm.imul"
+
+
+@irdl_op_definition
+class RM_AndOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise and of r1 and [r2], stored in r1
+    x[r1] = x[r1] & [x[r2]]
+    https://www.felixcloutier.com/x86/and
+    """
+
+    name = "x86.rm.and"
+
+
+@irdl_op_definition
+class RM_OrOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise or of r1 and [r2], stored in r1
+    x[r1] = x[r1] | [x[r2]]
+    https://www.felixcloutier.com/x86/or
+    """
+
+    name = "x86.rm.or"
+
+
+@irdl_op_definition
+class RM_XorOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise xor of r1 and [r2], stored in r1
+    x[r1] = x[r1] ^ [x[r2]]
+    https://www.felixcloutier.com/x86/xor
+    """
+
+    name = "x86.rm.xor"
+
+
+@irdl_op_definition
+class RM_MovOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Copies the value from the memory location pointed to by r2 into r1.
+    x[r1] = [x[r2]]
+    https://www.felixcloutier.com/x86/mov
+    """
+
+    name = "x86.rm.mov"
 
 
 # region Assembly printing
@@ -446,6 +603,26 @@ def x86_code(module: ModuleOp) -> str:
     stream = StringIO()
     print_assembly(module, stream)
     return stream.getvalue()
+
+
+def _parse_optional_immediate_value(
+    parser: Parser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
+    """
+    Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
+    """
+    if (immediate := parser.parse_optional_integer()) is not None:
+        return IntegerAttr(immediate, integer_type)
+    if (immediate := parser.parse_optional_str_literal()) is not None:
+        return LabelAttr(immediate)
+
+
+def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
+    match immediate:
+        case IntegerAttr():
+            printer.print(immediate.value.data)
+        case LabelAttr():
+            printer.print_string_literal(immediate.data)
 
 
 # endregion
