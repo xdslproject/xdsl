@@ -753,7 +753,7 @@ class AttributeVariable(FormatDirective):
             )
             attr = unique_base.new(unique_base.parse_parameter(parser))
         else:
-            raise ValueError("Attributes must be Data or ParameterizedAttribute!")
+            raise ValueError("Attributes must be Data or ParameterizedAttribute.")
         if self.is_property:
             state.properties[self.name] = attr
         else:
