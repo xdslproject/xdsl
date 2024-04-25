@@ -604,7 +604,7 @@ def test_stencil_access_offset_mapping():
     offset_index_attr = IndexAttr.get(*offset)
 
     offset_mapping = [1, 0]
-    offset_mapping_attr = ArrayAttr(IntAttr(value) for value in offset_mapping)
+    offset_mapping_attr = IndexAttr.get(*offset_mapping)
 
     access = AccessOp.get(temp_type_ssa_val, offset, offset_mapping)
 
@@ -625,7 +625,7 @@ def test_store_result():
     )
 
     assert isinstance(store_result, StoreResultOp)
-    assert store_result.args[0] == elem_ssa_val
+    assert store_result.arg == elem_ssa_val
     assert store_result.res.type == result_type
 
 

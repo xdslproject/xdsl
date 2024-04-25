@@ -7,7 +7,12 @@ from operator import add, lt, neg
 from typing import Annotated, Generic, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
-from xdsl.dialects.builtin import ArrayAttr, IntAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    IndexType,
+    IntAttr,
+    IntegerAttr,
+)
 from xdsl.ir import (
     Attribute,
     Block,
@@ -37,6 +42,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_operand_def,
     opt_prop_def,
     region_def,
     result_def,
@@ -386,9 +392,7 @@ class ApplyOp(IRDLOperation):
                 offsets = tuple(access.offset)
                 # account for offset_mappings:
                 if access.offset_mapping is not None:
-                    offset_mapping = tuple(x.data for x in access.offset_mapping)
-                    new_offsets = tuple(offsets[i] for i in offset_mapping)
-                    offsets = new_offsets
+                    offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
 
@@ -494,8 +498,8 @@ class CombineOp(IRDLOperation):
 
     name = "stencil.combine"
 
-    dim = attr_def(IntAttr)
-    index = attr_def(IntAttr)
+    dim = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
+    index = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
     lower = var_operand_def(TempType)
     upper = var_operand_def(TempType)
     lowerext = var_operand_def(TempType)
@@ -607,7 +611,7 @@ class IndexOp(IRDLOperation):
     """
 
     name = "stencil.index"
-    dim = attr_def(IntAttr)
+    dim = attr_def(IntegerAttr[Annotated[IndexType, IndexType()]])
     offset = attr_def(IndexAttr)
     idx = result_def(builtin.IndexType)
 
@@ -645,7 +649,7 @@ class AccessOp(IRDLOperation):
         )
     )
     offset: IndexAttr = attr_def(IndexAttr)
-    offset_mapping: ArrayAttr[IntAttr] | None = opt_attr_def(ArrayAttr[IntAttr])
+    offset_mapping = opt_attr_def(IndexAttr)
     res: OpResult = result_def(
         MessageConstraint(
             VarConstraint("T", AnyAttr()),
@@ -665,7 +669,7 @@ class AccessOp(IRDLOperation):
         assert isinstance(temp_type, TempType)
         temp_type = cast(TempType[Attribute], temp_type)
 
-        attributes: dict[str, IndexAttr | ArrayAttr[IntAttr]] = {
+        attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
                 [
                     ArrayAttr(IntAttr(value) for value in offset),
@@ -674,9 +678,7 @@ class AccessOp(IRDLOperation):
         }
 
         if offset_mapping is not None:
-            attributes["offset_mapping"] = ArrayAttr(
-                [IntAttr(value) for value in offset_mapping]
-            )
+            attributes["offset_mapping"] = IndexAttr.get(*offset_mapping)
 
         return AccessOp.build(
             operands=[temp],
@@ -717,13 +719,13 @@ class AccessOp(IRDLOperation):
             prev_offset = None
             for offset in self.offset_mapping:
                 if prev_offset is not None:
-                    if offset.data >= prev_offset:
+                    if offset >= prev_offset:
                         raise VerifyException(
                             f"Offset mapping in stencil.access must be strictly "
-                            f"decreasing and unique, however {offset.data} follows "
+                            f"decreasing and unique, however {offset} follows "
                             f"{prev_offset} which is disallowed"
                         )
-                prev_offset = offset.data
+                prev_offset = offset
 
         if len(self.offset) != temp_type.get_num_dims():
             raise VerifyException(
@@ -916,7 +918,7 @@ class StoreResultOp(IRDLOperation):
 
     name = "stencil.store_result"
 
-    args: VarOperand = var_operand_def(
+    arg = opt_operand_def(
         MessageConstraint(
             VarConstraint("T", AnyAttr()),
             "Expected return type to carry the operand type.",

@@ -239,7 +239,7 @@ func.func @combine(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?
     %7 = "stencil.store_result"(%6) : (f64) -> !stencil.result<f64>
     "stencil.return"(%7) : (!stencil.result<f64>) -> ()
   }) : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
-  %5 = "stencil.combine"(%3, %4) {dim = #builtin.int<0>, index = #builtin.int<32>, operandSegmentSizes = array<i32:1, 1, 0, 0>} : (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
+  %5 = "stencil.combine"(%3, %4) {dim = 0 : index, index = 32 : index, operandSegmentSizes = array<i32:1, 1, 0, 0>} : (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
   "stencil.store"(%5, %1) {lb = #stencil.index<0, 0, 0>, ub = #stencil.index<64, 64, 60>} : (!stencil.temp<?x?x?xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
   return
 }
@@ -261,7 +261,7 @@ func.func @combine(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?
 // CHECK-NEXT:        %8 = "stencil.store_result"(%7) : (f64) -> !stencil.result<f64>
 // CHECK-NEXT:        "stencil.return"(%8) : (!stencil.result<f64>) -> ()
 // CHECK-NEXT:      }) : (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>) -> !stencil.temp<[32,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:      %9 = "stencil.combine"(%3, %6) {"dim" = #builtin.int<0>, "index" = #builtin.int<32>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>, !stencil.temp<[32,64]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      %9 = "stencil.combine"(%3, %6) {"dim" = 0 : index, "index" = 32 : index, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>, !stencil.temp<[32,64]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
 // CHECK-NEXT:      "stencil.store"(%9, %1) {"lb" = #stencil.index<0, 0, 0>, "ub" = #stencil.index<64, 64, 60>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
@@ -288,7 +288,7 @@ func.func @buffer(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?x
     %9 = "stencil.store_result"(%cst) : (f64) -> !stencil.result<f64>
     "stencil.return"(%9) : (!stencil.result<f64>) -> ()
   }) : () -> !stencil.temp<?x?x?xf64>
-  %4:3 = "stencil.combine"(%2, %2, %3, %11) {dim = #builtin.int<0>, index = #builtin.int<32>, operandSegmentSizes = array<i32:1, 1, 1, 1>} : (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>) -> (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>)
+  %4:3 = "stencil.combine"(%2, %2, %3, %11) {dim = 0 : index, index = 32 : index, operandSegmentSizes = array<i32:1, 1, 1, 1>} : (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>) -> (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>)
   %5 = "stencil.buffer"(%4#0) : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
   %12 = "stencil.buffer"(%4#1) : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
   %6 = "stencil.buffer"(%4#2) : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
@@ -336,7 +336,7 @@ func.func @buffer(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?x
 // CHECK-NEXT:        %8 = "stencil.store_result"(%cst_2) : (f64) -> !stencil.result<f64>
 // CHECK-NEXT:        "stencil.return"(%8) : (!stencil.result<f64>) -> ()
 // CHECK-NEXT:      }) : () -> !stencil.temp<[0,32]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:      %9, %10, %11 = "stencil.combine"(%3, %3, %7, %5) {"dim" = #builtin.int<0>, "index" = #builtin.int<32>, "operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.temp<[0,32]x[0,64]x[0,60]xf64>, !stencil.temp<[32,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.temp<[0,16]x[0,64]x[0,60]xf64>, !stencil.temp<[48,64]x[0,64]x[0,60]xf64>)
+// CHECK-NEXT:      %9, %10, %11 = "stencil.combine"(%3, %3, %7, %5) {"dim" = 0 : index, "index" = 32 : index, "operandSegmentSizes" = array<i32: 1, 1, 1, 1>} : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.temp<[0,32]x[0,64]x[0,60]xf64>, !stencil.temp<[32,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.temp<[0,16]x[0,64]x[0,60]xf64>, !stencil.temp<[48,64]x[0,64]x[0,60]xf64>)
 // CHECK-NEXT:      %12 = "stencil.buffer"(%9) : (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
 // CHECK-NEXT:      %13 = "stencil.buffer"(%10) : (!stencil.temp<[0,16]x[0,64]x[0,60]xf64>) -> !stencil.temp<[0,16]x[0,64]x[0,60]xf64>
 // CHECK-NEXT:      %14 = "stencil.buffer"(%11) : (!stencil.temp<[48,64]x[0,64]x[0,60]xf64>) -> !stencil.temp<[48,64]x[0,64]x[0,60]xf64>
