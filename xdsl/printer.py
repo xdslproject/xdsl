@@ -447,8 +447,8 @@ class Printer:
                 self.print("false" if attribute.value.data == 0 else "true")
                 return
 
-            width = attribute.parameters[0]
-            attr_type = attribute.parameters[1]
+            width = attribute.value
+            attr_type = attribute.type
             assert isinstance(width, IntAttr)
             self.print(width.data)
             self.print(" : ")
