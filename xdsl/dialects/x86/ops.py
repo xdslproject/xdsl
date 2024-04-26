@@ -603,14 +603,6 @@ class R_RI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
         _print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        destination = _assembly_arg_str(self.r1)
-        immediate = _assembly_arg_str(self.immediate)
-        return _assembly_line(
-            instruction_name, f"{destination}, {immediate}", self.comment
-        )
-
 
 @irdl_op_definition
 class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
