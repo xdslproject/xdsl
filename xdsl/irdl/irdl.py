@@ -414,6 +414,12 @@ class MessageConstraint(AttrConstraint):
     def get_unique_base(self) -> type[Attribute] | None:
         return self.constr.get_unique_base()
 
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constr.can_infer(constraint_names)
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        return self.constr.infer(constraint_vars)
+
 
 def _irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[Any],
