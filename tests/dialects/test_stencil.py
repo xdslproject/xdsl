@@ -603,7 +603,7 @@ def test_stencil_access_offset_mapping():
     offset = [1, 1]
     offset_index_attr = IndexAttr.get(*offset)
 
-    offset_mapping = [1, 0]
+    offset_mapping = [0, 1]
     offset_mapping_attr = IndexAttr.get(*offset_mapping)
 
     access = AccessOp.get(temp_type_ssa_val, offset, offset_mapping)
@@ -746,9 +746,9 @@ builtin.module {
   func.func @kernel(%0 : !stencil.field<[-1,7]xf32>, %1 : !stencil.field<[-1,7]xf32>) {
     %2 = stencil.load %0 : !stencil.field<[-1,7]xf32> -> !stencil.temp<?xf32>
     %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf32>) -> (!stencil.temp<?xf32>) {
-      %5 = stencil.access %4 [-1] : !stencil.temp<?xf32>
-      %6 = stencil.access %4 [0] : !stencil.temp<?xf32>
-      %7 = stencil.access %4 [1] : !stencil.temp<?xf32>
+      %5 = stencil.access %4[-1] : !stencil.temp<?xf32>
+      %6 = stencil.access %4[0] : !stencil.temp<?xf32>
+      %7 = stencil.access %4[1] : !stencil.temp<?xf32>
       %8 = arith.addf %5, %6 : f32
       %9 = arith.addf %8, %7 : f32
       stencil.return %9 : f32

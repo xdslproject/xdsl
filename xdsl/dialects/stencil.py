@@ -701,7 +701,7 @@ class AccessOp(IRDLOperation):
     dimensions than the result.
 
     Example:
-      %0 = stencil.access %temp [-1, 0, 0] : !stencil.temp<?x?x?xf64>
+      %0 = stencil.access %temp[-1, 0, 0] : !stencil.temp<?x?x?xf64>
     """
 
     T = Annotated[Attribute, ConstraintVar("T")]
@@ -730,7 +730,72 @@ class AccessOp(IRDLOperation):
 
     traits = frozenset([HasParent(ApplyOp)])
 
-    assembly_format = "$temp $offset attr-dict-with-keyword `:` type($temp)"
+    def print(self, printer: Printer):
+        printer.print(" ")
+        printer.print_operand(self.temp)
+        printer.print_op_attributes(
+            self.attributes,
+            reserved_attr_names={"offset", "offset_mapping"},
+            print_keyword=True,
+        )
+
+        # IRDL-enforced, not supposed to use custom syntax if not veriied
+        apply = cast(ApplyOp, self.parent_op())
+
+        mapping = self.offset_mapping
+        if mapping is None:
+            mapping = range(apply.get_rank())
+        offset = list(self.offset)
+
+        printer.print("[")
+        index = 0
+        for i in range(apply.get_rank()):
+            if i in mapping:
+                printer.print(offset[index])
+                index += 1
+            else:
+                printer.print("_")
+            if i != apply.get_rank() - 1:
+                printer.print(", ")
+        printer.print("]")
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.temp.type)
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        temp = parser.parse_operand()
+
+        index = 0
+        offset = list[int]()
+        offset_mapping = list[int]()
+        parser.parse_punctuation("[")
+        while True:
+            o = parser.parse_optional_integer()
+            if o is None:
+                parser.parse_characters("_")
+            else:
+                offset.append(o)
+                offset_mapping.append(index)
+            if parser.parse_optional_punctuation("]"):
+                break
+            parser.parse_punctuation(",")
+            index += 1
+
+        attrs = parser.parse_optional_attr_dict_with_keyword(
+            {"offset", "offset_mapping"}
+        )
+        attrs = attrs.data if attrs else dict[str, Attribute]()
+        attrs["offset"] = IndexAttr.get(*offset)
+        if offset_mapping:
+            attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        if not isa(res_type, TempType[Attribute]):
+            parser.raise_error("Expected return type to be a stencil.temp")
+        return cls.build(
+            operands=[temp], result_types=[res_type.element_type], attributes=attrs
+        )
 
     @staticmethod
     def get(

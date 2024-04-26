@@ -6,11 +6,11 @@ builtin.module {
     %3 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
     %5 = stencil.apply(%6 = %4 : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>) {
-      %7 = stencil.access %6 [-1, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
-      %8 = stencil.access %6 [1, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
-      %9 = stencil.access %6 [0, 1, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
-      %10 = stencil.access %6 [0, -1, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
-      %11 = stencil.access %6 [0, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %7 = stencil.access %6[-1, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %8 = stencil.access %6[1, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %9 = stencil.access %6[0, 1, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %10 = stencil.access %6[0, -1, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %11 = stencil.access %6[0, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
       %12 = arith.addf %7, %8 : f64
       %13 = arith.addf %9, %10 : f64
       %14 = arith.addf %12, %13 : f64
