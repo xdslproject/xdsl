@@ -861,3 +861,24 @@ def test_parse_location():
     ctx = MLContext()
     attr = Parser(ctx, "loc(unknown)").parse_optional_location()
     assert attr == LocationAttr()
+
+
+@pytest.mark.parametrize(
+    "keyword,expected",
+    [
+        ("public", StringAttr("public")),
+        ("nested", StringAttr("nested")),
+        ("private", StringAttr("private")),
+        ("privateeee", None),
+        ("unknown", None),
+    ],
+)
+def test_parse_visibility(keyword: str, expected: StringAttr | None):
+    assert Parser(MLContext(), keyword).parse_optional_visibility_keyword() == expected
+
+    parser = Parser(MLContext(), keyword)
+    if expected is None:
+        with pytest.raises(ParseError, match="expect symbol visibility keyword"):
+            parser.parse_visibility_keyword()
+    else:
+        assert parser.parse_visibility_keyword() == expected
