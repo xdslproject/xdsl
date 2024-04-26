@@ -655,7 +655,7 @@ class HWModuleOp(IRDLOperation):
         module_type: ModuleType,
         body: Region,
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
-        visibility: str | None = None,
+        visibility: str | StringAttr | None = None,
     ):
         attributes: dict[str, Attribute] = {
             "sym_name": sym_name,
@@ -664,7 +664,9 @@ class HWModuleOp(IRDLOperation):
         }
 
         if visibility:
-            attributes["sym_visibility"] = StringAttr(visibility)
+            if isinstance(visibility, str):
+                visibility = StringAttr(visibility)
+            attributes["sym_visibility"] = visibility
 
         return super().__init__(
             attributes=attributes,
@@ -739,6 +741,7 @@ class HWModuleOp(IRDLOperation):
                 port_dir, port_name, port_ssa, port_type, port_attrs, port_location
             )
 
+        sym_visibility = parser.parse_optional_visibility_keyword()
         name = parser.parse_symbol_name()
         parameters = parser.parse_optional_comma_separated_list(
             parser.Delimiter.ANGLE,
@@ -775,6 +778,7 @@ class HWModuleOp(IRDLOperation):
             ModuleType([ArrayAttr(module_ports)]),
             body,
             parameters,
+            sym_visibility,
         )
 
         if attrs is not None:
@@ -783,6 +787,8 @@ class HWModuleOp(IRDLOperation):
         return module_op
 
     def print(self, printer: Printer):
+        if self.sym_visibility is not None:
+            printer.print(f" {self.sym_visibility.data}")
         printer.print(" @")
         printer.print_identifier_or_string_literal(self.sym_name.data)
 

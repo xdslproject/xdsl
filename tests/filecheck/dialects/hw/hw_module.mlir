@@ -24,6 +24,16 @@ hw.module @custom_param<p1: i42, "p2 with wack name": i1>() {
   hw.output
 }
 
+// CHECK: hw.module private @private_module() {
+// CHECK-NEXT: hw.output
+// CHECK-NEXT: }
+// CHECK-GENERIC: "hw.module"() ({
+// CHECK-GENERIC-NEXT: "hw.output"() : () -> ()
+// CHECK-GENERIC-NEXT: }) {"sym_name" = "private_module", "module_type" = !hw.modty<>, "parameters" = [], "sym_visibility" = "private"} : () -> ()
+hw.module private @private_module() {
+  hw.output
+}
+
 // CHECK: hw.module @"wack name!!"() {
 // CHECK-NEXT: hw.output
 // CHECK-NEXT: }
