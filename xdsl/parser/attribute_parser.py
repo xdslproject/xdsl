@@ -1028,6 +1028,27 @@ class AttrParser(BaseParser):
             element = self._parse_tensor_literal_element()
             return [element], []
 
+    def parse_optional_visibility_keyword(self) -> StringAttr | None:
+        """
+        Parses the visibility keyword of a symbol if present.
+        """
+        if self.parse_optional_keyword("public"):
+            return StringAttr("public")
+        elif self.parse_optional_keyword("nested"):
+            return StringAttr("nested")
+        elif self.parse_optional_keyword("private"):
+            return StringAttr("private")
+        else:
+            return None
+
+    def parse_visibility_keyword(self) -> StringAttr:
+        """
+        Parses the visibility keyword of a symbol.
+        """
+        return self.expect(
+            self.parse_optional_visibility_keyword, "expect symbol visibility keyword"
+        )
+
     def parse_optional_symbol_name(self) -> StringAttr | None:
         """
         Parse an @-identifier if present, and return its name (without the '@') in a
