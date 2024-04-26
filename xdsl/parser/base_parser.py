@@ -350,7 +350,7 @@ class BaseParser:
             "Expected integer literal" + context_msg,
         )
 
-    def parse_optional_number(self, allow_boolean: bool = False) -> int | float | None:
+    def parse_optional_number(self, *, allow_boolean: bool = False) -> int | float | None:
         """
         Parse a (possibly negative) integer or float literal, if present.
         Can optionally parse 'true' or 'false' into 1 and 0.
