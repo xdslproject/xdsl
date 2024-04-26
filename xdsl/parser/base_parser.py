@@ -350,8 +350,13 @@ class BaseParser:
             "Expected integer literal" + context_msg,
         )
 
-    def parse_optional_number(self) -> int | float | None:
-        """Parse a (possibly negative) integer or float literal, if present."""
+    def parse_optional_number(
+        self, *, allow_boolean: bool = False
+    ) -> int | float | None:
+        """
+        Parse a (possibly negative) integer or float literal, if present.
+        Can optionally parse 'true' or 'false' into 1 and 0.
+        """
 
         is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
 
@@ -368,13 +373,23 @@ class BaseParser:
 
         if is_negative:
             self.raise_error("Expected integer or float literal after '-'")
+
+        if allow_boolean and (value := self.parse_optional_boolean()) is not None:
+            return 1 if value else 0
+
         return None
 
-    def parse_number(self, context_msg: str = "") -> int | float:
-        """Parse a (possibly negative) integer or float literal."""
+    def parse_number(
+        self, allow_boolean: bool = False, context_msg: str = ""
+    ) -> int | float:
+        """
+        Parse a (possibly negative) integer or float literal.
+        Can optionally parse 'true' or 'false' into 1 and 0.
+        """
         return self.expect(
-            lambda: self.parse_optional_number(),
-            "integer or float literal expected" + context_msg,
+            lambda: self.parse_optional_number(allow_boolean=allow_boolean),
+            f"integer{', boolean,' if allow_boolean else ''} or float literal expected"
+            + context_msg,
         )
 
     def parse_optional_str_literal(self) -> str | None:

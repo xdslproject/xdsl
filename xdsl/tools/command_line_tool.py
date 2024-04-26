@@ -89,6 +89,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return GPU
 
+    def get_hlfir():
+        from xdsl.dialects.experimental.hlfir import HLFIR
+
+        return HLFIR
+
     def get_hls():
         from xdsl.dialects.experimental.hls import HLS
 
@@ -270,6 +275,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "fsm": get_fsm,
         "func": get_func,
         "gpu": get_gpu,
+        "hlfir": get_hlfir,
         "hls": get_hls,
         "hw": get_hw,
         "linalg": get_linalg,
