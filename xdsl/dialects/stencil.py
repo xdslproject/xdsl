@@ -372,7 +372,10 @@ class ApplyOp(IRDLOperation):
         assign_args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_assign_args
         )
-        args, operands = zip(*assign_args)
+        if assign_args:
+            args, operands = zip(*assign_args)
+        else:
+            args, operands = [], []
         parser.parse_punctuation("->")
         result_types = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parser.parse_attribute
@@ -382,8 +385,8 @@ class ApplyOp(IRDLOperation):
             attrs = attrs.data
         region = parser.parse_region(args)
         return cls(
-            operands=operands,
-            result_types=result_types,
+            operands=[operands],
+            result_types=[result_types],
             regions=[region],
             attributes=attrs,
         )
