@@ -374,10 +374,8 @@ class ApplyOp(IRDLOperation):
         )
         args: list[Parser.Argument]
         operands: list[SSAValue]
-        if assign_args:
-            args, operands = zip(*assign_args)
-        else:
-            args, operands = [], []
+        args, operands = zip(*assign_args) if assign_args else ([], [])
+
         parser.parse_punctuation("->")
         result_types = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parser.parse_attribute
