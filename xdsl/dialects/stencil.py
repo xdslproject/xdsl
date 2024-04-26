@@ -1015,6 +1015,8 @@ class StoreResultOp(IRDLOperation):
         )
     )
 
+    assembly_format = "$arg attr-dict-with-keyword `:` type($res)"
+
 
 @irdl_op_definition
 class ReturnOp(IRDLOperation):

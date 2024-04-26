@@ -23,7 +23,7 @@ builtin.module {
 // CHECK-NEXT:      %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
 // CHECK-NEXT:      %5 = stencil.apply(%6 = %4 : !stencil.temp<[0,64]x[0,64]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>) {
 // CHECK-NEXT:        %7 = stencil.access %6 [0, 0, 0] : !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
-// CHECK-NEXT:        %8 = "stencil.store_result"(%7) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %8 = stencil.store_result %7 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %8 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      stencil.store %5 to %3 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>

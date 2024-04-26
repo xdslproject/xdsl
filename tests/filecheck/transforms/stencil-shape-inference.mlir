@@ -200,7 +200,7 @@ func.func @dyn_access(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x
 // CHECK-NEXT:      %3 = stencil.apply(%arg2 = %2 : !stencil.temp<[-1,65]x[-2,66]x[0,60]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %c0 = arith.constant 0 : index
 // CHECK-NEXT:        %4 = stencil.dyn_access %arg2[%c0, %c0, %c0] in [-1, -2, 0] : [1, 2, 0] : !stencil.temp<[-1,65]x[-2,66]x[0,60]xf64>
-// CHECK-NEXT:        %5 = "stencil.store_result"(%4) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %5 = stencil.store_result %4 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %5 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      stencil.store %3 to %1 ([0, 0, 0] : [64, 64, 60]) : !stencil.temp<[0,64]x[0,64]x[0,60]xf64> to !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
@@ -236,12 +236,12 @@ func.func @combine(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?
 // CHECK-NEXT:      %2 = stencil.load %0 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<[0,32]x[0,64]x[0,60]xf64>
 // CHECK-NEXT:      %3 = stencil.apply(%arg2 = %2 : !stencil.temp<[0,32]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %4 = stencil.access %arg2 [0, 0, 0] : !stencil.temp<[0,32]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %5 = "stencil.store_result"(%4) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %5 = stencil.store_result %4 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %5 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %6 = stencil.apply(%arg2_1 = %2 : !stencil.temp<[0,32]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[32,64]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %7 = stencil.access %arg2_1 [0, 0, 0] : !stencil.temp<[32,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %8 = "stencil.store_result"(%7) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %8 = stencil.store_result %7 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %8 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %9 = stencil.combine 0 at 32 lower = (%3 : !stencil.temp<[0,32]x[0,64]x[0,60]xf64>) upper = (%6 : !stencil.temp<[32,64]x[0,64]x[0,60]xf64>) : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
@@ -304,17 +304,17 @@ func.func @buffer(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?x
 // CHECK-NEXT:      %2 = stencil.cast %arg2 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      %3 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %cst = arith.constant 1.000000e+00 : f64
-// CHECK-NEXT:        %4 = "stencil.store_result"(%cst) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %4 = stencil.store_result %cst : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %4 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %5 = stencil.apply() -> (!stencil.temp<[32,64]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
-// CHECK-NEXT:        %6 = "stencil.store_result"(%cst_1) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %6 = stencil.store_result %cst_1 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %6 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %7 = stencil.apply() -> (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %cst_2 = arith.constant 1.000000e+00 : f64
-// CHECK-NEXT:        %8 = "stencil.store_result"(%cst_2) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %8 = stencil.store_result %cst_2 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %8 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %9, %10, %11 = stencil.combine 0 at 32 lower = (%3 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) upper = (%3 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) lowerext = %7 : !stencil.temp<[0,32]x[0,64]x[0,60]xf64> upperext = %5 : !stencil.temp<[32,64]x[0,64]x[0,60]xf64> : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>, !stencil.temp<[0,16]x[0,64]x[0,60]xf64>, !stencil.temp<[48,64]x[0,64]x[0,60]xf64>
@@ -323,17 +323,17 @@ func.func @buffer(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?x
 // CHECK-NEXT:      %14 = stencil.buffer %11 : !stencil.temp<[48,64]x[0,64]x[0,60]xf64>
 // CHECK-NEXT:      %15 = stencil.apply(%arg3 = %12 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %16 = stencil.access %arg3 [0, 0, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %17 = "stencil.store_result"(%16) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %17 = stencil.store_result %16 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %17 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %18 = stencil.apply(%arg3_1 = %13 : !stencil.temp<[0,16]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,16]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %19 = stencil.access %arg3_1 [0, 0, 0] : !stencil.temp<[0,16]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %20 = "stencil.store_result"(%19) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %20 = stencil.store_result %19 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %20 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %21 = stencil.apply(%arg3_2 = %14 : !stencil.temp<[48,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[48,64]x[0,64]x[0,60]xf64>) {
 // CHECK-NEXT:        %22 = stencil.access %arg3_2 [0, 0, 0] : !stencil.temp<[48,64]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:        %23 = "stencil.store_result"(%22) : (f64) -> !stencil.result<f64>
+// CHECK-NEXT:        %23 = stencil.store_result %22 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %23 : !stencil.result<f64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:      stencil.store %15 to %0 ([0, 0, 0] : [64, 64, 60]) : !stencil.temp<[0,64]x[0,64]x[0,60]xf64> to !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
