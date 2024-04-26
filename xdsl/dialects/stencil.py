@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
 from typing import Annotated, Generic, TypeVar, cast
@@ -624,10 +625,7 @@ class AccessOp(IRDLOperation):
 
     The optional offset mapping will determine which offset corresponds to which
     result dimension and is needed when we are accessing an array which has fewer
-    dimensions than the result. Dimensions are mapped from the inner loop, which is 0,
-    incrementing with each outer nested loop. e.g. in a nest of three loops, 0 would be
-    the inner loop, 1 the middle loop, and 2 the outer loop. We do not allow out of order
-    mappings.
+    dimensions than the result.
 
     Example:
       %0 = stencil.access %temp [-1, 0, 0] : !stencil.temp<?x?x?xf64> -> f64
@@ -717,15 +715,18 @@ class AccessOp(IRDLOperation):
 
         if self.offset_mapping is not None:
             prev_offset = None
+            for prev_offset, offset in pairwise(self.offset_mapping):
+                if prev_offset >= offset:
+                    raise VerifyException(
+                        "Offset mapping in stencil.access must be strictly increasing."
+                        "increasing"
+                    )
             for offset in self.offset_mapping:
-                if prev_offset is not None:
-                    if offset >= prev_offset:
-                        raise VerifyException(
-                            f"Offset mapping in stencil.access must be strictly "
-                            f"decreasing and unique, however {offset} follows "
-                            f"{prev_offset} which is disallowed"
-                        )
-                prev_offset = offset
+                if offset >= apply.get_rank():
+                    raise VerifyException(
+                        f"Offset mappings in stencil.access must be within the rank of the "
+                        f"apply, got {offset} >= {apply.get_rank()}"
+                    )
 
         if len(self.offset) != temp_type.get_num_dims():
             raise VerifyException(
