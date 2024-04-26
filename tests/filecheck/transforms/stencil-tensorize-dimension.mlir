@@ -50,7 +50,7 @@ builtin.module {
 // CHECK-NEXT:          %16 = linalg.add %15, %11: tensor<[-1,511],f32>
 // CHECK-NEXT:          %17 = linalg.add %16, %12: tensor<[-1,511],f32>
 // CHECK-NEXT:
-// CHECK-NEXT:          // not sure that linalg.mulf supports tensor*scalar
+// CHECK-NEXT:          // not sure that linalg.mulf supports tensor*scalar, might have to use different op
 // CHECK-NEXT:          %18 = linalg.mulf %17, %5 : tensor<[-1,511],f32>
 // CHECK-NEXT:
 // CHECK-NEXT:          "stencil.return"(%18) : (tensor<[-1,511],f32>) -> ()
