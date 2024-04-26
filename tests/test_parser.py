@@ -870,7 +870,7 @@ def test_parse_visibility(keyword: str, expected: StringAttr | None):
 
     parser = Parser(MLContext(), keyword)
     if expected is None:
-        with pytest.raises(ParseError):
+        with pytest.raises(ParseError, match="expect symbol visibility keyword"):
             parser.parse_visibility_keyword()
     else:
         assert parser.parse_visibility_keyword() == expected
