@@ -57,3 +57,18 @@ x86.r.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: %{{.*}} = x86.ri.xor %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
 %ri_mov = x86.ri.mov %0, 2 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.ri.mov %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
+
+x86.mr.add %0, %1 : (!x86.reg<>, !x86.reg<>) -> ()
+// CHECK-NEXT: x86.mr.add %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> ()
+x86.mr.add %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+// CHECK-NEXT: x86.mr.add %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+x86.mr.sub %0, %1, -8 : (!x86.reg<>, !x86.reg<>) -> ()
+// CHECK-NEXT: x86.mr.sub %{{.*}}, %{{.*}}, -8 : (!x86.reg<>, !x86.reg<>) -> ()
+x86.mr.and %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+// CHECK-NEXT: x86.mr.and %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+x86.mr.or %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+// CHECK-NEXT: x86.mr.or %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+x86.mr.xor %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+// CHECK-NEXT: x86.mr.xor %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+x86.mr.mov %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+// CHECK-NEXT: x86.mr.mov %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> ()
