@@ -254,14 +254,14 @@ builtin.module {
 // CHECK-NEXT:    }
 
   func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x64x64xf64>, %dyn_field : !stencil.field<?x?x?xf64>, %sta_field : !stencil.field<[-2,62]x[0,64]x[2,66]xf64>) {
-      "stencil.external_store"(%dyn_field, %dyn_mem) : (!stencil.field<?x?x?xf64>, memref<?x?x?xf64>) -> ()
-      "stencil.external_store"(%sta_field, %sta_mem) : (!stencil.field<[-2,62]x[0,64]x[2,66]xf64>, memref<64x64x64xf64>) -> ()
-      %0 = "stencil.external_load"(%dyn_mem) : (memref<?x?x?xf64>) -> !stencil.field<?x?x?xf64>
-      %1 = "stencil.external_load"(%sta_mem) : (memref<64x64x64xf64>) -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
-
-      %casted = "stencil.cast"(%0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
-      func.return
+    stencil.external_store %dyn_field to %dyn_mem : !stencil.field<?x?x?xf64> to memref<?x?x?xf64>
+    stencil.external_store %sta_field to %sta_mem : !stencil.field<[-2,62]x[0,64]x[2,66]xf64> to memref<64x64x64xf64>
+    %47 = stencil.external_load %dyn_mem : memref<?x?x?xf64> -> !stencil.field<?x?x?xf64>
+    %48 = stencil.external_load %sta_mem : memref<64x64x64xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
+    %casted = stencil.cast %47 : !stencil.field<?x?x?xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
+    func.return
   }
+
 // CHECK:         func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x64x64xf64>, %dyn_field : memref<?x?x?xf64>, %sta_field : memref<64x64x64xf64>) {
 // CHECK-NEXT:      %casted = "memref.cast"(%dyn_mem) : (memref<?x?x?xf64>) -> memref<64x64x64xf64>
 // CHECK-NEXT:      func.return
@@ -782,17 +782,16 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-  func.func @offset_mapping(%0 : !stencil.field<[0,8]xf64>, %1 : !stencil.field<[0,8]xf64>, %2 : !stencil.field<[0,8]x[0,8]xf64>) {
-    %3 = "stencil.load"(%0) : (!stencil.field<[0,8]xf64>) -> !stencil.temp<[0,8]xf64>
-    %4 = "stencil.load"(%1) : (!stencil.field<[0,8]xf64>) -> !stencil.temp<[0,8]xf64>
-    %5 = "stencil.apply"(%3, %4) ({
-    ^0(%6 :  !stencil.temp<[0,8]xf64>, %10 :  !stencil.temp<[0,8]xf64>):
-    %7 = "stencil.access"(%6) {"offset" = #stencil.index[0], "offset_mapping" = #stencil.index[0]} : (!stencil.temp<[0,8]xf64>) -> f64
-    %8 = "stencil.access"(%10) {"offset" = #stencil.index[0], "offset_mapping" = #stencil.index[1]} : (!stencil.temp<[0,8]xf64>) -> f64
-    %9 = arith.mulf %7, %8 : f64
-    "stencil.return"(%9) : (f64) -> ()
-    }) : (!stencil.temp<[0,8]xf64>, !stencil.temp<[0,8]xf64>) -> !stencil.temp<[0,8]x[0,8]xf64>
-    "stencil.store"(%5, %2) {"lb" = #stencil.index[0], "ub" = #stencil.index[8]} : (!stencil.temp<[0,8]x[0,8]xf64>, !stencil.field<[0,8]x[0,8]xf64>) -> ()
+  func.func @offset_mapping(%128 : !stencil.field<[0,8]xf64>, %129 : !stencil.field<[0,8]xf64>, %130 : !stencil.field<[0,8]x[0,8]xf64>) {
+    %131 = stencil.load %128 : !stencil.field<[0,8]xf64> -> !stencil.temp<[0,8]xf64>
+    %132 = stencil.load %129 : !stencil.field<[0,8]xf64> -> !stencil.temp<[0,8]xf64>
+    %133 = stencil.apply(%134 = %131 : !stencil.temp<[0,8]xf64>, %135 = %132 : !stencil.temp<[0,8]xf64>) -> (!stencil.temp<[0,8]x[0,8]xf64>) {
+      %136 = stencil.access %134[0, _] : !stencil.temp<[0,8]xf64>
+      %137 = stencil.access %135[_, 0] : !stencil.temp<[0,8]xf64>
+      %138 = arith.mulf %136, %137 : f64
+      stencil.return %138 : f64
+    }
+    stencil.store %133 to %130 ([0] : [8]) : !stencil.temp<[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]xf64>
     func.return
   }
 
