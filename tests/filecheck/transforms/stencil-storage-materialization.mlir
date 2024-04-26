@@ -108,7 +108,7 @@ func.func @combine(%0 : !stencil.field<?x?xf64>) {
       %7 = arith.constant 2.0 : f64
       "stencil.return"(%7) : (f64) -> ()
     }) : () -> !stencil.temp<[33,65]x[2,66]xf64>
-    %9 = "stencil.combine"(%2, %5) {"dim" = 0 : i64, "index" = 33 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
+    %9 = "stencil.combine"(%2, %5) {"dim" = 0 : index, "index" = 33 : index, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
     %10 = "stencil.apply"(%9) ({
     ^0(%11 : !stencil.temp<[1,65]x[2,66]xf64>):
       %12 = arith.constant 1.0 : f64
@@ -130,7 +130,7 @@ func.func @combine(%0 : !stencil.field<?x?xf64>) {
 // CHECK-NEXT:        %7 = arith.constant 2.000000e+00 : f64
 // CHECK-NEXT:        "stencil.return"(%7) : (f64) -> ()
 // CHECK-NEXT:      }) : () -> !stencil.temp<[33,65]x[2,66]xf64>
-// CHECK-NEXT:      %8 = "stencil.combine"(%4, %6) {"dim" = 0 : i64, "index" = 33 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
+// CHECK-NEXT:      %8 = "stencil.combine"(%4, %6) {"dim" = 0 : index, "index" = 33 : index, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
 // CHECK-NEXT:      %9 = "stencil.buffer"(%8) : (!stencil.temp<[1,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
 // CHECK-NEXT:      %10 = "stencil.apply"(%9) ({
 // CHECK-NEXT:      ^5(%11 : !stencil.temp<[1,65]x[2,66]xf64>):

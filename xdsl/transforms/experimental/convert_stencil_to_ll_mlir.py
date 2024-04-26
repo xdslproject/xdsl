@@ -169,15 +169,15 @@ class ReturnOpToMemref(RewritePattern):
                 if isinstance(arg.type, ResultType):
                     result_owner = _find_result_store(arg)
                     for owner in result_owner:
-                        if owner.args:
+                        if owner.arg:
                             if target is not None:
-                                store = memref.Store.get(owner.args[0], target, args)
+                                store = memref.Store.get(owner.arg, target, args)
                             else:
                                 store = list[Operation]()
                             rewriter.replace_op(
                                 owner,
                                 store,
-                                new_results=[owner.args[0]],
+                                new_results=[owner.arg],
                             )
                         else:
                             dummy = UnrealizedConversionCastOp.get([], [arg.type.elem])
@@ -421,8 +421,8 @@ class AccessOpToMemref(RewritePattern):
         if op.offset_mapping is not None:
             max_idx = 0
             for i in op.offset_mapping:
-                if i.data + 1 > max_idx:
-                    max_idx = i.data + 1
+                if i + 1 > max_idx:
+                    max_idx = i + 1
             args = collectBlockArguments(max_idx, block)
             # Reverse the list as arguments are collated in the opposite
             # order to the stencil.apply ordering (e.g. the top most loop is
@@ -438,7 +438,7 @@ class AccessOpToMemref(RewritePattern):
         # (e.g the offset is not zero), otherwise will use the index value directly
         for i, x in enumerate(memref_offset):
             block_arg = (
-                args[list(op.offset_mapping)[i].data]
+                args[list(op.offset_mapping)[i]]
                 if op.offset_mapping is not None
                 else args[i]
             )

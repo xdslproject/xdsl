@@ -524,9 +524,9 @@ builtin.module {
   func.func @stencil_init_index(%1 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %3 = "stencil.apply"() ({
     ^0():
-      %x = "stencil.index"() {"dim" = 0, "offset" = #stencil.index<0, 0, 0>} : () -> index
-      %y = "stencil.index"() {"dim" = 1, "offset" = #stencil.index<0, 0, 0>} : () -> index
-      %z = "stencil.index"() {"dim" = 2, "offset" = #stencil.index<0, 0, 0>} : () -> index
+      %x = "stencil.index"() {"dim" = 0 : index, "offset" = #stencil.index<0, 0, 0>} : () -> index
+      %y = "stencil.index"() {"dim" = 1 : index, "offset" = #stencil.index<0, 0, 0>} : () -> index
+      %z = "stencil.index"() {"dim" = 2 : index, "offset" = #stencil.index<0, 0, 0>} : () -> index
       %xy = arith.addi %x, %y : index
       %xyz = arith.addi %xy, %z : index
       "stencil.return"(%xyz) : (index) -> ()
@@ -559,9 +559,9 @@ builtin.module {
   func.func @stencil_init_index_offset(%1 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %3 = "stencil.apply"() ({
     ^0():
-      %x = "stencil.index"() {"dim" = 0, "offset" = #stencil.index<1, 1, 1>} : () -> index
-      %y = "stencil.index"() {"dim" = 1, "offset" = #stencil.index<-1, -1, -1>} : () -> index
-      %z = "stencil.index"() {"dim" = 2, "offset" = #stencil.index<0, 0, 0>} : () -> index
+      %x = "stencil.index"() {"dim" = 0 : index, "offset" = #stencil.index<1, 1, 1>} : () -> index
+      %y = "stencil.index"() {"dim" = 1 : index, "offset" = #stencil.index<-1, -1, -1>} : () -> index
+      %z = "stencil.index"() {"dim" = 2 : index, "offset" = #stencil.index<0, 0, 0>} : () -> index
       %xy = arith.addi %x, %y : index
       %xyz = arith.addi %xy, %z : index
       "stencil.return"(%xyz) : (index) -> ()
@@ -691,7 +691,7 @@ func.func @if_lowering(%arg0: f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, 
       %7 = arith.constant 2.0 : f64
       "stencil.return"(%7) : (f64) -> ()
     }) : () -> !stencil.temp<[33,65]x[2,66]xf64>
-    %9 = "stencil.combine"(%2, %5) {"dim" = 0 : i64, "index" = 33 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
+    %9 = "stencil.combine"(%2, %5) {"dim" = 0 : index, "index" = 33 : index, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
     "stencil.store"(%9, %1) {"lb" = #stencil.index<1, 2>, "ub" = #stencil.index<65, 66>} : (!stencil.temp<[1,65]x[2,66]xf64>, !stencil.field<[-3,67]x[-3,67]xf64>) -> ()
     func.return
   }
@@ -736,7 +736,7 @@ func.func @buffered_combine(%2 : !stencil.field<?x?xf64>) {
     %7 = arith.constant 2.000000e+00 : f64
     "stencil.return"(%7) : (f64) -> ()
   }) : () -> !stencil.temp<[33,65]x[2,66]xf64>
-  %8 = "stencil.combine"(%4, %6) {"dim" = 0 : i64, "index" = 33 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
+  %8 = "stencil.combine"(%4, %6) {"dim" = 0 : index, "index" = 33 : index, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>} : (!stencil.temp<[1,33]x[2,66]xf64>, !stencil.temp<[33,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
   %9 = "stencil.buffer"(%8) : (!stencil.temp<[1,65]x[2,66]xf64>) -> !stencil.temp<[1,65]x[2,66]xf64>
   %10 = "stencil.apply"(%9) ({
   ^5(%11 : !stencil.temp<[1,65]x[2,66]xf64>):

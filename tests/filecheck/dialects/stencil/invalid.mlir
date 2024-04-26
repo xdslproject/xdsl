@@ -41,7 +41,7 @@ builtin.module {
   }
 }
 
-// CHECK: Expected operand and result type to be equal, got (!stencil.temp<[0,68]xf64>) -> !stencil.temp<?xf64>
+// CHECK: Expected operand and result type to be equal
 
 // -----
 
