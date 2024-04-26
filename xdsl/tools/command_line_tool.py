@@ -339,6 +339,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_linalg_to_loops.ConvertLinalgToLoopsPass
 
+    def get_stencil_tensorize_dimension():
+        from xdsl.transforms.experimental import stencil_tensorize_dimension
+
+        return stencil_tensorize_dimension.StencilTensorizeDimension
+
     def get_convert_riscv_scf_for_to_frep():
         from xdsl.transforms import convert_riscv_scf_for_to_frep
 
@@ -564,6 +569,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
+        "stencil-tensorize-dimension": get_stencil_tensorize_dimension,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
