@@ -1,30 +1,28 @@
 // RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir | mlir-opt | filecheck %s
 
-"builtin.module"() ({
-  "func.func"() ({
-  ^0(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>):
-    %3 = "stencil.cast"(%0) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-    %4 = "stencil.cast"(%1) : (!stencil.field<?x?x?xf64>) -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-    %6 = "stencil.load"(%3) : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
-    %8 = "stencil.apply"(%6) ({
-    ^1(%9 : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>):
-      %10 = "stencil.access"(%9) {"offset" = #stencil.index[-1, 0, 0]} : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %11 = "stencil.access"(%9) {"offset" = #stencil.index[1, 0, 0]} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %12 = "stencil.access"(%9) {"offset" = #stencil.index[0, 1, 0]} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %13 = "stencil.access"(%9) {"offset" = #stencil.index[0, -1, 0]} : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %14 = "stencil.access"(%9) {"offset" = #stencil.index[0, 0, 0]} :  (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> f64
-      %15 = "arith.addf"(%10, %11) : (f64, f64) -> f64
-      %16 = "arith.addf"(%12, %13) : (f64, f64) -> f64
-      %17 = "arith.addf"(%15, %16) : (f64, f64) -> f64
-      %cst = "arith.constant"() {"value" = -4.0 : f64} : () -> f64
-      %18 = "arith.mulf"(%14, %cst) : (f64, f64) -> f64
-      %19 = "arith.addf"(%18, %17) : (f64, f64) -> f64
-      "stencil.return"(%19) : (f64) -> ()
-    }) : (!stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
-    "stencil.store"(%8, %4) {"lb" = #stencil.index[0, 0, 0], "ub" = #stencil.index[64, 64, 64]} : (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>, !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
-    "func.return"() : () -> ()
-  }) {"function_type" = (!stencil.field<?x?x?xf64>, !stencil.field<?x?x?xf64>) -> (), "sym_name" = "stencil_hdiff"} : () -> ()
-}) : () -> ()
+builtin.module {
+  func.func @stencil_hdiff(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
+    %2 = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    %3 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+    %5 = stencil.apply(%6 = %4 : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,64]xf64>) {
+      %7 = stencil.access %6 [-1, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %8 = stencil.access %6 [1, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %9 = stencil.access %6 [0, 1, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %10 = stencil.access %6 [0, -1, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %11 = stencil.access %6 [0, 0, 0] : !stencil.temp<[-4,68]x[-4,68]x[-4,68]xf64>
+      %12 = arith.addf %7, %8 : f64
+      %13 = arith.addf %9, %10 : f64
+      %14 = arith.addf %12, %13 : f64
+      %cst = arith.constant -4.000000e+00 : f64
+      %15 = arith.mulf %11, %cst : f64
+      %16 = arith.addf %15, %14 : f64
+      stencil.return %16 : f64
+    }
+    stencil.store %5 to %3 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    func.return
+  }
+}
 
 // CHECK:       module {
 // CHECK-NEXT:    func.func @stencil_hdiff(%arg0: memref<?x?x?xf64>, %arg1: memref<?x?x?xf64>) {
