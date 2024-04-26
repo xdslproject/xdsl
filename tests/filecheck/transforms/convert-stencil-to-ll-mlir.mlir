@@ -787,12 +787,12 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
     %4 = "stencil.load"(%1) : (!stencil.field<[0,8]xf64>) -> !stencil.temp<[0,8]xf64>
     %5 = "stencil.apply"(%3, %4) ({
     ^0(%6 :  !stencil.temp<[0,8]xf64>, %10 :  !stencil.temp<[0,8]xf64>):
-    %7 = "stencil.access"(%6) {"offset" = #stencil.index<0>, "offset_mapping" = #stencil.index<0>} : (!stencil.temp<[0,8]xf64>) -> f64
-    %8 = "stencil.access"(%10) {"offset" = #stencil.index<0>, "offset_mapping" = #stencil.index<1>} : (!stencil.temp<[0,8]xf64>) -> f64
+    %7 = "stencil.access"(%6) {"offset" = #stencil.index[0], "offset_mapping" = #stencil.index[0]} : (!stencil.temp<[0,8]xf64>) -> f64
+    %8 = "stencil.access"(%10) {"offset" = #stencil.index[0], "offset_mapping" = #stencil.index[1]} : (!stencil.temp<[0,8]xf64>) -> f64
     %9 = arith.mulf %7, %8 : f64
     "stencil.return"(%9) : (f64) -> ()
     }) : (!stencil.temp<[0,8]xf64>, !stencil.temp<[0,8]xf64>) -> !stencil.temp<[0,8]x[0,8]xf64>
-    "stencil.store"(%5, %2) {"lb" = #stencil.index<0>, "ub" = #stencil.index<8>} : (!stencil.temp<[0,8]x[0,8]xf64>, !stencil.field<[0,8]x[0,8]xf64>) -> ()
+    "stencil.store"(%5, %2) {"lb" = #stencil.index[0], "ub" = #stencil.index[8]} : (!stencil.temp<[0,8]x[0,8]xf64>, !stencil.field<[0,8]x[0,8]xf64>) -> ()
     func.return
   }
 
