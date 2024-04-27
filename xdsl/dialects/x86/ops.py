@@ -23,8 +23,10 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AnyAttr,
     ConstraintVar,
     IRDLOperation,
+    VarConstraint,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -556,10 +558,12 @@ class R_RI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
     A base class for x86 operations that have one register and an immediate value.
     """
 
-    r1 = operand_def(R1InvT)
+    R1InvTVar = VarConstraint[R1InvT]("R1InvTVar", AnyAttr())
+
+    r1 = operand_def(R1InvTVar)
     immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
 
-    result = result_def(R1InvT)
+    result = result_def(R1InvTVar)
 
     def __init__(
         self,

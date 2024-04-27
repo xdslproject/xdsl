@@ -81,8 +81,11 @@ class IRDLAnnotations(Enum):
 #
 
 
+TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
+
+
 @dataclass
-class AttrConstraint(ABC):
+class AttrConstraint(Generic[AttributeCovT], ABC):
     """Constrain an attribute to a certain value."""
 
     @abstractmethod
@@ -108,7 +111,7 @@ class AttrConstraint(ABC):
         # By default, we cannot infer anything.
         return False
 
-    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+    def infer(self, constraint_vars: dict[str, Attribute]) -> AttributeCovT:
         """
         Infer the attribute given the constraint variables that are already set.
 
@@ -118,13 +121,13 @@ class AttrConstraint(ABC):
         """
         raise ValueError("Cannot infer attribute from constraint")
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_unique_base(self) -> type[AttributeCovT] | None:
         """Get the unique base type that can satisfy the constraint, if any."""
         return None
 
 
 @dataclass
-class VarConstraint(AttrConstraint):
+class VarConstraint(AttrConstraint[AttributeCovT]):
     """
     Constraint variable. If the variable is already set, this will constrain
     the attribute to be equal to the variable. Otherwise, it will first check that the
@@ -135,7 +138,7 @@ class VarConstraint(AttrConstraint):
     name: str
     """The variable name. All uses of that name refer to the same variable."""
 
-    constraint: AttrConstraint
+    constraint: AttrConstraint[AttributeCovT]
     """The constraint that the variable must satisfy."""
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -155,12 +158,12 @@ class VarConstraint(AttrConstraint):
     def can_infer(self, constraint_names: set[str]) -> bool:
         return self.name in constraint_names
 
-    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+    def infer(self, constraint_vars: dict[str, Attribute]) -> AttributeCovT:
         if self.name not in constraint_vars:
             raise ValueError(f"Cannot infer attribute from constraint {self}")
-        return constraint_vars[self.name]
+        return cast(AttributeCovT, constraint_vars[self.name])
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_unique_base(self) -> type[AttributeCovT] | None:
         return self.constraint.get_unique_base()
 
 
@@ -180,10 +183,10 @@ class ConstraintVar:
 
 
 @dataclass
-class EqAttrConstraint(AttrConstraint):
+class EqAttrConstraint(AttrConstraint[AttributeCovT]):
     """Constrain an attribute to be equal to another attribute."""
 
-    attr: Attribute
+    attr: AttributeCovT
     """The attribute we want to check equality with."""
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -193,18 +196,18 @@ class EqAttrConstraint(AttrConstraint):
     def can_infer(self, constraint_names: set[str]) -> bool:
         return True
 
-    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+    def infer(self, constraint_vars: dict[str, Attribute]) -> AttributeCovT:
         return self.attr
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_unique_base(self) -> type[AttributeCovT] | None:
         return type(self.attr)
 
 
 @dataclass
-class BaseAttr(AttrConstraint):
+class BaseAttr(AttrConstraint[AttributeCovT]):
     """Constrain an attribute to be of a given base type."""
 
-    attr: type[Attribute]
+    attr: type[AttributeCovT]
     """The expected attribute base type."""
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -213,15 +216,15 @@ class BaseAttr(AttrConstraint):
                 f"{attr} should be of base attribute {self.attr.name}"
             )
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_unique_base(self) -> type[AttributeCovT] | None:
         if is_runtime_final(self.attr):
             return self.attr
         return None
 
 
 def attr_constr_coercion(
-    attr: Attribute | type[Attribute] | AttrConstraint,
-) -> AttrConstraint:
+    attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
+) -> AttrConstraint[AttributeCovT]:
     """
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
@@ -231,12 +234,12 @@ def attr_constr_coercion(
     if isinstance(attr, Attribute):
         return EqAttrConstraint(attr)
     if isclass(attr) and issubclass(attr, Attribute):
-        return BaseAttr(attr)
+        return BaseAttr[AttributeCovT](cast(type[AttributeCovT], attr))
     assert False
 
 
 @dataclass
-class AnyAttr(AttrConstraint):
+class AnyAttr(AttrConstraint[AttributeCovT]):
     """Constraint that is verified by all attributes."""
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -244,14 +247,17 @@ class AnyAttr(AttrConstraint):
 
 
 @dataclass(init=False)
-class AnyOf(AttrConstraint):
+class AnyOf(AttrConstraint[AttributeCovT]):
     """Ensure that an attribute satisfies one of the given constraints."""
 
-    attr_constrs: list[AttrConstraint]
+    attr_constrs: list[AttrConstraint[AttributeCovT]]
     """The list of constraints that are checked."""
 
     def __init__(
-        self, attr_constrs: Sequence[Attribute | type[Attribute] | AttrConstraint]
+        self,
+        attr_constrs: Sequence[
+            AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT]
+        ],
     ):
         self.attr_constrs = [attr_constr_coercion(constr) for constr in attr_constrs]
 
@@ -276,7 +282,7 @@ class AnyOf(AttrConstraint):
             *(constr.get_resolved_variables() for constr in self.attr_constrs)
         )
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_unique_base(self) -> type[AttributeCovT] | None:
         bases = [constr.get_unique_base() for constr in self.attr_constrs]
         if None in bases:
             return None
@@ -286,10 +292,10 @@ class AnyOf(AttrConstraint):
 
 
 @dataclass()
-class AllOf(AttrConstraint):
+class AllOf(AttrConstraint[AttributeCovT]):
     """Ensure that an attribute satisfies all the given constraints."""
 
-    attr_constrs: list[AttrConstraint]
+    attr_constrs: list[AttrConstraint[AttributeCovT]]
     """The list of constraints that are checked."""
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -318,13 +324,13 @@ class AllOf(AttrConstraint):
     def can_infer(self, constraint_names: set[str]) -> bool:
         return any(constr.can_infer(constraint_names) for constr in self.attr_constrs)
 
-    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+    def infer(self, constraint_vars: dict[str, Attribute]) -> AttributeCovT:
         for constr in self.attr_constrs:
             if constr.can_infer(set(constraint_vars.keys())):
                 return constr.infer(constraint_vars)
         raise ValueError("Cannot infer attribute from constraint")
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_unique_base(self) -> type[AttributeCovT] | None:
         # This could be improved if we keep track of all the possible base types for
         # each constraint.
         for constr in self.attr_constrs:
@@ -334,23 +340,33 @@ class AllOf(AttrConstraint):
         return None
 
 
+ParametrizedAttributeCovT = TypeVar(
+    "ParametrizedAttributeCovT", bound=ParametrizedAttribute, covariant=True
+)
+
+
 @dataclass(init=False)
-class ParamAttrConstraint(AttrConstraint):
+class ParamAttrConstraint(
+    AttrConstraint[ParametrizedAttributeCovT],
+    Generic[ParametrizedAttributeCovT, AttributeInvT],
+):
     """
     Constrain an attribute to be of a given type,
     and also constrain its parameters with additional constraints.
     """
 
-    base_attr: type[ParametrizedAttribute]
+    base_attr: type[ParametrizedAttributeCovT]
     """The base attribute type."""
 
-    param_constrs: list[AttrConstraint]
+    param_constrs: list[AttrConstraint[AttributeInvT]]
     """The attribute parameter constraints"""
 
     def __init__(
         self,
-        base_attr: type[ParametrizedAttribute],
-        param_constrs: Sequence[(Attribute | type[Attribute] | AttrConstraint)],
+        base_attr: type[ParametrizedAttributeCovT],
+        param_constrs: Sequence[
+            (AttributeInvT | type[AttributeInvT] | AttrConstraint[AttributeInvT])
+        ],
     ):
         self.base_attr = base_attr
         self.param_constrs = [attr_constr_coercion(constr) for constr in param_constrs]
@@ -377,24 +393,26 @@ class ParamAttrConstraint(AttrConstraint):
             for var in constr.get_resolved_variables()
         }
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_unique_base(self) -> type[ParametrizedAttributeCovT] | None:
         if is_runtime_final(self.base_attr):
             return self.base_attr
         return None
 
 
 @dataclass(init=False)
-class MessageConstraint(AttrConstraint):
+class MessageConstraint(AttrConstraint[AttributeInvT]):
     """
     Attach a message to a constraint, to provide more context when the constraint
     is not satisfied.
     """
 
-    constr: AttrConstraint
+    constr: AttrConstraint[AttributeInvT]
     message: str
 
     def __init__(
-        self, constr: AttrConstraint | Attribute | type[Attribute], message: str
+        self,
+        constr: AttrConstraint[AttributeInvT] | AttributeInvT | type[AttributeInvT],
+        message: str,
     ):
         self.constr = attr_constr_coercion(constr)
         self.message = message
@@ -411,13 +429,13 @@ class MessageConstraint(AttrConstraint):
     def get_resolved_variables(self) -> set[str]:
         return self.constr.get_resolved_variables()
 
-    def get_unique_base(self) -> type[Attribute] | None:
+    def get_unique_base(self) -> type[AttributeInvT] | None:
         return self.constr.get_unique_base()
 
     def can_infer(self, constraint_names: set[str]) -> bool:
         return self.constr.can_infer(constraint_names)
 
-    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+    def infer(self, constraint_vars: dict[str, Attribute]) -> AttributeInvT:
         return self.constr.infer(constraint_vars)
 
 
@@ -425,8 +443,8 @@ def _irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[Any],
     *,
     allow_type_var: bool = False,
-    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
-) -> AttrConstraint:
+    type_var_mapping: dict[TypeVar, AttrConstraint[Attribute]] | None = None,
+) -> AttrConstraint[Attribute]:
     """
     Convert a list of PyRDL type annotations to an AttrConstraint.
     Each list element correspond to a constraint to satisfy.
@@ -443,7 +461,7 @@ def _irdl_list_to_attr_constraint(
             )
             return VarConstraint(arg.name, constraint)
 
-    constraints: list[AttrConstraint] = []
+    constraints: list[AttrConstraint[Attribute]] = []
     for arg in pyrdl_constraints:
         # We should not try to convert IRDL annotations, which do not
         # correspond to constraints
@@ -464,11 +482,11 @@ def _irdl_list_to_attr_constraint(
 
 
 def irdl_to_attr_constraint(
-    irdl: Any,
+    irdl: AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT],
     *,
     allow_type_var: bool = False,
-    type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
-) -> AttrConstraint:
+    type_var_mapping: dict[TypeVar, AttrConstraint[Attribute]] | None = None,
+) -> AttrConstraint[AttributeCovT]:
     if isinstance(irdl, AttrConstraint):
         return irdl
 
@@ -784,14 +802,14 @@ class ParsePropInAttrDict(IRDLOption):
 
 
 @dataclass
-class OperandOrResultDef(ABC):
+class OperandOrResultDef(Generic[AttributeCovT], ABC):
     """An operand or a result definition. Should not be used directly."""
 
     ...
 
 
 @dataclass
-class VariadicDef(OperandOrResultDef):
+class VariadicDef:
     """A variadic operand or result definition. Should not be used directly."""
 
     ...
@@ -805,13 +823,15 @@ class OptionalDef(VariadicDef):
 
 
 @dataclass(init=False)
-class OperandDef(OperandOrResultDef):
+class OperandDef(OperandOrResultDef[AttributeCovT]):
     """An IRDL operand definition."""
 
-    constr: AttrConstraint
+    constr: AttrConstraint[AttributeCovT]
     """The operand constraint."""
 
-    def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
+    def __init__(
+        self, attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT]
+    ):
         self.constr = attr_constr_coercion(attr)
 
 
@@ -819,7 +839,7 @@ Operand: TypeAlias = SSAValue
 
 
 @dataclass(init=False)
-class VarOperandDef(OperandDef, VariadicDef):
+class VarOperandDef(OperandDef[AttributeCovT], VariadicDef):
     """An IRDL variadic operand definition."""
 
 
@@ -827,7 +847,7 @@ VarOperand: TypeAlias = list[SSAValue]
 
 
 @dataclass(init=False)
-class OptOperandDef(VarOperandDef, OptionalDef):
+class OptOperandDef(VarOperandDef[AttributeCovT], OptionalDef):
     """An IRDL optional operand definition."""
 
 
@@ -835,18 +855,20 @@ OptOperand: TypeAlias = SSAValue | None
 
 
 @dataclass(init=False)
-class ResultDef(OperandOrResultDef):
+class ResultDef(OperandOrResultDef[AttributeCovT]):
     """An IRDL result definition."""
 
-    constr: AttrConstraint
+    constr: AttrConstraint[AttributeCovT]
     """The result constraint."""
 
-    def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
+    def __init__(
+        self, attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT]
+    ):
         self.constr = attr_constr_coercion(attr)
 
 
 @dataclass(init=False)
-class VarResultDef(ResultDef, VariadicDef):
+class VarResultDef(ResultDef[AttributeCovT], VariadicDef):
     """An IRDL variadic result definition."""
 
 
@@ -854,7 +876,7 @@ VarOpResult: TypeAlias = list[OpResult]
 
 
 @dataclass(init=False)
-class OptResultDef(VarResultDef, OptionalDef):
+class OptResultDef(VarResultDef[AttributeCovT], OptionalDef):
     """An IRDL optional result definition."""
 
 
@@ -905,36 +927,36 @@ OptSingleBlockRegion: TypeAlias = Annotated[
 
 
 @dataclass(init=False)
-class AttrOrPropDef:
+class AttrOrPropDef(Generic[AttributeCovT]):
     """An IRDL attribute or property definition."""
 
-    constr: AttrConstraint
+    constr: AttrConstraint[AttributeCovT]
     """The attribute or property constraint"""
 
     def __init__(
         self,
-        attr: Attribute | type[Attribute] | AttrConstraint,
+        attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
     ):
         self.constr = attr_constr_coercion(attr)
 
 
 @dataclass
-class AttributeDef(AttrOrPropDef):
+class AttributeDef(AttrOrPropDef[AttributeCovT]):
     """An IRDL attribute definition."""
 
 
 @dataclass
-class OptAttributeDef(AttributeDef, OptionalDef):
+class OptAttributeDef(AttributeDef[AttributeCovT], OptionalDef):
     """An IRDL attribute definition for an optional attribute."""
 
 
 @dataclass
-class PropertyDef(AttrOrPropDef):
+class PropertyDef(AttrOrPropDef[AttributeCovT]):
     """An IRDL property definition."""
 
 
 @dataclass(init=False)
-class OptPropertyDef(PropertyDef, OptionalDef):
+class OptPropertyDef(PropertyDef[AttributeCovT], OptionalDef):
     """An IRDL property definition for an optional property."""
 
 
@@ -954,7 +976,7 @@ Successor: TypeAlias = Block
 OptSuccessor: TypeAlias = Block | None
 VarSuccessor: TypeAlias = list[Block]
 
-_ClsT = TypeVar("_ClsT")
+_ClsT = TypeVar("_ClsT", covariant=True)
 
 # Field definition classes for `@irdl_op_definition`
 # They carry the type information exactly as passed in the argument to `operand_def` etc.
@@ -969,31 +991,30 @@ class _OpDefField(Generic[_ClsT]):
         self.cls = cls
 
 
-class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
+class _ConstrainedOpDefField(Generic[AttributeCovT, _ClsT], _OpDefField[_ClsT]):
+    param: AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT]
 
     def __init__(
         self,
         cls: type[_ClsT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+        param: AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT],
     ):
         super().__init__(cls)
         self.param = param
 
 
-class _OperandFieldDef(_ConstrainedOpDefField[OperandDef,]):
+class _OperandFieldDef(
+    _ConstrainedOpDefField[AttributeCovT, OperandDef[AttributeCovT]]
+):
     pass
 
 
-class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
+class _ResultFieldDef(_ConstrainedOpDefField[AttributeCovT, ResultDef[AttributeCovT]]):
     pass
-
-
-AttrOrPropInvT = TypeVar("AttrOrPropInvT", bound=AttrOrPropDef)
 
 
 class _AttrOrPropFieldDef(
-    Generic[AttrOrPropInvT], _ConstrainedOpDefField[AttrOrPropInvT]
+    _ConstrainedOpDefField[AttributeCovT, AttrOrPropDef[AttributeCovT]],
 ):
     ir_name: str | None = None
     """
@@ -1003,19 +1024,19 @@ class _AttrOrPropFieldDef(
 
     def __init__(
         self,
-        cls: type[AttrOrPropInvT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+        cls: type[AttrOrPropDef[AttributeCovT]],
+        param: AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT],
         ir_name: str | None = None,
     ):
         super().__init__(cls, param)
         self.ir_name = ir_name
 
 
-class _AttributeFieldDef(_AttrOrPropFieldDef[AttributeDef]):
+class _AttributeFieldDef(_AttrOrPropFieldDef[AttributeCovT]):
     pass
 
 
-class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
+class _PropertyFieldDef(_AttrOrPropFieldDef[AttributeCovT]):
     pass
 
 
@@ -1033,7 +1054,9 @@ class _TraitsFieldDef:
 
 
 def result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT]
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1046,7 +1069,9 @@ def result_def(
 
 
 def var_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT]
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1059,7 +1084,9 @@ def var_result_def(
 
 
 def opt_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT]
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1072,61 +1099,63 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    constraint: type[AttributeCovT] | AttrConstraint[AttributeCovT],
     *,
     prop_name: str | None = None,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> AttributeInvT:
+) -> AttributeCovT:
     """Defines a property of an operation."""
-    return cast(AttributeInvT, _PropertyFieldDef(PropertyDef, constraint, prop_name))
+    return cast(AttributeCovT, _PropertyFieldDef(PropertyDef, constraint, prop_name))
 
 
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    constraint: type[AttributeCovT] | AttrConstraint[AttributeCovT],
     *,
     prop_name: str | None = None,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> AttributeInvT | None:
+) -> AttributeCovT | None:
     """Defines an optional property of an operation."""
-    return cast(AttributeInvT, _PropertyFieldDef(OptPropertyDef, constraint, prop_name))
+    return cast(AttributeCovT, _PropertyFieldDef(OptPropertyDef, constraint, prop_name))
 
 
 def attr_def(
-    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    constraint: type[AttributeCovT] | AttrConstraint[AttributeCovT],
     *,
     attr_name: str | None = None,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> AttributeInvT:
+) -> AttributeCovT:
     """
     Defines an attribute of an operation.
     """
-    return cast(AttributeInvT, _AttributeFieldDef(AttributeDef, constraint, attr_name))
+    return cast(AttributeCovT, _AttributeFieldDef(AttributeDef, constraint, attr_name))
 
 
 def opt_attr_def(
-    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    constraint: type[AttributeCovT] | AttrConstraint[AttributeCovT],
     *,
     attr_name: str | None = None,
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
-) -> AttributeInvT | None:
+) -> AttributeCovT | None:
     """
     Defines an optional attribute of an operation.
     """
     return cast(
-        AttributeInvT, _AttributeFieldDef(OptAttributeDef, constraint, attr_name)
+        AttributeCovT, _AttributeFieldDef(OptAttributeDef, constraint, attr_name)
     )
 
 
 def operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT]
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1139,7 +1168,9 @@ def operand_def(
 
 
 def var_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT]
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1152,7 +1183,9 @@ def var_operand_def(
 
 
 def opt_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        AttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT]
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1265,10 +1298,10 @@ class OpDef:
     """The internal IRDL definition of an operation."""
 
     name: str = field(kw_only=False)
-    operands: list[tuple[str, OperandDef]] = field(default_factory=list)
-    results: list[tuple[str, ResultDef]] = field(default_factory=list)
-    properties: dict[str, PropertyDef] = field(default_factory=dict)
-    attributes: dict[str, AttributeDef] = field(default_factory=dict)
+    operands: list[tuple[str, OperandDef[Attribute]]] = field(default_factory=list)
+    results: list[tuple[str, ResultDef[Attribute]]] = field(default_factory=list)
+    properties: dict[str, PropertyDef[Attribute]] = field(default_factory=dict)
+    attributes: dict[str, AttributeDef[Attribute]] = field(default_factory=dict)
     regions: list[tuple[str, RegionDef]] = field(default_factory=list)
     successors: list[tuple[str, SuccessorDef]] = field(default_factory=list)
     options: list[IRDLOption] = field(default_factory=list)
@@ -1302,7 +1335,7 @@ class OpDef:
     def from_pyrdl(pyrdl_def: type[IRDLOperationInvT]) -> OpDef:
         """Decorator used on classes to define a new operation definition."""
 
-        type_var_mapping: dict[TypeVar, AttrConstraint] | None = None
+        type_var_mapping: dict[TypeVar, AttrConstraint[Attribute]] | None = None
 
         # If the operation inherit from `Generic`, this means that it specializes a
         # generic operation. Retrieve the mapping from `TypeVar` to pyrdl constraints.
@@ -1429,13 +1462,18 @@ class OpDef:
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_constraint(
                     pyrdl_constr: (
-                        AttrConstraint | Attribute | type[Attribute] | TypeVar
+                        AttrConstraint[AttributeCovT]
+                        | AttributeCovT
+                        | type[AttributeCovT]
                     ),
-                ) -> AttrConstraint:
-                    return _irdl_list_to_attr_constraint(
-                        (pyrdl_constr,),
-                        allow_type_var=True,
-                        type_var_mapping=type_var_mapping,
+                ) -> AttrConstraint[AttributeCovT]:
+                    return cast(
+                        AttrConstraint[AttributeCovT],
+                        _irdl_list_to_attr_constraint(
+                            (pyrdl_constr,),
+                            allow_type_var=True,
+                            type_var_mapping=type_var_mapping,
+                        ),
                     )
 
                 field_names.add(field_name)
@@ -1578,8 +1616,8 @@ def get_construct_name(construct: VarIRConstruct) -> str:
 def get_construct_defs(
     op_def: OpDef, construct: VarIRConstruct
 ) -> (
-    list[tuple[str, OperandDef]]
-    | list[tuple[str, ResultDef]]
+    list[tuple[str, OperandDef[Attribute]]]
+    | list[tuple[str, ResultDef[Attribute]]]
     | list[tuple[str, RegionDef]]
     | list[tuple[str, SuccessorDef]]
 ):
@@ -1636,7 +1674,11 @@ def get_attr_size_option(
 
 def get_variadic_sizes_from_attr(
     op: Operation,
-    defs: Sequence[tuple[str, OperandDef | ResultDef | RegionDef | SuccessorDef]],
+    defs: Sequence[
+        tuple[
+            str, OperandDef[Attribute] | ResultDef[Attribute] | RegionDef | SuccessorDef
+        ]
+    ],
     construct: VarIRConstruct,
     size_attribute_name: str,
     from_prop: bool = False,
@@ -1849,7 +1891,7 @@ def irdl_op_verify_arg_list(
 def irdl_build_arg_list(
     construct: Literal[VarIRConstruct.OPERAND],
     args: Sequence[SSAValue | Sequence[SSAValue] | None],
-    arg_defs: Sequence[tuple[str, OperandDef]],
+    arg_defs: Sequence[tuple[str, OperandDef[Attribute]]],
     error_prefix: str,
 ) -> tuple[list[SSAValue], list[int]]: ...
 
@@ -1858,7 +1900,7 @@ def irdl_build_arg_list(
 def irdl_build_arg_list(
     construct: Literal[VarIRConstruct.RESULT],
     args: Sequence[Attribute | Sequence[Attribute] | None],
-    arg_defs: Sequence[tuple[str, ResultDef]],
+    arg_defs: Sequence[tuple[str, ResultDef[Attribute]]],
     error_prefix: str,
 ) -> tuple[list[Attribute], list[int]]: ...
 
@@ -2268,7 +2310,9 @@ class GenericData(Data[_DataElement], ABC):
 
     @staticmethod
     @abstractmethod
-    def generic_constraint_coercion(args: tuple[Any]) -> AttrConstraint:
+    def generic_constraint_coercion(
+        args: tuple[Any],
+    ) -> AttrConstraint[GenericData[_DataElement]]:
         """
         Given the generic parameters passed to the generic attribute type,
         return the corresponding attribute constraint.
@@ -2323,7 +2367,7 @@ class ParamAttrDef:
     """The IRDL definition of a parametrized attribute."""
 
     name: str
-    parameters: list[tuple[str, AttrConstraint]]
+    parameters: list[tuple[str, AttrConstraint[Attribute]]]
 
     @staticmethod
     def from_pyrdl(pyrdl_def: type[ParametrizedAttribute]) -> ParamAttrDef:
@@ -2382,7 +2426,7 @@ class ParamAttrDef:
                     " as the type variable in the TypedAttribute base class."
                 )
 
-        parameters = list[tuple[str, AttrConstraint]]()
+        parameters = list[tuple[str, AttrConstraint[Attribute]]]()
         for param_name, param_type in param_hints:
             constraint = irdl_to_attr_constraint(param_type, allow_type_var=True)
             parameters.append((param_name, constraint))
@@ -2447,19 +2491,19 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     )
 
 
-TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
-
-
 def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
         return runtime_final(
             dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
-                type(
-                    cls.__name__,
-                    (cls,),  # pyright: ignore[reportUnknownArgumentType]
-                    dict(cls.__dict__),
+                cast(
+                    TypeAttributeInvT,
+                    type(
+                        cls.__name__,
+                        (cls,),  # pyright: ignore[reportUnknownArgumentType]
+                        dict(cls.__dict__),
+                    ),
                 )
             )
         )
