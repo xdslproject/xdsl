@@ -97,6 +97,10 @@ class CslPrintContext:
                 return f"u{width}"
             case IntegerType(width=IntAttr(data=width)):
                 return f"i{width}"
+            case FunctionType(inputs=inp, outputs=out) if len(out) == 1:
+                args = map(self.mlir_type_to_csl_type, inp)
+                ret = self.mlir_type_to_csl_type(out.data[0])
+                return f"fn({', '.join(args)}) {ret}"
             case _:
                 return f"<!unknown type {type_attr}>"
 
