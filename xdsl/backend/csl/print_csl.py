@@ -105,7 +105,7 @@ class CslPrintContext:
             ):
                 return f"u{width}"
             case IntegerType(width=IntAttr(data=width)):
-                return f"i{width}"
+                return "bool" if width == 1 else f"i{width}"
             case FunctionType(inputs=inp, outputs=out) if len(out) == 1:
                 args = map(self.mlir_type_to_csl_type, inp)
                 ret = self.mlir_type_to_csl_type(out.data[0])
@@ -121,6 +121,8 @@ class CslPrintContext:
         match attr:
             case IntAttr(data=val):
                 return str(val)
+            case IntegerAttr(value=val, type=IntegerType(width=IntAttr(data=width))) if width == 1:
+                return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
                 return str(val.data)
             case FloatAttr(value=val):
