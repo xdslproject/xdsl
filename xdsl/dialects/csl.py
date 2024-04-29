@@ -102,6 +102,32 @@ class ComptimeStructType(ParametrizedAttribute, TypeAttribute):
     name = "csl.comptime_struct"
 
 
+@irdl_attr_definition
+class StringType(ParametrizedAttribute, TypeAttribute):
+    name = "csl.string"
+
+
+@irdl_op_definition
+class ConstStrOp(IRDLOperation):
+    name = "csl.const_str"
+
+    string = prop_def(StringAttr)
+    res = result_def(StringType)
+
+    def __init__(self, s: str | StringAttr):
+        if isinstance(s, str):
+            s = StringAttr(s)
+        super().__init__(result_types=[StringType()], properties={"string": s})
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ConstStrOp:
+        s = parser.parse_str_literal()
+        return cls(s)
+
+    def print(self, printer: Printer):
+        printer.print(f' "{self.string.data}"')
+
+
 @irdl_op_definition
 class ModuleOp(IRDLOperation):
     """
@@ -547,10 +573,12 @@ CSL = Dialect(
         TaskOp,
         ModuleOp,
         LayoutOp,
+        ConstStrOp,
     ],
     [
         ComptimeStructType,
         TaskKindAttr,
         ModuleKindAttr,
+        StringType,
     ],
 )
