@@ -290,11 +290,18 @@ class CslPrintContext:
                     self.print(f"const {var} : {struct_t} = .{{")
                     for k, v in items.data.items():
                         v = self.attribute_value_to_str(v)
-                        self.print(f".{k} = {v},", prefix=self._INDENT_SIZE * " ")
+                        self.print(f".{k} = {v},",
+                                   prefix=self._INDENT_SIZE * " ")
                     for k, v in zip(fields.data, values):
                         v = self._get_variable_name_for(v)
-                        self.print(f".{k.data} = {v},", prefix=self._INDENT_SIZE * " ")
+                        self.print(f".{k.data} = {v},",
+                                   prefix=self._INDENT_SIZE * " ")
                     self.print("};")
+                case csl.ParamOp(init_value=init, param_name=name, res=res):
+                    init = f" = {
+                        self.attribute_value_to_str(init)}" if init else ""
+                    ty = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"param {name.data} : {ty}{init};")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
