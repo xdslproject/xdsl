@@ -798,6 +798,15 @@ class AccessOp(IRDLOperation):
             operands=[temp], result_types=[res_type.element_type], attributes=attrs
         )
 
+    def get_apply(self) -> ApplyOp:
+        trait = cast(HasAncestor, AccessOp.get_trait(HasAncestor, (ApplyOp,)))
+        applyop = cast(ApplyOp | None, trait.get_ancestor(self))
+        if applyop is None:
+            raise ValueError(
+                "Tried to get the apply operation of an unverified access operation."
+            )
+        return applyop
+
     @staticmethod
     def get(
         temp: SSAValue | Operation,

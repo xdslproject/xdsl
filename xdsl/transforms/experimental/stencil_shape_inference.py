@@ -199,11 +199,8 @@ class StoreOpShapeInference(RewritePattern):
 class AccessOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter):
-        apply = op.parent_op()
-        assert isinstance(apply, ApplyOp)
+        apply = op.get_apply()
         assert isa(op.temp.type, TempType[Attribute])
-        assert isinstance(op.temp, BlockArgument)
-        assert op.temp.block.parent_op() is apply
         assert isa(apply.res[0].type, TempType[Attribute]), f"{apply.res[0]}"
 
         temp_type = op.temp.type
