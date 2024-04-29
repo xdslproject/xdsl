@@ -255,6 +255,24 @@ class CslPrintContext:
                     self.print("layout {")
                     self.descend().print_block(bdy.block)
                     self.print("}")
+                case csl.SetTileCodeOp(file=file, x_coord=x_coord, y_coord=y_coord, params=params):
+                    file = self.attribute_value_to_str(file)
+                    x = self._get_variable_name_for(x_coord)
+                    y = self._get_variable_name_for(y_coord)
+                    params = self._get_variable_name_for(params) \
+                        if params else ""
+                    self.print(
+                        f"@set_tile_code({file}, {x}, {y}, {params});")
+                case csl.SetRectangleOp(x_dim=x_dim, y_dim=y_dim):
+                    x = self._get_variable_name_for(x_dim)
+                    y = self._get_variable_name_for(y_dim)
+                    self.print(
+                        f"@set_rectangle({x}, {y});")
+                case csl.ExportNameOp(var_name=name, type=type, mutable=mut):
+                    name = self.attribute_value_to_str(name)
+                    type = self.attribute_value_to_str(type)
+                    mut = self.attribute_value_to_str(mut)
+                    self.print(f"@export_name({name}, {type}, {mut});")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
