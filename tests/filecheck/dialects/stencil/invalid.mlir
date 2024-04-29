@@ -115,7 +115,7 @@ builtin.module {
   }
 }
 
- // CHECK: 'stencil.access' expects parent op 'stencil.apply'
+ // CHECK: 'stencil.access' expects ancestor op 'stencil.apply'
 
 // -----
 

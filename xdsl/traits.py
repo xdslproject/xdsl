@@ -68,6 +68,40 @@ class HasParent(OpTrait):
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
 
 
+@dataclass(frozen=True)
+class HasAncestor(OpTrait):
+    """
+    Constraint the operation to have a specific operation as ancestor, i.e. transitive
+    parent.
+    """
+
+    parameters: tuple[type[Operation], ...]
+
+    def __init__(self, *parameters: type[Operation]):
+        if not parameters:
+            raise ValueError("parameters must not be empty")
+        super().__init__(parameters)
+
+    def verify(self, op: Operation) -> None:
+        if self.get_ancestor(op) is None:
+            if len(self.parameters) == 1:
+                raise VerifyException(
+                    f"'{op.name}' expects ancestor op '{self.parameters[0].name}'"
+                )
+            names = ", ".join(f"'{p.name}'" for p in self.parameters)
+            raise VerifyException(
+                f"'{op.name}' expects ancestor op to be one of {names}"
+            )
+
+    def get_ancestor(self, op: Operation) -> Operation | None:
+        parent = op.parent_op()
+        while not isinstance(parent, self.parameters):
+            if parent is None:
+                return None
+            parent = parent.parent_op()
+        return parent
+
+
 class IsTerminator(OpTrait):
     """
     This trait provides verification and functionality for operations that are
