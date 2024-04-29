@@ -9,9 +9,11 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     TensorType,
 )
+from xdsl.dialects.func import FuncOp
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
+    ExternalLoadOp,
     FieldType,
     LoadOp,
     StencilBoundsAttr,
@@ -126,12 +128,46 @@ class AccessOpToTensor(RewritePattern):
 class ApplyOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        if isinstance(op.res[0].type.get_element_type(), ContainerType):
-            return
-        args = [stencil_temp_to_tensor(a.type) for a in op.args]
-        res = [stencil_temp_to_tensor(r.type) for r in op.res]
-        rewriter.replace_matched_op(ApplyOp.get(args, op.region, res))
+        # if (all(is_tensorised(arg.type) for arg in op.args) and not is_tensorised(op.result.type)):
+        # if isinstance(op.res[0].type.get_element_type(), ContainerType):
+        #     return
+        # args = [stencil_temp_to_tensor(a.type) for a in op.args]
+        # res = [stencil_temp_to_tensor(r.type) for r in op.res]
+        # rewriter.replace_matched_op(ApplyOp.get(args, op.region, res))
         pass
+
+
+class FuncOpTensorize(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
+        for arg in op.args:
+            op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
+
+
+def is_tensorised(typ):
+    return len(typ.get_shape()) == 2 and isinstance(typ, ContainerType)
+
+
+class ExternalLoadOpTensorize(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
+        if is_tensorised(op.field.type) and not is_tensorised(op.result.type):
+            rewriter.replace_matched_op(
+                ExternalLoadOp.get(op.field, stencil_field_to_tensor(op.result.type))
+            )
+
+
+class LoadOpTensorize(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
+        if is_tensorised(op.field.type) and not is_tensorised(op.res.type):
+            rewriter.replace_matched_op(
+                LoadOp.get(
+                    op.field,
+                    [lb for lb in op.res.type.bounds.lb][:-1],
+                    [ub for ub in op.res.type.bounds.ub][:-1],
+                )
+            )
 
 
 @dataclass(frozen=True)
@@ -144,21 +180,24 @@ class StencilTensorizeDimension(ModulePass):
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    FuncOpTensorize(),
+                    ExternalLoadOpTensorize(),
+                    LoadOpTensorize(),
+                    ApplyOpTensorize(),
                     # BufferOpToAlloc(),
                     # ExternalLoadToUnerealizedConversionCast(),
                     # TrivialExternalStoreOpCleanup(),
                     # StoreOpToInsertSlice(),
                     # LoadOpToExtractSlice(),
                     # CastOpToCast(),
-                    ApplyOpTensorize(),
                     # ReturnOpToYield(),
-                    AccessOpToTensor(),
+                    # AccessOpToTensor(),
                 ]
             ),
             walk_reverse=True,
         )
         the_one_pass.rewrite_module(op)
-        type_conversion_pass = PatternRewriteWalker(
+        PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     StencilTempConversion(recursive=True),
@@ -167,4 +206,4 @@ class StencilTensorizeDimension(ModulePass):
                 ]
             )
         )
-        type_conversion_pass.rewrite_module(op)
+        # type_conversion_pass.rewrite_module(op)
