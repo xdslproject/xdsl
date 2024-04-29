@@ -5,6 +5,8 @@ from typing import IO, cast
 
 from xdsl.dialects import arith, csl, scf
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -280,6 +282,19 @@ class CslPrintContext:
                     var = self._get_variable_name_for(res)
                     color_t = self.mlir_type_to_csl_type(res.type)
                     self.print(f"const {var} : {color_t} = @get_color({id});")
+                case csl.ConstStructOp(items=items, ssa_fields=fields, ssa_values=values, res=res):
+                    var = self._get_variable_name_for(res)
+                    struct_t = self.mlir_type_to_csl_type(res.type)
+                    items = items or DictionaryAttr({})
+                    fields = fields or ArrayAttr([])
+                    self.print(f"const {var} : {struct_t} = .{{")
+                    for k, v in items.data.items():
+                        v = self.attribute_value_to_str(v)
+                        self.print(f".{k} = {v},", prefix=self._INDENT_SIZE * " ")
+                    for k, v in zip(fields.data, values):
+                        v = self._get_variable_name_for(v)
+                        self.print(f".{k.data} = {v},", prefix=self._INDENT_SIZE * " ")
+                    self.print("};")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
