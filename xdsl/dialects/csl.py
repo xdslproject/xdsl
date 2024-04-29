@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects import builtin
-from xdsl.dialects.builtin import ArrayAttr, ContainerType, DictionaryAttr, FunctionType, StringAttr, IntegerType, IntegerAttr
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, ContainerType, DictionaryAttr, FunctionType, StringAttr, IntegerType, IntegerAttr
 from xdsl.dialects.utils import (
     parse_func_op_like,
     parse_call_op_like,
@@ -37,7 +37,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.irdl.irdl import ParameterDef, VarOperand
+from xdsl.irdl.irdl import ParameterDef
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -621,6 +621,36 @@ class LayoutOp(IRDLOperation):
                 f"Expected parent module to be a of kind {ModuleKind.LAYOUT.value}")
 
 
+# TODO(dk949): tag builtins for easier printing?
+
+@irdl_op_definition
+class SetRectangleOp(IRDLOperation):
+    name = "csl.set_rectangle"
+
+    x_dim = operand_def(IntegerType)
+    y_dim = operand_def(IntegerType)
+
+
+@irdl_op_definition
+class SetTileCodeOp(IRDLOperation):
+    name = "csl.set_tile_code"
+
+    file = prop_def(StringAttr)
+
+    x_coord = operand_def(IntegerType)
+    y_coord = operand_def(IntegerType)
+    params = opt_operand_def(ComptimeStructType)
+
+
+@irdl_op_definition
+class ExportNameOp(IRDLOperation):
+    name = "csl.export_name"
+
+    var_name = prop_def(StringAttr)
+    type = prop_def(TypeAttribute)
+    mutable = prop_def(BoolAttr)
+
+
 CSL = Dialect(
     "csl",
     [
@@ -633,6 +663,9 @@ CSL = Dialect(
         TaskOp,
         ModuleOp,
         LayoutOp,
+        SetRectangleOp,
+        SetTileCodeOp,
+        ExportNameOp,
         ConstStrOp,
         ConstTypeOp,
     ],
