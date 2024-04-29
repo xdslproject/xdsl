@@ -80,6 +80,8 @@ class CslPrintContext:
         This method does not yet support all the types and will be expanded as needed later.
         """
         match type_attr:
+            case csl.StringType():
+                return "comptime_string"
             case csl.ComptimeStructType():
                 return "comptime_struct"
             case Float16Type():
@@ -108,6 +110,8 @@ class CslPrintContext:
                 return str(val.data)
             case FloatAttr(value=val):
                 return str(val.data)
+            case csl.StringAttr() as s:
+                return f'"{s.data}"'
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -119,8 +123,10 @@ class CslPrintContext:
         match attr:
             case IntAttr():
                 return "<!indeterminate IntAttr type>"
-            case csl.ComptimeStructType():
-                return "comptime_struct"
+            case csl.ComptimeStructType() | csl.StringType():
+                return self.mlir_type_to_csl_type(attr)
+            case StringAttr():
+                return self.mlir_type_to_csl_type(csl.StringType())
             case IntegerAttr(type=(IntegerType() | IndexType()) as int_t):
                 return self.mlir_type_to_csl_type(int_t)
             case FloatAttr(type=(Float16Type() | Float32Type()) as float_t):
@@ -145,7 +151,8 @@ class CslPrintContext:
     def _bind_task(self, name: str, kind: csl.TaskKind, id: int):
         self.print("comptime {")
         self.print(
-            f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrapp_task_id(kind, id)}));",
+            f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({
+                self._wrapp_task_id(kind, id)}));",
             prefix=' ' * self._INDENT_SIZE)
         self.print("}")
 
@@ -155,7 +162,7 @@ class CslPrintContext:
         """
         for op in body.ops:
             match op:
-                case arith.Constant(value=v, result=r):
+                case arith.Constant(value=v, result=r) | csl.ConstStrOp(string=v, res=r):
                     # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
 
                     # convert the attributes type to a csl type:
@@ -165,7 +172,8 @@ class CslPrintContext:
 
                     # emit a constant instantiation:
                     self.print(
-                        f"const {self._get_variable_name_for(r)} : {type_name} = {value_str};"
+                        f"const {self._get_variable_name_for(r)} : {type_name} = {
+                            value_str};"
                     )
                 case csl.ImportModuleConstOp(module=module, params=params, result=res):
                     name = self._get_variable_name_for(res)
@@ -175,7 +183,8 @@ class CslPrintContext:
                         params_str = f", {self._get_variable_name_for(params)}"
 
                     self.print(
-                        f'const {name} : comptime_struct = @import_module("{module.data}"{params_str});'
+                        f'const {name} : comptime_struct = @import_module("{
+                            module.data}"{params_str});'
                     )
                 case csl.MemberCallOp(field=callee, args=args, result=res) \
                         | csl.CallOp(callee=callee, args=args, result=res) as call:
@@ -190,7 +199,8 @@ class CslPrintContext:
                     if res is not None:
                         name = self._get_variable_name_for(res)
                         text += (
-                            f"const {name} : {self.mlir_type_to_csl_type(res.type)} = "
+                            f"const {name} : {
+                                self.mlir_type_to_csl_type(res.type)} = "
                         )
 
                     self.print(f"{text}{struct_str}{callee.data}({args});")
@@ -198,7 +208,8 @@ class CslPrintContext:
                     name = self._get_variable_name_for(res)
                     struct_var = self._get_variable_name_for(struct)
                     self.print(
-                        f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {struct_var}.{field.data};"
+                        f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {
+                            struct_var}.{field.data};"
                     )
                 case csl.TaskOp(sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id):
                     self._task_or_fn("task", name, bdy, ftyp)
@@ -212,7 +223,8 @@ class CslPrintContext:
                 case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
                     idx, *_ = bdy.block.args
                     self.print(
-                        f"\nfor(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
+                        f"\nfor(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {
+                            self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
                     )
                     self.descend().print_block(bdy.block)
                     self.print("}")
