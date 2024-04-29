@@ -152,6 +152,15 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
 
 @irdl_op_definition
+class ParamOp(IRDLOperation):
+    name = "csl.param"
+
+    param_name = prop_def(StringAttr)
+    res = result_def()
+    # TODO(dk949): how to verify that the init property is of correct type
+    init_value = opt_prop_def(Attribute)
+
+@irdl_op_definition
 class ConstStructOp(IRDLOperation):
     name = "csl.const_struct"
 
@@ -724,6 +733,7 @@ CSL = Dialect(
         ConstTypeOp,
         ConstStructOp,
         GetColorOp,
+        ParamOp
     ],
     [
         ComptimeStructType,
