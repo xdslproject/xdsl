@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Annotated
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ArrayAttr, BoolAttr, ContainerType, DictionaryAttr, FunctionType, StringAttr, IntegerType, IntegerAttr
@@ -148,6 +149,45 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     def get_element_type(self) -> Attribute:
         return self.type
+
+
+@irdl_op_definition
+class ConstStructOp(IRDLOperation):
+    name = "csl.const_struct"
+
+    items = opt_prop_def(DictionaryAttr)
+    ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
+    ssa_values = var_operand_def()
+    res = result_def(ComptimeStructType)
+
+    def __init__(self,
+                 items: dict[str, Attribute] | DictionaryAttr | None,
+                 ssa_fields: list[str | StringAttr]
+                 | ArrayAttr[StringAttr]
+                 | None = None,
+                 ssa_values: Sequence[SSAValue | Operation] | None = None,
+                 ):
+        if isinstance(items, dict):
+            items = DictionaryAttr(items)
+
+        if isinstance(ssa_fields, list):
+            ssa_fields = ArrayAttr([StringAttr(f) if isinstance(f, str) else f
+                                    for f in ssa_fields])
+        super().__init__(result_types=[ComptimeStructType()],
+                         properties={"items": items,
+                                     "ssa_fields": ssa_fields},
+                         operands=ssa_values)
+
+    def verify_(self) -> None:
+        if self.ssa_fields is None:
+            if len(self.ssa_values) == 0:
+                return super().verify_()
+        else:
+            if len(self.ssa_values) == len(self.ssa_fields):
+                return super().verify_()
+
+        raise VerifyException(
+            "Number of ssa_fields has to match the number of arguments")
 
 
 @irdl_op_definition
@@ -487,7 +527,8 @@ class TaskOp(IRDLOperation, FuncBase):
             id = IntegerAttr.from_int_and_width(
                 id, task_kind_to_color_bits(task_kind.data))
         assert id.type.width.data == task_kind_to_color_bits(task_kind.data), \
-            f"{task_kind.data.value} task id has to have {task_kind_to_color_bits(task_kind.data)} bits, got {id.type.width.data}"
+            f"{task_kind.data.value} task id has to have {
+                task_kind_to_color_bits(task_kind.data)} bits, got {id.type.width.data}"
 
         properties |= {
             "kind": task_kind,
@@ -681,6 +722,7 @@ CSL = Dialect(
         ExportNameOp,
         ConstStrOp,
         ConstTypeOp,
+        ConstStructOp,
         GetColorOp,
     ],
     [
