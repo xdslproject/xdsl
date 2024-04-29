@@ -82,6 +82,15 @@ class CslPrintContext:
         match type_attr:
             case csl.TypeType():
                 return "type"
+            case csl.PtrType(type=ty, kind=kind, constness=const):
+                match kind.data:
+                    case csl.PtrKind.SINGLE: sym = "*"
+                    case csl.PtrKind.MANY: sym = "[*]"
+                match const.data:
+                    case csl.PtrConst.CONST: mut = "const "
+                    case csl.PtrConst.MUT: mut = ""
+                ty = self.mlir_type_to_csl_type(ty)
+                return f"{sym}{mut}{ty}"
             case csl.StringType():
                 return "comptime_string"
             case csl.ComptimeStructType():
