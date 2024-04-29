@@ -103,6 +103,11 @@ class ComptimeStructType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
+class TypeType(ParametrizedAttribute, TypeAttribute):
+    name = "csl.type"
+
+
+@irdl_attr_definition
 class StringType(ParametrizedAttribute, TypeAttribute):
     name = "csl.string"
 
@@ -126,6 +131,28 @@ class ConstStrOp(IRDLOperation):
 
     def print(self, printer: Printer):
         printer.print(f' "{self.string.data}"')
+
+
+@irdl_op_definition
+class ConstTypeOp(IRDLOperation):
+    name = "csl.const_type"
+
+    type = prop_def(TypeAttribute)
+    res = result_def(TypeType)
+
+    def __init__(self, ty: TypeAttribute):
+        super().__init__(result_types=[TypeType()], properties={"type": ty})
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ConstTypeOp:
+        ty = parser.parse_type()
+        assert isinstance(ty, TypeAttribute), f"{ty =}, {type(ty) =}"
+        return cls(ty)
+
+    def print(self, printer: Printer):
+        printer.print(f" {self.type}")
+
+    # TODO(dk949): verify that the type is a valid csl type
 
 
 @irdl_op_definition
@@ -574,11 +601,13 @@ CSL = Dialect(
         ModuleOp,
         LayoutOp,
         ConstStrOp,
+        ConstTypeOp
     ],
     [
         ComptimeStructType,
         TaskKindAttr,
         ModuleKindAttr,
         StringType,
+        TypeType,
     ],
 )
