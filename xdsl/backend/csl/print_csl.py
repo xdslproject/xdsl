@@ -95,6 +95,8 @@ class CslPrintContext:
                 return "comptime_string"
             case csl.ComptimeStructType():
                 return "comptime_struct"
+            case csl.ColorType():
+                return "color"
             case Float16Type():
                 return "f16"
             case Float32Type():
@@ -273,6 +275,11 @@ class CslPrintContext:
                     type = self.attribute_value_to_str(type)
                     mut = self.attribute_value_to_str(mut)
                     self.print(f"@export_name({name}, {type}, {mut});")
+                case csl.GetColorOp(id=id, res=res):
+                    id = self.attribute_value_to_str(id)
+                    var = self._get_variable_name_for(res)
+                    color_t = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"const {var} : {color_t} = @get_color({id});")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
