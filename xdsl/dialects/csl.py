@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects import builtin
-from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr, IntegerType, IntegerAttr
+from xdsl.dialects.builtin import ArrayAttr, ContainerType, DictionaryAttr, FunctionType, StringAttr, IntegerType, IntegerAttr
 from xdsl.dialects.utils import (
     parse_func_op_like,
     parse_call_op_like,
@@ -37,6 +37,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.irdl.irdl import ParameterDef, VarOperand
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -75,6 +76,16 @@ class ModuleKind(StrEnum):
     PROGRAM = "program"
 
 
+class PtrKind(StrEnum):
+    SINGLE = "single"
+    MANY = "many"
+
+
+class PtrConst(StrEnum):
+    CONST = "const"
+    MUT = "mut"
+
+
 def task_kind_to_color_bits(kind: TaskKind):
     match kind:
         case TaskKind.LOCAL | TaskKind.DATA: return 5
@@ -89,6 +100,16 @@ class TaskKindAttr(EnumAttribute[TaskKind], SpacedOpaqueSyntaxAttribute):
 @irdl_attr_definition
 class ModuleKindAttr(EnumAttribute[ModuleKind], SpacedOpaqueSyntaxAttribute):
     name = "csl.module_kind"
+
+
+@irdl_attr_definition
+class PtrKindAttr(EnumAttribute[PtrKind], SpacedOpaqueSyntaxAttribute):
+    name = "csl.ptr_kind"
+
+
+@irdl_attr_definition
+class PtrConstAttr(EnumAttribute[PtrConst], SpacedOpaqueSyntaxAttribute):
+    name = "csl.ptr_const"
 
 
 @irdl_attr_definition
@@ -110,6 +131,18 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
 @irdl_attr_definition
 class StringType(ParametrizedAttribute, TypeAttribute):
     name = "csl.string"
+
+
+@irdl_attr_definition
+class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+    name = "csl.ptr"
+
+    type: ParameterDef[TypeAttribute]
+    kind: ParameterDef[PtrKindAttr]
+    constness: ParameterDef[PtrConstAttr]
+
+    def get_element_type(self) -> Attribute:
+        return self.type
 
 
 @irdl_op_definition
@@ -601,7 +634,7 @@ CSL = Dialect(
         ModuleOp,
         LayoutOp,
         ConstStrOp,
-        ConstTypeOp
+        ConstTypeOp,
     ],
     [
         ComptimeStructType,
@@ -609,5 +642,8 @@ CSL = Dialect(
         ModuleKindAttr,
         StringType,
         TypeType,
+        PtrType,
+        PtrKindAttr,
+        PtrConstAttr,
     ],
 )
