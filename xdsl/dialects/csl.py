@@ -129,6 +129,11 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
+class ColorType(ParametrizedAttribute, TypeAttribute):
+    name = "csl.color"
+
+
+@irdl_attr_definition
 class StringType(ParametrizedAttribute, TypeAttribute):
     name = "csl.string"
 
@@ -651,6 +656,14 @@ class ExportNameOp(IRDLOperation):
     mutable = prop_def(BoolAttr)
 
 
+@irdl_op_definition
+class GetColorOp(IRDLOperation):
+    name = "csl.get_color"
+
+    id = prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(5)]])
+    res = result_def(ColorType)
+
+
 CSL = Dialect(
     "csl",
     [
@@ -668,6 +681,7 @@ CSL = Dialect(
         ExportNameOp,
         ConstStrOp,
         ConstTypeOp,
+        GetColorOp,
     ],
     [
         ComptimeStructType,
@@ -678,5 +692,6 @@ CSL = Dialect(
         PtrType,
         PtrKindAttr,
         PtrConstAttr,
+        ColorType,
     ],
 )
