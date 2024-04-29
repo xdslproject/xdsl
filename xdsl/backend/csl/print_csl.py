@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     StringAttr
 )
 from xdsl.ir import Attribute, Block, SSAValue, Region
-from xdsl.ir.core import BlockOps
+from xdsl.ir.core import BlockOps, TypeAttribute
 
 
 @dataclass
@@ -80,6 +80,8 @@ class CslPrintContext:
         This method does not yet support all the types and will be expanded as needed later.
         """
         match type_attr:
+            case csl.TypeType():
+                return "type"
             case csl.StringType():
                 return "comptime_string"
             case csl.ComptimeStructType():
@@ -110,8 +112,10 @@ class CslPrintContext:
                 return str(val.data)
             case FloatAttr(value=val):
                 return str(val.data)
-            case csl.StringAttr() as s:
+            case StringAttr() as s:
                 return f'"{s.data}"'
+            case TypeAttribute() as ty:
+                return self.mlir_type_to_csl_type(ty)
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -123,8 +127,10 @@ class CslPrintContext:
         match attr:
             case IntAttr():
                 return "<!indeterminate IntAttr type>"
-            case csl.ComptimeStructType() | csl.StringType():
+            case csl.ComptimeStructType() | csl.StringType() | csl.TypeType():
                 return self.mlir_type_to_csl_type(attr)
+            case TypeAttribute():
+                return self.mlir_type_to_csl_type(csl.TypeType())
             case StringAttr():
                 return self.mlir_type_to_csl_type(csl.StringType())
             case IntegerAttr(type=(IntegerType() | IndexType()) as int_t):
@@ -162,7 +168,9 @@ class CslPrintContext:
         """
         for op in body.ops:
             match op:
-                case arith.Constant(value=v, result=r) | csl.ConstStrOp(string=v, res=r):
+                case arith.Constant(value=v, result=r) \
+                        | csl.ConstStrOp(string=v, res=r)\
+                        | csl.ConstTypeOp(type=v, res=r):
                     # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
 
                     # convert the attributes type to a csl type:
