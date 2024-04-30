@@ -85,16 +85,7 @@ class Global(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         attrs = parser.parse_optional_attr_dict()
-        if parser.parse_optional_keyword("public"):
-            sym_visibility = StringAttr("public")
-        elif parser.parse_optional_keyword("nested"):
-            sym_visibility = StringAttr("nested")
-        elif parser.parse_optional_keyword("private"):
-            sym_visibility = StringAttr("private")
-        else:
-            parser.raise_error(
-                "Expected 'public', 'private', or 'nested'",
-            )
+        sym_visibility = parser.parse_visibility_keyword()
 
         if parser.parse_optional_keyword("mutable"):
             is_mutable = UnitAttr()
