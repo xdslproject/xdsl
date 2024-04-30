@@ -53,7 +53,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator
+from xdsl.traits import HasAncestor, HasParent, IsolatedFromAbove, IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -728,7 +728,7 @@ class AccessOp(IRDLOperation):
         )
     )
 
-    traits = frozenset([HasParent(ApplyOp)])
+    traits = frozenset([HasAncestor(ApplyOp)])
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -740,7 +740,8 @@ class AccessOp(IRDLOperation):
         )
 
         # IRDL-enforced, not supposed to use custom syntax if not veriied
-        apply = cast(ApplyOp, self.parent_op())
+        trait = cast(HasAncestor, AccessOp.get_trait(HasAncestor, (ApplyOp,)))
+        apply = cast(ApplyOp, trait.get_ancestor(self))
 
         mapping = self.offset_mapping
         if mapping is None:
@@ -825,8 +826,9 @@ class AccessOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        apply = self.parent_op()
-        # As promised by HasParent(ApplyOp)
+        # As promised by HasAncestor(ApplyOp)
+        trait = cast(HasAncestor, AccessOp.get_trait(HasAncestor, (ApplyOp,)))
+        apply = trait.get_ancestor(self)
         assert isinstance(apply, ApplyOp)
 
         # TODO This should be handled by infra, having a way to verify things on ApplyOp
