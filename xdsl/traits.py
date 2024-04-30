@@ -77,10 +77,8 @@ class HasAncestor(OpTrait):
 
     parameters: tuple[type[Operation], ...]
 
-    def __init__(self, *parameters: type[Operation]):
-        if not parameters:
-            raise ValueError("parameters must not be empty")
-        super().__init__(parameters)
+    def __init__(self, head_param: type[Operation], *tail_params: type[Operation]):
+        super().__init__((head_param, *tail_params))
 
     def verify(self, op: Operation) -> None:
         if self.get_ancestor(op) is None:
