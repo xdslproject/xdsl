@@ -14,7 +14,7 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: ${VENV_DIR}/ clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
+.PHONY: ${VENV_DIR}/ venv clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
 .PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
@@ -22,6 +22,9 @@ ${VENV_DIR}/: requirements.txt
 	python3 -m venv ${VENV_DIR}
 	. ${VENV_DIR}/bin/activate
 	python3 -m pip --require-virtualenv install -r requirements.txt
+
+# make sure `make venv` always works no matter what $VENV_DIR is
+venv: ${VENV_DIR}/
 
 # remove all caches and the venv
 clean:

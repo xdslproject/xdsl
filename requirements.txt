@@ -1,16 +1,16 @@
 pip<25.0
 # Update precommit version when black updates
-black[jupyter]==24.3.0
+black[jupyter]==24.4.2
 toml<0.11
 pytest-cov
 coverage<8.0.0
 ipykernel
-pytest<8.2
+pytest<8.3
 nbval<0.12
 filecheck<0.0.25
 lit<19.0.0
 pre-commit==3.7.0
-ruff==0.3.5
+ruff==0.4.2
 asv<0.7
 isort==5.13.2
 nbconvert>=7.7.2,<8.0.0

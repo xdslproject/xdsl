@@ -14,7 +14,7 @@ from collections.abc import Sequence
 from typing import Annotated
 
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, UnitAttr, i32, i64
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
@@ -115,8 +115,14 @@ class VariadicCombOperation(IRDLOperation, ABC):
         result_type: Attribute | None = None,
     ):
         if result_type is None:
+            if len(input_list) == 0:
+                raise ValueError("cannot infer type from zero inputs")
             result_type = SSAValue.get(input_list[0]).type
-        super().__init__(operands=input_list, result_types=[result_type])
+        super().__init__(operands=[input_list], result_types=[result_type])
+
+    def verify_(self) -> None:
+        if len(self.inputs) == 0:
+            raise VerifyException("op expected 1 or more operands, but found 0")
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -391,7 +397,7 @@ class ExtractOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     low_bit: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
-        IntegerAttr[Annotated[IntegerType, i32]]
+        IntegerAttr[Annotated[IntegerType, i32]], attr_name="lowBit"
     )
     result: OpResult = result_def(IntegerType)
 
@@ -403,7 +409,7 @@ class ExtractOp(IRDLOperation):
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
-            attributes={"low_bit": low_bit},
+            attributes={"lowBit": low_bit},
             operands=[operand],
             result_types=[result_type],
         )
@@ -555,7 +561,7 @@ class MuxOp(IRDLOperation):
 
     name = "comb.mux"
 
-    T = Annotated[IntegerType, ConstraintVar("T")]
+    T = Annotated[TypeAttribute, ConstraintVar("T")]
 
     cond: Operand = operand_def(IntegerType(1))
     true_value: Operand = operand_def(T)

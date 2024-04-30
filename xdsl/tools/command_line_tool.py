@@ -14,6 +14,11 @@ from xdsl.utils.exceptions import ParseError
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
+    def get_accfg():
+        from xdsl.dialects.accfg import ACCFG
+
+        return ACCFG
+
     def get_affine():
         from xdsl.dialects.affine import Affine
 
@@ -83,6 +88,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.gpu import GPU
 
         return GPU
+
+    def get_hlfir():
+        from xdsl.dialects.experimental.hlfir import HLFIR
+
+        return HLFIR
 
     def get_hls():
         from xdsl.dialects.experimental.hls import HLS
@@ -250,6 +260,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return X86
 
     return {
+        "accfg": get_accfg,
         "affine": get_affine,
         "aie": get_aie,
         "air": get_air,
@@ -264,6 +275,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "fsm": get_fsm,
         "func": get_func,
         "gpu": get_gpu,
+        "hlfir": get_hlfir,
         "hls": get_hls,
         "hw": get_hw,
         "linalg": get_linalg,
