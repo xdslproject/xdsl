@@ -728,8 +728,18 @@ class SetTileCodeOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ExportNameOp(IRDLOperation):
-    name = "csl.export_name"
+class SymbolExportOp(IRDLOperation):
+    """
+    This op does not correspond to any particular csl operation, it allows a symbol
+    to be exported in a single operation in both layout and program module.
+
+    It corresponds to @export_name in layout and @export_symbol in program.
+    """
+    name = "csl.export"
+
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM, direct_child=False)])
+
+    value = operand_def()
 
     var_name = prop_def(StringAttr)
     type = prop_def(TypeAttribute)
@@ -758,7 +768,7 @@ CSL = Dialect(
         LayoutOp,
         SetRectangleOp,
         SetTileCodeOp,
-        ExportNameOp,
+        SymbolExportOp,
         ConstStrOp,
         ConstTypeOp,
         ConstStructOp,
