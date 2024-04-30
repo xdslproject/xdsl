@@ -93,6 +93,35 @@ def task_kind_to_color_bits(kind: TaskKind):
         case TaskKind.CONTROL: return 6
 
 
+@dataclass(frozen=True)
+class InModuleKind(OpTrait):
+    """
+    Constrain an op to a particular module kind
+
+    Optionally specify if the op has to be a direct child of ModuleOp
+    (default is yes).
+    """
+
+    def __init__(self, kind: ModuleKind, *, direct_child: bool = True):
+        super().__init__((kind, direct_child))
+
+    def verify(self, op: Operation) -> None:
+        kind: ModuleKind = self.parameters[0]
+        direct_child: bool = self.parameters[1]
+
+        direct = "direct" if direct_child else "indirect"
+        parent_module = op.parent_op()
+        if not direct_child:
+            while parent_module is not None and not isinstance(parent_module, ModuleOp):
+                parent_module = parent_module.parent_op()
+        if not isinstance(parent_module, ModuleOp):
+            raise VerifyException(
+                f"'{op.name}' expexts {direct} parent to be {ModuleOp.name}, got {parent_module}")
+        if parent_module.kind.data != kind:
+            raise VerifyException(
+                f"'{op.name}' expexts {direct} parent to be {ModuleOp.name} of kind {kind.value}")
+
+
 @irdl_attr_definition
 class TaskKindAttr(EnumAttribute[TaskKind], SpacedOpaqueSyntaxAttribute):
     name = "csl.task_kind"
@@ -634,7 +663,7 @@ class LayoutOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator()])
+    traits = frozenset([NoTerminator(), InModuleKind(ModuleKind.LAYOUT)])
 
     def __init__(self, ops: Sequence[Operation] | Region):
         if not isinstance(ops, Region):
@@ -650,20 +679,13 @@ class LayoutOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print(' ', self.body)
 
-    def verify_(self) -> None:
-        parent = self.parent_op()
-        if not isinstance(parent, ModuleOp):
-            raise VerifyException(f"Expected parent to be a {ModuleOp.name}")
-        if parent.kind.data != ModuleKind.LAYOUT:
-            raise VerifyException(
-                f"Expected parent module to be a of kind {ModuleKind.LAYOUT.value}")
 
-
-# TODO(dk949): tag builtins for easier printing?
 
 @irdl_op_definition
 class SetRectangleOp(IRDLOperation):
     name = "csl.set_rectangle"
+
+    traits = frozenset([InModuleKind(ModuleKind.LAYOUT, direct_child=False)])
 
     x_dim = operand_def(IntegerType)
     y_dim = operand_def(IntegerType)
@@ -672,6 +694,8 @@ class SetRectangleOp(IRDLOperation):
 @irdl_op_definition
 class SetTileCodeOp(IRDLOperation):
     name = "csl.set_tile_code"
+
+    traits = frozenset([InModuleKind(ModuleKind.LAYOUT, direct_child=False)])
 
     file = prop_def(StringAttr)
 
