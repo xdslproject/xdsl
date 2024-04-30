@@ -91,13 +91,17 @@ class HasAncestor(OpTrait):
                 f"'{op.name}' expects ancestor op to be one of {names}"
             )
 
+    def walk_ancestors(self, op: Operation) -> Iterator[Operation]:
+        """Iterates over the ancestors of an operation, including the input"""
+        curr = op
+        yield curr
+        while (curr := curr.parent_op()) is not None:
+            yield curr
+
     def get_ancestor(self, op: Operation) -> Operation | None:
-        parent = op.parent_op()
-        while not isinstance(parent, self.parameters):
-            if parent is None:
-                return None
-            parent = parent.parent_op()
-        return parent
+        ancestors = self.walk_ancestors(op)
+        matching_ancestors = (a for a in ancestors if isinstance(a, self.parameters))
+        return next(matching_ancestors, None)
 
 
 class IsTerminator(OpTrait):
