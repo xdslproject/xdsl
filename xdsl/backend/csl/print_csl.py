@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from xdsl.dialects import arith, csl, scf
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    BoolAttr,
     DictionaryAttr,
     Float16Type,
     Float32Type,
@@ -37,6 +38,9 @@ class CslPrintContext:
 
     _prefix: str = field(default="")
 
+    _symbols_to_export: dict[str, tuple[TypeAttribute, BoolAttr]] \
+        = field(default_factory=dict)
+
     def print(self, text: str, prefix: str = "", end: str = "\n"):
         """
         Print `text` line by line, prefixed by self._prefix and prefix.
@@ -45,8 +49,8 @@ class CslPrintContext:
             print(self._prefix + prefix + l, file=self.output, end=end)
 
     @contextmanager
-    def _in_comptime(self):
-        self.print("comptime {")
+    def _in_block(self, block_name: str):
+        self.print(f"{block_name} {{")
         old_prefix = self._prefix
         self._prefix += self._INDENT_SIZE * " "
         yield
@@ -185,7 +189,7 @@ class CslPrintContext:
         return str(id)
 
     def _bind_task(self, name: str, kind: csl.TaskKind, id: int):
-        with self._in_comptime():
+        with self._in_block("comptime"):
             self.print(
                 f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({
                     self._wrapp_task_id(kind, id)}));")
@@ -265,9 +269,12 @@ class CslPrintContext:
                     self.descend().print_block(bdy.block)
                     self.print("}")
                 case csl.LayoutOp(body=bdy):
-                    self.print("layout {")
-                    self.descend().print_block(bdy.block)
-                    self.print("}")
+                    with self._in_block("layout"):
+                        self.print_block(bdy.block)
+                        for name, val in self._symbols_to_export.items():
+                            ty, mut = (self.attribute_value_to_str(v)
+                                       for v in val)
+                            self.print(f"@export_name({name}, {ty}, {mut});")
                 case csl.SetTileCodeOp(file=file, x_coord=x_coord, y_coord=y_coord, params=params):
                     file = self.attribute_value_to_str(file)
                     x = self._get_variable_name_for(x_coord)
@@ -281,11 +288,14 @@ class CslPrintContext:
                     y = self._get_variable_name_for(y_dim)
                     self.print(
                         f"@set_rectangle({x}, {y});")
-                case csl.ExportNameOp(var_name=name, type=type, mutable=mut):
+                case csl.SymbolExportOp(value=val, var_name=name, type=ty, mutable=mut):
                     name = self.attribute_value_to_str(name)
-                    type = self.attribute_value_to_str(type)
+                    self._symbols_to_export[name] = ty, mut
+                    ty = self.attribute_value_to_str(ty)
                     mut = self.attribute_value_to_str(mut)
-                    self.print(f"@export_name({name}, {type}, {mut});")
+                    val = self._get_variable_name_for(val)
+                    with self._in_block("comptime"):
+                        self.print(f"@export_symbol({val}, {name});")
                 case csl.GetColorOp(id=id, res=res):
                     id = self.attribute_value_to_str(id)
                     var = self._get_variable_name_for(res)
@@ -367,6 +377,6 @@ def print_to_csl(prog: ModuleOp, output: IO[str]):
     """
     ctx = CslPrintContext(output)
     layout, program = _get_layout_program(prog.body.block.ops)
-    ctx.print_module(layout)
-    ctx.print_divider()
     ctx.print_module(program)
+    ctx.print_divider()
+    ctx.print_module(layout)
