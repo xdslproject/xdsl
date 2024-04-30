@@ -152,6 +152,7 @@ def test_llvm_getelementptr_op():
     )
 
     assert "elem_type" in gep2.properties
+    assert gep2.elem_type == builtin.i32
     assert "inbounds" not in gep2.properties
     assert gep2.result.type == ptr_type
     assert len(gep1.rawConstantIndices.data) == 1
