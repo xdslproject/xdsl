@@ -713,7 +713,16 @@ class M_MR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.r2
+        destination = _assembly_arg_str(self.r1)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            if self.offset.value.data > 0:
+                destination = f"[{destination}+{offset}]"
+            else:
+                destination = f"[{destination}{offset}]"
+        else:
+            destination = f"[{destination}]"
+        return destination, self.r2
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -730,27 +739,6 @@ class M_MR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
         if self.offset is not None:
             _print_immediate_value(printer, self.offset)
         return {"offset"}
-
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        destination = _assembly_arg_str(self.r1)
-        source = _assembly_arg_str(self.r2)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                return _assembly_line(
-                    instruction_name,
-                    f"[{destination}+{offset}], {source}",
-                    self.comment,
-                )
-            else:
-                return _assembly_line(
-                    instruction_name, f"[{destination}{offset}], {source}", self.comment
-                )
-        else:
-            return _assembly_line(
-                instruction_name, f"[{destination}], {source}", self.comment
-            )
 
 
 @irdl_op_definition
