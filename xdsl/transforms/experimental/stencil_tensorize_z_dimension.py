@@ -41,12 +41,12 @@ from xdsl.pattern_rewriter import (
 )
 
 
-def get_successors_tensorised_type(op: Operand) -> TensorType | None:
+def get_required_result_type(op: Operand) -> TensorType | None:
     for result in op.results:
         for use in result.uses:
             if isinstance(use.operation, ReturnOp):
                 for ret in use.operation.parent_op().results:
-                    if is_tensorised(ret.type):
+                    if is_tensorized(ret.type):
                         return ret.type.get_element_type()
                 # abort when encountering an un-tensorized ReturnOp successor
                 return None
@@ -128,7 +128,7 @@ class LoadOpToExtractSlice(RewritePattern):
 class AccessOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
-        if not is_tensorised(op.operands[0].type) or len(op.offset) != 3:
+        if not is_tensorized(op.operands[0].type) or len(op.offset) != 3:
             return
         xy_offsets, z_offset = (
             tuple(o for o in op.offset)[:-1],
@@ -188,7 +188,7 @@ class ArithOpTensorize(RewritePattern):
 class ReturnOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
-        if all(is_tensorised(r.type) for r in op.parent_op().res):
+        if all(is_tensorized(r.type) for r in op.parent_op().res):
             pass
 
 
@@ -196,8 +196,8 @@ class ReturnOpTensorize(RewritePattern):
 class ApplyOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        if all(is_tensorised(arg.type) for arg in op.args) and all(
-            not is_tensorised(r.type) for r in op.res
+        if all(is_tensorized(arg.type) for arg in op.args) and all(
+            not is_tensorized(r.type) for r in op.res
         ):
             b = op.region.block
             # TODO check if block args need updating
@@ -221,7 +221,7 @@ class FuncOpTensorize(RewritePattern):
             op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
 
 
-def is_tensorised(typ):
+def is_tensorized(typ):
     return len(typ.get_shape()) == 2 and isinstance(typ, ContainerType)
 
 
@@ -236,7 +236,7 @@ def is_scalar(typ):
 class ExternalLoadOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
-        if is_tensorised(op.field.type) and not is_tensorised(op.result.type):
+        if is_tensorized(op.field.type) and not is_tensorized(op.result.type):
             rewriter.replace_matched_op(
                 ExternalLoadOp.get(op.field, stencil_field_to_tensor(op.result.type))
             )
@@ -245,7 +245,7 @@ class ExternalLoadOpTensorize(RewritePattern):
 class LoadOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        if is_tensorised(op.field.type) and not is_tensorised(op.res.type):
+        if is_tensorized(op.field.type) and not is_tensorized(op.res.type):
             rewriter.replace_matched_op(
                 LoadOp.get(
                     op.field,
@@ -255,10 +255,10 @@ class LoadOpTensorize(RewritePattern):
             )
 
 
-class AccessOpInferShape(RewritePattern):
+class AccessOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
-        if typ := get_successors_tensorised_type(op):
+        if typ := get_required_result_type(op):
             if needs_update_shape(op.res.type, typ):
                 rewriter.replace_matched_op(
                     AccessOp.build(
@@ -267,10 +267,10 @@ class AccessOpInferShape(RewritePattern):
                 )
 
 
-class ExtractSliceOpInferShape(RewritePattern):
+class ExtractSliceOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
-        if typ := get_successors_tensorised_type(op):
+        if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
                 rewriter.replace_matched_op(
                     ExtractSliceOp.from_static_parameters(
@@ -279,10 +279,10 @@ class ExtractSliceOpInferShape(RewritePattern):
                 )
 
 
-class ArithOpInferShape(RewritePattern):
+class ArithOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BinaryOperation, rewriter: PatternRewriter, /):
-        if typ := get_successors_tensorised_type(op):
+        if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
                 ctor = None
                 if isinstance(op, Addf):
@@ -298,18 +298,18 @@ class ArithOpInferShape(RewritePattern):
                 )
 
 
-class EmptyOpInferShape(RewritePattern):
+class EmptyOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: EmptyOp, rewriter: PatternRewriter, /):
-        if typ := get_successors_tensorised_type(op):
+        if typ := get_required_result_type(op):
             if needs_update_shape(op.results[0].type, typ):
                 rewriter.replace_matched_op(EmptyOp((), typ))
 
 
-class FillOpInferShape(RewritePattern):
+class FillOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FillOp, rewriter: PatternRewriter, /):
-        if typ := get_successors_tensorised_type(op):
+        if typ := get_required_result_type(op):
             if needs_update_shape(op.results[0].type, typ):
                 rewriter.replace_matched_op(
                     FillOp(op.inputs, op.outputs, [typ] * len(op.outputs))
@@ -317,13 +317,12 @@ class FillOpInferShape(RewritePattern):
 
 
 @dataclass(frozen=True)
-class StencilTensorizeDimension(ModulePass):
-    name = "stencil-tensorize-dimension"
-    # dimension: int
+class StencilTensorizeZDimension(ModulePass):
+    name = "stencil-tensorize-z-dimension"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         # ctx.get_optional_op("bufferization.materialize_in_destination")
-        the_one_pass = PatternRewriteWalker(
+        module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     FuncOpTensorize(),
@@ -337,8 +336,8 @@ class StencilTensorizeDimension(ModulePass):
             walk_reverse=False,
             apply_recursively=False,
         )
-        the_one_pass.rewrite_module(op)
-        the_second_pass = PatternRewriteWalker(
+        module_pass.rewrite_module(op)
+        stencil_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     AccessOpTensorize(),
@@ -348,15 +347,15 @@ class StencilTensorizeDimension(ModulePass):
             walk_reverse=False,
             apply_recursively=False,
         )
-        the_second_pass.rewrite_module(op)
+        stencil_pass.rewrite_module(op)
         backpropagate_stencil_shapes = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    AccessOpInferShape(),
-                    ExtractSliceOpInferShape(),
-                    EmptyOpInferShape(),
-                    FillOpInferShape(),
-                    ArithOpInferShape(),
+                    AccessOpUpdateShape(),
+                    ExtractSliceOpUpdateShape(),
+                    EmptyOpUpdateShape(),
+                    FillOpUpdateShape(),
+                    ArithOpUpdateShape(),
                 ]
             ),
             walk_reverse=True,
