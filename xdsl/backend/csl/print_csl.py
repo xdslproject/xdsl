@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import IO, cast
+from contextlib import contextmanager
 
 from xdsl.dialects import arith, csl, scf
 from xdsl.dialects.builtin import (
@@ -42,6 +43,16 @@ class CslPrintContext:
         """
         for l in text.split("\n"):
             print(self._prefix + prefix + l, file=self.output, end=end)
+
+    @contextmanager
+    def _in_comptime(self):
+        self.print("comptime {")
+        old_prefix = self._prefix
+        self._prefix += self._INDENT_SIZE * " "
+        yield
+        self._prefix = old_prefix
+        self.print("}")
+        pass
 
     def _get_variable_name_for(self, val: SSAValue, hint: str | None = None) -> str:
         """
@@ -174,12 +185,10 @@ class CslPrintContext:
         return str(id)
 
     def _bind_task(self, name: str, kind: csl.TaskKind, id: int):
-        self.print("comptime {")
-        self.print(
-            f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({
-                self._wrapp_task_id(kind, id)}));",
-            prefix=' ' * self._INDENT_SIZE)
-        self.print("}")
+        with self._in_comptime():
+            self.print(
+                f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({
+                    self._wrapp_task_id(kind, id)}));")
 
     def print_block(self, body: Block):
         """
