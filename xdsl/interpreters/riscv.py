@@ -19,7 +19,7 @@ from xdsl.interpreter import (
     impl_cast,
     register_impls,
 )
-from xdsl.interpreters.ptr import RawPtr
+from xdsl.interpreters import ptr
 from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned
@@ -149,7 +149,7 @@ class RiscvFunctions(InterpreterFunctions):
         )
 
     @staticmethod
-    def stack(interpreter: Interpreter) -> RawPtr:
+    def stack(interpreter: Interpreter) -> ptr.RawPtr:
         """
         Stack memory, by default 1mb.
         """
@@ -157,12 +157,12 @@ class RiscvFunctions(InterpreterFunctions):
         return interpreter.get_data(
             RiscvFunctions,
             STACK_KEY,
-            lambda: RawPtr(bytearray(stack_size), offset=stack_size),
+            lambda: ptr.RawPtr(bytearray(stack_size), offset=stack_size),
         )
 
     @staticmethod
-    def get_data(module_op: ModuleOp) -> dict[str, RawPtr]:
-        data: dict[str, RawPtr] = {}
+    def get_data(module_op: ModuleOp) -> dict[str, ptr.RawPtr]:
+        data: dict[str, ptr.RawPtr] = {}
         for op in module_op.ops:
             if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
@@ -186,7 +186,9 @@ class RiscvFunctions(InterpreterFunctions):
                             case ".word":
                                 hexs = data_op.value.data.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
-                                data[label.label.data] = RawPtr.new_int32(ints)
+                                data[label.label.data] = ptr.TypedPtr.new_int32(
+                                    ints
+                                ).raw
                             case _:
                                 raise InterpretationError(
                                     "Cannot interpret data directive "
@@ -202,7 +204,7 @@ class RiscvFunctions(InterpreterFunctions):
 
     def get_immediate_value(
         self, interpreter: Interpreter, imm: AnyIntegerAttr | riscv.LabelAttr
-    ) -> int | RawPtr:
+    ) -> int | ptr.RawPtr:
         match imm:
             case IntegerAttr():
                 return imm.value.data
@@ -241,7 +243,7 @@ class RiscvFunctions(InterpreterFunctions):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         unsigned_lhs = to_unsigned(args[0], self.bitwidth)
         imm = self.get_immediate_value(interpreter, op.immediate)
-        if isinstance(imm, RawPtr):
+        if isinstance(imm, ptr.RawPtr):
             raise NotImplementedError("Cannot compare pointer in interpreter")
         unsigned_imm = to_unsigned(imm, self.bitwidth)
         results = (int(unsigned_lhs < unsigned_imm),)
@@ -396,6 +398,7 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = self.get_immediate_value(interpreter, op.immediate)
+        assert isinstance(offset, int)
         results = ((args[0] + offset).float32[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
@@ -499,7 +502,8 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        (args[0] + op.immediate.value.data).float64[0] = args[1]
+        offset = op.immediate.value.data
+        (args[0] + offset).float64[0] = args[1]
         return ()
 
     @impl(riscv.FLdOp)
@@ -511,6 +515,7 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = self.get_immediate_value(interpreter, op.immediate)
+        assert isinstance(offset, int)
         results = ((args[0] + offset).float64[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 

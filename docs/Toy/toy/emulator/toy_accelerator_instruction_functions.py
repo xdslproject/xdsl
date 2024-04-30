@@ -2,7 +2,8 @@ from typing import Any
 
 from xdsl.dialects import riscv
 from xdsl.interpreter import Interpreter, PythonValues, impl, register_impls
-from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
+from xdsl.interpreters.ptr import RawPtr
+from xdsl.interpreters.riscv import RiscvFunctions
 
 
 @register_impls

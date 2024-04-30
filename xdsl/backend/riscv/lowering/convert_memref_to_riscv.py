@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnrealizedConversionCastOp,
 )
-from xdsl.interpreters.riscv import RawPtr
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.ir import Attribute, MLContext, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -247,13 +247,13 @@ class ConvertMemrefGlobalOp(RewritePattern):
                 for i in ints:
                     assert isinstance(i, int)
                 ints = cast(list[int], ints)
-                ptr = RawPtr.new_int32(ints)
+                ptr = TypedPtr.new_int32(ints).raw
             case Float32Type():
                 floats = [d.value.data for d in initial_value.data]
-                ptr = RawPtr.new_float32(floats)
+                ptr = TypedPtr.new_float32(floats).raw
             case Float64Type():
                 floats = [d.value.data for d in initial_value.data]
-                ptr = RawPtr.new_float64(floats)
+                ptr = TypedPtr.new_float64(floats).raw
             case _:
                 raise DiagnosticException(
                     f"Unsupported memref element type for riscv lowering: {element_type}"
