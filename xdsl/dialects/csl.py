@@ -160,6 +160,7 @@ class ParamOp(IRDLOperation):
     # TODO(dk949): how to verify that the init property is of correct type
     init_value = opt_prop_def(Attribute)
 
+
 @irdl_op_definition
 class ConstStructOp(IRDLOperation):
     name = "csl.const_struct"
@@ -168,24 +169,6 @@ class ConstStructOp(IRDLOperation):
     ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
     ssa_values = var_operand_def()
     res = result_def(ComptimeStructType)
-
-    def __init__(self,
-                 items: dict[str, Attribute] | DictionaryAttr | None,
-                 ssa_fields: list[str | StringAttr]
-                 | ArrayAttr[StringAttr]
-                 | None = None,
-                 ssa_values: Sequence[SSAValue | Operation] | None = None,
-                 ):
-        if isinstance(items, dict):
-            items = DictionaryAttr(items)
-
-        if isinstance(ssa_fields, list):
-            ssa_fields = ArrayAttr([StringAttr(f) if isinstance(f, str) else f
-                                    for f in ssa_fields])
-        super().__init__(result_types=[ComptimeStructType()],
-                         properties={"items": items,
-                                     "ssa_fields": ssa_fields},
-                         operands=ssa_values)
 
     def verify_(self) -> None:
         if self.ssa_fields is None:
