@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Annotated
 
 from xdsl.dialects import builtin
@@ -38,7 +39,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.irdl.irdl import ParameterDef
+from xdsl.irdl.irdl import Operand, ParameterDef
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -46,6 +47,7 @@ from xdsl.traits import (
     IsTerminator,
     IsolatedFromAbove,
     NoTerminator,
+    OpTrait,
     SymbolOpInterface,
     SymbolTable)
 from xdsl.utils.exceptions import VerifyException
@@ -658,6 +660,28 @@ class ReturnOp(IRDLOperation):
 
 
 @irdl_op_definition
+class AddressOfOp(IRDLOperation):
+    name = "csl.addressof"
+
+    # TODO(dk949): make sure that the kind of pointer matches the kind of the pontee
+    #              I.e. pointer to scalar is single pointer to array is many
+
+    value = operand_def()
+    res = result_def(PtrType)
+
+    def __init__(self, val: Operand, type: PtrType):
+        super().__init__(operands=[val], result_types=[type])
+
+    def verify_(self) -> None:
+        if not isinstance(self.res.type, PtrType):
+            raise VerifyException("Result type must be a pointer")
+        if self.res.type.get_element_type() != self.value.type:
+            raise VerifyException(
+                "Contained type of the result pointer must match the operand type")
+        return super().verify_()
+
+
+@irdl_op_definition
 class LayoutOp(IRDLOperation):
     name = "csl.layout"
 
@@ -678,7 +702,6 @@ class LayoutOp(IRDLOperation):
 
     def print(self, printer: Printer):
         printer.print(' ', self.body)
-
 
 
 @irdl_op_definition
@@ -740,7 +763,8 @@ CSL = Dialect(
         ConstTypeOp,
         ConstStructOp,
         GetColorOp,
-        ParamOp
+        ParamOp,
+        AddressOfOp
     ],
     [
         ComptimeStructType,
