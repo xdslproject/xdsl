@@ -883,7 +883,10 @@ class AttrParser(BaseParser):
 
         self.parse_characters(":", " in dense array")
 
-        values = self.parse_comma_separated_list(self.Delimiter.NONE, self.parse_number)
+        values = self.parse_comma_separated_list(
+            self.Delimiter.NONE, lambda: self.parse_number(allow_boolean=True)
+        )
+
         self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
@@ -1027,6 +1030,27 @@ class AttrParser(BaseParser):
         else:
             element = self._parse_tensor_literal_element()
             return [element], []
+
+    def parse_optional_visibility_keyword(self) -> StringAttr | None:
+        """
+        Parses the visibility keyword of a symbol if present.
+        """
+        if self.parse_optional_keyword("public"):
+            return StringAttr("public")
+        elif self.parse_optional_keyword("nested"):
+            return StringAttr("nested")
+        elif self.parse_optional_keyword("private"):
+            return StringAttr("private")
+        else:
+            return None
+
+    def parse_visibility_keyword(self) -> StringAttr:
+        """
+        Parses the visibility keyword of a symbol.
+        """
+        return self.expect(
+            self.parse_optional_visibility_keyword, "expect symbol visibility keyword"
+        )
 
     def parse_optional_symbol_name(self) -> StringAttr | None:
         """

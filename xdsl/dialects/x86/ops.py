@@ -25,6 +25,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    attr_def,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -548,6 +549,136 @@ class RM_MovOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.rm.mov"
+
+
+class R_RI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one register and an immediate value.
+    """
+
+    r1 = operand_def(R1InvT)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the deault immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(32, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
+@irdl_op_definition
+class RI_AddOp(R_RI_Operation[GeneralRegisterType]):
+    """
+    Adds the immediate value to r1 and stores the result in r1.
+    x[r1] = x[r1] + immediate
+    https://www.felixcloutier.com/x86/add
+    """
+
+    name = "x86.ri.add"
+
+
+@irdl_op_definition
+class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
+    """
+    Subtracts the immediate value from r1 and stores the result in r1.
+    x[r1] = x[r1] - immediate
+    https://www.felixcloutier.com/x86/sub
+    """
+
+    name = "x86.ri.sub"
+
+
+@irdl_op_definition
+class RI_ImulOp(R_RI_Operation[GeneralRegisterType]):
+    """
+    Multiplies r1 with the immediate value and stores the result in r1.
+    x[r1] = x[r1] * immediate
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.ri.imul"
+
+
+@irdl_op_definition
+class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
+    """
+    bitwise and of r1 and immediate, stored in r1
+    x[r1] = x[r1] & immediate
+    https://www.felixcloutier.com/x86/and
+    """
+
+    name = "x86.ri.and"
+
+
+@irdl_op_definition
+class RI_OrOp(R_RI_Operation[GeneralRegisterType]):
+    """
+    bitwise or of r1 and immediate, stored in r1
+    x[r1] = x[r1] | immediate
+    https://www.felixcloutier.com/x86/or
+    """
+
+    name = "x86.ri.or"
+
+
+@irdl_op_definition
+class RI_XorOp(R_RI_Operation[GeneralRegisterType]):
+    """
+    bitwise xor of r1 and immediate, stored in r1
+    x[r1] = x[r1] ^ immediate
+    https://www.felixcloutier.com/x86/xor
+    """
+
+    name = "x86.ri.xor"
+
+
+@irdl_op_definition
+class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
+    """
+    Copies the immediate value into r1.
+    x[r1] = immediate
+    https://www.felixcloutier.com/x86/mov
+    """
+
+    name = "x86.ri.mov"
 
 
 # region Assembly printing
