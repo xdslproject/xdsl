@@ -311,6 +311,15 @@ class CslPrintContext:
                         self.attribute_value_to_str(init)}" if init else ""
                     ty = self.mlir_type_to_csl_type(res.type)
                     self.print(f"param {name.data} : {ty}{init};")
+                case csl.AddressOfOp(value=val, res=res):
+                    val_name = self._get_variable_name_for(val)
+                    res_name = self._get_variable_name_for(res)
+                    res_type = self.mlir_type_to_csl_type(res.type)
+                    match cast(csl.PtrType, res.type).constness.data:
+                        case csl.PtrConst.CONST: const = "const"
+                        case csl.PtrConst.MUT: const = "var"
+                    self.print(
+                        f"{const} {res_name} : {res_type} = &{val_name};")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
