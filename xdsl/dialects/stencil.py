@@ -1007,32 +1007,8 @@ class StoreOp(IRDLOperation):
 
     name = "stencil.store"
 
-    temp: Operand = operand_def(
-        ParamAttrConstraint(
-            TempType,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
-        )
-    )
-    field: Operand = operand_def(
-        ParamAttrConstraint(
-            FieldType,
-            [
-                MessageConstraint(
-                    StencilBoundsAttr, "Output type's size must be explicit"
-                ),
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
-        )
-    )
+    temp: Operand = operand_def(TempType)
+    field: Operand = operand_def(FieldType)
     lb: IndexAttr = attr_def(IndexAttr)
     ub: IndexAttr = attr_def(IndexAttr)
 
