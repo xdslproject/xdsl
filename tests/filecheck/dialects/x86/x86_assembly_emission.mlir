@@ -69,3 +69,18 @@ x86.mr.xor %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
 // CHECK: xor [rax+8], rdx
 x86.mr.mov %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
 // CHECK: mov [rax+8], rdx
+
+x86.mi.add %0, 2 : (!x86.reg<rax>) -> ()
+// CHECK: add [rax], 2
+x86.mi.add %0, 2, 8 : (!x86.reg<rax>) -> ()
+// CHECK: add [rax+8], 2
+x86.mi.sub %0, 2, -8 : (!x86.reg<rax>) -> ()
+// CHECK: sub [rax-8], 2
+x86.mi.and %0, 2, 8 : (!x86.reg<rax>) -> ()
+// CHECK: and [rax+8], 2
+x86.mi.or %0, 2, 8 : (!x86.reg<rax>) -> ()
+// CHECK: or [rax+8], 2
+x86.mi.xor %0, 2, 8 : (!x86.reg<rax>) -> ()
+// CHECK: xor [rax+8], 2
+x86.mi.mov %0, 2, 8 : (!x86.reg<rax>) -> ()
+// CHECK: mov [rax+8], 2
