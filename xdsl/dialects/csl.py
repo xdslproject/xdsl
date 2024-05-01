@@ -675,9 +675,26 @@ class AddressOfOp(IRDLOperation):
     def verify_(self) -> None:
         if not isinstance(self.res.type, PtrType):
             raise VerifyException("Result type must be a pointer")
-        if self.res.type.get_element_type() != self.value.type:
-            raise VerifyException(
-                "Contained type of the result pointer must match the operand type")
+
+        v_ty = self.value.type
+        r_ty = self.res.type
+        r_elem_ty = r_ty.get_element_type()
+        if isa(v_ty, builtin.TensorType[Attribute]):
+            if r_elem_ty == v_ty.get_element_type():
+                if r_ty.kind.data != PtrKind.MANY:
+                    raise VerifyException(
+                        f"The kind of scalar pointer to array has to be {PtrKind.MANY.value}")
+            elif r_elem_ty == v_ty:
+                if r_ty.kind.data != PtrKind.SINGLE:
+                    raise VerifyException(
+                        f"The kind of array pointer to array has to be {PtrKind.SINGLE.value}")
+            else:
+                raise VerifyException(
+                    "Contained type of the result pointer must match the contained type of the operand tensor or the tensor itself")
+        else:
+            if r_ty.get_element_type() != v_ty:
+                raise VerifyException(
+                    "Contained type of the result pointer must match the operand type")
         return super().verify_()
 
 
