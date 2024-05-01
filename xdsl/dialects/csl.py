@@ -771,6 +771,22 @@ class GetColorOp(IRDLOperation):
     res = result_def(ColorType)
 
 
+@irdl_op_definition
+class ArrayOp(IRDLOperation):
+    name = "csl.decl_array"
+
+    # TODO(dk949): transform from memref global to this
+
+    init = opt_prop_def(Attribute)
+    type = prop_def(builtin.TensorType[TypeAttribute])
+    res = result_def(builtin.TensorType)
+
+    def verify_(self) -> None:
+        if self.type != self.res.type:
+            raise VerifyException("type must match the result type")
+        return super().verify_()
+
+
 CSL = Dialect(
     "csl",
     [
@@ -791,7 +807,8 @@ CSL = Dialect(
         ConstStructOp,
         GetColorOp,
         ParamOp,
-        AddressOfOp
+        AddressOfOp,
+        ArrayOp,
     ],
     [
         ComptimeStructType,
