@@ -169,15 +169,15 @@ class ReturnOpToMemref(RewritePattern):
                 if isinstance(arg.type, ResultType):
                     result_owner = _find_result_store(arg)
                     for owner in result_owner:
-                        if owner.args:
+                        if owner.arg:
                             if target is not None:
-                                store = memref.Store.get(owner.args[0], target, args)
+                                store = memref.Store.get(owner.arg, target, args)
                             else:
                                 store = list[Operation]()
                             rewriter.replace_op(
                                 owner,
                                 store,
-                                new_results=[owner.args[0]],
+                                new_results=[owner.arg],
                             )
                         else:
                             dummy = UnrealizedConversionCastOp.get([], [arg.type.elem])
@@ -418,37 +418,29 @@ class AccessOpToMemref(RewritePattern):
         assert (block := op.parent_block()) is not None
 
         memref_offset = op.offset
-        if op.offset_mapping is not None:
-            max_idx = 0
-            for i in op.offset_mapping:
-                if i.data + 1 > max_idx:
-                    max_idx = i.data + 1
-            args = collectBlockArguments(max_idx, block)
-            # Reverse the list as arguments are collated in the opposite
-            # order to the stencil.apply ordering (e.g. the top most loop is
-            # front of the list, rather than at the end)
-            args.reverse()
-        else:
-            args = collectBlockArguments(len(memref_offset), block)
+
+        block_args = block.args
+        mapping = (
+            op.offset_mapping
+            if op.offset_mapping is not None
+            else range(len(memref_offset))
+        )
+
+        args = [block_args[i] for i in mapping]
 
         off_const_ops: list[Operation] = []
         memref_load_args: list[BlockArgument | OpResult] = []
 
         # This will apply an offset to the index if one is required
         # (e.g the offset is not zero), otherwise will use the index value directly
-        for i, x in enumerate(memref_offset):
-            block_arg = (
-                args[list(op.offset_mapping)[i].data]
-                if op.offset_mapping is not None
-                else args[i]
-            )
+        for arg, x in zip(args, memref_offset):
             if x != 0:
                 constant_op = arith.Constant.from_int_and_width(x, builtin.IndexType())
-                add_op = arith.Addi(block_arg, constant_op)
+                add_op = arith.Addi(arg, constant_op)
                 memref_load_args.append(add_op.results[0])
                 off_const_ops += [constant_op, add_op]
             else:
-                memref_load_args.append(block_arg)
+                memref_load_args.append(arg)
 
         load = memref.Load.get(op.temp, memref_load_args)
 

@@ -41,3 +41,33 @@ x86.r.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: xor rax, [rdx+8]
 %rm_mov = x86.rm.mov %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: mov rax, [rdx+8]
+
+%ri_add = x86.ri.add %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: add rax, 2
+%ri_sub = x86.ri.sub %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: sub rax, 2
+%ri_imul = x86.ri.imul %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: imul rax, 2
+%ri_and = x86.ri.and %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: and rax, 2
+%ri_or = x86.ri.or %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: or rax, 2
+%ri_xor = x86.ri.xor %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: xor rax, 2
+%ri_mov = x86.ri.mov %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
+// CHECK: mov rax, 2
+
+x86.mr.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
+// CHECK: add [rax], rdx
+x86.mr.add %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
+// CHECK: add [rax+8], rdx
+x86.mr.sub %0, %1, -8 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
+// CHECK: sub [rax-8], rdx
+x86.mr.and %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
+// CHECK: and [rax+8], rdx
+x86.mr.or %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
+// CHECK: or [rax+8], rdx
+x86.mr.xor %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
+// CHECK: xor [rax+8], rdx
+x86.mr.mov %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> ()
+// CHECK: mov [rax+8], rdx
