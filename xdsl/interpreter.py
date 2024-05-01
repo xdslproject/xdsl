@@ -8,6 +8,7 @@ from typing import (
     IO,
     Any,
     ClassVar,
+    Literal,
     NamedTuple,
     ParamSpec,
     TypeAlias,
@@ -15,7 +16,15 @@ from typing import (
 )
 
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Attribute, Block, Operation, OperationInvT, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    AttributeInvT,
+    Block,
+    Operation,
+    OperationInvT,
+    Region,
+    SSAValue,
+)
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
 
@@ -102,6 +111,21 @@ class InterpreterFunctions:
             raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
 
     @classmethod
+    def _attr_impls(
+        cls,
+    ) -> Iterable[
+        tuple[
+            type[Attribute],
+            AttrImpl[InterpreterFunctions, Attribute],
+        ]
+    ]:
+        try:
+            impl_dict = getattr(cls, _ATTR_IMPL_DICT)
+            return impl_dict.items()
+        except AttributeError as e:
+            raise ValueError(f"Use `@register_impls` on class {cls.__name__}") from e
+
+    @classmethod
     def _ext_impls(
         cls,
     ) -> Iterable[tuple[str, ExtFuncImpl[InterpreterFunctions]]]:
@@ -116,9 +140,11 @@ _FT = TypeVar("_FT", bound=InterpreterFunctions)
 
 _IMPL_OP_TYPE = "__impl_op_type"
 _CAST_IMPL_TYPES = "__cast_impl_types"
+_ATTR_IMPL_TYPES = "__attr_impl_types"
 _EXT_FUNC_NAME = "__external_func_name"
 _IMPL_DICT = "__impl_dict"
 _CAST_IMPL_DICT = "__cast_impl_dict"
+_ATTR_IMPL_DICT = "__attr_impl_dict"
 _EXT_FUNC_DICT = "__external_func_dict"
 
 P = ParamSpec("P")
@@ -211,6 +237,27 @@ def impl_cast(
     return annot
 
 
+def impl_attr(
+    input_type: type[AttributeInvT],
+) -> Callable[
+    [AttrImpl[_FT, AttributeInvT]],
+    AttrImpl[_FT, AttributeInvT],
+]:
+    """
+    Marks the conversion from an attribute to a Python value. The
+    `value_for_attribute` method on `Interpreter` will call into this implementation for
+    matching input and output types.
+
+    See `InterpreterFunctions` for more documentation.
+    """
+
+    def annot(func: AttrImpl[_FT, AttributeInvT]) -> AttrImpl[_FT, AttributeInvT]:
+        setattr(func, _ATTR_IMPL_TYPES, input_type)
+        return func
+
+    return annot
+
+
 def impl_external(
     sym_name: str,
 ) -> Callable[[ExtFuncImpl[_FT]], ExtFuncImpl[_FT]]:
@@ -237,6 +284,7 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
     impl_dict: _ImplDict = {}
     cast_impl_dict: _CastImplDict = {}
     external_func_dict: _ExtFuncImplDict = {}
+    attr_impl_dict: _AttrImplDict = {}
 
     for cls in ft.mro():
         # Iterate from subclass through superclasses
@@ -261,9 +309,16 @@ def register_impls(ft: type[_FT]) -> type[_FT]:
                 if sym_name not in external_func_dict:
                     # subclass overrides superclass definition
                     external_func_dict[sym_name] = val
+            elif _ATTR_IMPL_TYPES in val.__dir__():
+                # This is an attribute value implementation
+                types = getattr(val, _ATTR_IMPL_TYPES)
+                if types not in attr_impl_dict:
+                    # subclass overrides superclass definition
+                    attr_impl_dict[types] = val
 
     setattr(ft, _IMPL_DICT, impl_dict)
     setattr(ft, _CAST_IMPL_DICT, cast_impl_dict)
+    setattr(ft, _ATTR_IMPL_DICT, attr_impl_dict)
     setattr(ft, _EXT_FUNC_DICT, external_func_dict)
 
     return ft
@@ -286,6 +341,10 @@ class _InterpreterFunctionImpls:
         tuple[
             InterpreterFunctions, CastImpl[InterpreterFunctions, Attribute, Attribute]
         ],
+    ] = field(default_factory=dict)
+    _attr_impl_dict: dict[
+        type[Attribute],
+        tuple[InterpreterFunctions, AttrImpl[InterpreterFunctions, Attribute]],
     ] = field(default_factory=dict)
     _external_funcs_dict: dict[
         str, tuple[InterpreterFunctions, ExtFuncImpl[InterpreterFunctions]]
@@ -311,6 +370,16 @@ class _InterpreterFunctionImpls:
                 )
 
             self._cast_impl_dict[types] = (ft, cast_impl)
+
+        cast_impls = ft._attr_impls()  # pyright: ignore[reportPrivateUsage]
+        for types, cast_impl in cast_impls:
+            if types in self._attr_impl_dict and not override:
+                raise ValueError(
+                    "Attempting to register implementation for cast with types "
+                    f"{types}, but types already registered"
+                )
+
+            self._attr_impl_dict[types] = (ft, cast_impl)
 
         ext_impls = ft._ext_impls()  # pyright: ignore[reportPrivateUsage]
         for sym_name, ext_impl in ext_impls:
@@ -345,6 +414,15 @@ class _InterpreterFunctionImpls:
             )
         ft, impl = self._cast_impl_dict[types]
         return impl(ft, input_type, output_type, value)
+
+    def attr_value(self, interpreter: Interpreter, attr: Attribute) -> Any:
+        attr_type = type(attr)
+        if attr_type not in self._attr_impl_dict:
+            raise InterpretationError(
+                f"Could not find Python value implementation for types {attr_type}"
+            )
+        ft, impl = self._attr_impl_dict[attr_type]
+        return impl(ft, interpreter, attr)
 
     def call_external(
         self, interpreter: Interpreter, sym_name: str, op: Operation, args: PythonValues
@@ -406,6 +484,16 @@ class InterpreterContext:
         return "/".join(c.name for c in self.stack())
 
 
+def _get_system_bitwidth() -> Literal[32, 64] | None:
+    match platform.architecture()[0]:
+        case "64bit":
+            return 64
+        case "32bit":
+            return 32
+        case _:
+            return None
+
+
 @dataclass
 class Interpreter:
     """
@@ -421,19 +509,17 @@ class Interpreter:
         Base class for observing the operations that are interpreted during a run.
         """
 
-        def will_interpret_op(self, op: Operation, args: PythonValues) -> None:
-            ...
+        def will_interpret_op(self, op: Operation, args: PythonValues) -> None: ...
 
-        def did_interpret_op(self, op: Operation, results: PythonValues) -> None:
-            ...
+        def did_interpret_op(self, op: Operation, results: PythonValues) -> None: ...
 
-    SYSTEM_BITWIDTH: ClassVar[int | None] = {"64bit": 64, "32bit": 32}.get(
-        platform.architecture()[0]
+    SYSTEM_BITWIDTH: ClassVar[Literal[32, 64] | None] = _get_system_bitwidth()
+    DEFAULT_BITWIDTH: ClassVar[Literal[32, 64]] = (
+        32 if SYSTEM_BITWIDTH is None else SYSTEM_BITWIDTH
     )
-    DEFAULT_BITWIDTH: ClassVar[int] = 32 if SYSTEM_BITWIDTH is None else SYSTEM_BITWIDTH
 
     module: ModuleOp
-    index_bitwidth: int = field(default=DEFAULT_BITWIDTH)
+    index_bitwidth: Literal[32, 64] = field(default=DEFAULT_BITWIDTH)
     """
     Number of bits in the binary representation of the index
     """
@@ -507,8 +593,18 @@ class Interpreter:
         self._impls.register_from(impls, override=override)
 
     def _run_op(self, op: Operation, inputs: PythonValues) -> OpImplResult:
+        if (operands_count := len(op.operands)) != (inputs_count := len(inputs)):
+            raise InterpretationError(
+                f"Number of operands ({operands_count}) doesn't match the number of inputs ({inputs_count})."
+            )
         self.listener.will_interpret_op(op, inputs)
         result = self._impls.run(self, op, inputs)
+        if (results_count := len(op.results)) != (
+            actual_result_count := len(result.values)
+        ):
+            raise InterpretationError(
+                f"Number of operation results ({results_count}) doesn't match the number of implementation results ({actual_result_count})."
+            )
         self.listener.did_interpret_op(op, result.values)
         return result
 
@@ -610,6 +706,9 @@ class Interpreter:
 
         return self._impls.cast(o, r, value)
 
+    def value_for_attribute(self, attr: Attribute) -> Any:
+        return self._impls.attr_value(self, attr)
+
     def get_op_for_symbol(self, symbol: str) -> Operation:
         if symbol in self.symbol_table:
             return self.symbol_table[symbol]
@@ -707,12 +806,20 @@ CastImpl: TypeAlias = Callable[
     [_FT, _AttributeInvT0, _AttributeInvT1, Any],
     Any,
 ]
+AttrImpl: TypeAlias = Callable[
+    [_FT, Interpreter, AttributeInvT],
+    Any,
+]
 
 _ImplDict: TypeAlias = dict[type[Operation], OpImpl[InterpreterFunctions, Operation]]
 
 _CastImplDict: TypeAlias = dict[
     tuple[type[Attribute], type[Attribute]],
     CastImpl[InterpreterFunctions, Attribute, Attribute],
+]
+_AttrImplDict: TypeAlias = dict[
+    type[Attribute],
+    AttrImpl[InterpreterFunctions, Attribute],
 ]
 
 ExtFuncImpl: TypeAlias = Callable[

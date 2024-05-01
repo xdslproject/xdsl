@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IntAttr,
     IntegerType,
+    SymbolRefAttr,
     UnitAttr,
     i32,
 )
@@ -42,6 +43,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_simple_forgotten_op():
@@ -712,6 +714,23 @@ def test_dictionary_attr():
     assert_print_op(parsed, prog, None)
 
 
+def test_densearray_attr():
+    """Test that a DenseArrayAttr can be parsed and then printed."""
+
+    prog = """
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"bool_attrs" = array<i1: false, true>, "int_attr" = array<i32: 19, 23, 55>, "float_attr" = array<f32: 0.34>} : () -> ()
+    """
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+
+    assert_print_op(parsed, prog, None)
+
+
 def test_print_function_type():
     io = StringIO()
     printer = Printer(stream=io)
@@ -787,3 +806,48 @@ def test_print_properties_as_attributes_safeguard():
         match="Properties sym_name would overwrite the attributes of the same names.",
     ):
         assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+
+
+@pytest.mark.parametrize(
+    "attr,expected",
+    [
+        (SymbolRefAttr("foo"), "@foo"),
+        (SymbolRefAttr("weird name!!"), '@"weird name!!"'),
+        (
+            SymbolRefAttr("weird nested", ["yes", "very nested"]),
+            '@"weird nested"::@yes::@"very nested"',
+        ),
+    ],
+)
+def test_symbol_ref(attr: SymbolRefAttr, expected: str):
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+
+    printed = StringIO()
+    Printer(printed).print_attribute(attr)
+    assert printed.getvalue() == expected
+
+
+def test_get_printed_name():
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+
+    printer = Printer()
+    val = TestSSAValue(i32)
+
+    # Test printing without constraints
+    printer.stream = StringIO()
+    picked_name = printer.print_ssa_value(val)
+    assert f"%{picked_name}" == printer.stream.getvalue()
+
+    # Test printing when name has already been picked
+    printer.stream = StringIO()
+    picked_name = printer.print_ssa_value(val)
+    assert f"%{picked_name}" == printer.stream.getvalue()
+
+    # Test printing with name hint
+    val = TestSSAValue(i32)
+    val.name_hint = "foo"
+    printed = StringIO()
+    picked_name = Printer(printed).print_ssa_value(val)
+    assert f"%{picked_name}" == printed.getvalue()

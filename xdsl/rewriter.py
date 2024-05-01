@@ -1,6 +1,61 @@
-from collections.abc import Sequence
+from __future__ import annotations
 
-from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+
+from xdsl.ir import Block, Operation, Region, SSAValue
+
+
+@dataclass(frozen=True)
+class InsertPoint:
+    """
+    An insert point.
+    It is either a point before an operation, or at the end of a block.
+
+    https://mlir.llvm.org/doxygen/classmlir_1_1OpBuilder_1_1InsertPoint.html
+    """
+
+    block: Block
+    """The block where the insertion point is in."""
+
+    insert_before: Operation | None = field(default=None)
+    """
+    The insertion point is right before this operation.
+    If the operation is None, the insertion point is at the end of the block.
+    """
+
+    def __post_init__(self) -> None:
+        # Check that the insertion point is valid.
+        # An insertion point can only be invalid if `insert_before` is an `Operation`,
+        # and its parent is not `block`.
+        if self.insert_before is not None:
+            if self.insert_before.parent is not self.block:
+                raise ValueError("Insertion point must be in the builder's `block`")
+
+    @staticmethod
+    def before(op: Operation) -> InsertPoint:
+        """Gets the insertion point before an operation."""
+        if (block := op.parent_block()) is None:
+            raise ValueError("Operation insertion point must have a parent block")
+        return InsertPoint(block, op)
+
+    @staticmethod
+    def after(op: Operation) -> InsertPoint:
+        """Gets the insertion point after an operation."""
+        block = op.parent_block()
+        if block is None:
+            raise ValueError("Operation insertion point must have a parent block")
+        return InsertPoint(block, op.next_op)
+
+    @staticmethod
+    def at_start(block: Block) -> InsertPoint:
+        """Gets the insertion point at the start of a block."""
+        return InsertPoint(block, block.ops.first)
+
+    @staticmethod
+    def at_end(block: Block) -> InsertPoint:
+        """Gets the insertion point at the end of a block."""
+        return InsertPoint(block)
 
 
 class Rewriter:
@@ -63,47 +118,8 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
-    def inline_block_at_end(inlined_block: Block, extended_block: Block):
-        """
-        Move the block operations to the end of another block.
-        This block should not be a parent of the block to move to.
-        The block operations should not use the block arguments.
-        """
-        if inlined_block.is_ancestor(extended_block):
-            raise Exception("Cannot inline a block in a child block.")
-        for op in inlined_block.ops:
-            for operand in op.operands:
-                if (
-                    isinstance(operand, BlockArgument)
-                    and operand.block is extended_block
-                ):
-                    raise Exception(
-                        "Cannot inline block which has operations using "
-                        "the block arguments."
-                    )
-
-        ops = list(inlined_block.ops)
-        for block_op in ops:
-            block_op.detach()
-
-        extended_block.add_ops(ops)
-
-    @staticmethod
-    def inline_block_at_start(inlined_block: Block, extended_block: Block):
-        """
-        Move the block operations to the start of another block.
-        This block should not be a parent of the block to move to.
-        The block operations should not use the block arguments.
-        """
-        first_op_of_extended_block = extended_block.first_op
-        if first_op_of_extended_block is None:
-            Rewriter.inline_block_at_end(inlined_block, extended_block)
-        else:
-            Rewriter.inline_block_before(inlined_block, first_op_of_extended_block)
-
-    @staticmethod
-    def inline_block_before(
-        source: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    def inline_block_at_location(
+        source: Block, insertion_point: InsertPoint, arg_values: Sequence[SSAValue] = ()
     ):
         """
         Move the block operations before another operation.
@@ -122,8 +138,7 @@ class Rewriter:
 
         #  assert not block.predecessors, "expected 'source' to have no predecessors"
 
-        if (dest := op.parent) is None:
-            raise Exception("Cannot inline a block before a toplevel operation")
+        dest = insertion_point.block
 
         # TODO: verify that the successors will make sense after inlining
         # We currently cannot perform this check, just like the TODO above, due to lack
@@ -151,11 +166,45 @@ class Rewriter:
         for block_op in ops:
             block_op.detach()
 
-        dest.insert_ops_before(ops, op)
+        if (insert_before := insertion_point.insert_before) is not None:
+            dest.insert_ops_before(ops, insert_before)
+        else:
+            dest.add_ops(ops)
+
         parent_region = source.parent
         assert parent_region is not None
         parent_region.detach_block(source)
         source.erase()
+
+    @staticmethod
+    def inline_block_at_end(inlined_block: Block, extended_block: Block):
+        """
+        Move the block operations to the end of another block.
+        This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
+        """
+        Rewriter.inline_block_at_location(
+            inlined_block, InsertPoint.at_end(extended_block)
+        )
+
+    @staticmethod
+    def inline_block_at_start(inlined_block: Block, extended_block: Block):
+        """
+        Move the block operations to the start of another block.
+        This block should not be a parent of the block to move to.
+        The block operations should not use the block arguments.
+        """
+        Rewriter.inline_block_at_location(
+            inlined_block, InsertPoint.at_start(extended_block)
+        )
+
+    @staticmethod
+    def inline_block_before(
+        source: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    ):
+        Rewriter.inline_block_at_location(
+            source, InsertPoint.before(op), arg_values=arg_values
+        )
 
     @staticmethod
     def inline_block_after(block: Block, op: Operation):
@@ -204,18 +253,22 @@ class Rewriter:
         region.insert_block(block_list, pos)
 
     @staticmethod
+    def insert_ops_at_location(ops: Sequence[Operation], insertion_point: InsertPoint):
+        """Insert operations at a certain location in a block."""
+        if insertion_point.insert_before is not None:
+            insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)
+        else:
+            insertion_point.block.add_ops(ops)
+
+    @staticmethod
     def insert_op_after(op: Operation, new_op: Operation):
         """Inserts a new operation after another operation."""
-        if op.parent is None:
-            raise Exception("Cannot insert an operation after a toplevel operation")
-        op.parent.insert_ops_after((new_op,), op)
+        Rewriter.insert_ops_at_location((new_op,), InsertPoint.after(op))
 
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
         """Inserts a new operation before another operation."""
-        if op.parent is None:
-            raise Exception("Cannot insert an operation before a toplevel operation")
-        op.parent.insert_ops_before((new_op,), op)
+        Rewriter.insert_ops_at_location((new_op,), InsertPoint.before(op))
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:

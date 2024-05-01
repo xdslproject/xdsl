@@ -177,15 +177,7 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        # Parse visibility keyword if present
-        if parser.parse_optional_keyword("public"):
-            visibility = "public"
-        elif parser.parse_optional_keyword("nested"):
-            visibility = "nested"
-        elif parser.parse_optional_keyword("private"):
-            visibility = "private"
-        else:
-            visibility = None
+        visibility = parser.parse_optional_visibility_keyword()
         (
             name,
             input_types,

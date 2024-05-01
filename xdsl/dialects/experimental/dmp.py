@@ -7,6 +7,7 @@ This dialect aims to provide the tools necessary to facilitate the creation
 and lowering of stencil (and other) computations in a manner that
 makes them run on node clusters.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence

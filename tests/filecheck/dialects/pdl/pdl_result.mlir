@@ -2,7 +2,7 @@
 
 pdl.pattern @extractResult : benefit(1) {
   %types = pdl.types
-  %root = pdl.operation -> (%types : !pdl.range<!pdl.type>)
+  %root = pdl.operation -> (%types : !pdl.range<type>)
   %result = pdl.result 1 of %root
 
   pdl.rewrite %root with "test_rewriter"
@@ -13,7 +13,7 @@ pdl.pattern @extractResult : benefit(1) {
 
 pdl.pattern @extractAllResults : benefit(1) {
   %types = pdl.types
-  %root = pdl.operation -> (%types : !pdl.range<!pdl.type>)
+  %root = pdl.operation -> (%types : !pdl.range<type>)
   %result = pdl.results of %root
 
   pdl.rewrite %root with "test_rewriter"
@@ -24,8 +24,8 @@ pdl.pattern @extractAllResults : benefit(1) {
 
 pdl.pattern @extractOneResultRange : benefit(1) {
   %types = pdl.types
-  %root = pdl.operation -> (%types : !pdl.range<!pdl.type>)
-  %result = pdl.results 1 of %root -> !pdl.range<!pdl.value>
+  %root = pdl.operation -> (%types : !pdl.range<type>)
+  %result = pdl.results 1 of %root -> !pdl.range<value>
 
   pdl.rewrite %root with "test_rewriter"
 }

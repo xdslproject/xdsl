@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -66,6 +67,42 @@ class HasParent(OpTrait):
             )
         names = ", ".join(f"'{p.name}'" for p in self.parameters)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
+
+
+@dataclass(frozen=True)
+class HasAncestor(OpTrait):
+    """
+    Constraint the operation to have a specific operation as ancestor, i.e. transitive
+    parent.
+    """
+
+    parameters: tuple[type[Operation], ...]
+
+    def __init__(self, head_param: type[Operation], *tail_params: type[Operation]):
+        super().__init__((head_param, *tail_params))
+
+    def verify(self, op: Operation) -> None:
+        if self.get_ancestor(op) is None:
+            if len(self.parameters) == 1:
+                raise VerifyException(
+                    f"'{op.name}' expects ancestor op '{self.parameters[0].name}'"
+                )
+            names = ", ".join(f"'{p.name}'" for p in self.parameters)
+            raise VerifyException(
+                f"'{op.name}' expects ancestor op to be one of {names}"
+            )
+
+    def walk_ancestors(self, op: Operation) -> Iterator[Operation]:
+        """Iterates over the ancestors of an operation, including the input"""
+        curr = op
+        yield curr
+        while (curr := curr.parent_op()) is not None:
+            yield curr
+
+    def get_ancestor(self, op: Operation) -> Operation | None:
+        ancestors = self.walk_ancestors(op)
+        matching_ancestors = (a for a in ancestors if isinstance(a, self.parameters))
+        return next(matching_ancestors, None)
 
 
 class IsTerminator(OpTrait):

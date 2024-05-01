@@ -1,11 +1,14 @@
 // RUN: XDSL_ROUNDTRIP
-// RUN: XDSL_GENERIC_ROUNDTRIP
 
 "builtin.module"() ({
-  "test.op"() { "test" = #hw.inner_name_ref<@Foo::@Bar> } : () -> ()
-  // CHECK:  "test.op"() {"test" = #hw.inner_name_ref<@Foo::@Bar>} : () -> ()
-}) : () -> ()
+  "test.op"() { "test" = #hw.innerNameRef<@Foo::@Bar> } : () -> ()
+  // CHECK:  "test.op"() {"test" = #hw.innerNameRef<@Foo::@Bar>} : () -> ()
 
-// CHECK-GENERIC: "builtin.module"() ({
-// CHECK-GENERIC-NEXT:   "test.op"() {"test" = #hw.inner_name_ref<@Foo::@Bar>} : () -> ()
-// CHECK-GENERIC-NEXT: })
+  "test.op"() { "test" = #hw<innerSym[<@x_1,4,public>, <@y,5,public>]> } : () -> ()
+  // CHECK-NEXT:  "test.op"() {"test" = #hw<innerSym[<@x_1,4,public>, <@y,5,public>]>} : () -> ()
+
+  "test.op"() { "test" = #hw<innerSym@sym> } : () -> ()
+  // CHECK-NEXT:  "test.op"() {"test" = #hw<innerSym@sym>} : () -> ()
+
+  "test.op"() { "test" = #hw.direction<input> } : () -> ()
+}) : () -> ()
