@@ -1,9 +1,6 @@
-from typing import cast
-
 from attr import dataclass
 
 from xdsl.dialects.arith import Addf, BinaryOperation, Divf, Mulf, Subf
-from xdsl.dialects.bufferization import ToTensorOp
 from xdsl.dialects.builtin import (
     ContainerType,
     MemRefType,
@@ -19,7 +16,6 @@ from xdsl.dialects.stencil import (
     FieldType,
     LoadOp,
     ReturnOp,
-    StencilBoundsAttr,
     StencilType,
     TempType,
 )
@@ -106,24 +102,6 @@ class StencilMemRefConversion(TypeConversionPattern):
         return stencil_memref_to_tensor(typ)
 
 
-class LoadOpToExtractSlice(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
-        to_tensor = ToTensorOp(op.field, writable=True, restrict=True)
-        field_t = cast(StencilType[Attribute], op.field.type)
-        temp_t = cast(StencilType[Attribute], op.res.type)
-        assert isinstance(field_t.bounds, StencilBoundsAttr)
-        assert isinstance(temp_t.bounds, StencilBoundsAttr)
-        offsets = tuple(
-            -flb + tlb for flb, tlb in zip(field_t.bounds.lb, temp_t.bounds.lb)
-        )
-        sizes = temp_t.get_shape()
-        extract = ExtractSliceOp.from_static_parameters(
-            to_tensor.tensor, offsets, sizes
-        )
-        rewriter.replace_matched_op((to_tensor, extract))
-
-
 @dataclass(frozen=True)
 class AccessOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
@@ -135,16 +113,13 @@ class AccessOpTensorize(RewritePattern):
             tuple(o for o in op.offset)[-1],
         )
         a = AccessOp.get(op.temp, xy_offsets, op.offset_mapping)
-        if xy_offsets[0] != 0 or xy_offsets[1] != 0:
-            rewriter.replace_matched_op(a)
-            return
+        # this conditional controls if ExtractSliceOps for x/y accesses should be generated
+        # if xy_offsets[0] != 0 or xy_offsets[1] != 0:
+        #     rewriter.replace_matched_op(a)
+        #     return
         extract = ExtractSliceOp.from_static_parameters(
             a, [z_offset], op.temp.type.get_element_type().get_shape()
         )
-        # TODO generate ExtractSliceOp
-        # ExtractSliceOp.from_static_parameters(a, offsets, shape)
-        # slice = ExtractSliceOp.from_static_parameters(a, (z_offset,), [(-1,511)])
-        # rewriter.insert_op_after(slice)
         rewriter.insert_op_before(a, op)
         rewriter.replace_matched_op(extract)
 
@@ -274,7 +249,7 @@ class ExtractSliceOpUpdateShape(RewritePattern):
             if needs_update_shape(op.result.type, typ):
                 rewriter.replace_matched_op(
                     ExtractSliceOp.from_static_parameters(
-                        op.source, op.offsets, typ.get_shape()
+                        op.source, op.static_offsets.data.data, typ.get_shape()
                     )
                 )
 
@@ -351,7 +326,7 @@ class StencilTensorizeZDimension(ModulePass):
         backpropagate_stencil_shapes = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    AccessOpUpdateShape(),
+                    # AccessOpUpdateShape(),
                     ExtractSliceOpUpdateShape(),
                     EmptyOpUpdateShape(),
                     FillOpUpdateShape(),
