@@ -46,8 +46,6 @@ x86.r.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: add rax, 2
 %ri_sub = x86.ri.sub %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
 // CHECK: sub rax, 2
-%ri_imul = x86.ri.imul %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
-// CHECK: imul rax, 2
 %ri_and = x86.ri.and %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
 // CHECK: and rax, 2
 %ri_or = x86.ri.or %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>

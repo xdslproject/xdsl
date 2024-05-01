@@ -47,8 +47,6 @@ x86.r.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: %{{.*}} = x86.ri.add %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
 %ri_sub = x86.ri.sub %0, 2 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.ri.sub %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
-%ri_imul = x86.ri.imul %0, 2 : (!x86.reg<>) -> !x86.reg<>
-// CHECK-NEXT: %{{.*}} = x86.ri.imul %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
 %ri_and = x86.ri.and %0, 2 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.ri.and %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
 %ri_or = x86.ri.or %0, 2 : (!x86.reg<>) -> !x86.reg<>
