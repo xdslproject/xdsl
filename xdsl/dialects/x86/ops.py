@@ -627,17 +627,6 @@ class RI_SubOp(R_RI_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RI_ImulOp(R_RI_Operation[GeneralRegisterType]):
-    """
-    Multiplies r1 with the immediate value and stores the result in r1.
-    x[r1] = x[r1] * immediate
-    https://www.felixcloutier.com/x86/imul
-    """
-
-    name = "x86.ri.imul"
-
-
-@irdl_op_definition
 class RI_AndOp(R_RI_Operation[GeneralRegisterType]):
     """
     bitwise and of r1 and immediate, stored in r1
