@@ -681,6 +681,132 @@ class RI_MovOp(R_RI_Operation[GeneralRegisterType]):
     name = "x86.ri.mov"
 
 
+class M_MR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one memory reference and one register.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        destination = _assembly_arg_str(self.r1)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            if self.offset.value.data > 0:
+                destination = f"[{destination}+{offset}]"
+            else:
+                destination = f"[{destination}{offset}]"
+        else:
+            destination = f"[{destination}]"
+        return destination, self.r2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        if self.offset is not None:
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+@irdl_op_definition
+class MR_AddOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Adds the value from r2 to the memory location pointed to by r1.
+    [x[r1]] = [x[r1]] + x[r2]
+    https://www.felixcloutier.com/x86/add
+    """
+
+    name = "x86.mr.add"
+
+
+@irdl_op_definition
+class MR_SubOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Subtracts the value from r2 from the memory location pointed to by r1.
+    [x[r1]] = [x[r1]] - x[r2]
+    https://www.felixcloutier.com/x86/sub
+    """
+
+    name = "x86.mr.sub"
+
+
+@irdl_op_definition
+class MR_AndOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise and of [r1] and r2
+    [x[r1]] = [x[r1]] & x[r2]
+    https://www.felixcloutier.com/x86/and
+    """
+
+    name = "x86.mr.and"
+
+
+@irdl_op_definition
+class MR_OrOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise or of [r1] and r2
+    [x[r1]] = [x[r1]] | x[r2]
+    https://www.felixcloutier.com/x86/or
+    """
+
+    name = "x86.mr.or"
+
+
+@irdl_op_definition
+class MR_XorOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    bitwise xor of [r1] and r2
+    [x[r1]] = [x[r1]] ^ x[r2]
+    https://www.felixcloutier.com/x86/xor
+    """
+
+    name = "x86.mr.xor"
+
+
+@irdl_op_definition
+class MR_MovOp(M_MR_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Copies the value from r2 into the memory location pointed to by r1.
+    [x[r1]] = x[r2]
+    https://www.felixcloutier.com/x86/mov
+    """
+
+    name = "x86.mr.mov"
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:

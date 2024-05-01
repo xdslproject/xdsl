@@ -2,6 +2,12 @@ from xdsl.ir import Dialect
 
 from .ops import (
     GetRegisterOp,
+    MR_AddOp,
+    MR_AndOp,
+    MR_MovOp,
+    MR_OrOp,
+    MR_SubOp,
+    MR_XorOp,
     R_NotOp,
     R_PopOp,
     R_PushOp,
@@ -56,6 +62,12 @@ X86 = Dialect(
         RI_OrOp,
         RI_XorOp,
         RI_MovOp,
+        MR_AddOp,
+        MR_SubOp,
+        MR_AndOp,
+        MR_OrOp,
+        MR_XorOp,
+        MR_MovOp,
         GetRegisterOp,
     ],
     [
