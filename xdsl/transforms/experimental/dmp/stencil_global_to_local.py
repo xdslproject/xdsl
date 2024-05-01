@@ -39,13 +39,13 @@ class ChangeStoreOpSizes(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
         assert all(
-            integer_attr.data == 0 for integer_attr in op.lb.array.data
+            integer_attr.data == 0 for integer_attr in op.bounds.lb.array.data
         ), "lb must be 0"
         shape: tuple[int, ...] = tuple(
-            integer_attr.data for integer_attr in op.ub.array.data
+            integer_attr.data for integer_attr in op.bounds.ub.array.data
         )
         new_shape = self.strategy.calc_resize(shape)
-        op.ub = stencil.IndexAttr.get(*new_shape)
+        op.bounds.ub = stencil.IndexAttr.get(*new_shape)
 
 
 @dataclass
