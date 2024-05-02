@@ -1313,6 +1313,20 @@ class CallOp(IRDLOperation):
         )
 
 
+LLVMType = (
+    LLVMStructType | LLVMPointerType | LLVMArrayType | LLVMVoidType | LLVMFunctionType
+)
+
+
+@irdl_op_definition
+class ZeroOp(IRDLOperation):
+    name = "llvm.mlir.zero"
+
+    assembly_format = "attr-dict `:` type($res)"
+
+    res = result_def(LLVMType)
+
+
 LLVM = Dialect(
     "llvm",
     [
@@ -1346,6 +1360,7 @@ LLVM = Dialect(
         ReturnOp,
         ConstantOp,
         CallIntrinsicOp,
+        ZeroOp,
     ],
     [
         LLVMStructType,
