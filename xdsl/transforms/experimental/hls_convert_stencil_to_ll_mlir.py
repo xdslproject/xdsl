@@ -370,7 +370,7 @@ def transform_apply_into_loop(
 ):
     dim: int = ndim
     assert dim == 3
-    body = prepare_apply_body(op, rewriter, dim)
+    body = prepare_apply_body(op, rewriter)
 
     body.block.add_op(scf.Yield())
 

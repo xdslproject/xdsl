@@ -354,8 +354,8 @@ builtin.module {
   }
 
 // CHECK:         func.func @stencil_two_stores(%134 : memref<72xf64>, %135 : memref<72xf64>, %136 : memref<72xf64>) {
-// CHECK-NEXT:      %137 = "memref.subview"(%135) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
-// CHECK-NEXT:      %138 = "memref.subview"(%136) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:      %137 = "memref.subview"(%136) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:      %138 = "memref.subview"(%135) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:      %139 = "memref.subview"(%134) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:      %140 = arith.constant 1 : index
 // CHECK-NEXT:      %141 = arith.constant 1 : index
@@ -365,7 +365,7 @@ builtin.module {
 // CHECK-NEXT:        %144 = arith.constant -1 : index
 // CHECK-NEXT:        %145 = arith.addi %143, %144 : index
 // CHECK-NEXT:        %146 = memref.load %139[%145] : memref<64xf64, strided<[1], offset: 4>>
-// CHECK-NEXT:        memref.store %146, %138[%143] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        memref.store %146, %137[%143] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index) -> ()
 // CHECK-NEXT:      %147 = arith.constant 0 : index
@@ -375,8 +375,8 @@ builtin.module {
 // CHECK-NEXT:      ^10(%150 : index):
 // CHECK-NEXT:        %151 = arith.constant 1 : index
 // CHECK-NEXT:        %152 = arith.addi %150, %151 : index
-// CHECK-NEXT:        %153 = memref.load %138[%152] : memref<64xf64, strided<[1], offset: 4>>
-// CHECK-NEXT:        memref.store %153, %137[%150] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        %153 = memref.load %137[%152] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        memref.store %153, %138[%150] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index) -> ()
 // CHECK-NEXT:      func.return
@@ -641,8 +641,8 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64
   }
 
 // CHECK-NEXT:    func.func @if_lowering(%arg0_1 : f64, %b0 : memref<7x7x7xf64>, %b1 : memref<7x7x7xf64>)  attributes {"stencil.program"}{
-// CHECK-NEXT:      %b1_storeview = "memref.subview"(%b1) <{"static_offsets" = array<i64: 0, 0, 0>, "static_sizes" = array<i64: 7, 7, 7>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<7x7x7xf64>) -> memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:      %b0_storeview = "memref.subview"(%b0) <{"static_offsets" = array<i64: 0, 0, 0>, "static_sizes" = array<i64: 7, 7, 7>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<7x7x7xf64>) -> memref<7x7x7xf64, strided<[49, 7, 1]>>
+// CHECK-NEXT:      %b1_storeview = "memref.subview"(%b1) <{"static_offsets" = array<i64: 0, 0, 0>, "static_sizes" = array<i64: 7, 7, 7>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<7x7x7xf64>) -> memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:      %259 = arith.constant 0 : index
 // CHECK-NEXT:      %260 = arith.constant 0 : index
 // CHECK-NEXT:      %261 = arith.constant 0 : index
