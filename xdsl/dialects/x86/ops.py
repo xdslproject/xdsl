@@ -969,7 +969,7 @@ class R_RRI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
         if isinstance(immediate, int):
             immediate = IntegerAttr(
                 immediate, 32
-            )  # the deault immediate size is 32 bits
+            )  # the default immediate size is 32 bits
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
