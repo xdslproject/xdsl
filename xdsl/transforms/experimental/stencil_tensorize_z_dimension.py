@@ -55,10 +55,9 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
             ):
                 for ret in p_op.results:
                     if is_tensorized(ret.type):
-                        if isinstance(ret.type, ContainerType) and isa(
+                        if isa(ret.type, TempType[Attribute]) and isa(
                             r_type := ret.type.get_element_type(), TensorType[Attribute]
-                        ):  # TODO this is already checked in is_tensorized(), do we need to repeat it?
-                            # r_type = cast(TensorType[Attribute], ret.type.get_element_type())
+                        ):
                             return r_type
                 # abort when encountering an un-tensorized ReturnOp successor
                 return None
@@ -136,8 +135,8 @@ class AccessOpTensorize(RewritePattern):
         # if xy_offsets[0] != 0 or xy_offsets[1] != 0:
         #     rewriter.replace_matched_op(a)
         #     return
-        assert isinstance(ott := op.temp.type, ContainerType)
-        assert isinstance(element_t := ott.get_element_type(), ShapedType)
+        assert isa(op.temp.type, TempType[Attribute])
+        assert is_tensor(element_t := op.temp.type.get_element_type())
         extract = ExtractSliceOp.from_static_parameters(
             a, [z_offset], element_t.get_shape()
         )
