@@ -65,6 +65,13 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
 
 
 def update_result_size(value: SSAValue, size: StencilBoundsAttr):
+    """
+    Wrapper for corner-case result size updating.
+    On the general case, just update the result's type.
+    If it is a stencil.apply's result though, it updates all the results of the aplly.
+    For each other result updated, it also updates any buffer operation that uses it,
+    otherwise the buffer's result might not match anymore.
+    """
     if isinstance(value.owner, ApplyOp):
         apply = value.owner
         res_types = (cast(TempType[Attribute], r.type) for r in apply.res)
@@ -212,7 +219,6 @@ class ApplyOpShapeInference(RewritePattern):
                 arg.type.bounds, StencilBoundsAttr
             ):
                 update_result_size(op.operands[i], arg.type.bounds)
-            # op.operands[i].type = arg.type
 
 
 class BufferOpShapeInference(RewritePattern):

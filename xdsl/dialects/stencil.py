@@ -932,6 +932,9 @@ class AccessOp(IRDLOperation):
             )
 
     def get_apply(self):
+        """
+        Simple helper to get the parent apply and raise otherwise.
+        """
         trait = cast(HasAncestor, self.get_trait(HasAncestor, (ApplyOp,)))
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
