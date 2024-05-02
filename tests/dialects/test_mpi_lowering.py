@@ -55,10 +55,10 @@ def test_lower_mpi_init():
     nullop, call = ops
 
     assert isinstance(call, func.Call)
-    assert isinstance(nullop, llvm.NullOp)
+    assert isinstance(nullop, llvm.ZeroOp)
     assert call.callee.string_value() == "MPI_Init"
     assert len(call.arguments) == 2
-    assert all(arg == nullop.nullptr for arg in call.arguments)
+    assert all(arg == nullop.res for arg in call.arguments)
 
 
 def test_lower_mpi_finalize():
