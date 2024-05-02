@@ -948,6 +948,67 @@ class MI_MovOp(M_MI_Operation[GeneralRegisterType]):
     name = "x86.mi.mov"
 
 
+class R_RRI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one destination register, one source register and an immediate value.
+    """
+
+    r2 = operand_def(R2InvT)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+
+    r1 = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r2: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        r1: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the deault immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r2],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[r1],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
+@irdl_op_definition
+class RRI_ImulOP(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the immediate value with the source register and stores the result in the destination register.
+    x[r1] = x[r2] * immediate
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.rri.imul"
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:

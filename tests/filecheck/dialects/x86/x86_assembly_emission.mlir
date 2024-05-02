@@ -84,3 +84,6 @@ x86.mi.xor %0, 2, 8 : (!x86.reg<rax>) -> ()
 // CHECK: xor [rax+8], 2
 x86.mi.mov %0, 2, 8 : (!x86.reg<rax>) -> ()
 // CHECK: mov [rax+8], 2
+
+%rri_imul = x86.rri.imul %1, 2 : (!x86.reg<rdx>) -> !x86.reg<rax>
+// CHECK: imul rax, rdx, 2

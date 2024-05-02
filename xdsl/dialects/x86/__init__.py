@@ -37,6 +37,7 @@ from .ops import (
     RR_OrOp,
     RR_SubOp,
     RR_XorOp,
+    RRI_ImulOP,
 )
 from .register import GeneralRegisterType
 
@@ -78,6 +79,7 @@ X86 = Dialect(
         MI_OrOp,
         MI_XorOp,
         MI_MovOp,
+        RRI_ImulOP,
         GetRegisterOp,
     ],
     [

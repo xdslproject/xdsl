@@ -85,3 +85,6 @@ x86.mi.xor %0, 2, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.mi.xor %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
 x86.mi.mov %0, 2, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.mi.mov %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
+
+%rri_imul = x86.rri.imul %1, 2 : (!x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rri.imul %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
