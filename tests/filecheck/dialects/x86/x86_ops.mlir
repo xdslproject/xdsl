@@ -88,3 +88,8 @@ x86.mi.mov %0, 2, 8 : (!x86.reg<>) -> ()
 
 %rri_imul = x86.rri.imul %1, 2 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.rri.imul %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
+
+%rmi_imul_no_offset = x86.rmi.imul %1, 2 : (!x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rmi.imul %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
+%rmi_imul = x86.rmi.imul %1, 2, 8 : (!x86.reg<>) ->  !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rmi.imul %{{.*}}, 2, 8 : (!x86.reg<>) -> !x86.reg<>

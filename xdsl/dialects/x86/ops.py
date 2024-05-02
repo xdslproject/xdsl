@@ -1009,6 +1009,92 @@ class RRI_ImulOP(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.rri.imul"
 
 
+class R_RMI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one source register, one memory reference and an immediate value.
+    """
+
+    r2 = operand_def(R2InvT)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    r1 = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r2: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+        r1: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r2],
+            attributes={
+                "immediate": immediate,
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[r1],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        destination = _assembly_arg_str(self.r1)
+        source = _assembly_arg_str(self.r2)
+        immediate = _assembly_arg_str(self.immediate)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            if self.offset.value.data > 0:
+                source = f"[{source}+{offset}]"
+            else:
+                source = f"[{source}{offset}]"
+        else:
+            source = f"[{source}]"
+        return destination, source, immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        if parser.parse_optional_punctuation(",") is not None:
+            temp2 = _parse_optional_immediate_value(
+                parser, IntegerType(32, Signedness.SIGNED)
+            )
+            if temp2 is not None:
+                attributes["offset"] = temp2
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"immediate", "offset"}
+
+
+@irdl_op_definition
+class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the immediate value with the memory location pointed to by r2 and stores the result in r1.
+    x[r1] = [x[r2]] * immediate
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.rmi.imul"
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:

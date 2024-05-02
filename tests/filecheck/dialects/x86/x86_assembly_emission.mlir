@@ -87,3 +87,8 @@ x86.mi.mov %0, 2, 8 : (!x86.reg<rax>) -> ()
 
 %rri_imul = x86.rri.imul %1, 2 : (!x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: imul rax, rdx, 2
+
+%rmi_imul_no_offset = x86.rmi.imul %1, 2 : (!x86.reg<rdx>) -> !x86.reg<rax>
+// CHECK: imul rax, [rdx], 2
+%rmi_imul = x86.rmi.imul %1, 2, 8 : (!x86.reg<rdx>) -> !x86.reg<rax>
+// CHECK: imul rax, [rdx+8], 2
