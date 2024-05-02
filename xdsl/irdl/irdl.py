@@ -26,6 +26,7 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     Block,
     Data,
@@ -35,6 +36,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypedAttribute,
 )
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
@@ -60,7 +62,7 @@ if TYPE_CHECKING:
 def error(op: Operation, msg: str, e: Exception):
     diag = Diagnostic()
     diag.add_message(op, msg)
-    diag.raise_exception(f"{op.name} operation does not verify", op, type(e), e)
+    diag.raise_exception(msg, op, type(e), e)
 
 
 class IRDLAnnotations(Enum):
@@ -411,6 +413,12 @@ class MessageConstraint(AttrConstraint):
 
     def get_unique_base(self) -> type[Attribute] | None:
         return self.constr.get_unique_base()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constr.can_infer(constraint_names)
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        return self.constr.infer(constraint_vars)
 
 
 def _irdl_list_to_attr_constraint(
@@ -1064,7 +1072,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -1076,7 +1084,7 @@ def prop_def(
 
 
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -1088,7 +1096,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -1102,7 +1110,7 @@ def attr_def(
 
 
 def opt_attr_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -1822,7 +1830,7 @@ def irdl_op_verify_arg_list(
             error(
                 op,
                 f"{get_construct_name(construct)} at position "
-                f"{arg_idx} does not verify!\n{e}",
+                f"{arg_idx} does not verify:\n{e}",
                 e,
             )
 
@@ -2354,6 +2362,25 @@ class ParamAttrDef:
         name = clsdict["name"]
 
         param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+        if issubclass(pyrdl_def, TypedAttribute):
+            pyrdl_def = cast(type[TypedAttribute[Attribute]], pyrdl_def)
+            try:
+                param_names = [name for name, _ in param_hints]
+                type_index = param_names.index("type")
+            except ValueError:
+                raise PyRDLAttrDefinitionError(
+                    f"TypedAttribute {pyrdl_def.__name__} should have a 'type' parameter."
+                )
+            typed_hint = param_hints[type_index][1]
+            if get_origin(typed_hint) is Annotated:
+                typed_hint = get_args(typed_hint)[0]
+            type_var = get_type_var_mapping(pyrdl_def)[1][AttributeCovT]
+
+            if typed_hint != type_var:
+                raise ValueError(
+                    "A TypedAttribute `type` parameter must be of the same type"
+                    " as the type variable in the TypedAttribute base class."
+                )
 
         parameters = list[tuple[str, AttrConstraint]]()
         for param_name, param_type in param_hints:
@@ -2397,6 +2424,13 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
 
     for idx, (param_name, _) in enumerate(attr_def.parameters):
         new_fields[param_name] = param_name_field(idx)
+
+    if issubclass(cls, TypedAttribute):
+        parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
+        type_index = parameter_names.index("type")
+        new_fields["get_type_index"] = lambda: type_index
+
+    cls = cast(type[_PAttrT], cls)
 
     @classmethod
     def get_irdl_definition(cls: type[_PAttrT]):

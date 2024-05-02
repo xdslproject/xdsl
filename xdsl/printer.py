@@ -51,6 +51,7 @@ from xdsl.dialects.builtin import (
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
+    i1,
 )
 from xdsl.ir import (
     Attribute,
@@ -125,6 +126,7 @@ class Printer:
                 self.print_op(arg)
                 self._print_new_line()
                 continue
+
             text = str(arg)
             self.print_string(text)
 
@@ -447,8 +449,8 @@ class Printer:
                 self.print("false" if attribute.value.data == 0 else "true")
                 return
 
-            width = attribute.parameters[0]
-            attr_type = attribute.parameters[1]
+            width = attribute.value
+            attr_type = attribute.type
             assert isinstance(width, IntAttr)
             self.print(width.data)
             self.print(" : ")
@@ -484,7 +486,14 @@ class Printer:
                 self.print(">")
                 return
             self.print(": ")
-            self.print_list(data.data, lambda x: self.print(x.data))
+            # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
+            # therefore we need to print these as false and true
+            if attribute.elt_type == i1:
+                self.print_list(
+                    data.data, lambda x: self.print("true" if x.data == 1 else "false")
+                )
+            else:
+                self.print_list(data.data, lambda x: self.print(x.data))
             self.print(">")
             return
 

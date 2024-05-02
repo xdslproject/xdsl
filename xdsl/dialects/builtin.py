@@ -31,6 +31,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
@@ -392,7 +393,6 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
-
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -400,7 +400,10 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 
 
 @irdl_attr_definition
-class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
+class IntegerAttr(
+    Generic[_IntegerAttrType],
+    TypedAttribute[_IntegerAttrType],
+):
     name = "integer"
     value: ParameterDef[IntAttr]
     type: ParameterDef[_IntegerAttrType]
@@ -446,6 +449,21 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
                 f"type {self.type} which supports values in the "
                 f"range [{min_value}, {max_value})"
             )
+
+    @classmethod
+    def parse_with_type(
+        cls: type[IntegerAttr[_IntegerAttrType]],
+        parser: AttrParser,
+        type: Attribute,
+    ) -> IntegerAttr[_IntegerAttrType]:
+        assert isinstance(type, IntegerType) or isinstance(type, IndexType)
+        return cast(
+            IntegerAttr[_IntegerAttrType],
+            IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type),
+        )
+
+    def print_without_type(self, printer: Printer):
+        return printer.print(self.value.data)
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
