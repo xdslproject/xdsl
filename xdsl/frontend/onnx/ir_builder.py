@@ -10,6 +10,7 @@ OP_BY_OP_TYPE: dict[str, type[IRDLOperation]] = {
     "Add": onnx.Add,
     "Sub": onnx.Sub,
     "MatMul": onnx.MatMul,
+    "Transpose": onnx.Transpose,
 }
 """Associate the name of the operations with the respective operation in ONNX dialect."""
 
