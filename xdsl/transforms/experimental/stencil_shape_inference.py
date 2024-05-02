@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from functools import reduce
 from typing import TypeVar, cast
 
 from xdsl.dialects import builtin
@@ -15,7 +16,7 @@ from xdsl.dialects.stencil import (
     StoreOp,
     TempType,
 )
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -148,8 +149,7 @@ class StoreOpShapeInference(RewritePattern):
 class AccessOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter):
-        apply = op.parent_op()
-        assert isinstance(apply, ApplyOp)
+        apply = op.get_apply()
         assert isa(op.temp.type, TempType[Attribute])
         assert isa(apply.res[0].type, TempType[Attribute])
 
@@ -163,6 +163,10 @@ class AccessOpShapeInference(RewritePattern):
         )
 
         op.temp.type = ntype
+
+        assert isinstance(op.temp, BlockArgument)
+        assert op.temp.owner.parent_op() is apply
+        apply.operands[op.temp.index].type = ntype
 
 
 class DynAccessOpShapeInference(RewritePattern):
@@ -183,14 +187,23 @@ class DynAccessOpShapeInference(RewritePattern):
 
         op.temp.type = ntype
 
+        assert isinstance(op.temp, BlockArgument)
+        assert op.temp.owner.parent_op() is apply
+        apply.operands[op.temp.index].type = ntype
+
 
 class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        for i, arg in enumerate(op.region.block.args):
-            if not isa(arg.type, TempType[Attribute]):
-                continue
-            op.operands[i].type = arg.type
+        results_bounds = tuple(
+            cast(TempType[Attribute], res.type).bounds for res in op.res
+        )
+        assert isa(results_bounds, tuple[StencilBoundsAttr, ...])
+        output_bounds = reduce(lambda l, r: l | r, results_bounds)
+        for res in op.res:
+            res.type = TempType(
+                output_bounds, cast(TempType[Attribute], res.type).element_type
+            )
 
 
 class BufferOpShapeInference(RewritePattern):
@@ -220,6 +233,6 @@ class StencilShapeInferencePass(ModulePass):
             ShapeInference,
             apply_recursively=False,
             walk_reverse=True,
-            walk_regions_first=True,
+            walk_regions_first=False,
         )
         inference_walker.rewrite_module(op)
