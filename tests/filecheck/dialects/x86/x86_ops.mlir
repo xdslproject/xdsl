@@ -47,8 +47,6 @@ x86.r.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: %{{.*}} = x86.ri.add %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
 %ri_sub = x86.ri.sub %0, 2 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.ri.sub %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
-%ri_imul = x86.ri.imul %0, 2 : (!x86.reg<>) -> !x86.reg<>
-// CHECK-NEXT: %{{.*}} = x86.ri.imul %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
 %ri_and = x86.ri.and %0, 2 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.ri.and %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
 %ri_or = x86.ri.or %0, 2 : (!x86.reg<>) -> !x86.reg<>
@@ -72,3 +70,18 @@ x86.mr.xor %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> ()
 // CHECK-NEXT: x86.mr.xor %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> ()
 x86.mr.mov %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> ()
 // CHECK-NEXT: x86.mr.mov %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> ()
+
+x86.mi.add %0, 2 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.mi.add %{{.*}}, 2 : (!x86.reg<>) -> ()
+x86.mi.add %0, 2, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.mi.add %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
+x86.mi.sub %0, 2, -8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.mi.sub %{{.*}}, 2, -8 : (!x86.reg<>) -> ()
+x86.mi.and %0, 2, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.mi.and %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
+x86.mi.or %0, 2, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.mi.or %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
+x86.mi.xor %0, 2, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.mi.xor %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
+x86.mi.mov %0, 2, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.mi.mov %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
