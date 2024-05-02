@@ -30,6 +30,7 @@ from .ops import (
     RM_OrOp,
     RM_SubOp,
     RM_XorOp,
+    RMI_ImulOp,
     RR_AddOp,
     RR_AndOp,
     RR_ImulOp,
@@ -80,6 +81,7 @@ X86 = Dialect(
         MI_XorOp,
         MI_MovOp,
         RRI_ImulOP,
+        RMI_ImulOp,
         GetRegisterOp,
     ],
     [
