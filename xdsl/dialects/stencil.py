@@ -802,7 +802,7 @@ class AccessOp(IRDLOperation):
     def get(
         temp: SSAValue | Operation,
         offset: Sequence[int],
-        offset_mapping: Sequence[int] | None = None,
+        offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
         temp_type = SSAValue.get(temp).type
         assert isinstance(temp_type, TempType)
