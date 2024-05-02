@@ -370,9 +370,7 @@ def transform_apply_into_loop(
 ):
     dim: int = ndim
     assert dim == 3
-    body = prepare_apply_body(op, rewriter)
-
-    body.block.add_op(scf.Yield())
+    body = prepare_apply_body(op)
 
     assert isinstance(op.attributes["shape_x"], builtin.IntegerAttr)
     assert isinstance(op.attributes["shape_y"], builtin.IntegerAttr)
@@ -425,7 +423,7 @@ def transform_apply_into_loop(
     hls_pipeline_op = PragmaPipeline(ii)
 
     # current_region = for_body
-    current_region = body
+    current_block = body
     for_op_lst: list[scf.For] = []
     for i in range(1, dim + 1):
         for_op = scf.For(
@@ -433,11 +431,12 @@ def transform_apply_into_loop(
             ub=upperBounds[-i],
             step=one,
             iter_args=[],
-            body=current_region,
+            body=current_block,
         )
         for_op_lst.append(for_op)
-        block = Block(ops=[for_op, scf.Yield()], arg_types=[builtin.IndexType()])
-        current_region = Region(block)
+        current_block = Block(
+            ops=[for_op, scf.Yield()], arg_types=[builtin.IndexType()]
+        )
 
         # if i == 2:
         #    y_for_op = for_op
@@ -455,7 +454,7 @@ def transform_apply_into_loop(
         lower_bounds=[lowerBounds[0]],
         upper_bounds=[upperBounds[0]],
         steps=[one],
-        body=current_region,
+        body=Region(current_block),
     )
 
     chunk_num = p.body.block.args[0]
