@@ -2,7 +2,7 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, func
 from xdsl.dialects.arith import (
     Addf,
 )
@@ -603,8 +603,8 @@ def test_stencil_access_offset_mapping():
     offset = [1, 1]
     offset_index_attr = IndexAttr.get(*offset)
 
-    offset_mapping = [1, 0]
-    offset_mapping_attr = ArrayAttr(IntAttr(value) for value in offset_mapping)
+    offset_mapping = [0, 1]
+    offset_mapping_attr = IndexAttr.get(*offset_mapping)
 
     access = AccessOp.get(temp_type_ssa_val, offset, offset_mapping)
 
@@ -625,7 +625,7 @@ def test_store_result():
     )
 
     assert isinstance(store_result, StoreResultOp)
-    assert store_result.args[0] == elem_ssa_val
+    assert store_result.arg == elem_ssa_val
     assert store_result.res.type == result_type
 
 
@@ -739,21 +739,22 @@ def test_1d3pt_stencil_construct():
             # Apply the computation to the loaded values
             # Store the computed values to the output field
             StoreOp.get(apply.results[0], field_out, IndexAttr.get(0), IndexAttr.get(6))
+            func.Return()
 
     expected = """
 builtin.module {
   func.func @kernel(%0 : !stencil.field<[-1,7]xf32>, %1 : !stencil.field<[-1,7]xf32>) {
-    %2 = "stencil.load"(%0) : (!stencil.field<[-1,7]xf32>) -> !stencil.temp<?xf32>
-    %3 = "stencil.apply"(%2) ({
-    ^0(%4 : !stencil.temp<?xf32>):
-      %5 = "stencil.access"(%4) {"offset" = #stencil.index<-1>} : (!stencil.temp<?xf32>) -> f32
-      %6 = "stencil.access"(%4) {"offset" = #stencil.index<0>} : (!stencil.temp<?xf32>) -> f32
-      %7 = "stencil.access"(%4) {"offset" = #stencil.index<1>} : (!stencil.temp<?xf32>) -> f32
+    %2 = stencil.load %0 : !stencil.field<[-1,7]xf32> -> !stencil.temp<?xf32>
+    %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf32>) -> (!stencil.temp<?xf32>) {
+      %5 = stencil.access %4[-1] : !stencil.temp<?xf32>
+      %6 = stencil.access %4[0] : !stencil.temp<?xf32>
+      %7 = stencil.access %4[1] : !stencil.temp<?xf32>
       %8 = arith.addf %5, %6 : f32
       %9 = arith.addf %8, %7 : f32
-      "stencil.return"(%9) : (f32) -> ()
-    }) : (!stencil.temp<?xf32>) -> !stencil.temp<?xf32>
-    "stencil.store"(%3, %1) {"lb" = #stencil.index<0>, "ub" = #stencil.index<6>} : (!stencil.temp<?xf32>, !stencil.field<[-1,7]xf32>) -> ()
+      stencil.return %9 : f32
+    }
+    stencil.store %3 to %1 ([0] : [6]) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
+    func.return
   }
 }
 """  # noqa
