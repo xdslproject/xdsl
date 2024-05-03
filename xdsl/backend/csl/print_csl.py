@@ -239,7 +239,7 @@ class CslPrintContext:
                         params_str = f", {self._get_variable_name_for(params)}"
 
                     self.print(
-                        f'const {name} : comptime_struct = @import_module("{
+                        f'const {name} : imported_module = @import_module("{
                             module.data}"{params_str});'
                     )
                 case csl.MemberCallOp(field=callee, args=args, result=res) \
