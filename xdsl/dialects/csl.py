@@ -5,7 +5,16 @@ from dataclasses import dataclass
 from typing import Annotated
 
 from xdsl.dialects import builtin
-from xdsl.dialects.builtin import ArrayAttr, BoolAttr, ContainerType, DictionaryAttr, FunctionType, StringAttr, IntegerType, IntegerAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    ContainerType,
+    DictionaryAttr,
+    FunctionType,
+    StringAttr,
+    IntegerType,
+    IntegerAttr,
+    TensorType,
+)
 from xdsl.dialects.utils import (
     parse_func_op_like,
     parse_call_op_like,
@@ -759,8 +768,7 @@ class SymbolExportOp(IRDLOperation):
     value = operand_def()
 
     var_name = prop_def(StringAttr)
-    type = prop_def(TypeAttribute)
-    mutable = prop_def(BoolAttr)
+    type = prop_def(PtrType)
 
 
 @irdl_op_definition
