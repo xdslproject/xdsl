@@ -2,6 +2,7 @@
 
 %0 = x86.get_register : () -> !x86.reg<rax>
 %1 = x86.get_register : () -> !x86.reg<rdx>
+%2 = x86.get_register : () -> !x86.reg<rcx>
 %rsp = x86.get_register : () -> !x86.reg<rsp>
 
 %add = x86.rr.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
@@ -24,6 +25,9 @@ x86.r.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: pop rax
 %not = x86.r.not %0 : (!x86.reg<rax>) -> !x86.reg<rax>
 // CHECK: not rax
+
+%r_idiv_rdx, %r_idiv_rax = x86.r.idiv %2, %1, %0 : (!x86.reg<rcx>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK: idiv rcx
 
 %rm_add_no_offset = x86.rm.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: add rax, [rdx]
