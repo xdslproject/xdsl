@@ -5,6 +5,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AnyFloat,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -83,24 +84,24 @@ class SubOpLowering(RewritePattern):
 class ReluOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
-        body = Region(Block(arg_types=(f64, f64)))
-        affine_map = AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0, d1)))
+        operand = relu.operand.type
+        assert isinstance(operand, TensorType)
+        operand = cast(TensorType[Attribute], operand)
+        operand_rank = len(operand.get_shape())
+        body = Region(Block(arg_types=(operand.element_type, operand.element_type)))
+        affine_map = AffineMapAttr(AffineMap.identity(operand_rank))
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), relu.res.type),
-                zero := arith.Constant(FloatAttr(0, f64)),
+                zero := arith.Constant(
+                    FloatAttr(0.0, cast(AnyFloat, operand.element_type))
+                ),
                 linalg.Generic(
                     (relu.operand,),
                     (empty.tensor,),
                     body,
-                    (
-                        affine_map,
-                        affine_map,
-                    ),
-                    (
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                    ),
+                    (affine_map, affine_map),
+                    (linalg.IteratorTypeAttr.parallel(),) * operand_rank,
                     (relu.res.type,),
                 ),
             )

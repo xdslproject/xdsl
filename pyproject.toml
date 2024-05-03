@@ -14,7 +14,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.15.1", "textual==0.57.1", "pyclip==0.7", "marimo"]
+extras = ["riscemu==2.2.5", "wgpu==0.15.1", "textual==0.58.1", "pyclip==0.7", "marimo"]
 onnx = ["onnx==1.16"]
 
 [project.urls]
