@@ -191,14 +191,6 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
-@irdl_op_definition
-class ParamOp(IRDLOperation):
-    name = "csl.param"
-
-    param_name = prop_def(StringAttr)
-    res = result_def()
-    # TODO(dk949): how to verify that the init property is of correct type
-    init_value = opt_prop_def(Attribute)
 
 
 @irdl_op_definition
@@ -279,6 +271,7 @@ class ModuleOp(IRDLOperation):
     sym_name: StringAttr = attr_def(StringAttr)
 
     traits = frozenset([
+        HasParent(builtin.ModuleOp),
         IsolatedFromAbove(),
         NoTerminator(),
         SymbolOpInterface(),
@@ -312,6 +305,16 @@ class ModuleOp(IRDLOperation):
         printer.print(f" {{kind = {self.properties['kind']}}} ")
         printer.print(self.body)
 
+@irdl_op_definition
+class ParamOp(IRDLOperation):
+    name = "csl.param"
+
+    traits = frozenset([HasParent(ModuleOp)])  # has to be at top level
+
+    param_name = prop_def(StringAttr)
+    res = result_def()
+    # TODO(dk949): how to verify that the init property is of correct type
+    init_value = opt_prop_def(Attribute)
 
 @irdl_op_definition
 class ImportModuleConstOp(IRDLOperation):
@@ -320,6 +323,8 @@ class ImportModuleConstOp(IRDLOperation):
     """
 
     name = "csl.import_module"
+
+    traits = frozenset([HasParent(ModuleOp)])  # has to be at top level
 
     module = prop_def(StringAttr)
 
