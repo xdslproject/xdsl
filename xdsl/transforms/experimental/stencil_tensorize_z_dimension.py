@@ -47,7 +47,6 @@ from xdsl.utils.hints import isa
 
 
 def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
-    # assert isinstance(op, Operation)
     for result in op.results:
         for use in result.uses:
             if (
@@ -235,7 +234,7 @@ class FuncOpTensorize(RewritePattern):
 
 def is_tensorized(
     typ: Attribute,
-):  # MemRefType[Attribute] | FieldType[Attribute] | TempType[Attribute]):
+):
     assert isinstance(typ, ShapedType)
     assert isinstance(typ, ContainerType)
     return len(typ.get_shape()) == 2 and isinstance(typ.get_element_type(), TensorType)
@@ -315,8 +314,6 @@ class ExtractSliceOpUpdateShape(RewritePattern):
                 else:
                     assert isa(offsets, Sequence[int])
                     new_offsets = offsets
-                # offsets = tuple(o for o in op.static_offsets.data.data)
-                # assert isa(offsets, Sequence[int])
                 rewriter.replace_matched_op(
                     ExtractSliceOp.from_static_parameters(
                         op.source, new_offsets, typ.get_shape()
@@ -361,27 +358,6 @@ class ArithDivfOpUpdateShape(RewritePattern):
         arithBinaryOpUpdateShape(Divf, op, rewriter)
 
 
-# class ArithOpUpdateShape(RewritePattern):
-#     @op_type_rewrite_pattern
-#     def match_and_rewrite(self, op: BinaryOperation, rewriter: PatternRewriter, /):
-#         # assert isa(op, BinaryOperation[Attribute])
-#         if typ := get_required_result_type(op):
-#             if needs_update_shape(op.result.type, typ):
-#                 ctor = None
-#                 if isinstance(op, Addf):
-#                     ctor = Addf
-#                 elif isinstance(op, Subf):
-#                     ctor = Subf
-#                 elif isinstance(op, Mulf):
-#                     ctor = Mulf
-#                 elif isinstance(op, Divf):
-#                     ctor = Divf
-#                 assert ctor
-#                 rewriter.replace_matched_op(
-#                     ctor(op.lhs, op.rhs, flags=None, result_type=typ)
-#                 )
-
-
 class EmptyOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: EmptyOp, rewriter: PatternRewriter, /):
@@ -405,7 +381,6 @@ class StencilTensorizeZDimension(ModulePass):
     name = "stencil-tensorize-z-dimension"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        # ctx.get_optional_op("bufferization.materialize_in_destination")
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
@@ -414,8 +389,7 @@ class StencilTensorizeZDimension(ModulePass):
                     LoadOpTensorize(),
                     ApplyOpTensorize(),
                     StoreOpTensorize(),
-                    # AccessOpTensorize(),   # these don't work here
-                    # ArithOpTensorize(),    # use second pass
+                    # AccessOpTensorize(),   # this doesn't work here, using second pass
                 ]
             ),
             walk_reverse=False,
