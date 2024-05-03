@@ -96,9 +96,10 @@ builtin.module {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %m = riscv.li 8 {"comment" = "memref alloc size"} : () -> !riscv.reg<>
-// CHECK-NEXT:    %m_1 = riscv_func.call @malloc(%m) : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:    %m_2 = builtin.unrealized_conversion_cast %m_1 : !riscv.reg<> to memref<1x1xf32>
-// CHECK-NEXT:    riscv_func.func private @malloc() -> !riscv.reg<>
+// CHECK-NEXT:    %m_1 = riscv.mv %m : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:    %m_2 = riscv_func.call @malloc(%m_1) : (!riscv.reg<a0>) -> !riscv.reg<a0>
+// CHECK-NEXT:    %m_3 = builtin.unrealized_conversion_cast %m_2 : !riscv.reg<a0> to memref<1x1xf32>
+// CHECK-NEXT:    riscv_func.func private @malloc(!riscv.reg<a0>) -> !riscv.reg<a0>
 // CHECK-NEXT:  }
 
 // -----

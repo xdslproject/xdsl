@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from dataclasses import dataclass, field
 from math import prod
 from typing import Any, cast
 
@@ -33,24 +32,23 @@ from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import DiagnosticException
 
 
-@dataclass
 class ConvertMemrefAllocOp(RewritePattern):
-    has_matched: bool = field(default=False)
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter) -> None:
-        self.has_matched = True
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         size = prod(op_memref_type.get_shape()) * 8
         rewriter.replace_matched_op(
             (
                 size_op := riscv.LiOp(size, comment="memref alloc size"),
+                move_op := riscv.MVOp(size_op.rd, rd=riscv.Registers.A0),
                 call := riscv_func.CallOp(
                     SymbolRefAttr("malloc"),
-                    (size_op.rd,),
-                    (riscv.IntRegisterType.unallocated(),),
+                    (move_op.rd,),
+                    (riscv.Registers.A0,),
                 ),
-                UnrealizedConversionCastOp.get(call.ress, (op.memref.type,)),
+                move_op := riscv.MVOp(call.ress[0], rd=riscv.Registers.UNALLOCATED_INT),
+                UnrealizedConversionCastOp.get((move_op.rd,), (op.memref.type,)),
             )
         )
 
@@ -284,11 +282,12 @@ class ConvertMemrefToRiscvPass(ModulePass):
     name = "convert-memref-to-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        convert_memref_alloc = ConvertMemrefAllocOp()
+        contains_malloc = PatternRewriteWalker(ConvertMemrefAllocOp()).rewrite_module(
+            op
+        )
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    convert_memref_alloc,
                     ConvertMemrefDeallocOp(),
                     ConvertMemrefStoreOp(),
                     ConvertMemrefLoadOp(),
@@ -297,11 +296,11 @@ class ConvertMemrefToRiscvPass(ModulePass):
                 ]
             )
         ).rewrite_module(op)
-        if convert_memref_alloc.has_matched:
+        if contains_malloc:
             func_op = riscv_func.FuncOp(
                 "malloc",
                 Region(),
-                ((), (riscv.IntRegisterType.unallocated(),)),
+                ((riscv.Registers.A0,), (riscv.Registers.A0,)),
                 visibility="private",
             )
             SymbolTable.insert_or_update(op, func_op)
