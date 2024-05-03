@@ -94,7 +94,13 @@ builtin.module {
     %m = "memref.alloc"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<1x1xf32>
 }
 
-// CHECK:      Lowering memref.alloc not implemented yet
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %m = riscv.li 8 {"comment" = "memref alloc size"} : () -> !riscv.reg<>
+// CHECK-NEXT:    %m_1 = riscv.mv %m : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:    %m_2 = riscv_func.call @malloc(%m_1) : (!riscv.reg<a0>) -> !riscv.reg<a0>
+// CHECK-NEXT:    %m_3 = builtin.unrealized_conversion_cast %m_2 : !riscv.reg<a0> to memref<1x1xf32>
+// CHECK-NEXT:    riscv_func.func private @malloc(!riscv.reg<a0>) -> !riscv.reg<a0>
+// CHECK-NEXT:  }
 
 // -----
 
