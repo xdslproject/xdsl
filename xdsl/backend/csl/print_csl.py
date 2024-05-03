@@ -298,7 +298,7 @@ class CslPrintContext:
                     params = self._get_variable_name_for(params) \
                         if params else ""
                     self.print(
-                        f"@set_tile_code({file}, {x}, {y}, {params});")
+                        f"@set_tile_code({x}, {y}, {file}, {params});")
                 case csl.SetRectangleOp(x_dim=x_dim, y_dim=y_dim):
                     x = self._get_variable_name_for(x_dim)
                     y = self._get_variable_name_for(y_dim)
