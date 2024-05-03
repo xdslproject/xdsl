@@ -24,6 +24,7 @@ from xdsl.dialects.stencil import (
     LoadOp,
     ReturnOp,
     StencilBoundsAttr,
+    StoreOp,
     TempType,
 )
 from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp
@@ -273,6 +274,24 @@ class LoadOpTensorize(RewritePattern):
             )
 
 
+class StoreOpTensorize(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+        if (
+            is_tensorized(op.field.type)
+            and isinstance(op.field.type, ShapedType)
+            and len(op.lb) != len(op.field.type.get_shape())
+        ):
+            rewriter.replace_matched_op(
+                StoreOp.get(
+                    op.temp,
+                    op.field,
+                    IndexAttr.get(*[lb for lb in op.lb][:-1]),
+                    IndexAttr.get(*[ub for ub in op.ub][:-1]),
+                )
+            )
+
+
 class AccessOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
@@ -394,6 +413,7 @@ class StencilTensorizeZDimension(ModulePass):
                     ExternalLoadOpTensorize(),
                     LoadOpTensorize(),
                     ApplyOpTensorize(),
+                    StoreOpTensorize(),
                     # AccessOpTensorize(),   # these don't work here
                     # ArithOpTensorize(),    # use second pass
                 ]

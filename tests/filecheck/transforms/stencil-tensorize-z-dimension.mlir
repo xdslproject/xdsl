@@ -28,7 +28,7 @@ builtin.module {
 }
 
 // CHECK-NEXT:    builtin.module {
-// CHECK-NEXT:        func.func @gauss_seidel(%a : memref<1024x512xtensor<512xf32>>, %b : memref<1024x512xtensor<512xf32>>) {
+// CHECK-NEXT:      func.func @gauss_seidel(%a : memref<1024x512xtensor<512xf32>>, %b : memref<1024x512xtensor<512xf32>>) {
 // CHECK-NEXT:        %0 = stencil.external_load %a : memref<1024x512xtensor<512xf32>> -> !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:        %1 = stencil.load %0 : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:        %2 = stencil.external_load %b : memref<1024x512xtensor<512xf32>> -> !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
@@ -56,7 +56,7 @@ builtin.module {
 // CHECK-NEXT:          %25 = arith.mulf %22, %24 : tensor<510xf32>
 // CHECK-NEXT:          stencil.return %25 : tensor<510xf32>
 // CHECK-NEXT:        }
-// CHECK-NEXT:        stencil.store %3 to %2 ([0, 0, 0] : [1022, 510, 510]) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:        stencil.store %3 to %2 ([0, 0] : [1022, 510]) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:        func.return
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
