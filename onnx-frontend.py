@@ -399,11 +399,11 @@ def __(
 
 @app.cell
 def __(ctx, mo, riscv_code, snitch_stream_module):
-    from xdsl.transforms import test_lower_linalg_to_snitch
+    from xdsl.transforms import test_lower_snitch_stream_to_asm
 
     snitch_asm_module = snitch_stream_module.clone()
 
-    test_lower_linalg_to_snitch.TestLowerSnitchStreamToAsm().apply(
+    test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm().apply(
         ctx, snitch_asm_module
     )
 
@@ -414,7 +414,7 @@ def __(ctx, mo, riscv_code, snitch_stream_module):
     We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:
     """
     )
-    return snitch_asm_module, test_lower_linalg_to_snitch
+    return snitch_asm_module, test_lower_snitch_stream_to_asm
 
 
 @app.cell
