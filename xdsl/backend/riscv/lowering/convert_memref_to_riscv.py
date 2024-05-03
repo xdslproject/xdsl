@@ -47,7 +47,8 @@ class ConvertMemrefAllocOp(RewritePattern):
                     (move_op.rd,),
                     (riscv.Registers.A0,),
                 ),
-                UnrealizedConversionCastOp.get(call.ress, (op.memref.type,)),
+                move_op := riscv.MVOp(call.ress[0], rd=riscv.Registers.UNALLOCATED_INT),
+                UnrealizedConversionCastOp.get((move_op.rd,), (op.memref.type,)),
             )
         )
 
