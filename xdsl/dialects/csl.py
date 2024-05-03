@@ -777,13 +777,17 @@ class ArrayOp(IRDLOperation):
 
     # TODO(dk949): transform from memref global to this
 
-    init = opt_prop_def(Attribute)
-    type = prop_def(builtin.TensorType[TypeAttribute])
-    res = result_def(builtin.TensorType)
+    init_value = opt_prop_def(Attribute)
+    type = prop_def(TensorType[TypeAttribute])
+    res = result_def(TensorType[TypeAttribute])
 
     def verify_(self) -> None:
+        # TODO(dk949): type of init_value is not verified at all
         if self.type != self.res.type:
             raise VerifyException("type must match the result type")
+        if not isa(self.type, TensorType[TypeAttribute]):
+            raise VerifyException("type must be a tensor")
+
         return super().verify_()
 
 
