@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerAttr,
+    TensorType,
 )
 from xdsl.ir import (
     Attribute,
@@ -28,6 +29,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AnyOf,
     AttrSizedOperandSegments,
     BaseAttr,
     ConstraintVar,
@@ -996,6 +998,19 @@ class BufferOp(IRDLOperation):
             )
 
 
+class TensorIgnoreSizeConstraint(VarConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if self.name in constraint_vars:
+            if (
+                isa(attr, TensorType[Attribute])
+                and isinstance(other := constraint_vars[self.name], TensorType)
+                and len(attr.get_shape()) == len(other.get_shape())
+                and attr.get_element_type() == other.get_element_type()
+            ):
+                return
+        super().verify(attr, constraint_vars)
+
+
 @irdl_op_definition
 class StoreOp(IRDLOperation):
     """
@@ -1007,8 +1022,43 @@ class StoreOp(IRDLOperation):
 
     name = "stencil.store"
 
-    temp: Operand = operand_def(TempType)
-    field: Operand = operand_def(FieldType)
+    temp: Operand = operand_def(
+        ParamAttrConstraint(
+            TempType,
+            [
+                Attribute,
+                MessageConstraint(
+                    AnyOf(
+                        [
+                            VarConstraint("T", AnyAttr()),
+                            TensorIgnoreSizeConstraint("T", AnyAttr()),
+                        ]
+                    ),
+                    "Input and output fields must have the same element types",
+                ),
+            ],
+        )
+    )
+    # field: Operand = operand_def(FieldType)
+    field: Operand = operand_def(
+        ParamAttrConstraint(
+            FieldType,
+            [
+                MessageConstraint(
+                    StencilBoundsAttr, "Output type's size must be explicit"
+                ),
+                MessageConstraint(
+                    AnyOf(
+                        [
+                            VarConstraint("T", AnyAttr()),
+                            TensorIgnoreSizeConstraint("T", AnyAttr()),
+                        ]
+                    ),
+                    "Input and output fields must have the same element types",
+                ),
+            ],
+        )
+    )
     lb: IndexAttr = attr_def(IndexAttr)
     ub: IndexAttr = attr_def(IndexAttr)
 
