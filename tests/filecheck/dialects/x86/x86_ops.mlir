@@ -4,6 +4,8 @@
 
 %0, %1 = "test.op"() : () -> (!x86.reg<>, !x86.reg<>)
 %rsp = "test.op"() : () -> !x86.reg<rsp>
+%rax = "test.op"() : () -> !x86.reg<rax>
+%rdx = "test.op"() : () -> !x86.reg<rdx>
 
 %add = x86.rr.add %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 // CHECK: %{{.*}} = x86.rr.add %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
@@ -25,6 +27,9 @@ x86.r.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.r.pop %{{.*}} : (!x86.reg<rsp>) -> (!x86.reg<>, !x86.reg<rsp>)
 %not = x86.r.not %0 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.r.not %{{.*}} : (!x86.reg<>) -> !x86.reg<>
+
+%r_idiv_rdx, %r_idiv_rax = x86.r.idiv %0, %rdx, %rax : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK-NEXT: %{{.*}}, %{{.*}} = x86.r.idiv %{{.*}}, %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 
 %rm_add_no_offset  = x86.rm.add %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.rm.add %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>

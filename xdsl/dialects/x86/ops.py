@@ -414,6 +414,47 @@ class R_NotOp(R_R_Operation[GeneralRegisterType]):
     name = "x86.r.not"
 
 
+@irdl_op_definition
+class R_IDivOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Divides the value in RDX:RAX by r1 and stores the quotient in RAX and the remainder in RDX.
+    https://www.felixcloutier.com/x86/idiv
+    """
+
+    name = "x86.r.idiv"
+
+    r1 = operand_def(R1InvT)
+    rdx_input = operand_def(GeneralRegisterType("rdx"))
+    rax_input = operand_def(GeneralRegisterType("rax"))
+
+    rdx_output = result_def(GeneralRegisterType("rdx"))
+    rax_output = result_def(GeneralRegisterType("rax"))
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        rdx_input: Operation | SSAValue,
+        rax_input: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        rdx_output: GeneralRegisterType,
+        rax_output: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, rdx_input, rax_input],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[rdx_output, rax_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.r1,)
+
+
 class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations that have one register and one memory access with an optional offset.
