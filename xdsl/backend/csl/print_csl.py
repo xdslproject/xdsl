@@ -361,7 +361,6 @@ class CslPrintContext:
                     self.print(f"unknown op {anyop}", prefix="//")
 
     def print_module(self, mod: csl.ModuleOp):
-        # params can be handled here later if needed
         self.print_block(mod.body.block)
 
     def print_divider(self):

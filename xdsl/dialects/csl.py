@@ -325,6 +325,9 @@ class ImportModuleConstOp(IRDLOperation):
 
     params = opt_operand_def(ComptimeStructType)
 
+    # TODO(dk949): The actual result type of this builtin in csl is imported_module,
+    #              not comptime_struct. However they behave identically (AFACT)
+    #              besides the declaration. see d4f4a14c
     result = result_def(ComptimeStructType)
 
 
