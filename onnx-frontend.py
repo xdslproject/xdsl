@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.2.5"
+__generated_with = "0.4.10"
 app = marimo.App()
 
 
@@ -15,7 +15,7 @@ def __():
     This notebook uses Marimo, a Jupyter-like notebook with interactive UI elements and reactive state.
     """
     )
-    return (mo,)
+    return mo,
 
 
 @app.cell
@@ -29,7 +29,7 @@ def __(mo):
     {rank}
     """
     )
-    return (rank,)
+    return rank,
 
 
 @app.cell
@@ -43,7 +43,7 @@ def __(mo, rank):
     {shape}
     """
     )
-    return (shape,)
+    return shape,
 
 
 @app.cell
@@ -209,7 +209,7 @@ def __(MLIROptPass, ctx, generalized_module, mo):
     We then use MLIR to bufferize our function.
     """
     )
-    return (bufferized_module,)
+    return bufferized_module,
 
 
 @app.cell
@@ -221,7 +221,7 @@ def __(MLIROptPass, bufferized_module, ctx):
     ).apply(ctx, scf_module)
 
     print(scf_module)
-    return (scf_module,)
+    return scf_module,
 
 
 @app.cell
@@ -321,7 +321,7 @@ def __(assembly_module, mo, riscv_code):
     This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.
     """
     )
-    return (assembly,)
+    return assembly,
 
 
 @app.cell
@@ -423,12 +423,12 @@ def __(ctx, mo, rank, riscv_module, shape):
 
     from xdsl.interpreter import Interpreter, OpCounter
     from xdsl.interpreters import register_implementations
-    from xdsl.interpreters.riscv import RawPtr
+    from xdsl.interpreters.ptr import TypedPtr
 
     n = prod(shape)
 
-    lhs = RawPtr.new_float64([i + 1 for i in range(n)])
-    rhs = RawPtr.new_float64([(i + 1) / 100 for i in range(n)])
+    lhs = TypedPtr.new_float64([i + 1 for i in range(n)]).raw
+    rhs = TypedPtr.new_float64([(i + 1) / 100 for i in range(n)]).raw
 
     lhs.float64.get_list(n), rhs.float64.get_list(n)
 
@@ -456,7 +456,7 @@ def __(ctx, mo, rank, riscv_module, shape):
     return (
         Interpreter,
         OpCounter,
-        RawPtr,
+        TypedPtr,
         lhs,
         n,
         prod,
