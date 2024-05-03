@@ -39,7 +39,7 @@ class CslPrintContext:
 
     _prefix: str = field(default="")
 
-    _symbols_to_export: dict[str, tuple[TypeAttribute, BoolAttr]] \
+    _symbols_to_export: dict[str, tuple[TypeAttribute, bool]] \
         = field(default_factory=dict)
 
     def print(self, text: str, prefix: str = "", end: str = "\n"):
@@ -288,8 +288,8 @@ class CslPrintContext:
                     with self._in_block("layout"):
                         self.print_block(bdy.block)
                         for name, val in self._symbols_to_export.items():
-                            ty, mut = (self.attribute_value_to_str(v)
-                                       for v in val)
+                            ty = self.attribute_value_to_str(val[0])
+                            mut = str(val[1]).lower()
                             self.print(f"@export_name({name}, {ty}, {mut});")
                 case csl.SetTileCodeOp(file=file, x_coord=x_coord, y_coord=y_coord, params=params):
                     file = self.attribute_value_to_str(file)
@@ -304,11 +304,13 @@ class CslPrintContext:
                     y = self._get_variable_name_for(y_dim)
                     self.print(
                         f"@set_rectangle({x}, {y});")
-                case csl.SymbolExportOp(value=val, var_name=name, type=ty, mutable=mut):
+                case csl.SymbolExportOp(value=val, var_name=name, type=ty):
                     name = self.attribute_value_to_str(name)
-                    self._symbols_to_export[name] = ty, mut
+                    self._symbols_to_export[name] = (
+                        ty,
+                        self._is_mutable(ty.constness.data)
+                    )
                     ty = self.attribute_value_to_str(ty)
-                    mut = self.attribute_value_to_str(mut)
                     val = self._get_variable_name_for(val)
                     with self._in_block("comptime"):
                         self.print(f"@export_symbol({val}, {name});")
@@ -340,10 +342,10 @@ class CslPrintContext:
                 case csl.AddressOfOp(value=val, res=res):
                     val_name = self._get_variable_name_for(val)
                     res_name = self._get_variable_name_for(res)
+                    res_type = cast(csl.PtrType, res.type)
+                    const = self._ptr_kind_to_introducer(
+                        res_type.constness.data)
                     res_type = self.mlir_type_to_csl_type(res.type)
-                    match cast(csl.PtrType, res.type).constness.data:
-                        case csl.PtrConst.CONST: const = "const"
-                        case csl.PtrConst.MUT: const = "var"
                     self.print(
                         f"{const} {res_name} : {res_type} = &{val_name};")
                 case csl.ArrayOp(init_value=init, type=ty, res=res):
