@@ -20,7 +20,8 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     Signedness,
     SignednessAttr,
-    StringAttr
+    StringAttr,
+    TensorType,
 )
 from xdsl.ir import Attribute, Block, SSAValue, Region
 from xdsl.ir.core import BlockOps, TypeAttribute
@@ -129,6 +130,11 @@ class CslPrintContext:
                 args = map(self.mlir_type_to_csl_type, inp)
                 ret = self.mlir_type_to_csl_type(out.data[0])
                 return f"fn({', '.join(args)}) {ret}"
+            case TensorType():
+                t: TensorType[TypeAttribute] = type_attr
+                shape = ", ".join(str(s) for s in t.get_shape())
+                type = self.mlir_type_to_csl_type(t.get_element_type())
+                return f"[{shape}]{type}"
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -193,6 +199,16 @@ class CslPrintContext:
             self.print(
                 f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({
                     self._wrapp_task_id(kind, id)}));")
+
+    def _ptr_kind_to_introducer(self, kind: csl.PtrConst):
+        match kind:
+            case csl.PtrConst.CONST: return "const"
+            case csl.PtrConst.MUT: return "var"
+
+    def _is_mutable(self, const: csl.PtrConst) -> bool:
+        match const:
+            case csl.PtrConst.MUT: return True
+            case csl.PtrConst.CONST: return False
 
     def print_block(self, body: Block):
         """
@@ -330,6 +346,15 @@ class CslPrintContext:
                         case csl.PtrConst.MUT: const = "var"
                     self.print(
                         f"{const} {res_name} : {res_type} = &{val_name};")
+                case csl.ArrayOp(init_value=init, type=ty, res=res):
+                    type = self.mlir_type_to_csl_type(ty)
+                    if init is not None:
+                        val = self.attribute_value_to_str(init)
+                        init = f" = @constants({type}, {val})"
+                    else:
+                        init = ""
+                    name = self._get_variable_name_for(res)
+                    self.print(f"var {name} : {type}{init};")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
