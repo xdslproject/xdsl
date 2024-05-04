@@ -1136,6 +1136,148 @@ class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.rmi.imul"
 
 
+@irdl_op_definition
+class M_PushOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Decreases %rsp and places [r1] at the new memory location pointed to by %rsp.
+    https://www.felixcloutier.com/x86/push
+    """
+
+    name = "x86.m.push"
+
+    source = operand_def(R1InvT)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        source = _assembly_arg_str(self.source)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            if self.offset.value.data > 0:
+                source = f"[{source}+{offset}]"
+            else:
+                source = f"[{source}{offset}]"
+        else:
+            source = f"[{source}]"
+        return (source,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class M_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations with a memory reference that's both a source and a destination
+    """
+
+    source = operand_def(R1InvT)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        source = _assembly_arg_str(self.source)
+        if self.offset is not None:
+            offset = _assembly_arg_str(self.offset)
+            if self.offset.value.data > 0:
+                source = f"[{source}+{offset}]"
+            else:
+                source = f"[{source}{offset}]"
+        else:
+            source = f"[{source}]"
+        return (source,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+@irdl_op_definition
+class M_NegOp(M_M_Operation[GeneralRegisterType]):
+    """
+    Negates the value at the memory location pointed to by r1.
+    [x[r1]] = -[x[r1]]
+    https://www.felixcloutier.com/x86/neg
+    """
+
+    name = "x86.m.neg"
+
+
+@irdl_op_definition
+class M_NotOp(M_M_Operation[GeneralRegisterType]):
+    """
+    bitwise not of [r1], stored in [r1]
+    [x[r1]] = ~[x[r1]]
+    https://www.felixcloutier.com/x86/not
+    """
+
+    name = "x86.m.not"
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:

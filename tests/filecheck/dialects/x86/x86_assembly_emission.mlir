@@ -96,3 +96,14 @@ x86.mi.mov %0, 2, 8 : (!x86.reg<rax>) -> ()
 // CHECK: imul rax, [rdx], 2
 %rmi_imul = x86.rmi.imul %1, 2, 8 : (!x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: imul rax, [rdx+8], 2
+
+x86.m.push %0 : (!x86.reg<rax>) -> ()
+// CHECK: push [rax]
+x86.m.push %0, 8 : (!x86.reg<rax>) -> ()
+// CHECK: push [rax+8]
+x86.m.neg %0 : (!x86.reg<rax>) -> ()
+// CHECK: neg [rax]
+x86.m.neg %0, 8 : (!x86.reg<rax>) -> ()
+// CHECK: neg [rax+8]
+x86.m.not %0, 8 : (!x86.reg<rax>) -> ()
+// CHECK: not [rax+8]
