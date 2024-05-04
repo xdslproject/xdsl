@@ -82,5 +82,5 @@ class MemrefFunctions(InterpreterFunctions):
         xtype = xtype_for_el_type(
             initial_value.get_element_type(), interpreter.index_bitwidth
         )
-        shaped_array = ShapedArray(TypedPtr.new(data, xtype=xtype), list(shape))
+        shaped_array = ShapedArray(TypedPtr[Any].new(data, xtype=xtype), list(shape))
         return (shaped_array,)
