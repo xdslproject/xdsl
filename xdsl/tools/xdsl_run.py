@@ -110,7 +110,7 @@ class xDSLRunMain(CommandLineTool):
                         runner_args, trait.get_argument_types(op)
                     )
                 )
-                result = interpreter.call_op(symbol, args)
+                result = interpreter.call_op(op, args)
                 if self.args.verbose:
                     if result:
                         if len(result) == 1:
