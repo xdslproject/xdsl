@@ -490,7 +490,9 @@ class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.r2
+        memory_access = _memory_access_str(self.r2, self.offset)
+        destination = _assembly_arg_str(self.r1)
+        return (destination, memory_access)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -507,27 +509,6 @@ class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
         if self.offset is not None:
             _print_immediate_value(printer, self.offset)
         return {"offset"}
-
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        destination = _assembly_arg_str(self.r1)
-        source = _assembly_arg_str(self.r2)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                return _assembly_line(
-                    instruction_name,
-                    f"{destination}, [{source}+{offset}]",
-                    self.comment,
-                )
-            else:
-                return _assembly_line(
-                    instruction_name, f"{destination}, [{source}{offset}]", self.comment
-                )
-        else:
-            return _assembly_line(
-                instruction_name, f"{destination}, [{source}]", self.comment
-            )
 
 
 @irdl_op_definition
@@ -758,16 +739,8 @@ class M_MR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        destination = _assembly_arg_str(self.r1)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                destination = f"[{destination}+{offset}]"
-            else:
-                destination = f"[{destination}{offset}]"
-        else:
-            destination = f"[{destination}]"
-        return destination, self.r2
+        memory_access = _memory_access_str(self.r1, self.offset)
+        return memory_access, self.r2
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -889,17 +862,9 @@ class M_MI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        destination = _assembly_arg_str(self.r1)
         immediate = _assembly_arg_str(self.immediate)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                destination = f"[{destination}+{offset}]"
-            else:
-                destination = f"[{destination}{offset}]"
-        else:
-            destination = f"[{destination}]"
-        return destination, immediate
+        memory_access = _memory_access_str(self.r1, self.offset)
+        return memory_access, immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1091,17 +1056,9 @@ class R_RMI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, AB
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         destination = _assembly_arg_str(self.r1)
-        source = _assembly_arg_str(self.r2)
         immediate = _assembly_arg_str(self.immediate)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                source = f"[{source}+{offset}]"
-            else:
-                source = f"[{source}{offset}]"
-        else:
-            source = f"[{source}]"
-        return destination, source, immediate
+        memory_access = _memory_access_str(self.r2, self.offset)
+        return destination, memory_access, immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1170,16 +1127,8 @@ class M_PushOp(IRDLOperation, X86Instruction, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        source = _assembly_arg_str(self.source)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                source = f"[{source}+{offset}]"
-            else:
-                source = f"[{source}{offset}]"
-        else:
-            source = f"[{source}]"
-        return (source,)
+        memory_access = _memory_access_str(self.source, self.offset)
+        return (memory_access,)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1228,16 +1177,8 @@ class M_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        source = _assembly_arg_str(self.source)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                source = f"[{source}+{offset}]"
-            else:
-                source = f"[{source}{offset}]"
-        else:
-            source = f"[{source}]"
-        return (source,)
+        memory_access = _memory_access_str(self.source, self.offset)
+        return (memory_access,)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1360,6 +1301,21 @@ def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAt
             printer.print(immediate.value.data)
         case LabelAttr():
             printer.print_string_literal(immediate.data)
+
+
+def _memory_access_str(
+    register: AssemblyInstructionArg, offset: AssemblyInstructionArg | None
+) -> str:
+    register = _assembly_arg_str(register)
+    if offset is not None:
+        temp = _assembly_arg_str(offset)
+        if offset.value.data > 0:
+            source = f"[{register}+{temp}]"
+        else:
+            source = f"[{register}{temp}]"
+    else:
+        source = f"[{register}]"
+    return source
 
 
 # endregion
