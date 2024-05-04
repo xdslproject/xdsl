@@ -142,6 +142,16 @@ class FuncOpCallableInterface(CallableOpInterface):
         assert isinstance(op, FuncOp)
         return op.body
 
+    @classmethod
+    def get_argument_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.inputs.data
+
+    @classmethod
+    def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.outputs.data
+
 
 @irdl_op_definition
 class FuncOp(IRDLOperation, riscv.RISCVOp):
