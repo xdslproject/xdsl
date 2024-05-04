@@ -1304,18 +1304,18 @@ def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAt
 
 
 def _memory_access_str(
-    register: AssemblyInstructionArg, offset: AssemblyInstructionArg | None
+    register: AssemblyInstructionArg, offset: AnyIntegerAttr | None
 ) -> str:
-    register = _assembly_arg_str(register)
+    register_str = _assembly_arg_str(register)
     if offset is not None:
-        temp = _assembly_arg_str(offset)
+        offset_str = _assembly_arg_str(offset)
         if offset.value.data > 0:
-            source = f"[{register}+{temp}]"
+            mem_acc_str = f"[{register_str}+{offset_str}]"
         else:
-            source = f"[{register}{temp}]"
+            mem_acc_str = f"[{register_str}{offset_str}]"
     else:
-        source = f"[{register}]"
-    return source
+        mem_acc_str = f"[{register_str}]"
+    return mem_acc_str
 
 
 # endregion
