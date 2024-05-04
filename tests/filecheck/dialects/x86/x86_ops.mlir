@@ -98,3 +98,14 @@ x86.mi.mov %0, 2, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: %{{.*}} = x86.rmi.imul %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
 %rmi_imul = x86.rmi.imul %1, 2, 8 : (!x86.reg<>) ->  !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.rmi.imul %{{.*}}, 2, 8 : (!x86.reg<>) -> !x86.reg<>
+
+x86.m.push %0 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.push %{{.*}} : (!x86.reg<>) -> ()
+x86.m.push %0, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.push %{{.*}}, 8 : (!x86.reg<>) -> ()
+x86.m.neg %0 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.neg %{{.*}} : (!x86.reg<>) -> ()
+x86.m.neg %0, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.neg %{{.*}}, 8 : (!x86.reg<>) -> ()
+x86.m.not %0, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.not %{{.*}}, 8 : (!x86.reg<>) -> ()
