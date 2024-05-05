@@ -115,6 +115,13 @@ riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
         "test.op"(%19, %17) : (!riscv.reg<>, !riscv.reg<>) -> ()
     }
 }
+riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
+    riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 {
+        %18 = riscv.li 8 : () -> !riscv.reg<>
+        %19 = riscv.mul %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "test.op"(%19) : (!riscv.reg<>) -> ()
+    }
+}
 
 
 // CHECK-NEXT:  }
