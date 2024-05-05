@@ -109,3 +109,8 @@ x86.m.neg %0, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.m.neg %{{.*}}, 8 : (!x86.reg<>) -> ()
 x86.m.not %0, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.m.not %{{.*}}, 8 : (!x86.reg<>) -> ()
+
+x86.directive ".text"
+// CHECK-NEXT: x86.directive ".text"
+x86.directive ".align" "2"
+// CHECK-NEXT: x86.directive ".align" "2"

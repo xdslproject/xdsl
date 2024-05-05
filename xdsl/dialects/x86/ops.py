@@ -1219,6 +1219,123 @@ class M_NotOp(M_M_Operation[GeneralRegisterType]):
     name = "x86.m.not"
 
 
+@irdl_op_definition
+class LabelOp(IRDLOperation, X86Op):
+    """
+    The label operation is used to emit text labels (e.g. loop:) that are used
+    as branch, unconditional jump targets and symbol offsets.
+    """
+
+    name = "x86.label"
+    label: LabelAttr = attr_def(LabelAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line(self) -> str | None:
+        return _append_comment(f"{self.label.data}:", self.comment)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print_string_literal(self.label.data)
+        return {"label"}
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
+
+
+@irdl_op_definition
+class DirectiveOp(IRDLOperation, X86Op):
+    """
+    The directive operation is used to represent a directive in the assembly code. (e.g. .globl; .type etc)
+    """
+
+    name = "x86.directive"
+
+    directive: StringAttr = attr_def(StringAttr)
+    value: StringAttr | None = opt_attr_def(StringAttr)
+
+    def __init__(
+        self,
+        directive: str | StringAttr,
+        value: str | StringAttr | None,
+    ):
+        if isinstance(directive, str):
+            directive = StringAttr(directive)
+        if isinstance(value, str):
+            value = StringAttr(value)
+
+        super().__init__(
+            attributes={
+                "directive": directive,
+                "value": value,
+            },
+        )
+
+    def assembly_line(self) -> str | None:
+        if self.value is not None and self.value.data:
+            arg_str = _assembly_arg_str(self.value.data)
+        else:
+            arg_str = ""
+
+        return _assembly_line(self.directive.data, arg_str, is_indented=False)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["directive"] = StringAttr(
+            parser.parse_str_literal("Expected directive")
+        )
+        if (value := parser.parse_optional_str_literal()) is not None:
+            attributes["value"] = StringAttr(value)
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print_string_literal(self.directive.data)
+        if self.value is not None:
+            printer.print(" ")
+            printer.print_string_literal(self.value.data)
+        return {"directive", "value"}
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:
