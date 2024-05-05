@@ -199,7 +199,7 @@ def __(Parser, ctx, mo, pp):
                 %16 = memref_stream.read from %3 : f64
                 %17 = memref_stream.read from %4 : f64
                 %18 = arith.mulf %16, %17 : f64
-                %19 = arith.addf %13, %16 : f64
+                %19 = arith.addf %13, %18 : f64
                 scf.yield %19 : f64
               }
               memref.store %14, %2[%10, %11] : memref<8x8xf64>
@@ -339,8 +339,9 @@ def __(Parser, ctx, mo, pp):
                 %24 = riscv_scf.for %25 : !riscv.reg<> = %10 to %8 step %11 iter_args(%26 = %23) -> (!riscv.freg<>) {
                   %27 = riscv_snitch.read from %6 : !riscv.freg<>
                   %28 = riscv_snitch.read from %7 : !riscv.freg<>
-                  %29 = riscv.fadd.d %22, %27 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-                  riscv_scf.yield %29 : !riscv.freg<>
+                  %29 = riscv.fmul.d %27, %28 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+                  %30 = riscv.fadd.d %26, %29 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+                  riscv_scf.yield %30 : !riscv.freg<>
                 }
                 riscv.fsd %21, %24, 0 {"comment" = "store double value to memref of shape (8, 8)"} : (!riscv.reg<>, !riscv.freg<>) -> ()
               }
