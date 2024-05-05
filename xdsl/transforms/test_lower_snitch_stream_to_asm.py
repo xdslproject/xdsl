@@ -38,4 +38,6 @@ class TestLowerSnitchStreamToAsm(ModulePass):
     name = "test-lower-snitch-stream-to-asm"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PipelinePass([p() for p in TEST_LOWER_LINALG_TO_SNITCH_PASSES]).apply(ctx, op)
+        PipelinePass(tuple(p() for p in TEST_LOWER_LINALG_TO_SNITCH_PASSES)).apply(
+            ctx, op
+        )
