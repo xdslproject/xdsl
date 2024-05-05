@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 
 import pytest
@@ -1344,6 +1345,38 @@ def test_inline_region_at_end():
     )
 
 
+def test_erased_ssavalue():
+    prog = """\
+builtin.module {
+  "test.op"() ({
+    %0 = "test.op"() : () -> i32
+    "test.op"(%0) : (i32) -> ()
+  }) : () -> ()
+}
+  """
+
+    expected = """\
+"builtin.module"() ({
+  "test.op"() ({
+  ^0:
+  }) : () -> ()
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.results or op.operands:
+                rewriter.erase_matched_op(safe_erase=False)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_removed=2,
+    )
+
+
 def test_type_conversion():
     """Test rewriter on ops without results"""
     prog = """\
@@ -1544,6 +1577,34 @@ def test_type_conversion():
         op_modified=1,
     )
 
+    prog = """\
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = i32}} : () -> ()
+}) : () -> ()
+"""
+
+    expected_recursive = """
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = index}} : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(recursive=False)),
+        expect_rewrite=False,
+    )
+
+    rewrite_and_compare(
+        prog,
+        expected_recursive,
+        PatternRewriteWalker(Rewrite(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+    )
+
 
 def test_no_change():
     """Test that doing nothing successfully does not report doing something."""
@@ -1569,3 +1630,50 @@ def test_no_change():
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         expect_rewrite=False,
     )
+
+
+def test_error():
+
+    prog = """\
+builtin.module {
+  "test.op"() {"erroneous" = false} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {"erroneous" = true} : () -> ()
+  "test.op"() : () -> ()
+}
+"""
+    expected = """\
+Error while applying pattern: Expected operation to not be erroneous!
+
+"builtin.module"() ({
+  "test.op"() {"erroneous" = false} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {"erroneous" = true} : () -> ()
+  ^^^^^^^^^--------------------------------------------------------------
+  | Error while applying pattern: Expected operation to not be erroneous!
+  -----------------------------------------------------------------------
+  "test.op"() : () -> ()
+}) : () -> ()
+
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
+            if matched_op.attributes.get(
+                "erroneous", IntegerAttr.from_int_and_width(0, 1)
+            ) == IntegerAttr.from_int_and_width(1, 1):
+                raise ValueError("Expected operation to not be erroneous!")
+            return
+
+    ctx = MLContext(allow_unregistered=True)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(test.Test)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_module()
+
+    walker = PatternRewriteWalker(Rewrite())
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        walker.rewrite_module(module)

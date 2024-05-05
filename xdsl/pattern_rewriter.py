@@ -9,11 +9,12 @@ from types import UnionType
 from typing import TypeVar, Union, final, get_args, get_origin
 
 from xdsl.builder import BuilderListener, InsertPoint
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
+    ErasedSSAValue,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -440,6 +441,9 @@ class TypeConversionPattern(RewritePattern):
             if isa(typ, ArrayAttr[Attribute]):
                 parameters = tuple(self._convert_type_rec(p) or p for p in typ)
                 inp = type(typ).new(parameters)
+            if isa(typ, DictionaryAttr):
+                parameters = {k: self._convert_type_rec(v) for k, v in typ.data.items()}
+                inp = type(typ).new(parameters)
         converted = self.convert_type(inp)
         return converted if converted is not None else inp
 
@@ -627,7 +631,11 @@ class PatternRewriteWalker:
         have more canonicalization opportunities.
         """
         for operand in operands:
-            if len(operand.uses) == 1 and isinstance((op := operand.owner), Operation):
+            if (
+                len(operand.uses) == 1
+                and not isinstance(operand, ErasedSSAValue)
+                and isinstance((op := operand.owner), Operation)
+            ):
                 self._worklist.push(op)
 
     def _handle_operation_insertion(self, op: Operation) -> None:
@@ -740,7 +748,14 @@ class PatternRewriteWalker:
             rewriter.current_operation = op
 
             # Apply the pattern on the operation
-            self.pattern.match_and_rewrite(op, rewriter)
+            try:
+                self.pattern.match_and_rewrite(op, rewriter)
+            except Exception as err:
+                op.emit_error(
+                    f"Error while applying pattern: {str(err)}",
+                    exception_type=type(err),
+                    underlying_error=err,
+                )
             rewriter_has_done_action |= rewriter.has_done_action
 
             # If the worklist is empty, we are done
