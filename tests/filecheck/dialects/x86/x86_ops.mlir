@@ -114,3 +114,8 @@ x86.directive ".text"
 // CHECK-NEXT: x86.directive ".text"
 x86.directive ".align" "2"
 // CHECK-NEXT: x86.directive ".align" "2"
+x86.label "label"
+// CHECK-NEXT: x86.label "label"
+
+x86.s.jmp "label"
+// CHECK-NEXT: x86.s.jmp "label"

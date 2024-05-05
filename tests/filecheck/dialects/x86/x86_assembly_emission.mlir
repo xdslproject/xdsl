@@ -114,3 +114,6 @@ x86.directive ".align" "2"
 // CHECK: .align 2
 x86.label "label"
 // CHECK: label:
+
+x86.s.jmp "label"
+// CHECK: jmp label

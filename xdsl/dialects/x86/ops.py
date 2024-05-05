@@ -1219,6 +1219,69 @@ class M_NotOp(M_M_Operation[GeneralRegisterType]):
     name = "x86.m.not"
 
 
+class SOperation(IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one string operand (label).
+    """
+
+    destination: LabelAttr = attr_def(LabelAttr)
+
+    def __init__(
+        self,
+        destination: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(destination, str):
+            destination = LabelAttr(destination)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[],
+            attributes={
+                "destination": destination,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["destination"] = LabelAttr(
+            parser.parse_str_literal("Expected label")
+        )
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print_string_literal(self.destination.data)
+        return {"label"}
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.destination.data,)
+
+
+@irdl_op_definition
+class S_JmpOp(SOperation):
+    """
+    Jump to the label specified in destination.
+    https://www.felixcloutier.com/x86/jmp
+    """
+
+    name = "x86.s.jmp"
+
+
 @irdl_op_definition
 class LabelOp(IRDLOperation, X86Op):
     """
