@@ -3,4 +3,4 @@
 "builtin.module" () {"test" = array<i32: "", 3>} ({
 })
 
-// CHECK: integer or float literal expected
+// CHECK: integer, boolean, or float literal expected

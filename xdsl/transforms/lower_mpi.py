@@ -329,7 +329,7 @@ class LowerMpiInit(_MPIToLLVMRewriteBase):
         We currently don't model any argument passing to `MPI_Init()` and pass two nullptrs.
         """
         return [
-            nullptr := llvm.NullOp(),
+            nullptr := llvm.ZeroOp(result_types=[llvm.LLVMPointerType.opaque()]),
             func.Call(self._mpi_name(op), [nullptr, nullptr], [i32]),
         ], []
 
@@ -824,7 +824,7 @@ class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
         ], []
 
 
-@dataclass
+@dataclass(frozen=True)
 class LowerMPIPass(ModulePass):
     name = "lower-mpi"
 

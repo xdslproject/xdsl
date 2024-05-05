@@ -1,14 +1,23 @@
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 import pytest
 
-from xdsl.dialects import builtin, func
-from xdsl.dialects.builtin import IndexType, IntegerType, ModuleOp, i32
+from xdsl.dialects import builtin, func, test
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerType,
+    ModuleOp,
+    TensorType,
+    f32,
+    i32,
+)
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
     PythonValues,
+    impl,
     impl_cast,
     impl_external,
     register_impls,
@@ -118,11 +127,9 @@ def test_external_func():
 
 
 def test_interpreter_data():
-    class Funcs0(InterpreterFunctions):
-        ...
+    class Funcs0(InterpreterFunctions): ...
 
-    class Funcs1(InterpreterFunctions):
-        ...
+    class Funcs1(InterpreterFunctions): ...
 
     interpreter = Interpreter(ModuleOp([]))
 
@@ -136,3 +143,59 @@ def test_interpreter_data():
     assert interpreter.get_data(Funcs0, "d", lambda: {"b": 2}) == {"b": 2}
 
     assert interpreter.get_data(Funcs1, "a", lambda: {"b": 2}) == {"b": 2}
+
+
+def test_run_op_interpreter_args():
+
+    @dataclass
+    @register_impls
+    class TestFunctions(InterpreterFunctions):
+        @impl(test.TestOp)
+        def run_test(
+            self, interpreter: Interpreter, op: test.TestOp, args: PythonValues
+        ) -> PythonValues:
+            return (1,)
+
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(TestFunctions())
+    test_op = test.TestOp(
+        (),
+        (
+            TensorType(f32, [4]),
+            TensorType(f32, [4]),
+        ),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "Number of operation results (2) doesn't match the number of implementation results (1)"
+        ),
+    ):
+        interpreter.run_op(test_op, ())
+
+    op = test.TestOp(
+        (TestSSAValue(TensorType(f32, [4])),),
+        (
+            TensorType(f32, [4]),
+            TensorType(f32, [4]),
+        ),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match=re.escape(
+            "Number of operands (1) doesn't match the number of inputs (0)."
+        ),
+    ):
+        interpreter.run_op(op, ())
+
+    test_op_2 = test.TestOp(
+        (),
+        (TensorType(f32, [4]),),
+    )
+    assert interpreter.run_op(test_op_2, ()) == (1,)
+
+    op_2 = test.TestOp(
+        (TestSSAValue(TensorType(f32, [4])),),
+        (TensorType(f32, [4]),),
+    )
+    assert interpreter.run_op(op_2, (1,)) == (1,)

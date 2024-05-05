@@ -21,12 +21,12 @@ pdl.pattern @boundedOperation : benefit(1) {
   %attr2 = pdl.attribute
 
   // A bound operation
-  %root = pdl.operation "test.test"(%operand, %operands : !pdl.value, !pdl.range<!pdl.value>)
+  %root = pdl.operation "test.test"(%operand, %operands : !pdl.value, !pdl.range<value>)
                         {"value1" = %attr, "value2" = %attr2}
-                        -> (%types, %type : !pdl.range<!pdl.type>, !pdl.type)
+                        -> (%types, %type : !pdl.range<type>, !pdl.type)
 
   pdl.rewrite %root with "test_rewriter"(%root : !pdl.operation)
 }
 
 // CHECK: @boundedOperation
-// CHECK: %{{.*}} = pdl.operation "test.test" (%{{.*}}, %{{.*}} : !pdl.value, !pdl.range<!pdl.value>) {"value1" = %{{.*}}, "value2" = %{{.*}}} -> (%{{.*}}, %{{.*}} : !pdl.range<!pdl.type>, !pdl.type)
+// CHECK: %{{.*}} = pdl.operation "test.test" (%{{.*}}, %{{.*}} : !pdl.value, !pdl.range<value>) {"value1" = %{{.*}}, "value2" = %{{.*}}} -> (%{{.*}}, %{{.*}} : !pdl.range<type>, !pdl.type)

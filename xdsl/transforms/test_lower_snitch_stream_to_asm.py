@@ -10,13 +10,11 @@ from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.convert_riscv_scf_for_to_frep import ConvertRiscvScfForToFrepPass
 from xdsl.transforms.lower_snitch import LowerSnitchPass
-from xdsl.transforms.riscv_cse import RiscvCommonSubexpressionElimination
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
 
 TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[type[ModulePass], ...] = (
-    RiscvCommonSubexpressionElimination,
     ConvertRiscvScfForToFrepPass,
     SnitchRegisterAllocation,
     ConvertSnitchStreamToSnitch,

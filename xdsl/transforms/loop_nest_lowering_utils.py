@@ -121,24 +121,24 @@ def rewrite_generic_to_loops(
         rewriter.insert_op_before(load_op, insertion_target)
         arg.replace_by(load_op.results[0])
 
-    # Add store ops before the linalg.yield operation in the generic body
+    # Add store ops before the yield operation in the generic body
 
-    linalg_yield_op = op.body.block.last_op
-    assert isinstance(linalg_yield_op, linalg.YieldOp)
+    yield_op = op.body.block.last_op
+    assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
 
     output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
     output_operands = op.operands[-len(op.outputs) :]
     for affine_map_attr, yield_value, ref in zip(
-        output_indexing_maps, linalg_yield_op.operands, output_operands, strict=True
+        output_indexing_maps, yield_op.operands, output_operands, strict=True
     ):
         affine_map = affine_map_attr.data
         indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
         store_op = store(yield_value, ref, indices)
-        rewriter.insert_op_before(store_op, linalg_yield_op)
+        rewriter.insert_op_before(store_op, yield_op)
 
     # Now that the linalg yield op operands have been converted to stores, remove
 
-    rewriter.erase_op(linalg_yield_op)
+    rewriter.erase_op(yield_op)
 
     # Inline generic body into innermost scf loop
     # The operands have already been remapped

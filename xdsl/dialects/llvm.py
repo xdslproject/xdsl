@@ -622,8 +622,7 @@ class GEPOp(IRDLOperation):
         if not ptr_type.is_typed():
             if pointee_type is None:
                 raise ValueError("Opaque types must have a pointee type passed")
-            # opaque input ptr => opaque output ptr
-            props["elem_type"] = LLVMPointerType.opaque()
+            props["elem_type"] = pointee_type
 
         if inbounds:
             props["inbounds"] = UnitAttr()
@@ -743,10 +742,10 @@ class InlineAsmOp(IRDLOperation):
 
     def __init__(
         self,
-        operands_: list[SSAValue | Operation],
-        res_types: list[Attribute],
         asm_string: str,
         constraints: str,
+        operands: Sequence[SSAValue | Operation],
+        res_types: Sequence[Attribute] | None = None,
         asm_dialect: int = 0,
         has_side_effects: bool = False,
         is_align_stack: bool = False,
@@ -762,11 +761,14 @@ class InlineAsmOp(IRDLOperation):
             "is_align_stack": UnitAttr() if is_align_stack else None,
         }
 
+        if res_types is None:
+            res_types = []
+
         super().__init__(
-            operands=operands_,
+            operands=[operands],
             attributes=attrs,
             properties=props,
-            result_types=res_types,
+            result_types=[res_types],
         )
 
 
@@ -1311,6 +1313,20 @@ class CallOp(IRDLOperation):
         )
 
 
+LLVMType = (
+    LLVMStructType | LLVMPointerType | LLVMArrayType | LLVMVoidType | LLVMFunctionType
+)
+
+
+@irdl_op_definition
+class ZeroOp(IRDLOperation):
+    name = "llvm.mlir.zero"
+
+    assembly_format = "attr-dict `:` type($res)"
+
+    res = result_def(LLVMType)
+
+
 LLVM = Dialect(
     "llvm",
     [
@@ -1344,6 +1360,7 @@ LLVM = Dialect(
         ReturnOp,
         ConstantOp,
         CallIntrinsicOp,
+        ZeroOp,
     ],
     [
         LLVMStructType,

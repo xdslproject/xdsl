@@ -416,11 +416,13 @@ class MpiLoopInvariantCodeMotion:
 
     def rewrite(
         self,
-        op: memref.Alloc
-        | mpi.CommRank
-        | mpi.AllocateTypeOp
-        | mpi.UnwrapMemrefOp
-        | mpi.Init,
+        op: (
+            memref.Alloc
+            | mpi.CommRank
+            | mpi.AllocateTypeOp
+            | mpi.UnwrapMemrefOp
+            | mpi.Init
+        ),
         rewriter: Rewriter,
         /,
     ):
@@ -620,14 +622,14 @@ class DmpSwapShapeInference:
                 self.match_and_rewrite(op)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DmpDecompositionPass(ModulePass, ABC):
     """
     Represents a pass that takes a strategy as input
     """
 
 
-@dataclass
+@dataclass(frozen=True)
 class DistributeStencilPass(DmpDecompositionPass):
     """
     Decompose a stencil to apply to a local domain.
@@ -642,7 +644,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         "3d-grid": GridSlice3d,
     }
 
-    slices: list[int]
+    slices: tuple[int, ...]
     """
     Number of slices to decompose the input into
     """
@@ -681,7 +683,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         DmpSwapShapeInference(strategy).apply(op)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LowerHaloToMPI(ModulePass):
     name = "dmp-to-mpi"
 

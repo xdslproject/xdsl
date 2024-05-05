@@ -187,7 +187,7 @@ class LoopHoistMemref(RewritePattern):
         rewriter.erase_op(for_op)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LoopHoistMemrefPass(ModulePass):
     name = "loop-hoist-memref"
 

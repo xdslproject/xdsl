@@ -1,22 +1,22 @@
 pip<25.0
-black[jupyter]
+# Update precommit version when black updates
+black[jupyter]==24.4.2
 toml<0.11
 pytest-cov
 coverage<8.0.0
 ipykernel
-pytest<9.0
-nbval<0.11
+pytest<8.3
+nbval<0.12
 filecheck<0.0.25
-lit<18.0.0
-marimo==0.2.5
-pre-commit==3.6.2
-ruff==0.2.2
+lit<19.0.0
+pre-commit==3.7.0
+ruff==0.4.2
 asv<0.7
 isort==5.13.2
 nbconvert>=7.7.2,<8.0.0
 textual-dev==1.5.1
-pytest-asyncio==0.23.5
+pytest-asyncio==0.23.6
 # pyright version has to be fixed with `==`. The CI parses this file
 # and installs the according version for typechecking.
 pyright==1.1.345
--e .[extras]
+-e .[extras,onnx]
