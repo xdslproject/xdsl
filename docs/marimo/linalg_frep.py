@@ -199,7 +199,7 @@ def __(Parser, ctx, mo, pp):
                 %16 = memref_stream.read from %3 : f64
                 %17 = memref_stream.read from %4 : f64
                 %18 = arith.mulf %16, %17 : f64
-                %19 = arith.addf %13, %16 : f64
+                %19 = arith.addf %13, %18 : f64
                 scf.yield %19 : f64
               }
               memref.store %14, %2[%10, %11] : memref<8x8xf64>
