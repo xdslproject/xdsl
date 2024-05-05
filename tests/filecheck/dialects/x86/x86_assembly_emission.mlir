@@ -2,6 +2,7 @@
 
 %0 = x86.get_register : () -> !x86.reg<rax>
 %1 = x86.get_register : () -> !x86.reg<rdx>
+%2 = x86.get_register : () -> !x86.reg<rcx>
 %rsp = x86.get_register : () -> !x86.reg<rsp>
 
 %add = x86.rr.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
@@ -24,6 +25,9 @@ x86.r.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: pop rax
 %not = x86.r.not %0 : (!x86.reg<rax>) -> !x86.reg<rax>
 // CHECK: not rax
+
+%r_idiv_rdx, %r_idiv_rax = x86.r.idiv %2, %1, %0 : (!x86.reg<rcx>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK: idiv rcx
 
 %rm_add_no_offset = x86.rm.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: add rax, [rdx]
@@ -84,3 +88,29 @@ x86.mi.xor %0, 2, 8 : (!x86.reg<rax>) -> ()
 // CHECK: xor [rax+8], 2
 x86.mi.mov %0, 2, 8 : (!x86.reg<rax>) -> ()
 // CHECK: mov [rax+8], 2
+
+%rri_imul = x86.rri.imul %1, 2 : (!x86.reg<rdx>) -> !x86.reg<rax>
+// CHECK: imul rax, rdx, 2
+
+%rmi_imul_no_offset = x86.rmi.imul %1, 2 : (!x86.reg<rdx>) -> !x86.reg<rax>
+// CHECK: imul rax, [rdx], 2
+%rmi_imul = x86.rmi.imul %1, 2, 8 : (!x86.reg<rdx>) -> !x86.reg<rax>
+// CHECK: imul rax, [rdx+8], 2
+
+x86.m.push %0 : (!x86.reg<rax>) -> ()
+// CHECK: push [rax]
+x86.m.push %0, 8 : (!x86.reg<rax>) -> ()
+// CHECK: push [rax+8]
+x86.m.neg %0 : (!x86.reg<rax>) -> ()
+// CHECK: neg [rax]
+x86.m.neg %0, 8 : (!x86.reg<rax>) -> ()
+// CHECK: neg [rax+8]
+x86.m.not %0, 8 : (!x86.reg<rax>) -> ()
+// CHECK: not [rax+8]
+
+x86.directive ".text"
+// CHECK: .text
+x86.directive ".align" "2"
+// CHECK: .align 2
+x86.label "label"
+// CHECK: label:
