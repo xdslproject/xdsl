@@ -123,6 +123,27 @@ riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
     }
 }
 
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:        "test.op"(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:        "test.op"(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = riscv.mul %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
 
 // CHECK-NEXT:  }
 
