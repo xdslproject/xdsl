@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.2.5"
+__generated_with = "0.4.11"
 app = marimo.App()
 
 
@@ -404,7 +404,7 @@ def __(mo):
 
 @app.cell
 def __(apply, ctx, mo, pp, rv_loops_folded_2_m):
-    from xdsl.transforms.test_lower_linalg_to_snitch import TEST_LOWER_LINALG_TO_SNITCH_PASSES
+    from xdsl.transforms.test_lower_snitch_stream_to_asm import TEST_LOWER_LINALG_TO_SNITCH_PASSES
 
     pass_results = ""
     remaining_m = rv_loops_folded_2_m

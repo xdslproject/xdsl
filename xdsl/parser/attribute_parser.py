@@ -606,7 +606,7 @@ class AttrParser(BaseParser):
             self.parse_optional_builtin_int_or_float_attr,
             self._parse_optional_array_attr,
             self._parse_optional_symref_attr,
-            self._parse_optional_location,
+            self.parse_optional_location,
             self._parse_optional_builtin_dict_attr,
             self.parse_optional_type,
             self._parse_optional_builtin_parametrized_attr,
@@ -883,7 +883,10 @@ class AttrParser(BaseParser):
 
         self.parse_characters(":", " in dense array")
 
-        values = self.parse_comma_separated_list(self.Delimiter.NONE, self.parse_number)
+        values = self.parse_comma_separated_list(
+            self.Delimiter.NONE, lambda: self.parse_number(allow_boolean=True)
+        )
+
         self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
@@ -1028,6 +1031,27 @@ class AttrParser(BaseParser):
             element = self._parse_tensor_literal_element()
             return [element], []
 
+    def parse_optional_visibility_keyword(self) -> StringAttr | None:
+        """
+        Parses the visibility keyword of a symbol if present.
+        """
+        if self.parse_optional_keyword("public"):
+            return StringAttr("public")
+        elif self.parse_optional_keyword("nested"):
+            return StringAttr("nested")
+        elif self.parse_optional_keyword("private"):
+            return StringAttr("private")
+        else:
+            return None
+
+    def parse_visibility_keyword(self) -> StringAttr:
+        """
+        Parses the visibility keyword of a symbol.
+        """
+        return self.expect(
+            self.parse_optional_visibility_keyword, "expect symbol visibility keyword"
+        )
+
     def parse_optional_symbol_name(self) -> StringAttr | None:
         """
         Parse an @-identifier if present, and return its name (without the '@') in a
@@ -1079,7 +1103,7 @@ class AttrParser(BaseParser):
 
         return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
-    def _parse_optional_location(self) -> LocationAttr | None:
+    def parse_optional_location(self) -> LocationAttr | None:
         """
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`

@@ -1,7 +1,16 @@
 import pytest
 
 from xdsl.dialects.builtin import IntegerType, i32
-from xdsl.dialects.comb import ConcatOp, ICmpOp
+from xdsl.dialects.comb import (
+    AddOp,
+    AndOp,
+    ConcatOp,
+    ICmpOp,
+    MulOp,
+    OrOp,
+    VariadicCombOperation,
+    XorOp,
+)
 from xdsl.dialects.test import TestOp, TestType
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import TestSSAValue
@@ -41,3 +50,35 @@ def test_comb_concat_verifier():
 
     with pytest.raises(VerifyException):
         ConcatOp([a, b, c], IntegerType(2)).verify()
+
+
+@pytest.mark.parametrize(
+    "ctor",
+    [
+        AddOp,
+        MulOp,
+        AndOp,
+        OrOp,
+        XorOp,
+    ],
+)
+def test_comb_variadic_builder_verifier(ctor: type[VariadicCombOperation]):
+    a = TestSSAValue(IntegerType(5))
+    b = TestSSAValue(IntegerType(6))
+
+    ctor([a]).verify()
+    ctor([a, a]).verify()
+    ctor([a, a, a]).verify()
+    ctor([a, a], a.type).verify()
+
+    with pytest.raises(ValueError, match="cannot infer type"):
+        ctor([]).verify()
+
+    with pytest.raises(VerifyException, match="op expected 1 or more operands"):
+        ctor([], a.type).verify()
+
+    with pytest.raises(VerifyException):
+        ctor([a, b]).verify()
+
+    with pytest.raises(VerifyException):
+        ctor([a, a], b.type).verify()

@@ -622,8 +622,7 @@ class GEPOp(IRDLOperation):
         if not ptr_type.is_typed():
             if pointee_type is None:
                 raise ValueError("Opaque types must have a pointee type passed")
-            # opaque input ptr => opaque output ptr
-            props["elem_type"] = LLVMPointerType.opaque()
+            props["elem_type"] = pointee_type
 
         if inbounds:
             props["inbounds"] = UnitAttr()
@@ -1314,6 +1313,20 @@ class CallOp(IRDLOperation):
         )
 
 
+LLVMType = (
+    LLVMStructType | LLVMPointerType | LLVMArrayType | LLVMVoidType | LLVMFunctionType
+)
+
+
+@irdl_op_definition
+class ZeroOp(IRDLOperation):
+    name = "llvm.mlir.zero"
+
+    assembly_format = "attr-dict `:` type($res)"
+
+    res = result_def(LLVMType)
+
+
 LLVM = Dialect(
     "llvm",
     [
@@ -1347,6 +1360,7 @@ LLVM = Dialect(
         ReturnOp,
         ConstantOp,
         CallIntrinsicOp,
+        ZeroOp,
     ],
     [
         LLVMStructType,

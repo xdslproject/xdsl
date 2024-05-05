@@ -197,9 +197,14 @@ class ParallelOp(IRDLOperation):
             raise VerifyException(
                 "Expected as many operands as results, lower bound args and upper bound args."
             )
-        if len(self.lowerBoundsGroups.data) != len(self.lowerBoundsMap.data.results):
+
+        if sum(g.value.data for g in self.lowerBoundsGroups.data) != len(
+            self.lowerBoundsMap.data.results
+        ):
             raise VerifyException("Expected a lower bound group for each lower bound")
-        if len(self.upperBoundsGroups.data) != len(self.upperBoundsMap.data.results):
+        if sum(g.value.data for g in self.upperBoundsGroups.data) != len(
+            self.upperBoundsMap.data.results
+        ):
             raise VerifyException("Expected an upper bound group for each upper bound")
 
 

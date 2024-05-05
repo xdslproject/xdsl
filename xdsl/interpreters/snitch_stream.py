@@ -10,7 +10,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.interpreters.riscv import RawPtr
+from xdsl.interpreters import ptr
 from xdsl.interpreters.stream import (
     ReadableStream,
     WritableStream,
@@ -20,25 +20,25 @@ from xdsl.interpreters.stream import (
 @dataclass
 class StridedPointerInputStream(ReadableStream[float]):
     offset_iter: Iterator[int]
-    pointer: RawPtr
+    pointer: ptr.RawPtr
     index = -1
 
     def read(self) -> float:
         self.index += 1
         offset = next(self.offset_iter)
-        return (self.pointer + offset).float64[0]
+        return ptr.TypedPtr((self.pointer + offset), xtype=ptr.float64)[0]
 
 
 @dataclass
 class StridedPointerOutputStream(WritableStream[float]):
     index = -1
     offset_iter: Iterator[int]
-    pointer: RawPtr
+    pointer: ptr.RawPtr
 
     def write(self, value: float) -> None:
         self.index += 1
         offset = next(self.offset_iter)
-        (self.pointer + offset).float64[0] = value
+        ptr.TypedPtr((self.pointer + offset), xtype=ptr.float64)[0] = value
 
 
 @register_impls
@@ -52,8 +52,8 @@ class SnitchStreamFunctions(InterpreterFunctions):
     ) -> PythonValues:
         input_stream_count = len(op.inputs)
         output_stream_count = len(op.outputs)
-        input_pointers: tuple[RawPtr, ...] = args[:input_stream_count]
-        output_pointers: tuple[RawPtr, ...] = args[
+        input_pointers: tuple[ptr.RawPtr, ...] = args[:input_stream_count]
+        output_pointers: tuple[ptr.RawPtr, ...] = args[
             input_stream_count : input_stream_count + output_stream_count
         ]
 
