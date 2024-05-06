@@ -43,7 +43,7 @@ class FuseNestedLoopsPattern(RewritePattern):
         outer_index = outer_body.args[0]
         inner_index = inner_loop.body.block.args[0]
 
-        if len(outer_index.uses) != 1 or len(outer_index.uses) != 1:
+        if len(outer_index.uses) != 1 or len(inner_index.uses) != 1:
             # If the induction variable is used more than once, we can't fold it
             return
 
