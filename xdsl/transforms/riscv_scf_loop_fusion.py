@@ -76,9 +76,14 @@ class FuseNestedLoopsPattern(RewritePattern):
 
 class RiscvScfLoopFusionPass(ModulePass):
     """
-    Folds loop nests if they can be represented with a single loop.
+    Folds perfect loop nests if they can be represented with a single loop.
     Currently does this by matching the inner loop range with the outer loop step.
     If the inner iteration space fits perfectly in the outer iteration step, then merge.
+    Other conditions:
+     - the only use of the induction arguments must be an add operation, this op is fused
+       into a single induction argument,
+     - the lower bound of the inner loop must be 0,
+     - the loops must have no iteration arguments.
     """
 
     name = "riscv-scf-loop-fusion"
