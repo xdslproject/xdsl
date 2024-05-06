@@ -311,61 +311,22 @@ def __(apply, ctx, mo, pp, rv_loops_cse_m):
 
 
 @app.cell
-def __(Parser, ctx, mo, pp):
-    fused_ir = """
-      riscv.assembly_section ".text" {
-        riscv.directive ".globl" "matmul"
-        riscv.directive ".p2align" "2"
-        riscv_func.func @matmul(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, %2 : !riscv.reg<a2>) {
-          %3 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<>
-          %4 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<>
-          %5 = riscv.mv %2 : (!riscv.reg<a2>) -> !riscv.reg<>
-          "snitch_stream.streaming_region"(%3, %4) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [8, 64], strides = [0, 8]>, #snitch_stream.stride_pattern<ub = [8, 8, 8], strides = [8, 64, 0]>], "operandSegmentSizes" = array<i32: 2, 0>}> ({
-          ^0(%6 : !stream.readable<!riscv.freg<>>, %7 : !stream.readable<!riscv.freg<>>):
-            %8 = riscv.li 8 : () -> !riscv.reg<>
-            %9 = riscv.get_register : () -> !riscv.reg<zero>
-            %10 = riscv.mv %9 : (!riscv.reg<zero>) -> !riscv.reg<>
-            %11 = riscv.li 1 : () -> !riscv.reg<>
-            %12 = riscv.get_register : () -> !riscv.reg<zero>
-            %13 = riscv.mv %12 : (!riscv.reg<zero>) -> !riscv.reg<>
-            %14 = riscv.li 64 : () -> !riscv.reg<>
-            %15 = riscv.li 8 : () -> !riscv.reg<>
-            riscv_scf.for %16 : !riscv.reg<> = %13 to %14 step %11 {
-                %17 = riscv.li 8 : () -> !riscv.reg<>
-                %20 = riscv.mul %16, %17 {"comment" = "multiply by element size"} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-                %21 = riscv.add %5, %20 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-                %22 = riscv.fld %21, 0 {"comment" = "load double from memref of shape (8, 8)"} : (!riscv.reg<>) -> !riscv.freg<>
-                %23 = riscv.fmv.d %22 : (!riscv.freg<>) -> !riscv.freg<>
-                %24 = riscv_scf.for %25 : !riscv.reg<> = %10 to %8 step %11 iter_args(%26 = %23) -> (!riscv.freg<>) {
-                  %27 = riscv_snitch.read from %6 : !riscv.freg<>
-                  %28 = riscv_snitch.read from %7 : !riscv.freg<>
-                  %29 = riscv.fmul.d %27, %28 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-                  %30 = riscv.fadd.d %26, %29 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-                  riscv_scf.yield %30 : !riscv.freg<>
-                }
-                riscv.fsd %21, %24, 0 {"comment" = "store double value to memref of shape (8, 8)"} : (!riscv.reg<>, !riscv.freg<>) -> ()
-              }
-          }) : (!riscv.reg<>, !riscv.reg<>) -> ()
-          riscv_func.return
-        }
-      }
-    """
+def __(apply, ctx, mo, pp, rv_loops_folded_m):
+    from xdsl.transforms.riscv_scf_loop_fusion import RiscvScfLoopFusionPass
 
-    fused_m = Parser(ctx, fused_ir).parse_module()
+    fused_m = apply(RiscvScfLoopFusionPass(), rv_loops_folded_m, ctx)
 
 
     mo.md(f"""
 
-    **TODO 2**
-
     The key pattern to spot there is the nested loop, where the inner loop index iterates until the step of the outer loop.
-    These loops can be fused, to give something like this:
+    These loops can be fused, to give this:
 
     ``` mlir
     {pp(fused_m)}
     ```
     """)
-    return fused_ir, fused_m
+    return RiscvScfLoopFusionPass, fused_m
 
 
 @app.cell
