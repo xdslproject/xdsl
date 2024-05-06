@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -241,11 +242,15 @@ class Printer:
         if value in self._ssa_values:
             name = self._ssa_values[value]
         elif value.name_hint:
-            curr_ind = self._ssa_names.get(value.name_hint, 0)
+            r1 = re.compile(r"_[0-9]+$")
+            name_hint = value.name_hint
+            if match := r1.search(name_hint):
+                name_hint = name_hint[: match.start()]
+            curr_ind = self._ssa_names.get(name_hint, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
-            name = f"{value.name_hint}{suffix}"
+            name = f"{name_hint}{suffix}"
             self._ssa_values[value] = name
-            self._ssa_names[value.name_hint] = curr_ind + 1
+            self._ssa_names[name_hint] = curr_ind + 1
         else:
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
