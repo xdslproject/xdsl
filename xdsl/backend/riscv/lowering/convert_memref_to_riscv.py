@@ -36,18 +36,14 @@ def bitwidth_of_type(type_attribute: Attribute) -> int:
     """
     Returns the width of an element type in bits, or raises ValueError for unknown inputs.
     """
-    match type_attribute:
-        case IntegerType():
-            bitwidth = type_attribute.width.data
-            return bitwidth
-        case Float32Type():
-            return 32
-        case Float64Type():
-            return 64
-        case _:
-            raise NotImplementedError(
-                f"Unsupported memref element type for riscv lowering: {type_attribute}"
-            )
+    if isinstance(type_attribute, AnyFloat):
+        return type_attribute.get_bitwidth
+    elif isinstance(type_attribute, IntegerType):
+        return type_attribute.width.data
+    else:
+        raise NotImplementedError(
+            f"Unsupported memref element type for riscv lowering: {type_attribute}"
+        )
 
 
 class ConvertMemrefAllocOp(RewritePattern):
