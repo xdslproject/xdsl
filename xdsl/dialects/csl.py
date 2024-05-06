@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     IntegerType,
     IntegerAttr,
-    TensorType,
 )
 from xdsl.dialects.utils import (
     parse_func_op_like,
@@ -191,8 +190,6 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
-
-
 @irdl_op_definition
 class ConstStructOp(IRDLOperation):
     name = "csl.const_struct"
@@ -305,6 +302,7 @@ class ModuleOp(IRDLOperation):
         printer.print(f" {{kind = {self.properties['kind']}}} ")
         printer.print(self.body)
 
+
 @irdl_op_definition
 class ParamOp(IRDLOperation):
     name = "csl.param"
@@ -315,6 +313,7 @@ class ParamOp(IRDLOperation):
     res = result_def()
     # TODO(dk949): how to verify that the init property is of correct type
     init_value = opt_prop_def(Attribute)
+
 
 @irdl_op_definition
 class ImportModuleConstOp(IRDLOperation):
@@ -696,7 +695,7 @@ class AddressOfOp(IRDLOperation):
         v_ty = self.value.type
         r_ty = self.res.type
         r_elem_ty = r_ty.get_element_type()
-        if isa(v_ty, builtin.TensorType[Attribute]):
+        if isa(v_ty, builtin.MemRefType):
             if r_elem_ty == v_ty.get_element_type():
                 if r_ty.kind.data != PtrKind.MANY:
                     raise VerifyException(
@@ -707,7 +706,7 @@ class AddressOfOp(IRDLOperation):
                         f"The kind of array pointer to array has to be {PtrKind.SINGLE.value}")
             else:
                 raise VerifyException(
-                    "Contained type of the result pointer must match the contained type of the operand tensor or the tensor itself")
+                    "Contained type of the result pointer must match the contained type of the operand memref or the memref itself")
         else:
             if r_ty.get_element_type() != v_ty:
                 raise VerifyException(
@@ -787,26 +786,6 @@ class GetColorOp(IRDLOperation):
     res = result_def(ColorType)
 
 
-@irdl_op_definition
-class ArrayOp(IRDLOperation):
-    name = "csl.decl_array"
-
-    # TODO(dk949): transform from memref global to this
-
-    init_value = opt_prop_def(Attribute)
-    type = prop_def(TensorType[TypeAttribute])
-    res = result_def(TensorType[TypeAttribute])
-
-    def verify_(self) -> None:
-        # TODO(dk949): type of init_value is not verified at all
-        if self.type != self.res.type:
-            raise VerifyException("type must match the result type")
-        if not isa(self.type, TensorType[TypeAttribute]):
-            raise VerifyException("type must be a tensor")
-
-        return super().verify_()
-
-
 CSL = Dialect(
     "csl",
     [
@@ -828,7 +807,6 @@ CSL = Dialect(
         GetColorOp,
         ParamOp,
         AddressOfOp,
-        ArrayOp,
     ],
     [
         ComptimeStructType,
