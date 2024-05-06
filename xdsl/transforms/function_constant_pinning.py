@@ -277,6 +277,7 @@ class FunctionConstantPinningPass(ModulePass):
     Note that the function `test_pinned` might be much easier to optimize for a compiler if there are state
     dependencies between `specific_thing`, `another_thing` and `some_thing`.
     """
+
     name = "function-constant-pinning"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
