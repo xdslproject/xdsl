@@ -772,7 +772,7 @@ class SymbolExportOp(IRDLOperation):
 
     traits = frozenset([InModuleKind(ModuleKind.PROGRAM, direct_child=False)])
 
-    value = operand_def()
+    value = opt_operand_def()
 
     var_name = prop_def(StringAttr)
     type = prop_def(PtrType)
@@ -784,6 +784,13 @@ class GetColorOp(IRDLOperation):
 
     id = prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(5)]])
     res = result_def(ColorType)
+
+
+@irdl_op_definition
+class RpcOp(IRDLOperation):
+    name = "csl.rpc"
+
+    id = operand_def(ColorType)
 
 
 CSL = Dialect(
@@ -807,6 +814,7 @@ CSL = Dialect(
         GetColorOp,
         ParamOp,
         AddressOfOp,
+        RpcOp,
     ],
     [
         ComptimeStructType,
