@@ -55,6 +55,17 @@ def __(mo):
     func.func public @matmul(%X: memref<8x8xf64>,
                              %Y: memref<8x8xf64>,
                              %Z: memref<8x8xf64>) {
+        %zero = arith.constant 0.0 : f64
+        linalg.generic {
+            indexing_maps = [
+                affine_map<(d0, d1) -> ()>,
+                affine_map<(d0, d1) -> (d0, d1)>
+            ],
+            iterator_types = ["parallel", "parallel"]
+        } ins(%zero : f64) outs(%Z : memref<8x8xf64>) {
+        ^bb0(%in: f64, %out: f64):
+          linalg.yield %in : f64
+        }
         linalg.generic {
             indexing_maps = [
                 affine_map<(d0, d1, d2) -> (d0, d2)>,
