@@ -16,13 +16,13 @@ riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
     }
 }
 
-// CHECK-NEXT:    %{{.*}} = riscv.li 0 : () -> !riscv.reg<>
-// CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg<>
-// CHECK-NEXT:    %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
-// CHECK-NEXT:    %{{.*}} = riscv.li 64 : () -> !riscv.reg<>
-// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
-// CHECK-NEXT:      %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
-// CHECK-NEXT:      "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:    %c0 = riscv.li 0 : () -> !riscv.reg<>
+// CHECK-NEXT:    %c1 = riscv.li 1 : () -> !riscv.reg<>
+// CHECK-NEXT:    %c8 = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:    %c64 = riscv.li 64 : () -> !riscv.reg<>
+// CHECK-NEXT:    riscv_scf.for %0 : !riscv.reg<> = %c0 to %c64 step %c1 {
+// CHECK-NEXT:      %1 = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:      "test.op"(%0) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:    }
 
 // Cannot fuse outer loop with iteration arguments
