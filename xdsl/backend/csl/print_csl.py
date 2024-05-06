@@ -377,6 +377,10 @@ class CslPrintContext:
                 case memref.GetGlobal(name_=name, memref=res):
                     # We print the array definition when the global is defined
                     self.variables[res] = name.string_value()
+                case csl.RpcOp(id=id):
+                    id = self._get_variable_name_for(id)
+                    with self._in_block("comptime"):
+                        self.print(f"@rpc(@get_data_task_id({id}));")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
