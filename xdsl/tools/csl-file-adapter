@@ -35,12 +35,12 @@ if __name__ == "__main__":
     file = None
     try:
         args = parse_args()
-        file = open(args.layout, "w")
+        file = open(args.program, "w")
         with open_input(args.input) as input:
             for line in input:
                 if line == div:
                     file.close()
-                    file = open(args.program, "w")
+                    file = open(args.layout, "w")
                 else:
                     file.write(line)
     except Exception as e:
