@@ -1,7 +1,9 @@
 from xdsl.ir import Dialect
 
 from .ops import (
+    DirectiveOp,
     GetRegisterOp,
+    LabelOp,
     M_NegOp,
     M_NotOp,
     M_PushOp,
@@ -91,6 +93,8 @@ X86 = Dialect(
         M_NegOp,
         M_NotOp,
         GetRegisterOp,
+        LabelOp,
+        DirectiveOp,
     ],
     [
         GeneralRegisterType,

@@ -515,8 +515,9 @@ def test_stencil_store():
 
     lb = IndexAttr.get(1, 1)
     ub = IndexAttr.get(64, 64)
+    bounds = StencilBoundsAttr.new((lb, ub))
 
-    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
+    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, bounds)
 
     assert isinstance(store, StoreOp)
     assert isinstance(store_field_type := store.field.type, FieldType)
@@ -525,8 +526,7 @@ def test_stencil_store():
     assert store_temp_type == temp_type
     assert len(store_field_type.get_shape()) == 2
     assert len(store_temp_type.get_shape()) == 2
-    assert store.lb is lb
-    assert store.ub is ub
+    assert store.bounds is bounds
 
 
 def test_stencil_store_load_overlap():
@@ -538,9 +538,10 @@ def test_stencil_store_load_overlap():
 
     lb = IndexAttr.get(1, 1)
     ub = IndexAttr.get(64, 64)
+    bounds = StencilBoundsAttr.new((lb, ub))
 
     load = LoadOp.get(field_type_ssa_val, lb, ub)
-    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, lb, ub)
+    store = StoreOp.get(temp_type_ssa_val, field_type_ssa_val, bounds)
 
     with pytest.raises(VerifyException, match="Cannot Load and Store the same field!"):
         load.verify()
@@ -738,7 +739,7 @@ def test_1d3pt_stencil_construct():
 
             # Apply the computation to the loaded values
             # Store the computed values to the output field
-            StoreOp.get(apply.results[0], field_out, IndexAttr.get(0), IndexAttr.get(6))
+            StoreOp.get(apply.results[0], field_out, StencilBoundsAttr(((0, 6),)))
             func.Return()
 
     expected = """

@@ -15,7 +15,7 @@ from xdsl.dialects.stencil import (
     StoreOp,
     TempType,
 )
-from xdsl.ir import Attribute, BlockArgument, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -71,101 +71,58 @@ class CombineOpShapeInference(RewritePattern):
         lowerext_res = op.results_[len(op.lower) : len(op.lower) + len(op.lowerext)]
         upperext_res = op.results_[len(op.lower) + len(op.lowerext) :]
 
+        combined_bounds = [
+            cast(TempType[Attribute], r.type).bounds for r in combined_res
+        ]
+        lowerext_bounds = [
+            cast(TempType[Attribute], r.type).bounds for r in lowerext_res
+        ]
+        upperext_bounds = [
+            cast(TempType[Attribute], r.type).bounds for r in upperext_res
+        ]
+        assert isa(combined_bounds, list[StencilBoundsAttr])
+        assert isa(lowerext_bounds, list[StencilBoundsAttr])
+        assert isa(upperext_bounds, list[StencilBoundsAttr])
+
+        lower_bounds = list[StencilBoundsAttr]()
+        upper_bounds = list[StencilBoundsAttr]()
+
+        for c in combined_bounds:
+            newub = list(c.ub)
+            newub[op.dim.value.data] = op.index.value.data
+            newl = StencilBoundsAttr.new((c.lb, IndexAttr.get(*newub)))
+            lower_bounds.append(newl)
+
+            newlb = list(c.lb)
+            newlb[op.dim.value.data] = op.index.value.data
+            newu = StencilBoundsAttr.new((IndexAttr.get(*newlb), c.ub))
+            upper_bounds.append(newu)
+
         # Handle combined lower results
-        for c, l in zip(combined_res, op.lower, strict=True):
-            c_type = cast(TempType[Attribute], c.type)
-            assert isinstance(c_type.bounds, StencilBoundsAttr)
-            # Get the inferred bounds on the combined result
-            c_bounds = c_type.bounds
+        for b, l in zip(lower_bounds, op.lower, strict=True):
             assert isa(l.type, TempType[Attribute])
-
-            # Recover existing bounds on the lower and upper input if any
-            lb = None
-            ub = None
-            if isinstance(l.type.bounds, StencilBoundsAttr):
-                lb = l.type.bounds.lb
-                ub = l.type.bounds.ub
-
-            # Compute the new extreme bounds as usual.
-            lb = IndexAttr.min(c_bounds.lb, lb)
-            # Compute the combine bounds
-            c_bound_c = list(c_bounds.ub)
-            c_bound_c[op.dim.value.data] = op.index.value.data
-            c_bound = IndexAttr.get(*c_bound_c)
-            ub = IndexAttr.max(c_bound, ub)
-            bounds = StencilBoundsAttr(zip(lb, ub))
-            l.type = TempType(bounds, l.type.element_type)
+            l.type = TempType(l.type.bounds | b, l.type.element_type)
 
         # Handle combined upper results
-        for c, u in zip(combined_res, op.upper, strict=True):
-            c_type = cast(TempType[Attribute], c.type)
-            assert isinstance(c_type.bounds, StencilBoundsAttr)
-            # Get the inferred bounds on the combined result
-            c_bounds = c_type.bounds
+        for b, u in zip(upper_bounds, op.upper, strict=True):
             assert isa(u.type, TempType[Attribute])
-
-            # Recover existing bounds on the lower and upper input if any
-            lb = None
-            ub = None
-            if isinstance(u.type.bounds, StencilBoundsAttr):
-                lb = u.type.bounds.lb
-                ub = u.type.bounds.ub
-
-            # Compute the new extreme bounds as usual.
-            ub = IndexAttr.max(c_bounds.ub, ub)
-            # Compute the combine bounds
-            c_bound_c = list(c_bounds.lb)
-            c_bound_c[op.dim.value.data] = op.index.value.data
-            c_bound = IndexAttr.get(*c_bound_c)
-            lb = IndexAttr.min(c_bound, lb)
-            bounds = StencilBoundsAttr(zip(lb, ub))
-            u.type = TempType(bounds, u.type.element_type)
+            u.type = TempType(u.type.bounds | b, u.type.element_type)
 
         # Handle lowerext results
-        for r, o in zip(lowerext_res, op.lowerext, strict=True):
+        for r, o in zip(lowerext_bounds, op.lowerext, strict=True):
             assert isa(o.type, TempType[Attribute])
-            assert isa(r.type, TempType[Attribute])
-            r_bounds = r.type.bounds
-            assert isinstance(r_bounds, StencilBoundsAttr)
-            # Recover existing bounds on the upperext input if any
-            lb = None
-            ub = None
-            if isinstance(o.type.bounds, StencilBoundsAttr):
-                lb = o.type.bounds.lb
-                ub = o.type.bounds.ub
-
-            ub_c = list(r_bounds.ub)
-            ub_c[op.dim.value.data] = op.index.value.data
-
-            ub_c = IndexAttr.get(*ub_c)
-
-            lb = IndexAttr.min(r_bounds.lb, lb)
-            ub = IndexAttr.max(ub_c, ub)
-
-            o.type = TempType(StencilBoundsAttr(zip(lb, ub)), o.type.element_type)
+            newub = list(r.ub)
+            newub[op.dim.value.data] = op.index.value.data
+            newl = StencilBoundsAttr.new((r.lb, IndexAttr.get(*newub)))
+            o.type = TempType(o.type.bounds | newl, o.type.element_type)
 
         # Handle upperext results
-        for r, o in zip(upperext_res, op.upperext, strict=True):
+        for r, o in zip(upperext_bounds, op.upperext, strict=True):
             assert isa(o.type, TempType[Attribute])
-            assert isa(r.type, TempType[Attribute])
-            r_bounds = r.type.bounds
-            assert isinstance(r_bounds, StencilBoundsAttr)
-            # Recover existing bounds on the upperext input if any
-            lb = None
-            ub = None
-            if isinstance(o.type.bounds, StencilBoundsAttr):
-                lb = o.type.bounds.lb
-                ub = o.type.bounds.ub
-
-            lb_c = list(r_bounds.lb)
-            lb_c[op.dim.value.data] = op.index.value.data
-
-            lb_c = IndexAttr.get(*lb_c)
-
-            lb = IndexAttr.min(lb_c, lb)
-            ub = IndexAttr.max(r_bounds.ub, ub)
-
-            o.type = TempType(StencilBoundsAttr(zip(lb, ub)), o.type.element_type)
+            newlb = list(r.lb)
+            newlb[op.dim.value.data] = op.index.value.data
+            newu = StencilBoundsAttr.new((IndexAttr.get(*newlb), r.ub))
+            o.type = TempType(o.type.bounds | newu, o.type.element_type)
 
 
 class LoadOpShapeInference(RewritePattern):
@@ -183,17 +140,9 @@ class StoreOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
-
         assert isa(temp, TempType[Attribute])
-        temp_lb = None
-        temp_ub = None
-        if isinstance(temp.bounds, StencilBoundsAttr):
-            temp_lb = temp.bounds.lb
-            temp_ub = temp.bounds.ub
 
-        temp_lb = IndexAttr.min(op.lb, temp_lb)
-        temp_ub = IndexAttr.max(op.ub, temp_ub)
-        op.temp.type = TempType(tuple(zip(temp_lb, temp_ub)), temp.element_type)
+        op.temp.type = TempType(op.bounds | temp.bounds, temp.element_type)
 
 
 class AccessOpShapeInference(RewritePattern):
@@ -202,22 +151,16 @@ class AccessOpShapeInference(RewritePattern):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
         assert isa(op.temp.type, TempType[Attribute])
-        assert isinstance(op.temp, BlockArgument)
-        assert op.temp.block.parent_op() is apply
-        assert isa(apply.res[0].type, TempType[Attribute]), f"{apply.res[0]}"
+        assert isa(apply.res[0].type, TempType[Attribute])
 
         temp_type = op.temp.type
-        temp_lb = None
-        temp_ub = None
-        if isinstance(temp_type.bounds, StencilBoundsAttr):
-            temp_lb = temp_type.bounds.lb
-            temp_ub = temp_type.bounds.ub
+
         output_size = apply.res[0].type.bounds
         assert isinstance(output_size, StencilBoundsAttr)
 
-        lb = IndexAttr.min(output_size.lb + op.offset, temp_lb)
-        ub = IndexAttr.max(output_size.ub + op.offset, temp_ub)
-        ntype = TempType(tuple(zip(lb, ub)), temp_type.element_type)
+        ntype = TempType(
+            temp_type.bounds | output_size + op.offset, temp_type.element_type
+        )
 
         op.temp.type = ntype
 
@@ -228,22 +171,15 @@ class DynAccessOpShapeInference(RewritePattern):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
         assert isa(op.temp.type, TempType[Attribute])
-        assert isinstance(op.temp, BlockArgument)
-        assert op.temp.block.parent_op() is apply
         assert isa(apply.res[0].type, TempType[Attribute]), f"{apply.res[0]}"
 
         temp_type = op.temp.type
-        temp_lb = None
-        temp_ub = None
-        if isinstance(temp_type.bounds, StencilBoundsAttr):
-            temp_lb = temp_type.bounds.lb
-            temp_ub = temp_type.bounds.ub
         output_size = apply.res[0].type.bounds
         assert isinstance(output_size, StencilBoundsAttr)
-
-        lb = IndexAttr.min(output_size.lb + op.lb, temp_lb)
-        ub = IndexAttr.max(output_size.ub + op.ub, temp_ub)
-        ntype = TempType(tuple(zip(lb, ub)), temp_type.element_type)
+        ntype = TempType(
+            temp_type.bounds | output_size + op.lb | output_size + op.ub,
+            temp_type.element_type,
+        )
 
         op.temp.type = ntype
 
@@ -251,14 +187,6 @@ class DynAccessOpShapeInference(RewritePattern):
 class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        if len(op.res) < 1:
-            return
-        res_type = op.res[0].type
-        assert isa(res_type, TempType[Attribute])
-        assert isinstance(res_type.bounds, StencilBoundsAttr)
-        ntype = res_type
-        assert isinstance(ntype.bounds, StencilBoundsAttr)
-
         for i, arg in enumerate(op.region.block.args):
             if not isa(arg.type, TempType[Attribute]):
                 continue
