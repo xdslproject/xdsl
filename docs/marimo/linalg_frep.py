@@ -196,8 +196,14 @@ def __(mo):
 def __(Parser, ctx, mo, pp):
     imperfect_nest_ir = """
     func.func public @matmul(%0 : memref<8x8xf64>, %1 : memref<8x8xf64>, %2 : memref<8x8xf64>) {
-        memref_stream.streaming_region {bounds = [8, 8, 8], indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d1, d2)>]} ins(%0, %1 : memref<8x8xf64>, memref<8x8xf64>) {
-        ^0(%3 : !stream.readable<f64>, %4 : !stream.readable<f64>):
+        memref_stream.streaming_region {
+            bounds = [8, 8, 8],
+            indexing_maps = [
+                affine_map<(d0, d1, d2) -> (d0, d2)>,
+                affine_map<(d0, d1, d2) -> (d2, d1)>,
+                affine_map<(d0, d1, d2) -> (d0, d1)>
+            ]} ins(%0, %1 : memref<8x8xf64>, memref<8x8xf64>) outs(%2 : memref<8x8xf64>) {
+        ^0(%arg0 : !stream.readable<f64>, %arg1 : !stream.readable<f64>, %arg2: !stream.writable<f64>):
           %5 = arith.constant 8 : index
           %6 = arith.constant 8 : index
           %7 = arith.constant 8 : index
@@ -205,15 +211,15 @@ def __(Parser, ctx, mo, pp):
           %9 = arith.constant 1 : index
           scf.for %10 = %8 to %5 step %9 {
             scf.for %11 = %8 to %6 step %9 {
-              %13 = memref.load %2[%10, %11] : memref<8x8xf64>
+              %13 = arith.constant 0.0 : f64
               %14 = scf.for %12 = %8 to %7 step %9 iter_args(%15 = %13) -> (f64) {
-                %16 = memref_stream.read from %3 : f64
-                %17 = memref_stream.read from %4 : f64
+                %16 = memref_stream.read from %arg0 : f64
+                %17 = memref_stream.read from %arg1 : f64
                 %18 = arith.mulf %16, %17 : f64
                 %19 = arith.addf %13, %18 : f64
                 scf.yield %19 : f64
               }
-              memref.store %14, %2[%10, %11] : memref<8x8xf64>
+              memref_stream.write %14 to %arg2 : f64
             }
           }
         }
