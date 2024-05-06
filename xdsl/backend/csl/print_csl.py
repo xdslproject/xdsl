@@ -4,10 +4,11 @@ from dataclasses import dataclass, field
 from typing import IO, cast
 from contextlib import contextmanager
 
-from xdsl.dialects import arith, csl, scf
+from xdsl.dialects import arith, csl, scf, memref
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    BoolAttr,
+    ContainerType,
+    DenseIntOrFPElementsAttr,
     DictionaryAttr,
     Float16Type,
     Float32Type,
@@ -17,11 +18,13 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     Signedness,
     SignednessAttr,
     StringAttr,
     TensorType,
+    UnitAttr,
 )
 from xdsl.ir import Attribute, Block, SSAValue, Region
 from xdsl.ir.core import BlockOps, TypeAttribute
@@ -130,8 +133,8 @@ class CslPrintContext:
                 args = map(self.mlir_type_to_csl_type, inp)
                 ret = self.mlir_type_to_csl_type(out.data[0])
                 return f"fn({', '.join(args)}) {ret}"
-            case TensorType():
-                t: TensorType[TypeAttribute] = type_attr
+            case MemRefType() | TensorType():
+                t: ContainerType[TypeAttribute] = type_attr
                 shape = ", ".join(str(s) for s in t.get_shape())
                 type = self.mlir_type_to_csl_type(t.get_element_type())
                 return f"[{shape}]{type}"
@@ -205,10 +208,26 @@ class CslPrintContext:
             case csl.PtrConst.CONST: return "const"
             case csl.PtrConst.MUT: return "var"
 
+    def _ptr_kind_from_bool(self, mutable: bool):
+        return csl.PtrConst.MUT if mutable else csl.PtrConst.CONST
+
     def _is_mutable(self, const: csl.PtrConst) -> bool:
         match const:
             case csl.PtrConst.MUT: return True
             case csl.PtrConst.CONST: return False
+
+    def _memref_global_init(self, init: Attribute, type: str):
+        match init:
+            case UnitAttr():
+                return ""
+            case DenseIntOrFPElementsAttr():
+                data = init.data.data
+                assert len(data) == 1, \
+                    f"Memref global initialiser has to have 1 value, got {
+                        len(data)}"
+                return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
+            case other:
+                return f"<unknown memref.global init type {other}>"
 
     def print_block(self, body: Block):
         """
@@ -222,7 +241,7 @@ class CslPrintContext:
                     # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
 
                     # convert the attributes type to a csl type:
-                    type_name = self.attribute_type_to_str(v)
+                    type_name = self.mlir_type_to_csl_type(r.type)
                     # convert the carried value to a csl value
                     value_str = self.attribute_value_to_str(v)
 
@@ -348,15 +367,16 @@ class CslPrintContext:
                     res_type = self.mlir_type_to_csl_type(res.type)
                     self.print(
                         f"{const} {res_name} : {res_type} = &{val_name};")
-                case csl.ArrayOp(init_value=init, type=ty, res=res):
-                    type = self.mlir_type_to_csl_type(ty)
-                    if init is not None:
-                        val = self.attribute_value_to_str(init)
-                        init = f" = @constants({type}, {val})"
-                    else:
-                        init = ""
-                    name = self._get_variable_name_for(res)
-                    self.print(f"var {name} : {type}{init};")
+                case memref.Global(sym_name=name, type=ty, initial_value=init, constant=const):
+                    name = name.data
+                    ty = self.mlir_type_to_csl_type(ty)
+                    init = self._memref_global_init(init, ty)
+                    var = self._ptr_kind_to_introducer(
+                        self._ptr_kind_from_bool(const is None))
+                    self.print(f"{var} {name} : {ty}{init};")
+                case memref.GetGlobal(name_=name, memref=res):
+                    # We print the array definition when the global is defined
+                    self.variables[res] = name.string_value()
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
