@@ -221,6 +221,62 @@ def unique_pinned_name(module: builtin.ModuleOp, name: str, hint: str) -> str:
 
 
 class FunctionConstantPinningPass(ModulePass):
+    """
+    This pass consumes IR annotated with special hints to generate new functions that have certain SSA values pinned
+    to a constant, usually to enable further optimization options on this pinned function.
+
+    The original function is changed to dynamically dispatch to this pinned function when the ssa value matches the
+    given constant.
+
+    Any single-result operation annotated with a "pin_to_constants" attribute containing an array of values, that is
+    located within a function body triggers this optimization. These annotations are usually inserted by previous
+    passes that know that they would want to generate a more optimized version of their function for specific values
+    of a run-time determined variable.
+
+    An example might be a function that branches repeatedly on a specific variable:
+
+    ```
+    function test() {
+        x = calc_condition()
+        if (x) {
+          specific_thing()
+        }
+
+        some_thing() // A
+
+        if (x) {
+          another_thing()
+        }
+
+        some_thing() // B
+    }
+    ```
+
+    if we can pin `x` to `true`, we are suddenly able to generate two much simple function bodies (after constant folding)
+
+    ```
+    function test() {
+        x = calc_condition()
+        if (x) {
+            test_pinned()
+            return
+        }
+
+        some_thing() // A
+        some_thing() // B
+    }
+
+    function test_pinned() {
+        specific_thing()
+        some_thing() // A
+        another_thing()
+        some_thing() // B
+    }
+    ```
+
+    Note that the function `test_pinned` might be much easier to optimize for a compiler if there are state
+    dependencies between `specific_thing`, `another_thing` and `some_thing`.
+    """
     name = "function-constant-pinning"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:

@@ -501,7 +501,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return convert_scf_to_riscv_scf.ConvertScfToRiscvPass
 
     def get_function_constant_pinning():
-        from xdsl.transforms.function_specialization import FunctionConstantPinningPass
+        from xdsl.transforms.function_constant_pinning import FunctionConstantPinningPass
 
         return FunctionConstantPinningPass
 
