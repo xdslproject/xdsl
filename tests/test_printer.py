@@ -347,7 +347,11 @@ def test_print_custom_name():
 
 def test_print_clashing_names():
     """
-    Test name clash stuff
+    Test the printer's value name printing logic's robustness against clashing names.
+
+    This example now expects to print names i, i_1, i_2; it used to print i, i_1, i_1,
+    printing a duplicate name for two values, meaning invalid IR as input for both MLIR
+    and xDSL.
     """
 
     expected = """\
