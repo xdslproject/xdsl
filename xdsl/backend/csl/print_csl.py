@@ -42,7 +42,7 @@ class CslPrintContext:
 
     _prefix: str = field(default="")
 
-    _symbols_to_export: dict[str, tuple[TypeAttribute, bool]] \
+    _symbols_to_export: dict[str, tuple[TypeAttribute, bool | None]] \
         = field(default_factory=dict)
 
     def print(self, text: str, prefix: str = "", end: str = "\n"):
@@ -129,9 +129,10 @@ class CslPrintContext:
                 return f"u{width}"
             case IntegerType(width=IntAttr(data=width)):
                 return "bool" if width == 1 else f"i{width}"
-            case FunctionType(inputs=inp, outputs=out) if len(out) == 1:
+            case FunctionType(inputs=inp, outputs=out) if len(out) <= 1:
                 args = map(self.mlir_type_to_csl_type, inp)
-                ret = self.mlir_type_to_csl_type(out.data[0])
+                ret = self.mlir_type_to_csl_type(out.data[0]) \
+                    if len(out) else "void"
                 return f"fn({', '.join(args)}) {ret}"
             case MemRefType() | TensorType():
                 t: ContainerType[TypeAttribute] = type_attr
@@ -211,8 +212,12 @@ class CslPrintContext:
     def _ptr_kind_from_bool(self, mutable: bool):
         return csl.PtrConst.MUT if mutable else csl.PtrConst.CONST
 
-    def _is_mutable(self, const: csl.PtrConst) -> bool:
-        match const:
+    def _sym_constness(self, ty: TypeAttribute):
+        if isinstance(ty, FunctionType):
+            return None
+        assert isinstance(ty, csl.PtrType), \
+            "Type of the exported symbol has to be PtrType"
+        match ty.constness.data:
             case csl.PtrConst.MUT: return True
             case csl.PtrConst.CONST: return False
 
@@ -308,8 +313,9 @@ class CslPrintContext:
                         self.print_block(bdy.block)
                         for name, val in self._symbols_to_export.items():
                             ty = self.attribute_value_to_str(val[0])
-                            mut = str(val[1]).lower()
-                            self.print(f"@export_name({name}, {ty}, {mut});")
+                            mut = str(val[1]).lower() \
+                                if val[1] is not None else ""
+                            self.print(f'@export_name("{name}", {ty}, {mut});')
                 case csl.SetTileCodeOp(file=file, x_coord=x_coord, y_coord=y_coord, params=params):
                     file = self.attribute_value_to_str(file)
                     x = self._get_variable_name_for(x_coord)
@@ -323,16 +329,20 @@ class CslPrintContext:
                     y = self._get_variable_name_for(y_dim)
                     self.print(
                         f"@set_rectangle({x}, {y});")
-                case csl.SymbolExportOp(value=val, var_name=name, type=ty):
-                    name = self.attribute_value_to_str(name)
+                case csl.SymbolExportOp(value=val, type=ty) as exp:
+                    name = exp.get_name()
+                    q_name = f'"{name}"'
                     self._symbols_to_export[name] = (
                         ty,
-                        self._is_mutable(ty.constness.data)
+                        self._sym_constness(ty)
                     )
                     ty = self.attribute_value_to_str(ty)
-                    val = self._get_variable_name_for(val)
+                    if val is not None:
+                        val = self._get_variable_name_for(val)
+                    else:
+                        val = name
                     with self._in_block("comptime"):
-                        self.print(f"@export_symbol({val}, {name});")
+                        self.print(f"@export_symbol({val}, {q_name});")
                 case csl.GetColorOp(id=id, res=res):
                     id = self.attribute_value_to_str(id)
                     var = self._get_variable_name_for(res)
