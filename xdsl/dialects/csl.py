@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     IntegerType,
     IntegerAttr,
+    SymbolRefAttr,
 )
 from xdsl.dialects.utils import (
     parse_func_op_like,
@@ -770,12 +771,38 @@ class SymbolExportOp(IRDLOperation):
     """
     name = "csl.export"
 
-    traits = frozenset([InModuleKind(ModuleKind.PROGRAM, direct_child=False)])
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
 
     value = opt_operand_def()
 
-    var_name = prop_def(StringAttr)
-    type = prop_def(PtrType)
+    var_name = opt_prop_def(StringAttr)
+    sym_name = opt_prop_def(SymbolRefAttr)
+
+    type = prop_def(TypeAttribute)
+
+    def get_name(self) -> str:
+        if self.var_name is not None:
+            return self.var_name.data
+        assert self.sym_name is not None, \
+            "If var_name is not specified, sym_name has to be"
+        return self.sym_name.string_value()
+
+    def verify_(self) -> None:
+        if not (isinstance(self.type, PtrType) or isinstance(self.type, FunctionType)):
+            raise VerifyException(
+                "type must be either a pointer or a function type")
+
+        if (self.sym_name is not None) == (self.value is not None):
+            raise VerifyException(
+                "sym_name and the operand are mutually expclusive, but at least one is required")
+
+        if self.value is not None and self.value.type != self.type:
+            raise VerifyException(
+                "operand type must match declared type")
+
+        # TODO(dk949): if sym_name is used, make sure it's the same type as
+
+        return super().verify_()
 
 
 @irdl_op_definition
