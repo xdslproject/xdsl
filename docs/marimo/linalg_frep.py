@@ -398,7 +398,7 @@ def __(ModuleOp, ModulePass, apply, ctx, mo, pp, rv_loops_folded_2_m):
     ```
     """
 
-    res = apply(TestLowerSnitchStreamToAsm(callback=callback), rv_loops_folded_2_m, ctx)
+    res = apply(TestLowerSnitchStreamToAsm(callback), rv_loops_folded_2_m, ctx)
 
 
     mo.md(f"""

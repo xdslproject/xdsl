@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
@@ -6,6 +7,7 @@ from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
 from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
     ConvertSnitchStreamToSnitch,
 )
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.convert_riscv_scf_for_to_frep import ConvertRiscvScfForToFrepPass
@@ -29,7 +31,7 @@ TEST_LOWER_SNITCH_STREAM_TO_ASM_PASSES: tuple[ModulePass, ...] = (
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class TestLowerSnitchStreamToAsm(PipelinePass):
     """
     A compiler pass used for testing of the lowering from ML kernels defined as
@@ -38,4 +40,7 @@ class TestLowerSnitchStreamToAsm(PipelinePass):
 
     name = "test-lower-snitch-stream-to-asm"
 
-    passes: tuple[ModulePass, ...] = TEST_LOWER_SNITCH_STREAM_TO_ASM_PASSES
+    def __init__(
+        self, callback: Callable[[ModulePass, ModuleOp, ModulePass], None] | None = None
+    ):
+        super().__init__(TEST_LOWER_SNITCH_STREAM_TO_ASM_PASSES, callback)
