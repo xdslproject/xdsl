@@ -117,5 +117,13 @@ x86.directive ".align" "2"
 x86.label "label"
 // CHECK-NEXT: x86.label "label"
 
-x86.s.jmp "label"
-// CHECK-NEXT: x86.s.jmp "label"
+func.func @funcyasm() {
+    x86.s.jmp ^labelblock(%arg : !x86.reg<>)
+    // CHECK: x86.s.jmp ^{{.+}}(%arg : !x86.reg<>)
+    ^labelblock(%arg : !x86.reg<>):
+    // CHECK-NEXT: ^{{.+}}(%arg : !x86.reg<>):
+    x86.label "then"
+    // CHECK-NEXT: x86.label "then"
+    x86.s.jmp ^labelblock(%arg : !x86.reg<>)
+    // CHECK-NEXT: x86.s.jmp ^{{.+}}(%arg : !x86.reg<>)
+}
