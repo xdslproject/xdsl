@@ -153,17 +153,11 @@ def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     )
 
 
-def _empty_callback(
-    previous_pass: ModulePass, module: builtin.ModuleOp, next_pass: ModulePass
-) -> None:
-    return
-
-
 @dataclass(frozen=True)
 class PipelinePass(ModulePass):
     passes: tuple[ModulePass, ...]
-    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] = field(
-        default=_empty_callback
+    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
+        default=None
     )
     """
     Function called in between every pass, taking the pass that just ran, the module, and
@@ -174,10 +168,12 @@ class PipelinePass(ModulePass):
         if not self.passes:
             # Early exit to avoid fetching a non-existing last pass.
             return
+        callback = self.callback
 
         for prev, next in zip(self.passes[:-1], self.passes[1:]):
             prev.apply(ctx, op)
-            self.callback(prev, op, next)
+            if callback is not None:
+                callback(prev, op, next)
 
         self.passes[-1].apply(ctx, op)
 
