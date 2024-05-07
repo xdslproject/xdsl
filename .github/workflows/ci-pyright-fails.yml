@@ -31,7 +31,9 @@ jobs:
         run: |
           pip install --upgrade pip
       - name: Install the package locally
-        run: pip install -r requirements.txt
+        run: 
+          pip install -r requirements.txt
+          pip install -e ".[onnx]"
       - name: retrieve pyright version
         run: | # get pyright version from requirements optional file:
           VER=$(sed -n 's/^.*pyright==\s*\(\S*\).*$/\1/p' requirements.txt)

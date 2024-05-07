@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import IntegerType, UnitAttr, i32
 from xdsl.ir import Attribute
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 @pytest.mark.parametrize(
@@ -151,6 +152,7 @@ def test_llvm_getelementptr_op():
     )
 
     assert "elem_type" in gep2.properties
+    assert gep2.elem_type == builtin.i32
     assert "inbounds" not in gep2.properties
     assert gep2.result.type == ptr_type
     assert len(gep1.rawConstantIndices.data) == 1
@@ -242,3 +244,45 @@ def test_variadic_func():
     p = Printer(stream=io)
     p.print_attribute(func_type)
     assert io.getvalue() == """!llvm.func<void (...)>"""
+
+
+def test_inline_assembly_op():
+    a, b, c = (
+        TestSSAValue(builtin.i32),
+        TestSSAValue(builtin.i32),
+        TestSSAValue(builtin.i32),
+    )
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [a, b, c],
+        [builtin.i32],
+        has_side_effects=True,
+    )
+    op.verify()
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [a, b, c],
+        [],
+        has_side_effects=True,
+    )
+    op.verify()
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [a, b, c],
+        has_side_effects=True,
+    )
+    op.verify()
+
+    op = llvm.InlineAsmOp(
+        "nop",
+        "I, I, I, =r",
+        [],
+        has_side_effects=True,
+    )
+    op.verify()

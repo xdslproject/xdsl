@@ -6,20 +6,15 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import (
-    TypeVar,
-    Union,
-    final,
-    get_args,
-    get_origin,
-)
+from typing import TypeVar, Union, final, get_args, get_origin
 
 from xdsl.builder import Builder, BuilderListener
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
+    ErasedSSAValue,
     Operation,
     ParametrizedAttribute,
     Region,
@@ -97,7 +92,7 @@ class PatternRewriter(PatternRewriterListener):
     ):
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        op = [op] if isinstance(op, Operation) else op
+        op = (op,) if isinstance(op, Operation) else op
         if not op:
             return
         for op_ in op:
@@ -455,6 +450,9 @@ class TypeConversionPattern(RewritePattern):
             if isa(typ, ArrayAttr[Attribute]):
                 parameters = tuple(self._convert_type_rec(p) or p for p in typ)
                 inp = type(typ).new(parameters)
+            if isa(typ, DictionaryAttr):
+                parameters = {k: self._convert_type_rec(v) for k, v in typ.data.items()}
+                inp = type(typ).new(parameters)
         converted = self.convert_type(inp)
         return converted if converted is not None else inp
 
@@ -513,7 +511,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT]
+    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None]
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern
@@ -642,7 +640,11 @@ class PatternRewriteWalker:
         have more canonicalization opportunities.
         """
         for operand in operands:
-            if len(operand.uses) == 1 and isinstance((op := operand.owner), Operation):
+            if (
+                len(operand.uses) == 1
+                and not isinstance(operand, ErasedSSAValue)
+                and isinstance((op := operand.owner), Operation)
+            ):
                 self._worklist.push(op)
 
     def _handle_operation_insertion(self, op: Operation) -> None:
@@ -696,17 +698,17 @@ class PatternRewriteWalker:
             block_creation_handler=self.listener.block_creation_handler,
         )
 
-    def rewrite_module(self, module: ModuleOp) -> None:
+    def rewrite_module(self, module: ModuleOp) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
-        pattern.
+        pattern. Returns `True` if the IR was mutated.
         """
-        self.rewrite_op(module)
+        return self.rewrite_op(module)
 
-    def rewrite_op(self, op: Operation) -> None:
+    def rewrite_op(self, op: Operation) -> bool:
         """
         Rewrite operations nested in the given operation by repeatedly applying the
-        pattern.
+        pattern. Returns `True` if the IR was mutated.
         """
         pattern_listener = self._get_rewriter_listener()
 
@@ -714,11 +716,15 @@ class PatternRewriteWalker:
         op_was_modified = self._process_worklist(pattern_listener)
 
         if not self.apply_recursively:
-            return
+            return op_was_modified
+
+        result = op_was_modified
 
         while op_was_modified:
             self._populate_worklist(op)
             op_was_modified = self._process_worklist(pattern_listener)
+
+        return result
 
     def _populate_worklist(self, op: Operation) -> None:
         """Populate the worklist with all nested operations."""
@@ -751,7 +757,14 @@ class PatternRewriteWalker:
             rewriter.current_operation = op
 
             # Apply the pattern on the operation
-            self.pattern.match_and_rewrite(op, rewriter)
+            try:
+                self.pattern.match_and_rewrite(op, rewriter)
+            except Exception as err:
+                op.emit_error(
+                    f"Error while applying pattern: {str(err)}",
+                    exception_type=type(err),
+                    underlying_error=err,
+                )
             rewriter_has_done_action |= rewriter.has_done_action
 
             # If the worklist is empty, we are done

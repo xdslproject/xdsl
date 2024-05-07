@@ -283,7 +283,7 @@ class Use:
     """The index of the operand using the value in the operation."""
 
 
-@dataclass
+@dataclass(eq=False)
 class SSAValue(ABC):
     """
     A reference to an SSA variable.
@@ -372,8 +372,18 @@ class SSAValue(ABC):
             )
         self.replace_by(ErasedSSAValue(self.type, self))
 
+    def __hash__(self):
+        """
+        Make SSAValue hashable. Two SSA Values are never the same, therefore
+        the use of `id` is allowed here.
+        """
+        return id(self)
 
-@dataclass
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+
+@dataclass(eq=False)
 class OpResult(SSAValue):
     """A reference to an SSA variable defined by an operation result."""
 
@@ -390,14 +400,8 @@ class OpResult(SSAValue):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
 
-    def __hash__(self) -> int:
-        return id(self)
-
-
-@dataclass
+@dataclass(eq=False)
 class BlockArgument(SSAValue):
     """A reference to an SSA variable defined by a basic block argument."""
 
@@ -414,14 +418,8 @@ class BlockArgument(SSAValue):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
 
-    def __hash__(self) -> int:
-        return id(self)
-
-
-@dataclass
+@dataclass(eq=False)
 class ErasedSSAValue(SSAValue):
     """
     An erased SSA variable.
@@ -433,9 +431,6 @@ class ErasedSSAValue(SSAValue):
     @property
     def owner(self) -> Operation | Block:
         return self.old_value.owner
-
-    def __hash__(self) -> int:
-        return hash(id(self))
 
 
 A = TypeVar("A", bound="Attribute")
@@ -669,6 +664,29 @@ class ParametrizedAttribute(Attribute):
         attr_def = t.get_irdl_definition()
         attr_def.verify(self)
         super()._verify()
+
+
+class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
+    """
+    An attribute with a type.
+    """
+
+    @staticmethod
+    def get_type_index() -> int: ...
+
+    @classmethod
+    def parse_with_type(
+        cls: type[TypedAttribute[AttributeCovT]],
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute[AttributeCovT]:
+        """
+        Parse the attribute with the given type.
+        """
+        ...
+
+    @abstractmethod
+    def print_without_type(self, printer: Printer): ...
 
 
 @dataclass(init=False)

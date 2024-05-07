@@ -6,16 +6,21 @@ from unittest.mock import ANY, patch
 
 import pytest
 
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
+    HW,
     InnerRefAttr,
     InnerRefNamespaceTrait,
     InnerRefUserOpInterfaceTrait,
+    InnerSymAttr,
     InnerSymbolTableCollection,
     InnerSymbolTableTrait,
+    InnerSymPropertiesAttr,
     InnerSymTarget,
+    InstanceOp,
 )
 from xdsl.dialects.test import TestOp
+from xdsl.ir import MLContext
 from xdsl.irdl import (
     IRDLOperation,
     Region,
@@ -24,6 +29,7 @@ from xdsl.irdl import (
     opt_region_def,
     region_def,
 )
+from xdsl.parser import Parser
 from xdsl.traits import (
     IsTerminator,
     SingleBlockImplicitTerminator,
@@ -32,6 +38,7 @@ from xdsl.traits import (
     ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_inner_sym_target():
@@ -118,12 +125,12 @@ def test_inner_symbol_table_interface():
     no_trait_circ = TestOp(regions=[[mod_no_trait_circ, OutputOp()]])
     with pytest.raises(
         VerifyException,
-        match="Operation module with trait InnerSymbolTableTrait must have a parent with trait InnerRefNamespaceTrait",
+        match="Operation module with trait InnerSymbolTableTrait must have a parent with trait InnerRefNamespaceLike",
     ):
         mod_no_trait_circ.verify()
     with pytest.raises(
         VerifyException,
-        match="Operation module with trait InnerSymbolTableTrait must have a parent with trait InnerRefNamespaceTrait",
+        match="Operation module with trait InnerSymbolTableTrait must have a parent with trait InnerRefNamespaceLike",
     ):
         no_trait_circ.verify()
 
@@ -278,3 +285,77 @@ def test_inner_ref_attr():
     assert (
         ref.get_module().data == "mod2"
     ), "Name of the referenced module should be returned correctly"
+
+
+def test_inner_sym_attr():
+    """
+    Test inner symbol attributes
+    """
+    invalid_sym_attr = InnerSymAttr()
+    assert (
+        invalid_sym_attr.get_sym_name() is None
+    ), "Invalid InnerSymAttr should return no name"
+
+    sym_attr = InnerSymAttr("sym")
+    assert sym_attr.get_sym_name() == StringAttr(
+        "sym"
+    ), "InnerSymAttr for “ground” type should return name"
+
+    with pytest.raises(VerifyException, match=r"inner symbol cannot have empty name"):
+        InnerSymAttr("")
+
+    aggregate_sym_attr = InnerSymAttr(
+        [
+            InnerSymPropertiesAttr("sym", 0, "public"),
+            InnerSymPropertiesAttr("other", 1, "private"),
+            InnerSymPropertiesAttr("yet_another", 2, "nested"),
+        ]
+    )
+
+    assert aggregate_sym_attr.get_sym_name() == StringAttr(
+        "sym"
+    ), "InnerSymAttr for aggregate types should return name with field ID 0"
+
+    for inner, expected_field_id in zip(aggregate_sym_attr, [0, 1, 2]):
+        assert (
+            inner.field_id.data == expected_field_id
+        ), "InnerSymAttr should allow iterating its properties in order"
+
+    aggregate_without_nested = aggregate_sym_attr.erase(2)
+    assert (
+        aggregate_without_nested.get_sym_if_exists(2) is None
+    ), "InnerSymAttr removal should work"
+    assert (
+        len(aggregate_without_nested) == 2
+    ), "InnerSymAttr removal should correctly change length"
+
+
+def test_instance_builder():
+    MODULE_CTX = """
+hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
+  hw.output %foo, %bar : i32, i64
+}
+"""
+
+    ctx = MLContext()
+    ctx.load_dialect(HW)
+
+    module_op = Parser(ctx, MODULE_CTX).parse_module()
+
+    module_op.body.block.add_op(
+        inst_op := InstanceOp(
+            "test",
+            SymbolRefAttr("module"),
+            (("foo", TestSSAValue(i32)), ("bar", TestSSAValue(i64))),
+            (("baz", i32), ("qux", i64)),
+        )
+    )
+
+    inst_op.verify()
+    assert inst_op.instance_name == StringAttr("test")
+    assert inst_op.module_name == SymbolRefAttr("module")
+    assert inst_op.arg_names.data == (StringAttr("foo"), StringAttr("bar"))
+    assert inst_op.result_names.data == (StringAttr("baz"), StringAttr("qux"))
+
+    assert [op.type for op in inst_op.operands] == [i32, i64]
+    assert [res.type for res in inst_op.results] == [i32, i64]

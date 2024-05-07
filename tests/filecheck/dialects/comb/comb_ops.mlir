@@ -8,6 +8,7 @@
   %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
   %lhsf64, %rhsf64 = "test.op"() : () -> (f64, f64)
   %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)
+  %lhstest, %rhstest = "test.op"() : () -> (!test.type<"test">, !test.type<"test">)
 
   %add = comb.add %lhsi32, %rhsi32 : i32
   // CHECK: %add = comb.add %lhsi32, %rhsi32 : i32
@@ -48,22 +49,36 @@
   %xor = comb.xor %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %xor = comb.xor %lhsi32, %rhsi32 : i32
 
-  %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : i64, "two_state"} : (i1, i1) -> i1
-  // CHECK-NEXT: %icmp = comb.icmp slt, %lhsi1, %rhsi1 : i1
+  %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : i64, "twoState"} : (i1, i1) -> i1
+  // CHECK-NEXT: %icmp = comb.icmp bin slt %lhsi1, %rhsi1 : i1
+
+  %icmp2 = comb.icmp eq %lhsi1, %rhsi1 : i1
+  // CHECK-NEXT: %icmp2 = comb.icmp eq %lhsi1, %rhsi1 : i1
+
+  %icmp_bin = comb.icmp bin eq %lhsi1, %rhsi1 : i1
+  // CHECK-NEXT: %icmp_bin = comb.icmp bin eq %lhsi1, %rhsi1 : i1
 
   %parity = comb.parity %lhsi1 : i1
   // CHECK-NEXT: %parity = comb.parity %lhsi1 : i1
 
-  %extract = comb.extract %lhsi32 from 1 : (i32) -> i32
-  // CHECK-NEXT: %extract = comb.extract %lhsi32 : i32
+  %parity_bin = comb.parity bin %lhsi1 : i1
+  // CHECK-NEXT: %parity_bin = comb.parity bin %lhsi1 : i1
 
-  %concat = comb.concat %lhsi32, %rhsi32 : i32
-  // CHECK-NEXT: %concat = comb.concat %lhsi32, %rhsi32 : i32
+  %extract = comb.extract %lhsi32 from 1 : (i32) -> i3
+  // CHECK-NEXT: %extract = comb.extract %lhsi32 from 1 : (i32) -> i3
+
+  %extract_generic = "comb.extract"(%lhsi32) {"lowBit" = 1 : i32} : (i32) -> i3
+  // CHECK-NEXT: %extract_generic = comb.extract %lhsi32 from 1 : (i32) -> i3
+
+  %concat = comb.concat %lhsi32, %rhsi32 : i32, i32
+  // CHECK-NEXT: %concat = comb.concat %lhsi32, %rhsi32 : i32, i32
 
   %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
 
-  %replicate = comb.replicate %lhsi32 : (i32) -> i32
-  // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : i32
-  }) : () -> ()
-  
+  %mux_exotic = comb.mux %lhsi1, %lhstest, %rhstest : !test.type<"test">
+  // CHECK-NEXT: %mux_exotic = comb.mux %lhsi1, %lhstest, %rhstest : !test.type<"test">
+
+  %replicate = comb.replicate %lhsi32 : (i32) -> i64
+  // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : (i32) -> i64
+}) : () -> ()
