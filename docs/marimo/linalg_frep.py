@@ -382,22 +382,23 @@ def __(mo):
 
 
 @app.cell
-def __(apply, ctx, mo, pp, rv_loops_folded_2_m):
-    from xdsl.transforms.test_lower_snitch_stream_to_asm import TEST_LOWER_LINALG_TO_SNITCH_PASSES
+def __(ModuleOp, ModulePass, apply, ctx, mo, pp, rv_loops_folded_2_m):
+    from xdsl.transforms.test_lower_snitch_stream_to_asm import TestLowerSnitchStreamToAsm
 
     pass_results = ""
     remaining_m = rv_loops_folded_2_m
 
-    for p_class in TEST_LOWER_LINALG_TO_SNITCH_PASSES:
-        p = p_class()
-        remaining_m = apply(p, remaining_m, ctx)
+    def callback(prev_pass: ModulePass, module: ModuleOp, next_pass: ModulePass):
+        global pass_results
         pass_results += f"""
-    {p.name}
+    {prev_pass.name}
 
     ``` mlir
-    {pp(remaining_m)}
+    {pp(module)}
     ```
     """
+
+    res = apply(TestLowerSnitchStreamToAsm(callback=callback), rv_loops_folded_2_m, ctx)
 
 
     mo.md(f"""
@@ -406,11 +407,11 @@ def __(apply, ctx, mo, pp, rv_loops_folded_2_m):
     {pass_results}
     """)
     return (
-        TEST_LOWER_LINALG_TO_SNITCH_PASSES,
-        p,
-        p_class,
+        TestLowerSnitchStreamToAsm,
+        callback,
         pass_results,
         remaining_m,
+        res,
     )
 
 
