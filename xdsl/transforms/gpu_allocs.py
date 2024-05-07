@@ -28,8 +28,8 @@ class GpuDellocPattern(RewritePattern):
         rewriter.replace_matched_op(gpu.DeallocOp(op.memref))
 
 
-class GpuAllocsPass(ModulePass):
-    name = "gpu-allocs"
+class MemrefToGPUPass(ModulePass):
+    name = "memref-to-gpu"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(

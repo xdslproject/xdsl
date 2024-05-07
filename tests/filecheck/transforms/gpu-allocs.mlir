@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p gpu-allocs | filecheck %s
+// RUN: xdsl-opt %s -p memref-to-gpu | filecheck %s
 
 func.func private @memref_test() {
   %12 = "test.op"() : () -> index

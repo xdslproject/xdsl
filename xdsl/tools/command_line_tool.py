@@ -393,7 +393,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_gpu_allocs():
         from xdsl.transforms import gpu_allocs
 
-        return gpu_allocs.GpuAllocsPass
+        return gpu_allocs.MemrefToGPUPass
 
     def get_gpu_map_parallel_loops():
         from xdsl.transforms import gpu_map_parallel_loops
@@ -596,7 +596,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
-        "gpu-allocs": get_gpu_allocs,
+        "memref-to-gpu": get_gpu_allocs,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
