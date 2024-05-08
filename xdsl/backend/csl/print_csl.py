@@ -432,6 +432,9 @@ class CslPrintContext:
                         map(self._get_variable_name_for, idxs))
                     # Use the array access syntax instead of cipying the value out
                     self.variables[res] = f"({arr_name}[{idx_args}])"
+                case scf.Yield(arguments=args) if len(args) == 0:
+                    # There is nothing to do for yield with no args
+                    pass
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
