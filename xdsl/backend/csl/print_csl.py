@@ -407,6 +407,18 @@ class CslPrintContext:
                     type_out = self.mlir_type_to_csl_type(res.type)
                     self.print(
                         f"const {name_out} : {type_out} = @as({type_out}, {name_in});")
+                case memref.Store(value=val, memref=arr, indices=idxs):
+                    arr_name = self._get_variable_name_for(arr)
+                    idx_args = ", ".join(
+                        map(self._get_variable_name_for, idxs))
+                    val_name = self._get_variable_name_for(val)
+                    self.print(f"{arr_name}[{idx_args}] = {val_name};")
+                case memref.Load(memref=arr, indices=idxs, res=res):
+                    arr_name = self._get_variable_name_for(arr)
+                    idx_args = ", ".join(
+                        map(self._get_variable_name_for, idxs))
+                    # Use the array access syntax instead of cipying the value out
+                    self.variables[res] = f"({arr_name}[{idx_args}])"
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
