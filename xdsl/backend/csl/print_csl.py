@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Block, SSAValue, Region
 from xdsl.ir.core import BlockOps, TypeAttribute
+from xdsl.irdl.irdl import Operand
 
 
 @dataclass
@@ -237,6 +238,12 @@ class CslPrintContext:
             case other:
                 return f"<unknown memref.global init type {other}>"
 
+    def _binop(self, lhs: Operand, rhs: Operand, res: SSAValue, op: str):
+        name_lhs, name_rhs, name_res = map(
+            self._get_variable_name_for, (lhs, rhs, res))
+        type_res = self.mlir_type_to_csl_type(res.type)
+        return f"const {name_res} : {type_res} = {name_lhs} {op} {name_rhs};"
+
     def print_block(self, body: Block):
         """
         Walks over a block and prints every operation in the block.
@@ -402,11 +409,17 @@ class CslPrintContext:
                         | arith.TruncIOp(input=inp, result=res) \
                         | arith.ExtSIOp(input=inp, result=res)  \
                         | arith.ExtUIOp(input=inp, result=res):
-                    name_in = self._get_variable_name_for(inp)
-                    name_out = self._get_variable_name_for(res)
+                    name_in, name_out = map(
+                        self._get_variable_name_for, (inp, res))
                     type_out = self.mlir_type_to_csl_type(res.type)
                     self.print(
                         f"const {name_out} : {type_out} = @as({type_out}, {name_in});")
+                case arith.Muli(lhs=lhs, rhs=rhs, result=res) \
+                        | arith.Mulf(lhs=lhs, rhs=rhs, result=res):
+                    self.print(self._binop(lhs, rhs, res, "*"))
+                case arith.Addi(lhs=lhs, rhs=rhs, result=res) \
+                        | arith.Addf(lhs=lhs, rhs=rhs, result=res):
+                    self.print(self._binop(lhs, rhs, res, "+"))
                 case memref.Store(value=val, memref=arr, indices=idxs):
                     arr_name = self._get_variable_name_for(arr)
                     idx_args = ", ".join(
