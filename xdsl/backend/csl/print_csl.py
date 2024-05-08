@@ -33,6 +33,7 @@ from xdsl.ir.core import BlockOps, TypeAttribute
 @dataclass
 class CslPrintContext:
     _INDENT_SIZE = 2
+    _INDEX = "i32"
     DIVIDER = "// >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //"
     output: IO[str]
 
@@ -122,6 +123,8 @@ class CslPrintContext:
                 return "f16"
             case Float32Type():
                 return "f32"
+            case IndexType():
+                return self._INDEX
             case IntegerType(
                 width=IntAttr(data=width),
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
