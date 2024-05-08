@@ -394,6 +394,19 @@ class CslPrintContext:
                     id = self._get_variable_name_for(id)
                     with self._in_block("comptime"):
                         self.print(f"@rpc(@get_data_task_id({id}));")
+                case arith.IndexCastOp(input=inp, result=res)   \
+                        | arith.SIToFPOp(input=inp, result=res) \
+                        | arith.FPToSIOp(input=inp, result=res) \
+                        | arith.ExtFOp(input=inp, result=res)   \
+                        | arith.TruncFOp(input=inp, result=res) \
+                        | arith.TruncIOp(input=inp, result=res) \
+                        | arith.ExtSIOp(input=inp, result=res)  \
+                        | arith.ExtUIOp(input=inp, result=res):
+                    name_in = self._get_variable_name_for(inp)
+                    name_out = self._get_variable_name_for(res)
+                    type_out = self.mlir_type_to_csl_type(res.type)
+                    self.print(
+                        f"const {name_out} : {type_out} = @as({type_out}, {name_in});")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
