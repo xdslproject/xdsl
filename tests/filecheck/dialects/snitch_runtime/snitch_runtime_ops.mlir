@@ -57,25 +57,25 @@ builtin.module {
         // CHECK: %{{.*}}, %{{.*}} = "snrt.zero_memory"() : () -> (i64, i64)
 
         // DMA Operations
-        %dst_64 = arith.constant 100 : i64
-        %src_64 = arith.constant 0 : i64
+        %dst_i64 = arith.constant 100 : i64
+        %src_i64 = arith.constant 0 : i64
         %size = arith.constant 100 : i32
-        %transfer_id = "snrt.dma_start_1d_wideptr"(%dst_64, %src_64, %size) : (i64, i64, i32) -> i32
-        // CHECK: %transfer_id = "snrt.dma_start_1d_wideptr"(%dst_64, %src_64, %size) : (i64, i64, i32) -> i32
-        %dst_32 = arith.constant 100 : i32
-        %src_32 = arith.constant 0 : i32
-        %size_2 = arith.constant 100 : i32
-        %transfer_id_2 = "snrt.dma_start_1d"(%dst_32, %src_32, %size) : (i32, i32, i32) -> i32
-        // CHECK: %transfer_id_2 = "snrt.dma_start_1d"(%dst_32, %src_32, %size) : (i32, i32, i32) -> i32
+        %transfer_id = "snrt.dma_start_1d_wideptr"(%dst_i64, %src_i64, %size) : (i64, i64, i32) -> i32
+        // CHECK: %transfer_id = "snrt.dma_start_1d_wideptr"(%dst_i64, %src_i64, %size) : (i64, i64, i32) -> i32
+        %dst_i32 = arith.constant 100 : i32
+        %src_i32 = arith.constant 0 : i32
+        %size_1 = arith.constant 100 : i32
+        %transfer_id_1 = "snrt.dma_start_1d"(%dst_i32, %src_i32, %size) : (i32, i32, i32) -> i32
+        // CHECK: %transfer_id_1 = "snrt.dma_start_1d"(%dst_i32, %src_i32, %size) : (i32, i32, i32) -> i32
         "snrt.dma_wait"(%transfer_id) : (i32) -> ()
         // CHECK: "snrt.dma_wait"(%transfer_id) : (i32) -> ()
         %repeat = arith.constant 1 : i32
         %src_stride = arith.constant 1 : i32
         %dst_stride = arith.constant 1 : i32
-        %transfer_id_3 = "snrt.dma_start_2d_wideptr"(%dst_64, %src_64, %dst_stride, %src_stride, %size_2, %repeat) : (i64, i64, i32, i32, i32, i32) -> i32
-        // CHECK: transfer_id_3 = "snrt.dma_start_2d_wideptr"(%dst_64, %src_64, %dst_stride, %src_stride, %size_2, %repeat) : (i64, i64, i32, i32, i32, i32) -> i32
-        %transfer_id_4 = "snrt.dma_start_2d"(%dst_32, %src_32, %dst_stride, %src_stride, %size_2, %repeat) : (i32, i32, i32, i32, i32, i32) -> i32
-        // CHECK: transfer_id_4 = "snrt.dma_start_2d"(%dst_32, %src_32, %dst_stride, %src_stride, %size_2, %repeat) : (i32, i32, i32, i32, i32, i32) -> i32
+        %transfer_id_2 = "snrt.dma_start_2d_wideptr"(%dst_i64, %src_i64, %dst_stride, %src_stride, %size_1, %repeat) : (i64, i64, i32, i32, i32, i32) -> i32
+        // CHECK: transfer_id_2 = "snrt.dma_start_2d_wideptr"(%dst_i64, %src_i64, %dst_stride, %src_stride, %size_1, %repeat) : (i64, i64, i32, i32, i32, i32) -> i32
+        %transfer_id_3 = "snrt.dma_start_2d"(%dst_i32, %src_i32, %dst_stride, %src_stride, %size_1, %repeat) : (i32, i32, i32, i32, i32, i32) -> i32
+        // CHECK: transfer_id_3 = "snrt.dma_start_2d"(%dst_i32, %src_i32, %dst_stride, %src_stride, %size_1, %repeat) : (i32, i32, i32, i32, i32, i32) -> i32
         "snrt.dma_wait_all"() : () -> ()
         // CHECK: "snrt.dma_wait_all"() : () -> ()
 
