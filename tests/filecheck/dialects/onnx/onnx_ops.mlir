@@ -84,4 +84,5 @@
 %res_transpose = "onnx.Transpose"(%t8) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64]}: (tensor<3x4xf32>) -> tensor<4x3xf32>
 // CHECK:  %res_transpose = onnx.Transpose(%t8) {"onnx_node_name" = "/Transpose", "perm" = [1 : i64, 0 : i64]} : (tensor<3x4xf32>) -> tensor<4x3xf32>
 
-
+%res_squeeze = "onnx.Squeeze"(%t0) {onnx_node_name = "/Squeeze", "axes" = 0}: (tensor<1x2x6xf32>) -> tensor<2x6xf32>
+// CHECK: %res_squeeze = onnx.Squeeze(%t0) {"onnx_node_name" = "/Squeeze", "axes" = 0 : i64} : (tensor<1x2x6xf32>) -> tensor<2x6xf32>
