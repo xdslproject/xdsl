@@ -64,8 +64,11 @@ class CslPrintContext:
         self.print("}")
         pass
 
-    def _get_introducer(self, val: SSAValue):
-        return "const"
+    def _var_use(self, val: SSAValue, intro: str = "const"):
+        if val in self.variables:
+            return f"{self._get_variable_name_for(val)}"
+        else:
+            return f"{intro} {self._get_variable_name_for(val)} : {self.mlir_type_to_csl_type(val.type)}"
 
     def _get_variable_name_for(self, val: SSAValue, hint: str | None = None) -> str:
         """
@@ -242,11 +245,9 @@ class CslPrintContext:
                 return f"<unknown memref.global init type {other}>"
 
     def _binop(self, lhs: Operand, rhs: Operand, res: SSAValue, op: str):
-        name_lhs, name_rhs, name_res = map(
-            self._get_variable_name_for, (lhs, rhs, res))
-        type_res = self.mlir_type_to_csl_type(res.type)
-        intro = self._get_introducer(res)
-        return f"{intro} {name_res} : {type_res} = {name_lhs} {op} {name_rhs};"
+        name_lhs = self._get_variable_name_for(lhs)
+        name_rhs = self._get_variable_name_for(rhs)
+        return f"{self._var_use(res)} = {name_lhs} {op} {name_rhs};"
 
     def print_block(self, body: Block):
         """
@@ -262,28 +263,19 @@ class CslPrintContext:
                     | csl.ConstTypeOp(type=v, res=r):
                 # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
 
-                # convert the attributes type to a csl type:
-                type_name = self.mlir_type_to_csl_type(r.type)
                 # convert the carried value to a csl value
                 value_str = self.attribute_value_to_str(v)
 
-                intro = self._get_introducer(r)
-
                 # emit a constant instantiation:
-                self.print(
-                    f"{intro} {self._get_variable_name_for(r)} : {type_name} = {
-                        value_str};"
-                )
+                self.print(f"{self._var_use(r)} = {value_str};")
             case csl.ImportModuleConstOp(module=module, params=params, result=res):
                 name = self._get_variable_name_for(res)
-                intro = self._get_introducer(res)
-
                 params_str = ""
                 if params is not None:
                     params_str = f", {self._get_variable_name_for(params)}"
 
                 self.print(
-                    f'{intro} {name} : imported_module = @import_module("{
+                    f'const {name} : imported_module = @import_module("{
                         module.data}"{params_str});'
                 )
             case csl.MemberCallOp(field=callee, args=args, result=res) \
@@ -295,21 +287,12 @@ class CslPrintContext:
                 else:
                     struct_str = ""
 
-                text = ""
-                if res is not None:
-                    name = self._get_variable_name_for(res)
-                    intro = self._get_introducer(res)
-                    text += f"{intro} {name} : {
-                        self.mlir_type_to_csl_type(res.type)} = "
-
+                text = f"{self._var_use(res)} = " if res is not None else ""
                 self.print(f"{text}{struct_str}{callee.data}({args});")
             case csl.MemberAccessOp(struct=struct, field=field, result=res):
-                name = self._get_variable_name_for(res)
-                intro = self._get_introducer(res)
                 struct_var = self._get_variable_name_for(struct)
                 self.print(
-                    f"{intro} {name} : {self.mlir_type_to_csl_type(res.type)} = {
-                        struct_var}.{field.data};"
+                    f"{self._var_use(res)} = {struct_var}.{field.data};"
                 )
             case csl.TaskOp(sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id):
                 self._task_or_fn("task", name, bdy, ftyp)
@@ -365,18 +348,11 @@ class CslPrintContext:
                     self.print(f"@export_symbol({val}, {q_name});")
             case csl.GetColorOp(id=id, res=res):
                 id = self.attribute_value_to_str(id)
-                var = self._get_variable_name_for(res)
-                intro = self._get_introducer(res)
-                color_t = self.mlir_type_to_csl_type(res.type)
-                self.print(f"{intro} {var} : {
-                           color_t} = @get_color({id});")
+                self.print(f"{self._var_use(res)} = @get_color({id});")
             case csl.ConstStructOp(items=items, ssa_fields=fields, ssa_values=values, res=res):
-                var = self._get_variable_name_for(res)
-                intro = self._get_introducer(res)
-                struct_t = self.mlir_type_to_csl_type(res.type)
                 items = items or DictionaryAttr({})
                 fields = fields or ArrayAttr([])
-                self.print(f"{intro} {var} : {struct_t} = .{{")
+                self.print(f"{self._var_use(res)} = .{{")
                 for k, v in items.data.items():
                     v = self.attribute_value_to_str(v)
                     self.print(f".{k} = {v},",
@@ -393,14 +369,10 @@ class CslPrintContext:
                 self.print(f"param {name.data} : {ty}{init};")
             case csl.AddressOfOp(value=val, res=res):
                 val_name = self._get_variable_name_for(val)
-                res_name = self._get_variable_name_for(res)
-                res_type = cast(csl.PtrType, res.type)
-                match self._get_introducer(res):
-                    case "const": intro = self._ptr_kind_to_introducer(res_type.constness.data)
-                    # case other: intro = other
-                res_type = self.mlir_type_to_csl_type(res.type)
-                self.print(
-                    f"{intro} {res_name} : {res_type} = &{val_name};")
+                use = self._var_use(
+                    res,
+                    self._ptr_kind_to_introducer(cast(csl.PtrType, res.type).constness.data))
+                self.print(f"{use} = &{val_name};")
             case memref.Global(sym_name=name, type=ty, initial_value=init, constant=const):
                 name = name.data
                 ty = self.mlir_type_to_csl_type(ty)
@@ -423,12 +395,10 @@ class CslPrintContext:
                     | arith.TruncIOp(input=inp, result=res) \
                     | arith.ExtSIOp(input=inp, result=res)  \
                     | arith.ExtUIOp(input=inp, result=res):
-                name_in, name_out = map(
-                    self._get_variable_name_for, (inp, res))
+                name_in = self._get_variable_name_for(inp)
                 type_out = self.mlir_type_to_csl_type(res.type)
-                intro = self._get_introducer(res)
                 self.print(
-                    f"{intro} {name_out} : {type_out} = @as({type_out}, {name_in});")
+                    f"{self._var_use(res)} = @as({type_out}, {name_in});")
             case arith.Muli(lhs=lhs, rhs=rhs, result=res) \
                     | arith.Mulf(lhs=lhs, rhs=rhs, result=res):
                 self.print(self._binop(lhs, rhs, res, "*"))
