@@ -64,6 +64,9 @@ class CslPrintContext:
         self.print("}")
         pass
 
+    def _get_introducer(self, val: SSAValue):
+        return "const"
+
     def _get_variable_name_for(self, val: SSAValue, hint: str | None = None) -> str:
         """
         Get an assigned variable name for a given SSA Value
@@ -242,7 +245,8 @@ class CslPrintContext:
         name_lhs, name_rhs, name_res = map(
             self._get_variable_name_for, (lhs, rhs, res))
         type_res = self.mlir_type_to_csl_type(res.type)
-        return f"const {name_res} : {type_res} = {name_lhs} {op} {name_rhs};"
+        intro = self._get_introducer(res)
+        return f"{intro} {name_res} : {type_res} = {name_lhs} {op} {name_rhs};"
 
     def print_block(self, body: Block):
         """
@@ -260,20 +264,23 @@ class CslPrintContext:
                     # convert the carried value to a csl value
                     value_str = self.attribute_value_to_str(v)
 
+                    intro = self._get_introducer(r)
+
                     # emit a constant instantiation:
                     self.print(
-                        f"const {self._get_variable_name_for(r)} : {type_name} = {
+                        f"{intro} {self._get_variable_name_for(r)} : {type_name} = {
                             value_str};"
                     )
                 case csl.ImportModuleConstOp(module=module, params=params, result=res):
                     name = self._get_variable_name_for(res)
+                    intro = self._get_introducer(res)
 
                     params_str = ""
                     if params is not None:
                         params_str = f", {self._get_variable_name_for(params)}"
 
                     self.print(
-                        f'const {name} : imported_module = @import_module("{
+                        f'{intro} {name} : imported_module = @import_module("{
                             module.data}"{params_str});'
                     )
                 case csl.MemberCallOp(field=callee, args=args, result=res) \
@@ -288,17 +295,19 @@ class CslPrintContext:
                     text = ""
                     if res is not None:
                         name = self._get_variable_name_for(res)
+                        intro = self._get_introducer(res)
                         text += (
-                            f"const {name} : {
+                            f"{intro} {name} : {
                                 self.mlir_type_to_csl_type(res.type)} = "
                         )
 
                     self.print(f"{text}{struct_str}{callee.data}({args});")
                 case csl.MemberAccessOp(struct=struct, field=field, result=res):
                     name = self._get_variable_name_for(res)
+                    intro = self._get_introducer(res)
                     struct_var = self._get_variable_name_for(struct)
                     self.print(
-                        f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {
+                        f"{intro} {name} : {self.mlir_type_to_csl_type(res.type)} = {
                             struct_var}.{field.data};"
                     )
                 case csl.TaskOp(sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id):
@@ -356,14 +365,17 @@ class CslPrintContext:
                 case csl.GetColorOp(id=id, res=res):
                     id = self.attribute_value_to_str(id)
                     var = self._get_variable_name_for(res)
+                    intro = self._get_introducer(res)
                     color_t = self.mlir_type_to_csl_type(res.type)
-                    self.print(f"const {var} : {color_t} = @get_color({id});")
+                    self.print(f"{intro} {var} : {
+                               color_t} = @get_color({id});")
                 case csl.ConstStructOp(items=items, ssa_fields=fields, ssa_values=values, res=res):
                     var = self._get_variable_name_for(res)
+                    intro = self._get_introducer(res)
                     struct_t = self.mlir_type_to_csl_type(res.type)
                     items = items or DictionaryAttr({})
                     fields = fields or ArrayAttr([])
-                    self.print(f"const {var} : {struct_t} = .{{")
+                    self.print(f"{intro} {var} : {struct_t} = .{{")
                     for k, v in items.data.items():
                         v = self.attribute_value_to_str(v)
                         self.print(f".{k} = {v},",
@@ -382,11 +394,12 @@ class CslPrintContext:
                     val_name = self._get_variable_name_for(val)
                     res_name = self._get_variable_name_for(res)
                     res_type = cast(csl.PtrType, res.type)
-                    const = self._ptr_kind_to_introducer(
-                        res_type.constness.data)
+                    match self._get_introducer(res):
+                        case "const": intro = self._ptr_kind_to_introducer(res_type.constness.data)
+                        # case other: intro = other
                     res_type = self.mlir_type_to_csl_type(res.type)
                     self.print(
-                        f"{const} {res_name} : {res_type} = &{val_name};")
+                        f"{intro} {res_name} : {res_type} = &{val_name};")
                 case memref.Global(sym_name=name, type=ty, initial_value=init, constant=const):
                     name = name.data
                     ty = self.mlir_type_to_csl_type(ty)
@@ -412,8 +425,9 @@ class CslPrintContext:
                     name_in, name_out = map(
                         self._get_variable_name_for, (inp, res))
                     type_out = self.mlir_type_to_csl_type(res.type)
+                    intro = self._get_introducer(res)
                     self.print(
-                        f"const {name_out} : {type_out} = @as({type_out}, {name_in});")
+                        f"{intro} {name_out} : {type_out} = @as({type_out}, {name_in});")
                 case arith.Muli(lhs=lhs, rhs=rhs, result=res) \
                         | arith.Mulf(lhs=lhs, rhs=rhs, result=res):
                     self.print(self._binop(lhs, rhs, res, "*"))
