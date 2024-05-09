@@ -11,3 +11,4 @@
 
 // CHECK-GENERIC: %q0 = "test.op"() : () -> !qssa.qubits<1>
 // CHECK-GENERIC-NEXT: %0 = "qssa.h"(%q0) : (!qssa.qubits<1>) -> !qssa.qubits<1>
+
