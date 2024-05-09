@@ -25,7 +25,7 @@ def test_var_mixed_builder():
     [
         "test",
         "-2",
-        "test_123",
+        "test123",
         "kebab-case-name",
         None,
     ],
