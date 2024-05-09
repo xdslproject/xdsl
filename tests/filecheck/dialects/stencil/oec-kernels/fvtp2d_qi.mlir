@@ -456,12 +456,12 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      "scf.parallel"(%78, %79, %80, %84, %85, %86, %81, %82, %83) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // MLIR-NEXT:      ^2(%87 : index, %88 : index, %89 : index):
 // MLIR-NEXT:        %cst = arith.constant 0.000000e+00 : f64
-// MLIR-NEXT:        %cst_0 = arith.constant 1.000000e+00 : f64
+// MLIR-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
 // MLIR-NEXT:        %90 = arith.constant -1 : index
 // MLIR-NEXT:        %91 = arith.addi %88, %90 : index
 // MLIR-NEXT:        %92 = memref.load %arg12[%87, %91, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:        %93 = arith.cmpf oeq, %92, %cst : f64
-// MLIR-NEXT:        %94 = arith.select %93, %cst_0, %cst : f64
+// MLIR-NEXT:        %94 = arith.select %93, %cst_1, %cst : f64
 // MLIR-NEXT:        %95 = memref.load %arg12[%87, %88, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:        %96 = arith.mulf %95, %94 : f64
 // MLIR-NEXT:        %97 = arith.addf %92, %96 : f64
@@ -476,7 +476,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:          %106 = memref.load %arg11[%87, %105, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:          %107 = arith.mulf %98, %106 : f64
 // MLIR-NEXT:          %108 = arith.subf %103, %107 : f64
-// MLIR-NEXT:          %109 = arith.subf %cst_0, %98 : f64
+// MLIR-NEXT:          %109 = arith.subf %cst_1, %98 : f64
 // MLIR-NEXT:          %110 = arith.mulf %109, %108 : f64
 // MLIR-NEXT:          scf.yield %110 : f64
 // MLIR-NEXT:        }, {
@@ -484,7 +484,7 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:          %112 = memref.load %arg11[%87, %88, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:          %113 = arith.mulf %98, %112 : f64
 // MLIR-NEXT:          %114 = arith.addf %111, %113 : f64
-// MLIR-NEXT:          %115 = arith.addf %cst_0, %98 : f64
+// MLIR-NEXT:          %115 = arith.addf %cst_1, %98 : f64
 // MLIR-NEXT:          %116 = arith.mulf %115, %114 : f64
 // MLIR-NEXT:          scf.yield %116 : f64
 // MLIR-NEXT:        }) : (i1) -> f64
