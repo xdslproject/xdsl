@@ -1,0 +1,12 @@
+{
+  "name": "Dev container",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11",
+      "installJupyterlab": true
+    }
+  },
+  // We want all dependencies except wgpu since that fails on the default container
+	"postCreateCommand": "python -m pip install -r requirements.txt && python -m pip uninstall wgpu"
+}
