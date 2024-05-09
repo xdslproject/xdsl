@@ -303,11 +303,25 @@ class CslPrintContext:
                 self.print("return;")
             case csl.ReturnOp(ret_val=val) if val is not None:
                 self.print(f"return {self._get_variable_name_for(val)};")
-            case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
-                idx, *_ = bdy.block.args
+            case scf.For(lb=lower, ub=upper, step=stp, body=bdy, res=res, iter_args=it):
+                idx, *args = bdy.block.args
+                for i, r, a in zip(res, it, args):
+                    r_name = self._get_variable_name_for(r)
+                    i_name = self._get_variable_name_for(i)
+                    self.print(f"var {i_name} = {r_name};")
+                    self.variables[a] = i_name
+                for op in bdy.block.ops:
+                    if not isinstance(op, scf.Yield):
+                        continue
+                    for y, a in zip(op.arguments, args):
+                        self.variables[y] = self.variables[a]
+
+                idx_type = self.mlir_type_to_csl_type(idx.type)
+                lower_name, upper_name, stp_name, idx_name = map(
+                    self._get_variable_name_for, (lower, upper, stp, idx))
                 self.print(
-                    f"\nfor(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {
-                        self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
+                    f"\nfor(@range({idx_type}, {lower_name}, {
+                        upper_name}, {stp_name})) |{idx_name}| {{"
                 )
                 self.descend().print_block(bdy.block)
                 self.print("}")
@@ -417,8 +431,7 @@ class CslPrintContext:
                     map(self._get_variable_name_for, idxs))
                 # Use the array access syntax instead of cipying the value out
                 self.variables[res] = f"({arr_name}[{idx_args}])"
-            case scf.Yield(arguments=args) if len(args) == 0:
-                # There is nothing to do for yield with no args
+            case scf.Yield(arguments=args):
                 pass
             case anyop:
                 self.print(f"unknown op {anyop}", prefix="//")
