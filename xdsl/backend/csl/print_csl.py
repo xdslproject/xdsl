@@ -319,7 +319,7 @@ class CslPrintContext:
                 lower_name, upper_name, stp_name, idx_name = map(
                     self._get_variable_name_for, (lower, upper, stp, idx))
                 self.print(
-                    f"\nfor(@range({idx_type}, {lower_name}, {
+                    f"for(@range({idx_type}, {lower_name}, {
                         upper_name}, {stp_name})) |{idx_name}| {{"
                 )
                 self.descend().print_block(bdy.block)
