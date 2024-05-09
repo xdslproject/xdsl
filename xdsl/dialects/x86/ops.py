@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
 )
+from xdsl.dialects.func import FuncOp
 from xdsl.ir import (
     Attribute,
     Data,
@@ -1464,6 +1465,9 @@ def _assembly_line(
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
     for op in module.body.walk():
+        if isinstance(op, FuncOp):
+            print(f"{op.sym_name.data}:", file=output)
+            continue
         assert isinstance(op, X86Op), f"{op}"
         asm = op.assembly_line()
         if asm is not None:
