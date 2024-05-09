@@ -307,9 +307,8 @@ class CslPrintContext:
                 idx, *args = bdy.block.args
                 for i, r, a in zip(res, it, args):
                     r_name = self._get_variable_name_for(r)
-                    i_name = self._get_variable_name_for(i)
-                    self.print(f"var {i_name} = {r_name};")
-                    self.variables[a] = i_name
+                    self.print(f"{self._var_use(i, "var")} = {r_name};")
+                    self.variables[a] = self.variables[i]
                 for op in bdy.block.ops:
                     if not isinstance(op, scf.Yield):
                         continue
