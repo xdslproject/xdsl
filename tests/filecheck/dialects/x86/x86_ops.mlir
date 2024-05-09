@@ -4,6 +4,8 @@
 
 %0, %1 = "test.op"() : () -> (!x86.reg<>, !x86.reg<>)
 %rsp = "test.op"() : () -> !x86.reg<rsp>
+%rax = "test.op"() : () -> !x86.reg<rax>
+%rdx = "test.op"() : () -> !x86.reg<rdx>
 
 %add = x86.rr.add %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 // CHECK: %{{.*}} = x86.rr.add %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
@@ -25,6 +27,9 @@ x86.r.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.r.pop %{{.*}} : (!x86.reg<rsp>) -> (!x86.reg<>, !x86.reg<rsp>)
 %not = x86.r.not %0 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.r.not %{{.*}} : (!x86.reg<>) -> !x86.reg<>
+
+%r_idiv_rdx, %r_idiv_rax = x86.r.idiv %0, %rdx, %rax : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK-NEXT: %{{.*}}, %{{.*}} = x86.r.idiv %{{.*}}, %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 
 %rm_add_no_offset  = x86.rm.add %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.rm.add %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
@@ -85,3 +90,40 @@ x86.mi.xor %0, 2, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.mi.xor %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
 x86.mi.mov %0, 2, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.mi.mov %{{.*}}, 2, 8 : (!x86.reg<>) -> ()
+
+%rri_imul = x86.rri.imul %1, 2 : (!x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rri.imul %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
+
+%rmi_imul_no_offset = x86.rmi.imul %1, 2 : (!x86.reg<>) -> !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rmi.imul %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
+%rmi_imul = x86.rmi.imul %1, 2, 8 : (!x86.reg<>) ->  !x86.reg<>
+// CHECK-NEXT: %{{.*}} = x86.rmi.imul %{{.*}}, 2, 8 : (!x86.reg<>) -> !x86.reg<>
+
+x86.m.push %0 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.push %{{.*}} : (!x86.reg<>) -> ()
+x86.m.push %0, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.push %{{.*}}, 8 : (!x86.reg<>) -> ()
+x86.m.neg %0 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.neg %{{.*}} : (!x86.reg<>) -> ()
+x86.m.neg %0, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.neg %{{.*}}, 8 : (!x86.reg<>) -> ()
+x86.m.not %0, 8 : (!x86.reg<>) -> ()
+// CHECK-NEXT: x86.m.not %{{.*}}, 8 : (!x86.reg<>) -> ()
+
+x86.directive ".text"
+// CHECK-NEXT: x86.directive ".text"
+x86.directive ".align" "2"
+// CHECK-NEXT: x86.directive ".align" "2"
+x86.label "label"
+// CHECK-NEXT: x86.label "label"
+
+func.func @funcyasm() {
+    x86.s.jmp ^labelblock(%arg : !x86.reg<>)
+    // CHECK: x86.s.jmp ^{{.+}}(%arg : !x86.reg<>)
+    ^labelblock(%arg : !x86.reg<>):
+    // CHECK-NEXT: ^{{.+}}(%arg : !x86.reg<>):
+    x86.label "then"
+    // CHECK-NEXT: x86.label "then"
+    x86.s.jmp ^labelblock(%arg : !x86.reg<>)
+    // CHECK-NEXT: x86.s.jmp ^{{.+}}(%arg : !x86.reg<>)
+}

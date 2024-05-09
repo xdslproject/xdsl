@@ -390,6 +390,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return DesymrefyPass
 
+    def get_gpu_allocs():
+        from xdsl.transforms import gpu_allocs
+
+        return gpu_allocs.MemrefToGPUPass
+
     def get_gpu_map_parallel_loops():
         from xdsl.transforms import gpu_map_parallel_loops
 
@@ -459,6 +464,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import riscv_register_allocation
 
         return riscv_register_allocation.RISCVRegisterAllocation
+
+    def get_riscv_scf_loop_fusion():
+        from xdsl.transforms import riscv_scf_loop_fusion
+
+        return riscv_scf_loop_fusion.RiscvScfLoopFusionPass
 
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
@@ -586,6 +596,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
+        "memref-to-gpu": get_gpu_allocs,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
@@ -603,6 +614,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "riscv-cse": get_riscv_cse,
+        "riscv-scf-loop-fusion": get_riscv_scf_loop_fusion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,

@@ -1,7 +1,13 @@
 from xdsl.ir import Dialect
 
 from .ops import (
+    DirectiveOp,
     GetRegisterOp,
+    LabelAttr,
+    LabelOp,
+    M_NegOp,
+    M_NotOp,
+    M_PushOp,
     MI_AddOp,
     MI_AndOp,
     MI_MovOp,
@@ -14,6 +20,7 @@ from .ops import (
     MR_OrOp,
     MR_SubOp,
     MR_XorOp,
+    R_IDivOp,
     R_NotOp,
     R_PopOp,
     R_PushOp,
@@ -30,6 +37,7 @@ from .ops import (
     RM_OrOp,
     RM_SubOp,
     RM_XorOp,
+    RMI_ImulOp,
     RR_AddOp,
     RR_AndOp,
     RR_ImulOp,
@@ -37,6 +45,8 @@ from .ops import (
     RR_OrOp,
     RR_SubOp,
     RR_XorOp,
+    RRI_ImulOP,
+    S_JmpOp,
 )
 from .register import GeneralRegisterType
 
@@ -53,6 +63,7 @@ X86 = Dialect(
         R_PushOp,
         R_PopOp,
         R_NotOp,
+        R_IDivOp,
         RM_AddOp,
         RM_SubOp,
         RM_ImulOp,
@@ -78,9 +89,18 @@ X86 = Dialect(
         MI_OrOp,
         MI_XorOp,
         MI_MovOp,
+        RRI_ImulOP,
+        RMI_ImulOp,
+        M_PushOp,
+        M_NegOp,
+        M_NotOp,
+        S_JmpOp,
         GetRegisterOp,
+        LabelOp,
+        DirectiveOp,
     ],
     [
         GeneralRegisterType,
+        LabelAttr,
     ],
 )

@@ -25,15 +25,21 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    Successor,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
     result_def,
+    successor_def,
+    var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from .register import GeneralRegisterType, X86RegisterType
@@ -125,11 +131,6 @@ class X86Op(Operation, ABC):
         printer.print_operation_type(self)
 
 
-AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | SSAValue | GeneralRegisterType | str | int
-)
-
-
 @irdl_attr_definition
 class LabelAttr(Data[str]):
     name = "x86.label"
@@ -142,6 +143,11 @@ class LabelAttr(Data[str]):
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_string_literal(self.data)
+
+
+AssemblyInstructionArg: TypeAlias = (
+    AnyIntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
+)
 
 
 class X86Instruction(X86Op):
@@ -414,6 +420,47 @@ class R_NotOp(R_R_Operation[GeneralRegisterType]):
     name = "x86.r.not"
 
 
+@irdl_op_definition
+class R_IDivOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Divides the value in RDX:RAX by r1 and stores the quotient in RAX and the remainder in RDX.
+    https://www.felixcloutier.com/x86/idiv
+    """
+
+    name = "x86.r.idiv"
+
+    r1 = operand_def(R1InvT)
+    rdx_input = operand_def(GeneralRegisterType("rdx"))
+    rax_input = operand_def(GeneralRegisterType("rax"))
+
+    rdx_output = result_def(GeneralRegisterType("rdx"))
+    rax_output = result_def(GeneralRegisterType("rax"))
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        rdx_input: Operation | SSAValue,
+        rax_input: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        rdx_output: GeneralRegisterType,
+        rax_output: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, rdx_input, rax_input],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[rdx_output, rax_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.r1,)
+
+
 class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations that have one register and one memory access with an optional offset.
@@ -449,7 +496,9 @@ class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.r1, self.r2
+        memory_access = _memory_access_str(self.r2, self.offset)
+        destination = _assembly_arg_str(self.r1)
+        return (destination, memory_access)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -466,27 +515,6 @@ class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
         if self.offset is not None:
             _print_immediate_value(printer, self.offset)
         return {"offset"}
-
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        destination = _assembly_arg_str(self.r1)
-        source = _assembly_arg_str(self.r2)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                return _assembly_line(
-                    instruction_name,
-                    f"{destination}, [{source}+{offset}]",
-                    self.comment,
-                )
-            else:
-                return _assembly_line(
-                    instruction_name, f"{destination}, [{source}{offset}]", self.comment
-                )
-        else:
-            return _assembly_line(
-                instruction_name, f"{destination}, [{source}]", self.comment
-            )
 
 
 @irdl_op_definition
@@ -717,16 +745,8 @@ class M_MR_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        destination = _assembly_arg_str(self.r1)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                destination = f"[{destination}+{offset}]"
-            else:
-                destination = f"[{destination}{offset}]"
-        else:
-            destination = f"[{destination}]"
-        return destination, self.r2
+        memory_access = _memory_access_str(self.r1, self.offset)
+        return memory_access, self.r2
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -848,17 +868,9 @@ class M_MI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        destination = _assembly_arg_str(self.r1)
         immediate = _assembly_arg_str(self.immediate)
-        if self.offset is not None:
-            offset = _assembly_arg_str(self.offset)
-            if self.offset.value.data > 0:
-                destination = f"[{destination}+{offset}]"
-            else:
-                destination = f"[{destination}{offset}]"
-        else:
-            destination = f"[{destination}]"
-        return destination, immediate
+        memory_access = _memory_access_str(self.r1, self.offset)
+        return memory_access, immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -948,6 +960,465 @@ class MI_MovOp(M_MI_Operation[GeneralRegisterType]):
     name = "x86.mi.mov"
 
 
+class R_RRI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one destination register, one source register and an immediate value.
+    """
+
+    r2 = operand_def(R2InvT)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+
+    r1 = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r2: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        r1: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r2],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[r1],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
+@irdl_op_definition
+class RRI_ImulOP(R_RRI_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the immediate value with the source register and stores the result in the destination register.
+    x[r1] = x[r2] * immediate
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.rri.imul"
+
+
+class R_RMI_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have one source register, one memory reference and an immediate value.
+    """
+
+    r2 = operand_def(R2InvT)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    r1 = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r2: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+        r1: R1InvT,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the default immediate size is 32 bits
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r2],
+            attributes={
+                "immediate": immediate,
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[r1],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        destination = _assembly_arg_str(self.r1)
+        immediate = _assembly_arg_str(self.immediate)
+        memory_access = _memory_access_str(self.r2, self.offset)
+        return destination, memory_access, immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        if parser.parse_optional_punctuation(",") is not None:
+            temp2 = _parse_optional_immediate_value(
+                parser, IntegerType(32, Signedness.SIGNED)
+            )
+            if temp2 is not None:
+                attributes["offset"] = temp2
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"immediate", "offset"}
+
+
+@irdl_op_definition
+class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Multiplies the immediate value with the memory location pointed to by r2 and stores the result in r1.
+    x[r1] = [x[r2]] * immediate
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.rmi.imul"
+
+
+@irdl_op_definition
+class M_PushOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Decreases %rsp and places [r1] at the new memory location pointed to by %rsp.
+    https://www.felixcloutier.com/x86/push
+    """
+
+    name = "x86.m.push"
+
+    source = operand_def(R1InvT)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = _memory_access_str(self.source, self.offset)
+        return (memory_access,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class M_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations with a memory reference that's both a source and a destination
+    """
+
+    source = operand_def(R1InvT)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+
+        super().__init__(
+            operands=[source],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = _memory_access_str(self.source, self.offset)
+        return (memory_access,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+@irdl_op_definition
+class M_NegOp(M_M_Operation[GeneralRegisterType]):
+    """
+    Negates the value at the memory location pointed to by r1.
+    [x[r1]] = -[x[r1]]
+    https://www.felixcloutier.com/x86/neg
+    """
+
+    name = "x86.m.neg"
+
+
+@irdl_op_definition
+class M_NotOp(M_M_Operation[GeneralRegisterType]):
+    """
+    bitwise not of [r1], stored in [r1]
+    [x[r1]] = ~[x[r1]]
+    https://www.felixcloutier.com/x86/not
+    """
+
+    name = "x86.m.not"
+
+
+@irdl_op_definition
+class LabelOp(IRDLOperation, X86Op):
+    """
+    The label operation is used to emit text labels (e.g. loop:) that are used
+    as branch, unconditional jump targets and symbol offsets.
+    """
+
+    name = "x86.label"
+    label: LabelAttr = attr_def(LabelAttr)
+    comment: StringAttr | None = opt_attr_def(StringAttr)
+
+    def __init__(
+        self,
+        label: str | LabelAttr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(label, str):
+            label = LabelAttr(label)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            attributes={
+                "label": label,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line(self) -> str | None:
+        return _append_comment(f"{self.label.data}:", self.comment)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print_string_literal(self.label.data)
+        return {"label"}
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
+
+
+@irdl_op_definition
+class DirectiveOp(IRDLOperation, X86Op):
+    """
+    The directive operation is used to represent a directive in the assembly code. (e.g. .globl; .type etc)
+    """
+
+    name = "x86.directive"
+
+    directive: StringAttr = attr_def(StringAttr)
+    value: StringAttr | None = opt_attr_def(StringAttr)
+
+    def __init__(
+        self,
+        directive: str | StringAttr,
+        value: str | StringAttr | None,
+    ):
+        if isinstance(directive, str):
+            directive = StringAttr(directive)
+        if isinstance(value, str):
+            value = StringAttr(value)
+
+        super().__init__(
+            attributes={
+                "directive": directive,
+                "value": value,
+            },
+        )
+
+    def assembly_line(self) -> str | None:
+        if self.value is not None and self.value.data:
+            arg_str = _assembly_arg_str(self.value.data)
+        else:
+            arg_str = ""
+
+        return _assembly_line(self.directive.data, arg_str, is_indented=False)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["directive"] = StringAttr(
+            parser.parse_str_literal("Expected directive")
+        )
+        if (value := parser.parse_optional_str_literal()) is not None:
+            attributes["value"] = StringAttr(value)
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(" ")
+        printer.print_string_literal(self.directive.data)
+        if self.value is not None:
+            printer.print(" ")
+            printer.print_string_literal(self.value.data)
+        return {"directive", "value"}
+
+    def print_op_type(self, printer: Printer) -> None:
+        return
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        return (), ()
+
+
+@irdl_op_definition
+class S_JmpOp(IRDLOperation, X86Instruction):
+    """
+    Unconditional jump to the label specified in destination.
+    https://www.felixcloutier.com/x86/jmp
+    """
+
+    name = "x86.s.jmp"
+
+    block_values: VarOperand = var_operand_def(X86RegisterType)
+
+    successor = successor_def()
+
+    traits = frozenset([IsTerminator()])
+
+    def __init__(
+        self,
+        block_values: Sequence[SSAValue],
+        successor: Successor,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[block_values],
+            attributes={
+                "comment": comment,
+            },
+            successors=(successor,),
+        )
+
+    def verify_(self) -> None:
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.block_values, self.successor.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        if not isinstance(self.successor.first_op, LabelOp):
+            raise VerifyException(
+                "jmp operation successor must have a x86.label operation as a "
+                f"first argument, found {self.successor.first_op}"
+            )
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_block_name(self.successor)
+        printer.print_string("(")
+        printer.print_list(
+            self.block_values, lambda val: _print_type_pair(printer, val)
+        )
+        printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        successor = parser.parse_successor()
+        block_values = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(block_values, successor)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        dest_label = self.successor.first_op
+        assert isinstance(dest_label, LabelOp)
+        return (dest_label.label,)
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:
@@ -967,6 +1438,8 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg
     elif isinstance(arg, GeneralRegisterType):
         return arg.register_name
+    elif isinstance(arg, LabelAttr):
+        return arg.data
     else:
         if isinstance(arg.type, GeneralRegisterType):
             reg = arg.type.register_name
@@ -1030,6 +1503,34 @@ def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAt
             printer.print(immediate.value.data)
         case LabelAttr():
             printer.print_string_literal(immediate.data)
+
+
+def _memory_access_str(
+    register: AssemblyInstructionArg, offset: AnyIntegerAttr | None
+) -> str:
+    register_str = _assembly_arg_str(register)
+    if offset is not None:
+        offset_str = _assembly_arg_str(offset)
+        if offset.value.data > 0:
+            mem_acc_str = f"[{register_str}+{offset_str}]"
+        else:
+            mem_acc_str = f"[{register_str}{offset_str}]"
+    else:
+        mem_acc_str = f"[{register_str}]"
+    return mem_acc_str
+
+
+def _print_type_pair(printer: Printer, value: SSAValue) -> None:
+    printer.print_ssa_value(value)
+    printer.print_string(" : ")
+    printer.print_attribute(value.type)
+
+
+def _parse_type_pair(parser: Parser) -> SSAValue:
+    unresolved = parser.parse_unresolved_operand()
+    parser.parse_punctuation(":")
+    type = parser.parse_type()
+    return parser.resolve_operand(unresolved, type)
 
 
 # endregion
