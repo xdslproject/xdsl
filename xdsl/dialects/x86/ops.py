@@ -24,6 +24,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
     Successor,
@@ -43,7 +44,7 @@ from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from .register import GeneralRegisterType, X86RegisterType
+from .register import GeneralRegisterType, RFLAGSRegisterType, X86RegisterType
 
 R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
 R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
@@ -1418,6 +1419,523 @@ class S_JmpOp(IRDLOperation, X86Instruction):
         dest_label = self.successor.first_op
         assert isinstance(dest_label, LabelOp)
         return (dest_label.label,)
+
+
+@irdl_op_definition
+class RR_CmpOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    https://www.felixcloutier.com/x86/cmp
+    """
+
+    name = "x86.rr.cmp"
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+
+    result = result_def(RFLAGSRegisterType)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        result: RFLAGSRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2
+
+
+@irdl_op_definition
+class RM_CmpOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    https://www.felixcloutier.com/x86/cmp
+    """
+
+    name = "x86.rm.cmp"
+
+    r1 = operand_def(GeneralRegisterType)
+    r2 = operand_def(GeneralRegisterType)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    result = result_def(RFLAGSRegisterType)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+        result: RFLAGSRegisterType,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = _memory_access_str(self.r2, self.offset)
+        return self.r1, memory_access
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for Jcc operations.
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    rflags = operand_def(RFLAGSRegisterType)
+
+    then_values = var_operand_def(X86RegisterType)
+    else_values = var_operand_def(X86RegisterType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    then_block = successor_def()
+    else_block = successor_def()
+
+    traits = frozenset([IsTerminator()])
+
+    def __init__(
+        self,
+        rflags: Operation | SSAValue,
+        then_values: Sequence[SSAValue],
+        else_values: Sequence[SSAValue],
+        then_block: Successor,
+        else_block: Successor,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rflags, then_values, else_values],
+            attributes={
+                "comment": comment,
+            },
+            successors=(then_block, else_block),
+        )
+
+    def verify_(self) -> None:
+        # The then block must start with a label op
+
+        then_block_first_op = self.then_block.first_op
+
+        if not isinstance(then_block_first_op, LabelOp):
+            raise VerifyException("then block first op must be a label")
+
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.then_values, self.then_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        for op_arg, block_arg in zip(self.else_values, self.else_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        # The else block must be the one immediately following this one
+
+        parent_block = self.parent
+        if parent_block is None:
+            return
+
+        parent_region = parent_block.parent
+        if parent_region is None:
+            return
+
+        this_index = parent_region.blocks.index(parent_block)
+        else_index = parent_region.blocks.index(self.else_block)
+
+        if this_index + 1 != else_index:
+            raise VerifyException("else block must be immediately after op")
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        then_label = self.then_block.first_op
+        assert isinstance(then_label, LabelOp)
+        return (then_label.label,)
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        _print_type_pair(printer, self.rflags)
+        printer.print_string(", ")
+        printer.print_block_name(self.then_block)
+        printer.print_string("(")
+        printer.print_list(self.then_values, lambda val: _print_type_pair(printer, val))
+        printer.print_string("), ")
+        printer.print_block_name(self.else_block)
+        printer.print_string("(")
+        printer.print_list(self.else_values, lambda val: _print_type_pair(printer, val))
+        printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(
+                self.attributes,
+                reserved_attr_names="operandSegmentSizes",
+                print_keyword=True,
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        rflags = _parse_type_pair(parser)
+        parser.parse_punctuation(",")
+        then_block = parser.parse_successor()
+        then_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        parser.parse_punctuation(",")
+        else_block = parser.parse_successor()
+        else_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(rflags, then_args, else_args, then_block, else_block)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
+
+@irdl_op_definition
+class S_JaOp(ConditionalJumpOperation):
+    """
+    Jump if above (CF=0 and ZF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.ja"
+
+
+@irdl_op_definition
+class S_JaeOp(ConditionalJumpOperation):
+    """
+    Jump if above or equal (CF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jae"
+
+
+@irdl_op_definition
+class S_JbOp(ConditionalJumpOperation):
+    """
+    Jump if below (CF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jb"
+
+
+@irdl_op_definition
+class S_JbeOp(ConditionalJumpOperation):
+    """
+    Jump if below or equal (CF=1 or ZF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jbe"
+
+
+@irdl_op_definition
+class S_JcOp(ConditionalJumpOperation):
+    """
+    Jump if carry (CF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jc"
+
+
+@irdl_op_definition
+class S_JeOp(ConditionalJumpOperation):
+    """
+    Jump if equal (ZF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.je"
+
+
+@irdl_op_definition
+class S_JgOp(ConditionalJumpOperation):
+    """
+    Jump if greater (ZF=0 and SF=OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jg"
+
+
+@irdl_op_definition
+class S_JgeOp(ConditionalJumpOperation):
+    """
+    Jump if greater or equal (SF=OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jge"
+
+
+@irdl_op_definition
+class S_JlOp(ConditionalJumpOperation):
+    """
+    Jump if less (SF≠OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jl"
+
+
+@irdl_op_definition
+class S_JleOp(ConditionalJumpOperation):
+    """
+    Jump if less or equal (ZF=1 or SF≠OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jle"
+
+
+@irdl_op_definition
+class S_JnaOp(ConditionalJumpOperation):
+    """
+    Jump if not above (CF=1 or ZF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jna"
+
+
+@irdl_op_definition
+class S_JnaeOp(ConditionalJumpOperation):
+    """
+    Jump if not above or equal (CF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnae"
+
+
+@irdl_op_definition
+class S_JnbOp(ConditionalJumpOperation):
+    """
+    Jump if not below (CF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnb"
+
+
+@irdl_op_definition
+class S_JnbeOp(ConditionalJumpOperation):
+    """
+    Jump if not below or equal (CF=0 and ZF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnbe"
+
+
+@irdl_op_definition
+class S_JncOp(ConditionalJumpOperation):
+    """
+    Jump if not carry (CF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnc"
+
+
+@irdl_op_definition
+class S_JneOp(ConditionalJumpOperation):
+    """
+    Jump if not equal (ZF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jne"
+
+
+@irdl_op_definition
+class S_JngOp(ConditionalJumpOperation):
+    """
+    Jump if not greater (ZF=1 or SF≠OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jng"
+
+
+@irdl_op_definition
+class S_JngeOp(ConditionalJumpOperation):
+    """
+    Jump if not greater or equal (SF≠OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnge"
+
+
+@irdl_op_definition
+class S_JnlOp(ConditionalJumpOperation):
+    """
+    Jump if not less (SF=OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnl"
+
+
+@irdl_op_definition
+class S_JnleOp(ConditionalJumpOperation):
+    """
+    Jump if not less or equal (ZF=0 and SF=OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnle"
+
+
+@irdl_op_definition
+class S_JnoOp(ConditionalJumpOperation):
+    """
+    Jump if not overflow (OF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jno"
+
+
+@irdl_op_definition
+class S_JnpOp(ConditionalJumpOperation):
+    """
+    Jump if not parity (PF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnp"
+
+
+@irdl_op_definition
+class S_JnsOp(ConditionalJumpOperation):
+    """
+    Jump if not sign (SF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jns"
+
+
+@irdl_op_definition
+class S_JnzOp(ConditionalJumpOperation):
+    """
+    Jump if not zero (ZF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnz"
+
+
+@irdl_op_definition
+class S_JoOp(ConditionalJumpOperation):
+    """
+    Jump if overflow (OF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jo"
+
+
+@irdl_op_definition
+class S_JpOp(ConditionalJumpOperation):
+    """
+    Jump if parity (PF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jp"
+
+
+@irdl_op_definition
+class S_JpeOp(ConditionalJumpOperation):
+    """
+    Jump if parity even (PF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jpe"
+
+
+@irdl_op_definition
+class S_JpoOp(ConditionalJumpOperation):
+    """
+    Jump if parity odd (PF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jpo"
+
+
+@irdl_op_definition
+class S_JsOp(ConditionalJumpOperation):
+    """
+    Jump if sign (SF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.js"
+
+
+@irdl_op_definition
+class S_JzOp(ConditionalJumpOperation):
+    """
+    Jump if zero (ZF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jz"
 
 
 # region Assembly printing

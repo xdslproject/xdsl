@@ -21,6 +21,8 @@
 // CHECK-NEXT: %{{.*}} = x86.rr.xor %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 %mov = x86.rr.mov %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.rr.mov %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%cmp = x86.rr.cmp %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.rflags<rflags>
+// CHECK: %{{.*}} = x86.rr.cmp %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.rflags
 x86.r.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.r.push %{{.*}} : (!x86.reg<>)
 %pop, %poprsp = x86.r.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<>, !x86.reg<rsp>)
@@ -47,6 +49,8 @@ x86.r.push %0 : (!x86.reg<>) -> ()
 // CHECK-NEXT: %{{.*}} = x86.rm.xor %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 %rm_mov = x86.rm.mov %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.rm.mov %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
+%rm_cmp = x86.rm.cmp %0, %1, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.rflags<rflags>
+// CHECK-NEXT: %{{.*}} = x86.rm.cmp %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<>) -> !x86.rflags
 
 %ri_add = x86.ri.add %0, 2 : (!x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.ri.add %{{.*}}, 2 : (!x86.reg<>) -> !x86.reg<>
@@ -118,12 +122,23 @@ x86.label "label"
 // CHECK-NEXT: x86.label "label"
 
 func.func @funcyasm() {
-    x86.s.jmp ^labelblock(%arg : !x86.reg<>)
-    // CHECK: x86.s.jmp ^{{.+}}(%arg : !x86.reg<>)
-    ^labelblock(%arg : !x86.reg<>):
+    %2, %3 = "test.op"() : () -> (!x86.reg<>, !x86.reg<>)
+    %rflags = x86.rr.cmp %2, %3 : (!x86.reg<>, !x86.reg<>) -> !x86.rflags<rflags>
+    // CHECK: %{{.*}} = x86.rr.cmp %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.rflags
+    
+    x86.s.jmp ^thenblock(%arg : !x86.reg<>)
+    // CHECK-NEXT: x86.s.jmp ^{{.+}}(%arg : !x86.reg<>)
+    ^thenblock(%arg : !x86.reg<>):
     // CHECK-NEXT: ^{{.+}}(%arg : !x86.reg<>):
     x86.label "then"
     // CHECK-NEXT: x86.label "then"
-    x86.s.jmp ^labelblock(%arg : !x86.reg<>)
+    x86.s.je %rflags : !x86.rflags<rflags>, ^thenblock(%arg : !x86.reg<>), ^elseblock(%arg2 : !x86.reg<>)
+    // CHECK-NEXT: x86.s.je %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg<>), ^{{.+}}(%arg2 : !x86.reg<>)
+    ^elseblock(%arg2 : !x86.reg<>):
+    // CHECK-NEXT: ^{{.+}}(%arg2 : !x86.reg<>):
+    x86.label "else"
+    // CHECK-NEXT: x86.label "else"
+
+    x86.s.jmp ^thenblock(%arg : !x86.reg<>)
     // CHECK-NEXT: x86.s.jmp ^{{.+}}(%arg : !x86.reg<>)
 }

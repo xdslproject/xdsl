@@ -19,6 +19,8 @@
 // CHECK: xor rax, rdx
 %mov = x86.rr.mov %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: mov rax, rdx
+%cmp = x86.rr.cmp %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
+// CHECK: cmp rax, rdx
 x86.r.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: push rax
 %pop, %poprsp = x86.r.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<rax>, !x86.reg<rsp>)
@@ -45,6 +47,8 @@ x86.r.push %0 : (!x86.reg<rax>) -> ()
 // CHECK: xor rax, [rdx+8]
 %rm_mov = x86.rm.mov %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: mov rax, [rdx+8]
+%rm_cmp = x86.rm.cmp %0, %1, 8 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
+// CHECK: cmp rax, [rdx+8]
 
 %ri_add = x86.ri.add %0, 2 : (!x86.reg<rax>) -> !x86.reg<rax>
 // CHECK: add rax, 2
@@ -116,11 +120,22 @@ x86.label "label"
 // CHECK: label:
 
 func.func @funcyasm() {
-    x86.s.jmp ^labelblock(%arg : !x86.reg<>)
-    // CHECK: jmp labelblock     
-    ^labelblock(%arg : !x86.reg<>):     
-    x86.label "labelblock"    
-    // CHECK-NEXT: labelblock:     
-    x86.s.jmp ^labelblock(%arg : !x86.reg<>)     
-    // CHECK-NEXT: jmp labelblock 
+    %3 = x86.get_register : () -> !x86.reg<rax>
+    %4 = x86.get_register : () -> !x86.reg<rdx>
+    %rflags = x86.rr.cmp %3, %4 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
+    // CHECK: cmp rax, rdx
+    
+    x86.s.jmp ^thenblock(%arg : !x86.reg<>)
+    // CHECK: jmp then
+    ^thenblock(%arg : !x86.reg<>):
+    x86.label "then"
+    // CHECK-NEXT: then:
+    x86.s.je %rflags : !x86.rflags<rflags>, ^thenblock(%arg : !x86.reg<>), ^elseblock(%arg2 : !x86.reg<>)
+    // CHECK-NEXT: je then
+    ^elseblock(%arg2 : !x86.reg<>):
+    x86.label "else"
+    // CHECK-NEXT: else:
+
+    x86.s.jmp ^thenblock(%arg : !x86.reg<>)
+    // CHECK-NEXT: jmp then
 }
