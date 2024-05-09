@@ -38,8 +38,7 @@ class MLIROptPass(ModulePass):
         completed_process = subprocess.run(
             [self.executable, *self.arguments],
             input=my_string,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
 
