@@ -25,15 +25,21 @@ from xdsl.ir import (
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    Successor,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
     result_def,
+    successor_def,
+    var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 from .register import GeneralRegisterType, X86RegisterType
@@ -125,11 +131,6 @@ class X86Op(Operation, ABC):
         printer.print_operation_type(self)
 
 
-AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | SSAValue | GeneralRegisterType | str | int
-)
-
-
 @irdl_attr_definition
 class LabelAttr(Data[str]):
     name = "x86.label"
@@ -142,6 +143,11 @@ class LabelAttr(Data[str]):
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_string_literal(self.data)
+
+
+AssemblyInstructionArg: TypeAlias = (
+    AnyIntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
+)
 
 
 class X86Instruction(X86Op):
@@ -1336,6 +1342,83 @@ class DirectiveOp(IRDLOperation, X86Op):
         return (), ()
 
 
+@irdl_op_definition
+class S_JmpOp(IRDLOperation, X86Instruction):
+    """
+    Unconditional jump to the label specified in destination.
+    https://www.felixcloutier.com/x86/jmp
+    """
+
+    name = "x86.s.jmp"
+
+    block_values: VarOperand = var_operand_def(X86RegisterType)
+
+    successor = successor_def()
+
+    traits = frozenset([IsTerminator()])
+
+    def __init__(
+        self,
+        block_values: Sequence[SSAValue],
+        successor: Successor,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[block_values],
+            attributes={
+                "comment": comment,
+            },
+            successors=(successor,),
+        )
+
+    def verify_(self) -> None:
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.block_values, self.successor.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        if not isinstance(self.successor.first_op, LabelOp):
+            raise VerifyException(
+                "jmp operation successor must have a x86.label operation as a "
+                f"first argument, found {self.successor.first_op}"
+            )
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_block_name(self.successor)
+        printer.print_string("(")
+        printer.print_list(
+            self.block_values, lambda val: _print_type_pair(printer, val)
+        )
+        printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        successor = parser.parse_successor()
+        block_values = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(block_values, successor)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        dest_label = self.successor.first_op
+        assert isinstance(dest_label, LabelOp)
+        return (dest_label.label,)
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:
@@ -1355,6 +1438,8 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg
     elif isinstance(arg, GeneralRegisterType):
         return arg.register_name
+    elif isinstance(arg, LabelAttr):
+        return arg.data
     else:
         if isinstance(arg.type, GeneralRegisterType):
             reg = arg.type.register_name
@@ -1433,6 +1518,19 @@ def _memory_access_str(
     else:
         mem_acc_str = f"[{register_str}]"
     return mem_acc_str
+
+
+def _print_type_pair(printer: Printer, value: SSAValue) -> None:
+    printer.print_ssa_value(value)
+    printer.print_string(" : ")
+    printer.print_attribute(value.type)
+
+
+def _parse_type_pair(parser: Parser) -> SSAValue:
+    unresolved = parser.parse_unresolved_operand()
+    parser.parse_punctuation(":")
+    type = parser.parse_type()
+    return parser.resolve_operand(unresolved, type)
 
 
 # endregion
