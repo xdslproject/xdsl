@@ -27,7 +27,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
 )
 from xdsl.ir import Attribute, Block, SSAValue, Region
-from xdsl.ir.core import BlockOps, TypeAttribute
+from xdsl.ir.core import BlockOps, Operation, TypeAttribute
 from xdsl.irdl.irdl import Operand
 
 
@@ -253,204 +253,205 @@ class CslPrintContext:
         Walks over a block and prints every operation in the block.
         """
         for op in body.ops:
-            match op:
-                case arith.Constant(value=v, result=r) \
-                        | csl.ConstStrOp(string=v, res=r)\
-                        | csl.ConstTypeOp(type=v, res=r):
-                    # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
+            self.print_op(op)
 
-                    # convert the attributes type to a csl type:
-                    type_name = self.mlir_type_to_csl_type(r.type)
-                    # convert the carried value to a csl value
-                    value_str = self.attribute_value_to_str(v)
+    def print_op(self, op: Operation):
+        match op:
+            case arith.Constant(value=v, result=r) \
+                    | csl.ConstStrOp(string=v, res=r)\
+                    | csl.ConstTypeOp(type=v, res=r):
+                # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
 
-                    intro = self._get_introducer(r)
+                # convert the attributes type to a csl type:
+                type_name = self.mlir_type_to_csl_type(r.type)
+                # convert the carried value to a csl value
+                value_str = self.attribute_value_to_str(v)
 
-                    # emit a constant instantiation:
-                    self.print(
-                        f"{intro} {self._get_variable_name_for(r)} : {type_name} = {
-                            value_str};"
-                    )
-                case csl.ImportModuleConstOp(module=module, params=params, result=res):
+                intro = self._get_introducer(r)
+
+                # emit a constant instantiation:
+                self.print(
+                    f"{intro} {self._get_variable_name_for(r)} : {type_name} = {
+                        value_str};"
+                )
+            case csl.ImportModuleConstOp(module=module, params=params, result=res):
+                name = self._get_variable_name_for(res)
+                intro = self._get_introducer(res)
+
+                params_str = ""
+                if params is not None:
+                    params_str = f", {self._get_variable_name_for(params)}"
+
+                self.print(
+                    f'{intro} {name} : imported_module = @import_module("{
+                        module.data}"{params_str});'
+                )
+            case csl.MemberCallOp(field=callee, args=args, result=res) \
+                    | csl.CallOp(callee=callee, args=args, result=res) as call:
+                args = ", ".join(self._get_variable_name_for(arg)
+                                 for arg in args)
+                if struct := getattr(call, "struct", None):
+                    struct_str = f"{self._get_variable_name_for(struct)}."
+                else:
+                    struct_str = ""
+
+                text = ""
+                if res is not None:
                     name = self._get_variable_name_for(res)
                     intro = self._get_introducer(res)
+                    text += f"{intro} {name} : {
+                        self.mlir_type_to_csl_type(res.type)} = "
 
-                    params_str = ""
-                    if params is not None:
-                        params_str = f", {self._get_variable_name_for(params)}"
-
-                    self.print(
-                        f'{intro} {name} : imported_module = @import_module("{
-                            module.data}"{params_str});'
-                    )
-                case csl.MemberCallOp(field=callee, args=args, result=res) \
-                        | csl.CallOp(callee=callee, args=args, result=res) as call:
-                    args = ", ".join(self._get_variable_name_for(arg)
-                                     for arg in args)
-                    if struct := getattr(call, "struct", None):
-                        struct_str = f"{self._get_variable_name_for(struct)}."
-                    else:
-                        struct_str = ""
-
-                    text = ""
-                    if res is not None:
-                        name = self._get_variable_name_for(res)
-                        intro = self._get_introducer(res)
-                        text += (
-                            f"{intro} {name} : {
-                                self.mlir_type_to_csl_type(res.type)} = "
-                        )
-
-                    self.print(f"{text}{struct_str}{callee.data}({args});")
-                case csl.MemberAccessOp(struct=struct, field=field, result=res):
-                    name = self._get_variable_name_for(res)
-                    intro = self._get_introducer(res)
-                    struct_var = self._get_variable_name_for(struct)
-                    self.print(
-                        f"{intro} {name} : {self.mlir_type_to_csl_type(res.type)} = {
-                            struct_var}.{field.data};"
-                    )
-                case csl.TaskOp(sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id):
-                    self._task_or_fn("task", name, bdy, ftyp)
-                    self._bind_task(name.data, kind.data, id.value.data)
-                case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp):
-                    self._task_or_fn("fn", name, bdy, ftyp)
-                case csl.ReturnOp(ret_val=None):
-                    self.print("return;")
-                case csl.ReturnOp(ret_val=val) if val is not None:
-                    self.print(f"return {self._get_variable_name_for(val)};")
-                case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
-                    idx, *_ = bdy.block.args
-                    self.print(
-                        f"\nfor(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {
-                            self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
-                    )
-                    self.descend().print_block(bdy.block)
-                    self.print("}")
-                case csl.LayoutOp(body=bdy):
-                    with self._in_block("layout"):
-                        self.print_block(bdy.block)
-                        for name, val in self._symbols_to_export.items():
-                            ty = self.attribute_value_to_str(val[0])
-                            mut = str(val[1]).lower() \
-                                if val[1] is not None else ""
-                            self.print(f'@export_name("{name}", {ty}, {mut});')
-                case csl.SetTileCodeOp(file=file, x_coord=x_coord, y_coord=y_coord, params=params):
-                    file = self.attribute_value_to_str(file)
-                    x = self._get_variable_name_for(x_coord)
-                    y = self._get_variable_name_for(y_coord)
-                    params = self._get_variable_name_for(params) \
-                        if params else ""
-                    self.print(
-                        f"@set_tile_code({x}, {y}, {file}, {params});")
-                case csl.SetRectangleOp(x_dim=x_dim, y_dim=y_dim):
-                    x = self._get_variable_name_for(x_dim)
-                    y = self._get_variable_name_for(y_dim)
-                    self.print(
-                        f"@set_rectangle({x}, {y});")
-                case csl.SymbolExportOp(value=val, type=ty) as exp:
-                    name = exp.get_name()
-                    q_name = f'"{name}"'
-                    self._symbols_to_export[name] = (
-                        ty,
-                        self._sym_constness(ty)
-                    )
-                    ty = self.attribute_value_to_str(ty)
-                    if val is not None:
-                        val = self._get_variable_name_for(val)
-                    else:
-                        val = name
-                    with self._in_block("comptime"):
-                        self.print(f"@export_symbol({val}, {q_name});")
-                case csl.GetColorOp(id=id, res=res):
-                    id = self.attribute_value_to_str(id)
-                    var = self._get_variable_name_for(res)
-                    intro = self._get_introducer(res)
-                    color_t = self.mlir_type_to_csl_type(res.type)
-                    self.print(f"{intro} {var} : {
-                               color_t} = @get_color({id});")
-                case csl.ConstStructOp(items=items, ssa_fields=fields, ssa_values=values, res=res):
-                    var = self._get_variable_name_for(res)
-                    intro = self._get_introducer(res)
-                    struct_t = self.mlir_type_to_csl_type(res.type)
-                    items = items or DictionaryAttr({})
-                    fields = fields or ArrayAttr([])
-                    self.print(f"{intro} {var} : {struct_t} = .{{")
-                    for k, v in items.data.items():
-                        v = self.attribute_value_to_str(v)
-                        self.print(f".{k} = {v},",
-                                   prefix=self._INDENT_SIZE * " ")
-                    for k, v in zip(fields.data, values):
-                        v = self._get_variable_name_for(v)
-                        self.print(f".{k.data} = {v},",
-                                   prefix=self._INDENT_SIZE * " ")
-                    self.print("};")
-                case csl.ParamOp(init_value=init, param_name=name, res=res):
-                    init = f" = {
-                        self.attribute_value_to_str(init)}" if init else ""
-                    ty = self.mlir_type_to_csl_type(res.type)
-                    self.print(f"param {name.data} : {ty}{init};")
-                case csl.AddressOfOp(value=val, res=res):
-                    val_name = self._get_variable_name_for(val)
-                    res_name = self._get_variable_name_for(res)
-                    res_type = cast(csl.PtrType, res.type)
-                    match self._get_introducer(res):
-                        case "const": intro = self._ptr_kind_to_introducer(res_type.constness.data)
-                        # case other: intro = other
-                    res_type = self.mlir_type_to_csl_type(res.type)
-                    self.print(
-                        f"{intro} {res_name} : {res_type} = &{val_name};")
-                case memref.Global(sym_name=name, type=ty, initial_value=init, constant=const):
-                    name = name.data
-                    ty = self.mlir_type_to_csl_type(ty)
-                    init = self._memref_global_init(init, ty)
-                    var = self._ptr_kind_to_introducer(
-                        self._ptr_kind_from_bool(const is None))
-                    self.print(f"{var} {name} : {ty}{init};")
-                case memref.GetGlobal(name_=name, memref=res):
-                    # We print the array definition when the global is defined
-                    self.variables[res] = name.string_value()
-                case csl.RpcOp(id=id):
-                    id = self._get_variable_name_for(id)
-                    with self._in_block("comptime"):
-                        self.print(f"@rpc(@get_data_task_id({id}));")
-                case arith.IndexCastOp(input=inp, result=res)   \
-                        | arith.SIToFPOp(input=inp, result=res) \
-                        | arith.FPToSIOp(input=inp, result=res) \
-                        | arith.ExtFOp(input=inp, result=res)   \
-                        | arith.TruncFOp(input=inp, result=res) \
-                        | arith.TruncIOp(input=inp, result=res) \
-                        | arith.ExtSIOp(input=inp, result=res)  \
-                        | arith.ExtUIOp(input=inp, result=res):
-                    name_in, name_out = map(
-                        self._get_variable_name_for, (inp, res))
-                    type_out = self.mlir_type_to_csl_type(res.type)
-                    intro = self._get_introducer(res)
-                    self.print(
-                        f"{intro} {name_out} : {type_out} = @as({type_out}, {name_in});")
-                case arith.Muli(lhs=lhs, rhs=rhs, result=res) \
-                        | arith.Mulf(lhs=lhs, rhs=rhs, result=res):
-                    self.print(self._binop(lhs, rhs, res, "*"))
-                case arith.Addi(lhs=lhs, rhs=rhs, result=res) \
-                        | arith.Addf(lhs=lhs, rhs=rhs, result=res):
-                    self.print(self._binop(lhs, rhs, res, "+"))
-                case memref.Store(value=val, memref=arr, indices=idxs):
-                    arr_name = self._get_variable_name_for(arr)
-                    idx_args = ", ".join(
-                        map(self._get_variable_name_for, idxs))
-                    val_name = self._get_variable_name_for(val)
-                    self.print(f"{arr_name}[{idx_args}] = {val_name};")
-                case memref.Load(memref=arr, indices=idxs, res=res):
-                    arr_name = self._get_variable_name_for(arr)
-                    idx_args = ", ".join(
-                        map(self._get_variable_name_for, idxs))
-                    # Use the array access syntax instead of cipying the value out
-                    self.variables[res] = f"({arr_name}[{idx_args}])"
-                case scf.Yield(arguments=args) if len(args) == 0:
-                    # There is nothing to do for yield with no args
-                    pass
-                case anyop:
-                    self.print(f"unknown op {anyop}", prefix="//")
+                self.print(f"{text}{struct_str}{callee.data}({args});")
+            case csl.MemberAccessOp(struct=struct, field=field, result=res):
+                name = self._get_variable_name_for(res)
+                intro = self._get_introducer(res)
+                struct_var = self._get_variable_name_for(struct)
+                self.print(
+                    f"{intro} {name} : {self.mlir_type_to_csl_type(res.type)} = {
+                        struct_var}.{field.data};"
+                )
+            case csl.TaskOp(sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id):
+                self._task_or_fn("task", name, bdy, ftyp)
+                self._bind_task(name.data, kind.data, id.value.data)
+            case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp):
+                self._task_or_fn("fn", name, bdy, ftyp)
+            case csl.ReturnOp(ret_val=None):
+                self.print("return;")
+            case csl.ReturnOp(ret_val=val) if val is not None:
+                self.print(f"return {self._get_variable_name_for(val)};")
+            case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
+                idx, *_ = bdy.block.args
+                self.print(
+                    f"\nfor(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {
+                        self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
+                )
+                self.descend().print_block(bdy.block)
+                self.print("}")
+            case csl.LayoutOp(body=bdy):
+                with self._in_block("layout"):
+                    self.print_block(bdy.block)
+                    for name, val in self._symbols_to_export.items():
+                        ty = self.attribute_value_to_str(val[0])
+                        mut = str(val[1]).lower() \
+                            if val[1] is not None else ""
+                        self.print(f'@export_name("{name}", {ty}, {mut});')
+            case csl.SetTileCodeOp(file=file, x_coord=x_coord, y_coord=y_coord, params=params):
+                file = self.attribute_value_to_str(file)
+                x = self._get_variable_name_for(x_coord)
+                y = self._get_variable_name_for(y_coord)
+                params = self._get_variable_name_for(params) \
+                    if params else ""
+                self.print(
+                    f"@set_tile_code({x}, {y}, {file}, {params});")
+            case csl.SetRectangleOp(x_dim=x_dim, y_dim=y_dim):
+                x = self._get_variable_name_for(x_dim)
+                y = self._get_variable_name_for(y_dim)
+                self.print(
+                    f"@set_rectangle({x}, {y});")
+            case csl.SymbolExportOp(value=val, type=ty) as exp:
+                name = exp.get_name()
+                q_name = f'"{name}"'
+                self._symbols_to_export[name] = (
+                    ty,
+                    self._sym_constness(ty)
+                )
+                ty = self.attribute_value_to_str(ty)
+                if val is not None:
+                    val = self._get_variable_name_for(val)
+                else:
+                    val = name
+                with self._in_block("comptime"):
+                    self.print(f"@export_symbol({val}, {q_name});")
+            case csl.GetColorOp(id=id, res=res):
+                id = self.attribute_value_to_str(id)
+                var = self._get_variable_name_for(res)
+                intro = self._get_introducer(res)
+                color_t = self.mlir_type_to_csl_type(res.type)
+                self.print(f"{intro} {var} : {
+                           color_t} = @get_color({id});")
+            case csl.ConstStructOp(items=items, ssa_fields=fields, ssa_values=values, res=res):
+                var = self._get_variable_name_for(res)
+                intro = self._get_introducer(res)
+                struct_t = self.mlir_type_to_csl_type(res.type)
+                items = items or DictionaryAttr({})
+                fields = fields or ArrayAttr([])
+                self.print(f"{intro} {var} : {struct_t} = .{{")
+                for k, v in items.data.items():
+                    v = self.attribute_value_to_str(v)
+                    self.print(f".{k} = {v},",
+                               prefix=self._INDENT_SIZE * " ")
+                for k, v in zip(fields.data, values):
+                    v = self._get_variable_name_for(v)
+                    self.print(f".{k.data} = {v},",
+                               prefix=self._INDENT_SIZE * " ")
+                self.print("};")
+            case csl.ParamOp(init_value=init, param_name=name, res=res):
+                init = f" = {
+                    self.attribute_value_to_str(init)}" if init else ""
+                ty = self.mlir_type_to_csl_type(res.type)
+                self.print(f"param {name.data} : {ty}{init};")
+            case csl.AddressOfOp(value=val, res=res):
+                val_name = self._get_variable_name_for(val)
+                res_name = self._get_variable_name_for(res)
+                res_type = cast(csl.PtrType, res.type)
+                match self._get_introducer(res):
+                    case "const": intro = self._ptr_kind_to_introducer(res_type.constness.data)
+                    # case other: intro = other
+                res_type = self.mlir_type_to_csl_type(res.type)
+                self.print(
+                    f"{intro} {res_name} : {res_type} = &{val_name};")
+            case memref.Global(sym_name=name, type=ty, initial_value=init, constant=const):
+                name = name.data
+                ty = self.mlir_type_to_csl_type(ty)
+                init = self._memref_global_init(init, ty)
+                var = self._ptr_kind_to_introducer(
+                    self._ptr_kind_from_bool(const is None))
+                self.print(f"{var} {name} : {ty}{init};")
+            case memref.GetGlobal(name_=name, memref=res):
+                # We print the array definition when the global is defined
+                self.variables[res] = name.string_value()
+            case csl.RpcOp(id=id):
+                id = self._get_variable_name_for(id)
+                with self._in_block("comptime"):
+                    self.print(f"@rpc(@get_data_task_id({id}));")
+            case arith.IndexCastOp(input=inp, result=res)   \
+                    | arith.SIToFPOp(input=inp, result=res) \
+                    | arith.FPToSIOp(input=inp, result=res) \
+                    | arith.ExtFOp(input=inp, result=res)   \
+                    | arith.TruncFOp(input=inp, result=res) \
+                    | arith.TruncIOp(input=inp, result=res) \
+                    | arith.ExtSIOp(input=inp, result=res)  \
+                    | arith.ExtUIOp(input=inp, result=res):
+                name_in, name_out = map(
+                    self._get_variable_name_for, (inp, res))
+                type_out = self.mlir_type_to_csl_type(res.type)
+                intro = self._get_introducer(res)
+                self.print(
+                    f"{intro} {name_out} : {type_out} = @as({type_out}, {name_in});")
+            case arith.Muli(lhs=lhs, rhs=rhs, result=res) \
+                    | arith.Mulf(lhs=lhs, rhs=rhs, result=res):
+                self.print(self._binop(lhs, rhs, res, "*"))
+            case arith.Addi(lhs=lhs, rhs=rhs, result=res) \
+                    | arith.Addf(lhs=lhs, rhs=rhs, result=res):
+                self.print(self._binop(lhs, rhs, res, "+"))
+            case memref.Store(value=val, memref=arr, indices=idxs):
+                arr_name = self._get_variable_name_for(arr)
+                idx_args = ", ".join(
+                    map(self._get_variable_name_for, idxs))
+                val_name = self._get_variable_name_for(val)
+                self.print(f"{arr_name}[{idx_args}] = {val_name};")
+            case memref.Load(memref=arr, indices=idxs, res=res):
+                arr_name = self._get_variable_name_for(arr)
+                idx_args = ", ".join(
+                    map(self._get_variable_name_for, idxs))
+                # Use the array access syntax instead of cipying the value out
+                self.variables[res] = f"({arr_name}[{idx_args}])"
+            case scf.Yield(arguments=args) if len(args) == 0:
+                # There is nothing to do for yield with no args
+                pass
+            case anyop:
+                self.print(f"unknown op {anyop}", prefix="//")
 
     def print_module(self, mod: csl.ModuleOp):
         self.print_block(mod.body.block)
