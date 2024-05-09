@@ -931,6 +931,19 @@ class AccessOp(IRDLOperation):
                 f"operand's rank, got {len(self.offset)}"
             )
 
+    def get_apply(self):
+        """
+        Simple helper to get the parent apply and raise otherwise.
+        """
+        trait = cast(HasAncestor, self.get_trait(HasAncestor, (ApplyOp,)))
+        ancestor = trait.get_ancestor(self)
+        if ancestor is None:
+            raise ValueError(
+                "stencil.apply not found, this function should be called on"
+                "verified accesses only."
+            )
+        return cast(ApplyOp, ancestor)
+
 
 @irdl_op_definition
 class LoadOp(IRDLOperation):
