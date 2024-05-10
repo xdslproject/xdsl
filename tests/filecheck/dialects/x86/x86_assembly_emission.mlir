@@ -112,6 +112,11 @@ x86.m.neg %0, 8 : (!x86.reg<rax>) -> ()
 x86.m.not %0, 8 : (!x86.reg<rax>) -> ()
 // CHECK: not [rax+8]
 
+%m_idiv_rdx, %m_idiv_rax = x86.m.idiv %2, %1, %0 : (!x86.reg<rcx>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK: idiv [rcx]
+%m_idiv_rdx2, %m_idiv_rax2 = x86.m.idiv %2, %1, %0, 8 : (!x86.reg<rcx>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK: idiv [rcx+8]
+
 x86.directive ".text"
 // CHECK: .text
 x86.directive ".align" "2"

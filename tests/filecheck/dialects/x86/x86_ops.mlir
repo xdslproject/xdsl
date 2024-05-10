@@ -114,6 +114,11 @@ x86.m.neg %0, 8 : (!x86.reg<>) -> ()
 x86.m.not %0, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.m.not %{{.*}}, 8 : (!x86.reg<>) -> ()
 
+%m_idiv_rdx, %m_idiv_rax = x86.m.idiv %0, %rdx, %rax : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK-NEXT: %{{.*}}, %{{.*}} = x86.m.idiv %{{.*}}, %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+%m_idiv_rdx2, %m_idiv_rax2 = x86.m.idiv %0, %rdx, %rax, 8 : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK-NEXT: %{{.*}}, %{{.*}} = x86.m.idiv %{{.*}}, %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+
 x86.directive ".text"
 // CHECK-NEXT: x86.directive ".text"
 x86.directive ".align" "2"

@@ -463,6 +463,69 @@ class R_IDivOp(IRDLOperation, X86Instruction, ABC):
         return (self.r1,)
 
 
+@irdl_op_definition
+class M_IDivOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Divides the value in RDX:RAX by r1 and stores the quotient in RAX and the remainder in RDX.
+    https://www.felixcloutier.com/x86/idiv
+    """
+
+    name = "x86.m.idiv"
+
+    r1 = operand_def(R1InvT)
+    rdx_input = operand_def(GeneralRegisterType("rdx"))
+    rax_input = operand_def(GeneralRegisterType("rax"))
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    rdx_output = result_def(GeneralRegisterType("rdx"))
+    rax_output = result_def(GeneralRegisterType("rax"))
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        rdx_input: Operation | SSAValue,
+        rax_input: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None = None,
+        *,
+        comment: str | StringAttr | None = None,
+        rdx_output: GeneralRegisterType,
+        rax_output: GeneralRegisterType,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, rdx_input, rax_input],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[rdx_output, rax_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = _memory_access_str(self.r1, self.offset)
+        return (memory_access,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        if self.offset is not None:
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
 class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations that have one register and one memory access with an optional offset.
