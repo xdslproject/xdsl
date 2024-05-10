@@ -32,6 +32,8 @@ x86.r.push %0 : (!x86.reg<>) -> ()
 
 %r_idiv_rdx, %r_idiv_rax = x86.r.idiv %0, %rdx, %rax : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 // CHECK-NEXT: %{{.*}}, %{{.*}} = x86.r.idiv %{{.*}}, %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+%r_imul_rdx, %r_imul_rax = x86.r.imul %0, %rax : (!x86.reg<>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK-NEXT: %{{.*}}, %{{.*}} = x86.r.imul %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 
 %rm_add_no_offset  = x86.rm.add %0, %1 : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
 // CHECK-NEXT: %{{.*}} = x86.rm.add %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<>) -> !x86.reg<>
@@ -113,6 +115,13 @@ x86.m.neg %0, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.m.neg %{{.*}}, 8 : (!x86.reg<>) -> ()
 x86.m.not %0, 8 : (!x86.reg<>) -> ()
 // CHECK-NEXT: x86.m.not %{{.*}}, 8 : (!x86.reg<>) -> ()
+
+%m_idiv_rdx, %m_idiv_rax = x86.m.idiv %0, %rdx, %rax : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK-NEXT: %{{.*}}, %{{.*}} = x86.m.idiv %{{.*}}, %{{.*}}, %{{.*}} : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+%m_idiv_rdx2, %m_idiv_rax2 = x86.m.idiv %0, %rdx, %rax, 8 : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK-NEXT: %{{.*}}, %{{.*}} = x86.m.idiv %{{.*}}, %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<rdx>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+%m_imul_rdx, %m_imul_rax = x86.m.imul %0, %rax, 8 : (!x86.reg<>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
+// CHECK-NEXT: %{{.*}}, %{{.*}} = x86.m.imul %{{.*}}, %{{.*}}, 8 : (!x86.reg<>, !x86.reg<rax>) -> (!x86.reg<rdx>, !x86.reg<rax>)
 
 x86.directive ".text"
 // CHECK-NEXT: x86.directive ".text"
