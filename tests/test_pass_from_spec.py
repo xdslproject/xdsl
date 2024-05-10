@@ -99,3 +99,14 @@ def test_pass_instantiation_error(spec: PipelinePassSpec, error_msg: str):
     """
     with pytest.raises(Exception, match=re.escape(error_msg)):
         SimplePass.from_pass_spec(spec)
+
+
+def test_required_fields():
+    assert CustomPass.required_fields() == {
+        "int_list",
+        "non_init_thing",
+        "number",
+        "str_thing",
+    }
+    assert not EmptyPass.required_fields()
+    assert SimplePass.required_fields() == {"a"}
