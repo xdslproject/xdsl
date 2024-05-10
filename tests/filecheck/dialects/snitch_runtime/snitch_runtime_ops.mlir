@@ -20,12 +20,8 @@ builtin.module {
         // CHECK: %{{.*}} = "snrt.global_compute_core_idx"() : () -> i32
         %global_compute_core_num = "snrt.global_compute_core_num"() : () -> i32
         // CHECK: %{{.*}} = "snrt.global_compute_core_num"() : () -> i32
-        %global_dm_core_idx = "snrt.global_dm_core_idx"() : () -> i32
-        // CHECK: %{{.*}} = "snrt.global_dm_core_idx"() : () -> i32
         %global_dm_core_num = "snrt.global_dm_core_num"() : () -> i32
         // CHECK: %{{.*}} = "snrt.global_dm_core_num"() : () -> i32
-        %cluster_core_base_hartid = "snrt.cluster_core_base_hartid"() : () -> i32
-        // CHECK: %{{.*}} = "snrt.cluster_core_base_hartid"() : () -> i32
         %gcluster_core_idx = "snrt.cluster_core_idx"() : () -> i32
         // CHECK: %{{.*}} = "snrt.cluster_core_idx"() : () -> i32
         %cluster_core_num = "snrt.cluster_core_num"() : () -> i32
@@ -42,10 +38,10 @@ builtin.module {
         // CHECK: %{{.*}} = "snrt.cluster_idx"() : () -> i32
         %cluster_num = "snrt.cluster_num"() : () -> i32
         // CHECK: %{{.*}} = "snrt.cluster_num"() : () -> i32
-        %is_compute_core = "snrt.is_compute_core"() : () -> i32
-        // CHECK: %{{.*}} = "snrt.is_compute_core"() : () -> i32
-        %is_dm_core = "snrt.is_dm_core"() : () -> i32
-        // CHECK: %{{.*}} = "snrt.is_dm_core"() : () -> i32
+        %is_compute_core = "snrt.is_compute_core"() : () -> i1
+        // CHECK: %{{.*}} = "snrt.is_compute_core"() : () -> i1
+        %is_dm_core = "snrt.is_dm_core"() : () -> i1
+        // CHECK: %{{.*}} = "snrt.is_dm_core"() : () -> i1
 
         %barrier_reg_ptr = "snrt.barrier_reg_ptr"() : () -> i32
         // CHECK: %{{.*}} = "snrt.barrier_reg_ptr"() : () -> i32
