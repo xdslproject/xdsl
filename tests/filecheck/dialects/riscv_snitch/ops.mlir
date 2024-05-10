@@ -1,7 +1,7 @@
 // RUN: XDSL_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
-riscv_func.func @main() {
+riscv_func.func @xfrep() {
   %0 = riscv.get_register : () -> !riscv.reg<>
   %1 = riscv.get_register : () -> !riscv.reg<>
 
@@ -56,7 +56,38 @@ riscv_func.func @main() {
   riscv_func.return
 }
 
-// CHECK-GENERIC: "builtin.module"() ({
+riscv_func.func @xdma() {
+  %reg = riscv.get_register : () -> !riscv.reg<>
+  // CHECK: %reg = riscv.get_register : () -> !riscv.reg<>
+
+
+  riscv_snitch.dmsrc %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+  // CHECK-NEXT: riscv_snitch.dmsrc %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+
+  riscv_snitch.dmdst %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+  // CHECK-NEXT: riscv_snitch.dmdst %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+
+  riscv_snitch.dmstr %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+  // CHECK-NEXT: riscv_snitch.dmstr %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> ()
+  riscv_snitch.dmrep %reg : (!riscv.reg<>) -> ()
+  // CHECK-NEXT: riscv_snitch.dmrep %reg : (!riscv.reg<>) -> ()
+
+  %0 = riscv_snitch.dmcpy %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{\d+}} = riscv_snitch.dmcpy %reg, %reg : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+  %1 = riscv_snitch.dmstat %reg : (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{\d+}} = riscv_snitch.dmstat %reg : (!riscv.reg<>) -> !riscv.reg<>
+
+  %2 = riscv_snitch.dmcpyi %reg, 0 : (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT: %{{\d+}} = riscv_snitch.dmcpyi %reg, 0 : (!riscv.reg<>) -> !riscv.reg<>
+  %3 = riscv_snitch.dmstati 0 : () -> !riscv.reg<>
+  // CHECK-NEXT: %{{\d+}} = riscv_snitch.dmstati 0 : () -> !riscv.reg<>
+
+
+  riscv_func.return
+}
+
+
+// CHECK-GENERIC-NEXT: "builtin.module"() ({
 // CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
 // CHECK-GENERIC-NEXT:     %0 = "riscv.get_register"() : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %1 = "riscv.get_register"() : () -> !riscv.reg<>
@@ -85,5 +116,19 @@ riscv_func.func @main() {
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"(%res) : (!riscv.freg<ft3>) -> ()
 // CHECK-GENERIC-NEXT:    }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>, !riscv.freg<ft3>) -> !riscv.freg<ft3>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
-// CHECK-GENERIC-NEXT:   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:   }) {"sym_name" = "xfrep", "function_type" = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:     %reg = "riscv.get_register"() : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     "riscv_snitch.dmsrc"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv_snitch.dmdst"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv_snitch.dmstr"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv_snitch.dmrep"(%reg) : (!riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     %2 = "riscv_snitch.dmcpy"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %3 = "riscv_snitch.dmstat"(%reg) : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %4 = "riscv_snitch.dmcpyi"(%reg) <{"config" = 0 : ui5}> : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %5 = "riscv_snitch.dmstati"() <{"status" = 0 : ui5}> : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
+// CHECK-GENERIC-NEXT:   }) {"sym_name" = "xdma", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
+
+

@@ -1,5 +1,7 @@
 [![Build Status for the Core backend](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml/badge.svg)](https://github.com/xdslproject/xdsl/actions/workflows/ci-core.yml?query=workflow%3A%22CI+-+Python+application%22++)
 [![PyPI version](https://badge.fury.io/py/xdsl.svg)](https://badge.fury.io/py/xdsl)
+[![Downloads](https://static.pepy.tech/badge/xdsl)](https://www.pepy.tech/projects/xdsl)
+[![Downloads](https://static.pepy.tech/badge/xdsl/week)](https://pepy.tech/project/xdsl)
 [![Code Coverage](https://codecov.io/gh/xdslproject/xdsl/main/graph/badge.svg)](https://codecov.io/gh/xdslproject/xdsl)
 [![Zulip Status](https://img.shields.io/badge/chat-on%20zulip-%2336C5F0)](https://xdsl.zulipchat.com)
 
@@ -46,6 +48,8 @@ MLIR version is commit `98e674c9f16d677d95c67bc130e267fae331e43c`.
 
 ## Getting Started
 
+Check out the dedicated [Getting Started guide](GETTING_STARTED.md) for a comprehensive tutorial.
+
 To get familiar with xDSL, we recommend starting with our Jupyter notebooks. The
 notebooks consist of examples and documentation concerning the core xDSL data
 structures and the xDSL's Python-embedded abstraction definition language, as
@@ -53,9 +57,9 @@ well as examples of implementing custom compilers, like a database compiler.
 There also exists a small documentation showing how to connect xDSL with MLIR
 for users interested in that use case.
 
-- [A Database example](https://xdsl.dev/xdsl/retro/notebooks/?path=database_example.ipynb)
-- [A simple introduction](https://xdsl.dev/xdsl/retro/notebooks/?path=tutorial.ipynb)
-- [A DSL for defining new IRs](https://xdsl.dev/xdsl/retro/notebooks/?path=irdl.ipynb)
+- [A Database example](https://xdsl.dev/xdsl/lab/index.html?path=database_example.ipynb)
+- [A simple introduction](https://xdsl.dev/xdsl/lab/index.html?path=tutorial.ipynb)
+- [A DSL for defining new IRs](https://xdsl.dev/xdsl/lab/index.html?path=irdl.ipynb)
 - [Connecting xDSL with MLIR](docs/mlir_interoperation.md)
 
 We provide a Makefile containing a lot of common tasks, which might provide

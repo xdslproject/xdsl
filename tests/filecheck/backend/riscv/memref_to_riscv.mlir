@@ -91,10 +91,23 @@ builtin.module {
 // -----
 
 builtin.module {
-    %m = "memref.alloc"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<1x1xf32>
+    %m0 = "memref.alloc"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<1x1xf32>
+    %m1 = "memref.alloc"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<1x1xf64>
 }
 
-// CHECK:      Lowering memref.alloc not implemented yet
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %m0 = riscv.li 4 {"comment" = "memref alloc size"} : () -> !riscv.reg<>
+// CHECK-NEXT:    %m0_1 = riscv.mv %m0 : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:    %m0_2 = riscv_func.call @malloc(%m0_1) : (!riscv.reg<a0>) -> !riscv.reg<a0>
+// CHECK-NEXT:    %m0_3 = riscv.mv %m0_2 : (!riscv.reg<a0>) -> !riscv.reg<>
+// CHECK-NEXT:    %m0_4 = builtin.unrealized_conversion_cast %m0_3 : !riscv.reg<> to memref<1x1xf32>
+// CHECK-NEXT:    %m1 = riscv.li 8 {"comment" = "memref alloc size"} : () -> !riscv.reg<>
+// CHECK-NEXT:    %m1_1 = riscv.mv %m1 : (!riscv.reg<>) -> !riscv.reg<a0>
+// CHECK-NEXT:    %m1_2 = riscv_func.call @malloc(%m1_1) : (!riscv.reg<a0>) -> !riscv.reg<a0>
+// CHECK-NEXT:    %m1_3 = riscv.mv %m1_2 : (!riscv.reg<a0>) -> !riscv.reg<>
+// CHECK-NEXT:    %m1_4 = builtin.unrealized_conversion_cast %m1_3 : !riscv.reg<> to memref<1x1xf64>
+// CHECK-NEXT:    riscv_func.func private @malloc(!riscv.reg<a0>) -> !riscv.reg<a0>
+// CHECK-NEXT:  }
 
 // -----
 

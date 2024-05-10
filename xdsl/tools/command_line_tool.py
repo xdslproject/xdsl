@@ -14,6 +14,11 @@ from xdsl.utils.exceptions import ParseError
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
+    def get_accfg():
+        from xdsl.dialects.accfg import ACCFG
+
+        return ACCFG
+
     def get_affine():
         from xdsl.dialects.affine import Affine
 
@@ -83,6 +88,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.gpu import GPU
 
         return GPU
+
+    def get_hlfir():
+        from xdsl.dialects.experimental.hlfir import HLFIR
+
+        return HLFIR
 
     def get_hls():
         from xdsl.dialects.experimental.hls import HLS
@@ -250,6 +260,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return X86
 
     return {
+        "accfg": get_accfg,
         "affine": get_affine,
         "aie": get_aie,
         "air": get_air,
@@ -264,6 +275,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "fsm": get_fsm,
         "func": get_func,
         "gpu": get_gpu,
+        "hlfir": get_hlfir,
         "hls": get_hls,
         "hw": get_hw,
         "linalg": get_linalg,
@@ -353,15 +365,18 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return constant_fold_interp.ConstantFoldInterpPass
 
+    def get_convert_snrt_to_riscv():
+        from xdsl.transforms import convert_snrt_to_riscv
+
+        return convert_snrt_to_riscv.ConvertSnrtToRISCV
+
     def get_convert_stencil_to_ll_mlir():
         from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
 
         return convert_stencil_to_ll_mlir.ConvertStencilToLLMLIRPass
 
     def get_convert_riscv_scf_to_riscv_cf():
-        from xdsl.backend.riscv.lowering import (
-            convert_riscv_scf_to_riscv_cf,
-        )
+        from xdsl.backend.riscv.lowering import convert_riscv_scf_to_riscv_cf
 
         return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
 
@@ -374,6 +389,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.frontend.passes.desymref import DesymrefyPass
 
         return DesymrefyPass
+
+    def get_gpu_allocs():
+        from xdsl.transforms import gpu_allocs
+
+        return gpu_allocs.MemrefToGPUPass
 
     def get_gpu_map_parallel_loops():
         from xdsl.transforms import gpu_map_parallel_loops
@@ -444,6 +464,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import riscv_register_allocation
 
         return riscv_register_allocation.RISCVRegisterAllocation
+
+    def get_riscv_scf_loop_fusion():
+        from xdsl.transforms import riscv_scf_loop_fusion
+
+        return riscv_scf_loop_fusion.RiscvScfLoopFusionPass
 
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
@@ -547,10 +572,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_unroll.StencilUnrollPass
 
-    def get_test_lower_linalg_to_snitch():
-        from xdsl.transforms import test_lower_linalg_to_snitch
+    def get_test_lower_snitch_stream_to_asm():
+        from xdsl.transforms import test_lower_snitch_stream_to_asm
 
-        return test_lower_linalg_to_snitch.TestLowerSnitchStreamToAsm
+        return test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm
 
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -572,12 +597,14 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
         "function-constant-pinning": get_function_constant_pinning,
+        "memref-to-gpu": get_gpu_allocs,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
@@ -595,13 +622,14 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "riscv-cse": get_riscv_cse,
+        "riscv-scf-loop-fusion": get_riscv_scf_loop_fusion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-unroll": get_stencil_unroll,
-        "test-lower-snitch-stream-to-asm": get_test_lower_linalg_to_snitch,
+        "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
     }
 
 

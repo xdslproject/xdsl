@@ -851,10 +851,9 @@ def test_op_custom_verify_is_done_last():
     a = Constant.from_int_and_width(1, i32)
     # CustomVerify expects a i64, not i32
     b = CustomVerify.get(a.result)
-    with pytest.raises(Exception) as e:
+    with pytest.raises(VerifyException) as e:
         b.verify()
-    assert e.value.args[0] != "Custom Verification Check"
-    assert "test.custom_verify_op operation does not verify" in e.value.args[0]
+    assert "Custom Verification Check" not in e.value.args[0]
 
 
 def test_block_walk():
