@@ -300,36 +300,8 @@ class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
     name = "x86.rr.mov"
 
 
-class M_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
-    """
-    A base class for x86 operations that have one source register.
-    """
-
-    source = operand_def(R1InvT)
-
-    def __init__(
-        self,
-        source: Operation | SSAValue,
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            operands=[source],
-            attributes={
-                "comment": comment,
-            },
-            result_types=[],
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
-
-
 @irdl_op_definition
-class R_PushOp(M_R_Operation[GeneralRegisterType]):
+class R_PushOp(IRDLOperation, X86Instruction, ABC):
     """
     Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
     https://www.felixcloutier.com/x86/push
@@ -337,11 +309,41 @@ class R_PushOp(M_R_Operation[GeneralRegisterType]):
 
     name = "x86.r.push"
 
+    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    source = operand_def(R1InvT)
+    rsp_output = result_def(GeneralRegisterType("rsp"))
 
-class R_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
+    def __init__(
+        self,
+        rsp_input: Operation | SSAValue,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        rsp_output: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rsp_input, source],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[rsp_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.source,)
+
+
+@irdl_op_definition
+class R_PopOp(IRDLOperation, X86Instruction, ABC):
     """
-    A base class for x86 operations that have one destination register.
+    Copies the value at the top of the stack into r1 and increases %rsp.
+    https://www.felixcloutier.com/x86/pop
     """
+
+    name = "x86.r.pop"
 
     rsp_input = operand_def(GeneralRegisterType("rsp"))
     destination = result_def(R1InvT)
@@ -349,10 +351,10 @@ class R_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 
     def __init__(
         self,
+        rsp_input: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        rsp_input: Operation | SSAValue,
-        destination: R1InvT,
+        destination: X86RegisterType,
         rsp_output: GeneralRegisterType,
     ):
         if isinstance(comment, str):
@@ -368,16 +370,6 @@ class R_M_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return (self.destination,)
-
-
-@irdl_op_definition
-class R_PopOp(R_M_Operation[GeneralRegisterType]):
-    """
-    Copies the value at the top of the stack into r1 and increases %rsp.
-    https://www.felixcloutier.com/x86/pop
-    """
-
-    name = "x86.r.pop"
 
 
 class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
@@ -1150,15 +1142,19 @@ class M_PushOp(IRDLOperation, X86Instruction, ABC):
 
     name = "x86.m.push"
 
+    rsp_input = operand_def(GeneralRegisterType("rsp"))
     source = operand_def(R1InvT)
     offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    rsp_output = result_def(GeneralRegisterType("rsp"))
 
     def __init__(
         self,
+        rsp_input: Operation | SSAValue,
         source: Operation | SSAValue,
-        offset: int | AnyIntegerAttr | None,
         *,
         comment: str | StringAttr | None = None,
+        offset: int | AnyIntegerAttr | None,
+        rsp_output: GeneralRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -1166,16 +1162,75 @@ class M_PushOp(IRDLOperation, X86Instruction, ABC):
             offset = IntegerAttr(offset, 64)
 
         super().__init__(
-            operands=[source],
+            operands=[rsp_input, source],
             attributes={
                 "offset": offset,
                 "comment": comment,
             },
-            result_types=[],
+            result_types=[rsp_output],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = _memory_access_str(self.source, self.offset)
+        return (memory_access,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+@irdl_op_definition
+class M_PopOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Copies the value at the top of the stack into [r1] and increases %rsp.
+    https://www.felixcloutier.com/x86/pop
+    """
+
+    name = "x86.m.pop"
+
+    rsp_input = operand_def(GeneralRegisterType("rsp"))
+    destination = operand_def(
+        R1InvT
+    )  # not an operand, but couldn't think of a better way to make it part of the IR
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+    rsp_output = result_def(GeneralRegisterType("rsp"))
+
+    def __init__(
+        self,
+        rsp_input: Operation | SSAValue,
+        destination: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        offset: int | AnyIntegerAttr | None = None,
+        rsp_output: GeneralRegisterType,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rsp_input, destination],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[rsp_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = _memory_access_str(self.destination, self.offset)
         return (memory_access,)
 
     @classmethod
