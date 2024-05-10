@@ -23,9 +23,21 @@ class SnrtConstants(ABC):
     """
 
     cluster_num: int = 4
+    """
+    Number of snitch clusters on the chip
+    """
     cluster_core_num: int = 9
+    """
+    Number of cores per cluster (1 dma + 8 compute)
+    """
     base_hartid: int = 0
+    """
+    SNRT expects the snitch cores to be numbered contiguously starting at base_hartid
+    """
     cluster_dm_core_num: int = 1
+    """
+    Number of dm cores per cluster. Compute core num = cluster_core_num - cluster_dm_core_num
+    """
 
 
 class LowerClusterHWBarrier(RewritePattern):
