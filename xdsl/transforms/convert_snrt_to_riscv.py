@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from xdsl.dialects import arith, builtin, riscv, riscv_snitch, snitch_runtime
+from xdsl.dialects import builtin, riscv, riscv_snitch, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -493,6 +493,7 @@ class LowerClusterDmCoreNum(RewritePattern):
             ]
         )
 
+
 @dataclass
 class LowerClusterComputeCoreNum(RewritePattern):
     constants: SnrtConstants
@@ -527,6 +528,7 @@ class LowerClusterComputeCoreNum(RewritePattern):
                 ),
             ]
         )
+
 
 @dataclass(frozen=True)
 class ConvertSnrtToRISCV(ModulePass):
