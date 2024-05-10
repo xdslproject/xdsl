@@ -22,10 +22,10 @@ class SnrtConstants:
     architecture target.
     """
 
-    SNRT_CLUSTER_NUM: int = 4
-    SNRT_CLUSTER_CORE_NUM: int = 9
-    SNRT_BASE_HARTID: int = 0
-    SNRT_CLUSTER_DM_CORE_NUM: int = 1
+    cluster_num: int = 4
+    cluster_core_num: int = 9
+    base_hartid: int = 0
+    cluster_dm_core_num: int = 1
 
 
 class LowerClusterHWBarrier(RewritePattern):
@@ -421,7 +421,7 @@ class LowerGlobalCoreBaseHartid(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                nfo := riscv.LiOp(self.constants.SNRT_BASE_HARTID),
+                nfo := riscv.LiOp(self.constants.base_hartid),
                 builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
             ]
         )
@@ -438,8 +438,7 @@ class LowerGlobalCoreNum(RewritePattern):
         rewriter.replace_matched_op(
             [
                 nfo := riscv.LiOp(
-                    self.constants.SNRT_CLUSTER_NUM
-                    * self.constants.SNRT_CLUSTER_CORE_NUM
+                    self.constants.cluster_num * self.constants.cluster_core_num
                 ),
                 builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
             ]
@@ -456,7 +455,7 @@ class LowerClusterCoreNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                nfo := riscv.LiOp(self.constants.SNRT_CLUSTER_CORE_NUM),
+                nfo := riscv.LiOp(self.constants.cluster_core_num),
                 builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
             ]
         )
@@ -472,7 +471,7 @@ class LowerClusterNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                nfo := riscv.LiOp(self.constants.SNRT_CLUSTER_NUM),
+                nfo := riscv.LiOp(self.constants.cluster_num),
                 builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
             ]
         )
@@ -488,7 +487,7 @@ class LowerClusterDmCoreNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                nfo := riscv.LiOp(self.constants.SNRT_CLUSTER_DM_CORE_NUM),
+                nfo := riscv.LiOp(self.constants.cluster_dm_core_num),
                 builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
             ]
         )
@@ -520,8 +519,7 @@ class LowerClusterComputeCoreNum(RewritePattern):
         rewriter.replace_matched_op(
             [
                 compute_core_num := riscv.LiOp(
-                    self.constants.SNRT_CLUSTER_CORE_NUM
-                    - self.constants.SNRT_CLUSTER_DM_CORE_NUM
+                    self.constants.cluster_core_num - self.constants.cluster_dm_core_num
                 ),
                 builtin.UnrealizedConversionCastOp.get(
                     [compute_core_num], [builtin.i32]
@@ -531,21 +529,14 @@ class LowerClusterComputeCoreNum(RewritePattern):
 
 
 @dataclass(frozen=True)
-class ConvertSnrtToRISCV(ModulePass):
+class ConvertSnrtToRISCV(SnrtConstants, ModulePass):
     """
     Convert snitch runtime operations to their definitions as per the snitch runtime spec.
     """
 
     name = "convert-snrt-to-riscv"
 
-    cluster_num: int = 4
-    cluster_core_num: int = 9
-    base_hartid: int = 0
-    cluster_dm_core_num: int = 1
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        constants = SnrtConstants(self.cluster_num)
-
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
@@ -556,12 +547,12 @@ class ConvertSnrtToRISCV(ModulePass):
                     LowerDMAStart2D(),
                     LowerDMAStart2DWideptr(),
                     # information getting ops:
-                    LowerClusterNum(constants),
-                    LowerClusterCoreNum(constants),
-                    LowerClusterDmCoreNum(constants),
-                    LowerClusterComputeCoreNum(constants),
-                    LowerGlobalCoreNum(constants),
-                    LowerGlobalCoreBaseHartid(constants),
+                    LowerClusterNum(self),
+                    LowerClusterCoreNum(self),
+                    LowerClusterDmCoreNum(self),
+                    LowerClusterComputeCoreNum(self),
+                    LowerGlobalCoreNum(self),
+                    LowerGlobalCoreBaseHartid(self),
                 ]
             )
         ).rewrite_module(op)
