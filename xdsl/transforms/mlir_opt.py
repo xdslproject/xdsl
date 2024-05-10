@@ -38,7 +38,7 @@ class MLIROptPass(ModulePass):
         completed_process = subprocess.run(
             [self.executable, *self.arguments],
             input=my_string,
-            stdout=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
 
@@ -57,4 +57,6 @@ class MLIROptPass(ModulePass):
             op.add_region(rewriter.move_region_contents_to_new_regions(new_module.body))
             op.attributes = new_module.attributes
         except Exception as e:
-            raise DiagnosticException("Error executing mlir-opt pass") from e
+            raise DiagnosticException(
+                "Error executing mlir-opt pass:", completed_process.stderr
+            ) from e
