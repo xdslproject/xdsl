@@ -21,7 +21,7 @@ func.func @initialize() {
   %y = memref.get_global @y : memref<4xf32>
 
   scf.for %idx = %lb to %ub step %step {
-    %idx_f32 = "arith.sitofp"(%idx) : (i16) -> f32
+    %idx_f32 = arith.sitofp %idx : i16 to f32
     %idx_index = "arith.index_cast"(%idx) : (i16) -> index
     memref.store %idx_f32, %A[%idx_index] : memref<24xf32>
   }
@@ -64,7 +64,7 @@ func.func @initialize() {
 // CHECK-NEXT:   //unknown op GetGlobal(%b = memref.get_global @b : memref<4xf32>)
 // CHECK-NEXT:   //unknown op GetGlobal(%y = memref.get_global @y : memref<4xf32>)
 // CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
-// CHECK-NEXT:     //unknown op SIToFPOp(%idx_f32 = "arith.sitofp"(%idx) : (i16) -> f32)
+// CHECK-NEXT:     //unknown op SIToFPOp(%idx_f32 = arith.sitofp %idx : i16 to f32
 // CHECK-NEXT:     //unknown op IndexCastOp(%idx_index = "arith.index_cast"(%idx) : (i16) -> index)
 // CHECK-NEXT:     //unknown op Store(memref.store %idx_f32, %A[%idx_index] : memref<24xf32>)
 // CHECK-NEXT:     //unknown op Yield(scf.yield)
