@@ -435,7 +435,6 @@ class LowerArithSIToFPOp(RewritePattern):
 class LowerArithFPToSIOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.FPToSIOp, rewriter: PatternRewriter) -> None:
-
         rewriter.replace_matched_op(
             (
                 cast_input := UnrealizedConversionCastOp.get(
