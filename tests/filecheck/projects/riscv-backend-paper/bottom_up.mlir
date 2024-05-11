@@ -20,10 +20,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
     memref_stream.streaming_region {
-      bounds = [1, 1, 6, 6, 1, 3, 3],
-      indexing_maps = [
-        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
-        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
+      patterns = [
+          #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
+          #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
       ]
     } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
@@ -115,10 +114,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %G_moved = builtin.unrealized_conversion_cast %G : memref<f64> to !riscv.reg<>
 
     memref_stream.streaming_region {
-      bounds = [128],
-      indexing_maps = [
-          affine_map<(m) -> (m)>,
-          affine_map<(m) -> (m)>
+      patterns = [
+          #memref_stream.stride_pattern<ub = [128], index_map = (d0) -> (d0)>,
+          #memref_stream.stride_pattern<ub = [128], index_map = (d0) -> (d0)>
       ]
     } ins(%X, %Y : memref<128xf64>, memref<128xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
@@ -186,11 +184,10 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
     memref_stream.streaming_region {
-      bounds = [8, 8, 8],
-      indexing_maps = [
-          affine_map<(m, n, k) -> (m, k)>,
-          affine_map<(m, n, k) -> (k, n)>,
-          affine_map<(m, n) -> (m, n)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (m, k)>,
+        #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (k, n)>,
+        #memref_stream.stride_pattern<ub = [8, 8], index_map = (m, n) -> (m, n)>
       ]
     } ins(%X, %W, %B : memref<8x8xf64>, memref<8x8xf64>, memref<8x8xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %w_stream : !stream.readable<f64>, %b_stream : !stream.readable<f64>):
@@ -292,11 +289,10 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       %c128 = riscv.li 128 : () -> !riscv.reg<>
 
       memref_stream.streaming_region {
-        bounds = [8, 16],
-        indexing_maps = [
-          affine_map<(d0, d1) -> (d0, d1)>,
-          affine_map<(d0, d1) -> (d0, d1)>,
-          affine_map<(d0, d1) -> (d0, d1)>
+        patterns = [
+          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
+          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
+          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>
         ]
       } ins(%X, %Y : memref<8x16xf64>, memref<8x16xf64>) outs(%Z : memref<8x16xf64>) {
       ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %z_stream : !stream.writable<f64>):
@@ -349,9 +345,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %x = riscv.fmv.d %X_moved : (!riscv.freg<>) -> !riscv.freg<>
 
     memref_stream.streaming_region {
-      bounds = [16, 16],
-      indexing_maps = [
-          affine_map<(d0, d1) -> (d0, d1)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
       ]
     } outs(%Y : memref<16x16xf64>) {
     ^0(%y_stream : !stream.writable<f64>):
@@ -405,10 +400,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
     memref_stream.streaming_region {
-      bounds = [8, 8, 8],
-      indexing_maps = [
-          affine_map<(m, n, k) -> (m, k)>,
-          affine_map<(m, n, k) -> (k, n)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (m, k)>,
+        #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (k, n)>
       ]
     } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
@@ -501,9 +495,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
     memref_stream.streaming_region {
-      bounds = [1, 1, 7, 7, 3, 3],
-      indexing_maps = [
-          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [1, 1, 7, 7, 3, 3], index_map = (d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
       ]
     } ins(%X : memref<1x1x16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>):
@@ -577,10 +570,9 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %zero_float = riscv.fcvt.d.w %zero_int : (!riscv.reg<zero>) -> !riscv.freg<>
 
     memref_stream.streaming_region {
-      bounds = [16, 16],
-      indexing_maps = [
-          affine_map<(d0, d1) -> (d0, d1)>,
-          affine_map<(d0, d1) -> (d0, d1)>
+      patterns = [
+          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>,
+          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
       ]
     } ins(%X : memref<16x16xf64>) outs(%Y : memref<16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
@@ -637,9 +629,8 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
     memref_stream.streaming_region {
-      bounds = [1, 1, 7, 7, 3, 3],
-      indexing_maps = [
-          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [1, 1, 7, 7, 3, 3], index_map = (d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
       ]
     } ins(%X : memref<1x1x16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>):

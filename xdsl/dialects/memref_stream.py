@@ -7,8 +7,9 @@ memrefs instead of registers storing pointers.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import cast
+from collections.abc import Iterator, Sequence
+from itertools import product
+from typing import Any, cast
 
 from typing_extensions import Self
 
@@ -16,18 +17,91 @@ from xdsl.dialects import memref, stream
 from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, IntAttr, StringAttr
 from xdsl.dialects.linalg import IteratorType, IteratorTypeAttr
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Attribute, Dialect, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParameterDef,
+    irdl_attr_definition,
     irdl_op_definition,
     prop_def,
     region_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_attr_definition
+class StridePattern(ParametrizedAttribute):
+    """
+    Attribute representing the order and offsets in which elements will be read from or
+    written to a stream.
+
+    ```
+    // 2D access pattern
+    #pat = #memref_stream.stride_pattern<ub = [16, 8], strides = (d0, d1) -> (d0 + 1, d1 + 2)>
+    // Corresponds to the following locations
+    // for i in range(16):
+    //   for j in range(8):
+    //     yield (i + 1, j + 2)
+    // Note that the upper bounds and strides go from the outermost loop inwards
+    ```
+    """
+
+    name = "memref_stream.stride_pattern"
+
+    ub: ParameterDef[ArrayAttr[IntAttr]]
+    index_map: ParameterDef[AffineMapAttr]
+
+    def __init__(self, ub: ArrayAttr[IntAttr], index_map: ParameterDef[AffineMapAttr]):
+        super().__init__((ub, index_map))
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_identifier("ub")
+            parser.parse_punctuation("=")
+            ub = ArrayAttr(
+                IntAttr(i)
+                for i in parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+            )
+            parser.parse_punctuation(",")
+            parser.parse_identifier("index_map")
+            parser.parse_punctuation("=")
+            index_map = AffineMapAttr(parser.parse_affine_map())
+            return (ub, index_map)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string("ub = [")
+            printer.print_list(self.ub, lambda attr: printer.print(attr.data))
+            printer.print_string(f"], index_map = {self.index_map.data}")
+
+    def rank(self):
+        return len(self.ub)
+
+    def verify(self) -> None:
+        if len(self.ub) != self.index_map.data.num_dims:
+            raise VerifyException(
+                f"Expect stride pattern upper bounds {self.ub} to be equal in length to dimensions of {self.index_map}"
+            )
+        if self.index_map.data.num_symbols:
+            raise VerifyException(
+                f"Expect stride pattern map to not contain symbols: {self.index_map}"
+            )
+
+    def index_iter(self) -> Iterator[tuple[int, ...]]:
+        for indices in product(*(range(bound.data) for bound in self.ub.data)):
+            indices: tuple[int, ...] = indices
+            yield self.index_map.data.eval(indices, ())
+
+    def offsets(self) -> tuple[tuple[int, ...], ...]:
+        return tuple(self.index_iter())
 
 
 @irdl_op_definition
@@ -62,15 +136,11 @@ class StreamingRegionOp(IRDLOperation):
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
     """
-    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+    patterns = prop_def(ArrayAttr[StridePattern])
     """
     Stride patterns that define the order of the input and output streams.
     Like in linalg.generic, the indexing maps corresponding to inputs are followed by the
     indexing maps for the outputs.
-    """
-    bounds = prop_def(ArrayAttr[IntAttr])
-    """
-    The bounds of the iteration space, from the outermost loop inwards. All indexing maps must have the same number of dimensions as the length of `bounds`.
     """
 
     body = region_def("single_block")
@@ -83,24 +153,20 @@ class StreamingRegionOp(IRDLOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
-        indexing_maps: ArrayAttr[AffineMapAttr],
-        bounds: ArrayAttr[IntAttr],
+        patterns: ArrayAttr[StridePattern],
         body: Region,
     ) -> None:
         super().__init__(
             operands=[inputs, outputs],
             regions=[body],
             properties={
-                "bounds": bounds,
-                "indexing_maps": indexing_maps,
+                "patterns": patterns,
             },
         )
 
     def print(self, printer: Printer):
-        printer.print_string(" {bounds = [")
-        printer.print_list(self.bounds, lambda bound: printer.print(bound.data))
-        printer.print_string("], indexing_maps = ")
-        printer.print_attribute(self.indexing_maps)
+        printer.print_string(" {patterns = ")
+        printer.print_attribute(self.patterns)
         printer.print_string("}")
 
         if self.inputs:
@@ -127,18 +193,17 @@ class StreamingRegionOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         parser.parse_punctuation("{")
-        parser.parse_identifier("bounds")
+        parser.parse_identifier("patterns")
         parser.parse_punctuation("=")
-        bound_vals = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
-        bounds = ArrayAttr(IntAttr(bound) for bound in bound_vals)
 
-        parser.parse_punctuation(",")
-        parser.parse_identifier("indexing_maps")
-        parser.parse_punctuation("=")
-        indexing_maps = parser.parse_attribute()
-        indexing_maps = cast(ArrayAttr[AffineMapAttr], indexing_maps)
+        patterns = parser.parse_attribute()
+        if not isinstance(patterns, ArrayAttr):
+            parser.raise_error(f"Expected ArrayAttr {patterns}")
+        patterns = cast(ArrayAttr[Any], patterns)
+        for pattern in patterns:
+            if not isinstance(pattern, StridePattern):
+                parser.raise_error(f"Expected StridePattern {pattern}")
+        patterns = cast(ArrayAttr[StridePattern], patterns)
 
         parser.parse_punctuation("}")
 
@@ -185,8 +250,7 @@ class StreamingRegionOp(IRDLOperation):
         generic = cls(
             ins,
             outs,
-            indexing_maps,
-            bounds,
+            patterns,
             body,
         )
         generic.attributes |= extra_attrs
@@ -437,5 +501,7 @@ MemrefStream = Dialect(
         GenericOp,
         YieldOp,
     ],
-    [],
+    [
+        StridePattern,
+    ],
 )

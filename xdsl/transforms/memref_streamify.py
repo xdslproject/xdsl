@@ -54,17 +54,22 @@ class StreamifyGenericOpPattern(RewritePattern):
         output_stream_types = tuple(
             stream.WritableStreamType(el_type) for el_type in output_el_types
         )
+
+        patterns = ArrayAttr(
+            tuple(
+                memref_stream.StridePattern(
+                    ArrayAttr(op.bounds.data[: indexing_map.data.num_dims]),
+                    indexing_map,
+                )
+                for index, _ in streamed_operand_indices
+                if (indexing_map := op.indexing_maps.data[index])
+            )
+        )
         rewriter.insert_op_before_matched_op(
             streaming_region_op := memref_stream.StreamingRegionOp(
                 tuple(op.inputs[index] for index, _ in streamed_input_indices),
                 tuple(op.outputs[index] for index, _ in streamable_output_indices),
-                ArrayAttr(
-                    tuple(
-                        op.indexing_maps.data[index]
-                        for index, _ in streamed_operand_indices
-                    )
-                ),
-                op.bounds,
+                patterns,
                 Region(Block(arg_types=input_stream_types + output_stream_types)),
             )
         )
