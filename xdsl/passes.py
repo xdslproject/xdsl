@@ -74,6 +74,8 @@ class ModulePass(ABC):
         # start constructing the argument dict for the dataclass
         arg_dict = dict[str, PassArgListType | PassArgElementType | None]()
 
+        required_fields = cls.required_fields()
+
         # iterate over all fields of the dataclass
         for op_field in fields:
             # ignore the name field and everything that's not used by __init__
@@ -81,7 +83,7 @@ class ModulePass(ABC):
                 continue
             # check that non-optional fields are present
             if op_field.name not in spec_arguments_dict:
-                if _is_optional(op_field):
+                if op_field.name not in required_fields:
                     arg_dict[op_field.name] = _get_default(op_field)
                     continue
                 raise ValueError(f'Pass {cls.name} requires argument "{op_field.name}"')
@@ -104,6 +106,15 @@ class ModulePass(ABC):
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
+
+    @classmethod
+    def required_fields(cls: type[ModulePassT]) -> set[str]:
+        """
+        Inspects the definition of the pass for fields that do not have default values.
+        """
+        return {
+            field.name for field in dataclasses.fields(cls) if not _is_optional(field)
+        }
 
     def pipeline_pass_spec(self) -> PipelinePassSpec:
         """

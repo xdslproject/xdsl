@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
 )
+from xdsl.dialects.func import FuncOp
 from xdsl.ir import (
     Attribute,
     Data,
@@ -23,20 +24,27 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
+    Successor,
+    VarOperand,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
     result_def,
+    successor_def,
+    var_operand_def,
 )
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
+from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-from .register import GeneralRegisterType, X86RegisterType
+from .register import GeneralRegisterType, RFLAGSRegisterType, X86RegisterType
 
 R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
 R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
@@ -125,11 +133,6 @@ class X86Op(Operation, ABC):
         printer.print_operation_type(self)
 
 
-AssemblyInstructionArg: TypeAlias = (
-    AnyIntegerAttr | SSAValue | GeneralRegisterType | str | int
-)
-
-
 @irdl_attr_definition
 class LabelAttr(Data[str]):
     name = "x86.label"
@@ -142,6 +145,11 @@ class LabelAttr(Data[str]):
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_string_literal(self.data)
+
+
+AssemblyInstructionArg: TypeAlias = (
+    AnyIntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
+)
 
 
 class X86Instruction(X86Op):
@@ -445,6 +453,46 @@ class R_IDivOp(IRDLOperation, X86Instruction, ABC):
 
         super().__init__(
             operands=[r1, rdx_input, rax_input],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[rdx_output, rax_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return (self.r1,)
+
+
+@irdl_op_definition
+class R_ImulOp(IRDLOperation, X86Instruction, ABC):
+    """
+    The source operand is multiplied by the value in the RAX register and the product is stored in the RDX:RAX registers.
+    x[RDX:RAX] = x[RAX] * r1
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.r.imul"
+
+    r1 = operand_def(GeneralRegisterType)
+    rax_input = operand_def(GeneralRegisterType("rax"))
+
+    rdx_output = result_def(GeneralRegisterType("rdx"))
+    rax_output = result_def(GeneralRegisterType("rax"))
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        rax_input: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        rdx_output: GeneralRegisterType,
+        rax_output: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, rax_input],
             attributes={
                 "comment": comment,
             },
@@ -1220,6 +1268,131 @@ class M_NotOp(M_M_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
+class M_IDivOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Divides the value in RDX:RAX by [r1] and stores the quotient in RAX and the remainder in RDX.
+    https://www.felixcloutier.com/x86/idiv
+    """
+
+    name = "x86.m.idiv"
+
+    r1 = operand_def(R1InvT)
+    rdx_input = operand_def(GeneralRegisterType("rdx"))
+    rax_input = operand_def(GeneralRegisterType("rax"))
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    rdx_output = result_def(GeneralRegisterType("rdx"))
+    rax_output = result_def(GeneralRegisterType("rax"))
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        rdx_input: Operation | SSAValue,
+        rax_input: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None = None,
+        *,
+        comment: str | StringAttr | None = None,
+        rdx_output: GeneralRegisterType,
+        rax_output: GeneralRegisterType,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, rdx_input, rax_input],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[rdx_output, rax_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = _memory_access_str(self.r1, self.offset)
+        return (memory_access,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        if self.offset is not None:
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+@irdl_op_definition
+class M_ImulOp(IRDLOperation, X86Instruction, ABC):
+    """
+    The source operand is multiplied by the value in the RAX register and the product is stored in the RDX:RAX registers.
+    x[RDX:RAX] = x[RAX] * [x[r1]]
+    https://www.felixcloutier.com/x86/imul
+    """
+
+    name = "x86.m.imul"
+
+    r1 = operand_def(GeneralRegisterType)
+    rax_input = operand_def(GeneralRegisterType("rax"))
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    rdx_output = result_def(GeneralRegisterType("rdx"))
+    rax_output = result_def(GeneralRegisterType("rax"))
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        rax_input: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None = None,
+        *,
+        comment: str | StringAttr | None = None,
+        rdx_output: GeneralRegisterType,
+        rax_output: GeneralRegisterType,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, rax_input],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[rdx_output, rax_output],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = _memory_access_str(self.r1, self.offset)
+        return (memory_access,)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        if self.offset is not None:
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+@irdl_op_definition
 class LabelOp(IRDLOperation, X86Op):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
@@ -1336,6 +1509,600 @@ class DirectiveOp(IRDLOperation, X86Op):
         return (), ()
 
 
+@irdl_op_definition
+class S_JmpOp(IRDLOperation, X86Instruction):
+    """
+    Unconditional jump to the label specified in destination.
+    https://www.felixcloutier.com/x86/jmp
+    """
+
+    name = "x86.s.jmp"
+
+    block_values: VarOperand = var_operand_def(X86RegisterType)
+
+    successor = successor_def()
+
+    traits = frozenset([IsTerminator()])
+
+    def __init__(
+        self,
+        block_values: Sequence[SSAValue],
+        successor: Successor,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[block_values],
+            attributes={
+                "comment": comment,
+            },
+            successors=(successor,),
+        )
+
+    def verify_(self) -> None:
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.block_values, self.successor.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        if not isinstance(self.successor.first_op, LabelOp):
+            raise VerifyException(
+                "jmp operation successor must have a x86.label operation as a "
+                f"first argument, found {self.successor.first_op}"
+            )
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_block_name(self.successor)
+        printer.print_string("(")
+        printer.print_list(
+            self.block_values, lambda val: _print_type_pair(printer, val)
+        )
+        printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        successor = parser.parse_successor()
+        block_values = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(block_values, successor)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        dest_label = self.successor.first_op
+        assert isinstance(dest_label, LabelOp)
+        return (dest_label.label,)
+
+
+@irdl_op_definition
+class RR_CmpOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    https://www.felixcloutier.com/x86/cmp
+    """
+
+    name = "x86.rr.cmp"
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+
+    result = result_def(RFLAGSRegisterType)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        result: RFLAGSRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2
+
+
+@irdl_op_definition
+class RM_CmpOp(IRDLOperation, X86Instruction, ABC):
+    """
+    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    https://www.felixcloutier.com/x86/cmp
+    """
+
+    name = "x86.rm.cmp"
+
+    r1 = operand_def(GeneralRegisterType)
+    r2 = operand_def(GeneralRegisterType)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    result = result_def(RFLAGSRegisterType)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+        result: RFLAGSRegisterType,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = _memory_access_str(self.r2, self.offset)
+        return self.r1, memory_access
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = _parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.offset is not None:
+            printer.print(", ")
+            _print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for Jcc operations.
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    rflags = operand_def(RFLAGSRegisterType)
+
+    then_values = var_operand_def(X86RegisterType)
+    else_values = var_operand_def(X86RegisterType)
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+    then_block = successor_def()
+    else_block = successor_def()
+
+    traits = frozenset([IsTerminator()])
+
+    def __init__(
+        self,
+        rflags: Operation | SSAValue,
+        then_values: Sequence[SSAValue],
+        else_values: Sequence[SSAValue],
+        then_block: Successor,
+        else_block: Successor,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rflags, then_values, else_values],
+            attributes={
+                "comment": comment,
+            },
+            successors=(then_block, else_block),
+        )
+
+    def verify_(self) -> None:
+        # The then block must start with a label op
+
+        then_block_first_op = self.then_block.first_op
+
+        if not isinstance(then_block_first_op, LabelOp):
+            raise VerifyException("then block first op must be a label")
+
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.then_values, self.then_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        for op_arg, block_arg in zip(self.else_values, self.else_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        # The else block must be the one immediately following this one
+
+        parent_block = self.parent
+        if parent_block is None:
+            return
+
+        parent_region = parent_block.parent
+        if parent_region is None:
+            return
+
+        this_index = parent_region.blocks.index(parent_block)
+        else_index = parent_region.blocks.index(self.else_block)
+
+        if this_index + 1 != else_index:
+            raise VerifyException("else block must be immediately after op")
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        then_label = self.then_block.first_op
+        assert isinstance(then_label, LabelOp)
+        return (then_label.label,)
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        _print_type_pair(printer, self.rflags)
+        printer.print_string(", ")
+        printer.print_block_name(self.then_block)
+        printer.print_string("(")
+        printer.print_list(self.then_values, lambda val: _print_type_pair(printer, val))
+        printer.print_string("), ")
+        printer.print_block_name(self.else_block)
+        printer.print_string("(")
+        printer.print_list(self.else_values, lambda val: _print_type_pair(printer, val))
+        printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(
+                self.attributes,
+                reserved_attr_names="operandSegmentSizes",
+                print_keyword=True,
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        rflags = _parse_type_pair(parser)
+        parser.parse_punctuation(",")
+        then_block = parser.parse_successor()
+        then_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        parser.parse_punctuation(",")
+        else_block = parser.parse_successor()
+        else_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(rflags, then_args, else_args, then_block, else_block)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
+
+@irdl_op_definition
+class S_JaOp(ConditionalJumpOperation):
+    """
+    Jump if above (CF=0 and ZF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.ja"
+
+
+@irdl_op_definition
+class S_JaeOp(ConditionalJumpOperation):
+    """
+    Jump if above or equal (CF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jae"
+
+
+@irdl_op_definition
+class S_JbOp(ConditionalJumpOperation):
+    """
+    Jump if below (CF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jb"
+
+
+@irdl_op_definition
+class S_JbeOp(ConditionalJumpOperation):
+    """
+    Jump if below or equal (CF=1 or ZF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jbe"
+
+
+@irdl_op_definition
+class S_JcOp(ConditionalJumpOperation):
+    """
+    Jump if carry (CF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jc"
+
+
+@irdl_op_definition
+class S_JeOp(ConditionalJumpOperation):
+    """
+    Jump if equal (ZF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.je"
+
+
+@irdl_op_definition
+class S_JgOp(ConditionalJumpOperation):
+    """
+    Jump if greater (ZF=0 and SF=OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jg"
+
+
+@irdl_op_definition
+class S_JgeOp(ConditionalJumpOperation):
+    """
+    Jump if greater or equal (SF=OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jge"
+
+
+@irdl_op_definition
+class S_JlOp(ConditionalJumpOperation):
+    """
+    Jump if less (SF≠OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jl"
+
+
+@irdl_op_definition
+class S_JleOp(ConditionalJumpOperation):
+    """
+    Jump if less or equal (ZF=1 or SF≠OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jle"
+
+
+@irdl_op_definition
+class S_JnaOp(ConditionalJumpOperation):
+    """
+    Jump if not above (CF=1 or ZF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jna"
+
+
+@irdl_op_definition
+class S_JnaeOp(ConditionalJumpOperation):
+    """
+    Jump if not above or equal (CF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnae"
+
+
+@irdl_op_definition
+class S_JnbOp(ConditionalJumpOperation):
+    """
+    Jump if not below (CF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnb"
+
+
+@irdl_op_definition
+class S_JnbeOp(ConditionalJumpOperation):
+    """
+    Jump if not below or equal (CF=0 and ZF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnbe"
+
+
+@irdl_op_definition
+class S_JncOp(ConditionalJumpOperation):
+    """
+    Jump if not carry (CF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnc"
+
+
+@irdl_op_definition
+class S_JneOp(ConditionalJumpOperation):
+    """
+    Jump if not equal (ZF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jne"
+
+
+@irdl_op_definition
+class S_JngOp(ConditionalJumpOperation):
+    """
+    Jump if not greater (ZF=1 or SF≠OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jng"
+
+
+@irdl_op_definition
+class S_JngeOp(ConditionalJumpOperation):
+    """
+    Jump if not greater or equal (SF≠OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnge"
+
+
+@irdl_op_definition
+class S_JnlOp(ConditionalJumpOperation):
+    """
+    Jump if not less (SF=OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnl"
+
+
+@irdl_op_definition
+class S_JnleOp(ConditionalJumpOperation):
+    """
+    Jump if not less or equal (ZF=0 and SF=OF).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnle"
+
+
+@irdl_op_definition
+class S_JnoOp(ConditionalJumpOperation):
+    """
+    Jump if not overflow (OF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jno"
+
+
+@irdl_op_definition
+class S_JnpOp(ConditionalJumpOperation):
+    """
+    Jump if not parity (PF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnp"
+
+
+@irdl_op_definition
+class S_JnsOp(ConditionalJumpOperation):
+    """
+    Jump if not sign (SF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jns"
+
+
+@irdl_op_definition
+class S_JnzOp(ConditionalJumpOperation):
+    """
+    Jump if not zero (ZF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jnz"
+
+
+@irdl_op_definition
+class S_JoOp(ConditionalJumpOperation):
+    """
+    Jump if overflow (OF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jo"
+
+
+@irdl_op_definition
+class S_JpOp(ConditionalJumpOperation):
+    """
+    Jump if parity (PF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jp"
+
+
+@irdl_op_definition
+class S_JpeOp(ConditionalJumpOperation):
+    """
+    Jump if parity even (PF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jpe"
+
+
+@irdl_op_definition
+class S_JpoOp(ConditionalJumpOperation):
+    """
+    Jump if parity odd (PF=0).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jpo"
+
+
+@irdl_op_definition
+class S_JsOp(ConditionalJumpOperation):
+    """
+    Jump if sign (SF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.js"
+
+
+@irdl_op_definition
+class S_JzOp(ConditionalJumpOperation):
+    """
+    Jump if zero (ZF=1).
+    https://www.felixcloutier.com/x86/jcc
+    """
+
+    name = "x86.s.jz"
+
+
 # region Assembly printing
 def _append_comment(line: str, comment: StringAttr | None) -> str:
     if comment is None:
@@ -1355,6 +2122,8 @@ def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg
     elif isinstance(arg, GeneralRegisterType):
         return arg.register_name
+    elif isinstance(arg, LabelAttr):
+        return arg.data
     else:
         if isinstance(arg.type, GeneralRegisterType):
             reg = arg.type.register_name
@@ -1379,6 +2148,9 @@ def _assembly_line(
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
     for op in module.body.walk():
+        if isinstance(op, FuncOp):
+            print(f"{op.sym_name.data}:", file=output)
+            continue
         assert isinstance(op, X86Op), f"{op}"
         asm = op.assembly_line()
         if asm is not None:
@@ -1433,6 +2205,19 @@ def _memory_access_str(
     else:
         mem_acc_str = f"[{register_str}]"
     return mem_acc_str
+
+
+def _print_type_pair(printer: Printer, value: SSAValue) -> None:
+    printer.print_ssa_value(value)
+    printer.print_string(" : ")
+    printer.print_attribute(value.type)
+
+
+def _parse_type_pair(parser: Parser) -> SSAValue:
+    unresolved = parser.parse_unresolved_operand()
+    parser.parse_punctuation(":")
+    type = parser.parse_type()
+    return parser.resolve_operand(unresolved, type)
 
 
 # endregion
