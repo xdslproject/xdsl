@@ -35,7 +35,7 @@ class Input:
     def get_lines_containing(self, span: Span) -> tuple[list[str], int, int] | None:
         # A pointer to the start of the first line
         start = 0
-        line_no = 0
+        line_no = span.line_offset
         source = self.content
         while True:
             next_start = source.find("\n", start)
@@ -88,6 +88,11 @@ class Span:
     The input being operated on
     """
 
+    line_offset: int = 0
+    """
+    A line offset, to just add to ht file number in input when printed.
+    """
+
     def __len__(self):
         return self.len
 
@@ -112,6 +117,7 @@ class Span:
         are highlighted by up-carets beneath them (`^`). The message msg is printed
         along these.
         """
+        print("line_offset:", self.line_offset)
         info = self.input.get_lines_containing(self)
         if info is None:
             return f"Unknown location of span {msg}. Error: "
