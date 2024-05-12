@@ -337,7 +337,7 @@ class R_PushOp(IRDLOperation, X86Instruction):
 
 
 @irdl_op_definition
-class R_PopOp(IRDLOperation, X86Instruction, ABC):
+class R_PopOp(IRDLOperation, X86Instruction):
     """
     Copies the value at the top of the stack into r1 and increases %rsp.
     https://www.felixcloutier.com/x86/pop
