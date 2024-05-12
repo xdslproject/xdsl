@@ -301,7 +301,7 @@ class RR_MovOp(R_RR_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class R_PushOp(IRDLOperation, X86Instruction, ABC):
+class R_PushOp(IRDLOperation, X86Instruction):
     """
     Decreases %rsp and places r1 at the new memory location pointed to by %rsp.
     https://www.felixcloutier.com/x86/push
@@ -1195,6 +1195,8 @@ class M_PushOp(IRDLOperation, X86Instruction, ABC):
 class M_PopOp(IRDLOperation, X86Instruction, ABC):
     """
     Copies the value at the top of the stack into [r1] and increases %rsp.
+    The value held by r1 is a pointer to the memory location where the value is stored.
+    The only register modified by this operation is %rsp.
     https://www.felixcloutier.com/x86/pop
     """
 
@@ -1202,8 +1204,8 @@ class M_PopOp(IRDLOperation, X86Instruction, ABC):
 
     rsp_input = operand_def(GeneralRegisterType("rsp"))
     destination = operand_def(
-        R1InvT
-    )  # not an operand, but couldn't think of a better way to make it part of the IR
+        GeneralRegisterType
+    )  # the destination is a pointer to the memory location and the register itself is not modified
     offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
     rsp_output = result_def(GeneralRegisterType("rsp"))
 
