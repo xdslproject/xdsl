@@ -458,10 +458,6 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret
 
-riscv.assembly_section ".data" {
-  riscv.label ".min_val"
-  riscv.directive ".quad" "0xc0c3880000000000" {"comment" = "double -1.0E+4"}
-}
 // x[ M x K ]
 // y[ K x N ]
 // g[ M x N ]
@@ -480,7 +476,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %c512_val = arith.constant 512 : i32
     %c512 = builtin.unrealized_conversion_cast %c512_val : i32 to !riscv.reg<>
 
-    %min_val = riscv.fld %c0, ".min_val" : (!riscv.reg<>) -> !riscv.freg<>
+    %min_val = arith.constant -10000.0 : f64
+    %min_reg = builtin.unrealized_conversion_cast %min_val : f64 to !riscv.freg<>
 
     memref_stream.streaming_region {
       patterns = [
@@ -492,7 +489,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       %c392_val = arith.constant 392 : i32
       %c392 = builtin.unrealized_conversion_cast %c392_val : i32 to !riscv.reg<>
       riscv_scf.for %y_i : !riscv.reg<> = %c0 to %c392 step %c8 {
-        %init = riscv.fmv.d %min_val : (!riscv.freg<>) -> !riscv.freg<>
+        %init = riscv.fmv.d %min_reg : (!riscv.freg<>) -> !riscv.freg<>
 
         %res = riscv_scf.for %i : !riscv.reg<> = %c0 to %c9 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
           %x_val = memref_stream.read from %x_stream : f64
@@ -514,16 +511,16 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
   }
 
 
-// CHECK-NEXT:  .data
-// CHECK-NEXT:  .min_val:
-// CHECK-NEXT:  .quad 0xc0c3880000000000
 // CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl pooling_nchw_max_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  pooling_nchw_max_d1_s2_3x3:
 // CHECK-NEXT:      mv t3, a0
 // CHECK-NEXT:      mv t1, a1
-// CHECK-NEXT:      fld ft3, .min_val, zero
+// CHECK-NEXT:      li t4, -1060927488
+// CHECK-NEXT:      sw t4, -4(sp)
+// CHECK-NEXT:      sw zero, -8(sp)
+// CHECK-NEXT:      fld ft3, -8(sp)
 // CHECK-NEXT:      li t4, 8
 // CHECK-NEXT:      li a3, 2
 // CHECK-NEXT:      li a2, 2
