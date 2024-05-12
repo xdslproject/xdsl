@@ -429,7 +429,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
-// CHECK-NEXT:  scf_body_2_for:
+// CHECK-NEXT:  scf_body_{{\d+}}_for:
 // CHECK-NEXT:      fmul.d ft6, ft0, ft1
 // CHECK-NEXT:      fmul.d ft5, ft0, ft1
 // CHECK-NEXT:      fmul.d ft4, ft0, ft1
@@ -445,8 +445,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft4
 // CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft3
 // CHECK-NEXT:      addi t0, t0, 4
-// CHECK-NEXT:      blt t0, t1, scf_body_2_for
-// CHECK-NEXT:  scf_body_end_2_for:
+// CHECK-NEXT:      blt t0, t1, scf_body_{{\d+}}_for
+// CHECK-NEXT:  scf_body_end_{{\d+}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret
 
