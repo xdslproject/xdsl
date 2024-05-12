@@ -117,7 +117,6 @@ class Span:
         are highlighted by up-carets beneath them (`^`). The message msg is printed
         along these.
         """
-        print("line_offset:", self.line_offset)
         info = self.input.get_lines_containing(self)
         if info is None:
             return f"Unknown location of span {msg}. Error: "
