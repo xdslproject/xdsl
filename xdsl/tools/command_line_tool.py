@@ -731,3 +731,5 @@ class CommandLineTool:
                 print(e.with_context())
             else:
                 raise Exception("Failed to parse:\n" + e.with_context()) from e
+        finally:
+            chunk.close()
