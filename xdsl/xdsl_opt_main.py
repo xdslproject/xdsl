@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from contextlib import redirect_stdout
 from importlib.metadata import version
 from io import StringIO
+from itertools import accumulate
 from typing import IO
 
 from xdsl.backend.csl.print_csl import print_to_csl
@@ -63,11 +64,12 @@ class xDSLOptMain(CommandLineTool):
         chunks, file_extension = self.prepare_input()
         output_stream = self.prepare_output()
         try:
-            for i, chunk in enumerate(chunks):
+            for i, (chunk, offset) in enumerate(chunks):
                 try:
                     if i > 0:
                         output_stream.write("// -----\n")
-                    module = self.parse_chunk(chunk, file_extension)
+                    module = self.parse_chunk(chunk, file_extension, offset)
+
                     if module is not None:
                         if self.apply_passes(module):
                             output_stream.write(self.output_resulting_program(module))
@@ -253,7 +255,7 @@ class xDSLOptMain(CommandLineTool):
             callback,
         )
 
-    def prepare_input(self) -> tuple[list[IO[str]], str]:
+    def prepare_input(self) -> tuple[list[tuple[IO[str], int]], str]:
         """
         Prepare input by eventually splitting it in chunks. If not set, the parser
         registered for this file extension is used.
@@ -262,17 +264,24 @@ class xDSLOptMain(CommandLineTool):
         # when using the split input flag, program is split into multiple chunks
         # it's used for split input file
 
-        chunks: list[IO[str]] = []
+        chunks: list[tuple[IO[str], int]] = []
         f, file_extension = self.get_input_stream()
-        chunks = [f]
+        chunks = [(f, 0)]
         if self.args.split_input_file:
-            chunks = [StringIO(chunk) for chunk in f.read().split("// -----")]
+            chunks_str = [chunk for chunk in f.read().split("// -----")]
+            chunks_off = accumulate(
+                [0, *[chunk.count("\n") for chunk in chunks_str[:-1]]]
+            )
+            chunks = [
+                (StringIO(chunk), off)
+                for chunk, off in zip(chunks_str, chunks_off, strict=True)
+            ]
             f.close()
         if self.args.frontend:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
-            for chunk in chunks:
+            for chunk, _ in chunks:
                 chunk.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 
