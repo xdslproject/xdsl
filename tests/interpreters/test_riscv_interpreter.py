@@ -248,6 +248,11 @@ def test_riscv_interpreter():
     assert buffer == test_buffer
 
     assert interpreter.run_op(
+        riscv.FMvDOp(TestSSAValue(register), rd=fregister),
+        (5.0,),
+    ) == (5.0,)
+
+    assert interpreter.run_op(
         riscv.FCvtDWOp(
             TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()
         ),
