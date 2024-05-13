@@ -8,18 +8,20 @@ from collections.abc import Callable, Sequence
 from itertools import product
 from typing import TypeAlias, TypeVar, cast
 
-from xdsl.builder import Builder, InsertPoint
-from xdsl.dialects import affine, arith, func, memref
+from xdsl.builder import Builder
+from xdsl.dialects import affine, arith, func, memref, printf
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     Float64Type,
     FloatAttr,
     IndexType,
     IntegerAttr,
     ModuleOp,
+    ShapedType,
     f64,
 )
-from xdsl.dialects.printf import PrintFormatOp
 from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -28,6 +30,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 from ..dialects import toy
 
@@ -100,7 +103,9 @@ def build_affine_for(
     region = Region(block)
 
     op = affine.For.from_region(
-        (*lb_operands, *ub_operands, *iter_args),
+        lb_operands,
+        ub_operands,
+        iter_args,
         tuple(iter_arg.type for iter_arg in iter_args),
         affine.AffineMapAttr(lb_map),
         affine.AffineMapAttr(ub_map),
@@ -409,7 +414,27 @@ class FuncOpLowering(RewritePattern):
 class PrintOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.PrintOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(PrintFormatOp("{}", op.input))
+        assert isinstance(shaped_type := op.input.type, ShapedType)
+        shape = shaped_type.get_shape()
+
+        format_str = "{}"
+
+        for dim in reversed(shape):
+            format_str = "[" + ", ".join([format_str] * dim) + "]"
+
+        new_vals: list[SSAValue] = []
+
+        for indices in product(*(range(dim) for dim in shape)):
+            rewriter.insert_op_before_matched_op(
+                load := affine.Load(
+                    op.input,
+                    (),
+                    AffineMapAttr(AffineMap.from_callable(lambda: indices)),
+                )
+            )
+            new_vals.append(load.result)
+
+        rewriter.replace_matched_op(printf.PrintFormatOp(format_str, *new_vals))
 
 
 class ReturnOpLowering(RewritePattern):

@@ -6,7 +6,8 @@ from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp, f64, i1
 from xdsl.interpreter import Interpreter, PythonValues
-from xdsl.interpreters.riscv import RawPtr, RiscvFunctions
+from xdsl.interpreters.ptr import RawPtr, TypedPtr
+from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.ir import Block, Region
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.exceptions import InterpretationError
@@ -46,8 +47,12 @@ def test_riscv_interpreter():
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
-    assert interpreter.run_op(riscv.LiOp("label0"), ()) == (RawPtr.new_int32((42,)),)
-    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (RawPtr.new_int32((59,)),)
+    assert interpreter.run_op(riscv.LiOp("label0"), ()) == (
+        TypedPtr.new_int32((42,)).raw,
+    )
+    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (
+        TypedPtr.new_int32((59,)).raw,
+    )
     assert interpreter.run_op(
         riscv.MVOp(TestSSAValue(register), rd=riscv.IntRegisterType.unallocated()),
         (42,),
@@ -69,6 +74,24 @@ def test_riscv_interpreter():
         ),
         (1, 2),
     ) == (3,)
+
+    assert interpreter.run_op(
+        riscv.AddiOp(
+            TestSSAValue(register),
+            2,
+            rd=riscv.IntRegisterType.unallocated(),
+        ),
+        (1,),
+    ) == (3,)
+
+    assert interpreter.run_op(
+        riscv.SubOp(
+            TestSSAValue(register),
+            TestSSAValue(register),
+            rd=riscv.IntRegisterType.unallocated(),
+        ),
+        (1, 2),
+    ) == (-1,)
 
     assert interpreter.run_op(
         riscv.MulOp(
@@ -224,6 +247,18 @@ def test_riscv_interpreter():
 
     assert buffer == test_buffer
 
+    assert interpreter.run_op(
+        riscv.FMvDOp(TestSSAValue(register), rd=fregister),
+        (5.0,),
+    ) == (5.0,)
+
+    assert interpreter.run_op(
+        riscv.FCvtDWOp(
+            TestSSAValue(register), rd=riscv.FloatRegisterType.unallocated()
+        ),
+        (42,),
+    ) == (42.0,)
+
     assert (
         interpreter.run_op(
             riscv.FSdOp(TestSSAValue(register), TestSSAValue(fregister), 8),
@@ -258,8 +293,8 @@ def test_get_data():
             riscv.DirectiveOp(".word", "2, 3")
 
     assert RiscvFunctions.get_data(module) == {
-        "one": RawPtr.new_int32([1]),
-        "two_three": RawPtr.new_int32([2, 3]),
+        "one": TypedPtr.new_int32([1]).raw,
+        "two_three": TypedPtr.new_int32([2, 3]).raw,
     }
 
 

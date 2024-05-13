@@ -10,8 +10,7 @@ from typing import IO, ClassVar
 from riscemu.core import Instruction, Int32
 from riscemu.instructions.instruction_set import InstructionSet
 
-from xdsl.interpreters.riscv import RawPtr
-from xdsl.interpreters.shaped_array import ShapedArray
+from xdsl.interpreters.ptr import RawPtr
 
 
 # Define a RISC-V ISA extension by subclassing InstructionSet
@@ -34,36 +33,6 @@ class ToyAccelerator(InstructionSet):
         return RawPtr(self.mmu.read(ptr, len))
 
     # Custom instructions
-
-    def instruction_tensor_print1d(self, ins: Instruction):
-        """
-        This instruction prints a formatted tensor
-        [1, 2, 3, 4, 5, 6]
-        """
-
-        b_ptr, b_els = (self.regs.get(ins.get_reg(i)).value for i in range(2))
-
-        data = self.buffer_read(b_ptr, b_els)
-
-        shaped_array = ShapedArray(data.float64.get_list(b_els), [b_els])
-
-        print(f"{shaped_array}", file=type(self).stream)
-
-    def instruction_tensor_print2d(self, ins: Instruction):
-        """
-        This instruction prints a formatted tensor
-        [[1, 2, 3], [4, 5, 6]]
-        """
-
-        b_ptr, b_rows, b_cols = (self.regs.get(ins.get_reg(i)).value for i in range(3))
-
-        data = self.buffer_read(b_ptr, b_rows * b_cols * 8)
-
-        shaped_array = ShapedArray(
-            data.float64.get_list(b_rows * b_cols), [b_rows, b_cols]
-        )
-
-        print(f"{shaped_array}", file=type(self).stream)
 
     def instruction_buffer_alloc(self, ins: Instruction):
         """

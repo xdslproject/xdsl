@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
+from dataclasses import dataclass
 from enum import Enum
 from types import EllipsisType
 from typing import Annotated, Generic, Literal, TypeVar
@@ -44,6 +45,7 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
@@ -620,8 +622,7 @@ class GEPOp(IRDLOperation):
         if not ptr_type.is_typed():
             if pointee_type is None:
                 raise ValueError("Opaque types must have a pointee type passed")
-            # opaque input ptr => opaque output ptr
-            props["elem_type"] = LLVMPointerType.opaque()
+            props["elem_type"] = pointee_type
 
         if inbounds:
             props["inbounds"] = UnitAttr()
@@ -709,6 +710,66 @@ class IntToPtrOp(IRDLOperation):
         else:
             ptr_type = LLVMPointerType.typed(ptr_type)
         super().__init__(operands=[input], result_types=[ptr_type])
+
+
+@irdl_op_definition
+class InlineAsmOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop
+
+    To see what each field means, have a look at:
+    https://llvm.org/docs/LangRef.html#inline-assembler-expressions
+    """
+
+    name = "llvm.inline_asm"
+
+    operands_: VarOperand = var_operand_def()
+
+    res: OptOpResult = opt_result_def()
+
+    # note: in MLIR upstream this is implemented as AsmDialectAttr;
+    # which is an instantiation of an LLVM_EnumAttr
+    # 0 for AT&T inline assembly dialect
+    # 1 for Intel inline assembly dialect
+    # In this context dialect does not refer to an MLIR dialect
+    asm_dialect = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
+
+    asm_string: StringAttr = prop_def(StringAttr)
+    constraints: StringAttr = prop_def(StringAttr)
+
+    has_side_effects: UnitAttr | None = opt_attr_def(UnitAttr)
+    is_align_stack: UnitAttr | None = opt_attr_def(UnitAttr)
+
+    def __init__(
+        self,
+        asm_string: str,
+        constraints: str,
+        operands: Sequence[SSAValue | Operation],
+        res_types: Sequence[Attribute] | None = None,
+        asm_dialect: int = 0,
+        has_side_effects: bool = False,
+        is_align_stack: bool = False,
+    ):
+        props: dict[str, Attribute] = {
+            "asm_string": StringAttr(asm_string),
+            "constraints": StringAttr(constraints),
+            "asm_dialect": IntegerAttr.from_int_and_width(asm_dialect, 64),
+        }
+
+        attrs = {
+            "has_side_effects": UnitAttr() if has_side_effects else None,
+            "is_align_stack": UnitAttr() if is_align_stack else None,
+        }
+
+        if res_types is None:
+            res_types = []
+
+        super().__init__(
+            operands=[operands],
+            attributes=attrs,
+            properties=props,
+            result_types=[res_types],
+        )
 
 
 @irdl_op_definition
@@ -821,7 +882,7 @@ class ExtractValueOp(IRDLOperation):
     ):
         super().__init__(
             operands=[container],
-            attributes={
+            properties={
                 "position": position,
             },
             result_types=[result_type],
@@ -850,7 +911,7 @@ class InsertValueOp(IRDLOperation):
     ):
         super().__init__(
             operands=[container, value],
-            attributes={
+            properties={
                 "position": position,
             },
             result_types=[container.type],
@@ -1118,8 +1179,8 @@ class FastMathFlag(Enum):
         return None
 
 
-@irdl_attr_definition
-class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
+@dataclass(frozen=True)
+class FastMathAttrBase(Data[tuple[FastMathFlag, ...]]):
     name = "llvm.fastmath"
 
     @property
@@ -1168,6 +1229,16 @@ class FastMathAttr(Data[tuple[FastMathFlag, ...]]):
                 printer.print(
                     ",".join(flag.value for flag in FastMathFlag if flag in flags)
                 )
+
+
+@irdl_attr_definition
+class FastMathAttr(FastMathAttrBase):
+    name = "llvm.fastmath"
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        # irdl_attr_definition defines an __init__ if none is defined, so we need to
+        # explicitely define one here.
+        super().__init__(flags)
 
 
 @irdl_op_definition
@@ -1242,6 +1313,20 @@ class CallOp(IRDLOperation):
         )
 
 
+LLVMType = (
+    LLVMStructType | LLVMPointerType | LLVMArrayType | LLVMVoidType | LLVMFunctionType
+)
+
+
+@irdl_op_definition
+class ZeroOp(IRDLOperation):
+    name = "llvm.mlir.zero"
+
+    assembly_format = "attr-dict `:` type($res)"
+
+    res = result_def(LLVMType)
+
+
 LLVM = Dialect(
     "llvm",
     [
@@ -1260,6 +1345,7 @@ LLVM = Dialect(
         AShrOp,
         ExtractValueOp,
         InsertValueOp,
+        InlineAsmOp,
         UndefOp,
         AllocaOp,
         GEPOp,
@@ -1274,6 +1360,7 @@ LLVM = Dialect(
         ReturnOp,
         ConstantOp,
         CallIntrinsicOp,
+        ZeroOp,
     ],
     [
         LLVMStructType,

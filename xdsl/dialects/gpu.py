@@ -16,22 +16,24 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     i32,
+    i64,
 )
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
     EnumAttribute,
-    OpaqueSyntaxAttribute,
     Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     StrEnum,
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyOf,
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
@@ -98,17 +100,17 @@ class ProcessorEnum(StrEnum):
 
 
 @irdl_attr_definition
-class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], OpaqueSyntaxAttribute):
+class AllReduceOpAttr(EnumAttribute[AllReduceOpEnum], SpacedOpaqueSyntaxAttribute):
     name = "gpu.all_reduce_op"
 
 
 @irdl_attr_definition
-class DimensionAttr(EnumAttribute[DimensionEnum], OpaqueSyntaxAttribute):
+class DimensionAttr(EnumAttribute[DimensionEnum], SpacedOpaqueSyntaxAttribute):
     name = "gpu.dim"
 
 
 @irdl_attr_definition
-class ProcessorAttr(EnumAttribute[ProcessorEnum], OpaqueSyntaxAttribute):
+class ProcessorAttr(EnumAttribute[ProcessorEnum], SpacedOpaqueSyntaxAttribute):
     name = "gpu.processor"
 
 
@@ -531,17 +533,21 @@ class LaunchOp(IRDLOperation):
         if len(blockSize) != 3:
             raise ValueError(f"LaunchOp must have 3 blockSizes, got {len(blockSize)}")
         operands = [
-            []
-            if asyncDependencies is None
-            else [SSAValue.get(a) for a in asyncDependencies]
+            (
+                []
+                if asyncDependencies is None
+                else [SSAValue.get(a) for a in asyncDependencies]
+            )
         ]
 
         operands += [SSAValue.get(gs) for gs in gridSize]
         operands += [SSAValue.get(bs) for bs in blockSize]
         operands += [
-            []
-            if dynamicSharedMemorySize is None
-            else [SSAValue.get(dynamicSharedMemorySize)]
+            (
+                []
+                if dynamicSharedMemorySize is None
+                else [SSAValue.get(dynamicSharedMemorySize)]
+            )
         ]
         super().__init__(
             operands=operands,
@@ -595,15 +601,15 @@ class LaunchFuncOp(IRDLOperation):
 
     name = "gpu.launch_func"
     asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
-    gridSizeX: Operand = operand_def(IndexType)
-    gridSizeY: Operand = operand_def(IndexType)
-    gridSizeZ: Operand = operand_def(IndexType)
-    blockSizeX: Operand = operand_def(IndexType)
-    blockSizeY: Operand = operand_def(IndexType)
-    blockSizeZ: Operand = operand_def(IndexType)
-    clusterSizeX: OptOperand = opt_operand_def(IndexType)
-    clusterSizeY: OptOperand = opt_operand_def(IndexType)
-    clusterSizeZ: OptOperand = opt_operand_def(IndexType)
+    gridSizeX: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    gridSizeY: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    gridSizeZ: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    blockSizeX: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    blockSizeY: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    blockSizeZ: Operand = operand_def(AnyOf((IndexType, i32, i64)))
+    clusterSizeX: OptOperand = opt_operand_def(AnyOf((IndexType, i32, i64)))
+    clusterSizeY: OptOperand = opt_operand_def(AnyOf((IndexType, i32, i64)))
+    clusterSizeZ: OptOperand = opt_operand_def(AnyOf((IndexType, i32, i64)))
     dynamicSharedMemorySize: OptOperand = opt_operand_def(i32)
     kernelOperands: VarOperand = var_operand_def()
     asyncObject: OptOperand = opt_operand_def()
@@ -725,6 +731,22 @@ class ThreadIdOp(IRDLOperation):
 
 
 @irdl_op_definition
+class WaitOp(IRDLOperation):
+    name = "gpu.wait"
+    asyncDependencies: VarOperand = var_operand_def(AsyncTokenType)
+    asyncToken: OptOpResult = opt_result_def(AsyncTokenType)
+
+    def __init__(
+        self,
+        async_dependencies: Sequence[SSAValue | Operation] | None = None,
+    ):
+        super().__init__(
+            operands=[async_dependencies],
+            result_types=[[AsyncTokenType()]],
+        )
+
+
+@irdl_op_definition
 class YieldOp(IRDLOperation):
     name = "gpu.yield"
     values: VarOperand = var_operand_def(Attribute)
@@ -773,9 +795,11 @@ GPU = Dialect(
         SubgroupSizeOp,
         TerminatorOp,
         ThreadIdOp,
+        WaitOp,
         YieldOp,
     ],
     [
+        AsyncTokenType,
         AllReduceOpAttr,
         DimensionAttr,
         ProcessorAttr,

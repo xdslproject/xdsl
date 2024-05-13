@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import cast
+from typing import Literal, overload
 
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
@@ -22,7 +22,7 @@ from xdsl.utils.exceptions import MultipleSpansParseError
 from xdsl.utils.lexer import Input, Lexer, Span, Token
 
 
-@dataclass
+@dataclass(eq=False)
 class ForwardDeclaredValue(SSAValue):
     """
     An SSA value that is used before it is defined.
@@ -32,12 +32,6 @@ class ForwardDeclaredValue(SSAValue):
     @property
     def owner(self) -> Operation | Block:
         assert False, "Forward declared values do not have an owner"
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
 
 
 @dataclass
@@ -124,9 +118,16 @@ class Parser(AttrParser):
             parsed_ops: list[Operation] = []
 
             while self._current_token.kind != Token.Kind.EOF:
-                if (parsed_op := self.parse_optional_operation()) is None:
-                    self.raise_error("Could not parse entire input!")
-                parsed_ops.append(parsed_op)
+                if self._current_token.kind in (
+                    Token.Kind.HASH_IDENT,
+                    Token.Kind.EXCLAMATION_IDENT,
+                ):
+                    self._parse_alias_def()
+                    continue
+                if (parsed_op := self.parse_optional_operation()) is not None:
+                    parsed_ops.append(parsed_op)
+                    continue
+                self.raise_error("Could not parse entire input!")
 
             if len(parsed_ops) == 0:
                 self.raise_error("Could not parse entire input!")
@@ -147,6 +148,28 @@ class Parser(AttrParser):
                 self.raise_error(f"value {value_names} was used but not defined")
 
         return module_op
+
+    def _parse_alias_def(self):
+        """
+        Parse an attribute or type alias definition with format:
+            alias-def           ::= type-alias-def | attribute-alias-def
+            type-alias-def      ::= `!` bare-id `=` type
+            attribute-alias-def ::= `#` `alias` bare-id `=` attribute
+        """
+        if (
+            token := self._parse_optional_token_in(
+                [Token.Kind.EXCLAMATION_IDENT, Token.Kind.HASH_IDENT]
+            )
+        ) is None:
+            self.raise_error("expected attribute name")
+
+        type_or_attr_name = token.text
+        if type_or_attr_name in self.attribute_aliases:
+            self.raise_error(f"re-declaration of alias '{type_or_attr_name}'")
+
+        self.parse_punctuation("=", "after attribute alias name")
+        value = self.parse_attribute()
+        self.attribute_aliases[type_or_attr_name] = value
 
     def _get_block_from_name(self, block_name: Span) -> Block:
         """
@@ -177,7 +200,7 @@ class Parser(AttrParser):
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
-            self._parse_optional_location()
+            self.parse_optional_location()
 
             # Insert the block argument in the block, and register it in the parser
             block_arg = block.insert_arg(arg_type, len(block.args))
@@ -382,6 +405,19 @@ class Parser(AttrParser):
                 val.name_hint = name
 
     @dataclass
+    class UnresolvedArgument:
+        """
+        A block argument parsed from the assembly.
+        Arguments should be parsed by `parse_argument` or `parse_optional_argument`.
+        """
+
+        name: Span
+        """The name as displayed in the assembly."""
+
+        def resolve(self, type: Attribute) -> Parser.Argument:
+            return Parser.Argument(self.name, type)
+
+    @dataclass
     class Argument:
         """
         A block argument parsed from the assembly.
@@ -391,10 +427,27 @@ class Parser(AttrParser):
         name: Span
         """The name as displayed in the assembly."""
 
-        type: Attribute | None
+        type: Attribute
         """The type of the argument, if any."""
 
-    def parse_optional_argument(self, expect_type: bool = True) -> Argument | None:
+    @overload
+    def parse_optional_argument(
+        self, expect_type: Literal[True] = True
+    ) -> Argument | None: ...
+
+    @overload
+    def parse_optional_argument(
+        self, expect_type: Literal[False]
+    ) -> UnresolvedArgument | None: ...
+
+    @overload
+    def parse_optional_argument(
+        self, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument | None: ...
+
+    def parse_optional_argument(
+        self, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument | None:
         """
         Parse a block argument, if present, with format:
           arg ::= percent-id `:` type
@@ -407,13 +460,27 @@ class Parser(AttrParser):
             return None
 
         # The argument type
-        type = None
         if expect_type:
             self.parse_punctuation(":", " after block argument name!")
             type = self.parse_type()
-        return self.Argument(name_token.span, type)
+            return self.Argument(name_token.span, type)
+        else:
+            return self.UnresolvedArgument(name_token.span)
 
-    def parse_argument(self, *, expect_type: bool = True) -> Argument:
+    @overload
+    def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument: ...
+
+    @overload
+    def parse_argument(self, *, expect_type: Literal[False]) -> UnresolvedArgument: ...
+
+    @overload
+    def parse_argument(
+        self, *, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument: ...
+
+    def parse_argument(
+        self, *, expect_type: bool = True
+    ) -> UnresolvedArgument | Argument:
         """
         Parse a block argument with format:
           arg ::= percent-id `:` type
@@ -455,9 +522,7 @@ class Parser(AttrParser):
         # Since the entry block cannot be jumped to, this is fine.
         if arguments is not None:
             # Check that the provided arguments have types.
-            if any(arg.type is None for arg in arguments):
-                raise ValueError("provided entry block arguments must have a type")
-            arg_types = cast(list[Attribute], [arg.type for arg in arguments])
+            arg_types = [arg.type for arg in arguments]
 
             # Check that the entry block has no label.
             # Since a multi-block region block must have a terminator, there isn't a
@@ -801,16 +866,14 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        self._parse_optional_location()
+        self.parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
         # Properties retrocompatibility : if no properties dictionary was present at all,
         # We extract them from the attribute dictionary by name.
         if issubclass(op_type, IRDLOperation) and not properties:
-            for property_name in op_type.get_irdl_definition().properties.keys():
-                if property_name in attrs:
-                    properties[property_name] = attrs.pop(property_name)
+            properties = op_type.get_irdl_definition().split_properties(attrs)
 
         return op_type.create(
             operands=operands,

@@ -75,7 +75,7 @@ class InsertExitSyscallOp(RewritePattern):
         rewriter.insert_op_before(riscv_func.SyscallOp(EXIT), op)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LowerRISCVFunc(ModulePass):
     name = "lower-riscv-func"
 

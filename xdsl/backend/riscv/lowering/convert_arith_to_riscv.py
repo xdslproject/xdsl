@@ -146,8 +146,8 @@ class LowerBinaryIntegerOp(RewritePattern):
 @dataclass
 class LowerBinaryFloatOp(RewritePattern):
     arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
-    riscv_f_op_cls: type[RdRsRsFloatOperation]
-    riscv_d_op_cls: type[RdRsRsFloatOperation]
+    riscv_f_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
+    riscv_d_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         if not isinstance(op, self.arith_op_cls):
@@ -163,7 +163,11 @@ class LowerBinaryFloatOp(RewritePattern):
             case _:
                 assert False, f"Unexpected float type {op.lhs.type}"
 
-        new_op = cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE)
+        rv_flags = riscv.FastMathFlagsAttr("none")
+        if op.fastmath is not None:
+            rv_flags = riscv.FastMathFlagsAttr(op.fastmath.data)
+
+        new_op = cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE, fastmath=rv_flags)
         cast = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))
 
         rewriter.replace_matched_op((lhs, rhs, new_op, cast))
@@ -407,12 +411,20 @@ class LowerArithCmpf(RewritePattern):
 class LowerArithSIToFPOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SIToFPOp, rewriter: PatternRewriter) -> None:
+        match op.result.type:
+            case Float32Type():
+                cls = riscv.FCvtSWOp
+            case Float64Type():
+                cls = riscv.FCvtDWOp
+            case _:
+                assert False, f"Unexpected float type {op.result.type}"
+
         rewriter.replace_matched_op(
             (
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_INT_REGISTER_TYPE,)
                 ),
-                new_op := riscv.FCvtSWOp(
+                new_op := cls(
                     cast_input.results[0], rd=riscv.FloatRegisterType.unallocated()
                 ),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),

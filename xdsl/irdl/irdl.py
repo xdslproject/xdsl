@@ -26,6 +26,7 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     Block,
     Data,
@@ -35,6 +36,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypedAttribute,
 )
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
@@ -48,6 +50,7 @@ from xdsl.utils.hints import (
     get_type_var_from_generic_class,
     get_type_var_mapping,
 )
+from xdsl.utils.runtime_final import is_runtime_final, runtime_final
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
@@ -59,7 +62,7 @@ if TYPE_CHECKING:
 def error(op: Operation, msg: str, e: Exception):
     diag = Diagnostic()
     diag.add_message(op, msg)
-    diag.raise_exception(f"{op.name} operation does not verify", op, type(e), e)
+    diag.raise_exception(msg, op, type(e), e)
 
 
 class IRDLAnnotations(Enum):
@@ -90,6 +93,35 @@ class AttrConstraint(ABC):
         """
         ...
 
+    def get_resolved_variables(self) -> set[str]:
+        """
+        Get the set of type variables that are always resolved when verifying
+        the constraint.
+        """
+        return set()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        """
+        Check if there is enough information to infer the attribute given the
+        constraint variables that are already set.
+        """
+        # By default, we cannot infer anything.
+        return False
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        """
+        Infer the attribute given the constraint variables that are already set.
+
+        Raises an exception if the attribute cannot be inferred. If `can_infer`
+        returns `True` with the given constraint variables, this method should
+        not raise an exception.
+        """
+        raise ValueError("Cannot infer attribute from constraint")
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        """Get the unique base type that can satisfy the constraint, if any."""
+        return None
+
 
 @dataclass
 class VarConstraint(AttrConstraint):
@@ -116,6 +148,20 @@ class VarConstraint(AttrConstraint):
         else:
             self.constraint.verify(attr, constraint_vars)
             constraint_vars[self.name] = attr
+
+    def get_resolved_variables(self) -> set[str]:
+        return {self.name, *self.constraint.get_resolved_variables()}
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.name in constraint_names
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        if self.name not in constraint_vars:
+            raise ValueError(f"Cannot infer attribute from constraint {self}")
+        return constraint_vars[self.name]
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return self.constraint.get_unique_base()
 
 
 @dataclass(frozen=True)
@@ -144,6 +190,15 @@ class EqAttrConstraint(AttrConstraint):
         if attr != self.attr:
             raise VerifyException(f"Expected attribute {self.attr} but got {attr}")
 
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return True
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        return self.attr
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return type(self.attr)
+
 
 @dataclass
 class BaseAttr(AttrConstraint):
@@ -158,9 +213,14 @@ class BaseAttr(AttrConstraint):
                 f"{attr} should be of base attribute {self.attr.name}"
             )
 
+    def get_unique_base(self) -> type[Attribute] | None:
+        if is_runtime_final(self.attr):
+            return self.attr
+        return None
+
 
 def attr_constr_coercion(
-    attr: (Attribute | type[Attribute] | AttrConstraint),
+    attr: Attribute | type[Attribute] | AttrConstraint,
 ) -> AttrConstraint:
     """
     Attributes are coerced into EqAttrConstraints,
@@ -209,6 +269,21 @@ class AnyOf(AttrConstraint):
                 pass
         raise VerifyException(f"Unexpected attribute {attr}")
 
+    def get_resolved_variables(self) -> set[str]:
+        if len(self.attr_constrs) == 0:
+            return set()
+        return set[str].intersection(
+            *(constr.get_resolved_variables() for constr in self.attr_constrs)
+        )
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        bases = [constr.get_unique_base() for constr in self.attr_constrs]
+        if None in bases:
+            return None
+        if len(set(bases)) == 1:
+            return bases[0]
+        return None
+
 
 @dataclass()
 class AllOf(AttrConstraint):
@@ -232,6 +307,31 @@ class AllOf(AttrConstraint):
             exc_msg = "The following constraints were not satisfied:\n"
             exc_msg += "\n".join([str(e) for e in exc_bucket])
             raise VerifyException(exc_msg)
+
+    def get_resolved_variables(self) -> set[str]:
+        if len(self.attr_constrs) == 0:
+            return set()
+        return set[str].union(
+            *[constr.get_resolved_variables() for constr in self.attr_constrs]
+        )
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return any(constr.can_infer(constraint_names) for constr in self.attr_constrs)
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        for constr in self.attr_constrs:
+            if constr.can_infer(set(constraint_vars.keys())):
+                return constr.infer(constraint_vars)
+        raise ValueError("Cannot infer attribute from constraint")
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        # This could be improved if we keep track of all the possible base types for
+        # each constraint.
+        for constr in self.attr_constrs:
+            base = constr.get_unique_base()
+            if base is not None:
+                return base
+        return None
 
 
 @dataclass(init=False)
@@ -267,6 +367,58 @@ class ParamAttrConstraint(AttrConstraint):
             )
         for idx, param_constr in enumerate(self.param_constrs):
             param_constr.verify(attr.parameters[idx], constraint_vars)
+
+    def get_resolved_variables(self) -> set[str]:
+        if not self.param_constrs:
+            return set()
+        return {
+            var
+            for constr in self.param_constrs
+            for var in constr.get_resolved_variables()
+        }
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        if is_runtime_final(self.base_attr):
+            return self.base_attr
+        return None
+
+
+@dataclass(init=False)
+class MessageConstraint(AttrConstraint):
+    """
+    Attach a message to a constraint, to provide more context when the constraint
+    is not satisfied.
+    """
+
+    constr: AttrConstraint
+    message: str
+
+    def __init__(
+        self, constr: AttrConstraint | Attribute | type[Attribute], message: str
+    ):
+        self.constr = attr_constr_coercion(constr)
+        self.message = message
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        try:
+            return self.constr.verify(attr, constraint_vars)
+        except VerifyException as e:
+            raise VerifyException(
+                f"{self.message}\nUnderlying verification failure: {e.args[0]}",
+                *e.args[1:],
+            )
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return self.constr.get_unique_base()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constr.can_infer(constraint_names)
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        return self.constr.infer(constraint_vars)
 
 
 def _irdl_list_to_attr_constraint(
@@ -459,20 +611,24 @@ class IRDLOperation(Operation):
     def __init__(
         self: IRDLOperation,
         *,
-        operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-        | None = None,
+        operands: (
+            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
+            | None
+        ) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
-        regions: Sequence[
-            Region
+        regions: (
+            Sequence[
+                Region
+                | None
+                | Sequence[Operation]
+                | Sequence[Block]
+                | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+            ]
             | None
-            | Sequence[Operation]
-            | Sequence[Block]
-            | Sequence[Region | Sequence[Operation] | Sequence[Block]]
-        ]
-        | None = None,
+        ) = None,
     ):
         if operands is None:
             operands = []
@@ -501,20 +657,24 @@ class IRDLOperation(Operation):
     def build(
         cls: type[IRDLOperationInvT],
         *,
-        operands: Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
-        | None = None,
+        operands: (
+            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
+            | None
+        ) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
         successors: Sequence[Block | Sequence[Block] | None] | None = None,
-        regions: Sequence[
-            Region
+        regions: (
+            Sequence[
+                Region
+                | None
+                | Sequence[Operation]
+                | Sequence[Block]
+                | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+            ]
             | None
-            | Sequence[Operation]
-            | Sequence[Block]
-            | Sequence[Region | Sequence[Operation] | Sequence[Block]]
-        ]
-        | None = None,
+        ) = None,
     ) -> IRDLOperationInvT:
         """Create a new operation using builders."""
         op = cls.__new__(cls)
@@ -611,6 +771,16 @@ class AttrSizedSuccessorSegments(AttrSizedSegments):
 
     attribute_name = "successorSegmentSizes"
     """Name of the attribute containing the variadic successor sizes."""
+
+
+@dataclass
+class ParsePropInAttrDict(IRDLOption):
+    """
+    Parse properties in the attribute dictionary instead of requiring them to
+    be in the assembly format.
+    This should only be used to ensure MLIR compatibility, it is otherwise
+    bad design to use it.
+    """
 
 
 @dataclass
@@ -902,7 +1072,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -914,7 +1084,7 @@ def prop_def(
 
 
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -926,7 +1096,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: type[AttributeInvT] | TypeVar | AttributeInvT,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -940,7 +1110,7 @@ def attr_def(
 
 
 def opt_attr_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -1258,10 +1428,9 @@ class OpDef:
 
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_constraint(
-                    pyrdl_constr: AttrConstraint
-                    | Attribute
-                    | type[Attribute]
-                    | TypeVar,
+                    pyrdl_constr: (
+                        AttrConstraint | Attribute | type[Attribute] | TypeVar
+                    ),
                 ) -> AttrConstraint:
                     return _irdl_list_to_attr_constraint(
                         (pyrdl_constr,),
@@ -1368,6 +1537,17 @@ class OpDef:
         # Verify traits.
         for trait in self.traits:
             trait.verify(op)
+
+    def split_properties(self, attr_dict: dict[str, Attribute]) -> dict[str, Attribute]:
+        """
+        Remove all entries of an attribute dictionary that are defined as properties
+        by the operation definition, and return them in a new dictionary.
+        """
+        properties: dict[str, Attribute] = {}
+        for property_name in self.properties.keys():
+            if property_name in attr_dict:
+                properties[property_name] = attr_dict.pop(property_name)
+        return properties
 
 
 class VarIRConstruct(Enum):
@@ -1650,7 +1830,7 @@ def irdl_op_verify_arg_list(
             error(
                 op,
                 f"{get_construct_name(construct)} at position "
-                f"{arg_idx} does not verify!\n{e}",
+                f"{arg_idx} does not verify:\n{e}",
                 e,
             )
 
@@ -1671,8 +1851,7 @@ def irdl_build_arg_list(
     args: Sequence[SSAValue | Sequence[SSAValue] | None],
     arg_defs: Sequence[tuple[str, OperandDef]],
     error_prefix: str,
-) -> tuple[list[SSAValue], list[int]]:
-    ...
+) -> tuple[list[SSAValue], list[int]]: ...
 
 
 @overload
@@ -1681,8 +1860,7 @@ def irdl_build_arg_list(
     args: Sequence[Attribute | Sequence[Attribute] | None],
     arg_defs: Sequence[tuple[str, ResultDef]],
     error_prefix: str,
-) -> tuple[list[Attribute], list[int]]:
-    ...
+) -> tuple[list[Attribute], list[int]]: ...
 
 
 @overload
@@ -1691,8 +1869,7 @@ def irdl_build_arg_list(
     args: Sequence[Region | Sequence[Region] | None],
     arg_defs: Sequence[tuple[str, RegionDef]],
     error_prefix: str,
-) -> tuple[list[Region], list[int]]:
-    ...
+) -> tuple[list[Region], list[int]]: ...
 
 
 @overload
@@ -1701,8 +1878,7 @@ def irdl_build_arg_list(
     args: Sequence[Successor | Sequence[Successor] | None],
     arg_defs: Sequence[tuple[str, SuccessorDef]],
     error_prefix: str,
-) -> tuple[list[Successor], list[int]]:
-    ...
+) -> tuple[list[Successor], list[int]]: ...
 
 
 _T = TypeVar("_T")
@@ -1879,32 +2055,30 @@ def irdl_op_init(
                 container = built_properties if option.as_property else built_attributes
                 match option:
                     case AttrSizedOperandSegments():
-                        container[
-                            AttrSizedOperandSegments.attribute_name
-                        ] = DenseArrayBase.from_list(i32, operand_sizes)
+                        container[AttrSizedOperandSegments.attribute_name] = (
+                            DenseArrayBase.from_list(i32, operand_sizes)
+                        )
 
                     case AttrSizedResultSegments():
-                        container[
-                            AttrSizedResultSegments.attribute_name
-                        ] = DenseArrayBase.from_list(i32, result_sizes)
+                        container[AttrSizedResultSegments.attribute_name] = (
+                            DenseArrayBase.from_list(i32, result_sizes)
+                        )
 
                     case AttrSizedRegionSegments():
-                        container[
-                            AttrSizedRegionSegments.attribute_name
-                        ] = DenseArrayBase.from_list(i32, region_sizes)
+                        container[AttrSizedRegionSegments.attribute_name] = (
+                            DenseArrayBase.from_list(i32, region_sizes)
+                        )
 
                     case AttrSizedSuccessorSegments():
-                        container[
-                            AttrSizedSuccessorSegments.attribute_name
-                        ] = DenseArrayBase.from_list(i32, successor_sizes)
+                        container[AttrSizedSuccessorSegments.attribute_name] = (
+                            DenseArrayBase.from_list(i32, successor_sizes)
+                        )
                     case _:
                         raise ValueError(
                             f"Unexpected option {option} in operation definition {op_def}."
                         )
             case _:
-                raise ValueError(
-                    f"Unexpected option {option} in operation definition {op_def}."
-                )
+                pass
 
     Operation.__init__(
         self,
@@ -2188,6 +2362,25 @@ class ParamAttrDef:
         name = clsdict["name"]
 
         param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+        if issubclass(pyrdl_def, TypedAttribute):
+            pyrdl_def = cast(type[TypedAttribute[Attribute]], pyrdl_def)
+            try:
+                param_names = [name for name, _ in param_hints]
+                type_index = param_names.index("type")
+            except ValueError:
+                raise PyRDLAttrDefinitionError(
+                    f"TypedAttribute {pyrdl_def.__name__} should have a 'type' parameter."
+                )
+            typed_hint = param_hints[type_index][1]
+            if get_origin(typed_hint) is Annotated:
+                typed_hint = get_args(typed_hint)[0]
+            type_var = get_type_var_mapping(pyrdl_def)[1][AttributeCovT]
+
+            if typed_hint != type_var:
+                raise ValueError(
+                    "A TypedAttribute `type` parameter must be of the same type"
+                    " as the type variable in the TypedAttribute base class."
+                )
 
         parameters = list[tuple[str, AttrConstraint]]()
         for param_name, param_type in param_hints:
@@ -2232,14 +2425,25 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     for idx, (param_name, _) in enumerate(attr_def.parameters):
         new_fields[param_name] = param_name_field(idx)
 
+    if issubclass(cls, TypedAttribute):
+        parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
+        type_index = parameter_names.index("type")
+        new_fields["get_type_index"] = lambda: type_index
+
+    cls = cast(type[_PAttrT], cls)
+
     @classmethod
     def get_irdl_definition(cls: type[_PAttrT]):
         return attr_def
 
     new_fields["get_irdl_definition"] = get_irdl_definition
 
-    return dataclass(frozen=True, init=False)(
-        type.__new__(type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields})
+    return runtime_final(
+        dataclass(frozen=True, init=False)(
+            type.__new__(
+                type(cls), cls.__name__, (cls,), {**cls.__dict__, **new_fields}
+            )
+        )
     )
 
 
@@ -2250,11 +2454,13 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
-            type(
-                cls.__name__,
-                (cls,),  # pyright: ignore[reportUnknownArgumentType]
-                dict(cls.__dict__),
+        return runtime_final(
+            dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
+                type(
+                    cls.__name__,
+                    (cls,),  # pyright: ignore[reportUnknownArgumentType]
+                    dict(cls.__dict__),
+                )
             )
         )
     raise TypeError(

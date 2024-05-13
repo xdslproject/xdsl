@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DictionaryAttr,
     FlatSymbolRefAttr,
     FunctionType,
     StringAttr,
@@ -55,6 +57,16 @@ class FuncOpCallableInterface(CallableOpInterface):
         assert isinstance(op, FuncOp)
         return op.body
 
+    @classmethod
+    def get_argument_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.inputs.data
+
+    @classmethod
+    def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.outputs.data
+
 
 @irdl_op_definition
 class FuncOp(IRDLOperation):
@@ -64,6 +76,8 @@ class FuncOp(IRDLOperation):
     sym_name: StringAttr = prop_def(StringAttr)
     function_type: FunctionType = prop_def(FunctionType)
     sym_visibility: StringAttr | None = opt_prop_def(StringAttr)
+    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
     traits = frozenset(
         [IsolatedFromAbove(), SymbolOpInterface(), FuncOpCallableInterface()]
@@ -75,6 +89,9 @@ class FuncOp(IRDLOperation):
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         region: Region | type[Region.DEFAULT] = Region.DEFAULT,
         visibility: StringAttr | str | None = None,
+        *,
+        arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     ):
         if isinstance(visibility, str):
             visibility = StringAttr(visibility)
@@ -87,6 +104,8 @@ class FuncOp(IRDLOperation):
             "sym_name": StringAttr(name),
             "function_type": function_type,
             "sym_visibility": visibility,
+            "arg_attrs": arg_attrs,
+            "res_attrs": res_attrs,
         }
         super().__init__(properties=properties, regions=[region])
 
@@ -106,15 +125,7 @@ class FuncOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        # Parse visibility keyword if present
-        if parser.parse_optional_keyword("public"):
-            visibility = "public"
-        elif parser.parse_optional_keyword("nested"):
-            visibility = "nested"
-        elif parser.parse_optional_keyword("private"):
-            visibility = "private"
-        else:
-            visibility = None
+        visibility = parser.parse_optional_visibility_keyword()
 
         (
             name,
@@ -122,10 +133,17 @@ class FuncOp(IRDLOperation):
             return_types,
             region,
             extra_attrs,
+            arg_attrs,
         ) = parse_func_op_like(
             parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
-        func = FuncOp.from_region(name, input_types, return_types, region, visibility)
+        func = FuncOp(
+            name=name,
+            function_type=(input_types, return_types),
+            region=region,
+            visibility=visibility,
+            arg_attrs=arg_attrs,
+        )
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
         return func
@@ -141,7 +159,13 @@ class FuncOp(IRDLOperation):
             self.function_type,
             self.body,
             self.attributes,
-            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            arg_attrs=self.arg_attrs,
+            reserved_attr_names=(
+                "sym_name",
+                "function_type",
+                "sym_visibility",
+                "arg_attrs",
+            ),
         )
 
     @staticmethod

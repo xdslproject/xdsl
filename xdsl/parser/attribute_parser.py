@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import math
 import re
+import struct
+import sys
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
@@ -19,6 +21,7 @@ from xdsl.dialects.builtin import (
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -35,7 +38,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
+    MemRefType,
     NoneAttr,
+    NoneType,
     OpaqueAttr,
     RankedVectorOrTensorOf,
     Signedness,
@@ -44,12 +49,12 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
+    UnrankedMemrefType,
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
     i64,
 )
-from xdsl.dialects.memref import MemRefType, UnrankedMemrefType
 from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.parser.base_parser import BaseParser
@@ -76,11 +81,19 @@ class AttrParser(BaseParser):
 
     ctx: MLContext
 
+    attribute_aliases: dict[str, Attribute] = field(default_factory=dict)
+    """
+    A dictionary of aliases for attributes.
+    The key is the alias name, including the `!` or `#` prefix.
+    """
+
     def parse_optional_type(self) -> Attribute | None:
         """
         Parse an xDSL type, if present.
         An xDSL type is either a builtin type, which can have various format,
         or a dialect type, with the following format:
+            type          ::= builtin-type | dialect-type | alias-type
+            alias-type    ::= `!` type-name
             dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
             type-name     ::= bare-id
             dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
@@ -92,14 +105,16 @@ class AttrParser(BaseParser):
         if (
             token := self._parse_optional_token(Token.Kind.EXCLAMATION_IDENT)
         ) is not None:
-            return self._parse_dialect_type_or_attribute(token.text[1:], True)
+            return self._parse_extended_type_or_attribute(token.text[1:], True)
         return self._parse_optional_builtin_type()
 
     def parse_type(self) -> Attribute:
         """
         Parse an xDSL type.
         An xDSL type is either a builtin type, which can have various format,
-        or a dialect type, with the following format:
+        or a dialect or alias type, with the following format:
+            type          ::= builtin-type | dialect-type | alias-type
+            alias-type    ::= `!` type-name
             dialect-type  ::= `!` type-name (`<` dialect-type-contents+ `>`)?
             type-name     ::= bare-id
             dialect-type-contents ::= `<` dialect-attribute-contents+ `>`
@@ -114,7 +129,9 @@ class AttrParser(BaseParser):
         """
         Parse an xDSL attribute, if present.
         An attribute is either a builtin attribute, which can have various format,
-        or a dialect attribute, with the following format:
+        or a dialect or alias attribute, with the following format:
+            attr          ::= builtin-attr | dialect-attr | alias-attr
+            alias-attr    ::= `!` attr-name
             dialect-attr  ::= `#` attr-name (`<` dialect-attr-contents+ `>`)?
             attr-name     ::= bare-id
             dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
@@ -124,7 +141,7 @@ class AttrParser(BaseParser):
                             | [^[]<>(){}\0]+
         """
         if (token := self._parse_optional_token(Token.Kind.HASH_IDENT)) is not None:
-            return self._parse_dialect_type_or_attribute(token.text[1:], False)
+            return self._parse_extended_type_or_attribute(token.text[1:], False)
         return self._parse_optional_builtin_attr()
 
     def parse_attribute(self) -> Attribute:
@@ -132,6 +149,8 @@ class AttrParser(BaseParser):
         Parse an xDSL attribute.
         An attribute is either a builtin attribute, which can have various format,
         or a dialect attribute, with the following format:
+            attr          ::= builtin-attr | dialect-attr | alias-attr
+            alias-attr    ::= `!` attr-name
             dialect-attr  ::= `#` attr-name (`<` dialect-attr-contents+ `>`)?
             attr-name     ::= bare-id
             dialect-attr-contents ::= `<` dialect-attribute-contents+ `>`
@@ -223,11 +242,11 @@ class AttrParser(BaseParser):
         else:
             raise TypeError("Attributes are either ParametrizedAttribute or Data.")
 
-    def _parse_dialect_type_or_attribute(
+    def _parse_extended_type_or_attribute(
         self, attr_or_dialect_name: str, is_type: bool = True
     ) -> Attribute:
         """
-        Parse the contents of a dialect type or attribute, with format:
+        Parse the contents of a dialect or alias type or attribute, with format:
             dialect-attr-contents ::= `<` dialect-attr-contents+ `>`
                                     | `(` dialect-attr-contents+ `)`
                                     | `[` dialect-attr-contents+ `]`
@@ -240,23 +259,36 @@ class AttrParser(BaseParser):
         identifier parsed is the dialect name), this function will parse the opaque
         attribute with the following format:
             opaque-attr-contents ::= `<` bare-ident dialect-attr-contents+ `>`
+        otherwise, it will parse them with the pretty or alias syntax, with format:
+            pretty-or-alias-attr-contents ::= `<` dialect-attr-contents+ `>`
         """
-        is_opaque = "." not in attr_or_dialect_name
+        is_pretty_name = "." in attr_or_dialect_name
         starting_opaque_pos = None
-        if is_opaque:
-            self.parse_punctuation("<")
-            attr_name_token = self._parse_token(
-                Token.Kind.BARE_IDENT, "Expected attribute name."
-            )
-            starting_opaque_pos = attr_name_token.span.end
 
-            attr_or_dialect_name += "." + attr_name_token.text
+        if not is_pretty_name:
+            # An attribute or type alias
+            if self.parse_optional_punctuation("<") is None:
+                alias_name = ("!" if is_type else "#") + attr_or_dialect_name
+                if alias_name not in self.attribute_aliases:
+                    self.raise_error(f"undefined symbol alias '{alias_name}'")
+                return self.attribute_aliases[alias_name]
+
+            # An opaque dialect attribute or type
+            # Compared to MLIR, we still go through the symbol parser, instead of the
+            # dialect parser.
+            if not is_pretty_name:
+                attr_name_token = self._parse_token(
+                    Token.Kind.BARE_IDENT, "Expected attribute name."
+                )
+                starting_opaque_pos = attr_name_token.span.end
+
+                attr_or_dialect_name += "." + attr_name_token.text
 
         attr = self._parse_dialect_type_or_attribute_body(
-            attr_or_dialect_name, is_type, is_opaque, starting_opaque_pos
+            attr_or_dialect_name, is_type, not is_pretty_name, starting_opaque_pos
         )
 
-        if is_opaque:
+        if not is_pretty_name:
             self.parse_punctuation(">")
 
         return attr
@@ -566,12 +598,15 @@ class AttrParser(BaseParser):
         # String literal
         if (str_lit := self.parse_optional_str_literal()) is not None:
             return StringAttr(str_lit)
+        # Bytes literal
+        if (bytes_lit := self.parse_optional_bytes_literal()) is not None:
+            return BytesAttr(bytes_lit)
 
         attrs = (
             self.parse_optional_builtin_int_or_float_attr,
             self._parse_optional_array_attr,
             self._parse_optional_symref_attr,
-            self._parse_optional_location,
+            self.parse_optional_location,
             self._parse_optional_builtin_dict_attr,
             self.parse_optional_type,
             self._parse_optional_builtin_parametrized_attr,
@@ -643,26 +678,84 @@ class AttrParser(BaseParser):
         self._consume_token(Token.Kind.BARE_IDENT)
         return parsers[name.text](name)
 
-    def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
-        self.parse_punctuation("<", " in dense attribute")
+    def _parse_builtin_dense_attr_hex(
+        self,
+        hex_string: str,
+        type: (
+            RankedVectorOrTensorOf[IntegerType]
+            | RankedVectorOrTensorOf[IndexType]
+            | RankedVectorOrTensorOf[AnyFloat]
+        ),
+    ) -> tuple[list[int] | list[float], list[int]]:
+        """
+        Parse a hex string literal e.g. dense<"0x82F5AB00">, and returns its flattened data
+        and its flattened shape, based on the parsed type.
 
-        # The flatten list of elements
-        values: list[AttrParser._TensorLiteralElement]
-        # The dense shape.
-        # If it is `None`, then there is no values.
-        # If it is `[]`, then this is a splat attribute, meaning it has the same
-        # value everywhere.
-        shape: list[int] | None
-        if self._current_token.text == ">":
-            values, shape = [], None
+        For instance, a dense<"0x82F5AB0182F5AB00"> attribute will return [28046722, 11269506]
+        for a tensor<2xi32> type.
+
+        Only supports integer types that are multiple of 8, f32 and f64.
+        """
+        element_type = type.element_type
+
+        # Strip off "0x" of hex string
+        stripped_string = hex_string[2:]
+
+        # Convert incoming hex to list of bytes
+        try:
+            byte_list = bytes.fromhex(stripped_string)
+        except ValueError:
+            self.raise_error("Hex string in denseAttr is invalid")
+
+        # Use struct builtin package for unpacking f32, f64
+        format_str: str = ""
+        match element_type:
+            case Float32Type():
+                chunk_size = 4
+                format_str = "@f"  # @ in format string implies native endianess
+            case Float64Type():
+                chunk_size = 8
+                format_str = "@d"
+            case IntegerType():
+                if element_type.width.data % 8 != 0:
+                    self.raise_error(
+                        "Hex strings for dense literals only support integer types that are a multiple of 8 bits"
+                    )
+                chunk_size = element_type.width.data // 8
+            case _:
+                self.raise_error(
+                    "Hex strings for dense literals are only supported for int, f32 and f64 types"
+                )
+        num_chunks = len(byte_list) // chunk_size
+
+        data_values: list[int] | list[float] = []
+
+        # Use struct to unpack floats
+        if isa(element_type, Float32Type | Float64Type):
+            data_values = list(struct.unpack_from(format_str, byte_list))
+        # Use int for unpacking IntegerType
         else:
-            values, shape = self._parse_tensor_literal()
-        self.parse_punctuation(">", " in dense attribute")
+            for i in range(num_chunks):
+                parsed_int = int.from_bytes(
+                    byte_list[i * chunk_size : (i + 1) * chunk_size],
+                    sys.byteorder,
+                    signed=True,
+                )
+                data_values.append(parsed_int)
+        if len(data_values) == 1:
+            # Splat attribute case, same value everywhere,
+            # Emit values repeatedly and emit empty shape
+            return [data_values[0]] * math.prod(type.get_shape()), []
+        return data_values, [num_chunks]
 
-        # Parse the dense type.
-        self.parse_punctuation(":", " in dense attribute")
+    def _parse_dense_literal_type(
+        self,
+    ) -> (
+        RankedVectorOrTensorOf[IntegerType]
+        | RankedVectorOrTensorOf[IndexType]
+        | RankedVectorOrTensorOf[AnyFloat]
+    ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
-
         # Check that the type is correct.
         if not isa(
             type,
@@ -674,29 +767,79 @@ class AttrParser(BaseParser):
                 "Expected vector or tensor type of " "integer, index, or float type"
             )
 
-        # Check that the shape matches the data when given a shaped data.
-        type_shape = list(type.get_shape())
-        num_values = math.prod(type_shape)
-
-        if shape is None and num_values != 0:
-            self.raise_error(
-                "Expected at least one element in the " "dense literal, but got None"
-            )
-        if shape is not None and shape != [] and type_shape != shape:
-            self.raise_error(
-                f"Shape mismatch in dense literal. Expected {type_shape} "
-                f"shape from the type, but got {shape} shape."
-            )
-        if any(dim == -1 for dim in type_shape):
+        # Check for static shapes in type
+        if any(dim == -1 for dim in list(type.get_shape())):
             self.raise_error("Dense literal attribute should have a static shape.")
+        return type
 
-        element_type = type.element_type
-        # Convert list of elements to a list of values.
-        if shape != []:
-            data_values = [value.to_type(self, element_type) for value in values]
+    def _parse_builtin_dense_attr(self, _name: Span) -> DenseIntOrFPElementsAttr:
+        dense_contents: (
+            tuple[list[AttrParser._TensorLiteralElement], list[int]] | str | None
+        )
+        """
+        If `None`, then the contents are empty.
+        If `str`, then this is a hex-encoded string containing the data, which doesn't
+        carry shape information.
+        Otherwise, a tuple of `elements` and `shape`.
+        If `shape` is `[]`, then this is a splat attribute, meaning it has the same value
+        everywhere.
+        """
+
+        self.parse_punctuation("<", " in dense attribute")
+        if self.parse_optional_punctuation(">") is not None:
+            # Empty case
+            dense_contents = None
         else:
-            assert len(values) == 1, "Fatal error in parser"
-            data_values = [values[0].to_type(self, element_type)] * num_values
+            if (hex_string := self.parse_optional_str_literal()) is not None:
+                dense_contents, shape = hex_string, None
+            else:
+                # Expect a tensor literal instead
+                dense_contents = self._parse_tensor_literal()
+            self.parse_punctuation(">", " in dense attribute")
+
+        # Parse the dense type and check for correctness
+        self.parse_punctuation(":", " in dense attribute")
+        type = self._parse_dense_literal_type()
+        type_shape = list(type.get_shape())
+        type_num_values = math.prod(type_shape)
+
+        if dense_contents is None:
+            # Empty case
+            if type_num_values != 0:
+                self.raise_error(
+                    "Expected at least one element in the dense literal, but got None"
+                )
+            data_values = []
+        elif isinstance(dense_contents, str):
+            # Hex-encoded string case
+            # Get values and shape in case of hex_string (requires parsed type)
+            data_values, shape = self._parse_builtin_dense_attr_hex(
+                dense_contents, type
+            )
+            # For splat attributes any shape is fine
+            if shape and type_num_values != shape[0]:
+                self.raise_error(
+                    f"Shape mismatch in dense literal. Expected {type_num_values} "
+                    f"elements from the type, but got {shape[0]} elements."
+                )
+        else:
+            # Tensor literal case
+            dense_values, shape = dense_contents
+            data_values = [
+                value.to_type(self, type.element_type) for value in dense_values
+            ]
+            # Elements from _parse_tensor_literal need to be converted to values.
+            if shape:
+                # Check that the shape matches the data when given a shaped data.
+                # For splat attributes any shape is fine
+                if type_shape != shape:
+                    self.raise_error(
+                        f"Shape mismatch in dense literal. Expected {type_shape} "
+                        f"shape from the type, but got {shape} shape."
+                    )
+            else:
+                assert len(data_values) == 1, "Fatal error in parser"
+                data_values *= type_num_values
 
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 
@@ -740,7 +883,10 @@ class AttrParser(BaseParser):
 
         self.parse_characters(":", " in dense array")
 
-        values = self.parse_comma_separated_list(self.Delimiter.NONE, self.parse_number)
+        values = self.parse_comma_separated_list(
+            self.Delimiter.NONE, lambda: self.parse_number(allow_boolean=True)
+        )
+
         self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
@@ -885,6 +1031,27 @@ class AttrParser(BaseParser):
             element = self._parse_tensor_literal_element()
             return [element], []
 
+    def parse_optional_visibility_keyword(self) -> StringAttr | None:
+        """
+        Parses the visibility keyword of a symbol if present.
+        """
+        if self.parse_optional_keyword("public"):
+            return StringAttr("public")
+        elif self.parse_optional_keyword("nested"):
+            return StringAttr("nested")
+        elif self.parse_optional_keyword("private"):
+            return StringAttr("private")
+        else:
+            return None
+
+    def parse_visibility_keyword(self) -> StringAttr:
+        """
+        Parses the visibility keyword of a symbol.
+        """
+        return self.expect(
+            self.parse_optional_visibility_keyword, "expect symbol visibility keyword"
+        )
+
     def parse_optional_symbol_name(self) -> StringAttr | None:
         """
         Parse an @-identifier if present, and return its name (without the '@') in a
@@ -936,7 +1103,7 @@ class AttrParser(BaseParser):
 
         return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
-    def _parse_optional_location(self) -> LocationAttr | None:
+    def parse_optional_location(self) -> LocationAttr | None:
         """
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`
@@ -987,6 +1154,15 @@ class AttrParser(BaseParser):
     ) -> IntegerAttr[IntegerType | IndexType] | None:
         if (value := self.parse_optional_boolean()) is not None:
             return IntegerAttr(1 if value else 0, IntegerType(1))
+        return None
+
+    def _parse_optional_none_type(self) -> NoneType | None:
+        """
+        Parse a none type, if present
+        none-type ::= `none`
+        """
+        if self.parse_optional_keyword("none"):
+            return NoneType()
         return None
 
     def _parse_optional_string_attr(self) -> StringAttr | None:
@@ -1128,7 +1304,7 @@ class AttrParser(BaseParser):
 
     def _parse_optional_builtin_type(self) -> Attribute | None:
         """
-        parse a builtin-type, like i32, index, vector<i32>, if present.
+        parse a builtin-type, like i32, index, vector<i32>, none, if present.
         """
 
         # Check for a function type
@@ -1138,6 +1314,10 @@ class AttrParser(BaseParser):
         # Check for an integer or float type
         if (number_type := self._parse_optional_integer_or_float_type()) is not None:
             return number_type
+
+        # check for a none type
+        if (none_type := self._parse_optional_none_type()) is not None:
+            return none_type
 
         return self._parse_optional_builtin_parametrized_type()
 

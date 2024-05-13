@@ -32,8 +32,10 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    HasCanonicalisationPatternsTrait,
     HasParent,
     IsTerminator,
     SingleBlockImplicitTerminator,
@@ -80,6 +82,71 @@ class While(IRDLOperation):
                     f"Block arguments with wrong type, expected {res.type}, "
                     f"got {self.after_region.block.args[idx].type}"
                 )
+
+    def print(self, printer: Printer):
+        printer.print_string(" (")
+        block_args = self.before_region.block.args
+        printer.print_list(
+            zip(block_args, self.arguments, strict=True),
+            lambda pair: printer.print(pair[0], " = ", pair[1]),
+        )
+        printer.print_string(") : ")
+        printer.print_operation_type(self)
+        printer.print_string(" ")
+        printer.print_region(self.before_region, print_entry_block_args=False)
+        printer.print(" do ")
+        printer.print_region(self.after_region)
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        def parse_assignment():
+            arg = parser.parse_argument(expect_type=False)
+            parser.parse_punctuation("=")
+            operand = parser.parse_unresolved_operand()
+            return arg, operand
+
+        tuples = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN,
+            parse_assignment,
+        )
+
+        parser.parse_punctuation(":")
+        type_pos = parser.pos
+        function_type = parser.parse_function_type()
+
+        if len(tuples) != len(function_type.inputs.data):
+            parser.raise_error(
+                f"Mismatch between block argument count ({len(tuples)}) and operand count ({len(function_type.inputs.data)})",
+                type_pos,
+                parser.pos,
+            )
+
+        block_args = tuple(
+            block_arg.resolve(t)
+            for ((block_arg, _), t) in zip(
+                tuples, function_type.inputs.data, strict=True
+            )
+        )
+
+        arguments = tuple(
+            parser.resolve_operand(operand, t)
+            for ((_, operand), t) in zip(tuples, function_type.inputs.data, strict=True)
+        )
+
+        before_region = parser.parse_region(block_args)
+        parser.parse_characters("do")
+        after_region = parser.parse_region()
+
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+
+        op = cls(arguments, function_type.outputs.data, before_region, after_region)
+
+        if attrs is not None:
+            op.attributes = attrs.data
+
+        return op
 
 
 @irdl_op_definition
@@ -130,6 +197,14 @@ class If(IRDLOperation):
         return If(cond, return_types, true_region, false_region)
 
 
+class ForOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.scf import SimplifyTrivialLoops
+
+        return (SimplifyTrivialLoops(),)
+
+
 @irdl_op_definition
 class For(IRDLOperation):
     name = "scf.for"
@@ -146,7 +221,9 @@ class For(IRDLOperation):
 
     body: Region = region_def("single_block")
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+    traits = frozenset(
+        [SingleBlockImplicitTerminator(Yield), ForOpHasCanonicalizationPatternsTrait()]
+    )
 
     def __init__(
         self,
@@ -255,7 +332,7 @@ class For(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         # Parse bounds
-        indvar = parser.parse_argument(expect_type=False)
+        unresolved_indvar = parser.parse_argument(expect_type=False)
         parser.parse_characters("=")
         lb = parser.parse_operand()
         parser.parse_characters("to")
@@ -265,14 +342,14 @@ class For(IRDLOperation):
 
         # Parse iteration arguments
         pos = parser.pos
-        iter_args: list[Parser.Argument] = []
+        unresolved_iter_args: list[Parser.UnresolvedArgument] = []
         iter_arg_unresolved_operands: list[UnresolvedOperand] = []
         iter_arg_types: list[Attribute] = []
         if parser.parse_optional_characters("iter_args"):
             for iter_arg, iter_arg_operand in parser.parse_comma_separated_list(
                 Parser.Delimiter.PAREN, lambda: parse_assignment(parser)
             ):
-                iter_args.append(iter_arg)
+                unresolved_iter_args.append(iter_arg)
                 iter_arg_unresolved_operands.append(iter_arg_operand)
             parser.parse_characters("->")
             iter_arg_types = parser.parse_comma_separated_list(
@@ -284,13 +361,14 @@ class For(IRDLOperation):
         )
 
         # Set induction variable type
-        indvar.type = lb.type
+        indvar = unresolved_indvar.resolve(lb.type)
         if parser.parse_optional_characters(":"):
             indvar.type = parser.parse_type()
 
         # Set block argument types
-        for iter_arg, iter_arg_type in zip(iter_args, iter_arg_types):
-            iter_arg.type = iter_arg_type
+        iter_args = [
+            u_arg.resolve(t) for u_arg, t in zip(unresolved_iter_args, iter_arg_types)
+        ]
 
         # Parse body
         body = parser.parse_region((indvar, *iter_args))
@@ -535,6 +613,45 @@ class Condition(IRDLOperation):
     @deprecated("use __init__ constructor instead!")
     def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
         return Condition(cond, *output_ops)
+
+    def print(self, printer: Printer):
+        printer.print("(", self.cond, ")")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes)
+        if self.arguments:
+            printer.print(" ")
+            printer.print_list(self.arguments, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list(
+                self.arguments, lambda val: printer.print_attribute(val.type)
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        parser.parse_punctuation("(")
+        unresolved_cond = parser.parse_unresolved_operand("cond expected")
+        parser.parse_punctuation(")")
+        cond = parser.resolve_operand(unresolved_cond, IntegerType(1))
+        attrs = parser.parse_optional_attr_dict()
+
+        # scf.condition is a terminator, so the list of arguments cannot be confused with
+        # the results of a hypothetical operation on the next line.
+        pos = parser.pos
+        unresolved_arguments = parser.parse_optional_undelimited_comma_separated_list(
+            parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
+        )
+        if unresolved_arguments is not None:
+            parser.parse_punctuation(":")
+            types = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_type
+            )
+            arguments = parser.resolve_operands(unresolved_arguments, types, pos)
+        else:
+            arguments: Sequence[SSAValue] = ()
+
+        op = cls(cond, *arguments)
+        op.attributes = attrs
+        return op
 
 
 Scf = Dialect(

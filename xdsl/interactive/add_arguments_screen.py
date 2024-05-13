@@ -5,7 +5,7 @@ from textual.screen import Screen
 from textual.widgets import Button, TextArea
 
 
-class AddArguments(Screen[str]):
+class AddArguments(Screen[str | None]):
     """
     Screen called when selected pass has arguments requiring user input.
     """
@@ -30,13 +30,13 @@ class AddArguments(Screen[str]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
-        self.query_one(
-            "#argument_text_area"
-        ).border_title = "Provide arguments to apply to selected pass."
+        self.query_one("#argument_text_area").border_title = (
+            "Provide arguments to apply to selected pass."
+        )
 
     @on(Button.Pressed, "#quit_screen_button")
     def exit_screen(self, event: Button.Pressed) -> None:
-        self.dismiss()
+        self.dismiss(None)
 
     @on(Button.Pressed, "#clear_input_screen_button")
     def clear_text_area(self, event: Button.Pressed) -> None:

@@ -1,12 +1,15 @@
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from contextlib import redirect_stdout
 from importlib.metadata import version
 from io import StringIO
+from itertools import accumulate
 from typing import IO
 
+from xdsl.backend.csl.print_csl import print_to_csl
+from xdsl.dialects import riscv, x86
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.riscv import print_assembly, riscv_code
 from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
@@ -61,11 +64,12 @@ class xDSLOptMain(CommandLineTool):
         chunks, file_extension = self.prepare_input()
         output_stream = self.prepare_output()
         try:
-            for i, chunk in enumerate(chunks):
+            for i, (chunk, offset) in enumerate(chunks):
                 try:
                     if i > 0:
                         output_stream.write("// -----\n")
-                    module = self.parse_chunk(chunk, file_extension)
+                    module = self.parse_chunk(chunk, file_extension, offset)
+
                     if module is not None:
                         if self.apply_passes(module):
                             output_stream.write(self.output_resulting_program(module))
@@ -148,6 +152,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--print-no-properties",
+            default=False,
+            action="store_true",
+            help="Print properties as if they were attributes for retrocompatibility.",
+        )
+
+        arg_parser.add_argument(
             "--print-debuginfo",
             default=False,
             action="store_true",
@@ -172,7 +183,7 @@ class xDSLOptMain(CommandLineTool):
 
         Add other/additional passes by overloading this function.
         """
-        for pass_name, pass_factory in get_all_passes():
+        for pass_name, pass_factory in get_all_passes().items():
             self.register_pass(pass_name, pass_factory)
 
     def register_all_targets(self):
@@ -186,29 +197,35 @@ class xDSLOptMain(CommandLineTool):
             printer = Printer(
                 stream=output,
                 print_generic_format=self.args.print_op_generic,
+                print_properties_as_attributes=self.args.print_no_properties,
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
-            print_assembly(prog, output)
+            riscv.print_assembly(prog, output)
+
+        def _output_x86_asm(prog: ModuleOp, output: IO[str]):
+            x86.ops.print_assembly(prog, output)
 
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
             try:
-                from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
+                from xdsl.interpreters.riscv_emulator import run_riscv
             except ImportError:
                 print("Please install optional dependencies to run riscv emulation")
                 return
 
-            code = riscv_code(prog)
-            RV_Debug.stream = output
-            run_riscv(code, unlimited_regs=True, verbosity=0)
+            code = riscv.riscv_code(prog)
+            with redirect_stdout(output):
+                run_riscv(code, unlimited_regs=True, verbosity=0)
 
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
+        self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
+        self.available_targets["csl"] = print_to_csl
 
     def setup_pipeline(self):
         """
@@ -216,11 +233,6 @@ class xDSLOptMain(CommandLineTool):
 
         Fails, if not all passes are registered.
         """
-        pipeline = list(parse_pipeline(self.args.passes))
-
-        for p in pipeline:
-            if p.name not in self.available_passes:
-                raise Exception(f"Unrecognized pass: {p.name}")
 
         def callback(
             previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
@@ -234,11 +246,16 @@ class xDSLOptMain(CommandLineTool):
                 print("\n\n\n")
 
         self.pipeline = PipelinePass(
-            [self.available_passes[p.name]().from_pass_spec(p) for p in pipeline],
+            tuple(
+                pass_type.from_pass_spec(spec)
+                for pass_type, spec in PipelinePass.build_pipeline_tuples(
+                    self.available_passes, parse_pipeline(self.args.passes)
+                )
+            ),
             callback,
         )
 
-    def prepare_input(self) -> tuple[list[IO[str]], str]:
+    def prepare_input(self) -> tuple[list[tuple[IO[str], int]], str]:
         """
         Prepare input by eventually splitting it in chunks. If not set, the parser
         registered for this file extension is used.
@@ -247,17 +264,24 @@ class xDSLOptMain(CommandLineTool):
         # when using the split input flag, program is split into multiple chunks
         # it's used for split input file
 
-        chunks: list[IO[str]] = []
+        chunks: list[tuple[IO[str], int]] = []
         f, file_extension = self.get_input_stream()
-        chunks = [f]
+        chunks = [(f, 0)]
         if self.args.split_input_file:
-            chunks = [StringIO(chunk) for chunk in f.read().split("// -----")]
+            chunks_str = [chunk for chunk in f.read().split("// -----")]
+            chunks_off = accumulate(
+                [0, *[chunk.count("\n") for chunk in chunks_str[:-1]]]
+            )
+            chunks = [
+                (StringIO(chunk), off)
+                for chunk, off in zip(chunks_str, chunks_off, strict=True)
+            ]
             f.close()
         if self.args.frontend:
             file_extension = self.args.frontend
 
         if file_extension not in self.available_frontends:
-            for chunk in chunks:
+            for chunk, _ in chunks:
                 chunk.close()
             raise Exception(f"Unrecognized file extension '{file_extension}'")
 

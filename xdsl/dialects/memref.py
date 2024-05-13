@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, cast
+from typing import Annotated, cast
 
 from typing_extensions import Self
 
@@ -10,19 +10,20 @@ from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
     ArrayAttr,
-    ContainerType,
+    BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     NoneAttr,
-    ShapedType,
     StridedLayoutAttr,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    UnrankedMemrefType,
     i32,
     i64,
 )
@@ -31,18 +32,15 @@ from xdsl.ir import (
     Dialect,
     Operation,
     OpResult,
-    ParametrizedAttribute,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     Operand,
-    ParameterDef,
+    ParsePropInAttrDict,
     VarOperand,
-    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -52,148 +50,35 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
+from xdsl.printer import Printer
 from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
     HasParent,
     IsTerminator,
     SymbolOpInterface,
 )
+from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-if TYPE_CHECKING:
-    from xdsl.parser import AttrParser, Parser
-    from xdsl.printer import Printer
-
-
-_MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
-
-
-@irdl_attr_definition
-class MemRefType(
-    Generic[_MemRefTypeElement],
-    ParametrizedAttribute,
-    TypeAttribute,
-    ShapedType,
-    ContainerType[_MemRefTypeElement],
-):
-    name = "memref"
-
-    shape: ParameterDef[ArrayAttr[IntAttr]]
-    element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[Attribute]
-    memory_space: ParameterDef[Attribute]
-
-    def __init__(
-        self: MemRefType[_MemRefTypeElement],
-        element_type: _MemRefTypeElement,
-        shape: Iterable[int | IntAttr],
-        layout: Attribute = NoneAttr(),
-        memory_space: Attribute = NoneAttr(),
-    ):
-        shape = ArrayAttr(
-            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
-        )
-        super().__init__(
-            [
-                shape,
-                element_type,
-                layout,
-                memory_space,
-            ]
-        )
-
-    def get_num_dims(self) -> int:
-        return len(self.shape.data)
-
-    def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.data for i in self.shape.data)
-
-    def get_element_type(self) -> _MemRefTypeElement:
-        return self.element_type
-
-    @deprecated_constructor
-    @staticmethod
-    def from_element_type_and_shape(
-        referenced_type: _MemRefTypeElement,
-        shape: Iterable[int | AnyIntegerAttr],
-        layout: Attribute = NoneAttr(),
-        memory_space: Attribute = NoneAttr(),
-    ) -> MemRefType[_MemRefTypeElement]:
-        shape_int = [i if isinstance(i, int) else i.value.data for i in shape]
-        return MemRefType(referenced_type, shape_int, layout, memory_space)
-
-    @deprecated_constructor
-    @staticmethod
-    def from_params(
-        referenced_type: _MemRefTypeElement,
-        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)]
-        ),
-        layout: Attribute = NoneAttr(),
-        memory_space: Attribute = NoneAttr(),
-    ) -> MemRefType[_MemRefTypeElement]:
-        shape_int = [i.value.data for i in shape.data]
-        return MemRefType(referenced_type, shape_int, layout, memory_space)
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_punctuation("<", " in memref attribute")
-        shape = parser.parse_attribute()
-        parser.parse_punctuation(",", " between shape and element type parameters")
-        type = parser.parse_attribute()
-        # If we have a layout or a memory space, parse both of them.
-        if parser.parse_optional_punctuation(",") is None:
-            parser.parse_punctuation(">", " at end of memref attribute")
-            return [shape, type, NoneAttr(), NoneAttr()]
-        layout = parser.parse_attribute()
-        parser.parse_punctuation(",", " between layout and memory space")
-        memory_space = parser.parse_attribute()
-        parser.parse_punctuation(">", " at end of memref attribute")
-
-        return [shape, type, layout, memory_space]
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print("<", self.shape, ", ", self.element_type)
-        if self.layout != NoneAttr() or self.memory_space != NoneAttr():
-            printer.print(", ", self.layout, ", ", self.memory_space)
-        printer.print(">")
-
-
-_UnrankedMemrefTypeElems = TypeVar(
-    "_UnrankedMemrefTypeElems", bound=Attribute, covariant=True
-)
-_UnrankedMemrefTypeElemsInit = TypeVar("_UnrankedMemrefTypeElemsInit", bound=Attribute)
-
-
-@irdl_attr_definition
-class UnrankedMemrefType(
-    Generic[_UnrankedMemrefTypeElems], ParametrizedAttribute, TypeAttribute
-):
-    name = "unranked_memref"
-
-    element_type: ParameterDef[_UnrankedMemrefTypeElems]
-    memory_space: ParameterDef[Attribute]
-
-    @staticmethod
-    def from_type(
-        referenced_type: _UnrankedMemrefTypeElemsInit,
-        memory_space: Attribute = NoneAttr(),
-    ) -> UnrankedMemrefType[_UnrankedMemrefTypeElemsInit]:
-        return UnrankedMemrefType([referenced_type, memory_space])
-
-
-AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]
-
 
 @irdl_op_definition
 class Load(IRDLOperation):
+    T = Annotated[Attribute, ConstraintVar("T")]
+
     name = "memref.load"
-    memref: Operand = operand_def(MemRefType[Attribute])
-    indices: VarOperand = var_operand_def(IndexType)
-    res: OpResult = result_def(AnyAttr())
+
+    nontemporal = opt_prop_def(BoolAttr)
+
+    memref: Operand = operand_def(MemRefType[T])
+    indices: VarOperand = var_operand_def(IndexType())
+    res: OpResult = result_def(T)
+
+    irdl_options = [ParsePropInAttrDict()]
+    assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
 
     # TODO varargs for indexing, which must match the memref dimensions
     # Problem: memref dimensions require variadic type parameters,
@@ -205,9 +90,6 @@ class Load(IRDLOperation):
             raise VerifyException("expected a memreftype")
 
         memref_type = cast(MemRefType[Attribute], memref_type)
-
-        if memref_type.element_type != self.res.type:
-            raise Exception("expected return type to match the MemRef element type")
 
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("expected an index for each dimension")
@@ -221,49 +103,27 @@ class Load(IRDLOperation):
         ssa_value_type = cast(MemRefType[Attribute], ssa_value_type)
         return cls(operands=[ref, indices], result_types=[ssa_value_type.element_type])
 
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        unresolved_ref = parser.parse_unresolved_operand()
-        unresolved_indices = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
-        )
-        attributes = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        ref_type = parser.parse_attribute()
-        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
-        resolved_indices = [
-            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
-        ]
-        res = cls.get(resolved_ref, resolved_indices)
-        res.attributes.update(attributes)
-        return res
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print(self.memref)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_operand)
-        printer.print_string("]")
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.memref.type)
-
 
 @irdl_op_definition
 class Store(IRDLOperation):
+    T = Annotated[Attribute, ConstraintVar("T")]
+
     name = "memref.store"
-    value: Operand = operand_def(AnyAttr())
-    memref: Operand = operand_def(MemRefType[Attribute])
-    indices: VarOperand = var_operand_def(IndexType)
+
+    nontemporal = opt_prop_def(BoolAttr)
+
+    value: Operand = operand_def(T)
+    memref: Operand = operand_def(MemRefType[T])
+    indices: VarOperand = var_operand_def(IndexType())
+
+    irdl_options = [ParsePropInAttrDict()]
+    assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
 
     def verify_(self):
         if not isinstance(memref_type := self.memref.type, MemRefType):
             raise VerifyException("expected a memreftype")
 
         memref_type = cast(MemRefType[Attribute], memref_type)
-
-        if memref_type.element_type != self.value.type:
-            raise Exception("Expected value type to match the MemRef element type")
 
         if memref_type.get_num_dims() != len(self.indices):
             raise Exception("Expected an index for each dimension")
@@ -276,37 +136,6 @@ class Store(IRDLOperation):
         indices: Sequence[Operation | SSAValue],
     ) -> Self:
         return cls(operands=[value, ref, indices])
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        value = parser.parse_operand()
-        parser.parse_punctuation(",")
-        unresolved_ref = parser.parse_unresolved_operand()
-        unresolved_indices = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
-        )
-        attributes = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        ref_type = parser.parse_attribute()
-        resolved_ref = parser.resolve_operand(unresolved_ref, ref_type)
-        resolved_indices = [
-            parser.resolve_operand(index, IndexType()) for index in unresolved_indices
-        ]
-        res = cls.get(value, resolved_ref, resolved_indices)
-        res.attributes.update(attributes)
-        return res
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print(self.value)
-        printer.print_string(", ")
-        printer.print(self.memref)
-        printer.print_string("[")
-        printer.print_list(self.indices, printer.print_operand)
-        printer.print_string("]")
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.memref.type)
 
 
 @irdl_op_definition
@@ -323,15 +152,29 @@ class Alloc(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    @staticmethod
+    def __init__(
+        self,
+        dynamic_sizes: Sequence[SSAValue],
+        symbol_operands: Sequence[SSAValue],
+        result_type: Attribute,
+        alignment: Attribute | None = None,
+    ):
+        super().__init__(
+            operands=(dynamic_sizes, symbol_operands),
+            result_types=(result_type,),
+            properties={"alignment": alignment},
+        )
+
+    @classmethod
     def get(
+        cls,
         return_type: Attribute,
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
         layout: Attribute = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
-    ) -> Alloc:
+    ) -> Self:
         if shape is None:
             shape = [1]
 
@@ -341,12 +184,11 @@ class Alloc(IRDLOperation):
         if isinstance(alignment, int):
             alignment = IntegerAttr.from_int_and_width(alignment, 64)
 
-        return Alloc.build(
-            operands=[dynamic_sizes, []],
-            result_types=[MemRefType(return_type, shape, layout, memory_space)],
-            properties={
-                "alignment": alignment,
-            },
+        return cls(
+            tuple(SSAValue.get(ds) for ds in dynamic_sizes),
+            (),
+            MemRefType(return_type, shape, layout, memory_space),
+            alignment,
         )
 
     def verify_(self) -> None:
@@ -360,6 +202,67 @@ class Alloc(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+
+    def print(self, printer: Printer):
+        printer.print_string("(")
+        printer.print_list(self.dynamic_sizes, printer.print_ssa_value)
+        printer.print_string(")")
+        if self.symbol_operands:
+            printer.print_string("[")
+            printer.print_list(self.symbol_operands, printer.print_ssa_value)
+            printer.print_string("]")
+
+        printer.print_op_attributes(
+            self.properties | self.attributes,
+            print_keyword=False,
+            reserved_attr_names="operandSegmentSizes",
+        )
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.memref.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        #  %alloc = memref.alloc(%a)[%s] {alignment = 64 : i64} : memref<3x2xf32>
+
+        unresolved_dynamic_sizes = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_unresolved_operand
+        )
+        unresolved_symbol_operands = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, parser.parse_unresolved_operand
+        )
+        if unresolved_symbol_operands is None:
+            unresolved_symbol_operands = []
+
+        attrs = parser.parse_optional_attr_dict()
+
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+
+        index = IndexType()
+        dynamic_sizes = tuple(
+            parser.resolve_operand(uop, index) for uop in unresolved_dynamic_sizes
+        )
+        symbol_operands = tuple(
+            parser.resolve_operand(uop, index) for uop in unresolved_symbol_operands
+        )
+
+        if "alignment" in attrs:
+            alignment = attrs["alignment"]
+            del attrs["alignment"]
+        else:
+            alignment = None
+
+        op = cls(
+            dynamic_sizes,
+            symbol_operands,
+            res_type,
+            alignment,
+        )
+
+        op.attributes |= attrs
+
+        return op
 
 
 @irdl_op_definition
@@ -449,6 +352,8 @@ class Dealloc(IRDLOperation):
     def get(operand: Operation | SSAValue) -> Dealloc:
         return Dealloc.build(operands=[operand])
 
+    assembly_format = "$memref attr-dict `:` type($memref)"
+
 
 @irdl_op_definition
 class GetGlobal(IRDLOperation):
@@ -462,6 +367,8 @@ class GetGlobal(IRDLOperation):
             result_types=[return_type], properties={"name": SymbolRefAttr(name)}
         )
 
+    assembly_format = "$name `:` type($memref) attr-dict"
+
     # TODO how to verify the types, as the global might be defined in another
     # compilation unit
 
@@ -470,10 +377,12 @@ class GetGlobal(IRDLOperation):
 class Global(IRDLOperation):
     name = "memref.global"
 
-    sym_name = prop_def(StringAttr)
-    sym_visibility = opt_prop_def(StringAttr)
-    type = prop_def(Attribute)
-    initial_value = opt_prop_def(Attribute)
+    sym_name: StringAttr = prop_def(StringAttr)
+    sym_visibility: StringAttr = prop_def(StringAttr)
+    type: Attribute = prop_def(Attribute)
+    initial_value: Attribute = prop_def(Attribute)
+    constant = opt_prop_def(UnitAttr)
+    alignment = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -502,6 +411,14 @@ class Global(IRDLOperation):
                 "Global initial value is expected to be a "
                 "dense type or an unit attribute"
             )
+        if self.alignment is not None:
+            assert isinstance(self.alignment, IntegerAttr)
+            alignment_value = self.alignment.value.data
+            # Alignment has to be a power of two
+            if not (is_power_of_two(alignment_value)):
+                raise VerifyException(
+                    f"Alignment attribute {alignment_value} is not a power of 2"
+                )
 
     @deprecated_constructor
     @staticmethod
@@ -510,8 +427,22 @@ class Global(IRDLOperation):
         sym_type: Attribute,
         initial_value: Attribute | None,
         sym_visibility: StringAttr = StringAttr("private"),
+        constant: UnitAttr | None = None,
+        alignment: int | IntegerAttr[IntegerType] | None = None,
     ) -> Global:
-        return Global(sym_name, sym_type, initial_value, sym_visibility)
+        if isinstance(alignment, int):
+            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+
+        return Global.build(
+            properties={
+                "sym_name": sym_name,
+                "type": sym_type,
+                "initial_value": initial_value,
+                "sym_visibility": sym_visibility,
+                "constant": constant,
+                "alignment": alignment,
+            }
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -593,6 +524,38 @@ class Rank(IRDLOperation):
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
         return Rank.build(operands=[memref], result_types=[IndexType()])
+
+
+ReassociationAttr = ArrayAttr[
+    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
+]
+
+
+class AlterShapeOp(IRDLOperation):
+    src: Operand = operand_def(MemRefType)
+    result: OpResult = result_def(MemRefType)
+    reassociation = prop_def(ReassociationAttr)
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
+
+@irdl_op_definition
+class CollapseShapeOp(AlterShapeOp):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
+    """
+
+    name = "memref.collapse_shape"
+
+
+@irdl_op_definition
+class ExpandShapeOp(AlterShapeOp):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
+    """
+
+    name = "memref.expand_shape"
 
 
 @irdl_op_definition
@@ -889,6 +852,8 @@ MemRef = Dialect(
         AllocaScopeOp,
         AllocaScopeReturnOp,
         CopyOp,
+        CollapseShapeOp,
+        ExpandShapeOp,
         Dealloc,
         GetGlobal,
         Global,
@@ -900,5 +865,5 @@ MemRef = Dialect(
         DmaStartOp,
         DmaWaitOp,
     ],
-    [MemRefType, UnrankedMemrefType],
+    [],
 )

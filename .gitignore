@@ -70,6 +70,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/ret.mlir
 
 # PyBuilder
 .pybuilder/
@@ -157,3 +158,7 @@ docs/ret.xdsl
 
 # asv
 .asv
+
+# direnv
+.direnv
+.envrc

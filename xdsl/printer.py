@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable, Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.dialects.builtin import (
@@ -11,10 +12,12 @@ from xdsl.dialects.builtin import (
     AffineSetAttr,
     AnyFloatAttr,
     AnyIntegerAttr,
+    AnyUnrankedMemrefType,
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
     BFloat16Type,
+    BytesAttr,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -33,7 +36,9 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
+    MemRefType,
     NoneAttr,
+    NoneType,
     OpaqueAttr,
     Signedness,
     StridedLayoutAttr,
@@ -41,12 +46,13 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     TensorType,
     UnitAttr,
+    UnrankedMemrefType,
     UnrankedTensorType,
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
+    i1,
 )
-from xdsl.dialects.memref import AnyUnrankedMemrefType, MemRefType, UnrankedMemrefType
 from xdsl.ir import (
     Attribute,
     Block,
@@ -56,11 +62,13 @@ from xdsl.ir import (
     Operation,
     ParametrizedAttribute,
     Region,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.traits import IsTerminator
 from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.lexer import Lexer
 
 indentNumSpaces = 2
 
@@ -69,6 +77,7 @@ indentNumSpaces = 2
 class Printer:
     stream: Any | None = field(default=None)
     print_generic_format: bool = field(default=False)
+    print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
 
@@ -117,6 +126,7 @@ class Printer:
                 self.print_op(arg)
                 self._print_new_line()
                 continue
+
             text = str(arg)
             self.print_string(text)
 
@@ -169,7 +179,7 @@ class Printer:
     V = TypeVar("V")
 
     def print_list(
-        self, elems: Iterable[T], print_fn: Callable[[T], None], delimiter: str = ", "
+        self, elems: Iterable[T], print_fn: Callable[[T], Any], delimiter: str = ", "
     ) -> None:
         for i, elem in enumerate(elems):
             if i:
@@ -219,12 +229,14 @@ class Printer:
         self.print_list(op.results, self.print)
         self.print(" = ")
 
-    def print_ssa_value(self, value: SSAValue) -> None:
+    def print_ssa_value(self, value: SSAValue) -> str:
         """
         Print an SSA value in the printer. This assigns a name to the value if the value
         does not have one in the current printing context.
         If the value has a name hint, it will use it as a prefix, and otherwise assign
         a number as the name. Numbers are assigned in order.
+
+        Returns the name used for printing the value.
         """
         if value in self._ssa_values:
             name = self._ssa_values[value]
@@ -239,6 +251,7 @@ class Printer:
             self._ssa_values[value] = name
 
         self.print(f"%{name}")
+        return name
 
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
@@ -350,6 +363,28 @@ class Printer:
     def print_string_literal(self, string: str):
         self.print(json.dumps(string))
 
+    def print_identifier_or_string_literal(self, string: str):
+        """
+        Prints the provided string as an identifier if it is one,
+        and as a string literal otherwise.
+        """
+        if Lexer.bare_identifier_regex.fullmatch(string) is None:
+            self.print_string_literal(string)
+            return
+        self.print(string)
+
+    def print_bytes_literal(self, bytestring: bytes):
+        self.print('"')
+        for byte in bytestring:
+            match byte:
+                case 0x5C:  # ord("\\")
+                    self.print("\\\\")
+                case _ if 0x20 > byte or byte > 0x7E or byte == 0x22:
+                    self.print(f"\\{byte:02X}")
+                case _:
+                    self.print(chr(byte))
+        self.print('"')
+
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
             return
@@ -391,10 +426,16 @@ class Printer:
             self.print_string_literal(attribute.data)
             return
 
+        if isinstance(attribute, BytesAttr):
+            self.print_bytes_literal(attribute.data)
+            return
+
         if isinstance(attribute, SymbolRefAttr):
-            self.print(f"@{attribute.root_reference.data}")
+            self.print("@")
+            self.print_identifier_or_string_literal(attribute.root_reference.data)
             for ref in attribute.nested_references.data:
-                self.print(f"::@{ref.data}")
+                self.print("::@")
+                self.print_identifier_or_string_literal(ref.data)
             return
 
         if isinstance(attribute, IntegerAttr):
@@ -408,8 +449,8 @@ class Printer:
                 self.print("false" if attribute.value.data == 0 else "true")
                 return
 
-            width = attribute.parameters[0]
-            attr_type = attribute.parameters[1]
+            width = attribute.value
+            attr_type = attribute.type
             assert isinstance(width, IntAttr)
             self.print(width.data)
             self.print(" : ")
@@ -445,16 +486,19 @@ class Printer:
                 self.print(">")
                 return
             self.print(": ")
-            self.print_list(data.data, lambda x: self.print(x.data))
+            # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
+            # therefore we need to print these as false and true
+            if attribute.elt_type == i1:
+                self.print_list(
+                    data.data, lambda x: self.print("true" if x.data == 1 else "false")
+                )
+            else:
+                self.print_list(data.data, lambda x: self.print(x.data))
             self.print(">")
             return
 
         if isinstance(attribute, DictionaryAttr):
-            self.print_string("{")
-            self.print_dictionary(
-                attribute.data, self.print_string_literal, self.print_attribute
-            )
-            self.print_string("}")
+            self.print_attr_dict(attribute.data)
             return
 
         if isinstance(attribute, FunctionType):
@@ -618,6 +662,10 @@ class Printer:
             self.print("index")
             return
 
+        if isinstance(attribute, NoneType):
+            self.print("none")
+            return
+
         if isinstance(attribute, OpaqueAttr):
             self.print("opaque<", attribute.ident, ", ", attribute.value, ">")
             if not isinstance(attribute.type, NoneAttr):
@@ -656,6 +704,8 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(attribute.name.replace(".", "<", 1))
+            if isinstance(attribute, SpacedOpaqueSyntaxAttribute):
+                self.print(" ")
         else:
             self.print(attribute.name)
 
@@ -667,6 +717,7 @@ class Printer:
 
         if isinstance(attribute, OpaqueSyntaxAttribute):
             self.print(">")
+
         return
 
     def print_successors(self, successors: list[Block]):
@@ -683,13 +734,18 @@ class Printer:
             self.print(f'"{attr_tuple[0]}" = ')
             self.print_attribute(attr_tuple[1])
 
+    def print_attr_dict(self, attr_dict: dict[str, Attribute]) -> None:
+        self.print_string("{")
+        self.print_list(attr_dict.items(), self._print_attr_string)
+        self.print_string("}")
+
     def _print_op_properties(self, properties: dict[str, Attribute]) -> None:
         if not properties:
             return
 
-        self.print(" <{")
-        self.print_list(properties.items(), self._print_attr_string)
-        self.print("}>")
+        self.print_string(" ")
+        with self.in_angle_brackets():
+            self.print_attr_dict(properties)
 
     def print_op_attributes(
         self,
@@ -714,40 +770,81 @@ class Printer:
         if print_keyword:
             self.print(" attributes")
 
-        self.print(" {")
-
-        self.print_list(attributes.items(), self._print_attr_string)
-
-        self.print("}")
+        self.print(" ")
+        self.print_attr_dict(attributes)
 
     def print_op_with_default_format(self, op: Operation) -> None:
         self.print_operands(op.operands)
         self.print_successors(op.successors)
-        self._print_op_properties(op.properties)
+        if not self.print_properties_as_attributes:
+            self._print_op_properties(op.properties)
         self.print_regions(op.regions)
-        self.print_op_attributes(op.attributes)
+        if self.print_properties_as_attributes:
+            clashing_names = op.properties.keys() & op.attributes.keys()
+            if clashing_names:
+                raise ValueError(
+                    f"Properties {', '.join(clashing_names)} would overwrite the attributes of the same names."
+                )
+
+            self.print_op_attributes(op.attributes | op.properties)
+        else:
+            self.print_op_attributes(op.attributes)
         self.print(" : ")
         self.print_operation_type(op)
 
-    def print_operation_type(self, op: Operation) -> None:
+    def print_function_type(
+        self, input_types: Iterable[Attribute], output_types: Iterable[Attribute]
+    ):
+        """
+        Prints a function type like `(i32, i64) -> (f32, f64)` with the following
+        format:
+
+        The inputs are always a comma-separated list in parentheses.
+        If the output has a single element, the parentheses are dropped, except when the
+        only return type is a function type, in which case they are kept.
+
+        ```
+        () -> ()                 # no inputs, no outputs
+        (i32) -> ()              # one input, no outputs
+        (i32) -> i32             # one input, one output
+        (i32) -> (i32, i32)      # one input, two outputs
+        (i32) -> ((i32) -> i32)  # one input, one function type output
+        ```
+        """
         self.print("(")
-        self.print_list(op.operands, lambda operand: self.print_attribute(operand.type))
+        self.print_list(input_types, self.print_attribute)
         self.print(") -> ")
-        if len(op.results) == 0:
+
+        remaining_outputs_iterator = iter(output_types)
+        try:
+            first_type = next(remaining_outputs_iterator)
+        except StopIteration:
+            # No outputs
             self.print("()")
-        elif len(op.results) == 1:
-            res_type = op.results[0].type
-            # Handle ambiguous case
-            if isinstance(res_type, FunctionType):
-                self.print("(", res_type, ")")
+            return
+
+        try:
+            second_type = next(remaining_outputs_iterator)
+        except StopIteration:
+            # One output, drop parentheses unless it's a FunctionType
+            if isinstance(first_type, FunctionType):
+                self.print("(", first_type, ")")
             else:
-                self.print(res_type)
-        else:
-            self.print("(")
-            self.print_list(
-                op.results, lambda result: self.print_attribute(result.type)
-            )
-            self.print(")")
+                self.print(first_type)
+            return
+
+        # Two or more outputs, comma-separated list
+        self.print("(")
+        self.print_list(
+            chain((first_type, second_type), remaining_outputs_iterator),
+            self.print_attribute,
+        )
+        self.print(")")
+
+    def print_operation_type(self, op: Operation) -> None:
+        self.print_function_type(
+            (o.type for o in op.operands), (r.type for r in op.results)
+        )
         if self.print_debuginfo:
             self.print(" loc(unknown)")
 

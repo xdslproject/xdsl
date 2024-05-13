@@ -6,30 +6,40 @@
     "configurations": [
         {
             "name": "xdsl-opt",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "xdsl.tools.xdsl_opt",
             "justMyCode": true,
             "args": [
-                "${file}"
+                "${file}",
             ]
         },
         {
             "name": "xdsl-run",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "xdsl.tools.xdsl_run",
             "justMyCode": true,
             "args": [
-                "${file}"
+                "${file}",
             ]
         },
         {
             "name": "interactive",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "xdsl.interactive.app",
             "justMyCode": true,
+        },
+        {
+            "name": "toy",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "docs.Toy.toy",
+            "justMyCode": true,
+            "args": [
+                "${file}",
+            ]
         },
     ]
 }

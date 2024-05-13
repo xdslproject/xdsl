@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-import itertools
-import struct
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass, field
-from typing import Any, Generic, TypeAlias, TypeVar
+from typing import Any, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, riscv
-from xdsl.dialects.builtin import AnyIntegerAttr, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+)
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -16,9 +19,10 @@ from xdsl.interpreter import (
     impl_cast,
     register_impls,
 )
-from xdsl.interpreters.comparisons import to_signed, to_unsigned
+from xdsl.interpreters import ptr
 from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
+from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import InterpretationError
 
 _T = TypeVar("_T")
@@ -34,111 +38,6 @@ def pairs(els: list[_T]) -> Iterator[tuple[_T, _T]]:
 CustomInstructionFn: TypeAlias = Callable[
     [Interpreter, riscv.CustomAssemblyInstructionOp, PythonValues], PythonValues
 ]
-
-
-@dataclass
-class RawPtr:
-    """
-    Data structure to help simulate pointers into memory.
-    """
-
-    memory: bytearray
-    offset: int = field(default=0)
-    deallocated: bool = field(default=False)
-
-    @staticmethod
-    def zeros(count: int) -> RawPtr:
-        """
-        Returns a new Ptr of size `count` with offset 0.
-        """
-        return RawPtr(bytearray(count))
-
-    @staticmethod
-    def new(el_format: str, els: Sequence[tuple[Any, ...]]) -> RawPtr:
-        """
-        Returns a new Ptr. The first parameter is a format string as specified in the
-        `struct` module, and elements to set.
-        """
-        el_size = struct.calcsize(el_format)
-        res = RawPtr.zeros(len(els) * el_size)
-        for i, el in enumerate(els):
-            struct.pack_into(el_format, res.memory, i * el_size, *el)
-        return res
-
-    def get_iter(self, format: str) -> Iterator[Any]:
-        if self.deallocated:
-            raise ValueError("Cannot get item of deallocated ptr")
-        # The memoryview needs to be a multiple of the size of the packed format
-        format_size = struct.calcsize(format)
-        mem_view = memoryview(self.memory)[self.offset :]
-        remainder = len(mem_view) % format_size
-        if remainder:
-            mem_view = mem_view[:-remainder]
-        return (values[0] for values in struct.iter_unpack(format, mem_view))
-
-    def get(self, format: str) -> Any:
-        return next(self.get_iter(format))
-
-    def set(self, format: str, *item: Any):
-        if self.deallocated:
-            raise ValueError("Cannot set item of deallocated ptr")
-        struct.pack_into(format, self.memory, self.offset, *item)
-
-    def get_list(self, format: str, count: int):
-        return list(itertools.islice(self.get_iter(format), count))
-
-    def deallocate(self) -> None:
-        self.deallocated = True
-
-    def __add__(self, offset: int) -> RawPtr:
-        """
-        Aliases the data, so storing into the offset stores for all other references
-        to the list.
-        """
-        return RawPtr(self.memory, self.offset + offset)
-
-    @property
-    def int32(self) -> TypedPtr[int]:
-        return TypedPtr(self, "<i")
-
-    @staticmethod
-    def new_int32(els: Sequence[int]) -> RawPtr:
-        return RawPtr.new("<i", [(el,) for el in els])
-
-    @property
-    def float32(self) -> TypedPtr[float]:
-        return TypedPtr(self, "<f")
-
-    @staticmethod
-    def new_float32(els: Sequence[float]) -> RawPtr:
-        return RawPtr.new("<f", [(el,) for el in els])
-
-    @property
-    def float64(self) -> TypedPtr[float]:
-        return TypedPtr(self, "<d")
-
-    @staticmethod
-    def new_float64(els: Sequence[float]) -> RawPtr:
-        return RawPtr.new("<d", [(el,) for el in els])
-
-
-@dataclass
-class TypedPtr(Generic[_T]):
-    raw: RawPtr
-    format: str
-
-    @property
-    def size(self) -> int:
-        return struct.calcsize(self.format)
-
-    def get_list(self, count: int) -> list[_T]:
-        return self.raw.get_list(self.format, count)
-
-    def __getitem__(self, index: int) -> _T:
-        return (self.raw + index * self.size).get(self.format)
-
-    def __setitem__(self, index: int, value: _T):
-        (self.raw + index * self.size).set(self.format, value)
 
 
 _DATA_KEY = "data"
@@ -249,7 +148,7 @@ class RiscvFunctions(InterpreterFunctions):
         )
 
     @staticmethod
-    def stack(interpreter: Interpreter) -> RawPtr:
+    def stack(interpreter: Interpreter) -> ptr.RawPtr:
         """
         Stack memory, by default 1mb.
         """
@@ -257,12 +156,12 @@ class RiscvFunctions(InterpreterFunctions):
         return interpreter.get_data(
             RiscvFunctions,
             STACK_KEY,
-            lambda: RawPtr(bytearray(stack_size), offset=stack_size),
+            lambda: ptr.RawPtr(bytearray(stack_size), offset=stack_size),
         )
 
     @staticmethod
-    def get_data(module_op: ModuleOp) -> dict[str, RawPtr]:
-        data: dict[str, RawPtr] = {}
+    def get_data(module_op: ModuleOp) -> dict[str, ptr.RawPtr]:
+        data: dict[str, ptr.RawPtr] = {}
         for op in module_op.ops:
             if isinstance(op, riscv.AssemblySectionOp):
                 if op.directive.data == ".data":
@@ -286,7 +185,9 @@ class RiscvFunctions(InterpreterFunctions):
                             case ".word":
                                 hexs = data_op.value.data.split(",")
                                 ints = [int(hex.strip(), 16) for hex in hexs]
-                                data[label.label.data] = RawPtr.new_int32(ints)
+                                data[label.label.data] = ptr.TypedPtr.new_int32(
+                                    ints
+                                ).raw
                             case _:
                                 raise InterpretationError(
                                     "Cannot interpret data directive "
@@ -302,7 +203,7 @@ class RiscvFunctions(InterpreterFunctions):
 
     def get_immediate_value(
         self, interpreter: Interpreter, imm: AnyIntegerAttr | riscv.LabelAttr
-    ) -> int | RawPtr:
+    ) -> int | ptr.RawPtr:
         match imm:
             case IntegerAttr():
                 return imm.value.data
@@ -341,7 +242,7 @@ class RiscvFunctions(InterpreterFunctions):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         unsigned_lhs = to_unsigned(args[0], self.bitwidth)
         imm = self.get_immediate_value(interpreter, op.immediate)
-        if isinstance(imm, RawPtr):
+        if isinstance(imm, ptr.RawPtr):
             raise NotImplementedError("Cannot compare pointer in interpreter")
         unsigned_imm = to_unsigned(imm, self.bitwidth)
         results = (int(unsigned_lhs < unsigned_imm),)
@@ -367,6 +268,29 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         results = (args[0] + args[1],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.AddiOp)
+    def run_addi(
+        self,
+        interpreter: Interpreter,
+        op: riscv.AddiOp,
+        args: tuple[Any, ...],
+    ):
+        immediate = cast(IntegerAttr[IntegerType | IndexType], op.immediate).value.data
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] + immediate,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.SubOp)
+    def run_sub(
+        self,
+        interpreter: Interpreter,
+        op: riscv.SubOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (args[0] - args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SlliOp)
@@ -473,6 +397,7 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = self.get_immediate_value(interpreter, op.immediate)
+        assert isinstance(offset, int)
         results = ((args[0] + offset).float32[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
@@ -557,6 +482,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = (max(args[0], args[1]),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.FCvtDWOp)
+    def run_fcvt_d_w(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FCvtDWOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = (float(args[0]),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl(riscv.FSdOp)
     def run_fsd(
         self,
@@ -565,7 +501,8 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        (args[0] + op.immediate.value.data).float64[0] = args[1]
+        offset = op.immediate.value.data
+        (args[0] + offset).float64[0] = args[1]
         return ()
 
     @impl(riscv.FLdOp)
@@ -577,7 +514,19 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         offset = self.get_immediate_value(interpreter, op.immediate)
+        assert isinstance(offset, int)
         results = ((args[0] + offset).float64[0],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FMvDOp)
+    def run_fmv_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMvDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = args
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     # endregion

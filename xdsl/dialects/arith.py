@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Annotated, Generic, TypeVar, cast, overload
+from typing import Annotated, Generic, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -20,13 +20,14 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     VectorType,
 )
-from xdsl.dialects.llvm import FastMathAttr as LLVMFastMathAttr
+from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AnyOf,
     ConstraintVar,
     IRDLOperation,
     Operand,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -34,8 +35,9 @@ from xdsl.irdl import (
     result_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import ConstantLike, Pure
+from xdsl.traits import ConstantLike, HasCanonicalisationPatternsTrait, Pure
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -79,12 +81,18 @@ CMPF_COMPARISON_OPERATIONS = [
 ]
 
 
-class FastMathFlagsAttr(LLVMFastMathAttr):
+@irdl_attr_definition
+class FastMathFlagsAttr(FastMathAttrBase):
     """
     arith.fastmath is a mirror of LLVMs fastmath flags.
     """
 
     name = "arith.fastmath"
+
+    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+        # irdl_attr_definition defines an __init__ if none is defined, so we need to
+        # explicitely define one here.
+        super().__init__(flags)
 
 
 @irdl_op_definition
@@ -98,12 +106,10 @@ class Constant(IRDLOperation):
     @overload
     def __init__(
         self, value: AnyIntegerAttr | FloatAttr[AnyFloat], value_type: None = None
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
-    def __init__(self, value: Attribute, value_type: Attribute) -> None:
-        ...
+    def __init__(self, value: Attribute, value_type: Attribute) -> None: ...
 
     def __init__(
         self,
@@ -219,6 +225,8 @@ SignlessIntegerBinaryOp = BinaryOperation[Annotated[Attribute, signlessIntegerLi
 class BinaryOperationWithFastMath(Generic[_T], BinaryOperation[_T]):
     fastmath = opt_prop_def(FastMathFlagsAttr)
 
+    traits = frozenset((Pure(),))
+
     def __init__(
         self,
         operand1: Operation | SSAValue,
@@ -261,11 +269,19 @@ FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
 IntegerBinaryOp = BinaryOperation[IntegerType]
 
 
+class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
+
+        return (AddImmediateZero(),)
+
+
 @irdl_op_definition
 class Addi(SignlessIntegerBinaryOp):
     name = "arith.addi"
 
-    traits = frozenset([Pure()])
+    traits = frozenset([Pure(), AddiOpHasCanonicalizationPatternsTrait()])
 
 
 @irdl_op_definition
@@ -286,6 +302,8 @@ class AddUIExtended(IRDLOperation):
 
     sum: OpResult = result_def(T)
     overflow: OpResult = result_def(Annotated[Attribute, boolLike])
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($sum) `,` type($overflow)"
 
     def __init__(
         self,
@@ -310,29 +328,6 @@ class AddUIExtended(IRDLOperation):
                 f"overflow type {self.overflow.type} does not "
                 f"match input types {self.lhs.type}. Expected {expected_overflow_type}"
             )
-
-    def print(self, printer: Printer):
-        printer.print(" ", self.lhs, ", ", self.rhs)
-        printer.print_op_attributes(self.attributes)
-        printer.print(" : ", self.lhs.type, ", ", self.overflow.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> AddUIExtended:
-        lhs = parser.parse_unresolved_operand()
-        parser.parse_punctuation(",")
-        rhs = parser.parse_unresolved_operand()
-        attributes = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        sum_type = parser.parse_type()
-        parser.parse_punctuation(",")
-        overflow_type = parser.parse_type()
-        (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [sum_type], parser.pos)
-
-        return AddUIExtended.create(
-            operands=[lhs, rhs],
-            attributes=attributes,
-            result_types=[sum_type, overflow_type],
-        )
 
     @staticmethod
     def infer_overflow_type(input_type: Attribute) -> Attribute:
@@ -879,6 +874,8 @@ class FPToSIOp(IRDLOperation):
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(IntegerType)
 
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
 
@@ -889,6 +886,8 @@ class SIToFPOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])

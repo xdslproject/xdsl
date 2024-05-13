@@ -1,27 +1,31 @@
-from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import product
-from typing import Literal, TypeVar, cast
+from typing import TypeVar
 from warnings import warn
 
-from xdsl.dialects import arith, builtin, gpu, memref, scf
-from xdsl.dialects.func import FuncOp
-from xdsl.dialects.memref import MemRefType
+from xdsl.dialects import arith, builtin, memref, scf
+from xdsl.dialects.builtin import (
+    MemRefType,
+    UnrealizedConversionCastOp,
+)
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
     BufferOp,
     CastOp,
+    CombineOp,
     ExternalLoadOp,
     ExternalStoreOp,
     FieldType,
     IndexAttr,
     IndexOp,
     LoadOp,
+    ResultType,
     ReturnOp,
     StencilBoundsAttr,
     StencilType,
     StoreOp,
+    StoreResultOp,
     TempType,
 )
 from xdsl.ir import (
@@ -33,6 +37,7 @@ from xdsl.ir import (
     OpResult,
     Region,
     SSAValue,
+    Use,
 )
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -60,8 +65,6 @@ def StencilToMemRefType(
 
 @dataclass
 class CastOpToMemref(RewritePattern):
-    target: Literal["cpu", "gpu"] = "cpu"
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CastOp, rewriter: PatternRewriter, /):
         assert isa(op.result.type, FieldType[Attribute])
@@ -71,13 +74,6 @@ class CastOpToMemref(RewritePattern):
 
         cast = memref.Cast.get(op.field, result_type)
 
-        if self.target == "gpu":
-            unranked = memref.Cast.get(
-                cast.dest,
-                memref.UnrankedMemrefType.from_type(op.result.type.element_type),
-            )
-            register = gpu.HostRegisterOp(unranked.dest)
-            rewriter.insert_op_after_matched_op([unranked, register])
         rewriter.replace_matched_op(cast)
 
 
@@ -99,9 +95,9 @@ def collectBlockArguments(number: int, block: Block):
 
 
 def update_return_target(
-    return_targets: dict[ReturnOp, list[SSAValue | None]],
+    return_targets: dict[ApplyOp, list[SSAValue | None]],
     old_target: SSAValue,
-    new_target: SSAValue,
+    new_target: SSAValue | None,
 ):
     for targets in return_targets.values():
         for i, target in enumerate(targets):
@@ -109,11 +105,31 @@ def update_return_target(
                 targets[i] = new_target
 
 
+def _find_result_store(result: SSAValue) -> tuple[StoreResultOp, ...]:
+    while True:
+        match owner := result.owner:
+            case StoreResultOp():
+                return (owner,)
+            case scf.If():
+                assert isinstance(result, OpResult)
+                index = result.index
+                yield_true = owner.true_region.ops.last
+                assert isinstance(yield_true, scf.Yield)
+                yield_false = owner.false_region.ops.last
+                assert isinstance(yield_false, scf.Yield)
+                true_stores = _find_result_store(yield_true.arguments[index])
+                false_stores = _find_result_store(yield_false.arguments[index])
+                return true_stores + false_stores
+
+            case _:
+                raise ValueError(
+                    "Could not find the corresponding stencil.store_result"
+                )
+
+
 @dataclass
 class ReturnOpToMemref(RewritePattern):
-    return_target: dict[ReturnOp, list[SSAValue | None]]
-
-    target: Literal["cpu", "gpu"] = "cpu"
+    return_target: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
@@ -121,41 +137,68 @@ class ReturnOpToMemref(RewritePattern):
         n_res = len(op.arg) // unroll_factor
 
         store_list: list[Operation] = []
+        apply = op.parent_op()
+        assert isinstance(apply, ApplyOp)
+        if op.unroll is not None:
+            apply.attributes["__unroll__"] = op.unroll
+
+        n_dims = apply.get_rank()
+
         for j in range(n_res):
-            target = self.return_target[op][j]
-            if target is None:
-                continue
-            assert isinstance(target.type, builtin.ShapedType)
-            dims = target.type.get_num_dims()
+            target = self.return_target[apply][j]
 
             unroll = op.unroll
             if unroll is None:
-                unroll = IndexAttr.get(*([1] * dims))
+                unroll = IndexAttr.get(*([1] * n_dims))
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
-                assert (block := op.parent_block()) is not None
-                if self.target == "gpu":
-                    offset = tuple(reversed(offset))
-                args = cast(list[SSAValue], collectBlockArguments(dims, block))
+                arg = op.arg[j * unroll_factor + k]
+                index_ops: list[Operation] = list(
+                    IndexOp(
+                        attributes={
+                            "dim": builtin.IntegerAttr.from_index_int_value(i),
+                            "offset": IndexAttr.get(*([0] * n_dims)),
+                        },
+                        result_types=[builtin.IndexType()],
+                    )
+                    for i in range(n_dims)
+                )
+                store_list += index_ops
 
-                for i in range(dims):
+                for i in range(n_dims):
                     if offset[i] != 0:
                         constant_op = arith.Constant.from_int_and_width(
                             offset[i], builtin.IndexType()
                         )
-                        add_op = arith.Addi(args[i], constant_op)
-                        args[i] = add_op.results[0]
+                        add_op = arith.Addi(index_ops[i], constant_op)
+                        index_ops[i] = add_op
                         store_list.append(constant_op)
                         store_list.append(add_op)
 
-                if self.target == "gpu":
-                    args = list(reversed(args))
+                if isinstance(arg.type, ResultType):
+                    result_owner = _find_result_store(arg)
+                    for owner in result_owner:
+                        if owner.arg:
+                            if target is not None:
+                                store = memref.Store.get(owner.arg, target, index_ops)
+                            else:
+                                store = list[Operation]()
+                            rewriter.replace_op(
+                                owner,
+                                store,
+                                new_results=[owner.arg],
+                            )
+                        else:
+                            dummy = UnrealizedConversionCastOp.get([], [arg.type.elem])
+                            rewriter.replace_op(owner, dummy)
 
-                store_list.append(
-                    memref.Store.get(op.arg[j * unroll_factor + k], target, args)
-                )
+                else:
+                    if target is not None:
+                        store = memref.Store.get(arg, target, index_ops)
+                        store_list.append(store)
 
-        rewriter.replace_matched_op([*store_list])
+        rewriter.insert_op_before_matched_op([*store_list])
+        rewriter.erase_matched_op()
 
 
 def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
@@ -171,32 +214,6 @@ def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
             "The stencil computation requires a field with upper bound at least "
             f"{temp.bounds.ub}, got {field.bounds.ub}, max: {max(field.bounds.ub, temp.bounds.ub)}"
         )
-
-
-class IndexOpToLoopSSA(RewritePattern):
-    @staticmethod
-    def discover_enclosing_loops(op: Operation) -> Iterable[scf.For | scf.ParallelOp]:
-        parent_op = op.parent_op()
-        if parent_op is not None:
-            yield from IndexOpToLoopSSA.discover_enclosing_loops(parent_op)
-        if isa(op, scf.For) or isa(op, scf.ParallelOp):
-            yield op
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: IndexOp, rewriter: PatternRewriter, /):
-        # We do not currently support an offset in indexop, therefore check
-        # that this is all set to zero as otherwise it will not be handled
-        for offset in op.offset:
-            assert offset == 0
-        enclosing_loops = list(IndexOpToLoopSSA.discover_enclosing_loops(op))
-        # The first block argument is the loop iterator
-        loop_op = enclosing_loops[op.dim.value.data]
-        assert isa(loop_op, scf.For) or isa(loop_op, scf.ParallelOp)
-        assert len(loop_op.body.blocks) == 1
-        assert len(loop_op.body.block.args) >= 1
-        replacement_ssa = loop_op.body.block.args[0]
-        op.results[0].replace_by(replacement_ssa)
-        rewriter.erase_op(op)
 
 
 class LoadOpToMemref(RewritePattern):
@@ -226,30 +243,80 @@ class LoadOpToMemref(RewritePattern):
         subview.result.name_hint = name
 
 
-def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter):
+def prepare_apply_body(op: ApplyOp):
     # First replace all current arguments by their definition
     # and erase them from the block. (We are changing the op
     # to a loop, which has access to them either way)
     entry = op.region.block
 
-    for idx, arg in enumerate(entry.args):
-        arg_uses = set(arg.uses)
-        for use in arg_uses:
-            use.operation.operands[use.index] = op.args[idx]
+    for operand, arg in zip(op.operands, entry.args):
+        arg.replace_by(operand)
         entry.erase_arg(arg)
+    entry.add_op(scf.Yield())
+    for _ in range(op.get_rank()):
+        entry.insert_arg(builtin.IndexType(), 0)
 
-    rewriter.insert_block_argument(entry, 0, builtin.IndexType())
+    return op.region.detach_block(entry)
 
-    return rewriter.move_region_contents_to_new_regions(op.region)
+
+@dataclass
+class BufferOpToMemref(RewritePattern):
+
+    return_targets: dict[ApplyOp, list[SSAValue | None]]
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter, /):
+        # The current lowering simply allocate at block entry and deallocates at block
+        # exit.
+        # One could be smarter, e.g., aim precisly at where the first and last need is
+        # But first, this requires more code with stencil.combine in the mix.
+        # And second, do we want to be that smart? We use it iterated either way, so
+        # probably always hoping to hoist (de)allocations out of the loop anyway?
+        temp_t = op.temp.type
+        assert isa(temp_t, TempType[Attribute])
+        temp_bounds = temp_t.bounds
+        assert isa(temp_bounds, StencilBoundsAttr)
+
+        block = op.parent_block()
+        assert block is not None
+        first_op = block.first_op
+        assert first_op is not None
+        last_op = block.last_op
+        assert last_op is not None
+
+        alloc = memref.Alloc.get(temp_t.get_element_type(), shape=temp_t.get_shape())
+        alloc_type = alloc.memref.type
+        assert isa(alloc_type, MemRefType[Attribute])
+
+        offset = list(-temp_bounds.lb)
+
+        view = memref.Subview.from_static_parameters(
+            alloc,
+            alloc_type,
+            offset,
+            temp_t.get_shape(),
+            [1] * temp_t.get_num_dims(),
+        )
+
+        rewriter.insert_op_before(alloc, first_op)
+        rewriter.insert_op_before(view, first_op)
+
+        update_return_target(self.return_targets, op.temp, view.result)
+
+        dealloc = memref.Dealloc.get(alloc.memref)
+
+        if not op.res.uses:
+            rewriter.insert_op_after(dealloc, op)
+            rewriter.erase_matched_op()
+            return
+
+        rewriter.insert_op_before(dealloc, last_op)
+        rewriter.replace_matched_op([], [view.result])
 
 
 @dataclass
 class ApplyOpToParallel(RewritePattern):
-    return_targets: dict[ReturnOp, list[SSAValue | None]]
-
-    target: Literal["cpu", "gpu"]
-
-    tile_sizes: list[int] | None
+    return_targets: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -258,278 +325,152 @@ class ApplyOpToParallel(RewritePattern):
         assert isinstance(res_type.bounds, StencilBoundsAttr)
 
         # Get this apply's ReturnOp
-        body_block = op.region.blocks[0]
-        return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
-        unroll = return_op.unroll
+        unroll = op.attributes.get("__unroll__", None)
+        if unroll is not None:
+            assert isinstance(unroll, IndexAttr)
+            unroll = list(u for u in unroll)
 
-        body = prepare_apply_body(op, rewriter)
-        body.block.add_op(scf.Yield())
-        dim = res_type.get_num_dims()
+        rank = op.get_rank()
+        body = prepare_apply_body(op)
         if unroll is None:
-            unroll = [1] * dim
+            unroll = [1] * rank
         else:
             unroll = [i for i in unroll]
 
         # Then create the corresponding scf.parallel
         boilerplate_ops = [
             *(
-                lowerBounds := list[arith.Constant | BlockArgument | None](
+                lowerBounds := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.lb
-                )
+                ]
             ),
-            one := arith.Constant.from_int_and_width(1, builtin.IndexType()),
             *(
-                steps := list[arith.Constant | BlockArgument | None](
+                steps := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in unroll
-                )
+                ]
             ),
             *(
-                upperBounds := list[arith.Constant | arith.Select](
+                upperBounds := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
                     for x in res_type.bounds.ub
-                )
+                ]
             ),
         ]
 
         # Generate an outer parallel loop as well as two inner sequential
         # loops. The inner sequential loops ensure that the computational
         # kernel itself is not slowed down by the OpenMP runtime.
-        match self.target:
-            case "cpu":
-                tiled_steps = steps
-                total_upper_bounds = upperBounds.copy()
-                cst_tile_sizes: list[arith.Constant] = []
-                if self.tile_sizes:
-                    tiled_dim = min(dim, len(self.tile_sizes))
-                    for i in range(tiled_dim):
-                        cst_tile_size = arith.Constant.from_int_and_width(
-                            self.tile_sizes[i], builtin.IndexType()
-                        )
-                        tiled_steps.insert(i, cst_tile_size)
-                        boilerplate_ops.insert(-1, cst_tile_size)
-                        lowerBounds.insert(tiled_dim + i, None)
-                        upperBounds.insert(tiled_dim + i, cst_tile_size)
-                        cst_tile_sizes.append(cst_tile_size)
-                    dim += tiled_dim
-
-                assert lowerBounds[0] is not None
-                assert tiled_steps[0] is not None
-                p = scf.ParallelOp(
-                    lower_bounds=[lowerBounds[0]],
-                    upper_bounds=[upperBounds[0]],
-                    steps=[tiled_steps[0]],
-                    body=Region(Block([scf.Yield()], arg_types=[builtin.IndexType()])),
-                )
-                loops: list[scf.ParallelOp | scf.For] = [p]
-                current_loop = p
-                tiled_index = 0
-
-                for i in range(1, dim):
-                    block = current_loop.body.block
-                    last = block.last_op
-                    assert last is not None
-                    if lowerBounds[i] is None:
-                        lb = loops[tiled_index].body.block.args[0]
-                        lowerBounds[i] = lb
-                        add = arith.Addi(lb, cst_tile_sizes[tiled_index])
-                        cmpi = arith.Cmpi(add, total_upper_bounds[tiled_index], "ult")
-                        minop = arith.Select(cmpi, add, total_upper_bounds[tiled_index])
-                        upperBounds[i] = minop
-
-                        block.insert_ops_before([add, cmpi, minop], last)
-                        tiled_index += 1
-                    assert (lb := lowerBounds[i]) is not None
-                    assert (st := tiled_steps[i]) is not None
-                    loop = scf.For(
-                        lb=lb,
-                        ub=upperBounds[i],
-                        step=st,
-                        iter_args=[],
-                        body=Region(
-                            Block([scf.Yield()], arg_types=[builtin.IndexType()])
+        tiled_steps = steps
+        p = scf.ParallelOp(
+            lower_bounds=lowerBounds,
+            upper_bounds=upperBounds,
+            steps=tiled_steps,
+            body=Region(body),
+        )
+        for index in body.walk():
+            if isinstance(index, IndexOp):
+                offset = list(index.offset)
+                ops: list[Operation] = []
+                res: list[SSAValue] = [body.args[index.dim.value.data]]
+                if offset[index.dim.value.data] != 0:
+                    ops = [
+                        cst := arith.Constant.from_int_and_width(
+                            offset[index.dim.value.data], builtin.IndexType()
                         ),
-                    )
-                    block.insert_op_before(loop, last)
-                    current_loop = loop
-                    loops.append(loop)
-
-                current_loop.body.detach_block(current_loop.body.block)
-
-                current_loop.body.insert_block(body.detach_block(0), 0)
-
-            case "gpu":
-                stencil_rank = len(upperBounds)
-                boilerplate_ops.insert(
-                    1, zero := arith.Constant.from_int_and_width(0, builtin.IndexType())
-                )
-                assert isa(lowerBounds, list[arith.Constant])
-                assert isa(steps, list[arith.Constant])
-
-                p = scf.ParallelOp(
-                    lower_bounds=list(reversed(lowerBounds))
-                    + [zero] * (3 - stencil_rank),
-                    upper_bounds=list(reversed(upperBounds))
-                    + [one] * (3 - stencil_rank),
-                    steps=list(reversed(steps)) + [one] * (3 - stencil_rank),
-                    body=body,
-                )
-                for _ in range(3 - 1):
-                    rewriter.insert_block_argument(p.body.block, 0, builtin.IndexType())
-
-        # Handle returnd values
-        for result in op.res:
-            assert isa(
-                result.type, TempType[Attribute]
-            ), f"Expected return value to be a !{TempType.name}"
-            assert isinstance(
-                result.type.bounds, StencilBoundsAttr
-            ), f"Expected output to be sized before lowering. {result.type}"
-            shape = result.type.get_shape()
-            element_type = result.type.element_type
-
-            # If it is buffered, allocate the buffer
-            if any(isinstance(use.operation, BufferOp) for use in result.uses):
-                alloc = memref.Alloc.get(element_type, shape=shape)
-                alloc_type = alloc.memref.type
-                assert isa(alloc_type, MemRefType[Attribute])
-
-                offset = list(-result.type.bounds.lb)
-
-                view = memref.Subview.from_static_parameters(
-                    alloc,
-                    alloc_type,
-                    offset,
-                    shape,
-                    [1] * result.type.get_num_dims(),
-                )
-                rewriter.insert_op_before_matched_op((alloc, view))
-                update_return_target(self.return_targets, result, view.result)
-
-        deallocs: list[Operation] = []
-        # Handle input buffer deallocation
-        for input in op.args:
-            # Is this input a temp buffer?
-            if isinstance(input.type, TempType) and isinstance(input.owner, BufferOp):
-                block = op.parent_block()
-                assert block is not None
-                self_index = block.get_operation_index(op)
-                # Is it its last use?
-                if not any(
-                    use.operation.parent_block() is block
-                    and block.get_operation_index(use.operation) > self_index
-                    for use in input.uses
-                ):
-                    # Then deallocate it
-                    deallocs.append(memref.Dealloc.get(input))
+                        add := arith.Addi(body.args[index.dim.value.data], cst),
+                    ]
+                    res = [add.result]
+                rewriter.replace_op(index, ops, res)
 
         # Get the maybe updated results
-        new_results: list[SSAValue | None] = []
-        new_results = self.return_targets[return_op]
+        new_results = self.return_targets[op]
         # Replace with the loop and necessary constants.
         assert isa(boilerplate_ops, list[Operation])
         rewriter.insert_op_before_matched_op([*boilerplate_ops, p])
-        rewriter.insert_op_after_matched_op([*deallocs])
         rewriter.replace_matched_op([], new_results)
 
 
 @dataclass
 class AccessOpToMemref(RewritePattern):
-    target: Literal["cpu", "gpu"] = "cpu"
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
         assert isa(temp, TempType[Attribute])
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
-        # Make pyright happy with the fact that this op has to be in
-        # a block.
-        assert (block := op.parent_block()) is not None
-
         memref_offset = op.offset
-        if op.offset_mapping is not None:
-            max_idx = 0
-            for i in op.offset_mapping:
-                if i.data + 1 > max_idx:
-                    max_idx = i.data + 1
-            args = collectBlockArguments(max_idx, block)
-            # Reverse the list as arguments are collated in the opposite
-            # order to the stencil.apply ordering (e.g. the top most loop is
-            # front of the list, rather than at the end)
-            args.reverse()
-        else:
-            args = collectBlockArguments(len(memref_offset), block)
 
-        if self.target == "gpu":
-            args.reverse()
+        mapping = (
+            op.offset_mapping
+            if op.offset_mapping is not None
+            else range(len(memref_offset))
+        )
+
+        args = [
+            IndexOp(
+                attributes={
+                    "dim": builtin.IntegerAttr.from_index_int_value(i),
+                    "offset": IndexAttr.get(*([0] * op.get_apply().get_rank())),
+                },
+                result_types=[builtin.IndexType()],
+            )
+            for i in mapping
+        ]
 
         off_const_ops: list[Operation] = []
         memref_load_args: list[BlockArgument | OpResult] = []
 
         # This will apply an offset to the index if one is required
         # (e.g the offset is not zero), otherwise will use the index value directly
-        for i, x in enumerate(memref_offset):
-            block_arg = (
-                args[list(op.offset_mapping)[i].data]
-                if op.offset_mapping is not None
-                else args[i]
-            )
+        for arg, x in zip(args, memref_offset):
             if x != 0:
                 constant_op = arith.Constant.from_int_and_width(x, builtin.IndexType())
-                add_op = arith.Addi(block_arg, constant_op)
+                add_op = arith.Addi(arg, constant_op)
                 memref_load_args.append(add_op.results[0])
                 off_const_ops += [constant_op, add_op]
             else:
-                memref_load_args.append(block_arg)
+                memref_load_args.append(arg.idx)
 
         load = memref.Load.get(op.temp, memref_load_args)
 
+        rewriter.insert_op_before_matched_op(args)
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])
 
 
 @dataclass
 class StencilStoreToSubview(RewritePattern):
-    return_targets: dict[ReturnOp, list[SSAValue | None]]
+    return_targets: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        stores = [o for o in op.walk() if isinstance(o, StoreOp)]
+    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+        field = op.field
+        assert isa(field.type, FieldType[Attribute])
+        assert isa(field.type.bounds, StencilBoundsAttr)
+        temp = op.temp
+        assert isa(temp.type, TempType[Attribute])
+        offsets = [i for i in -field.type.bounds.lb]
+        sizes = [i for i in temp.type.get_shape()]
+        subview = memref.Subview.from_static_parameters(
+            field,
+            StencilToMemRefType(field.type),
+            offsets,
+            sizes,
+            [1] * len(sizes),
+        )
+        name = None
+        if subview.source.name_hint:
+            name = subview.source.name_hint + "_storeview"
+        subview.result.name_hint = name
+        if isinstance(field.owner, Operation):
+            rewriter.insert_op_after(subview, field.owner)
+        else:
+            rewriter.insert_op_at_start(subview, field.owner)
 
-        for store in stores:
-            field = store.field
-            assert isa(field.type, FieldType[Attribute])
-            assert isa(field.type.bounds, StencilBoundsAttr)
-            temp = store.temp
-            assert isa(temp.type, TempType[Attribute])
-            offsets = [i for i in -field.type.bounds.lb]
-            sizes = [i for i in temp.type.get_shape()]
-            subview = memref.Subview.from_static_parameters(
-                field,
-                StencilToMemRefType(field.type),
-                offsets,
-                sizes,
-                [1] * len(sizes),
-            )
-            name = None
-            if subview.source.name_hint:
-                name = subview.source.name_hint + "_storeview"
-            subview.result.name_hint = name
-            if isinstance(field.owner, Operation):
-                rewriter.insert_op_after(subview, field.owner)
-            else:
-                rewriter.insert_op_at_start(subview, field.owner)
+        rewriter.erase_matched_op()
 
-            rewriter.erase_op(store)
-
-            update_return_target(self.return_targets, field, subview.result)
-
-
-class BufferOpCleanUp(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op([], [op.temp])
+        update_return_target(self.return_targets, field, subview.result)
 
 
 class TrivialExternalLoadOpCleanup(RewritePattern):
@@ -549,8 +490,62 @@ class TrivialExternalStoreOpCleanup(RewritePattern):
         rewriter.erase_matched_op()
 
 
+class CombineOpCleanup(RewritePattern):
+    """
+    Just remove `stencil.combine`s as they are just used for return target analysis.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter, /):
+        rewriter.erase_matched_op()
+
+
+def _get_use_target(use: Use) -> SSAValue | None:
+    """
+    Given the use of a `stencil.temp`, return the target `stencil.field` of this use.
+    """
+    match store := use.operation:
+        case StoreOp():
+            # If it's a store, just return the field it is stored to. It will be lowered
+            # to the corresponding memref.
+            return store.field
+        case BufferOp():
+            # If it's a buffer, return the buffer itself. It will be lowered to the
+            # allocated memref.
+            return store.temp
+        case CombineOp():
+            # If it's a combine, recurse to find the target of the combined
+            # `stencil.temp`
+            if use.index < len(store.lower):
+                # If it's the nth lower arg, the combined temp is the nth combined.
+                temp = store.results[use.index]
+            elif use.index < len(store.lower) + len(store.upper):
+                # If it's the nth upper arg, the combined temp is the nth combined.
+                temp = store.results[use.index - len(store.lower)]
+            elif use.index < len(store.lower) + len(store.upper) + len(store.lowerext):
+                # If it's the nth lowerext arg, the combined temp is the (lower+n)th
+                # combined.
+                temp = store.results[use.index - len(store.lower)]
+            else:
+                temp = store.results[use.index - len(store.lower) - len(store.lowerext)]
+                # If it's the nth upperext arg, the combined temp is the
+                # (lower+lowerext+n)th combined.
+            temp_uses = temp.uses
+            match len(temp_uses):
+                case 0:
+                    return None
+                case 1:
+                    target = _get_use_target(list(temp_uses)[0])
+                    return target
+                case _:
+                    raise ValueError("Each stencil result should be stored only once.")
+        case _:
+            # Should be unreachable
+            raise ValueError(f"Unexpected store type {store}")
+
+
 def return_target_analysis(module: builtin.ModuleOp):
-    return_targets: dict[ReturnOp, list[SSAValue | None]] = {}
+    return_targets: dict[ApplyOp, list[SSAValue | None]] = {}
 
     for op in module.walk():
         if not isinstance(op, ReturnOp):
@@ -559,12 +554,12 @@ def return_target_analysis(module: builtin.ModuleOp):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
 
-        return_targets[op] = []
+        return_targets[apply] = []
         for res in list(apply.res):
             store = [
-                use.operation
+                use
                 for use in list(res.uses)
-                if isinstance(use.operation, StoreOp | BufferOp)
+                if isinstance(use.operation, StoreOp | BufferOp | CombineOp)
             ]
 
             if len(store) > 1:
@@ -573,13 +568,10 @@ def return_target_analysis(module: builtin.ModuleOp):
 
             elif len(store) == 0:
                 field = None
-            elif isinstance(store[0], StoreOp):
-                field = store[0].field
-            # then it's a BufferOp
             else:
-                field = store[0].temp
+                field = _get_use_target(store[0])
 
-            return_targets[op].append(field)
+            return_targets[apply].append(field)
 
     return return_targets
 
@@ -590,42 +582,48 @@ class StencilTypeConversion(TypeConversionPattern):
         return StencilToMemRefType(typ)
 
 
-@dataclass
+class ResultTypeConversion(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: ResultType) -> Attribute:
+        return typ.elem
+
+
+@dataclass(frozen=True)
 class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
-    target: Literal["cpu", "gpu"] = "cpu"
-    tile_sizes: list[int] | None = None
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        return_targets: dict[ReturnOp, list[SSAValue | None]] = return_target_analysis(
+        return_targets: dict[ApplyOp, list[SSAValue | None]] = return_target_analysis(
             op
         )
 
         the_one_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ApplyOpToParallel(return_targets, self.target, self.tile_sizes),
+                    ApplyOpToParallel(return_targets),
+                    BufferOpToMemref(return_targets),
                     StencilStoreToSubview(return_targets),
-                    CastOpToMemref(self.target),
+                    CastOpToMemref(),
                     LoadOpToMemref(),
-                    AccessOpToMemref(self.target),
-                    ReturnOpToMemref(return_targets, self.target),
-                    IndexOpToLoopSSA(),
+                    AccessOpToMemref(),
+                    ReturnOpToMemref(return_targets),
                     TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
                 ]
             ),
             apply_recursively=True,
             walk_reverse=True,
+            walk_regions_first=True,
         )
         the_one_pass.rewrite_module(op)
         type_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    CombineOpCleanup(),
                     StencilTypeConversion(recursive=True),
-                    BufferOpCleanUp(),
+                    ResultTypeConversion(recursive=True),
                 ]
-            )
+            ),
+            walk_reverse=True,
         )
         type_pass.rewrite_module(op)

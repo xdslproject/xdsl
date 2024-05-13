@@ -7,7 +7,7 @@ from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 
 
-@dataclass
+@dataclass(frozen=True)
 class RISCVRegisterAllocation(ModulePass):
     """
     Allocates unallocated registers in the module.

@@ -1,17 +1,18 @@
 import pytest
 
-from xdsl.builder import Builder, InsertPoint
+from xdsl.builder import Builder
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import IntAttr, i32, i64
 from xdsl.dialects.scf import If
 from xdsl.ir import Block, BlockArgument, Operation, Region
+from xdsl.rewriter import InsertPoint
 
 
 def test_insertion_point_constructors():
     target = Block(
         [
-            (op1 := Constant.from_int_and_width(1, 1)),
-            (op2 := Constant.from_int_and_width(2, 1)),
+            (op1 := Constant.from_int_and_width(0, 1)),
+            (op2 := Constant.from_int_and_width(1, 1)),
         ]
     )
 
@@ -37,16 +38,16 @@ def test_insertion_point_constructors():
 def test_builder():
     target = Block(
         [
+            Constant.from_int_and_width(0, 1),
             Constant.from_int_and_width(1, 1),
-            Constant.from_int_and_width(2, 1),
         ]
     )
 
     block = Block()
     b = Builder.at_end(block)
 
-    x = Constant.from_int_and_width(1, 1)
-    y = Constant.from_int_and_width(2, 1)
+    x = Constant.from_int_and_width(0, 1)
+    y = Constant.from_int_and_width(1, 1)
 
     b.insert(x)
     b.insert(y)

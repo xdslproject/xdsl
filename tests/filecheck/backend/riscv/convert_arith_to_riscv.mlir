@@ -106,6 +106,20 @@ builtin.module {
     %maxf32 = "arith.maximumf"(%lhsf32, %rhsf32) : (f32, f32) -> f32
     // CHECK-NEXT: %{{.*}} = riscv.fmax.s %lhsf32_1, %rhsf32_1 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
+    // tests with fastmath flags when set to "fast"
+    %addf32_fm = "arith.addf"(%lhsf32, %rhsf32) {"fastmath" = #arith.fastmath<fast>} : (f32, f32) -> f32
+    // CHECK-NEXT: %{{.*}} = riscv.fadd.s %lhsf32_1, %rhsf32_1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %subf32_fm = "arith.subf"(%lhsf32, %rhsf32) {"fastmath" = #arith.fastmath<fast>} : (f32, f32) -> f32
+    // CHECK-NEXT: %{{.*}} = riscv.fsub.s %lhsf32_1, %rhsf32_1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %mulf32_fm = "arith.mulf"(%lhsf32, %rhsf32) {"fastmath" = #arith.fastmath<fast>} : (f32, f32) -> f32
+    // CHECK-NEXT: %{{.*}} = riscv.fmul.s %lhsf32_1, %rhsf32_1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %divf32_fm = "arith.divf"(%lhsf32, %rhsf32) {"fastmath" = #arith.fastmath<fast>} : (f32, f32) -> f32
+    // CHECK-NEXT: %{{.*}} = riscv.fdiv.s %lhsf32_1, %rhsf32_1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %minf32_fm = "arith.minimumf"(%lhsf32, %rhsf32) {"fastmath" = #arith.fastmath<fast>} : (f32, f32) -> f32
+    // CHECK-NEXT: %{{.*}} = riscv.fmin.s %lhsf32_1, %rhsf32_1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %maxf32_fm = "arith.maximumf"(%lhsf32, %rhsf32) {"fastmath" = #arith.fastmath<fast>} : (f32, f32) -> f32
+    // CHECK-NEXT: %{{.*}} = riscv.fmax.s %lhsf32_1, %rhsf32_1 fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
     %addf64 = "arith.addf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
     // CHECK-NEXT: %{{.*}} = riscv.fadd.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
     %subf64 = "arith.subf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
@@ -119,10 +133,40 @@ builtin.module {
     %maxf64 = "arith.maximumf"(%lhsf64, %rhsf64) : (f64, f64) -> f64
     // CHECK-NEXT: %{{.*}} = riscv.fmax.d %lhsf64_reg, %rhsf64_reg : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
-    %sitofp = "arith.sitofp"(%lhsi32) : (i32) -> f32
+    // tests with fastmath flags when set to "fast"
+    %addf64_fm = "arith.addf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<fast>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fadd.d %lhsf64_reg, %rhsf64_reg fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %subf64_fm = "arith.subf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<fast>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fsub.d %lhsf64_reg, %rhsf64_reg fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %mulf64_fm = "arith.mulf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<fast>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmul.d %lhsf64_reg, %rhsf64_reg fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %divf64_fm = "arith.divf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<fast>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fdiv.d %lhsf64_reg, %rhsf64_reg fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %minf64_fm = "arith.minimumf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<fast>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmin.d %lhsf64_reg, %rhsf64_reg fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %maxf64_fm = "arith.maximumf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<fast>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmax.d %lhsf64_reg, %rhsf64_reg fastmath<fast> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+    // tests with fastmath flags when set to "contract"
+    %addf64_fm_contract = "arith.addf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<contract>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fadd.d %lhsf64_reg, %rhsf64_reg fastmath<contract> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %subf64_fm_contract = "arith.subf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<contract>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fsub.d %lhsf64_reg, %rhsf64_reg fastmath<contract> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %mulf64_fm_contract = "arith.mulf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<contract>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmul.d %lhsf64_reg, %rhsf64_reg fastmath<contract> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %divf64_fm_contract = "arith.divf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<contract>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fdiv.d %lhsf64_reg, %rhsf64_reg fastmath<contract> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %minf64_fm_contract = "arith.minimumf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<contract>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmin.d %lhsf64_reg, %rhsf64_reg fastmath<contract> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %maxf64_fm_contract = "arith.maximumf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<contract>} : (f64, f64) -> f64
+    // CHECK-NEXT: %{{.*}} = riscv.fmax.d %lhsf64_reg, %rhsf64_reg fastmath<contract> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+    %sitofp32 = arith.sitofp %lhsi32 : i32 to f32
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %lhsi32 : (!riscv.reg<>) -> !riscv.freg<>
-    %fptosi = "arith.fptosi"(%lhsf32) : (f32) -> i32
+    %fp32tosi = arith.fptosi %lhsf32 : f32 to i32
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.w.s %lhsf32_1 : (!riscv.freg<>) -> !riscv.reg<>
+    %sitofp64 = arith.sitofp %lhsi32 : i32 to f64
+    // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.w %lhsi32 : (!riscv.reg<>) -> !riscv.freg<>
 
     %cmpf0 = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 0 : i32} : (f32, f32) -> i1
     // CHECK-NEXT: %{{.*}} = riscv.li 0 : () -> !riscv.reg<>

@@ -7,14 +7,15 @@ license = { text = "MIT License" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.1.1",
+    "immutabledict<4.2.1",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.13.2", "textual==0.46.0", "pyclip==0.7"]
+extras = ["riscemu==2.2.5", "wgpu==0.15.1", "textual==0.59.0", "pyclip==0.7"]
+onnx = ["onnx==1.16"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -30,7 +31,9 @@ xdsl-gui = "xdsl.interactive.app:main"
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
-package-data = { "xdsl" = ["py.typed"] }
+
+[tool.setuptools.package-data]
+xdsl = ["py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
@@ -42,10 +45,15 @@ enableTypeIgnoreComments = false
 typeCheckingMode = "strict"
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
+    "tests/dialects/test_memref.py",
+    "tests/frontend/onnx/test_build_ir.py",
+    "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "tests/dialects/test_memref.py",
+    "xdsl/frontend/onnx/ir_builder.py",
+    "xdsl/frontend/onnx/type.py",
     "xdsl/interpreters/experimental/wgpu.py",
+    "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
     "tests/filecheck/frontend/dialects/builtin.py",

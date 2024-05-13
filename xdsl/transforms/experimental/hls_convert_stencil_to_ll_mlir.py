@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     IntAttr,
+    MemRefType,
     f64,
     i32,
     i64,
@@ -32,7 +33,6 @@ from xdsl.dialects.llvm import (
     LoadOp,
     UndefOp,
 )
-from xdsl.dialects.memref import MemRefType
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
@@ -368,11 +368,9 @@ def add_read_write_ops(
 def transform_apply_into_loop(
     op: ApplyOp, rewriter: PatternRewriter, ndim: int, boilerplate: list[Operation]
 ):
-    body = prepare_apply_body(op, rewriter)
-
-    body.block.add_op(scf.Yield())
     dim: int = ndim
     assert dim == 3
+    body = prepare_apply_body(op)
 
     assert isinstance(op.attributes["shape_x"], builtin.IntegerAttr)
     assert isinstance(op.attributes["shape_y"], builtin.IntegerAttr)
@@ -425,7 +423,7 @@ def transform_apply_into_loop(
     hls_pipeline_op = PragmaPipeline(ii)
 
     # current_region = for_body
-    current_region = body
+    current_block = body
     for_op_lst: list[scf.For] = []
     for i in range(1, dim + 1):
         for_op = scf.For(
@@ -433,11 +431,12 @@ def transform_apply_into_loop(
             ub=upperBounds[-i],
             step=one,
             iter_args=[],
-            body=current_region,
+            body=current_block,
         )
         for_op_lst.append(for_op)
-        block = Block(ops=[for_op, scf.Yield()], arg_types=[builtin.IndexType()])
-        current_region = Region(block)
+        current_block = Block(
+            ops=[for_op, scf.Yield()], arg_types=[builtin.IndexType()]
+        )
 
         # if i == 2:
         #    y_for_op = for_op
@@ -455,7 +454,7 @@ def transform_apply_into_loop(
         lower_bounds=[lowerBounds[0]],
         upper_bounds=[upperBounds[0]],
         steps=[one],
-        body=current_region,
+        body=Region(current_block),
     )
 
     chunk_num = p.body.block.args[0]
@@ -1208,23 +1207,13 @@ class TrivialCleanUpAuxAttributes(RewritePattern):
 class QualifyInterfacesPass(RewritePattern):
     module: builtin.ModuleOp
     declared_coeff_func: bool = False
+    called_coeff_func: bool = False
     interface_coeff_func_name = "_maxi_coeff"
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         bundle_idx = 1
         arg_idx = 0
-
-        if not self.declared_coeff_func:
-            interface_coeff_func_type = llvm.LLVMFunctionType([], None, True)
-            interface_coeff_func = llvm.FuncOp(
-                self.interface_coeff_func_name,
-                interface_coeff_func_type,
-                llvm.LinkageAttr("external"),
-            )
-            self.module.body.block.add_op(interface_coeff_func)
-
-            self.declared_coeff_func = True
 
         if "kernel" in op.attributes:
             del op.attributes["kernel"]
@@ -1250,11 +1239,22 @@ class QualifyInterfacesPass(RewritePattern):
                         self.interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
                     )
                     rewriter.insert_op_at_start(call_interface_func, op.body.blocks[0])
+                    self.called_coeff_func = True
 
                 arg_idx += 1
 
+        if self.called_coeff_func and not self.declared_coeff_func:
+            interface_coeff_func_type = llvm.LLVMFunctionType([], None, True)
+            interface_coeff_func = llvm.FuncOp(
+                self.interface_coeff_func_name,
+                interface_coeff_func_type,
+                llvm.LinkageAttr("external"),
+            )
+            self.module.body.block.add_op(interface_coeff_func)
+            self.declared_coeff_func = True
 
-@dataclass
+
+@dataclass(frozen=True)
 class HLSConvertStencilToLLMLIRPass(ModulePass):
     name = "hls-convert-stencil-to-ll-mlir"
 

@@ -31,19 +31,20 @@ from xdsl.irdl import (
     ParameterDef,
     VarOperand,
     VarOpResult,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_operand_def,
+    opt_prop_def,
     opt_region_def,
+    prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, NoTerminator, OptionalSymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
@@ -148,6 +149,33 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     def __init__(self, element_type: _RangeT):
         super().__init__([element_type])
 
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        parser.parse_punctuation("<")
+        if parser.parse_optional_keyword("attribute") is not None:
+            element_type = AttributeType()
+        elif parser.parse_optional_keyword("operation") is not None:
+            element_type = OperationType()
+        elif parser.parse_optional_keyword("type") is not None:
+            element_type = TypeType()
+        elif parser.parse_optional_keyword("value") is not None:
+            element_type = ValueType()
+        else:
+            parser.raise_error("expected PDL element type for range")
+        parser.parse_punctuation(">")
+        return [element_type]
+
+    def print_parameters(self, printer: Printer) -> None:
+        match self.element_type:
+            case AttributeType():
+                printer.print("<attribute>")
+            case OperationType():
+                printer.print("<operation>")
+            case TypeType():
+                printer.print("<type>")
+            case ValueType():
+                printer.print("<value>")
+
 
 @irdl_op_definition
 class ApplyNativeConstraintOp(IRDLOperation):
@@ -156,13 +184,13 @@ class ApplyNativeConstraintOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_constraint"
-    constraint_name: StringAttr = attr_def(StringAttr, attr_name="name")
+    constraint_name: StringAttr = prop_def(StringAttr, prop_name="name")
     args: VarOperand = var_operand_def(AnyPDLType)
 
     def __init__(self, name: str | StringAttr, args: Sequence[SSAValue]) -> None:
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__(operands=[args], attributes={"name": name})
+        super().__init__(operands=[args], properties={"name": name})
 
     @classmethod
     def parse(cls, parser: Parser) -> ApplyNativeConstraintOp:
@@ -187,7 +215,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
     """
 
     name = "pdl.apply_native_rewrite"
-    constraint_name: StringAttr = attr_def(StringAttr, attr_name="name")
+    constraint_name: StringAttr = prop_def(StringAttr, prop_name="name")
     args: VarOperand = var_operand_def(AnyPDLType)
     res: VarOpResult = var_result_def(AnyPDLType)
 
@@ -202,7 +230,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
         super().__init__(
             result_types=[result_types],
             operands=[args],
-            attributes={"name": name},
+            properties={"name": name},
         )
 
     @classmethod
@@ -236,7 +264,7 @@ class AttributeOp(IRDLOperation):
     """
 
     name = "pdl.attribute"
-    value: Attribute | None = opt_attr_def(Attribute)
+    value: Attribute | None = opt_prop_def(Attribute)
     value_type: OptOperand = opt_operand_def(TypeType)
     output: OpResult = result_def(AttributeType)
 
@@ -257,15 +285,15 @@ class AttributeOp(IRDLOperation):
         The given value is either the expected attribute, if given an attribute, or the
         expected attribute type, if given an SSAValue.
         """
-        attributes: dict[str, Attribute] = {}
+        properties: dict[str, Attribute] = {}
         operands: list[SSAValue | None] = [None]
         if isinstance(value, Attribute):
-            attributes["value"] = value
+            properties["value"] = value
         elif isinstance(value, SSAValue):
             operands = [value]
 
         super().__init__(
-            operands=operands, attributes=attributes, result_types=[AttributeType()]
+            operands=operands, properties=properties, result_types=[AttributeType()]
         )
 
     @classmethod
@@ -371,8 +399,8 @@ class OperationOp(IRDLOperation):
     """
 
     name = "pdl.operation"
-    opName: StringAttr | None = opt_attr_def(StringAttr)
-    attributeValueNames: ArrayAttr[StringAttr] = attr_def(ArrayAttr[StringAttr])
+    opName: StringAttr | None = opt_prop_def(StringAttr)
+    attributeValueNames: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
     operand_values: VarOperand = var_operand_def(ValueType | RangeType[ValueType])
     attribute_values: VarOperand = var_operand_def(AttributeType)
@@ -406,7 +434,7 @@ class OperationOp(IRDLOperation):
         super().__init__(
             operands=[operand_values, attribute_values, type_values],
             result_types=[OperationType()],
-            attributes={
+            properties={
                 "attributeValueNames": attribute_value_names,
                 "opName": op_name,
             },
@@ -527,10 +555,10 @@ class PatternOp(IRDLOperation):
     """
 
     name = "pdl.pattern"
-    benefit: IntegerAttr[Annotated[IntegerType, IntegerType(16)]] = attr_def(
+    benefit: IntegerAttr[Annotated[IntegerType, IntegerType(16)]] = prop_def(
         IntegerAttr[Annotated[IntegerType, IntegerType(16)]]
     )
-    sym_name: StringAttr | None = opt_attr_def(StringAttr)
+    sym_name: StringAttr | None = opt_prop_def(StringAttr)
     body: Region = region_def("single_block")
 
     traits = frozenset([OptionalSymbolOpInterface()])
@@ -548,7 +576,7 @@ class PatternOp(IRDLOperation):
         if body is None:
             body = Region(Block())
         super().__init__(
-            attributes={
+            properties={
                 "benefit": benefit,
                 "sym_name": sym_name,
             },
@@ -615,6 +643,8 @@ class RangeOp(IRDLOperation):
     name = "pdl.range"
     arguments: VarOperand = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
     result: OpResult = result_def(RangeType[AnyPDLType])
+
+    traits = traits_def(lambda: frozenset([HasParent(RewriteOp)]))
 
     def verify_(self) -> None:
         def get_type_or_elem_type(arg: SSAValue) -> Attribute:
@@ -751,7 +781,7 @@ class ResultOp(IRDLOperation):
     """
 
     name = "pdl.result"
-    index: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
+    index: IntegerAttr[Annotated[IntegerType, i32]] = prop_def(
         IntegerAttr[Annotated[IntegerType, i32]]
     )
     parent_: Operand = operand_def(OperationType)
@@ -761,7 +791,7 @@ class ResultOp(IRDLOperation):
         if isinstance(index, int):
             index = IntegerAttr(index, 32)
         super().__init__(
-            operands=[parent], attributes={"index": index}, result_types=[ValueType()]
+            operands=[parent], properties={"index": index}, result_types=[ValueType()]
         )
 
     @classmethod
@@ -782,7 +812,7 @@ class ResultsOp(IRDLOperation):
     """
 
     name = "pdl.results"
-    index: IntegerAttr[IntegerType] | None = opt_attr_def(IntegerAttr[IntegerType])
+    index: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
     parent_: Operand = operand_def(OperationType)
     val: OpResult = result_def(ValueType | RangeType[ValueType])
 
@@ -795,7 +825,7 @@ class ResultsOp(IRDLOperation):
         if isinstance(index, int):
             index = IntegerAttr(index, 32)
         super().__init__(
-            operands=[parent], result_types=[result_type], attributes={"index": index}
+            operands=[parent], result_types=[result_type], properties={"index": index}
         )
 
     @classmethod
@@ -828,7 +858,7 @@ class RewriteOp(IRDLOperation):
     name = "pdl.rewrite"
     root: OptOperand = opt_operand_def(OperationType)
     # name of external rewriter function
-    name_: StringAttr | None = opt_attr_def(StringAttr, attr_name="name")
+    name_: StringAttr | None = opt_prop_def(StringAttr, prop_name="name")
     # parameters of external rewriter function
     external_args: VarOperand = var_operand_def(AnyPDLType)
     # body of inline rewriter function
@@ -863,14 +893,14 @@ class RewriteOp(IRDLOperation):
         elif body is None:
             regions.append([])
 
-        attributes: dict[str, Attribute] = {}
+        properties: dict[str, Attribute] = {}
         if name is not None:
-            attributes["name"] = name
+            properties["name"] = name
 
         super().__init__(
             result_types=[],
             operands=operands,
-            attributes=attributes,
+            properties=properties,
             regions=regions,
         )
 
@@ -912,12 +942,12 @@ class TypeOp(IRDLOperation):
     """
 
     name = "pdl.type"
-    constantType: Attribute | None = opt_attr_def(Attribute)
+    constantType: Attribute | None = opt_prop_def(Attribute)
     result: OpResult = result_def(TypeType)
 
     def __init__(self, constant_type: Attribute | None = None) -> None:
         super().__init__(
-            attributes={"constantType": constant_type}, result_types=[TypeType()]
+            properties={"constantType": constant_type}, result_types=[TypeType()]
         )
 
     def verify_(self):
@@ -942,16 +972,16 @@ class TypesOp(IRDLOperation):
     """
 
     name = "pdl.types"
-    constantTypes: AnyArrayAttr | None = opt_attr_def(AnyArrayAttr)
+    constantTypes: AnyArrayAttr | None = opt_prop_def(AnyArrayAttr)
     result: OpResult = result_def(RangeType[TypeType])
 
     def __init__(self, constant_types: Iterable[Attribute] | None = None) -> None:
         if constant_types is not None:
-            attributes = {"constantTypes": ArrayAttr(constant_types)}
+            properties = {"constantTypes": ArrayAttr(constant_types)}
         else:
-            attributes = {}
+            properties = {}
         super().__init__(
-            attributes=attributes,
+            properties=properties,
             result_types=[RangeType(TypeType())],
         )
 

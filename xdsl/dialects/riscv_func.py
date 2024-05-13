@@ -142,6 +142,16 @@ class FuncOpCallableInterface(CallableOpInterface):
         assert isinstance(op, FuncOp)
         return op.body
 
+    @classmethod
+    def get_argument_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.inputs.data
+
+    @classmethod
+    def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.outputs.data
+
 
 @irdl_op_definition
 class FuncOp(IRDLOperation, riscv.RISCVOp):
@@ -177,24 +187,19 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        # Parse visibility keyword if present
-        if parser.parse_optional_keyword("public"):
-            visibility = "public"
-        elif parser.parse_optional_keyword("nested"):
-            visibility = "nested"
-        elif parser.parse_optional_keyword("private"):
-            visibility = "private"
-        else:
-            visibility = None
+        visibility = parser.parse_optional_visibility_keyword()
         (
             name,
             input_types,
             return_types,
             region,
             extra_attrs,
+            arg_attrs,
         ) = parse_func_op_like(
             parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
+        if arg_attrs:
+            raise NotImplementedError("arg_attrs not implemented in riscv_func")
         func = FuncOp(name, region, (input_types, return_types), visibility)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data

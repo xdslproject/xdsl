@@ -1,5 +1,5 @@
 import types
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from inspect import isclass
 from typing import (
     Annotated,
@@ -76,6 +76,13 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
 
     if origin is Literal:
         return arg in get_args(hint)
+
+    if (origin is not None) and issubclass(origin, Sequence):
+        if not isinstance(arg, Sequence):
+            return False
+        arg_list: list[Any] = cast(list[Any], arg)
+        (elem_hint,) = get_args(hint)
+        return all(isa(elem, elem_hint) for elem in arg_list)
 
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 

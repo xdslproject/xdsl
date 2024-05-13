@@ -39,13 +39,18 @@ class ChangeStoreOpSizes(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
         assert all(
-            integer_attr.data == 0 for integer_attr in op.lb.array.data
+            integer_attr.data == 0 for integer_attr in op.bounds.lb.array.data
         ), "lb must be 0"
         shape: tuple[int, ...] = tuple(
-            integer_attr.data for integer_attr in op.ub.array.data
+            integer_attr.data for integer_attr in op.bounds.ub.array.data
         )
         new_shape = self.strategy.calc_resize(shape)
-        op.ub = stencil.IndexAttr.get(*new_shape)
+        op.bounds = stencil.StencilBoundsAttr.new(
+            [
+                stencil.IndexAttr.get(*(len(new_shape) * [0])),
+                stencil.IndexAttr.get(*new_shape),
+            ]
+        )
 
 
 @dataclass
@@ -416,11 +421,13 @@ class MpiLoopInvariantCodeMotion:
 
     def rewrite(
         self,
-        op: memref.Alloc
-        | mpi.CommRank
-        | mpi.AllocateTypeOp
-        | mpi.UnwrapMemrefOp
-        | mpi.Init,
+        op: (
+            memref.Alloc
+            | mpi.CommRank
+            | mpi.AllocateTypeOp
+            | mpi.UnwrapMemrefOp
+            | mpi.Init
+        ),
         rewriter: Rewriter,
         /,
     ):
@@ -620,14 +627,14 @@ class DmpSwapShapeInference:
                 self.match_and_rewrite(op)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DmpDecompositionPass(ModulePass, ABC):
     """
     Represents a pass that takes a strategy as input
     """
 
 
-@dataclass
+@dataclass(frozen=True)
 class DistributeStencilPass(DmpDecompositionPass):
     """
     Decompose a stencil to apply to a local domain.
@@ -642,7 +649,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         "3d-grid": GridSlice3d,
     }
 
-    slices: list[int]
+    slices: tuple[int, ...]
     """
     Number of slices to decompose the input into
     """
@@ -681,7 +688,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         DmpSwapShapeInference(strategy).apply(op)
 
 
-@dataclass
+@dataclass(frozen=True)
 class LowerHaloToMPI(ModulePass):
     name = "dmp-to-mpi"
 

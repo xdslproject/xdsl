@@ -7,20 +7,26 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
     AnyIntegerAttr,
+    ArrayAttr,
     ContainerType,
+    DenseIntOrFPElementsAttr,
     IndexType,
     IntegerAttr,
+    IntegerType,
     ShapedType,
+    StringAttr,
 )
 from xdsl.dialects.memref import MemRefType
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
+    AttrSizedOperandSegments,
     ConstraintVar,
     IRDLOperation,
     VarOperand,
     VarOpResult,
+    attr_def,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -42,6 +48,13 @@ class ApplyOp(IRDLOperation):
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
+    def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
+        super().__init__(
+            operands=[map_operands],
+            properties={"map": affine_map},
+            result_types=[IndexType()],
+        )
+
     def verify_(self) -> None:
         if len(self.mapOperands) != self.map.data.num_dims + self.map.data.num_symbols:
             raise VerifyException(
@@ -55,40 +68,43 @@ class ApplyOp(IRDLOperation):
 class For(IRDLOperation):
     name = "affine.for"
 
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    lowerBoundOperands: VarOperand = var_operand_def(IndexType)
+    upperBoundOperands: VarOperand = var_operand_def(IndexType)
+    inits: VarOperand = var_operand_def()
     res: VarOpResult = var_result_def(AnyAttr())
 
-    lower_bound = prop_def(AffineMapAttr)
-    upper_bound = prop_def(AffineMapAttr)
+    lowerBoundMap = prop_def(AffineMapAttr)
+    upperBoundMap = prop_def(AffineMapAttr)
     step: AnyIntegerAttr = prop_def(AnyIntegerAttr)
 
     body: Region = region_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     # TODO this requires the ImplicitAffineTerminator trait instead of
     # NoTerminator
     # gh issue: https://github.com/xdslproject/xdsl/issues/1149
 
     def verify_(self) -> None:
-        if (
-            len(self.operands)
-            != len(self.results)
-            + self.lower_bound.data.num_dims
-            + self.upper_bound.data.num_dims
-            + self.lower_bound.data.num_symbols
-            + self.upper_bound.data.num_symbols
+        if len(self.inits) != len(self.results):
+            raise VerifyException("Expected as many init operands as results.")
+        if len(self.lowerBoundOperands) != (
+            self.lowerBoundMap.data.num_dims + self.lowerBoundMap.data.num_symbols
         ):
             raise VerifyException(
-                "Expected as many operands as results, lower bound args and upper bound args."
+                "Expected as many lower bound operands as lower bound dimensions and symbols."
             )
-
-        iter_types = [op.type for op in self.operands[-len(self.results) :]]
+        if len(self.upperBoundOperands) != (
+            self.upperBoundMap.data.num_dims + self.upperBoundMap.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many upper bound operands as upper bound dimensions and symbols."
+            )
+        iter_types = [op.type for op in self.inits]
         if iter_types != [res.type for res in self.results]:
             raise VerifyException(
                 "Expected all operands and result pairs to have matching types"
             )
-        if any(op.type != IndexType() for op in self.operands[: -len(self.results)]):
-            raise VerifyException("Expected all bounds arguments types to be index")
-
         entry_block: Block = self.body.blocks[0]
         block_arg_types = [IndexType()] + iter_types
         arg_types = [arg.type for arg in entry_block.args]
@@ -99,7 +115,9 @@ class For(IRDLOperation):
 
     @staticmethod
     def from_region(
-        operands: Sequence[Operation | SSAValue],
+        lowerBoundOperands: Sequence[Operation | SSAValue],
+        upperBoundOperands: Sequence[Operation | SSAValue],
+        inits: Sequence[Operation | SSAValue],
         result_types: Sequence[Attribute],
         lower_bound: int | AffineMapAttr,
         upper_bound: int | AffineMapAttr,
@@ -117,12 +135,12 @@ class For(IRDLOperation):
         if isinstance(step, int):
             step = IntegerAttr.from_index_int_value(step)
         properties: dict[str, Attribute] = {
-            "lower_bound": lower_bound,
-            "upper_bound": upper_bound,
+            "lowerBoundMap": lower_bound,
+            "upperBoundMap": upper_bound,
             "step": step,
         }
         return For.build(
-            operands=[operands],
+            operands=[lowerBoundOperands, upperBoundOperands, inits],
             result_types=[result_types],
             properties=properties,
             regions=[region],
@@ -131,15 +149,63 @@ class For(IRDLOperation):
 
 @irdl_op_definition
 class If(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Affine/#affineif-affineaffineifop
+    """
+
     name = "affine.if"
 
     args = var_operand_def(IndexType)
     res = var_result_def()
 
-    condition = prop_def(AffineSetAttr)
+    condition = attr_def(AffineSetAttr)
 
     then_region = region_def("single_block")
     else_region = region_def()
+
+
+@irdl_op_definition
+class ParallelOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Affine/#affineparallel-affineaffineparallelop
+    """
+
+    name = "affine.parallel"
+
+    map_operands = var_operand_def(IndexType)
+
+    reductions = prop_def(ArrayAttr[StringAttr])
+    lowerBoundsMap = prop_def(AffineMapAttr)
+    lowerBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    upperBoundsMap = prop_def(AffineMapAttr)
+    upperBoundsGroups = prop_def(DenseIntOrFPElementsAttr)
+    steps = prop_def(ArrayAttr[IntegerAttr[IntegerType]])
+
+    res = var_result_def()
+
+    body = region_def("single_block")
+
+    def verify_(self) -> None:
+        if (
+            len(self.operands)
+            != len(self.results)
+            + self.lowerBoundsMap.data.num_dims
+            + self.upperBoundsMap.data.num_dims
+            + self.lowerBoundsMap.data.num_symbols
+            + self.upperBoundsMap.data.num_symbols
+        ):
+            raise VerifyException(
+                "Expected as many operands as results, lower bound args and upper bound args."
+            )
+
+        if sum(g.value.data for g in self.lowerBoundsGroups.data) != len(
+            self.lowerBoundsMap.data.results
+        ):
+            raise VerifyException("Expected a lower bound group for each lower bound")
+        if sum(g.value.data for g in self.upperBoundsGroups.data) != len(
+            self.upperBoundsMap.data.results
+        ):
+            raise VerifyException("Expected an upper bound group for each upper bound")
 
 
 @irdl_op_definition
@@ -254,6 +320,7 @@ Affine = Dialect(
     [
         ApplyOp,
         For,
+        ParallelOp,
         If,
         Store,
         Load,
