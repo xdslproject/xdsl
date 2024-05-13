@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     parse_func_op_like,
-    parse_call_op_like,
     parse_return_op_like,
     print_func_op_like,
     print_return_op_like,
@@ -33,7 +32,6 @@ from xdsl.ir import (
 )
 from xdsl.ir.core import EnumAttribute, SpacedOpaqueSyntaxAttribute
 from xdsl.irdl import (
-    AttrSizedOperandSegments,
     IRDLOperation,
     ParametrizedAttribute,
     irdl_attr_definition,
@@ -367,8 +365,6 @@ class MemberCallOp(IRDLOperation):
 
     result = opt_result_def(Attribute)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
-
 
 @irdl_op_definition
 class CallOp(IRDLOperation):
@@ -376,29 +372,15 @@ class CallOp(IRDLOperation):
     Call a regular function or task by name
     """
     name = "csl.call"
-    callee = prop_def(StringAttr)
+    callee = prop_def(SymbolRefAttr)
     args = var_operand_def(Attribute)
     result = opt_result_def(Attribute)
-    # TODO(dk949): not 100% sure what this does?
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    def __init__(self, callee: str | StringAttr, arguments: Sequence[SSAValue | Operation], return_types: Sequence[Attribute]):
-        if isinstance(callee, str):
-            callee = StringAttr(callee)
-        super().__init__(
-            operands=[arguments],
-            result_types=[return_types],
-            properties={"callee": callee},
-        )
+    # TODO(dk949): verify that callee corresponds to a real symbol
 
-    @classmethod
-    def parse(cls, parser: Parser) -> CallOp:
-        callee, args, results, extra_attributes = parse_call_op_like(
-            parser, reserved_attr_names=("callee",)
-        )
-        assert extra_attributes is None or len(
-            extra_attributes.data) == 0, f"CallOp does not take any extra attributes, got {extra_attributes}"
-        return CallOp(callee.string_value(), args, results)
+    # TODO(dk949): verify that function type of callee matches args and result
+
+    # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
 
 
 class FuncBase:
