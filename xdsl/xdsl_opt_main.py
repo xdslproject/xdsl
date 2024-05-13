@@ -172,11 +172,6 @@ class xDSLOptMain(CommandLineTool):
             version=f"xdsl-opt built from xdsl version {version('xdsl')}\n",
         )
 
-    def register_pass(
-        self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
-    ):
-        self.available_passes[pass_name] = pass_factory
-
     def register_all_passes(self):
         """
         Register all passes that can be used.
@@ -184,7 +179,7 @@ class xDSLOptMain(CommandLineTool):
         Add other/additional passes by overloading this function.
         """
         for pass_name, pass_factory in get_all_passes().items():
-            self.register_pass(pass_name, pass_factory)
+            self.available_passes[pass_name] = pass_factory
 
     def register_all_targets(self):
         """
