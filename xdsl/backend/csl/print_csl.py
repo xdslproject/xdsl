@@ -278,17 +278,15 @@ class CslPrintContext:
                     f'const {name} : imported_module = @import_module("{
                         module.data}"{params_str});'
                 )
-            case csl.MemberCallOp(field=callee, args=args, result=res) \
-                    | csl.CallOp(callee=callee, args=args, result=res) as call:
-                args = ", ".join(self._get_variable_name_for(arg)
-                                 for arg in args)
-                if struct := getattr(call, "struct", None):
-                    struct_str = f"{self._get_variable_name_for(struct)}."
-                else:
-                    struct_str = ""
-
-                text = f"{self._var_use(res)} = " if res is not None else ""
-                self.print(f"{text}{struct_str}{callee.data}({args});")
+            case csl.MemberCallOp(field=callee, args=args, struct=struct, result=res):
+                args = ", ".join(map(self._get_variable_name_for, args))
+                struct_str = f"{self._get_variable_name_for(struct)}."
+                var = f"{self._var_use(res)} = " if res is not None else ""
+                self.print(f"{var}{struct_str}{callee.data}({args});")
+            case csl.CallOp(callee=callee, args=args, result=res):
+                args = ", ".join(map(self._get_variable_name_for, args))
+                var = f"{self._var_use(res)} = " if res is not None else ""
+                self.print(f"{var}{callee.string_value()}({args});")
             case csl.MemberAccessOp(struct=struct, field=field, result=res):
                 struct_var = self._get_variable_name_for(struct)
                 self.print(
