@@ -168,6 +168,61 @@ class StencilBoundsAttr(ParametrizedAttribute):
             ]
         )
 
+    def print_parameters(self, printer: Printer) -> None:
+        self.lb.print_parameters(printer)
+        printer.print(" : ")
+        self.ub.print_parameters(printer)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        lb = IndexAttr(IndexAttr.parse_parameters(parser))
+        parser.parse_punctuation(":")
+        ub = IndexAttr(IndexAttr.parse_parameters(parser))
+        return [lb, ub]
+
+    def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
+        if isinstance(other, IntAttr):
+            return self
+        return StencilBoundsAttr(
+            zip(
+                map(min, self.lb, other.lb),
+                map(max, self.ub, other.ub),
+            )
+        )
+
+    def intersection(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
+        if isinstance(other, IntAttr):
+            return self
+        return StencilBoundsAttr(
+            zip(
+                map(max, self.lb, other.lb),
+                map(min, self.ub, other.ub),
+            )
+        )
+
+    def __or__(self, value: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
+        return self.union(value)
+
+    def __ror__(self, value: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
+        return self | value
+
+    def __and__(self, value: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
+        return self.intersection(value)
+
+    def __rand__(self, value: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
+        return self & value
+
+    def __add__(self, o: IndexAttr) -> StencilBoundsAttr:
+        return StencilBoundsAttr(
+            zip(
+                self.lb + o,
+                self.ub + o,
+            )
+        )
+
+    def __radd__(self, o: IndexAttr) -> StencilBoundsAttr:
+        return self + o
+
 
 class StencilType(
     Generic[_FieldTypeElement],
@@ -691,6 +746,21 @@ class IndexOp(IRDLOperation):
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
 
+    traits = frozenset([HasAncestor(ApplyOp)])
+
+    def get_apply(self):
+        """
+        Simple helper to get the parent apply and raise otherwise.
+        """
+        trait = cast(HasAncestor, self.get_trait(HasAncestor, (ApplyOp,)))
+        ancestor = trait.get_ancestor(self)
+        if ancestor is None:
+            raise ValueError(
+                "stencil.apply not found, this function should be called on"
+                "verified accesses only."
+            )
+        return cast(ApplyOp, ancestor)
+
 
 @irdl_op_definition
 class AccessOp(IRDLOperation):
@@ -878,6 +948,19 @@ class AccessOp(IRDLOperation):
                 f"operand's rank, got {len(self.offset)}"
             )
 
+    def get_apply(self):
+        """
+        Simple helper to get the parent apply and raise otherwise.
+        """
+        trait = cast(HasAncestor, self.get_trait(HasAncestor, (ApplyOp,)))
+        ancestor = trait.get_ancestor(self)
+        if ancestor is None:
+            raise ValueError(
+                "stencil.apply not found, this function should be called on"
+                "verified accesses only."
+            )
+        return cast(ApplyOp, ancestor)
+
 
 @irdl_op_definition
 class LoadOp(IRDLOperation):
@@ -1059,19 +1142,17 @@ class StoreOp(IRDLOperation):
             ],
         )
     )
-    lb: IndexAttr = attr_def(IndexAttr)
-    ub: IndexAttr = attr_def(IndexAttr)
+    bounds: StencilBoundsAttr = attr_def(StencilBoundsAttr)
 
-    assembly_format = "$temp `to` $field `` `(` $lb `:` $ub `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
+    assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
     @staticmethod
     def get(
         temp: SSAValue | Operation,
         field: SSAValue | Operation,
-        lb: IndexAttr,
-        ub: IndexAttr,
+        bounds: StencilBoundsAttr,
     ):
-        return StoreOp.build(operands=[temp, field], attributes={"lb": lb, "ub": ub})
+        return StoreOp.build(operands=[temp, field], attributes={"bounds": bounds})
 
     def verify_(self) -> None:
         for use in self.field.uses:
@@ -1297,5 +1378,6 @@ Stencil = Dialect(
         TempType,
         ResultType,
         IndexAttr,
+        StencilBoundsAttr,
     ],
 )

@@ -317,6 +317,11 @@ class SSAValue(ABC):
     def name_hint(self, name: str | None):
         # only allow valid names
         if SSAValue.is_valid_name(name):
+            # Remove `_` followed by numbers at the end of the name
+            if name is not None:
+                r1 = re.compile(r"(_\d+)+$")
+                if match := r1.search(name):
+                    name = name[: match.start()]
             self._name = name
         else:
             raise ValueError(

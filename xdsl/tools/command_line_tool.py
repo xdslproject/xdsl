@@ -9,6 +9,7 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Span
 
 
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
@@ -395,6 +396,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return DesymrefyPass
 
+    def get_gpu_allocs():
+        from xdsl.transforms import gpu_allocs
+
+        return gpu_allocs.MemrefToGPUPass
+
     def get_gpu_map_parallel_loops():
         from xdsl.transforms import gpu_map_parallel_loops
 
@@ -464,6 +470,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import riscv_register_allocation
 
         return riscv_register_allocation.RISCVRegisterAllocation
+
+    def get_riscv_scf_loop_fusion():
+        from xdsl.transforms import riscv_scf_loop_fusion
+
+        return riscv_scf_loop_fusion.RiscvScfLoopFusionPass
 
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
@@ -592,6 +603,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
+        "memref-to-gpu": get_gpu_allocs,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
@@ -609,6 +621,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "riscv-cse": get_riscv_cse,
+        "riscv-scf-loop-fusion": get_riscv_scf_loop_fusion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
@@ -706,7 +719,9 @@ class CommandLineTool:
 
         self.available_frontends["mlir"] = parse_mlir
 
-    def parse_chunk(self, chunk: IO[str], file_extension: str) -> ModuleOp | None:
+    def parse_chunk(
+        self, chunk: IO[str], file_extension: str, start_offset: int = 0
+    ) -> ModuleOp | None:
         """
         Parse the input file by invoking the parser specified by the `parser`
         argument. If not set, the parser registered for this file extension
@@ -716,6 +731,8 @@ class CommandLineTool:
         try:
             return self.available_frontends[file_extension](chunk)
         except ParseError as e:
+            s = e.span
+            e.span = Span(s.start, s.end, s.input, start_offset)
             if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
                 print(e.with_context())
             else:

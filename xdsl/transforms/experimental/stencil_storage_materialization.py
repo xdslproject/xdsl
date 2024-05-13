@@ -41,6 +41,8 @@ class ApplyOpMaterialization(RewritePattern):
                 new_res.append(out)
         if buffers:
             rewriter.replace_matched_op([clone, *buffers], new_res)
+        else:
+            clone.erase()
 
 
 class StencilStorageMaterializationPass(ModulePass):

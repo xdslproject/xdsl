@@ -20,10 +20,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
     memref_stream.streaming_region {
-      bounds = [1, 1, 6, 6, 1, 3, 3],
-      indexing_maps = [
-        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
-        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
+      patterns = [
+          #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
+          #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
       ]
     } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
@@ -115,10 +114,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %G_moved = builtin.unrealized_conversion_cast %G : memref<f64> to !riscv.reg<>
 
     memref_stream.streaming_region {
-      bounds = [128],
-      indexing_maps = [
-          affine_map<(m) -> (m)>,
-          affine_map<(m) -> (m)>
+      patterns = [
+          #memref_stream.stride_pattern<ub = [128], index_map = (d0) -> (d0)>,
+          #memref_stream.stride_pattern<ub = [128], index_map = (d0) -> (d0)>
       ]
     } ins(%X, %Y : memref<128xf64>, memref<128xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
@@ -186,11 +184,10 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %zero_float = riscv.fcvt.d.w %c0 : (!riscv.reg<>) -> !riscv.freg<>
 
     memref_stream.streaming_region {
-      bounds = [8, 8, 8],
-      indexing_maps = [
-          affine_map<(m, n, k) -> (m, k)>,
-          affine_map<(m, n, k) -> (k, n)>,
-          affine_map<(m, n) -> (m, n)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (m, k)>,
+        #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (k, n)>,
+        #memref_stream.stride_pattern<ub = [8, 8], index_map = (m, n) -> (m, n)>
       ]
     } ins(%X, %W, %B : memref<8x8xf64>, memref<8x8xf64>, memref<8x8xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %w_stream : !stream.readable<f64>, %b_stream : !stream.readable<f64>):
@@ -292,11 +289,10 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       %c128 = riscv.li 128 : () -> !riscv.reg<>
 
       memref_stream.streaming_region {
-        bounds = [8, 16],
-        indexing_maps = [
-          affine_map<(d0, d1) -> (d0, d1)>,
-          affine_map<(d0, d1) -> (d0, d1)>,
-          affine_map<(d0, d1) -> (d0, d1)>
+        patterns = [
+          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
+          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
+          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>
         ]
       } ins(%X, %Y : memref<8x16xf64>, memref<8x16xf64>) outs(%Z : memref<8x16xf64>) {
       ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %z_stream : !stream.writable<f64>):
@@ -349,9 +345,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %x = riscv.fmv.d %X_moved : (!riscv.freg<>) -> !riscv.freg<>
 
     memref_stream.streaming_region {
-      bounds = [16, 16],
-      indexing_maps = [
-          affine_map<(d0, d1) -> (d0, d1)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
       ]
     } outs(%Y : memref<16x16xf64>) {
     ^0(%y_stream : !stream.writable<f64>):
@@ -397,91 +392,170 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<8x8xf64>,
     %G : memref<8x8xf64>
   ) {
-    %G_moved = builtin.unrealized_conversion_cast %G : memref<8x8xf64> to !riscv.reg<>
-
-    %c0 = riscv.li 0 : () -> !riscv.reg<>
+    %c0 = riscv.get_register : () -> !riscv.reg<zero>
     %c1 = riscv.li 1 : () -> !riscv.reg<>
-    %c8 = riscv.li 8 : () -> !riscv.reg<>
-    %c512 = riscv.li 512 : () -> !riscv.reg<>
+    %c4 = riscv.li 4 : () -> !riscv.reg<>
+    %frep_count = riscv.li 6 : () -> !riscv.reg<>
+    %target_count = riscv.li 64 : () -> !riscv.reg<>
 
     memref_stream.streaming_region {
-      bounds = [8, 8, 8],
-      indexing_maps = [
-          affine_map<(m, n, k) -> (m, k)>,
-          affine_map<(m, n, k) -> (k, n)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [8, 2, 8, 4], index_map = (m, n, k, j) -> (m, k)>,
+        #memref_stream.stride_pattern<ub = [8, 2, 8, 4], index_map = (m, n, k, j) -> (k, n * 4 + j)>,
+        #memref_stream.stride_pattern<ub = [8, 2, 4], index_map = (m, n, j) -> (m, n * 4 + j)>
       ]
-    } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) {
-    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
-      riscv_scf.for %g_i : !riscv.reg<> = %c0 to %c512 step %c8 {
-        %G_dest = riscv.add %G_moved, %g_i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-        %init = riscv.fld %G_dest, 0 : (!riscv.reg<>) -> !riscv.freg<>
+    } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) outs(%G : memref<8x8xf64>) {
+    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %g_stream : !stream.writable<f64>):
+      riscv_scf.for %g_i : !riscv.reg<> = %c0 to %target_count step %c4 {
+        %x00_val = memref_stream.read from %x_stream : f64
+        %x00 = builtin.unrealized_conversion_cast %x00_val : f64 to !riscv.freg<>
+        %y00_val = memref_stream.read from %y_stream : f64
+        %y00 = builtin.unrealized_conversion_cast %y00_val : f64 to !riscv.freg<>
+        %init0 = riscv.fmul.d %x00, %y00 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        %x01_val = memref_stream.read from %x_stream : f64
+        %x01 = builtin.unrealized_conversion_cast %x01_val : f64 to !riscv.freg<>
+        %y01_val = memref_stream.read from %y_stream : f64
+        %y01 = builtin.unrealized_conversion_cast %y01_val : f64 to !riscv.freg<>
+        %init1 = riscv.fmul.d %x01, %y01 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        %x02_val = memref_stream.read from %x_stream : f64
+        %x02 = builtin.unrealized_conversion_cast %x02_val : f64 to !riscv.freg<>
+        %y02_val = memref_stream.read from %y_stream : f64
+        %y02 = builtin.unrealized_conversion_cast %y02_val : f64 to !riscv.freg<>
+        %init2 = riscv.fmul.d %x02, %y02 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        %x03_val = memref_stream.read from %x_stream : f64
+        %x03 = builtin.unrealized_conversion_cast %x03_val : f64 to !riscv.freg<>
+        %y03_val = memref_stream.read from %y_stream : f64
+        %y03 = builtin.unrealized_conversion_cast %y03_val : f64 to !riscv.freg<>
+        %init3 = riscv.fmul.d %x03, %y03 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
-        %g = riscv_scf.for %i : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%acc = %init) -> (!riscv.freg<>) {
-          %x_val = memref_stream.read from %x_stream : f64
-          %x = builtin.unrealized_conversion_cast %x_val : f64 to !riscv.freg<>
-          %y_val = memref_stream.read from %y_stream : f64
-          %y = builtin.unrealized_conversion_cast %y_val : f64 to !riscv.freg<>
-          %res = riscv.fmadd.d %x, %y, %acc : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-          riscv_scf.yield %res : !riscv.freg<>
+        %g00, %g01, %g02, %g03 = riscv_scf.for %inner_i : !riscv.reg<> = %c0 to %frep_count step %c1 iter_args(%acc0 = %init0, %acc1 = %init1, %acc2 = %init2, %acc3 = %init3) -> (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>, !riscv.freg<>) {
+          %x10_val = memref_stream.read from %x_stream : f64
+          %x10 = builtin.unrealized_conversion_cast %x10_val : f64 to !riscv.freg<>
+          %y10_val = memref_stream.read from %y_stream : f64
+          %y10 = builtin.unrealized_conversion_cast %y10_val : f64 to !riscv.freg<>
+          %res0 = riscv.fmadd.d %x10, %y10, %acc0 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+          %x11_val = memref_stream.read from %x_stream : f64
+          %x11 = builtin.unrealized_conversion_cast %x11_val : f64 to !riscv.freg<>
+          %y11_val = memref_stream.read from %y_stream : f64
+          %y11 = builtin.unrealized_conversion_cast %y11_val : f64 to !riscv.freg<>
+          %res1 = riscv.fmadd.d %x11, %y11, %acc1 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+          %x12_val = memref_stream.read from %x_stream : f64
+          %x12 = builtin.unrealized_conversion_cast %x12_val : f64 to !riscv.freg<>
+          %y12_val = memref_stream.read from %y_stream : f64
+          %y12 = builtin.unrealized_conversion_cast %y12_val : f64 to !riscv.freg<>
+          %res2 = riscv.fmadd.d %x12, %y12, %acc2 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+          %x13_val = memref_stream.read from %x_stream : f64
+          %x13 = builtin.unrealized_conversion_cast %x13_val : f64 to !riscv.freg<>
+          %y13_val = memref_stream.read from %y_stream : f64
+          %y13 = builtin.unrealized_conversion_cast %y13_val : f64 to !riscv.freg<>
+          %res3 = riscv.fmadd.d %x13, %y13, %acc3 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+
+          riscv_scf.yield %res0, %res1, %res2, %res3 : !riscv.freg<>, !riscv.freg<>, !riscv.freg<>, !riscv.freg<>
         }
 
-        riscv.fsd %G_dest, %g, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
+        %x20_val = memref_stream.read from %x_stream : f64
+        %x20 = builtin.unrealized_conversion_cast %x20_val : f64 to !riscv.freg<>
+        %y20_val = memref_stream.read from %y_stream : f64
+        %y20 = builtin.unrealized_conversion_cast %y20_val : f64 to !riscv.freg<>
+        %g10 = riscv.fmadd.d %x20, %y20, %g00 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        %g10_val = builtin.unrealized_conversion_cast %g10 : !riscv.freg<> to f64
+        memref_stream.write %g10_val to %g_stream : f64
+        %x21_val = memref_stream.read from %x_stream : f64
+        %x21 = builtin.unrealized_conversion_cast %x21_val : f64 to !riscv.freg<>
+        %y21_val = memref_stream.read from %y_stream : f64
+        %y21 = builtin.unrealized_conversion_cast %y21_val : f64 to !riscv.freg<>
+        %g11 = riscv.fmadd.d %x21, %y21, %g01 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        %g11_val = builtin.unrealized_conversion_cast %g11 : !riscv.freg<> to f64
+        memref_stream.write %g11_val to %g_stream : f64
+        %x22_val = memref_stream.read from %x_stream : f64
+        %x22 = builtin.unrealized_conversion_cast %x22_val : f64 to !riscv.freg<>
+        %y22_val = memref_stream.read from %y_stream : f64
+        %y22 = builtin.unrealized_conversion_cast %y22_val : f64 to !riscv.freg<>
+        %g12 = riscv.fmadd.d %x22, %y22, %g02 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        %g12_val = builtin.unrealized_conversion_cast %g12 : !riscv.freg<> to f64
+        memref_stream.write %g12_val to %g_stream : f64
+        %x23_val = memref_stream.read from %x_stream : f64
+        %x23 = builtin.unrealized_conversion_cast %x23_val : f64 to !riscv.freg<>
+        %y23_val = memref_stream.read from %y_stream : f64
+        %y23 = builtin.unrealized_conversion_cast %y23_val : f64 to !riscv.freg<>
+        %g13 = riscv.fmadd.d %x23, %y23, %g03 : (!riscv.freg<>, !riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+        %g13_val = builtin.unrealized_conversion_cast %g13 : !riscv.freg<> to f64
+        memref_stream.write %g13_val to %g_stream : f64
 
         riscv_scf.yield
       }
     }
 
     func.return
-  }
+}
 
-
-// CHECK:       .text
+// CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl matmul
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  matmul:
 // CHECK-NEXT:      mv t5, a0
 // CHECK-NEXT:      mv t4, a1
-// CHECK-NEXT:      mv t0, a2
-// CHECK-NEXT:      li t2, 512
-// CHECK-NEXT:      li t6, 8
-// CHECK-NEXT:      li a3, 7
-// CHECK-NEXT:      li a4, 7
+// CHECK-NEXT:      mv t3, a2
+// CHECK-NEXT:      li t1, 64
+// CHECK-NEXT:      li a4, 3
 // CHECK-NEXT:      li a5, 7
-// CHECK-NEXT:      scfgwi a3, 64
-// CHECK-NEXT:      scfgwi a4, 96
-// CHECK-NEXT:      scfgwi a5, 128
-// CHECK-NEXT:      scfgwi t6, 192
-// CHECK-NEXT:      li t6, -56
+// CHECK-NEXT:      li a6, 1
+// CHECK-NEXT:      li t6, 7
+// CHECK-NEXT:      scfgwi a4, 64
+// CHECK-NEXT:      scfgwi a5, 96
+// CHECK-NEXT:      scfgwi a6, 128
+// CHECK-NEXT:      scfgwi t6, 160
+// CHECK-NEXT:      scfgwi zero, 192
+// CHECK-NEXT:      li t6, 8
 // CHECK-NEXT:      scfgwi t6, 224
-// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      li t6, -56
 // CHECK-NEXT:      scfgwi t6, 256
-// CHECK-NEXT:      li t6, 64
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      scfgwi t6, 288
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      li a6, 3
 // CHECK-NEXT:      li a5, 7
-// CHECK-NEXT:      li a4, 7
+// CHECK-NEXT:      li a4, 1
 // CHECK-NEXT:      li a3, 7
-// CHECK-NEXT:      scfgwi a5, 65
-// CHECK-NEXT:      scfgwi a4, 97
-// CHECK-NEXT:      scfgwi a3, 129
+// CHECK-NEXT:      scfgwi a6, 65
+// CHECK-NEXT:      scfgwi a5, 97
+// CHECK-NEXT:      scfgwi a4, 129
+// CHECK-NEXT:      scfgwi a3, 161
 // CHECK-NEXT:      scfgwi t6, 193
-// CHECK-NEXT:      li t6, -440
+// CHECK-NEXT:      li t6, 40
 // CHECK-NEXT:      scfgwi t6, 225
-// CHECK-NEXT:      li t6, -504
+// CHECK-NEXT:      li t6, -440
 // CHECK-NEXT:      scfgwi t6, 257
-// CHECK-NEXT:      scfgwi t5, 832
-// CHECK-NEXT:      scfgwi t4, 833
+// CHECK-NEXT:      li t6, -504
+// CHECK-NEXT:      scfgwi t6, 289
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      li a3, 63
+// CHECK-NEXT:      scfgwi a3, 66
+// CHECK-NEXT:      scfgwi t6, 194
+// CHECK-NEXT:      scfgwi t5, 864
+// CHECK-NEXT:      scfgwi t4, 865
+// CHECK-NEXT:      scfgwi t3, 898
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      mv t1, zero
+// CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
-// CHECK-NEXT:  scf_body_{{\d+}}_for:
-// CHECK-NEXT:      add t4, t0, t1
-// CHECK-NEXT:      fld ft3, 0(t4)
-// CHECK-NEXT:      li t5, 7
-// CHECK-NEXT:      frep.o t5, 1, 0, 0
+// CHECK-NEXT:  scf_body_2_for:
+// CHECK-NEXT:      fmul.d ft6, ft0, ft1
+// CHECK-NEXT:      fmul.d ft5, ft0, ft1
+// CHECK-NEXT:      fmul.d ft4, ft0, ft1
+// CHECK-NEXT:      fmul.d ft3, ft0, ft1
+// CHECK-NEXT:      li t3, 5
+// CHECK-NEXT:      frep.o t3, 4, 0, 0
+// CHECK-NEXT:      fmadd.d ft6, ft0, ft1, ft6
+// CHECK-NEXT:      fmadd.d ft5, ft0, ft1, ft5
+// CHECK-NEXT:      fmadd.d ft4, ft0, ft1, ft4
 // CHECK-NEXT:      fmadd.d ft3, ft0, ft1, ft3
-// CHECK-NEXT:      fsd ft3, 0(t4)
-// CHECK-NEXT:      addi t1, t1, 8
-// CHECK-NEXT:      blt t1, t2, scf_body_{{\d+}}_for
-// CHECK-NEXT:  scf_body_end_{{\d+}}_for:
+// CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft6
+// CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft5
+// CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft4
+// CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft3
+// CHECK-NEXT:      addi t0, t0, 4
+// CHECK-NEXT:      blt t0, t1, scf_body_2_for
+// CHECK-NEXT:  scf_body_end_2_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      ret
 
@@ -501,9 +575,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
     memref_stream.streaming_region {
-      bounds = [1, 1, 7, 7, 3, 3],
-      indexing_maps = [
-          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [1, 1, 7, 7, 3, 3], index_map = (d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
       ]
     } ins(%X : memref<1x1x16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>):
@@ -577,10 +650,9 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %zero_float = riscv.fcvt.d.w %zero_int : (!riscv.reg<zero>) -> !riscv.freg<>
 
     memref_stream.streaming_region {
-      bounds = [16, 16],
-      indexing_maps = [
-          affine_map<(d0, d1) -> (d0, d1)>,
-          affine_map<(d0, d1) -> (d0, d1)>
+      patterns = [
+          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>,
+          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
       ]
     } ins(%X : memref<16x16xf64>) outs(%Y : memref<16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
@@ -637,9 +709,8 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %c512 = riscv.li 512 : () -> !riscv.reg<>
 
     memref_stream.streaming_region {
-      bounds = [1, 1, 7, 7, 3, 3],
-      indexing_maps = [
-          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
+      patterns = [
+        #memref_stream.stride_pattern<ub = [1, 1, 7, 7, 3, 3], index_map = (d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>
       ]
     } ins(%X : memref<1x1x16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>):
