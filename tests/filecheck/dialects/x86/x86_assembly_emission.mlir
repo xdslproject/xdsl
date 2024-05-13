@@ -21,7 +21,7 @@
 // CHECK: mov rax, rdx
 %cmp = x86.rr.cmp %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
 // CHECK: cmp rax, rdx
-x86.r.push %0 : (!x86.reg<rax>) -> ()
+%pushrsp = x86.r.push %rsp, %0 : (!x86.reg<rsp>, !x86.reg<rax>) -> !x86.reg<rsp>
 // CHECK: push rax
 %pop, %poprsp = x86.r.pop %rsp : (!x86.reg<rsp>) -> (!x86.reg<rax>, !x86.reg<rsp>)
 // CHECK: pop rax
@@ -103,10 +103,12 @@ x86.mi.mov %0, 2, 8 : (!x86.reg<rax>) -> ()
 %rmi_imul = x86.rmi.imul %1, 2, 8 : (!x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK: imul rax, [rdx+8], 2
 
-x86.m.push %0 : (!x86.reg<rax>) -> ()
+%m_push_rsp = x86.m.push %rsp, %0 : (!x86.reg<rsp>, !x86.reg<rax>) -> !x86.reg<rsp>
 // CHECK: push [rax]
-x86.m.push %0, 8 : (!x86.reg<rax>) -> ()
+%m_push_rsp2 = x86.m.push %rsp, %0, 8 : (!x86.reg<rsp>, !x86.reg<rax>) -> !x86.reg<rsp>
 // CHECK: push [rax+8]
+%m_pop_rsp = x86.m.pop %rsp, %0, 8 : (!x86.reg<rsp>, !x86.reg<rax>) -> !x86.reg<rsp>
+// CHECK: pop [rax+8]
 x86.m.neg %0 : (!x86.reg<rax>) -> ()
 // CHECK: neg [rax]
 x86.m.neg %0, 8 : (!x86.reg<rax>) -> ()

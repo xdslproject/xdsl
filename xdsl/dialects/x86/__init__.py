@@ -1,14 +1,15 @@
 from xdsl.ir import Dialect
 
+from .attributes import LabelAttr
 from .ops import (
     DirectiveOp,
     GetRegisterOp,
-    LabelAttr,
     LabelOp,
     M_IDivOp,
     M_ImulOp,
     M_NegOp,
     M_NotOp,
+    M_PopOp,
     M_PushOp,
     MI_AddOp,
     MI_AndOp,
@@ -130,6 +131,7 @@ X86 = Dialect(
         RRI_ImulOP,
         RMI_ImulOp,
         M_PushOp,
+        M_PopOp,
         M_NegOp,
         M_NotOp,
         M_IDivOp,
