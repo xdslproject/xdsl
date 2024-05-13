@@ -279,14 +279,15 @@ class StoreOpTensorize(RewritePattern):
         if (
             is_tensorized(op.field.type)
             and isinstance(op.field.type, ShapedType)
-            and len(op.lb) != len(op.field.type.get_shape())
+            and len(op.bounds.lb) != len(op.field.type.get_shape())
         ):
             rewriter.replace_matched_op(
                 StoreOp.get(
                     op.temp,
                     op.field,
-                    IndexAttr.get(*[lb for lb in op.lb][:-1]),
-                    IndexAttr.get(*[ub for ub in op.ub][:-1]),
+                    StencilBoundsAttr(
+                        zip(list(op.bounds.lb.array)[:-1], list(op.bounds.ub)[:-1])
+                    ),
                 )
             )
 

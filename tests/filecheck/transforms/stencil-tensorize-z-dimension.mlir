@@ -22,7 +22,7 @@ builtin.module {
       %17 = arith.mulf %16, %5 : f32
       "stencil.return"(%17) : (f32) -> ()
     }) : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> !stencil.temp<[0,1022]x[0,510]x[0,510]xf32>
-    "stencil.store"(%3, %2) {"lb" = #stencil.index[0, 0, 0], "ub" = #stencil.index[1022, 510, 510]} : (!stencil.temp<[0,1022]x[0,510]x[0,510]xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> ()
+    "stencil.store"(%3, %2) {"bounds" = #stencil.bounds[0, 0, 0] : [1022, 510, 510]} : (!stencil.temp<[0,1022]x[0,510]x[0,510]xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> ()
     func.return
   }
 }
