@@ -627,6 +627,14 @@ class HWModuleLike(OpTrait, abc.ABC):
         """
         raise NotImplementedError()
 
+    @classmethod
+    @abc.abstractmethod
+    def set_hw_module_type(cls, op: Operation, module_type: ModuleType) -> None:
+        """
+        Sets the type of the module.
+        """
+        raise NotImplementedError()
+
 
 _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
     "sym_name",
@@ -641,6 +649,11 @@ class ModuleOpHWModuleLike(HWModuleLike):
     def get_hw_module_type(cls, op: Operation) -> ModuleType:
         assert isinstance(op, HWModuleOp)
         return op.module_type
+
+    @classmethod
+    def set_hw_module_type(cls, op: Operation, module_type: ModuleType) -> None:
+        assert isinstance(op, HWModuleOp)
+        op.module_type = module_type
 
 
 @irdl_op_definition
