@@ -934,7 +934,7 @@ class InstanceOp(IRDLOperation):
         if hw_module_like is None:
             raise VerifyException(
                 f"Module {self.module_name} must be a HWModuleLike, "
-                f"found '{module.name}' which is not a HWModuleLike"
+                f"found '{module.name}'"
             )
 
         def check_same_or_exception(

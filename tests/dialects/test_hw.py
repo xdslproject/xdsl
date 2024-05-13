@@ -375,7 +375,7 @@ def test_hwmoduleop_hwmodulelike():
     )
 
     hw_module_like = hw_module.get_trait(HWModuleLike)
-    assert hw_module_like
+    assert hw_module_like is not None
     assert hw_module_like.get_hw_module_type(hw_module) == module_type
 
     new_module_type = ModuleType(

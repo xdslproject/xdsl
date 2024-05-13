@@ -76,7 +76,7 @@ func.func @module() {
 
 hw.instance "bad_module" @module() -> ()
 
-// CHECK: Module @module must be a HWModuleLike, found 'func.func' which is not a HWModuleLike
+// CHECK: Module @module must be a HWModuleLike, found 'func.func'
 
 // -----
 
