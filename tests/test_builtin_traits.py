@@ -477,7 +477,7 @@ def test_isolated_from_above():
             ),
         ]
     )
-    message = "Operation using value defined out of its IsolatedFromAbove parent!"
+    message = r"Operation using value defined out of its IsolatedFromAbove parent: Addi\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
     with pytest.raises(VerifyException, match=message):
         out_block.verify()
 
@@ -506,7 +506,7 @@ def test_isolated_from_above():
         ]
     )
     # Check that the IR as a whole is wrong
-    message = "Operation using value defined out of its IsolatedFromAbove parent!"
+    message = r"Operation using value defined out of its IsolatedFromAbove parent: Addi\(%\d+ = arith.addi %\d+, %\d+ : i32\)"
     with pytest.raises(VerifyException, match=message):
         out_block.verify()
     # Check that the outer one in itself is fine
