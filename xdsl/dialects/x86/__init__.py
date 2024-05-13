@@ -1,9 +1,9 @@
 from xdsl.ir import Dialect
 
+from .attributes import LabelAttr
 from .ops import (
     DirectiveOp,
     GetRegisterOp,
-    LabelAttr,
     LabelOp,
     M_IDivOp,
     M_ImulOp,
