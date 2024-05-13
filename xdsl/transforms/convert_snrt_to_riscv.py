@@ -675,8 +675,6 @@ class ConvertSnrtToRISCV(SnrtConstants, ModulePass):
 
     name = "convert-snrt-to-riscv"
 
-    cluster_num: int
-
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
