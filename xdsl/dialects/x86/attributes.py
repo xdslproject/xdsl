@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from xdsl.ir import (
-    Data
-)
-from xdsl.irdl import (
-    irdl_attr_definition
-)
+from xdsl.ir import Data
+from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
