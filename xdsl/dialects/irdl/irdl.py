@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import (
@@ -21,6 +21,7 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    opt_attr_def,
     region_def,
     result_def,
     var_operand_def,
@@ -34,6 +35,7 @@ from xdsl.traits import (
     SymbolOpInterface,
     SymbolTable,
 )
+from xdsl.utils.exceptions import VerifyException
 
 ################################################################################
 # Dialect, Operation, and Attribute definitions                                #
@@ -275,6 +277,57 @@ class IsOp(IRDLOperation):
 
 
 @irdl_op_definition
+class BaseOp(IRDLOperation):
+    """Constraint an attribute/type base"""
+
+    name = "irdl.base"
+
+    base_ref = opt_attr_def(SymbolRefAttr)
+    base_name = opt_attr_def(StringAttr)
+    output = result_def(AttributeType)
+
+    def __init__(
+        self,
+        base: SymbolRefAttr | str | StringAttr,
+        attr_dict: Mapping[str, Attribute] | None = None,
+    ):
+        attr_dict = attr_dict or {}
+        if isinstance(base, str):
+            base = StringAttr(base)
+        if isinstance(base, StringAttr):
+            super().__init__(
+                attributes={"base_name": base, **attr_dict},
+                result_types=[AttributeType()],
+            )
+        else:
+            super().__init__(
+                attributes={"base_ref": base, **attr_dict},
+                result_types=[AttributeType()],
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> BaseOp:
+        attr = parser.parse_attribute()
+        if not isinstance(attr, SymbolRefAttr | StringAttr):
+            parser.raise_error("expected symbol reference or string")
+        attr_dict = parser.parse_optional_attr_dict()
+        return BaseOp(attr, attr_dict)
+
+    def print(self, printer: Printer) -> None:
+        if self.base_ref is not None:
+            printer.print(" ")
+            printer.print_attribute(self.base_ref)
+        elif self.base_name is not None:
+            printer.print(" ")
+            printer.print_attribute(self.base_name)
+        printer.print_op_attributes(self.attributes)
+
+    def verify_(self) -> None:
+        if not ((self.base_ref is None) ^ (self.base_name is None)):
+            raise VerifyException("expected base as a reference or as a name")
+
+
+@irdl_op_definition
 class ParametricOp(IRDLOperation):
     """Constraint an attribute/type base and its parameters"""
 
@@ -388,6 +441,7 @@ IRDL = Dialect(
         DialectOp,
         TypeOp,
         AttributeOp,
+        BaseOp,
         ParametersOp,
         OperationOp,
         OperandsOp,

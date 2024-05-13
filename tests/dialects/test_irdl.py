@@ -7,6 +7,7 @@ from xdsl.dialects.irdl import (
     AnyOp,
     AttributeOp,
     AttributeType,
+    BaseOp,
     DialectOp,
     IsOp,
     OperandsOp,
@@ -65,6 +66,25 @@ def test_is_init():
 
     assert op.expected == i32
     assert op.output.type == AttributeType()
+
+
+def test_base_init():
+    """Test __init__ of BaseOp."""
+    base_op_ref = BaseOp(SymbolRefAttr("integer"))
+    base_op_ref2 = BaseOp.create(
+        attributes={"base_ref": SymbolRefAttr("integer")},
+        result_types=[AttributeType()],
+    )
+    assert base_op_ref.is_structurally_equivalent(base_op_ref2)
+
+    base_op_name = BaseOp(StringAttr("integer"))
+    base_op_name2 = BaseOp("integer")
+    base_op_name3 = BaseOp.create(
+        attributes={"base_name": StringAttr("integer")},
+        result_types=[AttributeType()],
+    )
+    assert base_op_name.is_structurally_equivalent(base_op_name2)
+    assert base_op_name2.is_structurally_equivalent(base_op_name3)
 
 
 def test_parametric_init():
