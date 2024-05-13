@@ -108,4 +108,36 @@ memref_stream.streaming_region {
 // CHECK-NEXT:      "test.op"(%{{.*}}, %{{.*}}, %{{.*}}) : (!stream.readable<f64>, !stream.readable<f64>, !stream.readable<f64>) -> ()
 // CHECK-NEXT:    }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
+%G, %H = "test.op"() : () -> (f64, memref<16x16xf64>)
+// CHECK-NEXT:   %G, %H = "test.op"() : () -> (f64, memref<16x16xf64>)
+
+memref_stream.streaming_region {
+    patterns = [
+    #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
+    ]
+} outs(%H : memref<16x16xf64>) {
+^0(%h_stream : !stream.writable<f64>):
+    %c0 = arith.constant 0 : i32
+    %c1 = arith.constant 1 : i32
+    %c256 = arith.constant 256 : i32
+    scf.for %i = %c0 to %c256 step %c1 {
+        memref_stream.write %G to %h_stream : f64
+    }
+}
+
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : memref<16x16xf64> to !riscv.reg<>
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [256], strides = [8]>], "operandSegmentSizes" = array<i32: 0, 1>}> ({
+// CHECK-NEXT:    ^{{.*}}(%{{.*}} : !stream.writable<!riscv.freg<>>):
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.writable<!riscv.freg<>> to !stream.writable<f64>
+// CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
+// CHECK-NEXT:      %{{.*}} = arith.constant 1 : i32
+// CHECK-NEXT:      %{{.*}} = arith.constant 256 : i32
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} : i32 {
+// CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.writable<f64> to !stream.writable<!riscv.freg<>>
+// CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f64 to !riscv.freg<>
+// CHECK-NEXT:        %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
+// CHECK-NEXT:        riscv_snitch.write %{{.*}} to %{{.*}} : !riscv.freg<>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }) : (!riscv.reg<>) -> ()
+
 // CHECK-NEXT:  }
