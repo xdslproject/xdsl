@@ -18,11 +18,10 @@ memref_stream.write %val to %writable : f32
 %A, %B, %C = "test.op"() : () -> (memref<2xf64>, memref<3xf64>, memref<3x2xf64>)
 
 memref_stream.streaming_region {
-    bounds = [3, 2],
-    indexing_maps = [
-        affine_map<(d0, d1) -> (d0)>,
-        affine_map<(d0, d1) -> (d1)>,
-        affine_map<(d0, d1) -> (d0, d1)>
+    patterns = [
+        #memref_stream.stride_pattern<ub = [3, 2], index_map = (d0, d1) -> (d0)>,
+        #memref_stream.stride_pattern<ub = [3, 2], index_map = (d0, d1) -> (d1)>,
+        #memref_stream.stride_pattern<ub = [3, 2], index_map = (d0, d1) -> (d0, d1)>
     ]
 } ins(%A, %B : memref<2xf64>, memref<3xf64>) outs(%C : memref<3x2xf64>) attrs = {hello = "world"} {
 ^bb0(%a: !stream.readable<f64>, %b: !stream.readable<f64>, %c: !stream.writable<f64>):
@@ -42,10 +41,9 @@ memref_stream.streaming_region {
 // CHECK-NEXT:  }) : (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>) -> ()
 
 memref_stream.streaming_region {
-    bounds = [3, 2],
-    indexing_maps = [
-        affine_map<(d0, d1) -> (d0, d1)>,
-        affine_map<(d0, d1) -> (d0, d1)>
+    patterns = [
+        #memref_stream.stride_pattern<ub = [3, 2], index_map = (d0, d1) -> (d0, d1)>,
+        #memref_stream.stride_pattern<ub = [3, 2], index_map = (d0, d1) -> (d0, d1)>
     ]
 } ins(%C, %C : memref<3x2xf64>, memref<3x2xf64>) {
 ^bb0(%c0: !stream.readable<f64>, %c1: !stream.readable<f64>):
@@ -66,10 +64,9 @@ memref_stream.streaming_region {
 // CHECK-NEXT:   %D, %E = "test.op"() : () -> (memref<1x1x8x8xf64>, memref<1x1x3x3xf64>)
 
 memref_stream.streaming_region {
-    bounds = [1, 1, 6, 6, 1, 3, 3],
-    indexing_maps = [
-    affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
-    affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
+    patterns = [
+        #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
+        #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>
     ]
 } ins(%D, %E : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) {
 ^0(%d_stream : !stream.readable<f64>, %e_stream : !stream.readable<f64>):
@@ -89,11 +86,10 @@ memref_stream.streaming_region {
 // CHECK-NEXT:   %F = "test.op"() : () -> memref<8x8xf64>
 
 memref_stream.streaming_region {
-    bounds = [8, 8, 8],
-    indexing_maps = [
-        affine_map<(m, n, k) -> (m, k)>,
-        affine_map<(m, n, k) -> (k, n)>,
-        affine_map<(m, n) -> (m, n)>
+    patterns = [
+        #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (m, k)>,
+        #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (k, n)>,
+        #memref_stream.stride_pattern<ub = [8, 8], index_map = (m, n) -> (m, n)>
     ]
 } ins(%F, %F, %F : memref<8x8xf64>, memref<8x8xf64>, memref<8x8xf64>) {
 ^0(%x_stream : !stream.readable<f64>, %w_stream : !stream.readable<f64>, %b_stream : !stream.readable<f64>):

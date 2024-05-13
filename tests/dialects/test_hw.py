@@ -6,8 +6,9 @@ from unittest.mock import ANY, patch
 
 import pytest
 
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
+    HW,
     InnerRefAttr,
     InnerRefNamespaceTrait,
     InnerRefUserOpInterfaceTrait,
@@ -16,8 +17,10 @@ from xdsl.dialects.hw import (
     InnerSymbolTableTrait,
     InnerSymPropertiesAttr,
     InnerSymTarget,
+    InstanceOp,
 )
 from xdsl.dialects.test import TestOp
+from xdsl.ir import MLContext
 from xdsl.irdl import (
     IRDLOperation,
     Region,
@@ -26,6 +29,7 @@ from xdsl.irdl import (
     opt_region_def,
     region_def,
 )
+from xdsl.parser import Parser
 from xdsl.traits import (
     IsTerminator,
     SingleBlockImplicitTerminator,
@@ -34,6 +38,7 @@ from xdsl.traits import (
     ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_inner_sym_target():
@@ -323,3 +328,34 @@ def test_inner_sym_attr():
     assert (
         len(aggregate_without_nested) == 2
     ), "InnerSymAttr removal should correctly change length"
+
+
+def test_instance_builder():
+    MODULE_CTX = """
+hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
+  hw.output %foo, %bar : i32, i64
+}
+"""
+
+    ctx = MLContext()
+    ctx.load_dialect(HW)
+
+    module_op = Parser(ctx, MODULE_CTX).parse_module()
+
+    module_op.body.block.add_op(
+        inst_op := InstanceOp(
+            "test",
+            SymbolRefAttr("module"),
+            (("foo", TestSSAValue(i32)), ("bar", TestSSAValue(i64))),
+            (("baz", i32), ("qux", i64)),
+        )
+    )
+
+    inst_op.verify()
+    assert inst_op.instance_name == StringAttr("test")
+    assert inst_op.module_name == SymbolRefAttr("module")
+    assert inst_op.arg_names.data == (StringAttr("foo"), StringAttr("bar"))
+    assert inst_op.result_names.data == (StringAttr("baz"), StringAttr("qux"))
+
+    assert [op.type for op in inst_op.operands] == [i32, i64]
+    assert [res.type for res in inst_op.results] == [i32, i64]

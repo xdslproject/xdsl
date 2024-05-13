@@ -273,13 +273,13 @@ class InputApp(App[None]):
     ) -> tuple[tuple[type[ModulePass], PipelinePassSpec], ...]:
         """
         Helper function that returns a pass_pipeline consisiting of the list of nodes
-        from the root of the tree to and including the expanded_node child.
+        from the root of the tree, not including the expanded_node child.
         """
         assert expanded_node.data is not None
 
         pass_list_items: list[tuple[type[ModulePass], PipelinePassSpec | None]] = []
 
-        current = expanded_node
+        current = expanded_node.parent
 
         # traverse the path starting from the child node until we reach the root
         while current is not None and current.data is not None and not current.is_root:
@@ -364,7 +364,9 @@ class InputApp(App[None]):
         screen dismissal and appends the pass to the pass_pipeline variable.
         """
 
-        def add_pass_with_arguments_to_pass_pipeline(concatenated_arg_val: str) -> None:
+        def add_pass_with_arguments_to_pass_pipeline(
+            concatenated_arg_val: str | None,
+        ) -> None:
             """
             Called when AddArguments Screen is dismissed. This function attempts to parse
             the returned string, and if successful, adds it to the pass_pipeline variable.
@@ -372,21 +374,35 @@ class InputApp(App[None]):
             Parse Error.
             """
             try:
+                # if screen was dismissed and user 1) cleared the screen 2) made no changes
+                if concatenated_arg_val is None:
+                    return
+
                 new_pass_with_arguments = list(
                     parse_pipeline(
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
                     )
                 )[0]
-                self.pass_pipeline = (
-                    *self.pass_pipeline,
-                    *root_to_child_pass_list,
-                    (selected_pass_value, new_pass_with_arguments),
+
+                missing_fields = selected_pass_value.required_fields().difference(
+                    new_pass_with_arguments.args.keys()
                 )
 
+                if missing_fields:
+                    error = f"Missing required fields: {missing_fields}"
+                else:
+                    self.pass_pipeline = (
+                        *self.pass_pipeline,
+                        *root_to_child_pass_list,
+                        (selected_pass_value, new_pass_with_arguments),
+                    )
+                    return
+
             except PassPipelineParseError as e:
-                res = f"PassPipelineParseError: {e}"
-                screen = AddArguments(TextArea(res, id="argument_text_area"))
-                self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
+                error = f"PassPipelineParseError: {e}"
+
+            screen = AddArguments(TextArea(error, id="argument_text_area"))
+            self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
         # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
         self.push_screen(
@@ -419,7 +435,7 @@ class InputApp(App[None]):
         selected_pass_value, selected_pass_spec = selected_pass.data
 
         # get root to child passes due to tree traversal possibility
-        root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass)[:-1]
+        root_to_child_pass_list = self.get_root_to_child_pass_list(selected_pass)
 
         # if selected_pass_value has arguments, call get_arguments_function to push screen for user input
         if fields(selected_pass_value) and selected_pass_spec is None:
@@ -453,9 +469,13 @@ class InputApp(App[None]):
         # get instance
         selected_pass_value, selected_pass_spec = expanded_node.data
 
-        # if expanded_pass requires arguments, do not allow node expansion
-        if fields(selected_pass_value) and selected_pass_spec is None:
-            return
+        if selected_pass_spec is None:
+            if fields(selected_pass_value):
+                # if expanded_pass requires arguments, do not allow node expansion
+                return
+            else:
+                # Get the default/empty pass spec
+                selected_pass_spec = selected_pass_value().pipeline_pass_spec()
 
         # if selected_pass_value requires no arguments add the selected pass to pass_pipeline
         root_to_child_pass_list = self.get_root_to_child_pass_list(expanded_node)
@@ -463,6 +483,7 @@ class InputApp(App[None]):
         child_pass_pipeline = (
             *self.pass_pipeline,
             *root_to_child_pass_list,
+            (selected_pass_value, selected_pass_spec),
         )
 
         child_pass_list = get_available_pass_list(

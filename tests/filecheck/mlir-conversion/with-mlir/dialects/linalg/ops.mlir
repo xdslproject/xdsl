@@ -54,6 +54,7 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
     linalg.yield %acc : f32
 } -> tensor<2x3xf32>
 
+%diff = linalg.sub ins(%2, %2 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%3 : tensor<2x3xf32>) -> tensor<2x3xf32>
 
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
@@ -89,5 +90,6 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 // CHECK-NEXT:      %{{.*}} = arith.addf %in, %in_0 : f32
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    } -> tensor<2x3xf32>
+// CHECK-NEXT:    %{{.*}} = linalg.sub ins(%{{.*}}, %{{.*}} : tensor<2x3xf32>, tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:  }
 

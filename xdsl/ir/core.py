@@ -317,6 +317,11 @@ class SSAValue(ABC):
     def name_hint(self, name: str | None):
         # only allow valid names
         if SSAValue.is_valid_name(name):
+            # Remove `_` followed by numbers at the end of the name
+            if name is not None:
+                r1 = re.compile(r"(_\d+)+$")
+                if match := r1.search(name):
+                    name = name[: match.start()]
             self._name = name
         else:
             raise ValueError(
@@ -664,6 +669,29 @@ class ParametrizedAttribute(Attribute):
         attr_def = t.get_irdl_definition()
         attr_def.verify(self)
         super()._verify()
+
+
+class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
+    """
+    An attribute with a type.
+    """
+
+    @staticmethod
+    def get_type_index() -> int: ...
+
+    @classmethod
+    def parse_with_type(
+        cls: type[TypedAttribute[AttributeCovT]],
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute[AttributeCovT]:
+        """
+        Parse the attribute with the given type.
+        """
+        ...
+
+    @abstractmethod
+    def print_without_type(self, printer: Printer): ...
 
 
 @dataclass(init=False)

@@ -19,6 +19,7 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    IntAttr,
     ModuleOp,
     UnrealizedConversionCastOp,
 )
@@ -101,16 +102,17 @@ class StreamOpLowering(RewritePattern):
             return
         bytes_per_element = 8
         shapes = tuple(operand_type.get_shape() for operand_type in operand_types)
-        all_strides = tuple(
-            strides_for_affine_map(map.data, shape, bytes_per_element)
-            for map, shape in zip(op.indexing_maps, shapes, strict=True)
-        )
-        bounds = tuple(bound.data for bound in op.bounds)
         stride_patterns = tuple(
-            snitch_stream.StridePattern.from_bounds_and_strides(
-                bounds[: len(strides)], strides
+            snitch_stream.StridePattern(
+                pattern.ub,
+                ArrayAttr(
+                    IntAttr(stride)
+                    for stride in strides_for_affine_map(
+                        pattern.index_map.data, shape, bytes_per_element
+                    )
+                ),
             ).simplified()
-            for strides in all_strides
+            for pattern, shape in zip(op.patterns, shapes, strict=True)
         )
         if len(set(stride_patterns)) == 1:
             stride_patterns = (stride_patterns[0],)

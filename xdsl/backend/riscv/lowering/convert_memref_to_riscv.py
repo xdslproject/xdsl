@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from math import prod
 from typing import Any, cast
 
 from xdsl.backend.riscv.lowering.utils import (
@@ -6,7 +7,7 @@ from xdsl.backend.riscv.lowering.utils import (
     register_type_for_type,
 )
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import memref, riscv
+from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloat,
     DenseIntOrFPElementsAttr,
@@ -14,10 +15,11 @@ from xdsl.dialects.builtin import (
     Float64Type,
     IntegerType,
     ModuleOp,
+    SymbolRefAttr,
     UnrealizedConversionCastOp,
 )
 from xdsl.interpreters.ptr import TypedPtr
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, MLContext, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -26,13 +28,45 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import DiagnosticException
 
 
+def bitwidth_of_type(type_attribute: Attribute) -> int:
+    """
+    Returns the width of an element type in bits, or raises ValueError for unknown inputs.
+    """
+    if isinstance(type_attribute, AnyFloat):
+        return type_attribute.get_bitwidth
+    elif isinstance(type_attribute, IntegerType):
+        return type_attribute.width.data
+    else:
+        raise NotImplementedError(
+            f"Unsupported memref element type for riscv lowering: {type_attribute}"
+        )
+
+
 class ConvertMemrefAllocOp(RewritePattern):
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter) -> None:
-        raise DiagnosticException("Lowering memref.alloc not implemented yet")
+        assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
+        op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
+        width_in_bytes = bitwidth_of_type(op_memref_type.element_type) // 8
+        size = prod(op_memref_type.get_shape()) * width_in_bytes
+        rewriter.replace_matched_op(
+            (
+                size_op := riscv.LiOp(size, comment="memref alloc size"),
+                move_op := riscv.MVOp(size_op.rd, rd=riscv.Registers.A0),
+                call := riscv_func.CallOp(
+                    SymbolRefAttr("malloc"),
+                    (move_op.rd,),
+                    (riscv.Registers.A0,),
+                ),
+                move_op := riscv.MVOp(call.ress[0], rd=riscv.Registers.UNALLOCATED_INT),
+                UnrealizedConversionCastOp.get((move_op.rd,), (op.memref.type,)),
+            )
+        )
 
 
 class ConvertMemrefDeallocOp(RewritePattern):
@@ -264,10 +298,12 @@ class ConvertMemrefToRiscvPass(ModulePass):
     name = "convert-memref-to-riscv"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        contains_malloc = PatternRewriteWalker(ConvertMemrefAllocOp()).rewrite_module(
+            op
+        )
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    ConvertMemrefAllocOp(),
                     ConvertMemrefDeallocOp(),
                     ConvertMemrefStoreOp(),
                     ConvertMemrefLoadOp(),
@@ -276,3 +312,11 @@ class ConvertMemrefToRiscvPass(ModulePass):
                 ]
             )
         ).rewrite_module(op)
+        if contains_malloc:
+            func_op = riscv_func.FuncOp(
+                "malloc",
+                Region(),
+                ((riscv.Registers.A0,), (riscv.Registers.A0,)),
+                visibility="private",
+            )
+            SymbolTable.insert_or_update(op, func_op)

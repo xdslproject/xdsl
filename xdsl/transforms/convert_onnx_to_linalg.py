@@ -5,6 +5,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
 from xdsl.dialects.builtin import (
     AffineMapAttr,
+    AnyFloat,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -59,27 +60,48 @@ class AddOpLowering(RewritePattern):
 
 
 @dataclass
+class SubOpLowering(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, sub: onnx.Sub, rewriter: PatternRewriter, /):
+        lhs_type = sub.lhs.type
+        rhs_type = sub.rhs.type
+        if isinstance(lhs_type, TensorType) and isinstance(rhs_type, TensorType):
+            lhs_shape = lhs_type.get_shape()
+            rhs_shape = rhs_type.get_shape()
+
+            if -1 in lhs_shape or -1 in rhs_shape:
+                raise NotImplementedError()
+
+        rewriter.replace_matched_op(
+            (
+                empty := tensor.EmptyOp((), sub.res.type),
+                linalg.SubOp((sub.lhs, sub.rhs), (empty.tensor,), res=(sub.res.type,)),
+            )
+        )
+
+
+@dataclass
 class ReluOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, relu: onnx.Relu, rewriter: PatternRewriter, /):
-        body = Region(Block(arg_types=(f64, f64)))
-        affine_map = AffineMapAttr(AffineMap.from_callable(lambda d0, d1: (d0, d1)))
+        operand = relu.operand.type
+        assert isinstance(operand, TensorType)
+        operand = cast(TensorType[Attribute], operand)
+        operand_rank = len(operand.get_shape())
+        body = Region(Block(arg_types=(operand.element_type, operand.element_type)))
+        affine_map = AffineMapAttr(AffineMap.identity(operand_rank))
         rewriter.replace_matched_op(
             (
                 empty := tensor.EmptyOp((), relu.res.type),
-                zero := arith.Constant(FloatAttr(0, f64)),
+                zero := arith.Constant(
+                    FloatAttr(0.0, cast(AnyFloat, operand.element_type))
+                ),
                 linalg.Generic(
                     (relu.operand,),
                     (empty.tensor,),
                     body,
-                    (
-                        affine_map,
-                        affine_map,
-                    ),
-                    (
-                        linalg.IteratorTypeAttr.parallel(),
-                        linalg.IteratorTypeAttr.parallel(),
-                    ),
+                    (affine_map, affine_map),
+                    (linalg.IteratorTypeAttr.parallel(),) * operand_rank,
                     (relu.res.type,),
                 ),
             )
@@ -377,6 +399,7 @@ class ConvertOnnxToLinalgPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     AddOpLowering(),
+                    SubOpLowering(),
                     ReluOpLowering(),
                     ConstantOpLowering(),
                     ReshapeOpLowering(),

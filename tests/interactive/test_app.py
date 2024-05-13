@@ -1,6 +1,8 @@
-from typing import cast
+from typing import Any, cast
 
 import pytest
+from textual.screen import Screen
+from textual.widgets import Tree
 
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
@@ -14,6 +16,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
+from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import AvailablePass
 from xdsl.ir import Block, Region
@@ -22,6 +25,7 @@ from xdsl.transforms import (
     individual_rewrite,
     test_lower_snitch_stream_to_asm,
 )
+from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -467,3 +471,47 @@ async def test_passes():
         assert isinstance(app.current_module, ModuleOp)
         # Assert that the current module has been changed accordingly
         assert app.current_module.is_structurally_equivalent(expected_module)
+
+
+@pytest.mark.asyncio()
+async def test_argument_pass_screen():
+    """Test that clicking on a pass that requires passes opens a screen to specify them."""
+    async with InputApp().run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
+        # Testing a pass
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : i32) -> i32 {
+  %two = arith.constant 0 : i32
+  %res = arith.addi %two, %n : i32
+  func.return %res : i32
+}
+        """
+        )
+        app.passes_tree.root.expand
+        await pilot.pause()
+
+        root_children = app.passes_tree.root.children
+        distribute_stencil_node = None
+
+        for node in root_children:
+            assert node.data is not None
+            pass_val, _ = node.data
+            if pass_val.name == stencil_global_to_local.DistributeStencilPass.name:
+                distribute_stencil_node = node
+
+        assert distribute_stencil_node is not None
+
+        # Ideally, we would like to trigger the event like this:
+        # `app.passes_tree.select_node(distribute_stencil_node)`
+        # When running in a test, node selection does not send the expected event
+        # For now, trigger the expected method directly
+        app.update_pass_pipeline(Tree.NodeSelected(distribute_stencil_node))
+        await pilot.pause()
+
+        arg_screen_str: type[Screen[Any]] = AddArguments
+        assert isinstance(app.screen, arg_screen_str)

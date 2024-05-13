@@ -70,7 +70,9 @@ def indices_for_map(
 def rewrite_generic_to_loops(
     rewriter: PatternRewriter,
     op: linalg.Generic | memref_stream.GenericOp,
-    load: Callable[[SSAValue, Sequence[SSAValue]], Operation],
+    load: Callable[
+        [SSAValue, Sequence[SSAValue], PatternRewriter, Operation], SSAValue
+    ],
     store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
 ) -> None:
     # Create loop nest lb (0), step (1), and ubs
@@ -117,9 +119,8 @@ def rewrite_generic_to_loops(
             continue
         affine_map = affine_map_attr.data
         indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
-        load_op = load(operand, indices)
-        rewriter.insert_op_before(load_op, insertion_target)
-        arg.replace_by(load_op.results[0])
+        res = load(operand, indices, rewriter, insertion_target)
+        arg.replace_by(res)
 
     # Add store ops before the yield operation in the generic body
 
