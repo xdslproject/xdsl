@@ -394,6 +394,17 @@ class R_R_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
+class R_NegOp(R_R_Operation[GeneralRegisterType]):
+    """
+    Negates r1 and stores the result in r1.
+    x[r1] = -x[r1]
+    https://www.felixcloutier.com/x86/neg
+    """
+
+    name = "x86.r.neg"
+
+
+@irdl_op_definition
 class R_NotOp(R_R_Operation[GeneralRegisterType]):
     """
     bitwise not of r1, stored in r1
@@ -405,7 +416,29 @@ class R_NotOp(R_R_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class R_IDivOp(IRDLOperation, X86Instruction, ABC):
+class R_IncOp(R_R_Operation[GeneralRegisterType]):
+    """
+    Increments r1 by 1 and stores the result in r1.
+    x[r1] = x[r1] + 1
+    https://www.felixcloutier.com/x86/inc
+    """
+
+    name = "x86.r.inc"
+
+
+@irdl_op_definition
+class R_DecOp(R_R_Operation[GeneralRegisterType]):
+    """
+    Decrements r1 by 1 and stores the result in r1.
+    x[r1] = x[r1] - 1
+    https://www.felixcloutier.com/x86/dec
+    """
+
+    name = "x86.r.dec"
+
+
+@irdl_op_definition
+class R_IDivOp(IRDLOperation, X86Instruction):
     """
     Divides the value in RDX:RAX by r1 and stores the quotient in RAX and the remainder in RDX.
     https://www.felixcloutier.com/x86/idiv
@@ -446,7 +479,7 @@ class R_IDivOp(IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class R_ImulOp(IRDLOperation, X86Instruction, ABC):
+class R_ImulOp(IRDLOperation, X86Instruction):
     """
     The source operand is multiplied by the value in the RAX register and the product is stored in the RDX:RAX registers.
     x[RDX:RAX] = x[RAX] * r1
@@ -485,7 +518,7 @@ class R_ImulOp(IRDLOperation, X86Instruction, ABC):
         return (self.r1,)
 
 
-class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
+class R_RM_Operation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
     """
     A base class for x86 operations that have one register and one memory access with an optional offset.
     """
@@ -542,7 +575,7 @@ class RMOperation(Generic[R1InvT, R2InvT], IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class RM_AddOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+class RM_AddOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Adds the value from the memory location pointed to by r2 to r1 and stores the result in r1.
     x[r1] = x[r1] + [x[r2]]
@@ -553,7 +586,7 @@ class RM_AddOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_SubOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+class RM_SubOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Subtracts the value from the memory location pointed to by r2 from r1 and stores the result in r1.
     x[r1] = x[r1] - [x[r2]]
@@ -564,7 +597,7 @@ class RM_SubOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_ImulOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+class RM_ImulOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Multiplies the value from the memory location pointed to by r2 with r1 and stores the result in r1.
     x[r1] = x[r1] * [x[r2]]
@@ -575,7 +608,7 @@ class RM_ImulOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_AndOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+class RM_AndOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise and of r1 and [r2], stored in r1
     x[r1] = x[r1] & [x[r2]]
@@ -586,7 +619,7 @@ class RM_AndOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_OrOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+class RM_OrOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise or of r1 and [r2], stored in r1
     x[r1] = x[r1] | [x[r2]]
@@ -597,7 +630,7 @@ class RM_OrOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_XorOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+class RM_XorOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     bitwise xor of r1 and [r2], stored in r1
     x[r1] = x[r1] ^ [x[r2]]
@@ -608,7 +641,7 @@ class RM_XorOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class RM_MovOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
+class RM_MovOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value from the memory location pointed to by r2 into r1.
     x[r1] = [x[r2]]
@@ -616,6 +649,17 @@ class RM_MovOp(RMOperation[GeneralRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.rm.mov"
+
+
+@irdl_op_definition
+class RM_leaOp(R_RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+    """
+    Loads the effective address of the memory location pointed to by r2 into r1.
+    x[r1] = &x[r2]
+    https://www.felixcloutier.com/x86/lea
+    """
+
+    name = "x86.rm.lea"
 
 
 class R_RI_Operation(Generic[R1InvT], IRDLOperation, X86Instruction, ABC):
@@ -1124,7 +1168,7 @@ class RMI_ImulOp(R_RMI_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class M_PushOp(IRDLOperation, X86Instruction, ABC):
+class M_PushOp(IRDLOperation, X86Instruction):
     """
     Decreases %rsp and places [r1] at the new memory location pointed to by %rsp.
     https://www.felixcloutier.com/x86/push
@@ -1182,7 +1226,7 @@ class M_PushOp(IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class M_PopOp(IRDLOperation, X86Instruction, ABC):
+class M_PopOp(IRDLOperation, X86Instruction):
     """
     Copies the value at the top of the stack into [r1] and increases %rsp.
     The value held by r1 is a pointer to the memory location where the value is stored.
@@ -1315,7 +1359,29 @@ class M_NotOp(M_M_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class M_IDivOp(IRDLOperation, X86Instruction, ABC):
+class M_IncOp(M_M_Operation[GeneralRegisterType]):
+    """
+    Increments the value at the memory location pointed to by r1.
+    [x[r1]] = [x[r1]] + 1
+    https://www.felixcloutier.com/x86/inc
+    """
+
+    name = "x86.m.inc"
+
+
+@irdl_op_definition
+class M_DecOp(M_M_Operation[GeneralRegisterType]):
+    """
+    Decrements the value at the memory location pointed to by r1.
+    [x[r1]] = [x[r1]] - 1
+    https://www.felixcloutier.com/x86/dec
+    """
+
+    name = "x86.m.dec"
+
+
+@irdl_op_definition
+class M_IDivOp(IRDLOperation, X86Instruction):
     """
     Divides the value in RDX:RAX by [r1] and stores the quotient in RAX and the remainder in RDX.
     https://www.felixcloutier.com/x86/idiv
@@ -1378,7 +1444,7 @@ class M_IDivOp(IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class M_ImulOp(IRDLOperation, X86Instruction, ABC):
+class M_ImulOp(IRDLOperation, X86Instruction):
     """
     The source operand is multiplied by the value in the RAX register and the product is stored in the RDX:RAX registers.
     x[RDX:RAX] = x[RAX] * [x[r1]]
@@ -1632,7 +1698,7 @@ class S_JmpOp(IRDLOperation, X86Instruction):
 
 
 @irdl_op_definition
-class RR_CmpOp(IRDLOperation, X86Instruction, ABC):
+class RR_CmpOp(IRDLOperation, X86Instruction):
     """
     Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
     https://www.felixcloutier.com/x86/cmp
@@ -1669,7 +1735,7 @@ class RR_CmpOp(IRDLOperation, X86Instruction, ABC):
 
 
 @irdl_op_definition
-class RM_CmpOp(IRDLOperation, X86Instruction, ABC):
+class RM_CmpOp(IRDLOperation, X86Instruction):
     """
     Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
     https://www.felixcloutier.com/x86/cmp
@@ -1725,6 +1791,187 @@ class RM_CmpOp(IRDLOperation, X86Instruction, ABC):
             printer.print(", ")
             print_immediate_value(printer, self.offset)
         return {"offset"}
+
+
+@irdl_op_definition
+class RI_CmpOp(IRDLOperation, X86Instruction):
+    """
+    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    https://www.felixcloutier.com/x86/cmp
+    """
+
+    name = "x86.ri.cmp"
+
+    r1 = operand_def(GeneralRegisterType)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+
+    result = result_def(RFLAGSRegisterType)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        immediate: int | AnyIntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: RFLAGSRegisterType,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, 32)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.r1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
+@irdl_op_definition
+class MR_CmpOp(IRDLOperation, X86Instruction):
+    """
+    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    https://www.felixcloutier.com/x86/cmp
+    """
+
+    name = "x86.mr.cmp"
+
+    r1 = operand_def(GeneralRegisterType)
+    r2 = operand_def(GeneralRegisterType)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    result = result_def(RFLAGSRegisterType)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        *,
+        comment: str | StringAttr | None = None,
+        result: RFLAGSRegisterType,
+    ):
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2],
+            attributes={
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.r1, self.offset)
+        return memory_access, self.r2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_optional_immediate_value(
+            parser, IntegerType(64, Signedness.SIGNED)
+        )
+        if temp is not None:
+            attributes["offset"] = temp
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        if self.offset is not None:
+            printer.print(", ")
+            print_immediate_value(printer, self.offset)
+        return {"offset"}
+
+
+@irdl_op_definition
+class MI_CmpOp(IRDLOperation, X86Instruction):
+    """
+    Compares the first source operand with the second source operand and sets the status flags in the EFLAGS register according to the results.
+    https://www.felixcloutier.com/x86/cmp
+    """
+
+    name = "x86.mi.cmp"
+
+    r1 = operand_def(GeneralRegisterType)
+    immediate: AnyIntegerAttr = attr_def(AnyIntegerAttr)
+    offset: AnyIntegerAttr | None = opt_attr_def(AnyIntegerAttr)
+
+    result = result_def(RFLAGSRegisterType)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        offset: int | AnyIntegerAttr | None,
+        immediate: int | AnyIntegerAttr,
+        *,
+        comment: str | StringAttr | None = None,
+        result: RFLAGSRegisterType,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(
+                immediate, 32
+            )  # the deault immediate size is 32 bits
+        if isinstance(offset, int):
+            offset = IntegerAttr(offset, 64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1],
+            attributes={
+                "immediate": immediate,
+                "offset": offset,
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        immediate = assembly_arg_str(self.immediate)
+        memory_access = memory_access_str(self.r1, self.offset)
+        return memory_access, immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
+        attributes["immediate"] = temp
+        if parser.parse_optional_punctuation(",") is not None:
+            temp2 = parse_optional_immediate_value(
+                parser, IntegerType(32, Signedness.SIGNED)
+            )
+            if temp2 is not None:
+                attributes["offset"] = temp2
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.immediate)
+        if self.offset is not None:
+            printer.print(", ")
+            print_immediate_value(printer, self.offset)
+        return {"immediate", "offset"}
 
 
 class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
