@@ -776,6 +776,10 @@ class SymbolExportOp(IRDLOperation):
             raise VerifyException(
                 "type must be either a pointer or a function type")
 
+        if self.value is not None and self.var_name is None:
+            raise VerifyException(
+                "When operand is specified, var_name has to be used to set its symbol name")
+
         if (self.sym_name is not None) == (self.value is not None):
             raise VerifyException(
                 "sym_name and the operand are mutually expclusive, but at least one is required")
