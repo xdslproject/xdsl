@@ -18,7 +18,7 @@ csl.module {kind = #csl<module_kind layout>} {
     %y_coord = arith.constant 0 : i32
 
 
-    %memcpy_params = "csl.member_call"(%memcpy, %x_coord) <{field = "get_params", operandSegmentSizes = array<i32: 1, 1>}> : (!csl.comptime_struct, i32) -> !csl.comptime_struct
+    %memcpy_params = "csl.member_call"(%memcpy, %x_coord) <{field = "get_params"}> : (!csl.comptime_struct, i32) -> !csl.comptime_struct
 
     %tile_code_params = "csl.const_struct"(%memcpy_params) <{ssa_fields = ["memcpy_params"]}> : (!csl.comptime_struct) -> !csl.comptime_struct
 
@@ -110,10 +110,10 @@ csl.module {kind = #csl<module_kind program>} {
   }
 
   csl.func @init_and_compute() {
-    csl.call @initialize() : () -> ()
-    csl.call @gemv() : () -> ()
+    "csl.call"() <{callee = @initialize}> : () -> ()
+    "csl.call"() <{callee = @gemv}> : () -> ()
 
-    "csl.member_call"(%sys_mod) <{field = "unblock_cmd_stream", operandSegmentSizes = array<i32: 1, 0>}> : (!csl.comptime_struct) -> ()
+    "csl.member_call"(%sys_mod) <{field = "unblock_cmd_stream"}> : (!csl.comptime_struct) -> ()
     csl.return
   }
 
