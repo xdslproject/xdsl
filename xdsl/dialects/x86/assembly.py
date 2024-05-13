@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-from io import StringIO
-from typing import IO, TypeAlias
+from typing import TypeAlias
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
-    ModuleOp,
     StringAttr,
 )
-from xdsl.dialects.func import FuncOp
 from xdsl.ir import (
     SSAValue,
 )
@@ -72,25 +69,6 @@ def assembly_line(
         code += f" {arg_str}"
     code = append_comment(code, comment)
     return code
-
-
-def print_assembly(module: ModuleOp, output: IO[str]) -> None:
-    from .ops import X86Op  # Avoid circular import
-
-    for op in module.body.walk():
-        if isinstance(op, FuncOp):
-            print(f"{op.sym_name.data}:", file=output)
-            continue
-        assert isinstance(op, X86Op), f"{op}"
-        asm = op.assembly_line()
-        if asm is not None:
-            print(asm, file=output)
-
-
-def x86_code(module: ModuleOp) -> str:
-    stream = StringIO()
-    print_assembly(module, stream)
-    return stream.getvalue()
 
 
 def parse_immediate_value(
