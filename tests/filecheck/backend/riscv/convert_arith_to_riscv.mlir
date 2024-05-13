@@ -161,10 +161,12 @@ builtin.module {
     %maxf64_fm_contract = "arith.maximumf"(%lhsf64, %rhsf64) {"fastmath" = #arith.fastmath<contract>} : (f64, f64) -> f64
     // CHECK-NEXT: %{{.*}} = riscv.fmax.d %lhsf64_reg, %rhsf64_reg fastmath<contract> : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
 
-    %sitofp = "arith.sitofp"(%lhsi32) : (i32) -> f32
+    %sitofp32 = arith.sitofp %lhsi32 : i32 to f32
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.s.w %lhsi32 : (!riscv.reg<>) -> !riscv.freg<>
-    %fptosi = "arith.fptosi"(%lhsf32) : (f32) -> i32
+    %fp32tosi = arith.fptosi %lhsf32 : f32 to i32
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.w.s %lhsf32_1 : (!riscv.freg<>) -> !riscv.reg<>
+    %sitofp64 = arith.sitofp %lhsi32 : i32 to f64
+    // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.w %lhsi32 : (!riscv.reg<>) -> !riscv.freg<>
 
     %cmpf0 = "arith.cmpf"(%lhsf32, %rhsf32) {"predicate" = 0 : i32} : (f32, f32) -> i1
     // CHECK-NEXT: %{{.*}} = riscv.li 0 : () -> !riscv.reg<>

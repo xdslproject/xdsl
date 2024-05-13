@@ -874,6 +874,8 @@ class FPToSIOp(IRDLOperation):
     input: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(IntegerType)
 
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
         return super().__init__(operands=[op], result_types=[target_type])
 
@@ -884,6 +886,8 @@ class SIToFPOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         return super().__init__(operands=[op], result_types=[target_type])

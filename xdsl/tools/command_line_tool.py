@@ -9,6 +9,7 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Span
 
 
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
@@ -565,6 +566,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return replace_incompatible_fpga.ReplaceIncompatibleFPGA
 
+    def get_stencil_tensorize_z_dimension():
+        from xdsl.transforms.experimental import stencil_tensorize_z_dimension
+
+        return stencil_tensorize_z_dimension.StencilTensorizeZDimension
+
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
 
@@ -626,6 +632,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "snitch-allocate-registers": get_snitch_register_allocation,
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
+        "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-unroll": get_stencil_unroll,
         "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
     }
@@ -718,7 +725,9 @@ class CommandLineTool:
 
         self.available_frontends["mlir"] = parse_mlir
 
-    def parse_chunk(self, chunk: IO[str], file_extension: str) -> ModuleOp | None:
+    def parse_chunk(
+        self, chunk: IO[str], file_extension: str, start_offset: int = 0
+    ) -> ModuleOp | None:
         """
         Parse the input file by invoking the parser specified by the `parser`
         argument. If not set, the parser registered for this file extension
@@ -728,6 +737,8 @@ class CommandLineTool:
         try:
             return self.available_frontends[file_extension](chunk)
         except ParseError as e:
+            s = e.span
+            e.span = Span(s.start, s.end, s.input, start_offset)
             if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
                 print(e.with_context())
             else:
