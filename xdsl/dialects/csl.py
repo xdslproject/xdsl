@@ -529,6 +529,8 @@ class TaskOp(IRDLOperation, FuncBase):
     kind = prop_def(TaskKindAttr)
     id = prop_def(IntegerAttr[IntegerType])
 
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+
     def __init__(
         self,
         name: str,
@@ -724,7 +726,7 @@ class LayoutOp(IRDLOperation):
 class SetRectangleOp(IRDLOperation):
     name = "csl.set_rectangle"
 
-    traits = frozenset([InModuleKind(ModuleKind.LAYOUT, direct_child=False)])
+    traits = frozenset([HasParent(LayoutOp)])
 
     x_dim = operand_def(IntegerType)
     y_dim = operand_def(IntegerType)
@@ -734,7 +736,7 @@ class SetRectangleOp(IRDLOperation):
 class SetTileCodeOp(IRDLOperation):
     name = "csl.set_tile_code"
 
-    traits = frozenset([InModuleKind(ModuleKind.LAYOUT, direct_child=False)])
+    traits = frozenset([HasParent(LayoutOp)])
 
     file = prop_def(StringAttr)
 
