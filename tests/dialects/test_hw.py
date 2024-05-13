@@ -6,9 +6,13 @@ from unittest.mock import ANY, patch
 
 import pytest
 
-from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32, i64
+from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
     HW,
+    Direction,
+    DirectionAttr,
+    HWModuleLike,
+    HWModuleOp,
     InnerRefAttr,
     InnerRefNamespaceTrait,
     InnerRefUserOpInterfaceTrait,
@@ -18,9 +22,11 @@ from xdsl.dialects.hw import (
     InnerSymPropertiesAttr,
     InnerSymTarget,
     InstanceOp,
+    ModulePort,
+    ModuleType,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir import MLContext
+from xdsl.ir import Block, MLContext
 from xdsl.irdl import (
     IRDLOperation,
     Region,
@@ -359,3 +365,25 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
 
     assert [op.type for op in inst_op.operands] == [i32, i64]
     assert [res.type for res in inst_op.results] == [i32, i64]
+
+
+def test_hwmoduleop_hwmodulelike():
+    module_type = ModuleType((ArrayAttr(()),))
+
+    hw_module = HWModuleOp(
+        StringAttr("foo"), module_type, Region((Block((OutputOp(),)),))
+    )
+
+    hw_module_like = hw_module.get_trait(HWModuleLike)
+    assert hw_module_like
+    assert hw_module_like.get_hw_module_type(hw_module) == module_type
+
+    new_module_type = ModuleType(
+        (
+            ArrayAttr(
+                (ModulePort((StringAttr("in1"), i32, DirectionAttr(Direction.INPUT))),)
+            ),
+        )
+    )
+    hw_module_like.set_hw_module_type(hw_module, new_module_type)
+    assert hw_module_like.get_hw_module_type(hw_module) == new_module_type
