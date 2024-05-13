@@ -343,7 +343,7 @@ class CslPrintContext:
                 y = self._get_variable_name_for(y_dim)
                 self.print(
                     f"@set_rectangle({x}, {y});")
-            case csl.SymbolExportOp(value=val, type=ty) as exp:
+            case csl.SymbolExportOp(value=val, type=ty, sym_name=sym) as exp:
                 name = exp.get_name()
                 q_name = f'"{name}"'
                 self._symbols_to_export[name] = (
@@ -354,7 +354,8 @@ class CslPrintContext:
                 if val is not None:
                     val = self._get_variable_name_for(val)
                 else:
-                    val = name
+                    assert sym is not None, "sym_name should not be None without operand"
+                    val = sym.string_value()
                 with self._in_block("comptime"):
                     self.print(f"@export_symbol({val}, {q_name});")
             case csl.GetColorOp(id=id, res=res):
