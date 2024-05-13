@@ -30,7 +30,6 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
-    IsTerminator,
     NoTerminator,
     SymbolOpInterface,
     SymbolTable,
@@ -229,7 +228,7 @@ class ResultsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = frozenset([IsTerminator(), HasParent(OperationOp)])
+    traits = frozenset([HasParent(OperationOp)])
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
