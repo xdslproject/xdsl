@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from xdsl.ir import (
-    Data,
+    Data
 )
 from xdsl.irdl import (
     irdl_attr_definition
