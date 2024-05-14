@@ -21,7 +21,7 @@ func.func @initialize() {
   %y = memref.get_global @y : memref<4xf32>
 
   scf.for %idx = %lb to %ub step %step {
-    %idx_f32 = "arith.sitofp"(%idx) : (i16) -> f32
+    %idx_f32 = arith.sitofp %idx : i16 to f32
     %idx_index = "arith.index_cast"(%idx) : (i16) -> index
     memref.store %idx_f32, %A[%idx_index] : memref<24xf32>
   }
@@ -48,7 +48,7 @@ func.func @initialize() {
 }
 
 
-// CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "A", "sym_visibility" = "public", "type" = memref<24xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
+// CHECK:      //unknown op Global("memref.global"() <{"sym_name" = "A", "sym_visibility" = "public", "type" = memref<24xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "x", "sym_visibility" = "public", "type" = memref<6xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "b", "sym_visibility" = "public", "type" = memref<4xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "y", "sym_visibility" = "public", "type" = memref<4xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
@@ -64,20 +64,20 @@ func.func @initialize() {
 // CHECK-NEXT:   //unknown op GetGlobal(%b = memref.get_global @b : memref<4xf32>)
 // CHECK-NEXT:   //unknown op GetGlobal(%y = memref.get_global @y : memref<4xf32>)
 // CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
-// CHECK-NEXT:     //unknown op SIToFPOp(%idx_f32 = "arith.sitofp"(%idx) : (i16) -> f32)
+// CHECK-NEXT:     //unknown op SIToFPOp(%idx_f32 = arith.sitofp %idx : i16 to f32
 // CHECK-NEXT:     //unknown op IndexCastOp(%idx_index = "arith.index_cast"(%idx) : (i16) -> index)
 // CHECK-NEXT:     //unknown op Store(memref.store %idx_f32, %A[%idx_index] : memref<24xf32>)
 // CHECK-NEXT:     //unknown op Yield(scf.yield)
 // CHECK-NEXT:   }
-// CHECK-NEXT:   const ub_6 : i16 = 6;
+// CHECK-NEXT:   const ub2 : i16 = 6;
 // CHECK-NEXT:   for(@range(i16, lb, ub, step)) |j| {
 // CHECK-NEXT:     const val : f32 = 1.0;
 // CHECK-NEXT:     //unknown op IndexCastOp(%j_idx = "arith.index_cast"(%j) : (i16) -> index)
 // CHECK-NEXT:     //unknown op Store(memref.store %val, %x[%j_idx] : memref<6xf32>)
 // CHECK-NEXT:     //unknown op Yield(scf.yield)
 // CHECK-NEXT:   }
-// CHECK-NEXT:   const ub_4 : i16 = 6;
-// CHECK-NEXT:   for(@range(i16, lb, ub_4, step)) |i| {
+// CHECK-NEXT:   const ub3 : i16 = 6;
+// CHECK-NEXT:   for(@range(i16, lb, ub3, step)) |i| {
 // CHECK-NEXT:     const c2 : f32 = 2.0;
 // CHECK-NEXT:     const c0 : f32 = 0.0;
 // CHECK-NEXT:     //unknown op IndexCastOp(%i_idx = "arith.index_cast"(%i) : (i16) -> index)

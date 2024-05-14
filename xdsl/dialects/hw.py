@@ -6,7 +6,7 @@ Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e
 [2] https://circt.llvm.org/docs/RationaleSymbols/
 """
 
-from abc import ABC
+import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
@@ -256,7 +256,7 @@ class InnerRefNamespaceTrait(OpTrait):
                 inner_ref_user_op_trait.verify_inner_refs(inner_op, namespace)
 
 
-class InnerRefNamespaceLike(ABC, OpTrait):
+class InnerRefNamespaceLike(abc.ABC, OpTrait):
     """Trait-metaclass to check whether an operation is explicitly an IRN or appears compatible."""
 
     ...
@@ -614,12 +614,46 @@ class ParamDeclAttr(ParametrizedAttribute):
             )
 
 
+class HWModuleLike(OpTrait, abc.ABC):
+    """
+    Represents an operation that can be interpreted as a hardware module.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def get_hw_module_type(cls, op: Operation) -> ModuleType:
+        """
+        Returns the type of the module.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def set_hw_module_type(cls, op: Operation, module_type: ModuleType) -> None:
+        """
+        Sets the type of the module.
+        """
+        raise NotImplementedError()
+
+
 _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
     "sym_name",
     "module_type",
     "parameters",
     "sym_visibility",
 ]
+
+
+class ModuleOpHWModuleLike(HWModuleLike):
+    @classmethod
+    def get_hw_module_type(cls, op: Operation) -> ModuleType:
+        assert isinstance(op, HWModuleOp)
+        return op.module_type
+
+    @classmethod
+    def set_hw_module_type(cls, op: Operation, module_type: ModuleType) -> None:
+        assert isinstance(op, HWModuleOp)
+        op.module_type = module_type
 
 
 @irdl_op_definition
@@ -645,6 +679,7 @@ class HWModuleOp(IRDLOperation):
                 SymbolOpInterface(),
                 IsolatedFromAbove(),
                 SingleBlockImplicitTerminator(OutputOp),
+                ModuleOpHWModuleLike(),
             )
         )
     )
@@ -894,9 +929,12 @@ class InstanceOp(IRDLOperation):
         module = SymbolTable.lookup_symbol(self, self.module_name)
         if module is None:
             raise VerifyException(f"Module {self.module_name} not found")
-        if not isinstance(module, HWModuleOp):
+
+        hw_module_like = module.get_trait(HWModuleLike)
+        if hw_module_like is None:
             raise VerifyException(
-                f"Module {self.module_name} must be an 'hw.module', found '{module.name}'"
+                f"Module {self.module_name} must be a HWModuleLike, "
+                f"found '{module.name}'"
             )
 
         def check_same_or_exception(
@@ -918,12 +956,12 @@ class InstanceOp(IRDLOperation):
 
         module_args = (
             port.port_name.data
-            for port in module.module_type.ports
+            for port in hw_module_like.get_hw_module_type(module).ports
             if port.dir.data.is_input_like()
         )
         result_args = (
             port.port_name.data
-            for port in module.module_type.ports
+            for port in hw_module_like.get_hw_module_type(module).ports
             if port.dir.data.is_output_like()
         )
 

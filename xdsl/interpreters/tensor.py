@@ -30,7 +30,8 @@ class TensorFunctions(InterpreterFunctions):
         xtype = xtype_for_el_type(result_type.element_type, interpreter.index_bitwidth)
         return (
             ShapedArray(
-                TypedPtr.new((0,) * math.prod(result_shape), xtype=xtype), result_shape
+                TypedPtr.new((0,) * math.prod(result_shape), xtype=xtype),
+                result_shape,
             ),
         )
 

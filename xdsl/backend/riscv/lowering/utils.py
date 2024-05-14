@@ -124,7 +124,7 @@ def move_to_unallocated_regs(
     value_types: Iterable[Attribute],
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
-    Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
+    Return move operations to unallocated registers.
     """
 
     new_ops = list[Operation]()

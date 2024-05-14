@@ -9,6 +9,7 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Span
 
 
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
@@ -345,6 +346,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_linalg_to_loops.ConvertLinalgToLoopsPass
 
+    def get_stencil_tensorize_z_dimension():
+        from xdsl.transforms.experimental import stencil_tensorize_z_dimension
+
+        return stencil_tensorize_z_dimension.StencilTensorizeZDimension
+
     def get_convert_riscv_scf_for_to_frep():
         from xdsl.transforms import convert_riscv_scf_for_to_frep
 
@@ -580,6 +586,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
+        "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
@@ -712,7 +719,9 @@ class CommandLineTool:
 
         self.available_frontends["mlir"] = parse_mlir
 
-    def parse_chunk(self, chunk: IO[str], file_extension: str) -> ModuleOp | None:
+    def parse_chunk(
+        self, chunk: IO[str], file_extension: str, start_offset: int = 0
+    ) -> ModuleOp | None:
         """
         Parse the input file by invoking the parser specified by the `parser`
         argument. If not set, the parser registered for this file extension
@@ -722,6 +731,8 @@ class CommandLineTool:
         try:
             return self.available_frontends[file_extension](chunk)
         except ParseError as e:
+            s = e.span
+            e.span = Span(s.start, s.end, s.input, start_offset)
             if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
                 print(e.with_context())
             else:

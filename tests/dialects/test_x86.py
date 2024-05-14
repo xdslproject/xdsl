@@ -27,3 +27,9 @@ from xdsl.dialects import x86
 def test_register(register: x86.register.GeneralRegisterType, name: str):
     assert register.is_allocated
     assert register.register_name == name
+
+
+def test_rflags_register():
+    rflags = x86.register.RFLAGS
+    assert rflags.is_allocated
+    assert rflags.register_name == "rflags"
