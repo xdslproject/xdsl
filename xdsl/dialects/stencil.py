@@ -1196,7 +1196,11 @@ class StoreOp(IRDLOperation):
                     raise VerifyException(
                         "Cannot store to a field that is loaded before the store operation."
                     )
-            if isa(use.operation, StoreOp) and use.operation is not self:
+            if (
+                isa(use.operation, StoreOp)
+                and use.operation is not self
+                and is_before_in_block(use.operation, self)
+            ):
                 defining_ops = get_transitively_defining_ops(self.temp)
                 if defining_ops is None:
                     raise VerifyException("Unsafe store.")
