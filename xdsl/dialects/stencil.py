@@ -1025,9 +1025,6 @@ class LoadOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        for use in self.field.uses:
-            if isa(use.operation, StoreOp):
-                raise VerifyException("Cannot Load and Store the same field!")
         field = self.field.type
         temp = self.res.type
         assert isa(field, FieldType[Attribute])
@@ -1099,6 +1096,16 @@ class TensorIgnoreSizeConstraint(VarConstraint):
         super().verify(attr, constraint_vars)
 
 
+def is_before_in_block(op1: Operation, op2: Operation):
+    """
+    Check if op1 is before op2 in the same block.
+    """
+    block = op1.parent
+    assert block is not None
+    assert block is op2.parent
+    return block.get_operation_index(op1) < block.get_operation_index(op2)
+
+
 @irdl_op_definition
 class StoreOp(IRDLOperation):
     """
@@ -1161,9 +1168,14 @@ class StoreOp(IRDLOperation):
 
     def verify_(self) -> None:
         for use in self.field.uses:
-            if isa(use.operation, LoadOp):
-                raise VerifyException("Cannot Load and Store the same field!")
-            if isa(use.operation, LoadOp) and use.operation is not self:
+            if isa(load := use.operation, LoadOp):
+                if load.parent is not self.parent:
+                    raise VerifyException("Load and Store not in the same block")
+                if is_before_in_block(load, self):
+                    raise VerifyException(
+                        "Cannot store to a field that is loaded before the store operation."
+                    )
+            if isa(use.operation, StoreOp) and use.operation is not self:
                 raise VerifyException("Can only store once to a field!")
 
 
