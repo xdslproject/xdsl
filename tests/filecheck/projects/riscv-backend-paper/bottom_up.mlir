@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
@@ -104,8 +104,6 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<128xf64>,
     %G : memref<f64>
   ) {
-    %G_moved = builtin.unrealized_conversion_cast %G : memref<f64> to !riscv.reg<>
-
     memref_stream.streaming_region {
       patterns = [
           #memref_stream.stride_pattern<ub = [128], index_map = (d0) -> (d0)>,
@@ -127,8 +125,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
           scf.yield %res : f64
         }
 
-        %g_reg = builtin.unrealized_conversion_cast %g : f64 to !riscv.freg<>
-        riscv.fsd %G_moved, %g_reg, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
+        memref.store %g, %G[] : memref<f64>
     }
 
     func.return
