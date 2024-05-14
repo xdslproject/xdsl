@@ -1106,6 +1106,27 @@ def is_before_in_block(op1: Operation, op2: Operation):
     return block.get_operation_index(op1) < block.get_operation_index(op2)
 
 
+def get_transitively_defining_ops(temp: SSAValue):
+    """
+    Get all operations that transitively define the given temp.
+    """
+    owner = temp.owner
+    if isinstance(owner, Block):
+        return None
+    match owner:
+        case ApplyOp():
+            for operand in owner.operands:
+                if isa(operand.type, TempType[Attribute]):
+                    transitive = get_transitively_defining_ops(operand)
+                    if transitive is None:
+                        return None
+                    return cast(list[Operation], [owner, *transitive])
+        case LoadOp():
+            return cast(list[Operation], [owner])
+        case _:
+            raise NotImplementedError(f"Unexpected operation {owner}")
+
+
 @irdl_op_definition
 class StoreOp(IRDLOperation):
     """
@@ -1176,7 +1197,12 @@ class StoreOp(IRDLOperation):
                         "Cannot store to a field that is loaded before the store operation."
                     )
             if isa(use.operation, StoreOp) and use.operation is not self:
-                raise VerifyException("Can only store once to a field!")
+                defining_ops = get_transitively_defining_ops(self.temp)
+                if defining_ops is None:
+                    raise VerifyException("Unsafe store.")
+                for op in defining_ops:
+                    if is_before_in_block(op, use.operation):
+                        raise VerifyException("Unsafe store.")
 
 
 @irdl_op_definition
