@@ -93,4 +93,28 @@ linalg.generic {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 
+// Scalar argument
+%zero = arith.constant 0.0 : f64
+linalg.generic {
+    indexing_maps = [
+        affine_map<(d0, d1) -> ()>,
+        affine_map<(d0, d1) -> (d0, d1)>
+    ],
+    iterator_types = ["parallel", "parallel"]
+} ins(%zero : f64) outs(%D : memref<2x3xf64>) {
+^bb0(%in: f64, %out: f64):
+    linalg.yield %in : f64
+}
+
+// CHECK-NEXT:    %{{.*}} = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:    scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        memref.store %{{.*}}, %{{.*}}[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+
 // CHECK-NEXT:  }

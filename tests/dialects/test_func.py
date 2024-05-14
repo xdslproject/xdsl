@@ -6,6 +6,7 @@ from xdsl.dialects.arith import Addi, Constant
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
 from xdsl.dialects.func import Call, FuncOp, Return
 from xdsl.ir import Block, Region
+from xdsl.traits import CallableOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -151,6 +152,19 @@ def test_callable_constructor():
 
     assert f.sym_name.data == "f"
     assert not f.body.block.ops
+
+
+def test_callable_interface():
+    region = Region()
+    func = FuncOp("callable", ((i32, i64), (i64, i32)), region)
+
+    trait = func.get_trait(CallableOpInterface)
+
+    assert trait is not None
+
+    assert trait.get_callable_region(func) is region
+    assert trait.get_argument_types(func) == (i32, i64)
+    assert trait.get_result_types(func) == (i64, i32)
 
 
 def test_call():

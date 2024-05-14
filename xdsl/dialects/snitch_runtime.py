@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Annotated, Generic, TypeVar
 
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i32, i64
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i1, i32, i64
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -49,6 +49,19 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
         self,
     ):
         super().__init__(result_types=[i32])
+
+
+class SnitchRuntimeGetInfoBool(SnitchRuntimeBaseOperation, ABC):
+    """
+    A base class for snitch runtime functions that get a certain value at runtime
+    """
+
+    result: OpResult = result_def(i1)
+
+    def __init__(
+        self,
+    ):
+        super().__init__(result_types=[i1])
 
 
 class NoOperandNoResultBaseOperation(SnitchRuntimeBaseOperation, ABC):
@@ -108,30 +121,12 @@ class GlobalComputeCoreNumOp(SnitchRuntimeGetInfo):
 
 
 @irdl_op_definition
-class GlobalDmCoreIdxOp(SnitchRuntimeGetInfo):
-    """
-    For DMA core, return global core index
-    """
-
-    name = "snrt.global_dm_core_idx"
-
-
-@irdl_op_definition
 class GlobalDmCoreNumOp(SnitchRuntimeGetInfo):
     """
     Return total amount of DMA cores
     """
 
     name = "snrt.global_dm_core_num"
-
-
-@irdl_op_definition
-class ClusterCoreBaseHartidOp(SnitchRuntimeGetInfo):
-    """
-    Return Base Hart ID for this cluster
-    """
-
-    name = "snrt.cluster_core_base_hartid"
 
 
 @irdl_op_definition
@@ -207,7 +202,7 @@ class ClusterNumOp(SnitchRuntimeGetInfo):
 
 
 @irdl_op_definition
-class IsComputeCoreOp(SnitchRuntimeGetInfo):
+class IsComputeCoreOp(SnitchRuntimeGetInfoBool):
     """
     Return non-zero integer if current snitch core is a compute core
     """
@@ -216,7 +211,7 @@ class IsComputeCoreOp(SnitchRuntimeGetInfo):
 
 
 @irdl_op_definition
-class IsDmCoreOp(SnitchRuntimeGetInfo):
+class IsDmCoreOp(SnitchRuntimeGetInfoBool):
     """
     Return non-zero integer if current snitch core is a DMA core
     """
@@ -607,9 +602,7 @@ SnitchRuntime = Dialect(
         GlobalCoreNumOp,
         GlobalComputeCoreIdxOp,
         GlobalComputeCoreNumOp,
-        GlobalDmCoreIdxOp,
         GlobalDmCoreNumOp,
-        ClusterCoreBaseHartidOp,
         ClusterCoreIdxOp,
         ClusterCoreNumOp,
         ClusterComputeCoreIdxOp,

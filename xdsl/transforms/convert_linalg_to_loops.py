@@ -1,6 +1,8 @@
+from collections.abc import Sequence
+
 from xdsl.dialects import linalg, memref
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
+from xdsl.dialects.builtin import MemRefType, ModuleOp
+from xdsl.ir import MLContext, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -9,7 +11,22 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.loop_nest_lowering_utils import rewrite_generic_to_loops
+
+
+def load(
+    value: SSAValue,
+    indices: Sequence[SSAValue],
+    rewriter: PatternRewriter,
+    insertion_target: InsertPoint,
+) -> SSAValue:
+    if isinstance(value.type, MemRefType):
+        op = memref.Load.get(value, indices)
+        rewriter.insert_op_at_location(op, insertion_target)
+        return op.res
+    else:
+        return value
 
 
 class LowerGenericOpPattern(RewritePattern):
@@ -20,7 +37,7 @@ class LowerGenericOpPattern(RewritePattern):
                 "lowering for linalg.generic with results not yet supported"
             )
 
-        rewrite_generic_to_loops(rewriter, op, memref.Load.get, memref.Store.get)
+        rewrite_generic_to_loops(rewriter, op, load, memref.Store.get)
 
 
 class ConvertLinalgToLoopsPass(ModulePass):

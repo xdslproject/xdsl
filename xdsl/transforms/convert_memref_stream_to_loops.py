@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from xdsl.dialects import memref, memref_stream
+from xdsl.dialects import memref, memref_stream, stream
 from xdsl.dialects.builtin import (
     ModuleOp,
 )
@@ -13,14 +13,24 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.loop_nest_lowering_utils import rewrite_generic_to_loops
 
 
-def load(source: SSAValue, indices: Sequence[SSAValue]) -> Operation:
+def load(
+    source: SSAValue,
+    indices: Sequence[SSAValue],
+    rewriter: PatternRewriter,
+    insert_point: InsertPoint,
+) -> SSAValue:
     if isinstance(source.type, memref.MemRefType):
-        return memref.Load.get(source, indices)
+        op = memref.Load.get(source, indices)
+    elif isinstance(source.type, stream.ReadableStreamType):
+        op = memref_stream.ReadOp(source)
     else:
-        return memref_stream.ReadOp(source)
+        return source
+    rewriter.insert_op_at_location(op, insert_point)
+    return op.res
 
 
 def store(

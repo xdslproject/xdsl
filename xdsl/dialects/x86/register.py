@@ -93,3 +93,32 @@ R12 = GeneralRegisterType("r12")
 R13 = GeneralRegisterType("r13")
 R14 = GeneralRegisterType("r14")
 R15 = GeneralRegisterType("r15")
+
+RFLAGS_INDEX_BY_NAME = {
+    "rflags": 0,
+}
+
+
+@irdl_attr_definition
+class RFLAGSRegisterType(X86RegisterType):
+    """
+    A scalar x86 register type representing the RFLAGS register.
+    """
+
+    name = "x86.rflags"
+
+    @classmethod
+    def unallocated(cls) -> RFLAGSRegisterType:
+        return UNALLOCATED_RFLAGS
+
+    @classmethod
+    def instruction_set_name(cls) -> str:
+        return "x86"
+
+    @classmethod
+    def abi_index_by_name(cls) -> dict[str, int]:
+        return RFLAGS_INDEX_BY_NAME
+
+
+UNALLOCATED_RFLAGS = RFLAGSRegisterType("")
+RFLAGS = RFLAGSRegisterType("rflags")

@@ -383,16 +383,26 @@ class InputApp(App[None]):
                         f"{selected_pass_value.name}{{{concatenated_arg_val}}}"
                     )
                 )[0]
-                self.pass_pipeline = (
-                    *self.pass_pipeline,
-                    *root_to_child_pass_list,
-                    (selected_pass_value, new_pass_with_arguments),
+
+                missing_fields = selected_pass_value.required_fields().difference(
+                    new_pass_with_arguments.args.keys()
                 )
 
+                if missing_fields:
+                    error = f"Missing required fields: {missing_fields}"
+                else:
+                    self.pass_pipeline = (
+                        *self.pass_pipeline,
+                        *root_to_child_pass_list,
+                        (selected_pass_value, new_pass_with_arguments),
+                    )
+                    return
+
             except PassPipelineParseError as e:
-                res = f"PassPipelineParseError: {e}"
-                screen = AddArguments(TextArea(res, id="argument_text_area"))
-                self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
+                error = f"PassPipelineParseError: {e}"
+
+            screen = AddArguments(TextArea(error, id="argument_text_area"))
+            self.push_screen(screen, add_pass_with_arguments_to_pass_pipeline)
 
         # generates a string containing the concatenated_arg_val and types of the selected pass and initializes the AddArguments Screen to contain the string
         self.push_screen(

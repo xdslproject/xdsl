@@ -120,7 +120,9 @@ def _insert_load_ops(
     affine_map_attrs: Sequence[AffineMapAttr],
     operands: Sequence[SSAValue],
     args: Sequence[BlockArgument],
-    load: Callable[[SSAValue, Sequence[SSAValue]], Operation],
+    load: Callable[
+        [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
+    ],
 ) -> Sequence[tuple[int, SSAValue]]:
     res: list[tuple[int, SSAValue]] = []
     for i, (affine_map_attr, operand, arg) in enumerate(
@@ -130,9 +132,8 @@ def _insert_load_ops(
             continue
         affine_map = affine_map_attr.data
         indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
-        load_op = load(operand, indices)
-        rewriter.insert_op_at_location(load_op, insertion_point)
-        res.append((i, load_op.results[0]))
+        res_val = load(operand, indices, rewriter, insertion_point)
+        res.append((i, res_val))
     return res
 
 
@@ -157,7 +158,9 @@ def _insert_store_ops(
 def rewrite_generic_to_loops(
     rewriter: PatternRewriter,
     op: linalg.Generic | memref_stream.GenericOp,
-    load: Callable[[SSAValue, Sequence[SSAValue]], Operation],
+    load: Callable[
+        [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
+    ],
     store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
     *,
     imperfectly_nested: bool = False,

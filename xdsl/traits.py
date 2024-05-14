@@ -9,7 +9,7 @@ from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
-    from xdsl.ir import Operation, Region
+    from xdsl.ir import Attribute, Operation, Region
     from xdsl.pattern_rewriter import RewritePattern
 
 
@@ -233,7 +233,7 @@ class IsolatedFromAbove(OpTrait):
                         if not op.is_ancestor(operand.owner):
                             raise VerifyException(
                                 "Operation using value defined out of its "
-                                "IsolatedFromAbove parent!"
+                                f"IsolatedFromAbove parent: {child_op}"
                             )
                     # Check nested regions too; unless the operation is IsolatedFromAbove
                     # too; in which case it will check itself.
@@ -413,11 +413,22 @@ class CallableOpInterface(OpTrait, abc.ABC):
     """
 
     @classmethod
+    @abc.abstractmethod
     def get_callable_region(cls, op: Operation) -> Region:
         """
         Returns the body of the operation
         """
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def get_argument_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True)
