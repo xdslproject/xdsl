@@ -38,7 +38,7 @@ from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 #
 
 
-class FuseNestedLoopsPattern(RewritePattern):
+class FlattenNestedLoopsPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter) -> None:
         if op.iter_args:
@@ -142,4 +142,4 @@ class RiscvScfLoopFlattenPass(ModulePass):
     name = "riscv-scf-loop-flatten"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(FuseNestedLoopsPattern()).rewrite_module(op)
+        PatternRewriteWalker(FlattenNestedLoopsPattern()).rewrite_module(op)
