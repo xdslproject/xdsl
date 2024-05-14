@@ -200,6 +200,9 @@ class StencilBoundsAttr(ParametrizedAttribute):
             )
         )
 
+    def __lt__(self, other: StencilBoundsAttr) -> bool:
+        return self.lb > other.lb and self.ub < other.ub
+
     def __or__(self, value: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
         return self.union(value)
 
@@ -608,6 +611,7 @@ class CombineOp(IRDLOperation):
                │        │         │     │        │         │
                └────────┼─────────┘     └────────┼─────────┘
                         │                        │
+
     ```
     """
 
@@ -624,6 +628,67 @@ class CombineOp(IRDLOperation):
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
 
     irdl_options = [AttrSizedOperandSegments()]
+
+
+@irdl_op_definition
+class ExtendOp(IRDLOperation):
+
+    name = "stencil.extend"
+    inner = operand_def(
+        ParamAttrConstraint(
+            TempType,
+            [
+                Attribute,
+                MessageConstraint(
+                    VarConstraint("T", AnyAttr()),
+                    "Expected all element types to be the same.",
+                ),
+            ],
+        )
+    )
+    outter = operand_def(
+        ParamAttrConstraint(
+            TempType,
+            [
+                Attribute,
+                MessageConstraint(
+                    VarConstraint("T", AnyAttr()),
+                    "Expected all element types to be the same.",
+                ),
+            ],
+        )
+    )
+    extended = result_def(
+        ParamAttrConstraint(
+            TempType,
+            [
+                Attribute,
+                MessageConstraint(
+                    VarConstraint("T", AnyAttr()),
+                    "Expected all element types to be the same.",
+                ),
+            ],
+        )
+    )
+
+    assembly_format = "$inner `by` $outter  attr-dict-with-keyword `:` type($inner) `,` type($outter) `->` type($extended)"
+
+    def verify_(self) -> None:
+        inner = cast(TempType[Attribute], self.inner.type).bounds
+        outter = cast(TempType[Attribute], self.outter.type).bounds
+        extended = cast(TempType[Attribute], self.extended.type).bounds
+
+        if (
+            isinstance(inner, StencilBoundsAttr)
+            and isinstance(outter, StencilBoundsAttr)
+            and isinstance(extended, StencilBoundsAttr)
+        ):
+            if inner > outter:
+                raise VerifyException("inner must be containable in outter")
+            if extended > outter:
+                raise VerifyException("extended must be containable in outter")
+        elif any(isinstance(b, StencilBoundsAttr) for b in (inner, outter, extended)):
+            raise VerifyException("All bounds must be known or unknown.")
 
 
 @irdl_op_definition
@@ -1362,6 +1427,7 @@ Stencil = Dialect(
         CastOp,
         CombineOp,
         DynAccessOp,
+        ExtendOp,
         ExternalLoadOp,
         ExternalStoreOp,
         IndexOp,
