@@ -93,7 +93,7 @@ from .ops import (
     S_JsOp,
     S_JzOp,
 )
-from .register import GeneralRegisterType, RFLAGSRegisterType
+from .register import AVXRegisterType, GeneralRegisterType, RFLAGSRegisterType
 
 X86 = Dialect(
     "x86",
@@ -192,6 +192,7 @@ X86 = Dialect(
     [
         GeneralRegisterType,
         RFLAGSRegisterType,
+        AVXRegisterType,
         LabelAttr,
     ],
 )
