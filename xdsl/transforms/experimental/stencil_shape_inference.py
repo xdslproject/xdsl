@@ -93,7 +93,8 @@ def update_result_size(value: SSAValue, size: StencilBoundsAttr):
             for use in res.uses:
                 if isinstance(use.operation, BufferOp):
                     use.operation.res.type = res.type
-    newtype = TempType(size, cast(TempType[Attribute], value.type).element_type)
+    newsize = size | cast(TempType[Attribute], value.type).bounds
+    newtype = TempType(newsize, cast(TempType[Attribute], value.type).element_type)
     value.type = newtype
 
 
