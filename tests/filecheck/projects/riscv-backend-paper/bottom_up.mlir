@@ -10,7 +10,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %c8 = arith.constant 8 : i32
     %c9 = arith.constant 9 : i32
 
-    %zero_float = arith.sitofp %c0 : i32 to f64
+    %zero_float = arith.constant 0.0 : f64
 
     memref_stream.streaming_region {
       patterns = [
@@ -111,8 +111,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } ins(%X, %Y : memref<128xf64>, memref<128xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>):
-        %zero_int = arith.constant 0 : i32
-        %zero_float = arith.sitofp %zero_int : i32 to f64
+        %zero_float = arith.constant 0.0 : f64
 
         %c0 = arith.constant 0 : i32
         %c1 = arith.constant 1 : i32
@@ -448,10 +447,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:  pooling_nchw_max_d1_s2_3x3:
 // CHECK-NEXT:      mv t3, a0
 // CHECK-NEXT:      mv t1, a1
-// CHECK-NEXT:      li t4, -1060927488
-// CHECK-NEXT:      sw t4, -4(sp)
-// CHECK-NEXT:      sw zero, -8(sp)
-// CHECK-NEXT:      fld ft3, -8(sp)
+// CHECK-NEXT:      li t4, -10000
+// CHECK-NEXT:      fcvt.d.w ft3, t4
 // CHECK-NEXT:      li t4, 8
 // CHECK-NEXT:      li a3, 2
 // CHECK-NEXT:      li a2, 2
@@ -492,9 +489,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 
 
   func.func public @relu(%X: memref<16x16xf64>, %Y: memref<16x16xf64>) {
-
-    %zero_int = arith.constant 0 : i32
-    %zero_float = arith.sitofp %zero_int : i32 to f64
+    %zero_float = arith.constant 0.0 : f64
 
     memref_stream.streaming_region {
       patterns = [
@@ -551,7 +546,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %c9 = arith.constant 9 : i32
     %c512 = arith.constant 512 : i32
 
-    %zero_float = arith.sitofp %c0 : i32 to f64
+    %zero_float = arith.constant 0.0 : f64
 
     memref_stream.streaming_region {
       patterns = [
