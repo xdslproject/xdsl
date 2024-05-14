@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
+from logging import warn
 from math import prod
 from operator import add, lt, neg
 from typing import Annotated, Generic, TypeVar, cast
@@ -1196,17 +1197,15 @@ class StoreOp(IRDLOperation):
                     raise VerifyException(
                         "Cannot store to a field that is loaded before the store operation."
                     )
-            if (
-                isa(use.operation, StoreOp)
-                and use.operation is not self
-                and is_before_in_block(use.operation, self)
-            ):
-                defining_ops = get_transitively_defining_ops(self.temp)
-                if defining_ops is None:
-                    raise VerifyException("Unsafe store.")
-                for op in defining_ops:
-                    if is_before_in_block(op, use.operation):
+            if isa(use.operation, StoreOp) and use.operation is not self:
+                warn("Multiple stores experimental support so far!")
+                if is_before_in_block(use.operation, self):
+                    defining_ops = get_transitively_defining_ops(self.temp)
+                    if defining_ops is None:
                         raise VerifyException("Unsafe store.")
+                    for op in defining_ops:
+                        if is_before_in_block(op, use.operation):
+                            raise VerifyException("Unsafe store.")
 
 
 @irdl_op_definition
