@@ -469,7 +469,7 @@ class ApplyOp(IRDLOperation):
         for operand, argument in zip(self.operands, self.region.block.args):
             if operand.type != argument.type:
                 raise VerifyException(
-                    f"Expected argument type to match operand type, got {argument.type} != {operand.type}"
+                    f"Expected argument type to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
                 )
         if len(self.res) < 1:
             raise VerifyException(

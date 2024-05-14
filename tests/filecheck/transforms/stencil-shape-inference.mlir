@@ -222,14 +222,14 @@ func.func @combine(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?
 // CHECK:         func.func @combine(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>)  attributes {"stencil.program"}{
 // CHECK-NEXT:      %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      %1 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
-// CHECK-NEXT:      %2 = stencil.load %0 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<[0,32]x[0,64]x[0,60]xf64>
-// CHECK-NEXT:      %3 = stencil.apply(%arg2 = %2 : !stencil.temp<[0,32]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>) {
-// CHECK-NEXT:        %4 = stencil.access %arg2[0, 0, 0] : !stencil.temp<[0,32]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      %2 = stencil.load %0 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      %3 = stencil.apply(%arg2 = %2 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[0,32]x[0,64]x[0,60]xf64>) {
+// CHECK-NEXT:        %4 = stencil.access %arg2[0, 0, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
 // CHECK-NEXT:        %5 = stencil.store_result %4 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %5 : !stencil.result<f64>
 // CHECK-NEXT:      }
-// CHECK-NEXT:      %6 = stencil.apply(%arg2_1 = %2 : !stencil.temp<[0,32]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[32,64]x[0,64]x[0,60]xf64>) {
-// CHECK-NEXT:        %7 = stencil.access %arg2_1[0, 0, 0] : !stencil.temp<[32,64]x[0,64]x[0,60]xf64>
+// CHECK-NEXT:      %6 = stencil.apply(%arg2_1 = %2 : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>) -> (!stencil.temp<[32,64]x[0,64]x[0,60]xf64>) {
+// CHECK-NEXT:        %7 = stencil.access %arg2_1[0, 0, 0] : !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
 // CHECK-NEXT:        %8 = stencil.store_result %7 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %8 : !stencil.result<f64>
 // CHECK-NEXT:      }
