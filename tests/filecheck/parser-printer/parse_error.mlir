@@ -10,7 +10,7 @@
 
 test.op : () -> ()
 
-// CHECK: {{.*}}tests/filecheck/parser-printer/parse_error.mlir:3:8
+// CHECK: {{.*}}tests/filecheck/parser-printer/parse_error.mlir:11:8
 // CHECK-NEXT: test.op : () -> ()
 // CHECK-NEXT:         ^
 // CHECK-NEXT:         Operation test.op does not have a custom format.

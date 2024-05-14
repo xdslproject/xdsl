@@ -957,13 +957,12 @@ def test_inline_block_after():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
     %2 = "test.op"() ({
-    ^0:
     }, {
-    ^1:
+    ^0:
     }) : () -> !test.type<"int">
     %3 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^2:
+  ^1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1009,12 +1008,11 @@ def test_inline_block_after_matched():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
     %2 = "test.op"() ({
-    ^0:
     }, {
-    ^1:
+    ^0:
     }) : () -> !test.type<"int">
   }, {
-  ^2:
+  ^1:
   }) : () -> !test.type<"int">
   %3 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
