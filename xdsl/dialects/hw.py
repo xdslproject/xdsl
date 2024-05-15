@@ -795,7 +795,7 @@ _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
 ]
 
 
-class ModuleOpHWModuleLike(HWModuleLike):
+class HWModulesHWModuleLike(HWModuleLike):
     @classmethod
     def get_hw_module_type(cls, op: Operation) -> ModuleType:
         assert isinstance(op, HWModuleOp | HWModuleExternOp)
@@ -830,7 +830,7 @@ class HWModuleOp(IRDLOperation):
                 SymbolOpInterface(),
                 IsolatedFromAbove(),
                 SingleBlockImplicitTerminator(OutputOp),
-                ModuleOpHWModuleLike(),
+                HWModulesHWModuleLike(),
             )
         )
     )
@@ -946,7 +946,7 @@ class HWModuleExternOp(IRDLOperation):
         lambda: frozenset(
             (
                 SymbolOpInterface(),
-                ModuleOpHWModuleLike(),
+                HWModulesHWModuleLike(),
             )
         )
     )
