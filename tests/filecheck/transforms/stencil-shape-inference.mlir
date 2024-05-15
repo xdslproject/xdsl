@@ -77,7 +77,7 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-//-----
+// -----
 
 builtin.module {
   func.func @stencil_hdiff(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
@@ -355,4 +355,27 @@ builtin.module {
   }
 }
 
-// CHECK-NEXT: NOPE
+// CHECK:       builtin.module {
+// CHECK-NEXT:    func.func private @stencil_forwarding_store(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>, %2 : !stencil.field<[-4,68]xf64>) {
+// CHECK-NEXT:      %3 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:      %4 = stencil.apply(%5 = %3 : !stencil.temp<[-1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
+// CHECK-NEXT:        %6 = stencil.access %5[-1] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %7 = stencil.access %5[0] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %8 = stencil.access %5[1] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %9 = arith.addf %6, %7 : f64
+// CHECK-NEXT:        %10 = arith.addf %8, %9 : f64
+// CHECK-NEXT:        stencil.return %10 : f64
+// CHECK-NEXT:      }
+// CHECK-NEXT:      %11 = stencil.store %4 to %1 ([0] : [64]) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64> with_halo : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:      %12 = stencil.apply(%13 = %11 : !stencil.temp<[-1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
+// CHECK-NEXT:        %14 = stencil.access %13[-1] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %15 = stencil.access %13[0] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %16 = stencil.access %13[1] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %17 = arith.addf %14, %15 : f64
+// CHECK-NEXT:        %18 = arith.addf %16, %17 : f64
+// CHECK-NEXT:        stencil.return %18 : f64
+// CHECK-NEXT:      }
+// CHECK-NEXT:      stencil.store %12 to %2 ([0] : [64]) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64>
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }

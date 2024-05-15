@@ -241,7 +241,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func private @stencil_buffer(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>, %2 : !stencil.field<[-4,68]xf64>) {
+// CHECK-NEXT:    func.func private @stencil_forwarding_store(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>, %2 : !stencil.field<[-4,68]xf64>) {
 // CHECK-NEXT:      %3 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
 // CHECK-NEXT:      %4 = stencil.apply(%5 = %3 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
 // CHECK-NEXT:        %6 = stencil.access %5[0] : !stencil.temp<?xf64>
