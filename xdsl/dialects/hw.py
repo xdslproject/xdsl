@@ -657,18 +657,22 @@ class ParsedModuleHeader(NamedTuple):
     args: list[ModuleArg]
 
     def get_module_type(self) -> ModuleType:
-        module_ports: list[ModulePort] = []
-        for arg in self.args:
-            module_ports.append(
-                ModulePort(
-                    [
-                        StringAttr(arg.port_name),
-                        arg.port_type,
-                        DirectionAttr(arg.port_dir),
-                    ]
+        return ModuleType(
+            [
+                ArrayAttr(
+                    tuple(
+                        ModulePort(
+                            (
+                                StringAttr(arg.port_name),
+                                arg.port_type,
+                                DirectionAttr(arg.port_dir),
+                            )
+                        )
+                        for arg in self.args
+                    )
                 )
-            )
-        return ModuleType([ArrayAttr(module_ports)])
+            ]
+        )
 
     @classmethod
     def parse(cls, parser: Parser) -> "ParsedModuleHeader":
