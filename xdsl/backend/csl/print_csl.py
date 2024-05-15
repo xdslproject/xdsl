@@ -77,6 +77,8 @@ class CslPrintContext:
         match type_attr:
             case csl.ComptimeStructType():
                 return "comptime_struct"
+            case csl.ImportedModuleType():
+                return "imported_module"
             case Float16Type():
                 return "f16"
             case Float32Type():
@@ -114,8 +116,6 @@ class CslPrintContext:
         match attr:
             case IntAttr():
                 return "<!indeterminate IntAttr type>"
-            case csl.ComptimeStructType():
-                return "comptime_struct"
             case IntegerAttr(type=(IntegerType() | IndexType()) as int_t):
                 return self.mlir_type_to_csl_type(int_t)
             case FloatAttr(type=(Float16Type() | Float32Type()) as float_t):
@@ -148,8 +148,10 @@ class CslPrintContext:
                     if params is not None:
                         params_str = f", {self._get_variable_name_for(params)}"
 
+                    res_type = self.mlir_type_to_csl_type(res.type)
+
                     self.print(
-                        f'const {name} : comptime_struct = @import_module("{module.data}"{params_str});'
+                        f'const {name} : {res_type} = @import_module("{module.data}"{params_str});'
                     )
                 case csl.MemberCallOp(
                     struct=struct, field=field, args=args, result=res

@@ -5,7 +5,7 @@
 "memref.global"() {"sym_name" = "b", "type" = memref<4xf32>, "sym_visibility" = "public", "initial_value" = dense<0> : tensor<1xindex>} : () -> ()
 "memref.global"() {"sym_name" = "y", "type" = memref<4xf32>, "sym_visibility" = "public", "initial_value" = dense<0> : tensor<1xindex>} : () -> ()
 
-%thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.comptime_struct
+%thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.imported_module
 
 csl.func @initialize() {
   %lb = arith.constant   0 : i16
@@ -13,13 +13,13 @@ csl.func @initialize() {
   %step = arith.constant 1 : i16
 
   // call without result
-  "csl.member_call"(%thing, %lb, %ub) <{field = "some_func", operandSegmentSizes = array<i32: 1, 2>}> : (!csl.comptime_struct, i16, i16) -> ()
+  "csl.member_call"(%thing, %lb, %ub) <{field = "some_func", operandSegmentSizes = array<i32: 1, 2>}> : (!csl.imported_module, i16, i16) -> ()
 
   // call with result
-  %res = "csl.member_call"(%thing, %lb, %ub) <{field = "some_func", operandSegmentSizes = array<i32: 1, 2>}> : (!csl.comptime_struct, i16, i16) -> (i32)
+  %res = "csl.member_call"(%thing, %lb, %ub) <{field = "some_func", operandSegmentSizes = array<i32: 1, 2>}> : (!csl.imported_module, i16, i16) -> (i32)
 
   // member access
-  %11 = "csl.member_access"(%thing) <{field = "some_field"}> : (!csl.comptime_struct) -> !csl.comptime_struct
+  %11 = "csl.member_access"(%thing) <{field = "some_field"}> : (!csl.imported_module) -> !csl.comptime_struct
 
   %0 = arith.constant 3.14 : f32
   %v0 = arith.constant 2.718 : f16
@@ -63,7 +63,7 @@ csl.func @initialize() {
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "x", "sym_visibility" = "public", "type" = memref<6xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "b", "sym_visibility" = "public", "type" = memref<4xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
 // CHECK-NEXT: //unknown op Global("memref.global"() <{"sym_name" = "y", "sym_visibility" = "public", "type" = memref<4xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())
-// CHECK-NEXT: const thing : comptime_struct = @import_module("<thing>");
+// CHECK-NEXT: const thing : imported_module = @import_module("<thing>");
 // CHECK-NEXT:
 // CHECK-NEXT: fn initialize() {
 // CHECK-NEXT:   const lb : i16 = 0;
