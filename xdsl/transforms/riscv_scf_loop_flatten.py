@@ -41,17 +41,37 @@ from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 class FlattenNestedLoopsPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter) -> None:
-        if op.iter_args:
-            return
-
         outer_body = op.body.block
         if not isinstance(inner_loop := outer_body.first_op, riscv_scf.ForOp):
             # Outer loop must contain inner loop
             return
-        if inner_loop is not cast(riscv_scf.YieldOp, outer_body.last_op).prev_op:
+        if (
+            inner_loop
+            is not (
+                outer_yield_op := cast(riscv_scf.YieldOp, outer_body.last_op)
+            ).prev_op
+        ):
             # Outer loop must contain only inner loop and yield
             return
-        if inner_loop.iter_args:
+
+        if op.iter_args:
+            if not inner_loop.iter_args:
+                return
+            if len(op.iter_args) != len(inner_loop.iter_args):
+                return
+            if not all(
+                lhs.type == rhs.type
+                for (lhs, rhs) in zip(op.iter_args, inner_loop.iter_args)
+            ):
+                return
+            print(
+                "hello",
+                [arg.name_hint for arg in op.iter_args],
+                [arg.name_hint for arg in inner_loop.iter_args],
+            )
+
+            # return
+        elif inner_loop.iter_args:
             return
 
         if (inner_lb := get_constant_value(inner_loop.lb)) is None:
@@ -114,17 +134,19 @@ class FlattenNestedLoopsPattern(RewritePattern):
             new_step = op.step
 
         moved_region = rewriter.move_region_contents_to_new_regions(inner_loop.body)
+        rewriter.erase_op(outer_yield_op)
         rewriter.erase_op(inner_loop)
 
         rewriter.replace_matched_op(
-            riscv_scf.ForOp(
+            bla := riscv_scf.ForOp(
                 op.lb,
                 new_ub,
                 new_step,
-                (),
+                op.iter_args,
                 moved_region,
             )
         )
+        print(len(bla.body.blocks))
 
 
 class RiscvScfLoopFlattenPass(ModulePass):

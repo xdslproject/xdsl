@@ -44,6 +44,41 @@ riscv_scf.for %i : !riscv.reg<> = %c0 to %c64 step %c5 {
 // CHECK-NEXT:      "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:    }
 
+%int0, %int1, %float0 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>)
+// CHECK-NEXT:    %int0, %int1, %float0 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>)
+
+%e0, %e1, %e2 = riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+    %d0, %d1, %d2 = riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%b0 = %a0, %b1 = %a1, %b2 = %a2) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+        %18 = riscv.li 8 : () -> !riscv.reg<>
+        %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "test.op"(%19) : (!riscv.reg<>) -> ()
+        riscv_scf.yield %b0, %b1, %b2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+    }
+    riscv_scf.yield %d0, %d1, %d2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+}
+
+// CHECK-NEXT:    %e0, %e1, %e2 = riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %c64 step %c1 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+// CHECK-NEXT:      %1 = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:      "test.op"(%0) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:      riscv_scf.yield %b0, %b1, %b2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+// CHECK-NEXT:    }
+
+%g0, %g1, %g2 = riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+    %d0, %d1, %d2 = riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%b0 = %a0, %b1 = %a1, %b2 = %a2) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+        %k = riscv.li 8 : () -> !riscv.reg<>
+        "test.op"(%k) : (!riscv.reg<>) -> ()
+        riscv_scf.yield %b0, %b1, %b2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+    }
+    riscv_scf.yield %d0, %d1, %d2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+}
+
+// CHECK-NEXT:    %{{.*}} = riscv.li 2 : () -> !riscv.reg<>
+// CHECK-NEXT:    %{{.*}} = riscv.mul %c64, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %{{.*}} step %c5 {
+// CHECK-NEXT:      %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:      "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:    }
+
 // Failures add induction variables:
 
 // Cannot fuse outer loop with iteration arguments
