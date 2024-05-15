@@ -37,14 +37,16 @@ class StreamifyGenericOpPattern(RewritePattern):
             if isinstance(value_type := value.type, memref.MemRefType)
             if not op.body.block.args[index + input_count].uses
         )
+        if not streamable_input_indices and not streamable_output_indices:
+            # No memrefs to convert to streams
+            return
         # We might want to pick which memref to stream by iteration count in the future
         streamed_input_indices = streamable_input_indices[: self.streams]
         streamed_output_indices = streamable_output_indices[
             : self.streams - len(streamed_input_indices)
         ]
         streamed_operand_indices = streamed_input_indices + tuple(
-            (index + len(streamed_input_indices), el_type)
-            for index, el_type in streamed_output_indices
+            (index + input_count, el_type) for index, el_type in streamed_output_indices
         )
         input_el_types = tuple(el_type for _, el_type in streamed_input_indices)
         output_el_types = tuple(el_type for _, el_type in streamed_output_indices)
