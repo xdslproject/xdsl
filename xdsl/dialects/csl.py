@@ -389,6 +389,29 @@ class ReturnOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class LayoutOp(IRDLOperation):
+    name = "csl.layout"
+
+    body: Region = region_def()
+
+    traits = frozenset([NoTerminator(), InModuleKind(ModuleKind.LAYOUT)])
+
+    def __init__(self, ops: Sequence[Operation] | Region):
+        if not isinstance(ops, Region):
+            ops = Region(Block(ops))
+        if len(ops.blocks) == 0:
+            ops = Region(Block([]))
+        super().__init__(regions=[ops])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> LayoutOp:
+        return cls(parser.parse_region())
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.body)
+
+
 CSL = Dialect(
     "csl",
     [
