@@ -112,6 +112,11 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
+@irdl_attr_definition
+class ColorType(ParametrizedAttribute, TypeAttribute):
+    name = "csl.color"
+
+
 @irdl_op_definition
 class ImportModuleConstOp(IRDLOperation):
     """
