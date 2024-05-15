@@ -56,6 +56,10 @@ hw.module @more_attrs() attributes {"foo"} {
   hw.output
 }
 
+// CHECK: hw.module.extern @extern(in %{{.*}} foo: i32, in %{{.*}} hello: i16, out baz: i8)
+// CHECK-GENERIC: "hw.module.extern"() {"sym_name" = "extern", "module_type" = !hw.modty<input foo : i32, input hello : i16, output baz : i8>, "parameters" = []} : () -> ()
+hw.module.extern @extern(in %foo: i32, in %bar "hello": i16, out baz: i8)
+
 
 // Generic format input tests
 
