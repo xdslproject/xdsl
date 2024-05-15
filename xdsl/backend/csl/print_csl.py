@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import IO
 
-from xdsl.dialects import arith, func, scf
+from xdsl.dialects import arith, csl, scf
 from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
@@ -29,14 +29,14 @@ class CslPrintContext:
 
     _prefix: str = field(default="")
 
-    def print(self, text: str, prefix: str = ""):
+    def print(self, text: str, prefix: str = "", end: str = "\n"):
         """
         Print `text` line by line, prefixed by self._prefix and prefix.
         """
         for l in text.split("\n"):
-            print(self._prefix + prefix + l, file=self.output)
+            print(self._prefix + prefix + l, file=self.output, end=end)
 
-    def _get_variable_name_for(self, val: SSAValue) -> str:
+    def _get_variable_name_for(self, val: SSAValue, hint: str | None = None) -> str:
         """
         Get an assigned variable name for a given SSA Value
         """
@@ -44,8 +44,12 @@ class CslPrintContext:
             return self.variables[val]
 
         taken_names = set(self.variables.values())
-        if val.name_hint is not None and val.name_hint not in taken_names:
-            name = val.name_hint
+
+        if hint is None:
+            hint = val.name_hint
+
+        if hint is not None and hint not in taken_names:
+            name = hint
         else:
             prefix = "v" if val.name_hint is None else val.name_hint
 
@@ -71,6 +75,10 @@ class CslPrintContext:
         This method does not yet support all the types and will be expanded as needed later.
         """
         match type_attr:
+            case csl.ComptimeStructType():
+                return "comptime_struct"
+            case csl.ImportedModuleType():
+                return "imported_module"
             case Float16Type():
                 return "f16"
             case Float32Type():
@@ -133,17 +141,53 @@ class CslPrintContext:
                     self.print(
                         f"const {self._get_variable_name_for(r)} : {type_name} = {value_str};"
                     )
-                case func.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(
+                case csl.ImportModuleConstOp(module=module, params=params, result=res):
+                    name = self._get_variable_name_for(res)
+
+                    params_str = ""
+                    if params is not None:
+                        params_str = f", {self._get_variable_name_for(params)}"
+
+                    res_type = self.mlir_type_to_csl_type(res.type)
+
+                    self.print(
+                        f'const {name} : {res_type} = @import_module("{module.data}"{params_str});'
+                    )
+                case csl.MemberCallOp(
+                    struct=struct, field=field, args=args, result=res
+                ):
+                    args = ", ".join(self._get_variable_name_for(arg) for arg in args)
+                    struct_var = self._get_variable_name_for(struct)
+
+                    text = ""
+                    if res is not None:
+                        name = self._get_variable_name_for(res)
+                        text += (
+                            f"const {name} : {self.mlir_type_to_csl_type(res.type)} = "
+                        )
+
+                    self.print(f"{text}{struct_var}.{field.data}({args});")
+                case csl.MemberAccessOp(struct=struct, field=field, result=res):
+                    name = self._get_variable_name_for(res)
+                    struct_var = self._get_variable_name_for(struct)
+                    self.print(
+                        f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {struct_var}.{field.data};"
+                    )
+                case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(
                     ftyp.inputs
                 ) == 0 and len(ftyp.outputs) == 0:
                     # only functions without input / outputs supported for now.
-                    self.print(f"fn {name.data}() {{")
+                    self.print(f"\nfn {name.data}() {{")
                     self.descend().print_block(bdy.block)
                     self.print("}")
+                case csl.ReturnOp(ret_val=None):
+                    self.print("return;")
+                case csl.ReturnOp(ret_val=val) if val is not None:
+                    self.print(f"return {self._get_variable_name_for(val)};")
                 case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
                     idx, *_ = bdy.block.args
                     self.print(
-                        f"for(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
+                        f"\nfor(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
                     )
                     self.descend().print_block(bdy.block)
                     self.print("}")
