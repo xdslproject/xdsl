@@ -223,7 +223,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func private @stencil_buffer(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>, %11 : !stencil.field<[-4,68]xf64>) {
+  func.func private @stencil_forwarding_store(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>, %11 : !stencil.field<[-4,68]xf64>) {
     %2 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
     %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
       %5 = stencil.access %4[0] : !stencil.temp<?xf64>

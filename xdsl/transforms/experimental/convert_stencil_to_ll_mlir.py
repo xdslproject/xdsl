@@ -6,6 +6,7 @@ from warnings import warn
 from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
+    ShapedType,
     UnrealizedConversionCastOp,
 )
 from xdsl.dialects.stencil import (
@@ -450,7 +451,7 @@ class StencilStoreToSubview(RewritePattern):
         assert isa(field.type, FieldType[Attribute])
         assert isa(field.type.bounds, StencilBoundsAttr)
         temp = op.temp
-        assert isa(temp.type, TempType[Attribute])
+        assert isinstance(temp.type, ShapedType)
         offsets = [i for i in -field.type.bounds.lb]
         sizes = [i for i in temp.type.get_shape()]
         subview = memref.Subview.from_static_parameters(
@@ -469,7 +470,16 @@ class StencilStoreToSubview(RewritePattern):
         else:
             rewriter.insert_op(subview, InsertPoint.at_start(field.owner))
 
-        rewriter.erase_matched_op()
+        if op.temp_with_halo:
+            offsets = [i for i in -field.type.bounds.lb]
+            sizes = [i for i in temp.type.get_shape()]
+            strides = [1] * len(sizes)
+            with_halo_subview = memref.Subview.from_static_parameters(
+                op.field, StencilToMemRefType(field.type), offsets, sizes, strides
+            )
+            rewriter.replace_matched_op(with_halo_subview)
+        else:
+            rewriter.erase_matched_op()
 
         update_return_target(self.return_targets, field, subview.result)
 
