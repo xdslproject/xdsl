@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     ContainerType,
     DictionaryAttr,
     FunctionType,
+    ModuleOp,
     StringAttr,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
@@ -37,6 +38,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -50,7 +52,14 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SymbolOpInterface
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    NoTerminator,
+    OpTrait,
+    SymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -63,6 +72,11 @@ class PtrKind(StrEnum):
 class PtrConst(StrEnum):
     CONST = "const"
     VAR = "var"
+
+
+class ModuleKind(StrEnum):
+    LAYOUT = "layout"
+    PROGRAM = "program"
 
 
 @irdl_attr_definition
@@ -105,6 +119,13 @@ class PtrConstAttr(EnumAttribute[PtrConst], SpacedOpaqueSyntaxAttribute):
 
 
 @irdl_attr_definition
+class ModuleKindAttr(EnumAttribute[ModuleKind], SpacedOpaqueSyntaxAttribute):
+    """Attribute representing the kind of CSL module, either layout or program"""
+
+    name = "csl.module_kind"
+
+
+@irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     """
     Represents a typed pointer in CSL.
@@ -129,6 +150,29 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "csl.color"
+
+
+@irdl_op_definition
+class CslModuleOp(IRDLOperation):
+    """
+    Separates layout module from program module
+    """
+
+    # TODO(dk949): This should also probably handle csl `param`s
+
+    name = "csl.module"
+    body: Region = region_def("single_block")
+    kind = prop_def(ModuleKindAttr)
+    sym_name: StringAttr = attr_def(StringAttr)
+
+    traits = frozenset(
+        [
+            HasParent(ModuleOp),
+            IsolatedFromAbove(),
+            NoTerminator(),
+            SymbolOpInterface(),
+        ]
+    )
 
 
 @irdl_op_definition
@@ -315,6 +359,8 @@ CSL = Dialect(
         ImportModuleConstOp,
         MemberCallOp,
         MemberAccessOp,
+        CslModuleOp,
+        LayoutOp,
     ],
     [
         ComptimeStructType,
@@ -323,5 +369,6 @@ CSL = Dialect(
         PtrConstAttr,
         PtrType,
         ColorType,
+        ModuleKindAttr,
     ],
 )
