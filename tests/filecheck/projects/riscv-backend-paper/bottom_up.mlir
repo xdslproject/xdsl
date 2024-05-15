@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-stream-to-loops,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,riscv-scf-loop-flatten,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p memref-streamify,convert-memref-stream-to-loops,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,riscv-scf-loop-flatten,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
@@ -164,32 +164,18 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       %Y : memref<8x16xf64>,
       %Z : memref<8x16xf64>
     ) {
-      %c0 = arith.constant 0 : i32
-      %c1 = arith.constant 1 : i32
-      %c8 = arith.constant 8 : i32
-      %c16 = arith.constant 16 : i32
-
-      memref_stream.streaming_region {
-        patterns = [
-          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
-          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
-          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>
-        ]
+      memref_stream.generic {
+          bounds = [#builtin.int<8>, #builtin.int<16>],
+          indexing_maps = [
+            affine_map<(d0, d1) -> (d0, d1)>,
+            affine_map<(d0, d1) -> (d0, d1)>,
+            affine_map<(d0, d1) -> (d0, d1)>
+          ],
+          iterator_types = ["parallel", "parallel"]
       } ins(%X, %Y : memref<8x16xf64>, memref<8x16xf64>) outs(%Z : memref<8x16xf64>) {
-      ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %z_stream : !stream.writable<f64>):
-        memref_stream.generic {
-            bounds = [#builtin.int<8>, #builtin.int<16>],
-            indexing_maps = [
-              affine_map<(d0, d1) -> (d0, d1)>,
-              affine_map<(d0, d1) -> (d0, d1)>,
-              affine_map<(d0, d1) -> (d0, d1)>
-            ],
-            iterator_types = ["parallel", "parallel"]
-        } ins(%x_stream, %y_stream : !stream.readable<f64>, !stream.readable<f64>) outs(%z_stream : !stream.writable<f64>) {
-        ^bb0(%x : f64, %y : f64, %out : f64):
-            %z = arith.addf %x, %y : f64
-            memref_stream.yield %z : f64
-        }
+      ^bb0(%x : f64, %y : f64, %out : f64):
+          %z = arith.addf %x, %y : f64
+          memref_stream.yield %z : f64
       }
 
       func.return
@@ -223,24 +209,16 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X : f64,
     %Y : memref<16x16xf64>
   ) {
-
-    memref_stream.streaming_region {
-      patterns = [
-        #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
-      ]
-    } outs(%Y : memref<16x16xf64>) {
-    ^0(%y_stream : !stream.writable<f64>):
-      memref_stream.generic {
-          bounds = [#builtin.int<16>, #builtin.int<16>],
-          indexing_maps = [
-              affine_map<(d0, d1) -> ()>,
-              affine_map<(d0, d1) -> (d0, d1)>
-          ],
-          iterator_types = ["parallel", "parallel"]
-      } ins(%X : f64) outs(%y_stream : !stream.writable<f64>) {
-      ^bb0(%d : f64, %c : f64):
-          memref_stream.yield %d : f64
-      }
+    memref_stream.generic {
+        bounds = [#builtin.int<16>, #builtin.int<16>],
+        indexing_maps = [
+            affine_map<(d0, d1) -> ()>,
+            affine_map<(d0, d1) -> (d0, d1)>
+        ],
+        iterator_types = ["parallel", "parallel"]
+    } ins(%X : f64) outs(%Y : memref<16x16xf64>) {
+    ^bb0(%d : f64, %c : f64):
+        memref_stream.yield %d : f64
     }
 
     func.return
@@ -514,25 +492,17 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
   func.func public @relu(%X: memref<16x16xf64>, %Y: memref<16x16xf64>) {
     %zero_float = arith.constant 0.0 : f64
 
-    memref_stream.streaming_region {
-      patterns = [
-          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>,
-          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
-      ]
+    memref_stream.generic {
+        bounds = [#builtin.int<16>, #builtin.int<16>],
+        indexing_maps = [
+          affine_map<(d0, d1) -> (d0, d1)>,
+          affine_map<(d0, d1) -> (d0, d1)>
+        ],
+        iterator_types = ["parallel", "parallel"]
     } ins(%X : memref<16x16xf64>) outs(%Y : memref<16x16xf64>) {
-    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
-      memref_stream.generic {
-          bounds = [#builtin.int<16>, #builtin.int<16>],
-          indexing_maps = [
-            affine_map<(d0, d1) -> (d0, d1)>,
-            affine_map<(d0, d1) -> (d0, d1)>
-          ],
-          iterator_types = ["parallel", "parallel"]
-      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) {
-      ^bb0(%x : f64, %out : f64):
-          %y = arith.maximumf %x, %zero_float : f64
-          memref_stream.yield %y : f64
-      }
+    ^bb0(%x : f64, %out : f64):
+        %y = arith.maximumf %x, %zero_float : f64
+        memref_stream.yield %y : f64
     }
 
     func.return
