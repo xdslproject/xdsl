@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,riscv-scf-loop-flatten,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-stream-to-loops,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,riscv-scf-loop-flatten,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
@@ -177,14 +177,18 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         ]
       } ins(%X, %Y : memref<8x16xf64>, memref<8x16xf64>) outs(%Z : memref<8x16xf64>) {
       ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %z_stream : !stream.writable<f64>):
-
-        scf.for %i = %c0 to %c8 step %c1 {
-          scf.for %j = %c0 to %c16 step %c1 {
-            %x = memref_stream.read from %x_stream : f64
-            %y = memref_stream.read from %y_stream : f64
+        memref_stream.generic {
+            bounds = [#builtin.int<8>, #builtin.int<16>],
+            indexing_maps = [
+              affine_map<(d0, d1) -> (d0, d1)>,
+              affine_map<(d0, d1) -> (d0, d1)>,
+              affine_map<(d0, d1) -> (d0, d1)>
+            ],
+            iterator_types = ["parallel", "parallel"]
+        } ins(%x_stream, %y_stream : !stream.readable<f64>, !stream.readable<f64>) outs(%z_stream : !stream.writable<f64>) {
+        ^bb0(%x : f64, %y : f64, %out : f64):
             %z = arith.addf %x, %y : f64
-            memref_stream.write %z to %z_stream : f64
-          }
+            memref_stream.yield %z : f64
         }
       }
 
@@ -226,14 +230,16 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } outs(%Y : memref<16x16xf64>) {
     ^0(%y_stream : !stream.writable<f64>):
-
-      %c0 = arith.constant 0 : i32
-      %c1 = arith.constant 1 : i32
-      %c16 = arith.constant 16 : i32
-      scf.for %i0 = %c0 to %c16 step %c1 {
-        scf.for %i1 = %c0 to %c16 step %c1 {
-          memref_stream.write %X to %y_stream : f64
-        }
+      memref_stream.generic {
+          bounds = [#builtin.int<16>, #builtin.int<16>],
+          indexing_maps = [
+              affine_map<(d0, d1) -> ()>,
+              affine_map<(d0, d1) -> (d0, d1)>
+          ],
+          iterator_types = ["parallel", "parallel"]
+      } ins(%X : f64) outs(%y_stream : !stream.writable<f64>) {
+      ^bb0(%d : f64, %c : f64):
+          memref_stream.yield %d : f64
       }
     }
 
@@ -515,15 +521,17 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       ]
     } ins(%X : memref<16x16xf64>) outs(%Y : memref<16x16xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
-      %c0 = arith.constant 0 : i32
-      %c1 = arith.constant 1 : i32
-      %c16 = arith.constant 16 : i32
-      scf.for %i = %c0 to %c16 step %c1 {
-        scf.for %j = %c0 to %c16 step %c1 {
-          %x = memref_stream.read from %x_stream : f64
+      memref_stream.generic {
+          bounds = [#builtin.int<16>, #builtin.int<16>],
+          indexing_maps = [
+            affine_map<(d0, d1) -> (d0, d1)>,
+            affine_map<(d0, d1) -> (d0, d1)>
+          ],
+          iterator_types = ["parallel", "parallel"]
+      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) {
+      ^bb0(%x : f64, %out : f64):
           %y = arith.maximumf %x, %zero_float : f64
-          memref_stream.write %y to %y_stream : f64
-        }
+          memref_stream.yield %y : f64
       }
     }
 
