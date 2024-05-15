@@ -49,6 +49,7 @@ from xdsl.irdl import (
     opt_attr_def,
     opt_operand_def,
     opt_prop_def,
+    opt_result_def,
     region_def,
     result_def,
     var_operand_def,
@@ -1193,17 +1194,39 @@ class StoreOp(IRDLOperation):
             ],
         )
     )
+    temp_with_halo = opt_result_def(
+        ParamAttrConstraint(
+            TempType,
+            [
+                Attribute,
+                MessageConstraint(
+                    AnyOf(
+                        [
+                            VarConstraint("T", AnyAttr()),
+                            TensorIgnoreSizeConstraint("T", AnyAttr()),
+                        ]
+                    ),
+                    "Input and output fields must have the same element types",
+                ),
+            ],
+        )
+    )
     bounds: StencilBoundsAttr = attr_def(StencilBoundsAttr)
 
-    assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
+    assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field) (`with_halo` `:` type($temp_with_halo)^)? "
 
     @staticmethod
     def get(
         temp: SSAValue | Operation,
         field: SSAValue | Operation,
         bounds: StencilBoundsAttr,
+        with_halo: TempType[Attribute] | None = None,
     ):
-        return StoreOp.build(operands=[temp, field], attributes={"bounds": bounds})
+        return StoreOp.build(
+            operands=[temp, field],
+            attributes={"bounds": bounds},
+            result_types=[with_halo],
+        )
 
     def verify_(self) -> None:
         for use in self.field.uses:
