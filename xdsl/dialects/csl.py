@@ -4,12 +4,7 @@ from collections.abc import Sequence
 
 from xdsl.dialects import func
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr
-from xdsl.dialects.utils import (
-    parse_func_op_like,
-    parse_return_op_like,
-    print_func_op_like,
-    print_return_op_like,
-)
+from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
     Attribute,
     Block,
@@ -208,6 +203,8 @@ class ReturnOp(IRDLOperation):
 
     ret_val = opt_operand_def(Attribute)
 
+    assembly_format = "attr-dict (ret_val^ `:` type(ret_val))?"
+
     traits = frozenset([HasParent(FuncOp), IsTerminator()])
 
     def __init__(self, return_val: SSAValue | Operation | None = None):
@@ -223,16 +220,6 @@ class ReturnOp(IRDLOperation):
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"
             )
-
-    def print(self, printer: Printer):
-        print_return_op_like(printer, self.attributes, self.operands)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ReturnOp:
-        attrs, args = parse_return_op_like(parser)
-        op = ReturnOp(*args)
-        op.attributes.update(attrs)
-        return op
 
 
 CSL = Dialect(
