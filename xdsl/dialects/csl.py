@@ -56,7 +56,6 @@ class ComptimeStructType(ParametrizedAttribute, TypeAttribute):
     name = "csl.comptime_struct"
 
 
-<<<<<<< HEAD
 @irdl_attr_definition
 class ImportedModuleType(ParametrizedAttribute, TypeAttribute):
     """
@@ -67,10 +66,10 @@ class ImportedModuleType(ParametrizedAttribute, TypeAttribute):
 
     name = "csl.imported_module"
 
+
 StructLike: TypeAlias = ImportedModuleType | ComptimeStructType
 
-=======
->>>>>>> origin/main
+
 @irdl_op_definition
 class ImportModuleConstOp(IRDLOperation):
     """
@@ -81,15 +80,9 @@ class ImportModuleConstOp(IRDLOperation):
 
     module = prop_def(StringAttr)
 
-<<<<<<< HEAD
     params = opt_operand_def(StructLike)
 
     result = result_def(ImportedModuleType)
-=======
-    params = opt_operand_def(ComptimeStructType)
-
-    result = result_def(ComptimeStructType)
->>>>>>> origin/main
 
 
 @irdl_op_definition
@@ -100,11 +93,7 @@ class MemberAccessOp(IRDLOperation):
 
     name = "csl.member_access"
 
-<<<<<<< HEAD
     struct = operand_def(StructLike)
-=======
-    struct = operand_def(ComptimeStructType)
->>>>>>> origin/main
 
     field = prop_def(StringAttr)
 
@@ -119,11 +108,7 @@ class MemberCallOp(IRDLOperation):
 
     name = "csl.member_call"
 
-<<<<<<< HEAD
     struct = operand_def(StructLike)
-=======
-    struct = operand_def(ComptimeStructType)
->>>>>>> origin/main
 
     field = prop_def(StringAttr)
 
@@ -272,9 +257,6 @@ CSL = Dialect(
     ],
     [
         ComptimeStructType,
-<<<<<<< HEAD
         ImportedModuleType,
-=======
->>>>>>> origin/main
     ],
 )
