@@ -13,7 +13,13 @@ from collections.abc import Sequence
 from typing import TypeAlias
 
 from xdsl.dialects import func
-from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DictionaryAttr,
+    FunctionType,
+    StringAttr,
+    ContainerType,
+)
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
     Attribute,
@@ -23,11 +29,14 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    EnumAttribute,
+    SpacedOpaqueSyntaxAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParametrizedAttribute,
+    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -43,6 +52,17 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
+
+
+class PtrKind(StrEnum):
+    SINGLE = "single"
+    MANY = "many"
+
+
+class PtrConst(StrEnum):
+    CONST = "const"
+    VAR = "var"
 
 
 @irdl_attr_definition
@@ -68,6 +88,28 @@ class ImportedModuleType(ParametrizedAttribute, TypeAttribute):
 
 
 StructLike: TypeAlias = ImportedModuleType | ComptimeStructType
+
+
+@irdl_attr_definition
+class PtrKindAttr(EnumAttribute[PtrKind], SpacedOpaqueSyntaxAttribute):
+    name = "csl.ptr_kind"
+
+
+@irdl_attr_definition
+class PtrConstAttr(EnumAttribute[PtrConst], SpacedOpaqueSyntaxAttribute):
+    name = "csl.ptr_const"
+
+
+@irdl_attr_definition
+class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+    name = "csl.ptr"
+
+    type: ParameterDef[TypeAttribute]
+    kind: ParameterDef[PtrKindAttr]
+    constness: ParameterDef[PtrConstAttr]
+
+    def get_element_type(self) -> Attribute:
+        return self.type
 
 
 @irdl_op_definition
@@ -258,5 +300,8 @@ CSL = Dialect(
     [
         ComptimeStructType,
         ImportedModuleType,
+        PtrKindAttr,
+        PtrConstAttr,
+        PtrType,
     ],
 )
