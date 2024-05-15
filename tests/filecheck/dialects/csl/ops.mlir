@@ -17,6 +17,8 @@ csl.func @initialize() {
     %many_const = "test.op"() : () -> !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>
     %many_var = "test.op"() : () -> !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const var>>
 
+    %col = "test.op"() : () -> !csl.color
+
   csl.return
 }
 
@@ -32,6 +34,7 @@ csl.func @initialize() {
 // CHECK-NEXT:     %single_var = "test.op"() : () -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const var>>
 // CHECK-NEXT:     %many_const = "test.op"() : () -> !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>
 // CHECK-NEXT:     %many_var = "test.op"() : () -> !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const var>>
+// CHECK-NEXT:     %col = "test.op"() : () -> !csl.color
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

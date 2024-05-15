@@ -127,6 +127,7 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     """
     Type representing a `color` type in CSL
     """
+
     name = "csl.color"
 
 
@@ -321,5 +322,6 @@ CSL = Dialect(
         PtrKindAttr,
         PtrConstAttr,
         PtrType,
+        ColorType,
     ],
 )
