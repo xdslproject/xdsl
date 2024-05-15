@@ -7,6 +7,8 @@ See https://docs.cerebras.net/en/latest/ for some mediocre documentation on the 
 This is meant to be used in conjunction with the `-t csl` printing option to generate CSL code.
 """
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 
 from xdsl.dialects import func
