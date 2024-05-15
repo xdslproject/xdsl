@@ -212,7 +212,7 @@ class ReturnOp(IRDLOperation):
 
     ret_val = opt_operand_def(Attribute)
 
-    assembly_format = "attr-dict (ret_val^ `:` type(ret_val))?"
+    assembly_format = "attr-dict ($ret_val^ `:` type($ret_val))?"
 
     traits = frozenset([HasParent(FuncOp), IsTerminator()])
 
