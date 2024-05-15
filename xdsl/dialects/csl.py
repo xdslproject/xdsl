@@ -1,3 +1,12 @@
+"""
+The CSL dialect models the Cerebras Systems Language. It's meant to be used as a target to do automatic codegen for
+the CS2.
+
+See https://docs.cerebras.net/en/latest/ for some mediocre documentation on the operations and their semantics.
+
+This is meant to be used in conjunction with the `-t csl` printing option to generate CSL code.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
