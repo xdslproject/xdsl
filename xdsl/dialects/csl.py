@@ -15,28 +15,28 @@ from typing import TypeAlias
 from xdsl.dialects import func
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    ContainerType,
     DictionaryAttr,
     FunctionType,
     StringAttr,
-    ContainerType,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    EnumAttribute,
     Operation,
     Region,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
-    EnumAttribute,
-    SpacedOpaqueSyntaxAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParametrizedAttribute,
     ParameterDef,
+    ParametrizedAttribute,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
