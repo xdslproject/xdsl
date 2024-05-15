@@ -178,11 +178,11 @@ riscv_scf.for %16 : !riscv.reg<> = %non_const to %c64 step %c8 {
     }
 }
 
-// CHECK-NEXT:    riscv_scf.for %16 : !riscv.reg<> = %non_const to %c64 step %c8 {
-// CHECK-NEXT:        riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %non_const {
-// CHECK-NEXT:            %18 = riscv.li 8 : () -> !riscv.reg<>
-// CHECK-NEXT:            %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:            "test.op"(%19) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %non_const to %c64 step %c8 {
+// CHECK-NEXT:        riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %c8 step %non_const {
+// CHECK-NEXT:            %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:            %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:            "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:        }
 // CHECK-NEXT:    }
 
