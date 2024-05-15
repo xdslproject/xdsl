@@ -10,6 +10,7 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TypeAlias
 
 from xdsl.dialects import func
@@ -77,6 +78,39 @@ class PtrConst(StrEnum):
 class ModuleKind(StrEnum):
     LAYOUT = "layout"
     PROGRAM = "program"
+
+
+@dataclass(frozen=True)
+class InModuleKind(OpTrait):
+    """
+    Constrain an op to a particular module kind
+
+    Optionally specify if the op has to be a direct child of CslModuleOp
+    (default is yes).
+    """
+
+    def __init__(self, kind: ModuleKind, *, direct_child: bool = True):
+        super().__init__((kind, direct_child))
+
+    def verify(self, op: Operation) -> None:
+        kind: ModuleKind = self.parameters[0]
+        direct_child: bool = self.parameters[1]
+
+        direct = "direct" if direct_child else "indirect"
+        parent_module = op.parent_op()
+        if not direct_child:
+            while parent_module is not None and not isinstance(
+                parent_module, CslModuleOp
+            ):
+                parent_module = parent_module.parent_op()
+        if not isinstance(parent_module, CslModuleOp):
+            raise VerifyException(
+                f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name}, got {parent_module}"
+            )
+        if parent_module.kind.data != kind:
+            raise VerifyException(
+                f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name} of kind {kind.value}"
+            )
 
 
 @irdl_attr_definition
@@ -183,6 +217,8 @@ class ImportModuleConstOp(IRDLOperation):
 
     name = "csl.import_module"
 
+    traits = frozenset([HasParent(CslModuleOp)])
+
     module = prop_def(StringAttr)
 
     params = opt_operand_def(StructLike)
@@ -241,7 +277,9 @@ class FuncOp(IRDLOperation):
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
-    traits = frozenset([SymbolOpInterface(), func.FuncOpCallableInterface()])
+    traits = frozenset(
+        [HasParent(CslModuleOp), SymbolOpInterface(), func.FuncOpCallableInterface()]
+    )
 
     def __init__(
         self,
