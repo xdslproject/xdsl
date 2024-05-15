@@ -92,16 +92,26 @@ StructLike: TypeAlias = ImportedModuleType | ComptimeStructType
 
 @irdl_attr_definition
 class PtrKindAttr(EnumAttribute[PtrKind], SpacedOpaqueSyntaxAttribute):
+    """Attribute representing whether a pointer is a single (*) or many ([*]) pointer"""
+
     name = "csl.ptr_kind"
 
 
 @irdl_attr_definition
 class PtrConstAttr(EnumAttribute[PtrConst], SpacedOpaqueSyntaxAttribute):
+    """Attribute representing whether a pointer's mutability"""
+
     name = "csl.ptr_const"
 
 
 @irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+    """
+    Represents a typed pointer in CSL.
+
+    kind refers to CSL having two types of pointers, single `*type` and many `[*]type`.
+    """
+
     name = "csl.ptr"
 
     type: ParameterDef[TypeAttribute]
@@ -114,6 +124,9 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
 @irdl_attr_definition
 class ColorType(ParametrizedAttribute, TypeAttribute):
+    """
+    Type representing a `color` type in CSL
+    """
     name = "csl.color"
 
 
