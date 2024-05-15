@@ -13,20 +13,29 @@ from collections.abc import Sequence
 from typing import TypeAlias
 
 from xdsl.dialects import func
-from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, FunctionType, StringAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    ContainerType,
+    DictionaryAttr,
+    FunctionType,
+    StringAttr,
+)
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    EnumAttribute,
     Operation,
     Region,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParameterDef,
     ParametrizedAttribute,
     irdl_attr_definition,
     irdl_op_definition,
@@ -43,6 +52,17 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
+
+
+class PtrKind(StrEnum):
+    SINGLE = "single"
+    MANY = "many"
+
+
+class PtrConst(StrEnum):
+    CONST = "const"
+    VAR = "var"
 
 
 @irdl_attr_definition
@@ -68,6 +88,47 @@ class ImportedModuleType(ParametrizedAttribute, TypeAttribute):
 
 
 StructLike: TypeAlias = ImportedModuleType | ComptimeStructType
+
+
+@irdl_attr_definition
+class PtrKindAttr(EnumAttribute[PtrKind], SpacedOpaqueSyntaxAttribute):
+    """Attribute representing whether a pointer is a single (*) or many ([*]) pointer"""
+
+    name = "csl.ptr_kind"
+
+
+@irdl_attr_definition
+class PtrConstAttr(EnumAttribute[PtrConst], SpacedOpaqueSyntaxAttribute):
+    """Attribute representing whether a pointer's mutability"""
+
+    name = "csl.ptr_const"
+
+
+@irdl_attr_definition
+class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+    """
+    Represents a typed pointer in CSL.
+
+    kind refers to CSL having two types of pointers, single `*type` and many `[*]type`.
+    """
+
+    name = "csl.ptr"
+
+    type: ParameterDef[TypeAttribute]
+    kind: ParameterDef[PtrKindAttr]
+    constness: ParameterDef[PtrConstAttr]
+
+    def get_element_type(self) -> Attribute:
+        return self.type
+
+
+@irdl_attr_definition
+class ColorType(ParametrizedAttribute, TypeAttribute):
+    """
+    Type representing a `color` type in CSL
+    """
+
+    name = "csl.color"
 
 
 @irdl_op_definition
@@ -258,5 +319,9 @@ CSL = Dialect(
     [
         ComptimeStructType,
         ImportedModuleType,
+        PtrKindAttr,
+        PtrConstAttr,
+        PtrType,
+        ColorType,
     ],
 )
