@@ -19,18 +19,18 @@ from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 #  The intention is to optimise loop nests like this, which together access an
 #  array linearly:
 #
-#    for i in range(N):
-#      for j in range(M):
-#        f(A[i*M+j])
+#    for i in range(x, N, M):
+#      for j in range(0, M, K):
+#        f(A[i+j])
 #
 #    for o in range(ol, ou, os):
 #      for i in range(il, iu, is):
 #        # neither o nor i are used
 #
 #    These become:
-#    for i in range(0, N * M, k):
-#      for j in range(k):
-#        f(A[i+j])
+#    # (If K is constant and divides M)
+#    for i in range(x, N, K):
+#      f(A[i])
 #
 #    factor = (iu - il) // is
 #    for o in range(ol, ou * factor, os):
@@ -61,6 +61,8 @@ class FlattenNestedLoopsPattern(RewritePattern):
             return
         if (outer_step := get_constant_value(op.step)) is None:
             return
+        if (inner_step := get_constant_value(inner_loop.step)) is None:
+            return
 
         outer_index = outer_body.args[0]
         inner_index = inner_loop.body.block.args[0]
@@ -70,6 +72,9 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 return
 
             if inner_ub != outer_step:
+                return
+
+            if outer_step.value.data % inner_step.value.data:
                 return
 
             # If either induction variable is used, we can only fold if used exactly once
@@ -92,8 +97,6 @@ class FlattenNestedLoopsPattern(RewritePattern):
             new_ub = op.ub
             new_step = inner_loop.step
         else:
-            if (inner_step := get_constant_value(inner_loop.step)) is None:
-                return
 
             if (outer_lb := get_constant_value(op.lb)) is None:
                 return
