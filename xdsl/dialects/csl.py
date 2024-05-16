@@ -88,7 +88,7 @@ class TaskKind(StrEnum):
     CONTROL = "control"
 
 
-class FuncBase:
+class _FuncBase:
     """
     Base class for the shared functionalty of FuncOp and TaskOp
     """
@@ -349,7 +349,7 @@ class MemberCallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class FuncOp(IRDLOperation, FuncBase):
+class FuncOp(IRDLOperation, _FuncBase):
     """
     Almost the same as func.func, but only has one result, and is not isolated from above.
 
@@ -374,7 +374,7 @@ class FuncOp(IRDLOperation, FuncBase):
         super().__init__(properties=properties, regions=[region])
 
     def verify_(self) -> None:
-        FuncBase._verify(self)
+        _FuncBase._verify(self)
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
@@ -404,11 +404,11 @@ class FuncOp(IRDLOperation, FuncBase):
         return func
 
     def print(self, printer: Printer):
-        FuncBase._print(self, printer)
+        _FuncBase._print(self, printer)
 
 
 @irdl_op_definition
-class TaskOp(IRDLOperation, FuncBase):
+class TaskOp(IRDLOperation, _FuncBase):
     """
     Represents a task in CSL. All three types of task are represented by this Op.
 
@@ -455,7 +455,7 @@ class TaskOp(IRDLOperation, FuncBase):
         super().__init__(properties=properties, regions=[region])
 
     def verify_(self) -> None:
-        FuncBase._verify(self)
+        _FuncBase._verify(self)
         if len(self.function_type.outputs.data) != 0:
             raise VerifyException(f"{self.name} cannot have return values")
 
@@ -518,7 +518,7 @@ class TaskOp(IRDLOperation, FuncBase):
         return task
 
     def print(self, printer: Printer):
-        FuncBase._print(self, printer)
+        _FuncBase._print(self, printer)
 
 
 @irdl_op_definition
