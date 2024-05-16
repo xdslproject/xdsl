@@ -18,11 +18,11 @@ from xdsl.dialects.builtin import (
     ContainerType,
     DictionaryAttr,
     FunctionType,
+    IntegerAttr,
+    IntegerType,
     ModuleOp,
     StringAttr,
     SymbolRefAttr,
-    IntegerAttr,
-    IntegerType,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
@@ -63,8 +63,8 @@ from xdsl.traits import (
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.hints import isa
+from xdsl.utils.str_enum import StrEnum
 
 
 class PtrKind(StrEnum):
