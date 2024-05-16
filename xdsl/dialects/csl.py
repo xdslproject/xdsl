@@ -13,7 +13,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from xdsl.dialects import func
 from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
@@ -21,6 +20,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     ModuleOp,
     StringAttr,
+    SymbolRefAttr,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
@@ -35,7 +35,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AttrSizedOperandSegments,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
@@ -257,8 +256,6 @@ class MemberCallOp(IRDLOperation):
 
     result = opt_result_def(Attribute)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
-
 
 @irdl_op_definition
 class FuncOp(IRDLOperation):
@@ -412,6 +409,25 @@ class LayoutOp(IRDLOperation):
         printer.print(" ", self.body)
 
 
+@irdl_op_definition
+class CallOp(IRDLOperation):
+    """
+    Call a regular function or task by name
+    """
+
+    name = "csl.call"
+
+    callee = prop_def(SymbolRefAttr)
+    args = var_operand_def(Attribute)
+    result = opt_result_def(Attribute)
+
+    # TODO(dk949): verify that callee corresponds to a real symbol
+
+    # TODO(dk949): verify that function type of callee matches args and result
+
+    # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
+
+
 CSL = Dialect(
     "csl",
     [
@@ -422,6 +438,7 @@ CSL = Dialect(
         MemberAccessOp,
         CslModuleOp,
         LayoutOp,
+        CallOp,
     ],
     [
         ComptimeStructType,
