@@ -282,8 +282,6 @@ class CslModuleOp(IRDLOperation):
     Separates layout module from program module
     """
 
-    # TODO(dk949): This should also probably handle csl `param`s
-
     name = "csl.module"
     body: Region = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
@@ -460,7 +458,6 @@ class TaskOp(IRDLOperation, _FuncBase):
         if len(self.function_type.outputs.data) != 0:
             raise VerifyException(f"{self.name} cannot have return values")
 
-        # TODO(dk949): Need to check at some point that we're not reusing the same color multiple times
         if (
             self.id is not None
             and self.id.type.width.data != self.kind.get_color_bits()
@@ -587,10 +584,6 @@ class CallOp(IRDLOperation):
     callee = prop_def(SymbolRefAttr)
     args = var_operand_def(Attribute)
     result = opt_result_def(Attribute)
-
-    # TODO(dk949): verify that callee corresponds to a real symbol
-
-    # TODO(dk949): verify that function type of callee matches args and result
 
     # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
 
