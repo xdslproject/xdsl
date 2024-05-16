@@ -473,8 +473,6 @@ class TaskOp(IRDLOperation, _FuncBase):
             case TaskKind.LOCAL:
                 if len(self.function_type.inputs.data) != 0:
                     raise VerifyException("Local tasks cannot have input argumentd")
-                if self.id is not None and self.id.value.data > 31:
-                    raise VerifyException()
             case TaskKind.DATA:
                 if not (0 < len(self.function_type.inputs.data) < 5):
                     raise VerifyException(
