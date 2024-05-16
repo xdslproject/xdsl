@@ -214,6 +214,6 @@ def print_to_csl(prog: ModuleOp, output: IO[str]):
     Takes a module op and prints it to the given output stream.
     """
     ctx = CslPrintContext(output)
-    for mod in  prog.body.block.ops:
+    for mod in prog.body.block.ops:
         assert isinstance(mod, csl.CslModuleOp)
         ctx.print_block(mod.body.block)
