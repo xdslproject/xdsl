@@ -1,5 +1,7 @@
 // RUN: xdsl-opt -t csl %s | filecheck %s
 
+"csl.module"() <{kind=#csl<module_kind program>}> ({
+
 "memref.global"() {"sym_name" = "A", "type" = memref<24xf32>, "sym_visibility" = "public", "initial_value" = dense<0> : tensor<1xindex>} : () -> ()
 "memref.global"() {"sym_name" = "x", "type" = memref<6xf32>, "sym_visibility" = "public", "initial_value" = dense<0> : tensor<1xindex>} : () -> ()
 "memref.global"() {"sym_name" = "b", "type" = memref<4xf32>, "sym_visibility" = "public", "initial_value" = dense<0> : tensor<1xindex>} : () -> ()
@@ -57,6 +59,7 @@ csl.func @initialize() {
 
   csl.return
 }
+}) {sym_name = "program"} : () -> ()
 
 
 // CHECK:      //unknown op Global("memref.global"() <{"sym_name" = "A", "sym_visibility" = "public", "type" = memref<24xf32>, "initial_value" = dense<0> : tensor<1xindex>}> : () -> ())

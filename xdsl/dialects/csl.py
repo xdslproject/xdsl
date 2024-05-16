@@ -10,6 +10,7 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TypeAlias
 
 from xdsl.dialects import func
@@ -18,6 +19,7 @@ from xdsl.dialects.builtin import (
     ContainerType,
     DictionaryAttr,
     FunctionType,
+    ModuleOp,
     StringAttr,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
@@ -37,6 +39,7 @@ from xdsl.irdl import (
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -50,7 +53,14 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, SymbolOpInterface
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    NoTerminator,
+    OpTrait,
+    SymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -63,6 +73,44 @@ class PtrKind(StrEnum):
 class PtrConst(StrEnum):
     CONST = "const"
     VAR = "var"
+
+
+class ModuleKind(StrEnum):
+    LAYOUT = "layout"
+    PROGRAM = "program"
+
+
+@dataclass(frozen=True)
+class InModuleKind(OpTrait):
+    """
+    Constrain an op to a particular module kind
+
+    Optionally specify if the op has to be a direct child of CslModuleOp
+    (default is yes).
+    """
+
+    def __init__(self, kind: ModuleKind, *, direct_child: bool = True):
+        super().__init__((kind, direct_child))
+
+    def verify(self, op: Operation) -> None:
+        kind: ModuleKind = self.parameters[0]
+        direct_child: bool = self.parameters[1]
+
+        direct = "direct" if direct_child else "indirect"
+        parent_module = op.parent_op()
+        if not direct_child:
+            while parent_module is not None and not isinstance(
+                parent_module, CslModuleOp
+            ):
+                parent_module = parent_module.parent_op()
+        if not isinstance(parent_module, CslModuleOp):
+            raise VerifyException(
+                f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name}, got {parent_module}"
+            )
+        if parent_module.kind.data != kind:
+            raise VerifyException(
+                f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name} of kind {kind.value}"
+            )
 
 
 @irdl_attr_definition
@@ -105,6 +153,13 @@ class PtrConstAttr(EnumAttribute[PtrConst], SpacedOpaqueSyntaxAttribute):
 
 
 @irdl_attr_definition
+class ModuleKindAttr(EnumAttribute[ModuleKind], SpacedOpaqueSyntaxAttribute):
+    """Attribute representing the kind of CSL module, either layout or program"""
+
+    name = "csl.module_kind"
+
+
+@irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     """
     Represents a typed pointer in CSL.
@@ -132,12 +187,37 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_op_definition
+class CslModuleOp(IRDLOperation):
+    """
+    Separates layout module from program module
+    """
+
+    # TODO(dk949): This should also probably handle csl `param`s
+
+    name = "csl.module"
+    body: Region = region_def("single_block")
+    kind = prop_def(ModuleKindAttr)
+    sym_name: StringAttr = attr_def(StringAttr)
+
+    traits = frozenset(
+        [
+            HasParent(ModuleOp),
+            IsolatedFromAbove(),
+            NoTerminator(),
+            SymbolOpInterface(),
+        ]
+    )
+
+
+@irdl_op_definition
 class ImportModuleConstOp(IRDLOperation):
     """
     Equivalent to an `const <va_name> = @import_module("<module_name>", <params>)` call.
     """
 
     name = "csl.import_module"
+
+    traits = frozenset([HasParent(CslModuleOp)])
 
     module = prop_def(StringAttr)
 
@@ -197,7 +277,9 @@ class FuncOp(IRDLOperation):
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
-    traits = frozenset([SymbolOpInterface(), func.FuncOpCallableInterface()])
+    traits = frozenset(
+        [HasParent(CslModuleOp), SymbolOpInterface(), func.FuncOpCallableInterface()]
+    )
 
     def __init__(
         self,
@@ -307,6 +389,29 @@ class ReturnOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class LayoutOp(IRDLOperation):
+    name = "csl.layout"
+
+    body: Region = region_def()
+
+    traits = frozenset([NoTerminator(), InModuleKind(ModuleKind.LAYOUT)])
+
+    def __init__(self, ops: Sequence[Operation] | Region):
+        if not isinstance(ops, Region):
+            ops = Region(Block(ops))
+        if len(ops.blocks) == 0:
+            ops = Region(Block([]))
+        super().__init__(regions=[ops])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> LayoutOp:
+        return cls(parser.parse_region())
+
+    def print(self, printer: Printer):
+        printer.print(" ", self.body)
+
+
 CSL = Dialect(
     "csl",
     [
@@ -315,6 +420,8 @@ CSL = Dialect(
         ImportModuleConstOp,
         MemberCallOp,
         MemberAccessOp,
+        CslModuleOp,
+        LayoutOp,
     ],
     [
         ComptimeStructType,
@@ -323,5 +430,6 @@ CSL = Dialect(
         PtrConstAttr,
         PtrType,
         ColorType,
+        ModuleKindAttr,
     ],
 )
