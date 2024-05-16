@@ -79,6 +79,76 @@ class ModuleKind(StrEnum):
     PROGRAM = "program"
 
 
+class FuncBase:
+    """
+    Base class for the shared functionalty of FuncOp and TaskOp
+    """
+
+    body: Region = region_def()
+    sym_name: StringAttr = prop_def(StringAttr)
+    function_type: FunctionType = prop_def(FunctionType)
+    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+
+    def __get_name(self):
+        return getattr(self, "name", "<unknown>")
+
+    def _props_region(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        *,
+        arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        res_attrs: ArrayAttr[DictionaryAttr] | None = None,
+    ):
+        if isinstance(function_type, tuple):
+            inputs, output = function_type
+            function_type = FunctionType.from_lists(inputs, [output] if output else [])
+        if len(function_type.outputs) > 1:
+            raise ValueError(
+                f"Can't have a {self.__get_name()} return more than one value!"
+            )
+        if not isinstance(region, Region):
+            region = Region(Block(arg_types=function_type.inputs))
+        properties: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(name),
+            "function_type": function_type,
+            "arg_attrs": arg_attrs,
+            "res_attrs": res_attrs,
+        }
+        return properties, region
+
+    def _verify(self):
+        # If this is an empty region (external function), then return
+        if len(self.body.blocks) == 0:
+            return
+
+        entry_block: Block = self.body.blocks[0]
+        block_arg_types = [arg.type for arg in entry_block.args]
+        if self.function_type.inputs.data != tuple(block_arg_types):
+            raise VerifyException(
+                "Expected entry block arguments to have the same types as the function "
+                "input types"
+            )
+
+    def _print(self, printer: Printer):
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            self.function_type,
+            self.body,
+            getattr(self, "attributes", {}) | getattr(self, "properties", {}),
+            arg_attrs=self.arg_attrs,
+            reserved_attr_names=(
+                "sym_name",
+                "function_type",
+                "sym_visibility",
+                "arg_attrs",
+            ),
+        )
+
+
 @dataclass(frozen=True)
 class InModuleKind(OpTrait):
     """
@@ -258,7 +328,7 @@ class MemberCallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class FuncOp(IRDLOperation):
+class FuncOp(IRDLOperation, FuncBase):
     """
     Almost the same as func.func, but only has one result, and is not isolated from above.
 
@@ -267,16 +337,6 @@ class FuncOp(IRDLOperation):
     """
 
     name = "csl.func"
-
-    body: Region = region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    function_type: FunctionType = prop_def(FunctionType)
-    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-
-    traits = frozenset(
-        [HasParent(CslModuleOp), SymbolOpInterface(), func.FuncOpCallableInterface()]
-    )
 
     def __init__(
         self,
@@ -287,33 +347,13 @@ class FuncOp(IRDLOperation):
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     ):
-        if isinstance(function_type, tuple):
-            inputs, output = function_type
-            function_type = FunctionType.from_lists(inputs, [output] if output else [])
-        if len(function_type.outputs) > 1:
-            raise ValueError("Can't have a csl.function return more than one value!")
-        if not isinstance(region, Region):
-            region = Region(Block(arg_types=function_type.inputs))
-        properties: dict[str, Attribute | None] = {
-            "sym_name": StringAttr(name),
-            "function_type": function_type,
-            "arg_attrs": arg_attrs,
-            "res_attrs": res_attrs,
-        }
+        properties, region = self._props_region(
+            name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
+        )
         super().__init__(properties=properties, regions=[region])
 
     def verify_(self) -> None:
-        # If this is an empty region (external function), then return
-        if len(self.body.blocks) == 0:
-            return
-
-        entry_block: Block = self.body.blocks[0]
-        block_arg_types = [arg.type for arg in entry_block.args]
-        if self.function_type.inputs.data != tuple(block_arg_types):
-            raise VerifyException(
-                "Expected entry block arguments to have the same types as the function "
-                "input types"
-            )
+        FuncBase._verify(self)
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
@@ -328,7 +368,9 @@ class FuncOp(IRDLOperation):
             parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
 
-        assert len(return_types) <= 1, "csl.func can't have more than one result type!"
+        assert (
+            len(return_types) <= 1
+        ), f"{cls.name} can't have more than one result type!"
 
         func = cls(
             name=name,
@@ -341,8 +383,8 @@ class FuncOp(IRDLOperation):
         return func
 
     def print(self, printer: Printer):
-        print_func_op_like(
-            printer,
+        FuncBase._print(self, printer)
+
             self.sym_name,
             self.function_type,
             self.body,
