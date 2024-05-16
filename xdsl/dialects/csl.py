@@ -422,7 +422,7 @@ class TaskOp(IRDLOperation, _FuncBase):
     name = "csl.task"
 
     kind = prop_def(TaskKindAttr)
-    id = prop_def(IntegerAttr[IntegerType])
+    id = opt_prop_def(IntegerAttr[IntegerType])
 
     traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
 
@@ -435,7 +435,7 @@ class TaskOp(IRDLOperation, _FuncBase):
         task_kind: TaskKindAttr | TaskKind,
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
-        id: IntegerAttr[IntegerType] | int,
+        id: IntegerAttr[IntegerType] | int | None,
     ):
         properties, region = self._props_region(
             name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
@@ -444,9 +444,10 @@ class TaskOp(IRDLOperation, _FuncBase):
             task_kind = TaskKindAttr(task_kind)
         if isinstance(id, int):
             id = IntegerAttr.from_int_and_width(id, task_kind.get_color_bits())
-        assert (
-            id.type.width.data == task_kind.get_color_bits()
-        ), f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
+        if id is not None:
+            assert (
+                id.type.width.data == task_kind.get_color_bits()
+            ), f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
 
         properties |= {
             "kind": task_kind,
@@ -460,7 +461,10 @@ class TaskOp(IRDLOperation, _FuncBase):
             raise VerifyException(f"{self.name} cannot have return values")
 
         # TODO(dk949): Need to check at some point that we're not reusing the same color multiple times
-        if self.id.type.width.data != self.kind.get_color_bits():
+        if (
+            self.id is not None
+            and self.id.type.width.data != self.kind.get_color_bits()
+        ):
             raise VerifyException(
                 f"Type of the id has to be {self.kind.get_color_bits()}"
             )
@@ -469,7 +473,7 @@ class TaskOp(IRDLOperation, _FuncBase):
             case TaskKind.LOCAL:
                 if len(self.function_type.inputs.data) != 0:
                     raise VerifyException("Local tasks cannot have input argumentd")
-                if self.id.value.data > 31:
+                if self.id is not None and self.id.value.data > 31:
                     raise VerifyException()
             case TaskKind.DATA:
                 if not (0 < len(self.function_type.inputs.data) < 5):
@@ -498,10 +502,11 @@ class TaskOp(IRDLOperation, _FuncBase):
             extra_attrs is None
             or "kind" not in extra_attrs.data
             or not isinstance(extra_attrs.data["kind"], TaskKindAttr)
-            or "id" not in extra_attrs.data
-            or not isa(extra_attrs.data["id"], IntegerAttr[IntegerType])
         ):
-            parser.raise_error(f"{cls.name} expected kind and id attributes")
+            parser.raise_error(f"{cls.name} expected kind attribute")
+        id = extra_attrs.data.get("id")
+        if id is not None and not isa(id, IntegerAttr[IntegerType]):
+            parser.raise_error(f"{cls.name} expected kind attribute")
 
         assert (
             len(return_types) <= 1
@@ -513,7 +518,7 @@ class TaskOp(IRDLOperation, _FuncBase):
             region=region,
             arg_attrs=arg_attrs,
             task_kind=extra_attrs.data["kind"],
-            id=extra_attrs.data["id"],
+            id=id,
         )
         return task
 
