@@ -22,6 +22,9 @@ csl.task @control_task() attributes {kind = #csl<task_kind control>, id = 2 : i6
 csl.task @control_task_args(%a: i32) attributes {kind = #csl<task_kind control>, id = 2 : i6} {
   csl.return
 }
+csl.task @runtime_bound_local_task() attributes {kind = #csl<task_kind local>} {
+  csl.return
+}
 
 
 csl.func @initialize() {
@@ -70,6 +73,9 @@ csl.func @initialize() {
 // CHECK-NEXT:   csl.return
 // CHECK-NEXT: }
 // CHECK-NEXT: csl.task @control_task_args(%a_1 : i32) attributes {"kind" = #csl<task_kind control>, "id" = 2 : i6}{
+// CHECK-NEXT:   csl.return
+// CHECK-NEXT: }
+// CHECK-NEXT: csl.task @runtime_bound_local_task() attributes {"kind" = #csl<task_kind local>}{
 // CHECK-NEXT:   csl.return
 // CHECK-NEXT: }
 // CHECK-NEXT: csl.func @initialize() {
