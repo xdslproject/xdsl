@@ -407,7 +407,7 @@ class FuncOp(IRDLOperation, _FuncBase):
     def print(self, printer: Printer):
         _FuncBase._print(self, printer)
 
-    def _get_name(self):
+    def _get_name(self) -> str:
         return self.name
 
     def _get_attribs_and_props(self) -> dict[str, Attribute]:
@@ -529,7 +529,7 @@ class TaskOp(IRDLOperation, _FuncBase):
     def print(self, printer: Printer):
         _FuncBase._print(self, printer)
 
-    def _get_name(self):
+    def _get_name(self) -> str:
         return self.name
 
     def _get_attribs_and_props(self) -> dict[str, Attribute]:
