@@ -9,7 +9,6 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 
 from __future__ import annotations
 
-from abc import abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeAlias
@@ -89,7 +88,7 @@ class TaskKind(StrEnum):
     CONTROL = "control"
 
 
-class _FuncBase:
+class _FuncBase(IRDLOperation):
     """
     Base class for the shared functionalty of FuncOp and TaskOp
     """
@@ -99,11 +98,6 @@ class _FuncBase:
     function_type: FunctionType = prop_def(FunctionType)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-
-    @abstractmethod
-    def _get_name(self) -> str: ...
-    @abstractmethod
-    def _get_attribs_and_props(self) -> dict[str, Attribute]: ...
 
     def _props_region(
         self,
@@ -118,9 +112,7 @@ class _FuncBase:
             inputs, output = function_type
             function_type = FunctionType.from_lists(inputs, [output] if output else [])
         if len(function_type.outputs) > 1:
-            raise ValueError(
-                f"Can't have a {self._get_name()} return more than one value!"
-            )
+            raise ValueError(f"Can't have a {self.name} return more than one value!")
         if not isinstance(region, Region):
             region = Region(Block(arg_types=function_type.inputs))
         properties: dict[str, Attribute | None] = {
@@ -150,7 +142,7 @@ class _FuncBase:
             self.sym_name,
             self.function_type,
             self.body,
-            self._get_attribs_and_props(),
+            self.attributes | self.properties,
             arg_attrs=self.arg_attrs,
             reserved_attr_names=(
                 "sym_name",
@@ -350,7 +342,7 @@ class MemberCallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class FuncOp(IRDLOperation, _FuncBase):
+class FuncOp(_FuncBase):
     """
     Almost the same as func.func, but only has one result, and is not isolated from above.
 
@@ -407,15 +399,9 @@ class FuncOp(IRDLOperation, _FuncBase):
     def print(self, printer: Printer):
         _FuncBase._print(self, printer)
 
-    def _get_name(self) -> str:
-        return self.name
-
-    def _get_attribs_and_props(self) -> dict[str, Attribute]:
-        return self.attributes | self.properties
-
 
 @irdl_op_definition
-class TaskOp(IRDLOperation, _FuncBase):
+class TaskOp(_FuncBase):
     """
     Represents a task in CSL. All three types of task are represented by this Op.
 
@@ -528,12 +514,6 @@ class TaskOp(IRDLOperation, _FuncBase):
 
     def print(self, printer: Printer):
         _FuncBase._print(self, printer)
-
-    def _get_name(self) -> str:
-        return self.name
-
-    def _get_attribs_and_props(self) -> dict[str, Attribute]:
-        return self.attributes | self.properties
 
 
 @irdl_op_definition
