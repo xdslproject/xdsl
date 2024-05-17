@@ -9,6 +9,7 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeAlias
@@ -99,8 +100,10 @@ class _FuncBase:
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
 
-    def __get_name(self):
-        return getattr(self, "name", "<unknown>")
+    @abstractmethod
+    def _get_name(self) -> str: ...
+    @abstractmethod
+    def _get_attribs_and_props(self) -> dict[str, Attribute]: ...
 
     def _props_region(
         self,
@@ -116,7 +119,7 @@ class _FuncBase:
             function_type = FunctionType.from_lists(inputs, [output] if output else [])
         if len(function_type.outputs) > 1:
             raise ValueError(
-                f"Can't have a {self.__get_name()} return more than one value!"
+                f"Can't have a {self._get_name()} return more than one value!"
             )
         if not isinstance(region, Region):
             region = Region(Block(arg_types=function_type.inputs))
@@ -147,7 +150,7 @@ class _FuncBase:
             self.sym_name,
             self.function_type,
             self.body,
-            getattr(self, "attributes", {}) | getattr(self, "properties", {}),
+            self._get_attribs_and_props(),
             arg_attrs=self.arg_attrs,
             reserved_attr_names=(
                 "sym_name",
@@ -404,6 +407,12 @@ class FuncOp(IRDLOperation, _FuncBase):
     def print(self, printer: Printer):
         _FuncBase._print(self, printer)
 
+    def _get_name(self):
+        return self.name
+
+    def _get_attribs_and_props(self) -> dict[str, Attribute]:
+        return self.attributes | self.properties
+
 
 @irdl_op_definition
 class TaskOp(IRDLOperation, _FuncBase):
@@ -519,6 +528,12 @@ class TaskOp(IRDLOperation, _FuncBase):
 
     def print(self, printer: Printer):
         _FuncBase._print(self, printer)
+
+    def _get_name(self):
+        return self.name
+
+    def _get_attribs_and_props(self) -> dict[str, Attribute]:
+        return self.attributes | self.properties
 
 
 @irdl_op_definition
