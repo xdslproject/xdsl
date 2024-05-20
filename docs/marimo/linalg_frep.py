@@ -197,12 +197,11 @@ def __(Parser, ctx, mo, pp):
     imperfect_nest_ir = """
     func.func public @matmul(%0 : memref<8x8xf64>, %1 : memref<8x8xf64>, %2 : memref<8x8xf64>) {
         memref_stream.streaming_region {
-            bounds = [8, 8, 8],
-            indexing_maps = [
-                affine_map<(d0, d1, d2) -> (d0, d2)>,
-                affine_map<(d0, d1, d2) -> (d2, d1)>,
-                affine_map<(d0, d1, d2) -> (d0, d1)>
-            ]} ins(%0, %1 : memref<8x8xf64>, memref<8x8xf64>) outs(%2 : memref<8x8xf64>) {
+          patterns = [
+            #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (m, k)>,
+            #memref_stream.stride_pattern<ub = [8, 8, 8], index_map = (m, n, k) -> (k, n)>,
+            #memref_stream.stride_pattern<ub = [8, 8], index_map = (m, n) -> (m, n)>
+          ]} ins(%0, %1 : memref<8x8xf64>, memref<8x8xf64>) outs(%2 : memref<8x8xf64>) {
         ^0(%arg0 : !stream.readable<f64>, %arg1 : !stream.readable<f64>, %arg2: !stream.writable<f64>):
           %5 = arith.constant 8 : index
           %6 = arith.constant 8 : index
@@ -329,21 +328,21 @@ def __(apply, ctx, mo, pp, rv_loops_cse_m):
 
 @app.cell
 def __(apply, ctx, mo, pp, rv_loops_folded_m):
-    from xdsl.transforms.riscv_scf_loop_fusion import RiscvScfLoopFusionPass
+    from xdsl.transforms.riscv_scf_loop_flatten import RiscvScfLoopFlattenPass
 
-    fused_m = apply(RiscvScfLoopFusionPass(), rv_loops_folded_m, ctx)
+    fused_m = apply(RiscvScfLoopFlattenPass(), rv_loops_folded_m, ctx)
 
 
     mo.md(f"""
 
     The key pattern to spot there is the nested loop, where the inner loop index iterates until the step of the outer loop.
-    These loops can be fused, to give this:
+    These loops can be flattened, to give this:
 
     ``` mlir
     {pp(fused_m)}
     ```
     """)
-    return RiscvScfLoopFusionPass, fused_m
+    return RiscvScfLoopFlattenPass, fused_m
 
 
 @app.cell
@@ -398,7 +397,7 @@ def __(ModuleOp, ModulePass, apply, ctx, mo, pp, rv_loops_folded_2_m):
     ```
     """
 
-    res = apply(TestLowerSnitchStreamToAsm(callback), rv_loops_folded_2_m, ctx)
+    res = apply(TestLowerSnitchStreamToAsm(callback=callback), rv_loops_folded_2_m, ctx)
 
 
     mo.md(f"""
