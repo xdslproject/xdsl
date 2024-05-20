@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -272,6 +272,12 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     name = "csl.color"
 
 
+ColorIdAttr: TypeAlias = (
+    IntegerAttr[Annotated[IntegerType, IntegerType(5)]]
+    | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
+)
+
+
 @irdl_op_definition
 class CslModuleOp(IRDLOperation):
     """
@@ -416,7 +422,7 @@ class TaskOp(_FuncBase):
     name = "csl.task"
 
     kind = prop_def(TaskKindAttr)
-    id = opt_prop_def(IntegerAttr[IntegerType])
+    id = opt_prop_def(ColorIdAttr)
 
     traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
 
@@ -429,7 +435,7 @@ class TaskOp(_FuncBase):
         task_kind: TaskKindAttr | TaskKind,
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
-        id: IntegerAttr[IntegerType] | int | None,
+        id: ColorIdAttr | int | None,
     ):
         properties, region = self._props_region(
             name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
@@ -496,7 +502,7 @@ class TaskOp(_FuncBase):
         ):
             parser.raise_error(f"{cls.name} expected kind attribute")
         id = extra_attrs.data.get("id")
-        if id is not None and not isa(id, IntegerAttr[IntegerType]):
+        if id is not None and not isa(id, ColorIdAttr):
             parser.raise_error(f"{cls.name} expected kind attribute")
 
         assert (
