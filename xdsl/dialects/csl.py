@@ -339,6 +339,14 @@ class ConstStructOp(IRDLOperation):
 
 
 @irdl_op_definition
+class GetColorOp(IRDLOperation):
+    name = "csl.get_color"
+
+    id = prop_def(ColorIdAttr)
+    res = result_def(ColorType)
+
+
+@irdl_op_definition
 class MemberAccessOp(IRDLOperation):
     """
     Access a member of a struct and assigna a new variable.
@@ -625,6 +633,7 @@ CSL = Dialect(
         CallOp,
         TaskOp,
         ConstStructOp,
+        GetColorOp,
     ],
     [
         ComptimeStructType,
