@@ -233,7 +233,7 @@ class IsolatedFromAbove(OpTrait):
                         if not op.is_ancestor(operand.owner):
                             raise VerifyException(
                                 "Operation using value defined out of its "
-                                "IsolatedFromAbove parent!"
+                                f"IsolatedFromAbove parent: {child_op}"
                             )
                     # Check nested regions too; unless the operation is IsolatedFromAbove
                     # too; in which case it will check itself.

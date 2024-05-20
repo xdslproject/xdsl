@@ -520,6 +520,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = ((args[0] + offset).float64[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.FMvDOp)
+    def run_fmv_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMvDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = args
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     # endregion
 
     @impl(riscv.GetRegisterOp)

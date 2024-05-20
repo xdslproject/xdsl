@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntAttr,
     IntegerAttr,
+    TensorType,
 )
 from xdsl.ir import (
     Attribute,
@@ -28,6 +29,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AnyOf,
     AttrSizedOperandSegments,
     BaseAttr,
     ConstraintVar,
@@ -744,6 +746,21 @@ class IndexOp(IRDLOperation):
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
 
+    traits = frozenset([HasAncestor(ApplyOp)])
+
+    def get_apply(self):
+        """
+        Simple helper to get the parent apply and raise otherwise.
+        """
+        trait = cast(HasAncestor, self.get_trait(HasAncestor, (ApplyOp,)))
+        ancestor = trait.get_ancestor(self)
+        if ancestor is None:
+            raise ValueError(
+                "stencil.apply not found, this function should be called on"
+                "verified accesses only."
+            )
+        return cast(ApplyOp, ancestor)
+
 
 @irdl_op_definition
 class AccessOp(IRDLOperation):
@@ -857,7 +874,7 @@ class AccessOp(IRDLOperation):
     def get(
         temp: SSAValue | Operation,
         offset: Sequence[int],
-        offset_mapping: Sequence[int] | None = None,
+        offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
         temp_type = SSAValue.get(temp).type
         assert isinstance(temp_type, TempType)
@@ -930,6 +947,19 @@ class AccessOp(IRDLOperation):
                 f"Expected offset's rank to be {temp_type.get_num_dims()} to match the "
                 f"operand's rank, got {len(self.offset)}"
             )
+
+    def get_apply(self):
+        """
+        Simple helper to get the parent apply and raise otherwise.
+        """
+        trait = cast(HasAncestor, self.get_trait(HasAncestor, (ApplyOp,)))
+        ancestor = trait.get_ancestor(self)
+        if ancestor is None:
+            raise ValueError(
+                "stencil.apply not found, this function should be called on"
+                "verified accesses only."
+            )
+        return cast(ApplyOp, ancestor)
 
 
 @irdl_op_definition
@@ -1051,6 +1081,19 @@ class BufferOp(IRDLOperation):
             )
 
 
+class TensorIgnoreSizeConstraint(VarConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if self.name in constraint_vars:
+            if (
+                isa(attr, TensorType[Attribute])
+                and isinstance(other := constraint_vars[self.name], TensorType)
+                and len(attr.get_shape()) == len(other.get_shape())
+                and attr.get_element_type() == other.get_element_type()
+            ):
+                return
+        super().verify(attr, constraint_vars)
+
+
 @irdl_op_definition
 class StoreOp(IRDLOperation):
     """
@@ -1068,12 +1111,18 @@ class StoreOp(IRDLOperation):
             [
                 Attribute,
                 MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
+                    AnyOf(
+                        [
+                            VarConstraint("T", AnyAttr()),
+                            TensorIgnoreSizeConstraint("T", AnyAttr()),
+                        ]
+                    ),
                     "Input and output fields must have the same element types",
                 ),
             ],
         )
     )
+    # field: Operand = operand_def(FieldType)
     field: Operand = operand_def(
         ParamAttrConstraint(
             FieldType,
@@ -1082,7 +1131,12 @@ class StoreOp(IRDLOperation):
                     StencilBoundsAttr, "Output type's size must be explicit"
                 ),
                 MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
+                    AnyOf(
+                        [
+                            VarConstraint("T", AnyAttr()),
+                            TensorIgnoreSizeConstraint("T", AnyAttr()),
+                        ]
+                    ),
                     "Input and output fields must have the same element types",
                 ),
             ],

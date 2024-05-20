@@ -74,6 +74,8 @@ class ModulePass(ABC):
         # start constructing the argument dict for the dataclass
         arg_dict = dict[str, PassArgListType | PassArgElementType | None]()
 
+        required_fields = cls.required_fields()
+
         # iterate over all fields of the dataclass
         for op_field in fields:
             # ignore the name field and everything that's not used by __init__
@@ -81,7 +83,7 @@ class ModulePass(ABC):
                 continue
             # check that non-optional fields are present
             if op_field.name not in spec_arguments_dict:
-                if _is_optional(op_field):
+                if op_field.name not in required_fields:
                     arg_dict[op_field.name] = _get_default(op_field)
                     continue
                 raise ValueError(f'Pass {cls.name} requires argument "{op_field.name}"')
@@ -104,6 +106,15 @@ class ModulePass(ABC):
 
         # instantiate the dataclass using kwargs
         return cls(**arg_dict)
+
+    @classmethod
+    def required_fields(cls: type[ModulePassT]) -> set[str]:
+        """
+        Inspects the definition of the pass for fields that do not have default values.
+        """
+        return {
+            field.name for field in dataclasses.fields(cls) if not _is_optional(field)
+        }
 
     def pipeline_pass_spec(self) -> PipelinePassSpec:
         """
@@ -153,17 +164,11 @@ def get_pass_argument_names_and_types(arg: type[ModulePassT]) -> str:
     )
 
 
-def _empty_callback(
-    previous_pass: ModulePass, module: builtin.ModuleOp, next_pass: ModulePass
-) -> None:
-    return
-
-
 @dataclass(frozen=True)
 class PipelinePass(ModulePass):
     passes: tuple[ModulePass, ...]
-    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] = field(
-        default=_empty_callback
+    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
+        default=None
     )
     """
     Function called in between every pass, taking the pass that just ran, the module, and
@@ -174,10 +179,12 @@ class PipelinePass(ModulePass):
         if not self.passes:
             # Early exit to avoid fetching a non-existing last pass.
             return
+        callback = self.callback
 
         for prev, next in zip(self.passes[:-1], self.passes[1:]):
             prev.apply(ctx, op)
-            self.callback(prev, op, next)
+            if callback is not None:
+                callback(prev, op, next)
 
         self.passes[-1].apply(ctx, op)
 

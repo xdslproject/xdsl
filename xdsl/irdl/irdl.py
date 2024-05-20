@@ -2121,14 +2121,10 @@ def irdl_op_arg_definition(
         )
 
 
-def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
-    """Decorator used on classes to define a new operation definition."""
-
-    assert issubclass(
-        cls, IRDLOperation
-    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
-
-    op_def = OpDef.from_pyrdl(cls)
+def get_accessors_from_op_def(
+    op_def: OpDef, custom_verify: Any | None
+) -> dict[str, Any]:
+    """Get python accessors from an operation definition."""
     new_attrs = dict[str, Any]()
 
     # Add operand access fields
@@ -2215,14 +2211,6 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
 
     new_attrs["get_irdl_definition"] = get_irdl_definition
 
-    custom_verify = getattr(cls, "verify_")
-
-    def verify_(self: IRDLOperation):
-        op_def.verify(self)
-        custom_verify(self)
-
-    new_attrs["verify_"] = verify_
-
     if op_def.assembly_format is not None:
         from xdsl.irdl.declarative_assembly_format import FormatProgram
 
@@ -2244,6 +2232,29 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
 
         new_attrs["parse"] = parse_with_format
         new_attrs["print"] = print_with_format
+
+    if custom_verify is not None:
+
+        def verify_(self: IRDLOperation):
+            op_def.verify(self)
+            custom_verify(self)
+
+        new_attrs["verify_"] = verify_
+    else:
+        new_attrs["verify_"] = op_def.verify
+
+    return new_attrs
+
+
+def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
+    """Decorator used on classes to define a new operation definition."""
+
+    assert issubclass(
+        cls, IRDLOperation
+    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
+
+    op_def = OpDef.from_pyrdl(cls)
+    new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))
 
     return type.__new__(
         type(cls), cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs}
