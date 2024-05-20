@@ -278,7 +278,7 @@ builtin.module {
   }
 
 // CHECK:         func.func @neg_bounds(%in : memref<64xf64>, %out_1 : memref<64xf64>) {
-// CHECK-NEXT:      %out_1_storeview = "memref.subview"(%out_1) <{"static_offsets" = array<i64: 32>, "static_sizes" = array<i64: 32>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<64xf64>) -> memref<32xf64, strided<[1], offset: 32>>
+// CHECK-NEXT:      %out_storeview = "memref.subview"(%out_1) <{"static_offsets" = array<i64: 32>, "static_sizes" = array<i64: 32>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<64xf64>) -> memref<32xf64, strided<[1], offset: 32>>
 // CHECK-NEXT:      %in_loadview = "memref.subview"(%in) <{"static_offsets" = array<i64: 32>, "static_sizes" = array<i64: 32>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<64xf64>) -> memref<32xf64, strided<[1], offset: 32>>
 // CHECK-NEXT:      %110 = arith.constant -16 : index
 // CHECK-NEXT:      %111 = arith.constant 1 : index
@@ -286,7 +286,7 @@ builtin.module {
 // CHECK-NEXT:      "scf.parallel"(%110, %112, %111) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-NEXT:      ^6(%113 : index):
 // CHECK-NEXT:        %val = memref.load %in_loadview[%113] : memref<32xf64, strided<[1], offset: 32>>
-// CHECK-NEXT:        memref.store %val, %out_1_storeview[%113] : memref<32xf64, strided<[1], offset: 32>>
+// CHECK-NEXT:        memref.store %val, %out_storeview[%113] : memref<32xf64, strided<[1], offset: 32>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index) -> ()
 // CHECK-NEXT:      func.return
@@ -354,8 +354,8 @@ builtin.module {
   }
 
 // CHECK:         func.func @stencil_two_stores(%134 : memref<72xf64>, %135 : memref<72xf64>, %136 : memref<72xf64>) {
-// CHECK-NEXT:      %137 = "memref.subview"(%135) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
-// CHECK-NEXT:      %138 = "memref.subview"(%136) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:      %137 = "memref.subview"(%136) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:      %138 = "memref.subview"(%135) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:      %139 = "memref.subview"(%134) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:      %140 = arith.constant 1 : index
 // CHECK-NEXT:      %141 = arith.constant 1 : index
@@ -365,7 +365,7 @@ builtin.module {
 // CHECK-NEXT:        %144 = arith.constant -1 : index
 // CHECK-NEXT:        %145 = arith.addi %143, %144 : index
 // CHECK-NEXT:        %146 = memref.load %139[%145] : memref<64xf64, strided<[1], offset: 4>>
-// CHECK-NEXT:        memref.store %146, %138[%143] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        memref.store %146, %137[%143] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index) -> ()
 // CHECK-NEXT:      %147 = arith.constant 0 : index
@@ -375,26 +375,26 @@ builtin.module {
 // CHECK-NEXT:      ^10(%150 : index):
 // CHECK-NEXT:        %151 = arith.constant 1 : index
 // CHECK-NEXT:        %152 = arith.addi %150, %151 : index
-// CHECK-NEXT:        %153 = memref.load %138[%152] : memref<64xf64, strided<[1], offset: 4>>
-// CHECK-NEXT:        memref.store %153, %137[%150] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        %153 = memref.load %137[%152] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        memref.store %153, %138[%150] : memref<64xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:        scf.yield
 // CHECK-NEXT:      }) : (index, index, index) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-  func.func @apply_kernel(%69 : !stencil.field<[-2,13]x[-2,13]xf32>, %70 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
+  func.func @apply_kernel(%69 : !stencil.field<[-2,13]x[-2,13]xf32>, %70 : !stencil.field<[-2,13]x[-2,13]xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_1", "u_vec", "timers"]}{
     %71 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
-    %u_vec_1 = builtin.unrealized_conversion_cast %71 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
+    %u_vec = builtin.unrealized_conversion_cast %71 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
     %72 = builtin.unrealized_conversion_cast %70 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
     "gpu.memcpy"(%71, %72) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
     %73 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
-    %u_vec_0 = builtin.unrealized_conversion_cast %73 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
+    %u_vec_1 = builtin.unrealized_conversion_cast %73 : memref<15x15xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
     %74 = builtin.unrealized_conversion_cast %69 : !stencil.field<[-2,13]x[-2,13]xf32> to memref<15x15xf32>
     "gpu.memcpy"(%73, %74) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
     %time_m_1 = arith.constant 0 : index
     %time_M_1 = arith.constant 10 : index
     %step_1 = arith.constant 1 : index
-    %75, %76 = scf.for %time_1 = %time_m_1 to %time_M_1 step %step_1 iter_args(%t0 = %u_vec_0, %t1 = %u_vec_1) -> (!stencil.field<[-2,13]x[-2,13]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>) {
+    %75, %76 = scf.for %time_1 = %time_m_1 to %time_M_1 step %step_1 iter_args(%t0 = %u_vec_1, %t1 = %u_vec) -> (!stencil.field<[-2,13]x[-2,13]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>) {
       %t0_temp = stencil.load %t0 : !stencil.field<[-2,13]x[-2,13]xf32> -> !stencil.temp<[0,11]x[0,11]xf32>
       %t1_result = stencil.apply(%t0_buff = %t0_temp : !stencil.temp<[0,11]x[0,11]xf32>) -> (!stencil.temp<[0,11]x[0,11]xf32>) {
         %77 = stencil.access %t0_buff[0, 0] : !stencil.temp<[0,11]x[0,11]xf32>
@@ -406,19 +406,19 @@ builtin.module {
     func.return
   }
 
-// CHECK:         func.func @apply_kernel(%154 : memref<15x15xf32>, %155 : memref<15x15xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_0", "u_vec_1", "timers"]}{
+// CHECK:         func.func @apply_kernel(%154 : memref<15x15xf32>, %155 : memref<15x15xf32>, %timers : !llvm.ptr)  attributes {"param_names" = ["u_vec_1", "u_vec", "timers"]}{
 // CHECK-NEXT:      %156 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
-// CHECK-NEXT:      %u_vec_1 = builtin.unrealized_conversion_cast %156 : memref<15x15xf32> to memref<15x15xf32>
+// CHECK-NEXT:      %u_vec = builtin.unrealized_conversion_cast %156 : memref<15x15xf32> to memref<15x15xf32>
 // CHECK-NEXT:      %157 = builtin.unrealized_conversion_cast %155 : memref<15x15xf32> to memref<15x15xf32>
 // CHECK-NEXT:      "gpu.memcpy"(%156, %157) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
 // CHECK-NEXT:      %158 = "gpu.alloc"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> memref<15x15xf32>
-// CHECK-NEXT:      %u_vec_0 = builtin.unrealized_conversion_cast %158 : memref<15x15xf32> to memref<15x15xf32>
+// CHECK-NEXT:      %u_vec_1 = builtin.unrealized_conversion_cast %158 : memref<15x15xf32> to memref<15x15xf32>
 // CHECK-NEXT:      %159 = builtin.unrealized_conversion_cast %154 : memref<15x15xf32> to memref<15x15xf32>
 // CHECK-NEXT:      "gpu.memcpy"(%158, %159) {"operandSegmentSizes" = array<i32: 0, 1, 1>} : (memref<15x15xf32>, memref<15x15xf32>) -> ()
 // CHECK-NEXT:      %time_m_1 = arith.constant 0 : index
 // CHECK-NEXT:      %time_M_1 = arith.constant 10 : index
 // CHECK-NEXT:      %step_1 = arith.constant 1 : index
-// CHECK-NEXT:      %160, %161 = scf.for %time_1 = %time_m_1 to %time_M_1 step %step_1 iter_args(%t0 = %u_vec_0, %t1 = %u_vec_1) -> (memref<15x15xf32>, memref<15x15xf32>) {
+// CHECK-NEXT:      %160, %161 = scf.for %time_1 = %time_m_1 to %time_M_1 step %step_1 iter_args(%t0 = %u_vec_1, %t1 = %u_vec) -> (memref<15x15xf32>, memref<15x15xf32>) {
 // CHECK-NEXT:        %t1_storeview = "memref.subview"(%t1) <{"static_offsets" = array<i64: 2, 2>, "static_sizes" = array<i64: 11, 11>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<15x15xf32>) -> memref<11x11xf32, strided<[15, 1], offset: 32>>
 // CHECK-NEXT:        %t0_loadview = "memref.subview"(%t0) <{"static_offsets" = array<i64: 2, 2>, "static_sizes" = array<i64: 11, 11>, "static_strides" = array<i64: 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<15x15xf32>) -> memref<11x11xf32, strided<[15, 1], offset: 32>>
 // CHECK-NEXT:        %162 = arith.constant 0 : index
@@ -575,10 +575,10 @@ builtin.module {
 // CHECK-NEXT:      "scf.parallel"(%232, %233, %234, %238, %239, %240, %235, %236, %237) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // CHECK-NEXT:      ^14(%241 : index, %242 : index, %z_1 : index):
 // CHECK-NEXT:        %x_1 = arith.constant 1 : index
-// CHECK-NEXT:        %x_1_1 = arith.addi %241, %x_1 : index
+// CHECK-NEXT:        %x_2 = arith.addi %241, %x_1 : index
 // CHECK-NEXT:        %y_1 = arith.constant -1 : index
-// CHECK-NEXT:        %y_1_1 = arith.addi %242, %y_1 : index
-// CHECK-NEXT:        %xy_1 = arith.addi %x_1_1, %y_1_1 : index
+// CHECK-NEXT:        %y_2 = arith.addi %242, %y_1 : index
+// CHECK-NEXT:        %xy_1 = arith.addi %x_2, %y_2 : index
 // CHECK-NEXT:        %xyz_1 = arith.addi %xy_1, %z_1 : index
 // CHECK-NEXT:        memref.store %xyz_1, %231[%241, %242, %z_1] : memref<64x64x64xindex, strided<[4096, 64, 1]>>
 // CHECK-NEXT:        scf.yield
@@ -641,8 +641,8 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64
   }
 
 // CHECK-NEXT:    func.func @if_lowering(%arg0_1 : f64, %b0 : memref<7x7x7xf64>, %b1 : memref<7x7x7xf64>)  attributes {"stencil.program"}{
-// CHECK-NEXT:      %b1_storeview = "memref.subview"(%b1) <{"static_offsets" = array<i64: 0, 0, 0>, "static_sizes" = array<i64: 7, 7, 7>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<7x7x7xf64>) -> memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:      %b0_storeview = "memref.subview"(%b0) <{"static_offsets" = array<i64: 0, 0, 0>, "static_sizes" = array<i64: 7, 7, 7>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<7x7x7xf64>) -> memref<7x7x7xf64, strided<[49, 7, 1]>>
+// CHECK-NEXT:      %b1_storeview = "memref.subview"(%b1) <{"static_offsets" = array<i64: 0, 0, 0>, "static_sizes" = array<i64: 7, 7, 7>, "static_strides" = array<i64: 1, 1, 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<7x7x7xf64>) -> memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:      %259 = arith.constant 0 : index
 // CHECK-NEXT:      %260 = arith.constant 0 : index
 // CHECK-NEXT:      %261 = arith.constant 0 : index
