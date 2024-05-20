@@ -621,6 +621,16 @@ class CallOp(IRDLOperation):
 
 
 @irdl_op_definition
+class SetRectangleOp(IRDLOperation):
+    name = "csl.set_rectangle"
+
+    traits = frozenset([HasParent(LayoutOp)])
+
+    x_dim = operand_def(IntegerType)
+    y_dim = operand_def(IntegerType)
+
+
+@irdl_op_definition
 class SetTileCodeOp(IRDLOperation):
     name = "csl.set_tile_code"
 
@@ -647,6 +657,7 @@ CSL = Dialect(
         TaskOp,
         ConstStructOp,
         GetColorOp,
+        SetRectangleOp,
         SetTileCodeOp,
     ],
     [
