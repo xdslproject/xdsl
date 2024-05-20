@@ -317,6 +317,28 @@ class ImportModuleConstOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ConstStructOp(IRDLOperation):
+    name = "csl.const_struct"
+
+    items = opt_prop_def(DictionaryAttr)
+    ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
+    ssa_values = var_operand_def()
+    res = result_def(ComptimeStructType)
+
+    def verify_(self) -> None:
+        if self.ssa_fields is None:
+            if len(self.ssa_values) == 0:
+                return super().verify_()
+        else:
+            if len(self.ssa_values) == len(self.ssa_fields):
+                return super().verify_()
+
+        raise VerifyException(
+            "Number of ssa_fields has to match the number of arguments"
+        )
+
+
+@irdl_op_definition
 class MemberAccessOp(IRDLOperation):
     """
     Access a member of a struct and assigna a new variable.
@@ -602,6 +624,7 @@ CSL = Dialect(
         LayoutOp,
         CallOp,
         TaskOp,
+        ConstStructOp,
     ],
     [
         ComptimeStructType,
