@@ -9,18 +9,21 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from xdsl.dialects import func
 from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DictionaryAttr,
     FunctionType,
+    IntegerAttr,
+    IntegerType,
     ModuleOp,
     StringAttr,
+    SymbolRefAttr,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
@@ -35,7 +38,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AttrSizedOperandSegments,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
@@ -62,6 +64,7 @@ from xdsl.traits import (
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -78,6 +81,77 @@ class PtrConst(StrEnum):
 class ModuleKind(StrEnum):
     LAYOUT = "layout"
     PROGRAM = "program"
+
+
+class TaskKind(StrEnum):
+    LOCAL = "local"
+    DATA = "data"
+    CONTROL = "control"
+
+
+class _FuncBase(IRDLOperation, ABC):
+    """
+    Base class for the shared functionalty of FuncOp and TaskOp
+    """
+
+    body: Region = region_def()
+    sym_name: StringAttr = prop_def(StringAttr)
+    function_type: FunctionType = prop_def(FunctionType)
+    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+
+    def _props_region(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        *,
+        arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        res_attrs: ArrayAttr[DictionaryAttr] | None = None,
+    ):
+        if isinstance(function_type, tuple):
+            inputs, output = function_type
+            function_type = FunctionType.from_lists(inputs, [output] if output else [])
+        if len(function_type.outputs) > 1:
+            raise ValueError(f"Can't have a {self.name} return more than one value!")
+        if not isinstance(region, Region):
+            region = Region(Block(arg_types=function_type.inputs))
+        properties: dict[str, Attribute | None] = {
+            "sym_name": StringAttr(name),
+            "function_type": function_type,
+            "arg_attrs": arg_attrs,
+            "res_attrs": res_attrs,
+        }
+        return properties, region
+
+    def _verify(self):
+        # If this is an empty region (external function), then return
+        if len(self.body.blocks) == 0:
+            return
+
+        entry_block: Block = self.body.blocks[0]
+        block_arg_types = [arg.type for arg in entry_block.args]
+        if self.function_type.inputs.data != tuple(block_arg_types):
+            raise VerifyException(
+                "Expected entry block arguments to have the same types as the function "
+                "input types"
+            )
+
+    def _print(self, printer: Printer):
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            self.function_type,
+            self.body,
+            self.attributes | self.properties,
+            arg_attrs=self.arg_attrs,
+            reserved_attr_names=(
+                "sym_name",
+                "function_type",
+                "sym_visibility",
+                "arg_attrs",
+            ),
+        )
 
 
 @dataclass(frozen=True)
@@ -160,6 +234,18 @@ class ModuleKindAttr(EnumAttribute[ModuleKind], SpacedOpaqueSyntaxAttribute):
 
 
 @irdl_attr_definition
+class TaskKindAttr(EnumAttribute[TaskKind], SpacedOpaqueSyntaxAttribute):
+    name = "csl.task_kind"
+
+    def get_color_bits(self):
+        match self.data:
+            case TaskKind.LOCAL | TaskKind.DATA:
+                return 5
+            case TaskKind.CONTROL:
+                return 6
+
+
+@irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     """
     Represents a typed pointer in CSL.
@@ -191,8 +277,6 @@ class CslModuleOp(IRDLOperation):
     """
     Separates layout module from program module
     """
-
-    # TODO(dk949): This should also probably handle csl `param`s
 
     name = "csl.module"
     body: Region = region_def("single_block")
@@ -257,11 +341,9 @@ class MemberCallOp(IRDLOperation):
 
     result = opt_result_def(Attribute)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
-
 
 @irdl_op_definition
-class FuncOp(IRDLOperation):
+class FuncOp(_FuncBase):
     """
     Almost the same as func.func, but only has one result, and is not isolated from above.
 
@@ -270,16 +352,6 @@ class FuncOp(IRDLOperation):
     """
 
     name = "csl.func"
-
-    body: Region = region_def()
-    sym_name: StringAttr = prop_def(StringAttr)
-    function_type: FunctionType = prop_def(FunctionType)
-    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
-
-    traits = frozenset(
-        [HasParent(CslModuleOp), SymbolOpInterface(), func.FuncOpCallableInterface()]
-    )
 
     def __init__(
         self,
@@ -290,33 +362,13 @@ class FuncOp(IRDLOperation):
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     ):
-        if isinstance(function_type, tuple):
-            inputs, output = function_type
-            function_type = FunctionType.from_lists(inputs, [output] if output else [])
-        if len(function_type.outputs) > 1:
-            raise ValueError("Can't have a csl.function return more than one value!")
-        if not isinstance(region, Region):
-            region = Region(Block(arg_types=function_type.inputs))
-        properties: dict[str, Attribute | None] = {
-            "sym_name": StringAttr(name),
-            "function_type": function_type,
-            "arg_attrs": arg_attrs,
-            "res_attrs": res_attrs,
-        }
+        properties, region = self._props_region(
+            name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
+        )
         super().__init__(properties=properties, regions=[region])
 
     def verify_(self) -> None:
-        # If this is an empty region (external function), then return
-        if len(self.body.blocks) == 0:
-            return
-
-        entry_block: Block = self.body.blocks[0]
-        block_arg_types = [arg.type for arg in entry_block.args]
-        if self.function_type.inputs.data != tuple(block_arg_types):
-            raise VerifyException(
-                "Expected entry block arguments to have the same types as the function "
-                "input types"
-            )
+        _FuncBase._verify(self)
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
@@ -331,7 +383,9 @@ class FuncOp(IRDLOperation):
             parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
 
-        assert len(return_types) <= 1, "csl.func can't have more than one result type!"
+        assert (
+            len(return_types) <= 1
+        ), f"{cls.name} can't have more than one result type!"
 
         func = cls(
             name=name,
@@ -344,20 +398,123 @@ class FuncOp(IRDLOperation):
         return func
 
     def print(self, printer: Printer):
-        print_func_op_like(
-            printer,
-            self.sym_name,
-            self.function_type,
-            self.body,
-            self.attributes,
-            arg_attrs=self.arg_attrs,
-            reserved_attr_names=(
-                "sym_name",
-                "function_type",
-                "sym_visibility",
-                "arg_attrs",
-            ),
+        _FuncBase._print(self, printer)
+
+
+@irdl_op_definition
+class TaskOp(_FuncBase):
+    """
+    Represents a task in CSL. All three types of task are represented by this Op.
+
+    It carries the ID it should be bound to, in case of local and control tasks
+    this is the task ID, in the case of the data task, it's the id of the color
+    the task is bound to.
+
+    NOTE: Control tasks not yet implemented
+    """
+
+    name = "csl.task"
+
+    kind = prop_def(TaskKindAttr)
+    id = opt_prop_def(IntegerAttr[IntegerType])
+
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+
+    def __init__(
+        self,
+        name: str,
+        function_type: FunctionType | tuple[Sequence[Attribute], Attribute | None],
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        *,
+        task_kind: TaskKindAttr | TaskKind,
+        arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        res_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        id: IntegerAttr[IntegerType] | int | None,
+    ):
+        properties, region = self._props_region(
+            name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
         )
+        if isinstance(task_kind, TaskKind):
+            task_kind = TaskKindAttr(task_kind)
+        if isinstance(id, int):
+            id = IntegerAttr.from_int_and_width(id, task_kind.get_color_bits())
+        if id is not None:
+            assert (
+                id.type.width.data == task_kind.get_color_bits()
+            ), f"{task_kind.data.value} task id has to have {task_kind.get_color_bits()} bits, got {id.type.width.data}"
+
+        properties |= {
+            "kind": task_kind,
+            "id": id,
+        }
+        super().__init__(properties=properties, regions=[region])
+
+    def verify_(self) -> None:
+        _FuncBase._verify(self)
+        if len(self.function_type.outputs.data) != 0:
+            raise VerifyException(f"{self.name} cannot have return values")
+
+        if (
+            self.id is not None
+            and self.id.type.width.data != self.kind.get_color_bits()
+        ):
+            raise VerifyException(
+                f"Type of the id has to be {self.kind.get_color_bits()}"
+            )
+
+        match self.kind.data:
+            case TaskKind.LOCAL:
+                if len(self.function_type.inputs.data) != 0:
+                    raise VerifyException("Local tasks cannot have input argumentd")
+            case TaskKind.DATA:
+                if not (0 < len(self.function_type.inputs.data) < 5):
+                    raise VerifyException(
+                        "Data tasks have to have between 1 and 4 arguments (both inclusive)"
+                    )
+            case TaskKind.CONTROL:
+                if not (len(self.function_type.inputs.data) < 5):
+                    raise VerifyException(
+                        "Control tasks have to have 4 or fewer arguments"
+                    )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> TaskOp:
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+        ) = parse_func_op_like(
+            parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
+        )
+        if (
+            extra_attrs is None
+            or "kind" not in extra_attrs.data
+            or not isinstance(extra_attrs.data["kind"], TaskKindAttr)
+        ):
+            parser.raise_error(f"{cls.name} expected kind attribute")
+        id = extra_attrs.data.get("id")
+        if id is not None and not isa(id, IntegerAttr[IntegerType]):
+            parser.raise_error(f"{cls.name} expected kind attribute")
+
+        assert (
+            len(return_types) <= 1
+        ), f"{cls.name} can't have more than one result type!"
+
+        task = cls(
+            name=name,
+            function_type=(input_types, return_types[0] if return_types else None),
+            region=region,
+            arg_attrs=arg_attrs,
+            task_kind=extra_attrs.data["kind"],
+            id=id,
+        )
+        return task
+
+    def print(self, printer: Printer):
+        _FuncBase._print(self, printer)
 
 
 @irdl_op_definition
@@ -372,14 +529,14 @@ class ReturnOp(IRDLOperation):
 
     assembly_format = "attr-dict ($ret_val^ `:` type($ret_val))?"
 
-    traits = frozenset([HasParent(FuncOp), IsTerminator()])
+    traits = frozenset([HasParent(FuncOp, TaskOp), IsTerminator()])
 
     def __init__(self, return_val: SSAValue | Operation | None = None):
         super().__init__(operands=[return_val])
 
     def verify_(self) -> None:
         func_op = self.parent_op()
-        assert isinstance(func_op, FuncOp)
+        assert isinstance(func_op, FuncOp) or isinstance(func_op, TaskOp)
 
         if tuple(func_op.function_type.outputs) != tuple(
             val.type for val in self.operands
@@ -412,6 +569,21 @@ class LayoutOp(IRDLOperation):
         printer.print(" ", self.body)
 
 
+@irdl_op_definition
+class CallOp(IRDLOperation):
+    """
+    Call a regular function or task by name
+    """
+
+    name = "csl.call"
+
+    callee = prop_def(SymbolRefAttr)
+    args = var_operand_def(Attribute)
+    result = opt_result_def(Attribute)
+
+    # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
+
+
 CSL = Dialect(
     "csl",
     [
@@ -422,6 +594,8 @@ CSL = Dialect(
         MemberAccessOp,
         CslModuleOp,
         LayoutOp,
+        CallOp,
+        TaskOp,
     ],
     [
         ComptimeStructType,
@@ -431,5 +605,6 @@ CSL = Dialect(
         PtrType,
         ColorType,
         ModuleKindAttr,
+        TaskKindAttr,
     ],
 )
