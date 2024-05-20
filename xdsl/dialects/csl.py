@@ -620,6 +620,19 @@ class CallOp(IRDLOperation):
     # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
 
 
+@irdl_op_definition
+class SetTileCodeOp(IRDLOperation):
+    name = "csl.set_tile_code"
+
+    traits = frozenset([HasParent(LayoutOp)])
+
+    file = prop_def(StringAttr)
+
+    x_coord = operand_def(IntegerType)
+    y_coord = operand_def(IntegerType)
+    params = opt_operand_def(ComptimeStructType)
+
+
 CSL = Dialect(
     "csl",
     [
@@ -634,6 +647,7 @@ CSL = Dialect(
         TaskOp,
         ConstStructOp,
         GetColorOp,
+        SetTileCodeOp,
     ],
     [
         ComptimeStructType,
