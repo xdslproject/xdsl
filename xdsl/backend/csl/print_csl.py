@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO
+from typing import IO, Literal
 
 from xdsl.dialects import arith, csl, scf
 from xdsl.dialects.builtin import (
@@ -35,6 +35,23 @@ class CslPrintContext:
         """
         for l in text.split("\n"):
             print(self._prefix + prefix + l, file=self.output, end=end)
+
+    def _var_use(
+        self, val: SSAValue, intro: Literal["const"] | Literal["var"] = "const"
+    ):
+        """
+        Automates delcaration and use of variables.
+
+        If a variable has not been declared (i.e. it's associated ssa value is
+        not in self.variables), declare it with an approptiate name and type.
+        Otherwise, just use the variable name.
+
+        Optionally, introducer can be specified as var or const (const by default).
+        """
+        if val in self.variables:
+            return f"{self._get_variable_name_for(val)}"
+        else:
+            return f"{intro} {self._get_variable_name_for(val)} : {self.mlir_type_to_csl_type(val.type)}"
 
     def _get_variable_name_for(self, val: SSAValue, hint: str | None = None) -> str:
         """
@@ -132,15 +149,11 @@ class CslPrintContext:
                 case arith.Constant(value=v, result=r):
                     # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
 
-                    # convert the attributes type to a csl type:
-                    type_name = self.attribute_type_to_str(v)
                     # convert the carried value to a csl value
                     value_str = self.attribute_value_to_str(v)
 
                     # emit a constant instantiation:
-                    self.print(
-                        f"const {self._get_variable_name_for(r)} : {type_name} = {value_str};"
-                    )
+                    self.print(f"{self._var_use(r)} = {value_str};")
                 case csl.ImportModuleConstOp(module=module, params=params, result=res):
                     name = self._get_variable_name_for(res)
 
@@ -159,20 +172,11 @@ class CslPrintContext:
                     args = ", ".join(self._get_variable_name_for(arg) for arg in args)
                     struct_var = self._get_variable_name_for(struct)
 
-                    text = ""
-                    if res is not None:
-                        name = self._get_variable_name_for(res)
-                        text += (
-                            f"const {name} : {self.mlir_type_to_csl_type(res.type)} = "
-                        )
-
-                    self.print(f"{text}{struct_var}.{field.data}({args});")
+                    var = f"{self._var_use(res)} = " if res is not None else ""
+                    self.print(f"{var}{struct_var}.{field.data}({args});")
                 case csl.MemberAccessOp(struct=struct, field=field, result=res):
-                    name = self._get_variable_name_for(res)
                     struct_var = self._get_variable_name_for(struct)
-                    self.print(
-                        f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {struct_var}.{field.data};"
-                    )
+                    self.print(f"{self._var_use(res)} = {struct_var}.{field.data};")
                 case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(
                     ftyp.inputs
                 ) == 0 and len(ftyp.outputs) == 0:
