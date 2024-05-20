@@ -191,13 +191,33 @@ class CslPrintContext:
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
                     self.print(f"return {self._get_variable_name_for(val)};")
-                case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
-                    idx, *_ = bdy.block.args
+                case scf.For(
+                    lb=lower, ub=upper, step=stp, body=bdy, res=results, iter_args=iters
+                ):
+                    idx, *args = bdy.block.args
+                    # declare for loop iterators as mutable variables and match their names to for result names
+                    for result, iter, arg in zip(results, iters, args):
+                        iter_name = self._get_variable_name_for(iter)
+                        self.print(f"{self._var_use(result, 'var')} = {iter_name};")
+                        self.variables[arg] = self.variables[result]
+                    # Search for all yield operations and match yield argument names to for argument names
+                    for op in bdy.block.ops:
+                        if not isinstance(op, scf.Yield):
+                            continue
+                        for yield_arg, arg in zip(op.arguments, args):
+                            self.variables[yield_arg] = self.variables[arg]
+
+                    idx_type = self.mlir_type_to_csl_type(idx.type)
+                    lower_name, upper_name, stp_name, idx_name = map(
+                        self._get_variable_name_for, (lower, upper, stp, idx)
+                    )
                     self.print(
-                        f"\nfor(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
+                        f"\nfor(@range({idx_type}, {lower_name}, {upper_name}, {stp_name})) |{idx_name}| {{"
                     )
                     self.descend().print_block(bdy.block)
                     self.print("}")
+                case scf.Yield():
+                    pass
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
