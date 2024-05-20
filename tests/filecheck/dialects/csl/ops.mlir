@@ -47,6 +47,22 @@ csl.func @initialize() {
     %arg1, %arg2 = "test.op"() : () -> (i32, i16)
     %call_res = "csl.call"(%arg1, %arg2) <{callee = @func_with_args}> : (i32, i16) -> i32
 
+
+    %attr_struct = "csl.const_struct"() <{
+      items = {i = 42 : i32, f = 3.7 : f32 }
+    }> : () -> !csl.comptime_struct
+
+    %ssa_struct = "csl.const_struct"(%arg1, %arg2, %col) <{
+      ssa_fields = ["i32_", "i16_", "col"]
+    }> : (i32, i16, !csl.color) -> !csl.comptime_struct
+
+    %mixed_struct = "csl.const_struct"(%arg1, %arg2, %col) <{
+      ssa_fields = ["i32_", "i16_", "col"],
+      items = {i = 42 : i32, f = 3.7 : f32 }
+    }> : (i32, i16, !csl.color) -> !csl.comptime_struct
+
+    %col_1 = "csl.get_color"() <{id = 3 : i5}> : () -> !csl.color
+
   csl.return
 }
 }) {sym_name = "program"} :  () -> ()
@@ -90,6 +106,10 @@ csl.func @initialize() {
 // CHECK-NEXT:     %col = "test.op"() : () -> !csl.color
 // CHECK-NEXT:     %arg1_1, %arg2_1 = "test.op"() : () -> (i32, i16)
 // CHECK-NEXT:     %call_res = "csl.call"(%arg1_1, %arg2_1) <{"callee" = @func_with_args}> : (i32, i16) -> i32
+// CHECK-NEXT:     %attr_struct = "csl.const_struct"() <{"items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : () -> !csl.comptime_struct
+// CHECK-NEXT:     %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
+// CHECK-NEXT:     %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"], "items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
+// CHECK-NEXT:     %col_1 = "csl.get_color"() <{"id" = 3 : i5}> : () -> !csl.color
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()
