@@ -21,6 +21,7 @@ from xdsl.ir import Attribute, Block, SSAValue
 
 @dataclass
 class CslPrintContext:
+    _INDEX = "i32"
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -100,6 +101,8 @@ class CslPrintContext:
                 return "f16"
             case Float32Type():
                 return "f32"
+            case IndexType():
+                return self._INDEX
             case IntegerType(
                 width=IntAttr(data=width),
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
