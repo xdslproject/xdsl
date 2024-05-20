@@ -69,6 +69,12 @@ csl.func @initialize() {
 
 "csl.module"() <{kind = #csl<module_kind layout>}> ({
   csl.layout {
+    %x_dim, %y_dim = "test.op"() : () -> (i32, i32)
+    "csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ()
+
+
+    %x_coord, %y_coord, %params = "test.op"() : () -> (i32, i32, !csl.comptime_struct)
+    "csl.set_tile_code"(%x_coord, %y_coord, %params) <{file = "pe_program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
   }
 }) {sym_name = "layout"} : () -> ()
 
@@ -115,7 +121,10 @@ csl.func @initialize() {
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()
 // CHECK-NEXT: "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-NEXT: csl.layout {
-// CHECK-NEXT:   ^0:
+// CHECK-NEXT:   x_dim, %y_dim = "test.op"() : () -> (i32, i32)
+// CHECK-NEXT:   "csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ()
+// CHECK-NEXT:   %x_coord, %y_coord, %params = "test.op"() : () -> (i32, i32, !csl.comptime_struct)
+// CHECK-NEXT:   "csl.set_tile_code"(%x_coord, %y_coord, %params) <{"file" = "pe_program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
 // CHECK-NEXT: }
 // CHECK-NEXT: }) {"sym_name" = "layout"} : () -> ()
 // CHECK-NEXT: }
