@@ -9,6 +9,7 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeAlias
@@ -88,7 +89,7 @@ class TaskKind(StrEnum):
     CONTROL = "control"
 
 
-class _FuncBase(IRDLOperation):
+class _FuncBase(IRDLOperation, ABC):
     """
     Base class for the shared functionalty of FuncOp and TaskOp
     """
