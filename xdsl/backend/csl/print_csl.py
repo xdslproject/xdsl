@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import IO, Literal
 
-from xdsl.dialects import arith, csl, scf
+from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
+    ContainerType,
+    DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -12,9 +14,12 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     Signedness,
     SignednessAttr,
+    TypeAttribute,
+    UnitAttr,
 )
 from xdsl.ir import Attribute, Block, SSAValue
 
@@ -36,6 +41,19 @@ class CslPrintContext:
         """
         for l in text.split("\n"):
             print(self._prefix + prefix + l, file=self.output, end=end)
+
+    def _memref_global_init(self, init: Attribute, type: str):
+        match init:
+            case UnitAttr():
+                return ""
+            case DenseIntOrFPElementsAttr():
+                data = init.data.data
+                assert (
+                    len(data) == 1
+                ), f"Memref global initialiser has to have 1 value, got {len(data)}"
+                return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
+            case other:
+                return f"<unknown memref.global init type {other}>"
 
     def _var_use(
         self, val: SSAValue, intro: Literal["const"] | Literal["var"] = "const"
@@ -110,6 +128,11 @@ class CslPrintContext:
                 return f"u{width}"
             case IntegerType(width=IntAttr(data=width)):
                 return f"i{width}"
+            case MemRefType():
+                t: ContainerType[TypeAttribute] = type_attr
+                shape = ", ".join(str(s) for s in t.get_shape())
+                type = self.mlir_type_to_csl_type(t.get_element_type())
+                return f"[{shape}]{type}"
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -218,6 +241,17 @@ class CslPrintContext:
                     self.print("}")
                 case scf.Yield():
                     pass
+                case memref.Global(
+                    sym_name=name, type=ty, initial_value=init, constant=const
+                ):
+                    name = name.data
+                    ty = self.mlir_type_to_csl_type(ty)
+                    init = self._memref_global_init(init, ty)
+                    var = "var" if const is None else "const"
+                    self.print(f"{var} {name} : {ty}{init};")
+                case memref.GetGlobal(name_=name, memref=res):
+                    # We print the array definition when the global is defined
+                    self.variables[res] = name.string_value()
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
