@@ -59,13 +59,22 @@ class ConvertGlobalLoadConst(RewritePattern):
 
 
 class ConvertMlProgramToMemrefPass(ModulePass):
+    """
+    Converts operations in the `ml_program` dialect to `memref`.
+    `ml_program` operations are at the `tensor` level of abstraction, so some of the
+    rewrites insert `bufferization` ops to bridge the gap to existing consumers of global
+    `tensor`s.
+    """
 
     name = "convert-ml-program-to-memref"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [ConvertGlobalPattern(), ConvertGlobalLoadConst()]
+                [
+                    ConvertGlobalPattern(),
+                    ConvertGlobalLoadConst(),
+                ]
             ),
             apply_recursively=False,
         ).rewrite_module(op)
