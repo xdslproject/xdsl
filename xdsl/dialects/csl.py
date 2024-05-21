@@ -645,6 +645,51 @@ class SetTileCodeOp(IRDLOperation):
 
 
 @irdl_op_definition
+class SymbolExportOp(IRDLOperation):
+    """
+    This op does not correspond to any particular csl operation, it allows a symbol
+    to be exported in a single operation in both layout and program module.
+
+    It corresponds to @export_name in layout and @export_symbol in program.
+    """
+
+    name = "csl.export"
+
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+
+    value = opt_operand_def(PtrType)
+
+    var_name = prop_def(StringAttr | SymbolRefAttr)
+
+    type = prop_def(PtrType | FunctionType)
+
+    def get_name(self) -> str:
+        match self.var_name:
+            case StringAttr(data=data):
+                return data
+            case SymbolRefAttr():
+                return self.var_name.string_value()
+
+    def verify_(self) -> None:
+        if isinstance(self.var_name, StringAttr):
+            if self.value is None:
+                raise VerifyException(
+                    "When passing var_name as a string, operand also has to be supplied"
+                )
+            if self.value.type != self.type:
+                raise VerifyException(
+                    "Type of the operand has to match the type property"
+                )
+        else:  # self.var_name is SymbolRefAttr
+            if self.value is not None:
+                raise VerifyException(
+                    "When passing var_name as a symbol, operand cannot be supplied"
+                )
+
+        return super().verify_()
+
+
+@irdl_op_definition
 class AddressOfOp(IRDLOperation):
     """
     Take the address of a scalar or an array (memref)
@@ -708,6 +753,7 @@ CSL = Dialect(
         SetRectangleOp,
         SetTileCodeOp,
         AddressOfOp,
+        SymbolExportOp,
     ],
     [
         ComptimeStructType,
