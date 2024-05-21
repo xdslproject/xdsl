@@ -110,6 +110,23 @@ def is_inlining_possible(producer: ApplyOp, consumer: ApplyOp):
 
 
 class StencilReroutingPattern(RewritePattern):
+    """
+        Reroute the producer's results through the consumer to enable inlining:
+        ```
+        a                           b                     a                           b
+        │                           │                     │                           │
+    ┌───▼─────────────┐             │                 ┌───▼─────────────┐             │
+    │   producer      ├─┐           │                 │   producer      ├─┐           │
+    └──┬──────────────┘ │e          │     rerouting   └─────────────┬───┘ │e          │
+       │                │           │    ──────────►                │c'   │           │
+       │              ┌─▼───────────▼──┐                            └──►┌─▼───────────▼──┐
+       │              │    consumer    │                                │    consumer    │
+       │              └────────────┬───┘                 ┌──────────────┴────────────┬───┘
+       │                           │                     │                           │
+       ▼                           ▼                     ▼                           ▼
+       c                           d                     c                           d
+       ```
+    """
 
     def redirect_store(
         self, producer: ApplyOp, consumer: ApplyOp, rewriter: PatternRewriter
@@ -198,6 +215,24 @@ class StencilReroutingPattern(RewritePattern):
 
 @dataclass
 class StencilInliningPattern(RewritePattern):
+    """
+    Inline a producer apply in a consumer apply, to use in the simple case where the
+    consumer is the only user of the producer's results:
+    ```
+     a b          c
+     │ │          │
+    ┌▼─▼────────┐ │                   a b       c
+    │ producer  │ │                   │ │       │
+    └─────┬─┬───┘ │     inlining     ┌▼─▼───────▼┐
+         d│ │e    │    ─────────►    │  inlined  │
+        ┌─▼─▼─────▼┐                 └─────────┬─┘
+        │ consumer │                           │
+        └────────┬─┘                           ▼
+                 │                          output
+                 ▼
+               output
+    ```
+    """
 
     result_type_cleaner = PatternRewriteWalker(
         GreedyRewritePatternApplier(
