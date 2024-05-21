@@ -88,8 +88,8 @@ class Printer:
     """
     _ssa_names: dict[str, int] = field(default_factory=dict, init=False)
     _block_names: dict[Block, int] = field(default_factory=dict, init=False)
-    _next_valid_name_id: int = field(default=0, init=False)
-    _next_valid_block_id: int = field(default=0, init=False)
+    _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
+    _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
     _next_line_callback: list[Callable[[], None]] = field(
@@ -212,12 +212,12 @@ class Printer:
         self.print(" " * indent * indentNumSpaces)
 
     def _get_new_valid_name_id(self) -> str:
-        self._next_valid_name_id += 1
-        return str(self._next_valid_name_id - 1)
+        self._next_valid_name_id[-1] += 1
+        return str(self._next_valid_name_id[-1] - 1)
 
     def _get_new_valid_block_id(self) -> int:
-        self._next_valid_block_id += 1
-        return self._next_valid_block_id - 1
+        self._next_valid_block_id[-1] += 1
+        return self._next_valid_block_id[-1] - 1
 
     def _print_results(self, op: Operation) -> None:
         results = op.results
@@ -316,6 +316,8 @@ class Printer:
         * If `print_empty_block` is False, empty entry blocks are not printed.
         * If `print_block_terminators` is False, the block terminators are not printed.
         """
+        self._next_valid_name_id.append(self._next_valid_name_id[-1])
+        self._next_valid_block_id.append(self._next_valid_block_id[-1])
 
         # Empty region
         self.print("{")
@@ -337,6 +339,9 @@ class Printer:
             self.print_block(block, print_block_terminator=print_block_terminators)
         self._print_new_line()
         self.print("}")
+
+        self._next_valid_name_id.pop()
+        self._next_valid_block_id.pop()
 
     def print_regions(self, regions: list[Region]) -> None:
         if len(regions) == 0:
