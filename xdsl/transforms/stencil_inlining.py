@@ -139,6 +139,8 @@ class StencilReroutingPattern(RewritePattern):
     def redirect_store(
         self, producer: ApplyOp, consumer: ApplyOp, rewriter: PatternRewriter
     ):
+        # We want to replace the consumer adding the producer's results to its operands
+        # and results
         new_operands = list(consumer.args) + producer.results
         new_results = list(r.type for r in consumer.res + producer.res)
 
@@ -148,6 +150,7 @@ class StencilReroutingPattern(RewritePattern):
             cast(Sequence[TempType[Attribute]], new_results),
         )
 
+        # The new consumer contains the computation of the inital one
         rewriter.inline_block_at_end(
             consumer.region.block,
             new_consumer.region.block,
@@ -187,13 +190,12 @@ class StencilReroutingPattern(RewritePattern):
             consumer, new_consumer, new_consumer.res[: len(consumer.res)]
         )
 
-        print("\n\n")
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
         consumer = op
 
         # Reroute input dependency
+        # That is, two applys share some operands but have no direct def-use link.
         for operand in consumer.operands:
             if isinstance(operand.owner, Operation):
                 for res in operand.owner.results:
@@ -212,6 +214,7 @@ class StencilReroutingPattern(RewritePattern):
                                 return self.redirect_store(producer, consumer, rewriter)
 
         # Reroute output dependency
+        # That is, the consumer is already using some of the producer's results
         for operand in consumer.operands:
             producer = operand.owner
             if isinstance(producer, ApplyOp):
