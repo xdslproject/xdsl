@@ -86,7 +86,7 @@ builtin.module {
   // CHECK-NEXT:  func.func @while2() {
   // CHECK-NEXT:    %{{.*}} = arith.constant 1.000000e+00 : f32
   // CHECK-NEXT:    %{{.*}} = arith.constant 32 : i32
-  // CHECK-NEXT:    %6, %7 = scf.while (%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) : (i32, f32) -> (i32, f32) {
+  // CHECK-NEXT:    %2, %3 = scf.while (%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) : (i32, f32) -> (i32, f32) {
   // CHECK-NEXT:      %{{.*}} = arith.constant 0 : i32
   // CHECK-NEXT:      %{{.*}} = arith.cmpi eq, %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT:      scf.condition(%{{.*}}) %{{.*}}, %{{.*}} : i32, f32
