@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     StringAttr,
     SymbolRefAttr,
@@ -643,6 +644,53 @@ class SetTileCodeOp(IRDLOperation):
     params = opt_operand_def(ComptimeStructType)
 
 
+@irdl_op_definition
+class AddressOfOp(IRDLOperation):
+    """
+    Take the address of a scalar or an array (memref)
+
+    When taking the address of an array, the type of the returned pointer can
+    be either a single pointer to the array or a many pointer to its contained type.
+    """
+
+    name = "csl.addressof"
+
+    value = operand_def()
+    res = result_def(PtrType)
+
+    def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
+        res_elem_ty = res_ty.get_element_type()
+        if res_elem_ty == val_ty.get_element_type():
+            if res_ty.kind.data != PtrKind.MANY:
+                raise VerifyException(
+                    f"The kind of scalar pointer to array has to be {PtrKind.MANY.value}"
+                )
+        elif res_elem_ty == val_ty:
+            if res_ty.kind.data != PtrKind.SINGLE:
+                raise VerifyException(
+                    f"The kind of array pointer to array has to be {PtrKind.SINGLE.value}"
+                )
+        else:
+            raise VerifyException(
+                "Contained type of the result pointer must match the contained type of the operand memref or the memref itself"
+            )
+
+    def verify_(self) -> None:
+        if not isinstance(self.res.type, PtrType):
+            raise VerifyException("Result type must be a pointer")
+
+        val_ty = self.value.type
+        res_ty = self.res.type
+        if isa(val_ty, MemRefType[Attribute]):
+            self._verify_memref_addr(val_ty, res_ty)
+        else:
+            if res_ty.get_element_type() != val_ty:
+                raise VerifyException(
+                    "Contained type of the result pointer must match the operand type"
+                )
+        return super().verify_()
+
+
 CSL = Dialect(
     "csl",
     [
@@ -659,6 +707,7 @@ CSL = Dialect(
         GetColorOp,
         SetRectangleOp,
         SetTileCodeOp,
+        AddressOfOp,
     ],
     [
         ComptimeStructType,
