@@ -84,6 +84,9 @@ csl.func @initialize() {
   type = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>
 }> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
 
+%rpc_col = "test.op"() : () -> !csl.color
+"csl.rpc"(%rpc_col) : (!csl.color) -> ()
+
 }) {sym_name = "program"} :  () -> ()
 
 "csl.module"() <{kind = #csl<module_kind layout>}> ({
@@ -145,6 +148,8 @@ csl.func @initialize() {
 // CHECK-NEXT: "csl.export"() <{"var_name" = @initialize, "type" = () -> ()}> : () -> ()
 // CHECK-NEXT: "csl.export"() <{"var_name" = @global_ptr, "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>}> : () -> ()
 // CHECK-NEXT: "csl.export"(%other_global_ptr) <{"var_name" = "some_name", "type" = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>}> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT: %rpc_col = "test.op"() : () -> !csl.color
+// CHECK-NEXT: "csl.rpc"(%rpc_col) : (!csl.color) -> ()
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()
 // CHECK-NEXT: "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-NEXT: csl.layout {
