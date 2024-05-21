@@ -65,6 +65,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Comb
 
+    def get_csl():
+        from xdsl.dialects.csl import CSL
+
+        return CSL
+
     def get_dmp():
         from xdsl.dialects.experimental.dmp import DMP
 
@@ -271,6 +276,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "cf": get_cf,
         "cmath": get_cmath,
         "comb": get_comb,
+        "csl": get_csl,
         "dmp": get_dmp,
         "fir": get_fir,
         "fsm": get_fsm,
@@ -471,10 +477,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_register_allocation.RISCVRegisterAllocation
 
-    def get_riscv_scf_loop_fusion():
-        from xdsl.transforms import riscv_scf_loop_fusion
+    def get_riscv_scf_loop_flatten():
+        from xdsl.transforms import riscv_scf_loop_flatten
 
-        return riscv_scf_loop_fusion.RiscvScfLoopFusionPass
+        return riscv_scf_loop_flatten.RiscvScfLoopFlattenPass
 
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
@@ -621,7 +627,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "riscv-cse": get_riscv_cse,
-        "riscv-scf-loop-fusion": get_riscv_scf_loop_fusion,
+        "riscv-scf-loop-flatten": get_riscv_scf_loop_flatten,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
