@@ -493,7 +493,12 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
             if flags is None:
                 return tuple()
 
-            return tuple(set().union(*flags))
+            res = set[EnumType]()
+            
+            for flag_set in flags:
+                res |= flag_set
+                
+            return tuple(res)
 
     def print_parameter(self, printer: Printer):
         with printer.in_angle_brackets():
