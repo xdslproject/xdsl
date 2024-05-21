@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -272,6 +272,12 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     name = "csl.color"
 
 
+ColorIdAttr: TypeAlias = (
+    IntegerAttr[Annotated[IntegerType, IntegerType(5)]]
+    | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
+)
+
+
 @irdl_op_definition
 class CslModuleOp(IRDLOperation):
     """
@@ -308,6 +314,36 @@ class ImportModuleConstOp(IRDLOperation):
     params = opt_operand_def(StructLike)
 
     result = result_def(ImportedModuleType)
+
+
+@irdl_op_definition
+class ConstStructOp(IRDLOperation):
+    name = "csl.const_struct"
+
+    items = opt_prop_def(DictionaryAttr)
+    ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
+    ssa_values = var_operand_def()
+    res = result_def(ComptimeStructType)
+
+    def verify_(self) -> None:
+        if self.ssa_fields is None:
+            if len(self.ssa_values) == 0:
+                return super().verify_()
+        else:
+            if len(self.ssa_values) == len(self.ssa_fields):
+                return super().verify_()
+
+        raise VerifyException(
+            "Number of ssa_fields has to match the number of arguments"
+        )
+
+
+@irdl_op_definition
+class GetColorOp(IRDLOperation):
+    name = "csl.get_color"
+
+    id = prop_def(ColorIdAttr)
+    res = result_def(ColorType)
 
 
 @irdl_op_definition
@@ -416,7 +452,7 @@ class TaskOp(_FuncBase):
     name = "csl.task"
 
     kind = prop_def(TaskKindAttr)
-    id = opt_prop_def(IntegerAttr[IntegerType])
+    id = opt_prop_def(ColorIdAttr)
 
     traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
 
@@ -429,7 +465,7 @@ class TaskOp(_FuncBase):
         task_kind: TaskKindAttr | TaskKind,
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
-        id: IntegerAttr[IntegerType] | int | None,
+        id: ColorIdAttr | int | None,
     ):
         properties, region = self._props_region(
             name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
@@ -496,7 +532,7 @@ class TaskOp(_FuncBase):
         ):
             parser.raise_error(f"{cls.name} expected kind attribute")
         id = extra_attrs.data.get("id")
-        if id is not None and not isa(id, IntegerAttr[IntegerType]):
+        if id is not None and not isa(id, ColorIdAttr):
             parser.raise_error(f"{cls.name} expected kind attribute")
 
         assert (
@@ -584,6 +620,29 @@ class CallOp(IRDLOperation):
     # TODO(dk949): verify that if Call is used outside of a csl.func or csl.task it has a result
 
 
+@irdl_op_definition
+class SetRectangleOp(IRDLOperation):
+    name = "csl.set_rectangle"
+
+    traits = frozenset([HasParent(LayoutOp)])
+
+    x_dim = operand_def(IntegerType)
+    y_dim = operand_def(IntegerType)
+
+
+@irdl_op_definition
+class SetTileCodeOp(IRDLOperation):
+    name = "csl.set_tile_code"
+
+    traits = frozenset([HasParent(LayoutOp)])
+
+    file = prop_def(StringAttr)
+
+    x_coord = operand_def(IntegerType)
+    y_coord = operand_def(IntegerType)
+    params = opt_operand_def(ComptimeStructType)
+
+
 CSL = Dialect(
     "csl",
     [
@@ -596,6 +655,10 @@ CSL = Dialect(
         LayoutOp,
         CallOp,
         TaskOp,
+        ConstStructOp,
+        GetColorOp,
+        SetRectangleOp,
+        SetTileCodeOp,
     ],
     [
         ComptimeStructType,
