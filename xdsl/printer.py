@@ -66,7 +66,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.lexer import Lexer
 
@@ -316,9 +316,6 @@ class Printer:
         * If `print_empty_block` is False, empty entry blocks are not printed.
         * If `print_block_terminators` is False, the block terminators are not printed.
         """
-        self._next_valid_name_id.append(self._next_valid_name_id[-1])
-        self._next_valid_block_id.append(self._next_valid_block_id[-1])
-
         # Empty region
         self.print("{")
         if len(region.blocks) == 0:
@@ -339,9 +336,6 @@ class Printer:
             self.print_block(block, print_block_terminator=print_block_terminators)
         self._print_new_line()
         self.print("}")
-
-        self._next_valid_name_id.pop()
-        self._next_valid_block_id.pop()
 
     def print_regions(self, regions: list[Region]) -> None:
         if len(regions) == 0:
@@ -854,6 +848,11 @@ class Printer:
             self.print(" loc(unknown)")
 
     def print_op(self, op: Operation) -> None:
+        scope = bool(op.get_traits_of_type(IsolatedFromAbove))
+        if scope:
+            self._next_valid_name_id.append(self._next_valid_name_id[-1])
+            self._next_valid_block_id.append(self._next_valid_block_id[-1])
+
         begin_op_pos = self._current_column
         self._print_results(op)
         use_custom_format = False
@@ -879,3 +878,6 @@ class Printer:
             op.print(self)
         else:
             self.print_op_with_default_format(op)
+        if scope:
+            self._next_valid_name_id.pop()
+            self._next_valid_block_id.pop()
