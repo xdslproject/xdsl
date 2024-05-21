@@ -90,6 +90,8 @@ csl.func @initialize() {
 }) {sym_name = "program"} :  () -> ()
 
 "csl.module"() <{kind = #csl<module_kind layout>}> ({
+  %comp_const = "csl.param"() <{param_name = "comp_constant"}> : () -> i32
+  %comp_const_with_def = "csl.param"() <{param_name = "comp_constant", init_value = 1 : i32}> : () -> i32
   csl.layout {
     %x_dim, %y_dim = "test.op"() : () -> (i32, i32)
     "csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ()
@@ -152,6 +154,8 @@ csl.func @initialize() {
 // CHECK-NEXT: "csl.rpc"(%rpc_col) : (!csl.color) -> ()
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()
 // CHECK-NEXT: "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
+// CHECK-NEXT:  %comp_const = "csl.param"() <{"param_name" = "comp_constant"}> : () -> i32
+// CHECK-NEXT:  %comp_const_with_def = "csl.param"() <{"param_name" = "comp_constant", "init_value" = 1 : i32}> : () -> i32
 // CHECK-NEXT: csl.layout {
 // CHECK-NEXT:   x_dim, %y_dim = "test.op"() : () -> (i32, i32)
 // CHECK-NEXT:   "csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ()
