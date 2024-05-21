@@ -15,9 +15,13 @@ from dataclasses import dataclass
 from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
+    AnyIntegerAttr,
     ArrayAttr,
     ContainerType,
     DictionaryAttr,
+    Float16Type,
+    Float32Type,
     FunctionType,
     IntegerAttr,
     IntegerType,
@@ -276,6 +280,14 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
 ColorIdAttr: TypeAlias = (
     IntegerAttr[Annotated[IntegerType, IntegerType(5)]]
     | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
+)
+
+
+ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
+# NOTE: Some of these values cannot be set by default, because we don't have
+#       corresponding attrinutes for them.
+ParamType: TypeAlias = (
+    Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike
 )
 
 
@@ -751,6 +763,35 @@ class RpcOp(IRDLOperation):
     id = operand_def(ColorType)
 
 
+@irdl_op_definition
+class ParamOp(IRDLOperation):
+    """
+    Represents `param` declarations in CSL
+
+    Whilst we can inline most things, the result of memcpy `get_params`
+    function still has to be passed as `param`.
+
+    It can also be useful to change some configuration parameters from the
+    command line by passing params to the compiler.
+    """
+
+    name = "csl.param"
+
+    traits = frozenset([HasParent(CslModuleOp)])  # has to be at top level
+
+    param_name = prop_def(StringAttr)
+    init_value = opt_prop_def(ParamAttr)
+
+    res = result_def(ParamType)
+
+    def verify_(self) -> None:
+        if self.init_value is not None and self.init_value.type != self.res.type:
+            raise VerifyException(
+                "If init_value is specified, it has to have the same type as the op result"
+            )
+        return super().verify_()
+
+
 CSL = Dialect(
     "csl",
     [
@@ -770,6 +811,7 @@ CSL = Dialect(
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
+        ParamOp,
     ],
     [
         ComptimeStructType,
