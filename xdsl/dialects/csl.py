@@ -736,6 +736,21 @@ class AddressOfOp(IRDLOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class RpcOp(IRDLOperation):
+    """
+    represents a call to `@rpc`
+
+    When printing should wrap id in `@get_data_task_id`
+    """
+
+    name = "csl.rpc"
+
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+
+    id = operand_def(ColorType)
+
+
 CSL = Dialect(
     "csl",
     [
@@ -754,6 +769,7 @@ CSL = Dialect(
         SetTileCodeOp,
         AddressOfOp,
         SymbolExportOp,
+        RpcOp,
     ],
     [
         ComptimeStructType,
