@@ -63,6 +63,14 @@ csl.func @initialize() {
 
     %col_1 = "csl.get_color"() <{id = 3 : i5}> : () -> !csl.color
 
+
+    %arr, %scalar = "test.op"() : () -> (memref<10xf32>, i32)
+
+    %scalar_ptr = "csl.addressof"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>
+    %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
+    %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+
+
   csl.return
 }
 }) {sym_name = "program"} :  () -> ()
@@ -116,6 +124,10 @@ csl.func @initialize() {
 // CHECK-NEXT:     %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:     %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"], "items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:     %col_1 = "csl.get_color"() <{"id" = 3 : i5}> : () -> !csl.color
+// CHECK-NEXT:     %arr, %scalar = "test.op"() : () -> (memref<10xf32>, i32)
+// CHECK-NEXT:     %scalar_ptr = "csl.addressof"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:     %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
+// CHECK-NEXT:     %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()
