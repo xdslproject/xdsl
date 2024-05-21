@@ -86,8 +86,12 @@ class Printer:
     """
     maps SSA Values to their "allocated" names
     """
-    _ssa_names: dict[str, int] = field(default_factory=dict, init=False)
-    _block_names: dict[Block, int] = field(default_factory=dict, init=False)
+    _ssa_names: list[dict[str, int]] = field(
+        default_factory=lambda: [dict()], init=False
+    )
+    _block_names: list[dict[Block, int]] = field(
+        default_factory=lambda: [dict()], init=False
+    )
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
     _current_line: int = field(default=0, init=False)
@@ -241,11 +245,11 @@ class Printer:
         if value in self._ssa_values:
             name = self._ssa_values[value]
         elif value.name_hint:
-            curr_ind = self._ssa_names.get(value.name_hint, 0)
+            curr_ind = self._ssa_names[-1].get(value.name_hint, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
             name = f"{value.name_hint}{suffix}"
             self._ssa_values[value] = name
-            self._ssa_names[value.name_hint] = curr_ind + 1
+            self._ssa_names[-1][value.name_hint] = curr_ind + 1
         else:
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
@@ -258,9 +262,9 @@ class Printer:
 
     def print_block_name(self, block: Block) -> None:
         self.print("^")
-        if block not in self._block_names:
-            self._block_names[block] = self._get_new_valid_block_id()
-        self.print(self._block_names[block])
+        if block not in self._block_names[-1]:
+            self._block_names[-1][block] = self._get_new_valid_block_id()
+        self.print(self._block_names[-1][block])
 
     def print_block(
         self,
@@ -847,12 +851,22 @@ class Printer:
         if self.print_debuginfo:
             self.print(" loc(unknown)")
 
+    def enter_scope(self) -> None:
+        self._next_valid_name_id.append(self._next_valid_name_id[-1])
+        self._next_valid_block_id.append(self._next_valid_block_id[-1])
+        self._ssa_names.append(self._ssa_names[-1].copy())
+        self._block_names.append(self._block_names[-1].copy())
+
+    def exit_scope(self) -> None:
+        self._next_valid_name_id.pop()
+        self._next_valid_block_id.pop()
+        self._ssa_names.pop()
+        self._block_names.pop()
+
     def print_op(self, op: Operation) -> None:
         scope = bool(op.get_traits_of_type(IsolatedFromAbove))
         if scope:
-            self._next_valid_name_id.append(self._next_valid_name_id[-1])
-            self._next_valid_block_id.append(self._next_valid_block_id[-1])
-
+            self.enter_scope()
         begin_op_pos = self._current_column
         self._print_results(op)
         use_custom_format = False
@@ -879,5 +893,4 @@ class Printer:
         else:
             self.print_op_with_default_format(op)
         if scope:
-            self._next_valid_name_id.pop()
-            self._next_valid_block_id.pop()
+            self.exit_scope()
