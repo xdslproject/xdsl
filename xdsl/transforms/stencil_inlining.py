@@ -44,6 +44,10 @@ def is_before_in_block(op1: Operation, op2: Operation):
 
 
 class StencilStoreResultForwardPattern(RewritePattern):
+    """
+    Replace non-empty `stencil.store_result`s by their argument.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreResultOp, rewriter: PatternRewriter, /):
         if op.arg is None:
@@ -52,6 +56,10 @@ class StencilStoreResultForwardPattern(RewritePattern):
 
 
 class StencilIfResultForwardPattern(RewritePattern):
+    """
+    Replace `!stencil.result<T>`-typed scf.if by `T`-typed scf.if.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.If, rewriter: PatternRewriter, /):
         result_types = [r.type for r in op.output]
