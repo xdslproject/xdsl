@@ -716,6 +716,19 @@ class AddressOfOp(IRDLOperation):
     res = result_def(PtrType)
 
     def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
+        """
+        Verify that if the address of a memref is taken, the resulting pointer is either:
+            A single pointer to the array type or
+            A many pointer to the array element type
+        E.g.
+            const x: [10]f32;
+            const arr_ptr: *[10]f32 = &x;
+            const elem_ptr: [*]f32 = &x;
+            // const invalid: [*]i32 = &x;
+            // const invalid: *f32 = &x;
+            // const invalid: [*][10]f32 = &x;
+        """
+
         res_elem_ty = res_ty.get_element_type()
         if res_elem_ty == val_ty.get_element_type():
             if res_ty.kind.data != PtrKind.MANY:
