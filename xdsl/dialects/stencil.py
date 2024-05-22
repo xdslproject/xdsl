@@ -54,8 +54,16 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasAncestor, HasParent, IsolatedFromAbove, IsTerminator
+from xdsl.traits import (
+    HasAncestor,
+    HasCanonicalisationPatternsTrait,
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    Pure,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -370,6 +378,17 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
         super().__init__([type])
 
 
+class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.stencil import (
+            RedundantOperands,
+            UnusedResults,
+        )
+
+        return (RedundantOperands(), UnusedResults())
+
+
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
@@ -394,7 +413,9 @@ class ApplyOp(IRDLOperation):
     region: Region = region_def()
     res: VarOpResult = var_result_def(TempType)
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset(
+        [IsolatedFromAbove(), ApplyOpHasCanonicalizationPatternsTrait(), Pure()]
+    )
 
     def print(self, printer: Printer):
         def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
@@ -548,6 +569,8 @@ class CastOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
+    traits = frozenset([Pure()])
+
     @staticmethod
     def get(
         field: SSAValue | Operation,
@@ -621,6 +644,8 @@ class CombineOp(IRDLOperation):
     upperext = var_operand_def(TempType)
     results_ = var_result_def(TempType)
 
+    traits = frozenset([Pure()])
+
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
 
     irdl_options = [AttrSizedOperandSegments()]
@@ -668,6 +693,8 @@ class DynAccessOp(IRDLOperation):
     assembly_format = (
         "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
     )
+
+    traits = frozenset([HasAncestor(ApplyOp), Pure()])
 
     def __init__(
         self,
@@ -746,7 +773,7 @@ class IndexOp(IRDLOperation):
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
 
-    traits = frozenset([HasAncestor(ApplyOp)])
+    traits = frozenset([HasAncestor(ApplyOp), Pure()])
 
     def get_apply(self):
         """
@@ -800,7 +827,7 @@ class AccessOp(IRDLOperation):
         )
     )
 
-    traits = frozenset([HasAncestor(ApplyOp)])
+    traits = frozenset([HasAncestor(ApplyOp), Pure()])
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -1193,6 +1220,8 @@ class StoreResultOp(IRDLOperation):
     )
 
     assembly_format = "$arg attr-dict-with-keyword `:` type($res)"
+
+    traits = frozenset([HasAncestor(ApplyOp), Pure()])
 
 
 @irdl_op_definition
