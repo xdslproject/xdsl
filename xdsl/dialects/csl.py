@@ -688,6 +688,10 @@ class SymbolExportOp(IRDLOperation):
                 raise VerifyException(
                     "When passing var_name as a string, operand also has to be supplied"
                 )
+            if not isinstance(self.type, PtrType):
+                raise VerifyException(
+                    "When passing operand and name as string, type has to be a pointer type"
+                )
             if self.value.type != self.type:
                 raise VerifyException(
                     "Type of the operand has to match the type property"
@@ -696,6 +700,10 @@ class SymbolExportOp(IRDLOperation):
             if self.value is not None:
                 raise VerifyException(
                     "When passing var_name as a symbol, operand cannot be supplied"
+                )
+            if not isinstance(self.type, FunctionType):
+                raise VerifyException(
+                    "When passing a symbol, type has to be a function type"
                 )
 
         return super().verify_()
