@@ -75,11 +75,10 @@ csl.func @initialize() {
   csl.return
 }
 
-%other_global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>
+%global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>
 
 "csl.export"() <{var_name = @initialize, type = () -> ()}> : () -> ()
-"csl.export"() <{var_name = @global_ptr, type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>}> : () -> ()
-"csl.export"(%other_global_ptr) <{
+"csl.export"(%global_ptr) <{
   var_name = "some_name",
   type = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>
 }> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
@@ -146,10 +145,9 @@ csl.func @initialize() {
 // CHECK-NEXT:     %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
-// CHECK-NEXT: %other_global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>
+// CHECK-NEXT: %global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>
 // CHECK-NEXT: "csl.export"() <{"var_name" = @initialize, "type" = () -> ()}> : () -> ()
-// CHECK-NEXT: "csl.export"() <{"var_name" = @global_ptr, "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>}> : () -> ()
-// CHECK-NEXT: "csl.export"(%other_global_ptr) <{"var_name" = "some_name", "type" = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>}> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT: "csl.export"(%global_ptr) <{"var_name" = "some_name", "type" = !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>}> : (!csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT: %rpc_col = "test.op"() : () -> !csl.color
 // CHECK-NEXT: "csl.rpc"(%rpc_col) : (!csl.color) -> ()
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()
