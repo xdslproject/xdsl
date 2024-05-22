@@ -29,6 +29,10 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.canonicalization_patterns.stencil import (
+    RedundantOperands,
+    UnusedResults,
+)
 from xdsl.transforms.experimental.stencil_shape_inference import update_result_size
 from xdsl.transforms.stencil_unroll import offseted_block_clone
 
@@ -342,6 +346,8 @@ class StencilInliningPass(ModulePass):
                 [
                     StencilReroutingPattern(),
                     StencilInliningPattern(),
+                    UnusedResults(),
+                    RedundantOperands(),
                 ]
             ),
             walk_reverse=True,
