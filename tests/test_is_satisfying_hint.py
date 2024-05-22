@@ -420,5 +420,5 @@ def test_op():
     # assert not isa(addf, BinaryOperation[Float16Type])
     assert isa(addf, FloatingPointLikeBinaryOp)
     assert not isa(
-        addf, BinaryOperation[int]
-    )  # pyright: ignore [reportGeneralTypeIssues]
+        addf, BinaryOperation[int]  # pyright: ignore [reportGeneralTypeIssues]
+    )
