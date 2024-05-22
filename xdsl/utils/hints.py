@@ -94,6 +94,26 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
         except VerifyException:
             return False
 
+    if (origin is not None) and len(get_args(hint)) > 0:
+        if not issubclass(type(arg), origin):
+            return False
+
+        def extract_args(arg_t: type[Any]) -> type[Any]:
+            if hasattr(arg_t, "__orig_bases__"):
+                return extract_args(types.get_original_bases(arg_t)[0])
+            elif not isclass(arg_t) and isclass(get_args(arg_t)[0]):
+                return get_args(arg_t)[0]
+            elif (
+                not isclass(arg_t)
+                and not isclass(get_args(arg_t)[0])
+                and issubclass(get_origin(get_args(arg_t)[0]), Annotated)
+            ):
+                return extract_args(types.resolve_bases(get_args(arg_t))[0])
+            return arg_t
+
+        if len(get_args(arg)) == 0:
+            return issubclass(extract_args(type(arg)), extract_args(hint))
+
     raise ValueError(f"isa: unsupported type hint '{hint}' {get_origin(hint)}")
 
 

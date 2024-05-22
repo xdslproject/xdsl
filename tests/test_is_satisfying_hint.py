@@ -1,8 +1,16 @@
 from typing import Any, Generic, Literal, TypeAlias, TypeVar
 
+from xdsl.dialects.arith import (
+    Addf,
+    BinaryOperation,
+    Constant,
+    FloatingPointLikeBinaryOp,
+)
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
+    Float32Type,
+    FloatAttr,
     FloatData,
     IndexType,
     IntAttr,
@@ -395,3 +403,22 @@ def test_literal():
 
     assert not isa(1, Literal["1"])
     assert not isa("1", Literal[1])
+
+
+################################################################################
+# Op
+################################################################################
+
+
+def test_op():
+    one = Constant(FloatAttr(1.0, Float32Type()))
+    two = Constant(FloatAttr(2.0, Float32Type()))
+    addf = Addf(one, two)
+    assert isa(addf, BinaryOperation[Attribute])
+    assert isa(addf, BinaryOperation)
+    # assert isa(addf, BinaryOperation[Float32Type])
+    # assert not isa(addf, BinaryOperation[Float16Type])
+    assert isa(addf, FloatingPointLikeBinaryOp)
+    assert not isa(
+        addf, BinaryOperation[int]
+    )  # pyright: ignore [reportGeneralTypeIssues]

@@ -378,6 +378,8 @@ def op_type_rewrite_pattern(
     expected_types = (expected_type,)
     if get_origin(expected_type) in [Union, UnionType]:
         expected_types = get_args(expected_type)
+    elif (t := get_origin(expected_type)) is not None:
+        expected_types = (t,)
 
     if not all(issubclass(t, Operation) for t in expected_types):
         raise Exception(
@@ -387,7 +389,7 @@ def op_type_rewrite_pattern(
         )
 
     def impl(self: _RewritePatternT, op: Operation, rewriter: PatternRewriter) -> None:
-        if isinstance(op, expected_type):
+        if isa(op, expected_type):
             func(self, op, rewriter)
 
     return impl
