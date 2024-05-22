@@ -100,7 +100,7 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
 
         def extract_args(arg_t: type[Any]) -> type[Any]:
             if hasattr(arg_t, "__orig_bases__"):
-                return extract_args(types.get_original_bases(arg_t)[0])
+                return extract_args(arg_t.__orig_bases__[0])
             elif not isclass(arg_t) and isclass(get_args(arg_t)[0]):
                 return get_args(arg_t)[0]
             elif (
