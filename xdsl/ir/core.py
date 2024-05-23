@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -547,6 +547,12 @@ class Data(Generic[DataElement], Attribute, ABC):
     def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
 
+    def __hash__(self) -> int:
+        if isinstance(self.data, Hashable):
+            return hash((type(self), self.data))
+        else:
+            return super().__hash__()
+
 
 EnumType = TypeVar("EnumType", bound=StrEnum)
 
@@ -669,6 +675,9 @@ class ParametrizedAttribute(Attribute):
         attr_def = t.get_irdl_definition()
         attr_def.verify(self)
         super()._verify()
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.parameters))
 
 
 class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
