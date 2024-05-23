@@ -547,12 +547,6 @@ class Data(Generic[DataElement], Attribute, ABC):
     def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
 
-    def __hash__(self) -> int:
-        if isinstance(self.data, Hashable):
-            return hash((type(self), self.data))
-        else:
-            return id(self)
-
 
 EnumType = TypeVar("EnumType", bound=StrEnum)
 
@@ -675,9 +669,6 @@ class ParametrizedAttribute(Attribute):
         attr_def = t.get_irdl_definition()
         attr_def.verify(self)
         super()._verify()
-
-    def __hash__(self) -> int:
-        return hash((type(self), self.parameters))
 
 
 class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
