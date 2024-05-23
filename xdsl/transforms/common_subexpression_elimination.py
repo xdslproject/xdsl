@@ -13,6 +13,9 @@ from xdsl.transforms.dead_code_elimination import is_trivially_dead
 class OperationInfo:
     """
     Boilerplate helper to use in KnownOps cache.
+
+    This is to compare operations on their name, attributes, properties, results,
+    operands, and matching region structure.
     """
 
     op: Operation
@@ -48,9 +51,8 @@ _D = TypeVar("_D")
 class KnownOps:
     """
     Cache dictionary for known operations used in CSE.
-    It quacks like a dict[Operation, Operation], but key Operations are actually
-    hashed only on their name (including handling unregistered operations), attributes,
-    properties, result types, and operands.
+    It quacks like a dict[Operation, Operation], but uses OperationInfo of an Opetration
+    as the actual key.
     """
 
     _known_ops: dict[OperationInfo, Operation]
