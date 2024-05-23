@@ -45,13 +45,14 @@ class OperationInfo:
             name = op.op_name.data
         else:
             name = op.name
-        return OperationInfo(
+        info = OperationInfo(
             str(name),
             dict(op.attributes),
             dict(op.properties),
             [r.type for r in op.results],
             list(op.operands),
         )
+        return info
 
     def __hash__(self):
         return (
@@ -149,7 +150,7 @@ class CSEDriver:
                     # Then save the current scope for later, but continue inside with a
                     # blank slate
                     old_scope = self.known_ops
-                    self.known_ops = KnownOps(self.known_ops)
+                    self.known_ops = KnownOps()
                     for region in op.regions:
                         self.simplify_region(region)
                     self.known_ops = old_scope
