@@ -38,7 +38,6 @@ from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
     HasParent,
     IsTerminator,
-    Pure,
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
@@ -169,7 +168,7 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region: Region = region_def()
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield), Pure()])
+    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
 
     def __init__(
         self,
