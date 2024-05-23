@@ -5,29 +5,9 @@ from typing import TypeVar
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue, Use
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.rewriter import Rewriter
 from xdsl.traits import IsolatedFromAbove, IsTerminator, Pure
-
-
-class RemoveUnusedOperations(RewritePattern):
-    """
-    Removes operations annotated with the `Pure` trait, where results have no uses.
-    """
-
-    def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-        # Check that operation is side-effect-free
-        if not op.has_trait(Pure):
-            return
-
-        # Check whether any of the results are used
-        results = op.results
-        for result in results:
-            if len(result.uses):
-                # At least one of the results is used
-                return
-
-        rewriter.erase_op(op)
+from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
 
 @dataclass
@@ -103,8 +83,10 @@ class CSEDriver:
         if op.has_trait(IsTerminator):
             return
 
-        # Here MLIR does early check if the op can already be DCE'd away
-        # Not necessary, probably more efficient
+        # If the operation is already trivially dead just add it to the erase list.
+        if is_trivially_dead(op):
+            self.to_erase.add(op)
+            return
 
         # Don't simplify operations with regions that have multiple blocks.
         # MLIR doesn't either at time of writing :)

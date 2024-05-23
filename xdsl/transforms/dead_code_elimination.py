@@ -5,24 +5,29 @@ from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, Rewrite
 from xdsl.traits import Pure
 
 
+def is_trivially_dead(op: Operation):
+    # Check that operation is side-effect-free
+    if not op.has_trait(Pure):
+        return False
+
+    # Check whether any of the results are used
+    results = op.results
+    for result in results:
+        if len(result.uses):
+            # At least one of the results is used
+            return False
+
+    return True
+
+
 class RemoveUnusedOperations(RewritePattern):
     """
     Removes operations annotated with the `Pure` trait, where results have no uses.
     """
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
-        # Check that operation is side-effect-free
-        if not op.has_trait(Pure):
-            return
-
-        # Check whether any of the results are used
-        results = op.results
-        for result in results:
-            if len(result.uses):
-                # At least one of the results is used
-                return
-
-        rewriter.erase_op(op)
+        if is_trivially_dead(op):
+            rewriter.erase_op(op)
 
 
 def dce(op: ModuleOp):
