@@ -551,7 +551,7 @@ class Data(Generic[DataElement], Attribute, ABC):
         if isinstance(self.data, Hashable):
             return hash((type(self), self.data))
         else:
-            return super().__hash__()
+            return id(self)
 
 
 EnumType = TypeVar("EnumType", bound=StrEnum)
