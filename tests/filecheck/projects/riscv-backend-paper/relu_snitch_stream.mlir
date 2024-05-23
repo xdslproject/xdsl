@@ -1,4 +1,4 @@
-// RUN: xdsl-run %s | filecheck %s
+// RUN: xdsl-run "%s" | filecheck "%s"
 
 builtin.module {
   riscv.assembly_section ".data" {

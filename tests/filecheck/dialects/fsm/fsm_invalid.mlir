@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --verify-diagnostics --split-input-file | filecheck "%s"
 
 "fsm.machine"() ({
     ^bb0(%arg0: i1):

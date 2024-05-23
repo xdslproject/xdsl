@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p canonicalize-dmp %s | filecheck %s
+// RUN: xdsl-opt -p canonicalize-dmp "%s" | filecheck "%s"
 
 builtin.module {
     %ref = "test.op"() : () -> (memref<1024x1024xf32>)

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p reconcile-unrealized-casts | filecheck %s
+// RUN: xdsl-opt "%s" -p reconcile-unrealized-casts | filecheck "%s"
 
 builtin.module {
     // CHECK:  builtin.module {

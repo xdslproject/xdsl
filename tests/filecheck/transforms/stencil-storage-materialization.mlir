@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p stencil-storage-materialization | filecheck %s
+// RUN: xdsl-opt "%s" -p stencil-storage-materialization | filecheck "%s"
 
 // This should not change with the pass applied.
 

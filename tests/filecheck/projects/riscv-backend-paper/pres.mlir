@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -t riscv-asm "%s" | filecheck "%s"
 
 // A test that verifies that we can emit the target assembly for Snitch, below are the
 // versions of ssum (C=A+B where all have fixed size 128xf32) .

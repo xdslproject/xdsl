@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file --verify-diagnostics %s | filecheck %s
+// RUN: xdsl-opt --split-input-file --verify-diagnostics "%s" | filecheck "%s"
 
 %i0 = "test.op"() : () -> !riscv.reg<>
 "riscv_snitch.frep_outer"(%i0) ({

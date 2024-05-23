@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --parsing-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --parsing-diagnostics --split-input-file | filecheck "%s"
 
 "test.op"(abc) : () -> ()
 // CHECK: {{.*}}tests/filecheck/parser-printer/parse_error.mlir:3:10

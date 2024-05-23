@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck "%s"
 
 builtin.module {
     %f = "test.op"() : () -> !llvm.func<i32 (i32, ..., i32)>

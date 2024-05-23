@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file --verify-diagnostics %s | filecheck %s
+// RUN: xdsl-opt --split-input-file --verify-diagnostics "%s" | filecheck "%s"
 
 %i1 = "test.op"() : () -> !riscv.reg<a1>
 %1 = riscv.li 1 : () -> !riscv.reg<>

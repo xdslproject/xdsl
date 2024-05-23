@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p canonicalize | filecheck %s
+// RUN: xdsl-opt "%s" -p canonicalize | filecheck "%s"
 
 func.func @hello(%n : i32) -> i32 {
   %two = arith.constant 0 : i32

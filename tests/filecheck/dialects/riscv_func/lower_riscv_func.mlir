@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p lower-riscv-func %s | filecheck %s
+// RUN: xdsl-opt -p lower-riscv-func "%s" | filecheck "%s"
 
 "builtin.module"() ({
 // CHECK:      builtin.module {

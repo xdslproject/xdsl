@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --allow-unregistered-dialect %s | mlir-opt --allow-unregistered-dialect --mlir-print-local-scope -mlir-print-op-generic | xdsl-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt --allow-unregistered-dialect "%s" | mlir-opt --allow-unregistered-dialect --mlir-print-local-scope -mlir-print-op-generic | xdsl-opt --allow-unregistered-dialect | filecheck "%s"
 
 builtin.module {
     // CHECK:    "f1"() {"set" = affine_set<(d0) : ((d0 + -10) >= 0)>} : () -> ()

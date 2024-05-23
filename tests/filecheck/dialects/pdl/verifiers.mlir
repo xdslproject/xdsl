@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt "%s" --split-input-file --verify-diagnostics | filecheck "%s"
 
 pdl.pattern @NonConstantAttrInRewrite : benefit(0) {
     %op = pdl.operation "test.op"

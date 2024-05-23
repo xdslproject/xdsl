@@ -1,4 +1,4 @@
-// RUN: xdsl-run %s --verbose | filecheck %s
+// RUN: xdsl-run "%s" --verbose | filecheck "%s"
 
 riscv_func.func @malloc(!riscv.reg<>) -> !riscv.reg<>
 

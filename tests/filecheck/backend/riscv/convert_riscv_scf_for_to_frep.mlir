@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-riscv-scf-for-to-frep %s | filecheck %s
+// RUN: xdsl-opt -p convert-riscv-scf-for-to-frep "%s" | filecheck "%s"
 
 %i0 = riscv.get_register : () -> !riscv.reg<>
 %i1 = riscv.get_register : () -> !riscv.reg<>

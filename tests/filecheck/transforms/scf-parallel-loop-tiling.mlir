@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=1,4}" --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=1,4}" --split-input-file | filecheck "%s"
 
 func.func @parallel_loop(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : index, %arg4 : index, %arg5 : index, %arg6 : memref<?x?xf32>, %arg7 : memref<?x?xf32>, %arg8 : memref<?x?xf32>, %arg9 : memref<?x?xf32>) {
   "scf.parallel"(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5) <{"operandSegmentSizes" = array<i32: 2, 2, 2, 0>}> ({

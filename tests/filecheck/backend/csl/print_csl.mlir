@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t csl %s | filecheck %s
+// RUN: xdsl-opt -t csl "%s" | filecheck "%s"
 
 "csl.module"() <{kind=#csl<module_kind program>}> ({
 

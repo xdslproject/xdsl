@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p dce | filecheck %s
+// RUN: xdsl-opt "%s" -p dce | filecheck "%s"
 
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32

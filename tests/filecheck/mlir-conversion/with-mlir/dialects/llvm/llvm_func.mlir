@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
+// RUN: mlir-opt "%s" --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck "%s"
 
 "builtin.module"() ({
   %cst = arith.constant {"truc" = !llvm.func<ptr<16> (i64, ...)>} 10 : i32

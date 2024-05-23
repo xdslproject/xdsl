@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --parsing-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --verify-diagnostics --parsing-diagnostics --split-input-file | filecheck "%s"
 
 "builtin.module"()({
     "gpu.module"()({

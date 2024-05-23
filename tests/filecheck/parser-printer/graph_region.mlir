@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --parsing-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --parsing-diagnostics --split-input-file | filecheck "%s"
 
 // A cyclic dependency
 

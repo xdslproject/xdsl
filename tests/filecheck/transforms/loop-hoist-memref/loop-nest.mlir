@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file -p loop-hoist-memref | filecheck %s
+// RUN: xdsl-opt "%s" --split-input-file -p loop-hoist-memref | filecheck "%s"
 
 func.func public @ddot(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>) -> memref<f64> {
   %c0 = arith.constant 0 : index

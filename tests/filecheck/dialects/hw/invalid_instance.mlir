@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file --verify-diagnostics --parsing-diagnostics | filecheck %s
+// RUN: xdsl-opt "%s" --split-input-file --verify-diagnostics --parsing-diagnostics | filecheck "%s"
 
 hw.module @module() {
   hw.output

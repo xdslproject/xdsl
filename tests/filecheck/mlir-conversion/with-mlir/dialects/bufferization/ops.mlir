@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: xdsl-opt "%s" | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck "%s"
 
 module{
     %t = "bufferization.alloc_tensor"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> tensor<10x20x30xf64>

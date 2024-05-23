@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect --mlir-print-local-scope | filecheck %s
+// RUN: xdsl-opt "%s" | xdsl-opt | mlir-opt --allow-unregistered-dialect --mlir-print-local-scope | filecheck "%s"
 
 func.func @memref_alloca_scope() {
 "memref.alloca_scope"() ({

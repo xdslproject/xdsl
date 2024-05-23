@@ -1,5 +1,5 @@
-// RUN: xdsl-opt --split-input-file -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" %s | filecheck %s
-// RUN: xdsl-opt --split-input-file -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive exclude_snitch_reserved=false}" %s | filecheck %s --check-prefix=CHECK-SNITCH-UNRESERVED
+// RUN: xdsl-opt --split-input-file -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" "%s" | filecheck "%s"
+// RUN: xdsl-opt --split-input-file -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive exclude_snitch_reserved=false}" "%s" | filecheck "%s" --check-prefix=CHECK-SNITCH-UNRESERVED
 
 riscv_func.func @main() {
   %stream = "test.op"() : () -> (!stream.readable<!riscv.freg<ft0>>)

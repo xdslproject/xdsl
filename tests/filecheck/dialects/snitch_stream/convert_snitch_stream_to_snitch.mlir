@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-snitch-stream-to-snitch %s | filecheck %s
+// RUN: xdsl-opt -p convert-snitch-stream-to-snitch "%s" | filecheck "%s"
 
 // CHECK: builtin.module {
 

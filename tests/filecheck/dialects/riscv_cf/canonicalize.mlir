@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p canonicalize %s | filecheck %s
+// RUN: xdsl-opt -p canonicalize "%s" | filecheck "%s"
 
 riscv_func.func @at_least_once() {
     %one = riscv.li 1 : () -> !riscv.reg<>

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir | mlir-opt | filecheck %s
+// RUN: xdsl-opt "%s" -p convert-stencil-to-ll-mlir | mlir-opt | filecheck "%s"
 
 builtin.module {
   func.func @stencil_hdiff(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {

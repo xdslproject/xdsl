@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --verify-diagnostics --split-input-file | filecheck "%s"
 
 "builtin.module"() ({
   %lbi = "test.op"() : () -> !test.type<"int">

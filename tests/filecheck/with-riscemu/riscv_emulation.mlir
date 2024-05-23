@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file -t riscemu %s | filecheck %s
+// RUN: xdsl-opt --split-input-file -t riscemu "%s" | filecheck "%s"
 
 builtin.module {
   riscv.directive ".globl" "main"

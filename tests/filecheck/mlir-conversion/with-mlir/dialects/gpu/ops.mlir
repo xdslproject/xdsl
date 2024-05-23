@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt "%s" --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck "%s"
 
 "builtin.module"() ({
     "gpu.module"() ({

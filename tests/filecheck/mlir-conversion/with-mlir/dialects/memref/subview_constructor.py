@@ -1,4 +1,4 @@
-# RUN: python %s | mlir-opt | filecheck %s
+# RUN: python "%s" | mlir-opt | filecheck "%s"
 
 from xdsl.builder import Builder
 from xdsl.dialects import memref

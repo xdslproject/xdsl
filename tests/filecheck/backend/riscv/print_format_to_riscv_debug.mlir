@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-print-format-to-riscv-debug %s | filecheck %s
+// RUN: xdsl-opt -p convert-print-format-to-riscv-debug "%s" | filecheck "%s"
 
 %i32, %i64, %f32, %f64 = "test.op"() : () -> (i32, i64, f32, f64)
 

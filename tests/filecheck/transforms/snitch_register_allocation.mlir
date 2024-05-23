@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p snitch-allocate-registers %s | filecheck %s
+// RUN: xdsl-opt -p snitch-allocate-registers "%s" | filecheck "%s"
 
 %ptr0, %ptr1, %ptr2 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.reg<>)
 

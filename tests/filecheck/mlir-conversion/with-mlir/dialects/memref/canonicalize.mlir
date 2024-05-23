@@ -1,4 +1,4 @@
-//RUN: xdsl-opt %s -p canonicalize | mlir-opt | filecheck %s
+//RUN: xdsl-opt "%s" -p canonicalize | mlir-opt | filecheck "%s"
 
 builtin.module {
     func.func @test(%ref: memref<72x72x72xf64>) {

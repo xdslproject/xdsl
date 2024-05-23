@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t x86-asm %s | filecheck %s
+// RUN: xdsl-opt -t x86-asm "%s" | filecheck "%s"
 
 %0 = x86.get_register : () -> !x86.reg<rax>
 %1 = x86.get_register : () -> !x86.reg<rdx>

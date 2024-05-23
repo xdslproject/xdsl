@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p printf-to-llvm --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" -p printf-to-llvm --split-input-file | filecheck "%s"
 
 builtin.module {
     "func.func"() ({

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-linalg-to-memref-stream,memref-streamify
+// RUN: xdsl-opt "%s" -p convert-linalg-to-memref-stream,memref-streamify
 
 // A top-down lowering filecheck for some of our chosen kernels
 

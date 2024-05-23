@@ -1,5 +1,5 @@
 // XFAIL: *
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: xdsl-opt "%s" --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck "%s"
 
 builtin.module {
   // CHECK: irdl.dialect @testd {

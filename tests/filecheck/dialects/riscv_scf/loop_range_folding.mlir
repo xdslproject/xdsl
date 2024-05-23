@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-scf-loop-range-folding %s | filecheck %s
+// RUN: xdsl-opt -p riscv-scf-loop-range-folding "%s" | filecheck "%s"
 
 // CHECK:       builtin.module {
 

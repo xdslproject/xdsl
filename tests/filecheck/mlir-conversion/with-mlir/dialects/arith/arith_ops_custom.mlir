@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt "%s" | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck "%s"
 
 "builtin.module"() ({
   %lhsi1 = "test.op"() : () -> (i1)

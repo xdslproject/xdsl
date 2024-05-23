@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p "stencil-tensorize-z-dimension" | filecheck %s
+// RUN: xdsl-opt "%s" -p "stencil-tensorize-z-dimension" | filecheck "%s"
 
 builtin.module {
   func.func @gauss_seidel(%a : memref<1024x512x512xf32>, %b : memref<1024x512x512xf32>) {

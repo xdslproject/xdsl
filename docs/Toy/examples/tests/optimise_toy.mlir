@@ -1,4 +1,4 @@
-// RUN: python -m toy %s --emit=toy-opt --ir | filecheck %s
+// RUN: python -m toy "%s" --emit=toy-opt --ir | filecheck "%s"
 
 "builtin.module"() ({
 // CHECK:       builtin.module {

@@ -1,7 +1,7 @@
-// RUN: xdsl-opt -p arith-add-fastmath %s | filecheck %s
-// RUN: xdsl-opt -p "arith-add-fastmath{flags=none}" %s | filecheck %s --check-prefix=NONE
-// RUN: xdsl-opt -p "arith-add-fastmath{flags=nnan}" %s | filecheck %s --check-prefix=SINGLE
-// RUN: xdsl-opt -p "arith-add-fastmath{flags=nnan,nsz}" %s | filecheck %s --check-prefix=DOUBLE
+// RUN: xdsl-opt -p arith-add-fastmath "%s" | filecheck "%s"
+// RUN: xdsl-opt -p "arith-add-fastmath{flags=none}" "%s" | filecheck "%s" --check-prefix=NONE
+// RUN: xdsl-opt -p "arith-add-fastmath{flags=nnan}" "%s" | filecheck "%s" --check-prefix=SINGLE
+// RUN: xdsl-opt -p "arith-add-fastmath{flags=nnan,nsz}" "%s" | filecheck "%s" --check-prefix=DOUBLE
 
 func.func public @foo1() {
   %lhs, %rhs = "test.op"() : () -> (f64, f64)

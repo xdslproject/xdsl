@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file -p loop-hoist-memref | filecheck %s
+// RUN: xdsl-opt "%s" --split-input-file -p loop-hoist-memref | filecheck "%s"
 
 // skip loads from the same location
 func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>, %arg3: memref<f64>) -> memref<f64> {

@@ -1,6 +1,6 @@
-// RUN: xdsl-opt %s -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=4,0,4}" | filecheck %s
-// RUN: xdsl-opt %s -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=0,4,4}" | filecheck %s --check-prefix CHECK-FIRST
-// RUN: xdsl-opt %s -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=4,4,0}" | filecheck %s --check-prefix CHECK-LAST
+// RUN: xdsl-opt "%s" -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=4,0,4}" | filecheck "%s"
+// RUN: xdsl-opt "%s" -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=0,4,4}" | filecheck "%s" --check-prefix CHECK-FIRST
+// RUN: xdsl-opt "%s" -p "scf-parallel-loop-tiling{parallel-loop-tile-sizes=4,4,0}" | filecheck "%s" --check-prefix CHECK-LAST
 
 func.func @tile_partial() {
   %zero = arith.constant 0 : index

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --print-op-generic --split-input-file %s | filecheck %s
+// RUN: xdsl-opt --print-op-generic --split-input-file "%s" | filecheck "%s"
 
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32

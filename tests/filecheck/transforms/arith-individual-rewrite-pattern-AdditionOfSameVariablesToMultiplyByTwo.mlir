@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p 'apply-individual-rewrite{matched_operation_index=2 operation_name="arith.addi" pattern_name="AdditionOfSameVariablesToMultiplyByTwo"}' | filecheck %s
+// RUN: xdsl-opt "%s" -p 'apply-individual-rewrite{matched_operation_index=2 operation_name="arith.addi" pattern_name="AdditionOfSameVariablesToMultiplyByTwo"}' | filecheck "%s"
 
 builtin.module {
   func.func @hello(%n : i32) -> i32 {

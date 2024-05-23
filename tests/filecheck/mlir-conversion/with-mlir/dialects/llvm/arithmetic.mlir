@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: mlir-opt "%s" --mlir-print-op-generic | xdsl-opt | filecheck "%s"
 
 builtin.module {
     %arg0, %arg1 = "test.op"() : () -> (i32, i32)

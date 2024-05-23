@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -t riscv-asm "%s" | filecheck "%s"
 
 "builtin.module"() ({
   riscv_func.func @main() {

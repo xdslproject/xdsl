@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file --parsing-diagnostics | filecheck %s
+// RUN: xdsl-opt "%s" --split-input-file --parsing-diagnostics | filecheck "%s"
 
 !ii32 = i32
 #attr = 0 : !ii32

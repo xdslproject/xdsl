@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p lower-snitch %s | filecheck %s
+// RUN: xdsl-opt -p lower-snitch "%s" | filecheck "%s"
 builtin.module {
   %addr = "test.op"() : () -> !riscv.reg<>
   %bound = riscv.li 9 : () -> !riscv.reg<>

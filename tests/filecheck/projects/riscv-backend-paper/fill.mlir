@@ -1,8 +1,8 @@
 
-// RUN: xdsl-run %s --symbol fill --args "4.0 : f64, dense<0.0> : tensor<16x16xf64>" --verbose | filecheck %s
+// RUN: xdsl-run "%s" --symbol fill --args "4.0 : f64, dense<0.0> : tensor<16x16xf64>" --verbose | filecheck "%s"
 
 // Currently doesn't work, need to add scalar arguments to memref_stream.generic
-// xdsl-opt %s -p convert-linalg-to-memref-stream | xdsl-run %s --symbol fill --args "4.0 : f64, dense<0.0> : memref<16x16xf64>" --verbose | filecheck %s
+// xdsl-opt "%s" -p convert-linalg-to-memref-stream | xdsl-run "%s" --symbol fill --args "4.0 : f64, dense<0.0> : memref<16x16xf64>" --verbose | filecheck "%s"
 
 module {
   func.func public @fill(%arg0: f64, %arg1: memref<16x16xf64>) -> memref<16x16xf64> {

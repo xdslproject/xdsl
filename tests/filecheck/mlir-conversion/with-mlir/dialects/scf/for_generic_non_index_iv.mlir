@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck %s
+// RUN: xdsl-opt "%s" | mlir-opt --mlir-print-op-generic | xdsl-opt --print-op-generic | filecheck "%s"
 
 "builtin.module"() ({
   %lb = "arith.constant"() {"value" = 0 : i32} : () -> i32

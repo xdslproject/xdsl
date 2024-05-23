@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-op-generic | filecheck %s
+// RUN: xdsl-opt "%s" --print-op-generic | filecheck "%s"
 // CHECK: module
 "builtin.module"() ({
   // CHECK: ^{{.*}}(%{{.*}}: i32):

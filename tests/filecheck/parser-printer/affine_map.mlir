@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --allow-unregistered-dialect %s | filecheck %s
+// RUN: xdsl-opt --allow-unregistered-dialect "%s" | filecheck "%s"
 
 builtin.module {
   // CHECK: "f1"() {"map" = affine_map<(d0) -> (d0)>} : () -> ()

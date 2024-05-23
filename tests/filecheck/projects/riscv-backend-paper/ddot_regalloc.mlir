@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-allocate-registers %s | filecheck %s
+// RUN: xdsl-opt -p riscv-allocate-registers "%s" | filecheck "%s"
 
 riscv.assembly_section ".text" {
     riscv.directive ".globl" "ddot"

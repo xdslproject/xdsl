@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s
+// RUN: xdsl-opt "%s"
 
 // This file tests that the parser does not assert in case the block
 // ordering seemingly indicates that an operand is not yet defined.

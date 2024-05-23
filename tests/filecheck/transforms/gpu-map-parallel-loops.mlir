@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p gpu-map-parallel-loops --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p gpu-map-parallel-loops --split-input-file "%s" | filecheck "%s"
 
 func.func @parallel_loop(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : index) {
   %0 = arith.constant 0 : index

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-riscv-scf-to-riscv-cf --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p convert-riscv-scf-to-riscv-cf --split-input-file "%s" | filecheck "%s"
 
 
 builtin.module {

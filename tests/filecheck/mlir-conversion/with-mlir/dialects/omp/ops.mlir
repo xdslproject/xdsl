@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: xdsl-opt "%s" --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck "%s"
 
 builtin.module {
   func.func @omp_parallel(%arg0 : memref<1xi32>, %arg1 : i1, %arg2 : i32) {

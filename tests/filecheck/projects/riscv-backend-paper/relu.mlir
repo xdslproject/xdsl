@@ -1,4 +1,4 @@
-// RUN: xdsl-run %s | filecheck %s
+// RUN: xdsl-run "%s" | filecheck "%s"
 
 builtin.module {
     "memref.global"() {"sym_name" = "a", "type" = memref<2x3xf64>, "initial_value" = dense<[[1.0, -1.0, 0.0], [2.0, -2.0, 0.0]]> : tensor<2x3xf64>, "sym_visibility" = "public"} : () -> ()

@@ -1,7 +1,7 @@
-// RUN: xdsl-run --symbol one --verbose %s | filecheck %s --check-prefix CHECK-ONE
-// RUN: xdsl-run --symbol two --verbose %s | filecheck %s --check-prefix CHECK-TWO
-// RUN: xdsl-run --symbol void --verbose %s | filecheck %s --check-prefix CHECK-VOID
-// RUN: xdsl-run --symbol tuple --verbose %s | filecheck %s --check-prefix CHECK-TUPLE
+// RUN: xdsl-run --symbol one --verbose "%s" | filecheck "%s" --check-prefix CHECK-ONE
+// RUN: xdsl-run --symbol two --verbose "%s" | filecheck "%s" --check-prefix CHECK-TWO
+// RUN: xdsl-run --symbol void --verbose "%s" | filecheck "%s" --check-prefix CHECK-VOID
+// RUN: xdsl-run --symbol tuple --verbose "%s" | filecheck "%s" --check-prefix CHECK-TUPLE
 
 module {
     func.func @one() -> i32 {

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file --verify-diagnostics --parsing-diagnostics | filecheck %s
+// RUN: xdsl-opt "%s" --split-input-file --verify-diagnostics --parsing-diagnostics | filecheck "%s"
 
 builtin.module {
   func.func @mixed_bounds_2d(%in : !stencil.field<?x[-4,68]xf64>) {

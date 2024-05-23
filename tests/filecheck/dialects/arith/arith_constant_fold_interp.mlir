@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p constant-fold-interp | filecheck %s
+// RUN: xdsl-opt "%s" -p constant-fold-interp | filecheck "%s"
 
 // CHECK: builtin.module {
 

@@ -1,6 +1,6 @@
-// RUN: irdl-to-pyrdl %s | filecheck %s
-// RUN: irdl-to-pyrdl %s -o %t.py && cat %t.py | filecheck %s
-// RUN: irdl-to-pyrdl %s -o %t.py && python %t.py
+// RUN: irdl-to-pyrdl "%s" | filecheck "%s"
+// RUN: irdl-to-pyrdl "%s" -o "%t.py" && cat "%t.py" | filecheck "%s"
+// RUN: irdl-to-pyrdl "%s" -o "%t.py" && python "%t.py"
 
 // CHECK:      from xdsl.irdl import *
 // CHECK-NEXT: from xdsl.ir import *

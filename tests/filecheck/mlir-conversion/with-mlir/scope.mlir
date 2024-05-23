@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s | xdsl-opt | filecheck %s
+// RUN: mlir-opt "%s" | xdsl-opt | filecheck "%s"
 
 module {
   func.func public @my_func() {

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt "%s" --verify-diagnostics | filecheck "%s"
 
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 0 : index} : () -> index

@@ -1,5 +1,5 @@
-// RUN: xdsl-run %s | filecheck %s
-// RUN: xdsl-opt -p convert-linalg-to-loops %s | xdsl-run | filecheck %s
+// RUN: xdsl-run "%s" | filecheck "%s"
+// RUN: xdsl-opt -p convert-linalg-to-loops "%s" | xdsl-run | filecheck "%s"
 
 module {
     "memref.global"() {

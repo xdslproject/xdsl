@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt | filecheck %s
+// RUN: xdsl-opt "%s" | xdsl-opt | mlir-opt | filecheck "%s"
 
 %lb = arith.constant 0 : i32
 %ub = arith.constant 42 : i32

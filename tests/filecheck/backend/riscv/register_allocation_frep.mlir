@@ -1,5 +1,5 @@
-// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE
-// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive limit_registers=0}" %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE-J
+// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" "%s" | filecheck "%s" --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE
+// RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive limit_registers=0}" "%s" | filecheck "%s" --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE-J
 
 riscv_func.func @main() {
   %0 = riscv.li 6 : () -> !riscv.reg<>

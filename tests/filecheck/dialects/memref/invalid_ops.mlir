@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck "%s"
 
 builtin.module {
   "memref.global"() {"alignment" = 64 : i32, "sym_name" = "wrong_alignment_type", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()

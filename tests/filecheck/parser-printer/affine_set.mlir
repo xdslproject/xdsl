@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --allow-unregistered-dialect %s | filecheck %s
+// RUN: xdsl-opt --allow-unregistered-dialect "%s" | filecheck "%s"
 
 builtin.module {
   // CHECK:    "f0"() {"set" = affine_set<(d0) : ((d0 + -10) >= 0)>} : () -> ()

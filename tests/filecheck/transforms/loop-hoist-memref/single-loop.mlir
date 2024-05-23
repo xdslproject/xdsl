@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file -p loop-hoist-memref | filecheck %s
+// RUN: xdsl-opt "%s" --split-input-file -p loop-hoist-memref | filecheck "%s"
 
 // single load-store pair hoisting
 func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>) -> memref<f64> {

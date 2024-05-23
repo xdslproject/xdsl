@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt --print-op-generic | filecheck %s
+// RUN: mlir-opt "%s" --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt --print-op-generic | filecheck "%s"
 
 "builtin.module"() ({
 

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | filecheck %s
+// RUN: xdsl-opt "%s" | xdsl-opt | filecheck "%s"
 
 // Check that SSA values and blocks can reuse names across regions
 

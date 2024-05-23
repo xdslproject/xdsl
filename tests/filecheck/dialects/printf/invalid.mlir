@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --split-input-file --verify-diagnostics | filecheck %s
+// RUN: xdsl-opt "%s" --split-input-file --verify-diagnostics | filecheck "%s"
 
 builtin.module {
     printf.print_format "This will fail {}"

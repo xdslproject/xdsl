@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-allocate-registers{allocation_strategy=LivenessBlockNaive} %s | filecheck %s
+// RUN: xdsl-opt -p riscv-allocate-registers{allocation_strategy=LivenessBlockNaive} "%s" | filecheck "%s"
 
 builtin.module {
   riscv_func.func @main() {

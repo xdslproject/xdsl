@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --verify-diagnostics --parsing-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt --verify-diagnostics --parsing-diagnostics --split-input-file "%s" | filecheck "%s"
 
 builtin.module {
   %clk = "test.op"() : () -> (!seq.clock)

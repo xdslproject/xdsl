@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-arith-to-riscv,reconcile-unrealized-casts %s | filecheck %s
+// RUN: xdsl-opt -p convert-arith-to-riscv,reconcile-unrealized-casts "%s" | filecheck "%s"
 builtin.module {
     %lhsi32 = "arith.constant"() {value = 1 : i32} : () -> i32
     // CHECK: %{{.*}} = riscv.li 1 : () -> !riscv.reg<>

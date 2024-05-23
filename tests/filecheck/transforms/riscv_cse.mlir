@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-cse --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p riscv-cse --split-input-file "%s" | filecheck "%s"
 
 %a8 = riscv.li 8 : () -> !riscv.reg<>
 %b8 = riscv.li 8 : () -> !riscv.reg<>

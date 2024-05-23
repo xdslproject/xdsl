@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt --verify-diagnostics --split-input-file "%s" | filecheck "%s"
 
 // Non-broadcastable operands are not allowed.
 

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck "%s"
 
 builtin.module {
   func.func @cus_arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {

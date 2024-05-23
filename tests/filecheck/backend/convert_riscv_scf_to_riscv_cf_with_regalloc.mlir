@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-allocate-registers,convert-riscv-scf-to-riscv-cf %s | filecheck %s
+// RUN: xdsl-opt -p riscv-allocate-registers,convert-riscv-scf-to-riscv-cf "%s" | filecheck "%s"
 
 builtin.module {
     riscv_func.func @sum_range(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {

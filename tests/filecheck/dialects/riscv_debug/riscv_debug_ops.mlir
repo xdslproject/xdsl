@@ -1,6 +1,6 @@
 // RUN: XDSL_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
-// RUN: xdsl-opt -t riscv-asm %s | filecheck %s --check-prefix=CHECK-ASM
+// RUN: xdsl-opt -t riscv-asm "%s" | filecheck "%s" --check-prefix=CHECK-ASM
 
 
 %0 = riscv.get_register : () -> !riscv.reg<a0>

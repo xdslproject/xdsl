@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-func-to-riscv-func --split-input-file  %s | filecheck %s
+// RUN: xdsl-opt -p convert-func-to-riscv-func --split-input-file  "%s" | filecheck "%s"
 
 builtin.module {
     func.func @main() {

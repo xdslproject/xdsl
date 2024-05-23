@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p lower-riscv-func{insert_exit_syscall=true} %s | filecheck %s
+// RUN: xdsl-opt -p lower-riscv-func{insert_exit_syscall=true} "%s" | filecheck "%s"
 
 "builtin.module"() ({
 // CHECK:      builtin.module {

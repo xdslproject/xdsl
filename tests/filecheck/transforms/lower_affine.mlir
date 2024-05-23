@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p lower-affine --allow-unregistered-dialect --print-op-generic | filecheck %s
+// RUN: xdsl-opt "%s" -p lower-affine --allow-unregistered-dialect --print-op-generic | filecheck "%s"
 
 "builtin.module"() ({
   %v0, %m = "test.op"() : () -> (f32, memref<2x3xf32>)

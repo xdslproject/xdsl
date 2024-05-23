@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-local-scope -mlir-print-op-generic | xdsl-opt
+// RUN: xdsl-opt "%s" | mlir-opt --mlir-print-local-scope -mlir-print-op-generic | xdsl-opt
 
 "builtin.module"() ({
   "func.func"() ({

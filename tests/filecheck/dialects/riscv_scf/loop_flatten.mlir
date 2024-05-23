@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-scf-loop-flatten %s | filecheck %s
+// RUN: xdsl-opt -p riscv-scf-loop-flatten "%s" | filecheck "%s"
 
 // CHECK:       builtin.module {
 

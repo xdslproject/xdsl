@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t riscv-asm %s | filecheck %s --match-full-lines
+// RUN: xdsl-opt -t riscv-asm "%s" | filecheck "%s" --match-full-lines
 
 %0 = riscv.get_register : () -> !riscv.reg<a0>
 %1 = riscv.get_register : () -> !riscv.reg<a1>

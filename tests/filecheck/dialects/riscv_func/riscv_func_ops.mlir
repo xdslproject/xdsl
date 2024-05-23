@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --print-op-generic %s | xdsl-opt | filecheck %s
+// RUN: xdsl-opt --print-op-generic "%s" | xdsl-opt | filecheck "%s"
 
 builtin.module {
 

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p lower-riscv-scf-to-labels --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p lower-riscv-scf-to-labels --split-input-file "%s" | filecheck "%s"
 
 // sum(range(arg0, arg1))
 

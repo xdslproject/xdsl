@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --parsing-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --parsing-diagnostics --split-input-file | filecheck "%s"
 
 "func.func"() ({}) {function_type = () -> (), value1 = dense<"0x0BAD"> : tensor<2xf16>, sym_name = "unsupported_float"} : () -> ()
 

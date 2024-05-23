@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --split-input-file -p canonicalize %s | filecheck %s
+// RUN: xdsl-opt --split-input-file -p canonicalize "%s" | filecheck "%s"
 
 builtin.module {
   %i0, %i1, %i2 = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<>)

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt "%s" --verify-diagnostics --split-input-file | filecheck "%s"
 
 %N = "test.op"() : () -> index
 "affine.parallel"(%N) <{"lowerBoundsMap" = affine_map<(i) -> (i)>, "lowerBoundsGroups" = dense<1> : vector<1xi32>, "upperBoundsMap" = affine_map<()[s0] -> (s0)>, "upperBoundsGroups" = dense<1> : vector<1xi32>, "steps" = [1 : i64], "reductions" = []}> ({
