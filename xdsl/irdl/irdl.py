@@ -2465,6 +2465,9 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
+        # This used to be convoluted
+        # But Data is already frozen itself, so any child Attribute still throws on
+        # .data!
         return runtime_final(cast(TypeAttributeInvT, cls))
     raise TypeError(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
