@@ -127,6 +127,7 @@ jobs:
         attempt_limit: 10
         with: |
           fail_ci_if_error: true
+          directory: ${GITHUB_WORKSPACE}/../
           verbose: true
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
