@@ -2468,12 +2468,10 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
         data_class = cast(type[Data[Any]], cls)
         data_metaclass = cast(ABCMeta, data_class.__class__)
         irdled = runtime_final(
-            dataclass(frozen=True)(
-                data_metaclass(
-                    cls.__name__,
-                    (cls, *cls.__bases__),
-                    dict(cls.__dict__),
-                )
+            data_metaclass(
+                cls.__name__,
+                (cls, *cls.__bases__),
+                dict(cls.__dict__),
             )
         )
         return cast(TypeAttributeInvT, irdled)
