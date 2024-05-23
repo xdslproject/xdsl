@@ -31,7 +31,54 @@ from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, Pure
 
 
-class BaseTestOp(IRDLOperation):
+@irdl_op_definition
+class TestOp(IRDLOperation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    """
+
+    name = "test.op"
+
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+
+    prop1 = opt_prop_def(Attribute)
+    prop2 = opt_prop_def(Attribute)
+    prop3 = opt_prop_def(Attribute)
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            properties=properties,
+            regions=(regions,),
+        )
+
+
+@irdl_op_definition
+class TestTermOp(IRDLOperation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference from TestOp is that it satisfies the IsTerminator trait
+    and can be used as a block terminator operation.
+    """
+
+    name = "test.termop"
 
     res: VarOpResult = var_result_def()
     ops: VarOperand = var_operand_def()
@@ -41,6 +88,8 @@ class BaseTestOp(IRDLOperation):
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
+
+    traits = frozenset([IsTerminator()])
 
     def __init__(
         self,
@@ -62,19 +111,7 @@ class BaseTestOp(IRDLOperation):
 
 
 @irdl_op_definition
-class TestOp(BaseTestOp):
-    """
-    This operation can produce an arbitrary number of SSAValues with arbitrary
-    types. It is used in filecheck testing to reduce to artificial dependencies
-    on other dialects (i.e. dependencies that only come from the structure of
-    the test rather than the actual dialect).
-    """
-
-    name = "test.op"
-
-
-@irdl_op_definition
-class TestTermOp(BaseTestOp):
+class TestPureOp(IRDLOperation):
     """
     This operation can produce an arbitrary number of SSAValues with arbitrary
     types. It is used in filecheck testing to reduce to artificial dependencies
@@ -84,16 +121,36 @@ class TestTermOp(BaseTestOp):
     and can be used as a block terminator operation.
     """
 
-    name = "test.termop"
-
-    traits = frozenset([IsTerminator()])
-
-
-@irdl_op_definition
-class TestPureOp(BaseTestOp):
     name = "test.pureop"
 
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+    successor: VarSuccessor = var_successor_def()
+
+    prop1 = opt_prop_def(Attribute)
+    prop2 = opt_prop_def(Attribute)
+    prop3 = opt_prop_def(Attribute)
+
     traits = frozenset([Pure()])
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] = (),
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            properties=properties,
+            successors=(successors,),
+            regions=(regions,),
+        )
 
 
 @irdl_attr_definition
