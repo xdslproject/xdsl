@@ -28,57 +28,10 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, Pure
 
 
-@irdl_op_definition
-class TestOp(IRDLOperation):
-    """
-    This operation can produce an arbitrary number of SSAValues with arbitrary
-    types. It is used in filecheck testing to reduce to artificial dependencies
-    on other dialects (i.e. dependencies that only come from the structure of
-    the test rather than the actual dialect).
-    """
-
-    name = "test.op"
-
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
-
-    prop1 = opt_prop_def(Attribute)
-    prop2 = opt_prop_def(Attribute)
-    prop3 = opt_prop_def(Attribute)
-
-    def __init__(
-        self,
-        operands: Sequence[SSAValue | Operation] = (),
-        result_types: Sequence[Attribute] = (),
-        attributes: Mapping[str, Attribute | None] | None = None,
-        properties: Mapping[str, Attribute | None] | None = None,
-        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
-    ):
-        super().__init__(
-            operands=(operands,),
-            result_types=(result_types,),
-            attributes=attributes,
-            properties=properties,
-            regions=(regions,),
-        )
-
-
-@irdl_op_definition
-class TestTermOp(IRDLOperation):
-    """
-    This operation can produce an arbitrary number of SSAValues with arbitrary
-    types. It is used in filecheck testing to reduce to artificial dependencies
-    on other dialects (i.e. dependencies that only come from the structure of
-    the test rather than the actual dialect).
-    Its main difference from TestOp is that it satisfies the IsTerminator trait
-    and can be used as a block terminator operation.
-    """
-
-    name = "test.termop"
+class BaseTestOp(IRDLOperation):
 
     res: VarOpResult = var_result_def()
     ops: VarOperand = var_operand_def()
@@ -88,8 +41,6 @@ class TestTermOp(IRDLOperation):
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
-
-    traits = frozenset([IsTerminator()])
 
     def __init__(
         self,
@@ -108,6 +59,41 @@ class TestTermOp(IRDLOperation):
             successors=(successors,),
             regions=(regions,),
         )
+
+
+@irdl_op_definition
+class TestOp(BaseTestOp):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    """
+
+    name = "test.op"
+
+
+@irdl_op_definition
+class TestTermOp(BaseTestOp):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference from TestOp is that it satisfies the IsTerminator trait
+    and can be used as a block terminator operation.
+    """
+
+    name = "test.termop"
+
+    traits = frozenset([IsTerminator()])
+
+
+@irdl_op_definition
+class TestPureOp(BaseTestOp):
+    name = "test.pureop"
+
+    traits = frozenset([Pure()])
 
 
 @irdl_attr_definition
@@ -130,4 +116,4 @@ class TestType(Data[str], TypeAttribute):
             printer.print_string_literal(self.data)
 
 
-Test = Dialect("test", [TestOp, TestTermOp], [TestType])
+Test = Dialect("test", [TestOp, TestPureOp, TestTermOp], [TestType])

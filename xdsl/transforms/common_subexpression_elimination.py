@@ -1,9 +1,8 @@
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TypeVar
 
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
-from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue, Use
+from xdsl.ir import Block, MLContext, Operation, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 from xdsl.traits import IsolatedFromAbove, IsTerminator, Pure
@@ -12,42 +11,48 @@ from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
 @dataclass
 class OperationInfo:
+    """
+    Boilerplate helper to use in KnownOps cache.
+    """
 
-    name: str
-    attributes: Mapping[str, Attribute]
-    properties: Mapping[str, Attribute]
-    result_types: Sequence[Attribute]
-    operands: Sequence[SSAValue]
-
-    @staticmethod
-    def from_op(op: Operation):
-        if isinstance(op, UnregisteredOp):
-            name = op.op_name.data
-        else:
-            name = op.name
-        info = OperationInfo(
-            str(name),
-            dict(op.attributes),
-            dict(op.properties),
-            [r.type for r in op.results],
-            list(op.operands),
-        )
-        return info
+    op: Operation
 
     def __hash__(self):
+        if isinstance(self.op, UnregisteredOp):
+            name = self.op.op_name.data
+        else:
+            name = self.op.name
         return (
-            hash(self.name)
-            + sum(hash(i) for i in self.attributes.items())
-            + sum(hash(i) for i in self.properties.items())
-            + sum(hash(i) for i in self.result_types)
-            + sum(hash(i) for i in self.operands)
+            hash(name)
+            + sum(hash(i) for i in self.op.attributes.items())
+            + sum(hash(i) for i in self.op.properties.items())
+            + sum(hash(i.type) for i in self.op.results)
+            + sum(hash(i) for i in self.op.operands)
         )
+
+    def __eq__(self, other: object):
+        if not isinstance(other, OperationInfo):
+            return False
+        if hash(self) != hash(other):
+            return False
+        sregions = self.op.regions
+        oregions = other.op.regions
+        if len(sregions) != len(oregions):
+            return False
+        return all(s.is_structurally_equivalent(o) for s, o in zip(sregions, oregions))
 
 
 _D = TypeVar("_D")
 
 
 class KnownOps:
+    """
+    Cache dictionary for known operations used in CSE.
+    It quacks like a dict[Operation, Operation], but key Operations are actually
+    hashed only on their name (including handling unregistered operations), attributes,
+    properties, result types, and operands.
+    """
+
     _known_ops: dict[OperationInfo, Operation]
 
     def __init__(self, known_ops: "KnownOps | None" = None):
@@ -57,29 +62,38 @@ class KnownOps:
             self._known_ops = dict(known_ops._known_ops)
 
     def __getitem__(self, k: Operation):
-        return self._known_ops[OperationInfo.from_op(k)]
+        return self._known_ops[OperationInfo(k)]
 
     def __setitem__(self, k: Operation, v: Operation):
-        self._known_ops[OperationInfo.from_op(k)] = v
+        self._known_ops[OperationInfo(k)] = v
 
     def __contains__(self, k: Operation):
-        return OperationInfo.from_op(k) in self._known_ops
+        return OperationInfo(k) in self._known_ops
 
     def get(self, k: Operation, default: _D = None) -> Operation | _D:
-        return self._known_ops.get(OperationInfo.from_op(k), default)
+        return self._known_ops.get(OperationInfo(k), default)
 
     def pop(self, k: Operation):
-        return self._known_ops.pop(OperationInfo.from_op(k))
+        return self._known_ops.pop(OperationInfo(k))
 
 
 @dataclass
 class CSEDriver:
+    """
+    Boilerplate class to handle and carry the state for CSE.
+    """
 
     rewriter: Rewriter
     to_erase: set[Operation] = field(default_factory=set)
     known_ops: KnownOps = KnownOps()
 
     def simplify_operation(self, op: Operation):
+        """
+        Simplify a single operation: replace it by a corresponding known operation in
+        scope, if any.
+        Also just delete dead operations.
+        """
+        # Don't simplify terminators.
         if op.has_trait(IsTerminator):
             return
 
@@ -165,4 +179,5 @@ class CommonSubexpressionElimination(ModulePass):
         for region in op.regions:
             driver.simplify_region(region)
         for o in driver.to_erase:
-            rewriter.erase_op(o)
+            if o.parent is not None:
+                rewriter.erase_op(o)
