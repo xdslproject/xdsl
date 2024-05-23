@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Self, TypeVar
 
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
-from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue, Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.rewriter import Rewriter
@@ -87,6 +87,9 @@ class KnownOps:
     def get(self, k: Operation, default: _D = None) -> Operation | _D:
         return self._known_ops.get(OperationInfo.from_op(k), default)
 
+    def pop(self, k: Operation):
+        return self._known_ops.pop(OperationInfo.from_op(k))
+
 
 @dataclass
 class CSEDriver:
@@ -116,15 +119,20 @@ class CSEDriver:
 
         # This operation rings a bell!
         if existing := self.known_ops.get(op):
+
             # Just replace results
+            def wasVisited(use: Use):
+                return self.known_ops.get(use.operation) is None
+
             for o, n in zip(op.results, existing.results, strict=True):
-                for use in o.uses:
-                    if use.operation not in self.known_ops:
-                        o.replace_by(n)
+                if all(wasVisited(u) for u in o.uses):
+                    o.replace_by(n)
 
             # If no uses remain, we can mark this operation for erasure
             if all(not r.uses for r in op.results):
                 self.to_erase.add(op)
+
+            return
 
         # First time seeing this one, noting it down!
         self.known_ops[op] = op
@@ -142,14 +150,12 @@ class CSEDriver:
                     # blank slate
                     old_scope = self.known_ops
                     self.known_ops = KnownOps(self.known_ops)
-
-                for region in op.regions:
-                    self.simplify_region(region)
-
-                if might_be_isolated:
-                    # IsolatedFromAbove works both way
+                    for region in op.regions:
+                        self.simplify_region(region)
                     self.known_ops = old_scope
-                pass
+                else:
+                    for region in op.regions:
+                        self.simplify_region(region)
 
             self.simplify_operation(op)
 
