@@ -117,8 +117,8 @@ class TestPureOp(IRDLOperation):
     types. It is used in filecheck testing to reduce to artificial dependencies
     on other dialects (i.e. dependencies that only come from the structure of
     the test rather than the actual dialect).
-    Its main difference from TestOp is that it satisfies the IsTerminator trait
-    and can be used as a block terminator operation.
+    Its main difference from TestOp is that it satisfies the Pure trait, so we can
+    test region CSE - this op assumes no side effects nowhere in its regions.
     """
 
     name = "test.pureop"
