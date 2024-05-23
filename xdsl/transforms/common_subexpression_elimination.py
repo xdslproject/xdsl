@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Self, TypeVar
+from typing import TypeVar
 
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region, SSAValue, Use
@@ -70,7 +70,7 @@ _D = TypeVar("_D")
 class KnownOps:
     _known_ops: dict[OperationInfo, Operation]
 
-    def __init__(self, known_ops: Self | None = None):
+    def __init__(self, known_ops: "KnownOps | None" = None):
         if known_ops is None:
             self._known_ops = {}
         else:
