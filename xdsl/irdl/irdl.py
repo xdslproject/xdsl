@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
@@ -2465,15 +2465,18 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return runtime_final(
-            dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
-                type(
+        data_class = cast(type[Data[Any]], cls)
+        data_metaclass = cast(ABCMeta, data_class.__class__)
+        irdled = runtime_final(
+            dataclass(frozen=True)(
+                data_metaclass(
                     cls.__name__,
-                    (cls,),  # pyright: ignore[reportUnknownArgumentType]
+                    (cls, *cls.__bases__),
                     dict(cls.__dict__),
                 )
             )
         )
+        return cast(TypeAttributeInvT, irdled)
     raise TypeError(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
         "'ParametrizedAttribute'"
