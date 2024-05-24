@@ -173,4 +173,14 @@ class TestType(Data[str], TypeAttribute):
             printer.print_string_literal(self.data)
 
 
-Test = Dialect("test", [TestOp, TestPureOp, TestTermOp], [TestType])
+Test = Dialect(
+    "test",
+    [
+        TestOp,
+        TestPureOp,
+        TestTermOp,
+    ],
+    [
+        TestType,
+    ],
+)
