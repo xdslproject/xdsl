@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -506,7 +506,7 @@ class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     pass
 
 
-DataElement = TypeVar("DataElement", covariant=True)
+DataElement = TypeVar("DataElement", covariant=True, bound=Hashable)
 
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
