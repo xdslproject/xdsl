@@ -20,14 +20,16 @@ class OperationInfo:
 
     op: Operation
 
-    def __hash__(self):
+    @property
+    def name(self):
         if isinstance(self.op, UnregisteredOp):
-            name = self.op.op_name.data
-        else:
-            name = self.op.name
+            return self.op.op_name.data
+        return self.op.name
+
+    def __hash__(self):
         return hash(
             (
-                name,
+                self.name,
                 sum(hash(i) for i in self.op.attributes.items()),
                 sum(hash(i) for i in self.op.properties.items()),
                 hash(tuple(i.type for i in self.op.results)),
