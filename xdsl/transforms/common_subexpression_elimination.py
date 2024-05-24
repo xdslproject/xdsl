@@ -5,7 +5,7 @@ from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
 from xdsl.ir import Block, MLContext, Operation, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
-from xdsl.traits import IsolatedFromAbove, IsTerminator, Pure
+from xdsl.traits import IsolatedFromAbove, IsTerminator, is_side_effect_free
 from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
 
@@ -125,7 +125,7 @@ class CSEDriver:
         # Using more generics analytics; and has fancier analysis for that case,
         # where it might simplify some side-effecting operations still.
         # Doesmn't mean we can't just simplify what we can with our simpler model :)
-        if not op.has_trait(Pure):
+        if not is_side_effect_free(op):
             return
 
         # This operation rings a bell!

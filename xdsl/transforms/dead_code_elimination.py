@@ -2,12 +2,17 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import MLContext, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
-from xdsl.traits import Pure
+from xdsl.traits import IsTerminator, SymbolOpInterface, is_side_effect_free
 
 
 def is_trivially_dead(op: Operation):
     # Check that operation is side-effect-free and unused
-    return op.has_trait(Pure) and all(not result.uses for result in op.results)
+    return (
+        not op.get_trait(IsTerminator)
+        and not op.get_trait(SymbolOpInterface)
+        and is_side_effect_free(op)
+        and all(not result.uses for result in op.results)
+    )
 
 
 class RemoveUnusedOperations(RewritePattern):

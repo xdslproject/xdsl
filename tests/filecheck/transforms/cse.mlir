@@ -532,29 +532,62 @@ func.func @failing_issue_59135(%arg0_10 : tensor<2x2xi1>, %arg1_7 : f32, %arg2_8
 // CHECK-NEXT:    }
 
 func.func @cse_multiple_regions(%arg0_11 : i1, %arg1_8 : tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
-    %94 = "test.pureop"(%arg0_11) ({
+    %94 = "scf.if"(%arg0_11) ({
       %95 = tensor.empty() : tensor<5xf32>
-      "test.termop"(%95) : (tensor<5xf32>) -> ()
+      scf.yield %95 : tensor<5xf32>
     }, {
-      "test.termop"(%arg1_8) : (tensor<5xf32>) -> ()
+      scf.yield %arg1_8 : tensor<5xf32>
     }) : (i1) -> tensor<5xf32>
-    %96 = "test.pureop"(%arg0_11) ({
+    %96 = "scf.if"(%arg0_11) ({
       %97 = tensor.empty() : tensor<5xf32>
-      "test.termop"(%97) : (tensor<5xf32>) -> ()
+      scf.yield %97 : tensor<5xf32>
     }, {
-      "test.termop"(%arg1_8) : (tensor<5xf32>) -> ()
+      scf.yield %arg1_8 : tensor<5xf32>
     }) : (i1) -> tensor<5xf32>
     func.return %94, %96 : tensor<5xf32>, tensor<5xf32>
   }
 
 // CHECK:         func.func @cse_multiple_regions(%arg0 : i1, %arg1 : tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
-// CHECK-NEXT:      %0 = "test.pureop"(%arg0) ({
+// CHECK-NEXT:      %0 = "scf.if"(%arg0) ({
 // CHECK-NEXT:        %1 = tensor.empty() : tensor<5xf32>
-// CHECK-NEXT:        "test.termop"(%1) : (tensor<5xf32>) -> ()
+// CHECK-NEXT:        scf.yield %1 : tensor<5xf32>
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:        "test.termop"(%arg1) : (tensor<5xf32>) -> ()
+// CHECK-NEXT:        scf.yield %arg1 : tensor<5xf32>
 // CHECK-NEXT:      }) : (i1) -> tensor<5xf32>
 // CHECK-NEXT:      func.return %0, %0 : tensor<5xf32>, tensor<5xf32>
+// CHECK-NEXT:    }
+
+// Check that no CSE happens on a recursively side-effecting ops containing side-effects.
+func.func @no_cse_multiple_regions_side_effect(%arg0_12 : i1, %arg1_9 : memref<5xf32>) -> (memref<5xf32>, memref<5xf32>) {
+    %90 = "scf.if"(%arg0_12) ({
+      %91 = memref.alloc() : memref<5xf32>
+      scf.yield %91 : memref<5xf32>
+    }, {
+      scf.yield %arg1_9 : memref<5xf32>
+    }) : (i1) -> memref<5xf32>
+    %92 = "scf.if"(%arg0_12) ({
+      %93 = memref.alloc() : memref<5xf32>
+      scf.yield %93 : memref<5xf32>
+    }, {
+      scf.yield %arg1_9 : memref<5xf32>
+    }) : (i1) -> memref<5xf32>
+    func.return %90, %92 : memref<5xf32>, memref<5xf32>
+}
+
+// CHECK:         func.func @no_cse_multiple_regions_side_effect(%arg0 : i1, %arg1 : memref<5xf32>) -> (memref<5xf32>, memref<5xf32>) {
+// CHECK-NEXT:      %0 = "scf.if"(%arg0) ({
+// CHECK-NEXT:        %1 = memref.alloc() : memref<5xf32>
+// CHECK-NEXT:        scf.yield %1 : memref<5xf32>
+// CHECK-NEXT:      }, {
+// CHECK-NEXT:        scf.yield %arg1 : memref<5xf32>
+// CHECK-NEXT:      }) : (i1) -> memref<5xf32>
+// CHECK-NEXT:      %2 = "scf.if"(%arg0) ({
+// CHECK-NEXT:        %3 = memref.alloc() : memref<5xf32>
+// CHECK-NEXT:        scf.yield %3 : memref<5xf32>
+// CHECK-NEXT:      }, {
+// CHECK-NEXT:        scf.yield %arg1 : memref<5xf32>
+// CHECK-NEXT:      }) : (i1) -> memref<5xf32>
+// CHECK-NEXT:      func.return %0, %2 : memref<5xf32>, memref<5xf32>
 // CHECK-NEXT:    }
 
 // xDSL doesn't have the notion of sideffects.

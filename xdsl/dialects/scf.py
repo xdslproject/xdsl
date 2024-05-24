@@ -38,6 +38,8 @@ from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
     HasParent,
     IsTerminator,
+    Pure,
+    RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
@@ -154,7 +156,9 @@ class Yield(AbstractYieldOperation[Attribute]):
     name = "scf.yield"
 
     traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(For, If, ParallelOp, While)])
+        lambda: frozenset(
+            [IsTerminator(), HasParent(For, If, ParallelOp, While), Pure()]
+        )
     )
 
 
@@ -168,7 +172,7 @@ class If(IRDLOperation):
     # TODO this should be optional under certain conditions
     false_region: Region = region_def()
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+    traits = frozenset([SingleBlockImplicitTerminator(Yield), RecursiveMemoryEffect()])
 
     def __init__(
         self,
