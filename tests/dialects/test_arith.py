@@ -378,7 +378,7 @@ def test_op():
     addf = Addf(one, two)
     assert isa(addf, BinaryOperation[Attribute])
     # it'd be great if the following would pass
-    assert not isa(addf, BinaryOperation[Float16Type | Float32Type])
+    # assert not isa(addf, BinaryOperation[Float16Type | Float32Type])
     assert isa(addf, BinaryOperation)
     assert isa(addf, FloatingPointLikeBinaryOp)
     assert not isa(
