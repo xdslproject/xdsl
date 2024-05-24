@@ -100,6 +100,14 @@ class Printer:
         default_factory=list, init=False
     )
 
+    @property
+    def ssa_names(self):
+        return self._ssa_names[-1]
+
+    @property
+    def block_names(self):
+        return self._block_names[-1]
+
     @contextmanager
     def in_angle_brackets(self):
         self.print_string("<")
@@ -245,11 +253,11 @@ class Printer:
         if value in self._ssa_values:
             name = self._ssa_values[value]
         elif value.name_hint:
-            curr_ind = self._ssa_names[-1].get(value.name_hint, 0)
+            curr_ind = self.ssa_names.get(value.name_hint, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
             name = f"{value.name_hint}{suffix}"
             self._ssa_values[value] = name
-            self._ssa_names[-1][value.name_hint] = curr_ind + 1
+            self.ssa_names[value.name_hint] = curr_ind + 1
         else:
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
@@ -262,8 +270,8 @@ class Printer:
 
     def print_block_name(self, block: Block) -> None:
         self.print("^")
-        if block not in self._block_names[-1]:
-            self._block_names[-1][block] = self._get_new_valid_block_id()
+        if block not in self.block_names:
+            self.block_names[block] = self._get_new_valid_block_id()
         self.print(self._block_names[-1][block])
 
     def print_block(
