@@ -22,9 +22,11 @@ class OperationInfo:
 
     @property
     def name(self):
-        if isinstance(self.op, UnregisteredOp):
-            return self.op.op_name.data
-        return self.op.name
+        return (
+            self.op.op_name.data
+            if isinstance(self.op, UnregisteredOp)
+            else self.op.name
+        )
 
     def __hash__(self):
         return hash(
@@ -33,20 +35,26 @@ class OperationInfo:
                 sum(hash(i) for i in self.op.attributes.items()),
                 sum(hash(i) for i in self.op.properties.items()),
                 hash(tuple(i.type for i in self.op.results)),
-                hash(tuple(i for i in self.op.operands)),
+                hash(self.op.operands),
             )
         )
 
     def __eq__(self, other: object):
-        if not isinstance(other, OperationInfo):
-            return False
-        if hash(self) != hash(other):
-            return False
-        sregions = self.op.regions
-        oregions = other.op.regions
-        if len(sregions) != len(oregions):
-            return False
-        return all(s.is_structurally_equivalent(o) for s, o in zip(sregions, oregions))
+        return (
+            isinstance(other, OperationInfo)
+            and hash(self) == hash(other)
+            and self.name == other.name
+            and self.op.attributes == other.op.attributes
+            and self.op.properties == other.op.properties
+            and self.op.operands == other.op.operands
+            and len(self.op.results) == len(other.op.results)
+            and all(r.type == o.type for r, o in zip(self.op.results, other.op.results))
+            and len(self.op.regions) == len(other.op.regions)
+            and all(
+                s.is_structurally_equivalent(o)
+                for s, o in zip(self.op.regions, other.op.regions)
+            )
+        )
 
 
 _D = TypeVar("_D")
