@@ -761,6 +761,17 @@ class OpOperands(Sequence[SSAValue]):
     def __len__(self) -> int:
         return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
+    def __eq__(self, other: object):
+        if not isinstance(other, OpOperands):
+            return False
+        return (
+            self._op._operands  # pyright: ignore[reportPrivateUsage]
+            == other._op._operands  # pyright: ignore[reportPrivateUsage]
+        )
+
+    def __hash__(self):
+        return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
 
 @dataclass
 class Operation(IRNode):
