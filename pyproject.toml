@@ -15,7 +15,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 extras = ["riscemu==2.2.6", "wgpu==0.15.2", "textual==0.63.2", "pyclip==0.7"]
-onnx = ["onnx==1.16"]
+onnx = ["onnx==1.16.1"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
