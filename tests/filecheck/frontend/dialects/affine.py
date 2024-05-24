@@ -21,7 +21,7 @@ with CodeContext(p):
 
     # CHECK:      func.func @test_affine_for_II() {
     # CHECK-NEXT:   "affine.for"() <{"lowerBoundMap" = affine_map<() -> (10)>, "upperBoundMap" = affine_map<() -> (30)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
-    # CHECK-NEXT:   ^1(%1 : index):
+    # CHECK-NEXT:   ^0(%0 : index):
     # CHECK-NEXT:     "affine.yield"() : () -> ()
     # CHECK-NEXT:   }) : () -> ()
     # CHECK-NEXT:   func.return
@@ -33,7 +33,7 @@ with CodeContext(p):
 
     # CHECK:      func.func @test_affine_for_III() {
     # CHECK-NEXT:   "affine.for"() <{"lowerBoundMap" = affine_map<() -> (1)>, "upperBoundMap" = affine_map<() -> (20)>, "step" = 5 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
-    # CHECK-NEXT:   ^2(%2 : index):
+    # CHECK-NEXT:   ^0(%0 : index):
     # CHECK-NEXT:     "affine.yield"() : () -> ()
     # CHECK-NEXT:   }) : () -> ()
     # CHECK-NEXT:   func.return
@@ -45,11 +45,11 @@ with CodeContext(p):
 
     # CHECK:      func.func @test_affine_for_IV() {
     # CHECK-NEXT:   "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (10)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
-    # CHECK-NEXT:   ^3(%3 : index):
+    # CHECK-NEXT:   ^0(%0 : index):
     # CHECK-NEXT:     "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (20)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
-    # CHECK-NEXT:     ^4(%4 : index):
+    # CHECK-NEXT:     ^1(%1 : index):
     # CHECK-NEXT:       "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "upperBoundMap" = affine_map<() -> (30)>, "step" = 1 : index, "operandSegmentSizes" = array<i32: 0, 0, 0>}> ({
-    # CHECK-NEXT:       ^5(%5 : index):
+    # CHECK-NEXT:       ^2(%2 : index):
     # CHECK-NEXT:         "affine.yield"() : () -> ()
     # CHECK-NEXT:       }) : () -> ()
     # CHECK-NEXT:       "affine.yield"() : () -> ()
