@@ -122,6 +122,9 @@ class AttrConstraint(ABC):
         """Get the unique base type that can satisfy the constraint, if any."""
         return None
 
+    def __hash__(self) -> int:
+        return id(self)
+
 
 @dataclass
 class VarConstraint(AttrConstraint):
