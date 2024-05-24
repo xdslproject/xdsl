@@ -532,15 +532,11 @@ class CastOp(IRDLOperation):
         )
     )
     result: OpResult = result_def(
-        ParamAttrConstraint(
-            FieldType,
-            [
-                Attribute,
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Input and output fields must have the same element types",
-                ),
-            ],
+        FieldType
+        % (
+            ~Attribute,
+            VarConstraint("T", AnyAttr())
+            << "Input and output fields must have the same element types",
         )
     )
 

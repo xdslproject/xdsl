@@ -122,6 +122,21 @@ class AttrConstraint(ABC):
         """Get the unique base type that can satisfy the constraint, if any."""
         return None
 
+    def __or__(self, other: AttrConstraint) -> AttrConstraint:
+        from . import AnyOf
+
+        return AnyOf([self, other])
+
+    def __and__(self, other: AttrConstraint) -> AttrConstraint:
+        from . import AllOf
+
+        return AllOf([self, other])
+
+    def __lshift__(self, message: str) -> AttrConstraint:
+        from . import MessageConstraint
+
+        return MessageConstraint(self, message)
+
 
 @dataclass
 class VarConstraint(AttrConstraint):

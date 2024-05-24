@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
@@ -30,7 +30,7 @@ from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
-    from xdsl.irdl import ParamAttrDef
+    from xdsl.irdl import AttrConstraint, ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
 
@@ -441,8 +441,15 @@ class ErasedSSAValue(SSAValue):
 A = TypeVar("A", bound="Attribute")
 
 
+class AttributeMeta(ABCMeta):
+    def __invert__(self):
+        from xdsl.irdl import BaseAttr
+
+        return BaseAttr(self)
+
+
 @dataclass(frozen=True)
-class Attribute(ABC):
+class Attribute(ABC, metaclass=AttributeMeta):
     """
     A compile-time value.
     Attributes are used to represent SSA variable types, and can be attached
@@ -474,6 +481,11 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+    def __invert__(self):
+        from xdsl.irdl import EqAttrConstraint
+
+        return EqAttrConstraint(self)
 
 
 class TypeAttribute(Attribute):
@@ -621,8 +633,15 @@ class EnumAttribute(Data[EnumType]):
         return cast(EnumType, enum_type(val))
 
 
+class ParametrizedAttributeMeta(AttributeMeta):
+    def __mod__(self, args: tuple[AttrConstraint, ...]) -> Any:
+        from xdsl.irdl import ParamAttrConstraint
+
+        return ParamAttrConstraint(self, args)
+
+
 @dataclass(frozen=True, init=False)
-class ParametrizedAttribute(Attribute):
+class ParametrizedAttribute(Attribute, metaclass=ParametrizedAttributeMeta):
     """An attribute parametrized by other attributes."""
 
     parameters: tuple[Attribute, ...] = field()
