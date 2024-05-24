@@ -25,12 +25,14 @@ class OperationInfo:
             name = self.op.op_name.data
         else:
             name = self.op.name
-        return (
-            hash(name)
-            + sum(hash(i) for i in self.op.attributes.items())
-            + sum(hash(i) for i in self.op.properties.items())
-            + sum(hash(i.type) for i in self.op.results)
-            + sum(hash(i) for i in self.op.operands)
+        return hash(
+            (
+                name,
+                sum(hash(i) for i in self.op.attributes.items()),
+                sum(hash(i) for i in self.op.properties.items()),
+                hash(tuple(i.type for i in self.op.results)),
+                hash(tuple(i for i in self.op.operands)),
+            )
         )
 
     def __eq__(self, other: object):
