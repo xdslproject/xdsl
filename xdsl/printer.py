@@ -865,10 +865,10 @@ class Printer:
 
     def print_op(self, op: Operation) -> None:
         scope = bool(op.get_traits_of_type(IsolatedFromAbove))
-        if scope:
-            self.enter_scope()
         begin_op_pos = self._current_column
         self._print_results(op)
+        if scope:
+            self.enter_scope()
         use_custom_format = False
         if isinstance(op, UnregisteredOp):
             self.print(f'"{op.op_name.data}"')
