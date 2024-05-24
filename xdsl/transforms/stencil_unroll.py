@@ -26,6 +26,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.common_subexpression_elimination import CSEDriver
 from xdsl.utils.hints import isa
 
 
@@ -119,6 +120,7 @@ class StencilUnrollPattern(RewritePattern):
                 o.detach()
                 unrolled_block.insert_op_before(o, unrolled_return)
         unrolled_return.unroll = IndexAttr.get(*unroll)
+        CSEDriver().simplify(unrolled_block)
         new_apply = ApplyOp.get(op.args, unrolled_block, res_types)
         rewriter.replace_matched_op(new_apply)
 
