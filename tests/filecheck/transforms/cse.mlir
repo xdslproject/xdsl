@@ -532,27 +532,27 @@ func.func @failing_issue_59135(%arg0_10 : tensor<2x2xi1>, %arg1_7 : f32, %arg2_8
 // CHECK-NEXT:    }
 
 func.func @cse_multiple_regions(%arg0_11 : i1, %arg1_8 : tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
-    %94 = "test.pureop"(%arg0_11) ({
+    %94 = "scf.if"(%arg0_11) ({
       %95 = tensor.empty() : tensor<5xf32>
-      "test.termop"(%95) : (tensor<5xf32>) -> ()
+      scf.yield %95 : tensor<5xf32>
     }, {
-      "test.termop"(%arg1_8) : (tensor<5xf32>) -> ()
+      scf.yield %arg1_8 : tensor<5xf32>
     }) : (i1) -> tensor<5xf32>
-    %96 = "test.pureop"(%arg0_11) ({
+    %96 = "scf.if"(%arg0_11) ({
       %97 = tensor.empty() : tensor<5xf32>
-      "test.termop"(%97) : (tensor<5xf32>) -> ()
+      scf.yield %97 : tensor<5xf32>
     }, {
-      "test.termop"(%arg1_8) : (tensor<5xf32>) -> ()
+      scf.yield %arg1_8 : tensor<5xf32>
     }) : (i1) -> tensor<5xf32>
     func.return %94, %96 : tensor<5xf32>, tensor<5xf32>
   }
 
 // CHECK:         func.func @cse_multiple_regions(%arg0_11 : i1, %arg1_8 : tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
-// CHECK-NEXT:      %76 = "test.pureop"(%arg0_11) ({
+// CHECK-NEXT:      %76 = "scf.if"(%arg0_11) ({
 // CHECK-NEXT:        %77 = tensor.empty() : tensor<5xf32>
-// CHECK-NEXT:        "test.termop"(%77) : (tensor<5xf32>) -> ()
+// CHECK-NEXT:        scf.yield %77 : tensor<5xf32>
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:        "test.termop"(%arg1_8) : (tensor<5xf32>) -> ()
+// CHECK-NEXT:        scf.yield %arg1_8 : tensor<5xf32>
 // CHECK-NEXT:      }) : (i1) -> tensor<5xf32>
 // CHECK-NEXT:      func.return %76, %76 : tensor<5xf32>, tensor<5xf32>
 // CHECK-NEXT:    }
