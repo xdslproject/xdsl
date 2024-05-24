@@ -36,7 +36,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -47,6 +47,8 @@ class ApplyOp(IRDLOperation):
     mapOperands = var_operand_def(IndexType)
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
+
+    traits = frozenset([Pure()])
 
     def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
         super().__init__(

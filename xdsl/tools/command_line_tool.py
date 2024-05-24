@@ -392,6 +392,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
 
+    def get_cse():
+        from xdsl.transforms import common_subexpression_elimination
+
+        return common_subexpression_elimination.CommonSubexpressionElimination
+
     def get_dce():
         from xdsl.transforms import dead_code_elimination
 
@@ -605,6 +610,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
+        "cse": get_cse,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,

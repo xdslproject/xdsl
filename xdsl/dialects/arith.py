@@ -101,7 +101,7 @@ class Constant(IRDLOperation):
     result: OpResult = result_def(Attribute)
     value: Attribute = prop_def(Attribute)
 
-    traits = frozenset((ConstantLike(),))
+    traits = frozenset((ConstantLike(), Pure()))
 
     @overload
     def __init__(
