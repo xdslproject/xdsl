@@ -8,7 +8,7 @@ authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
     "immutabledict<4.2.1",
-    "typing-extensions>=4.7,<5",
+    "typing-extensions>=4.7,<4.12",
     "ordered-set==4.1.0",
 ]
 dynamic = ["version"]
