@@ -15,12 +15,17 @@ from dataclasses import dataclass
 from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
+    AnyIntegerAttr,
     ArrayAttr,
     ContainerType,
     DictionaryAttr,
+    Float16Type,
+    Float32Type,
     FunctionType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     StringAttr,
     SymbolRefAttr,
@@ -275,6 +280,14 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
 ColorIdAttr: TypeAlias = (
     IntegerAttr[Annotated[IntegerType, IntegerType(5)]]
     | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
+)
+
+
+ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
+# NOTE: Some of these values cannot be set by default, because we don't have
+#       corresponding attrinutes for them.
+ParamType: TypeAlias = (
+    Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike
 )
 
 
@@ -643,6 +656,163 @@ class SetTileCodeOp(IRDLOperation):
     params = opt_operand_def(ComptimeStructType)
 
 
+@irdl_op_definition
+class SymbolExportOp(IRDLOperation):
+    """
+    This op does not correspond to any particular csl operation, it allows a symbol
+    to be exported in a single operation in both layout and program module.
+
+    It corresponds to @export_name in layout and @export_symbol in program.
+    """
+
+    name = "csl.export"
+
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+
+    value = opt_operand_def(PtrType)
+
+    var_name = prop_def(StringAttr | SymbolRefAttr)
+
+    type = prop_def(PtrType | FunctionType)
+
+    def get_name(self) -> str:
+        match self.var_name:
+            case StringAttr(data=data):
+                return data
+            case SymbolRefAttr():
+                return self.var_name.string_value()
+
+    def verify_(self) -> None:
+        if isinstance(self.var_name, StringAttr):
+            if self.value is None:
+                raise VerifyException(
+                    "When passing var_name as a string, operand also has to be supplied"
+                )
+            if not isinstance(self.type, PtrType):
+                raise VerifyException(
+                    "When passing operand and name as string, type has to be a pointer type"
+                )
+            if self.value.type != self.type:
+                raise VerifyException(
+                    "Type of the operand has to match the type property"
+                )
+        else:  # self.var_name is SymbolRefAttr
+            if self.value is not None:
+                raise VerifyException(
+                    "When passing var_name as a symbol, operand cannot be supplied"
+                )
+            if not isinstance(self.type, FunctionType):
+                raise VerifyException(
+                    "When passing a symbol, type has to be a function type"
+                )
+
+        return super().verify_()
+
+
+@irdl_op_definition
+class AddressOfOp(IRDLOperation):
+    """
+    Take the address of a scalar or an array (memref)
+
+    When taking the address of an array, the type of the returned pointer can
+    be either a single pointer to the array or a many pointer to its contained type.
+    """
+
+    name = "csl.addressof"
+
+    value = operand_def()
+    res = result_def(PtrType)
+
+    def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
+        """
+        Verify that if the address of a memref is taken, the resulting pointer is either:
+            A single pointer to the array type or
+            A many pointer to the array element type
+        E.g.
+            const x: [10]f32;
+            const arr_ptr: *[10]f32 = &x;
+            const elem_ptr: [*]f32 = &x;
+            // const invalid: [*]i32 = &x;
+            // const invalid: *f32 = &x;
+            // const invalid: [*][10]f32 = &x;
+        """
+
+        res_elem_ty = res_ty.get_element_type()
+        if res_elem_ty == val_ty.get_element_type():
+            if res_ty.kind.data != PtrKind.MANY:
+                raise VerifyException(
+                    f"The kind of scalar pointer to array has to be {PtrKind.MANY.value}"
+                )
+        elif res_elem_ty == val_ty:
+            if res_ty.kind.data != PtrKind.SINGLE:
+                raise VerifyException(
+                    f"The kind of array pointer to array has to be {PtrKind.SINGLE.value}"
+                )
+        else:
+            raise VerifyException(
+                "Contained type of the result pointer must match the contained type of the operand memref or the memref itself"
+            )
+
+    def verify_(self) -> None:
+        if not isinstance(self.res.type, PtrType):
+            raise VerifyException("Result type must be a pointer")
+
+        val_ty = self.value.type
+        res_ty = self.res.type
+        if isa(val_ty, MemRefType[Attribute]):
+            self._verify_memref_addr(val_ty, res_ty)
+        else:
+            if res_ty.get_element_type() != val_ty:
+                raise VerifyException(
+                    "Contained type of the result pointer must match the operand type"
+                )
+        return super().verify_()
+
+
+@irdl_op_definition
+class RpcOp(IRDLOperation):
+    """
+    represents a call to `@rpc`
+
+    When printing should wrap id in `@get_data_task_id`
+    """
+
+    name = "csl.rpc"
+
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+
+    id = operand_def(ColorType)
+
+
+@irdl_op_definition
+class ParamOp(IRDLOperation):
+    """
+    Represents `param` declarations in CSL
+
+    Whilst we can inline most things, the result of memcpy `get_params`
+    function still has to be passed as `param`.
+
+    It can also be useful to change some configuration parameters from the
+    command line by passing params to the compiler.
+    """
+
+    name = "csl.param"
+
+    traits = frozenset([HasParent(CslModuleOp)])  # has to be at top level
+
+    param_name = prop_def(StringAttr)
+    init_value = opt_prop_def(ParamAttr)
+
+    res = result_def(ParamType)
+
+    def verify_(self) -> None:
+        if self.init_value is not None and self.init_value.type != self.res.type:
+            raise VerifyException(
+                "If init_value is specified, it has to have the same type as the op result"
+            )
+        return super().verify_()
+
+
 CSL = Dialect(
     "csl",
     [
@@ -659,6 +829,10 @@ CSL = Dialect(
         GetColorOp,
         SetRectangleOp,
         SetTileCodeOp,
+        AddressOfOp,
+        SymbolExportOp,
+        RpcOp,
+        ParamOp,
     ],
     [
         ComptimeStructType,
