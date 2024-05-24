@@ -226,11 +226,7 @@ class For(IRDLOperation):
     body: Region = region_def("single_block")
 
     traits = frozenset(
-        [
-            SingleBlockImplicitTerminator(Yield),
-            ForOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
-        ]
+        [SingleBlockImplicitTerminator(Yield), ForOpHasCanonicalizationPatternsTrait()]
     )
 
     def __init__(
