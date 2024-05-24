@@ -6,18 +6,8 @@ from xdsl.traits import Pure
 
 
 def is_trivially_dead(op: Operation):
-    # Check that operation is side-effect-free
-    if not op.has_trait(Pure):
-        return False
-
-    # Check whether any of the results are used
-    results = op.results
-    for result in results:
-        if len(result.uses):
-            # At least one of the results is used
-            return False
-
-    return True
+    # Check that operation is side-effect-free and unused
+    return op.has_trait(Pure) and all(not result.uses for result in op.results)
 
 
 class RemoveUnusedOperations(RewritePattern):
