@@ -24,9 +24,9 @@ func.func @simple_constant() -> (i32, i32) {
   }
 
 // CHECK:         func.func @basic() -> (index, index) {
-// CHECK-NEXT:      %1 = arith.constant 0 : index
-// CHECK-NEXT:      %2 = "affine.apply"(%1) <{"map" = affine_map<(d0) -> ((d0 mod 2))>}> : (index) -> index
-// CHECK-NEXT:      func.return %2, %2 : index, index
+// CHECK-NEXT:      %0 = arith.constant 0 : index
+// CHECK-NEXT:      %1 = "affine.apply"(%0) <{"map" = affine_map<(d0) -> ((d0 mod 2))>}> : (index) -> index
+// CHECK-NEXT:      func.return %1, %1 : index, index
 // CHECK-NEXT:    }
 
 // CHECK-LABEL: @many
@@ -45,11 +45,11 @@ func.func @simple_constant() -> (i32, i32) {
   }
 
 // CHECK:         func.func @many(%arg0 : f32, %arg1 : f32) -> f32 {
-// CHECK-NEXT:      %3 = arith.addf %arg0, %arg1 : f32
-// CHECK-NEXT:      %4 = arith.addf %3, %3 : f32
-// CHECK-NEXT:      %5 = arith.addf %4, %4 : f32
-// CHECK-NEXT:      %6 = arith.addf %5, %5 : f32
-// CHECK-NEXT:      func.return %6 : f32
+// CHECK-NEXT:      %0 = arith.addf %arg0, %arg1 : f32
+// CHECK-NEXT:      %1 = arith.addf %0, %0 : f32
+// CHECK-NEXT:      %2 = arith.addf %1, %1 : f32
+// CHECK-NEXT:      %3 = arith.addf %2, %2 : f32
+// CHECK-NEXT:      func.return %3 : f32
 // CHECK-NEXT:    }
 
 /// Check that operations are not eliminated if they have different operands.
@@ -61,9 +61,9 @@ func.func @different_ops() -> (i32, i32) {
   }
 
 // CHECK:         func.func @different_ops() -> (i32, i32) {
-// CHECK-NEXT:      %7 = arith.constant 0 : i32
-// CHECK-NEXT:      %8 = arith.constant 1 : i32
-// CHECK-NEXT:      func.return %7, %8 : i32, i32
+// CHECK-NEXT:      %0 = arith.constant 0 : i32
+// CHECK-NEXT:      %1 = arith.constant 1 : i32
+// CHECK-NEXT:      func.return %0, %1 : i32, i32
 // CHECK-NEXT:    }
 
 /// Check that operations are not eliminated if they have different result
@@ -74,10 +74,10 @@ func.func @different_ops() -> (i32, i32) {
     %19 = "memref.cast"(%arg0_1) : (memref<*xf32>) -> memref<4x?xf32>
     func.return %18, %19 : memref<?x?xf32>, memref<4x?xf32>
   }
-// CHECK:         func.func @different_results(%arg0_1 : memref<*xf32>) -> (memref<?x?xf32>, memref<4x?xf32>) {
-// CHECK-NEXT:      %9 = "memref.cast"(%arg0_1) : (memref<*xf32>) -> memref<?x?xf32>
-// CHECK-NEXT:      %10 = "memref.cast"(%arg0_1) : (memref<*xf32>) -> memref<4x?xf32>
-// CHECK-NEXT:      func.return %9, %10 : memref<?x?xf32>, memref<4x?xf32>
+// CHECK:         func.func @different_results(%arg0 : memref<*xf32>) -> (memref<?x?xf32>, memref<4x?xf32>) {
+// CHECK-NEXT:      %0 = "memref.cast"(%arg0) : (memref<*xf32>) -> memref<?x?xf32>
+// CHECK-NEXT:      %1 = "memref.cast"(%arg0) : (memref<*xf32>) -> memref<4x?xf32>
+// CHECK-NEXT:      func.return %0, %1 : memref<?x?xf32>, memref<4x?xf32>
 // CHECK-NEXT:    }
 
 /// Check that operations are not eliminated if they have different attributes.
@@ -89,11 +89,11 @@ func.func @different_ops() -> (i32, i32) {
     func.return %20, %21, %22 : i1, i1, i1
   }
 
-// CHECK:         func.func @different_attributes(%arg0_2 : index, %arg1_1 : index) -> (i1, i1, i1) {
-// CHECK-NEXT:      %11 = arith.cmpi slt, %arg0_2, %arg1_1 : index
-// CHECK-NEXT:      %12 = arith.cmpi ne, %arg0_2, %arg1_1 : index
-// CHECK-NEXT:      %13 = arith.cmpi ne, %arg0_2, %arg1_1 : index
-// CHECK-NEXT:      func.return %11, %12, %13 : i1, i1, i1
+// CHECK:         func.func @different_attributes(%arg0 : index, %arg1 : index) -> (i1, i1, i1) {
+// CHECK-NEXT:      %0 = arith.cmpi slt, %arg0, %arg1 : index
+// CHECK-NEXT:      %1 = arith.cmpi ne, %arg0, %arg1 : index
+// CHECK-NEXT:      %2 = arith.cmpi ne, %arg0, %arg1 : index
+// CHECK-NEXT:      func.return %0, %1, %2 : i1, i1, i1
 // CHECK-NEXT:    }
 
 /// Check that operations with side effects are not eliminated.
@@ -104,9 +104,9 @@ func.func @different_ops() -> (i32, i32) {
     func.return %23, %24 : memref<2x1xf32>, memref<2x1xf32>
   }
 // CHECK:         func.func @side_effect() -> (memref<2x1xf32>, memref<2x1xf32>) {
-// CHECK-NEXT:      %14 = memref.alloc() : memref<2x1xf32>
-// CHECK-NEXT:      %15 = memref.alloc() : memref<2x1xf32>
-// CHECK-NEXT:      func.return %14, %15 : memref<2x1xf32>, memref<2x1xf32>
+// CHECK-NEXT:      %0 = memref.alloc() : memref<2x1xf32>
+// CHECK-NEXT:      %1 = memref.alloc() : memref<2x1xf32>
+// CHECK-NEXT:      func.return %0, %1 : memref<2x1xf32>, memref<2x1xf32>
 // CHECK-NEXT:    }
 
 /// Check that operation definitions are properly propagated down the dominance
@@ -124,10 +124,10 @@ func.func @different_ops() -> (i32, i32) {
   }
 
 // CHECK:         func.func @down_propagate_for() {
-// CHECK-NEXT:      %16 = arith.constant 1 : i32
+// CHECK-NEXT:      %0 = arith.constant 1 : i32
 // CHECK-NEXT:      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "operandSegmentSizes" = array<i32: 0, 0, 0>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (4)>}> ({
-// CHECK-NEXT:      ^0(%arg0_3 : index):
-// CHECK-NEXT:        "foo"(%16, %16) : (i32, i32) -> ()
+// CHECK-NEXT:      ^0(%arg0 : index):
+// CHECK-NEXT:        "foo"(%0, %0) : (i32, i32) -> ()
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
@@ -152,14 +152,14 @@ func.func @down_propagate() -> i32 {
   }
 
 // CHECK:         func.func @down_propagate() -> i32 {
-// CHECK-NEXT:      %17 = arith.constant 1 : i32
-// CHECK-NEXT:      %18 = arith.constant true
-// CHECK-NEXT:      "cf.cond_br"(%18, %17) [^1, ^2] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
-// CHECK-NEXT:    ^1:
-// CHECK-NEXT:      %19 = arith.constant 1 : i32
-// CHECK-NEXT:      "cf.br"(%19) [^2] : (i32) -> ()
-// CHECK-NEXT:    ^2(%20 : i32):
-// CHECK-NEXT:      func.return %20 : i32
+// CHECK-NEXT:      %0 = arith.constant 1 : i32
+// CHECK-NEXT:      %1 = arith.constant true
+// CHECK-NEXT:      "cf.cond_br"(%1, %0) [^0, ^1] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+// CHECK-NEXT:    ^0:
+// CHECK-NEXT:      %2 = arith.constant 1 : i32
+// CHECK-NEXT:      "cf.br"(%2) [^1] : (i32) -> ()
+// CHECK-NEXT:    ^1(%3 : i32):
+// CHECK-NEXT:      func.return %3 : i32
 // CHECK-NEXT:    }
 
 /// Check that operation definitions are NOT propagated up the dominance tree.
@@ -177,13 +177,13 @@ func.func @down_propagate() -> i32 {
 
 // CHECK:         func.func @up_propagate_for() -> i32 {
 // CHECK-NEXT:      "affine.for"() <{"lowerBoundMap" = affine_map<() -> (0)>, "operandSegmentSizes" = array<i32: 0, 0, 0>, "step" = 1 : index, "upperBoundMap" = affine_map<() -> (4)>}> ({
-// CHECK-NEXT:      ^3(%arg0_4 : index):
-// CHECK-NEXT:        %21 = arith.constant 1 : i32
-// CHECK-NEXT:        "foo"(%21) : (i32) -> ()
+// CHECK-NEXT:      ^0(%arg0 : index):
+// CHECK-NEXT:        %0 = arith.constant 1 : i32
+// CHECK-NEXT:        "foo"(%0) : (i32) -> ()
 // CHECK-NEXT:        "affine.yield"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      %22 = arith.constant 1 : i32
-// CHECK-NEXT:      func.return %22 : i32
+// CHECK-NEXT:      %1 = arith.constant 1 : i32
+// CHECK-NEXT:      func.return %1 : i32
 // CHECK-NEXT:    }
 
 // CHECK-LABEL: func @up_propagate
@@ -201,16 +201,16 @@ func.func @up_propagate() -> i32 {
   }
 
 // CHECK:         func.func @up_propagate() -> i32 {
-// CHECK-NEXT:      %23 = arith.constant 0 : i32
-// CHECK-NEXT:      %24 = arith.constant true
-// CHECK-NEXT:      "cf.cond_br"(%24, %23) [^4, ^5] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
-// CHECK-NEXT:    ^4:
-// CHECK-NEXT:      %25 = arith.constant 1 : i32
-// CHECK-NEXT:      "cf.br"(%25) [^5] : (i32) -> ()
-// CHECK-NEXT:    ^5(%26 : i32):
-// CHECK-NEXT:      %27 = arith.constant 1 : i32
-// CHECK-NEXT:      %28 = arith.addi %26, %27 : i32
-// CHECK-NEXT:      func.return %28 : i32
+// CHECK-NEXT:      %0 = arith.constant 0 : i32
+// CHECK-NEXT:      %1 = arith.constant true
+// CHECK-NEXT:      "cf.cond_br"(%1, %0) [^0, ^1] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+// CHECK-NEXT:    ^0:
+// CHECK-NEXT:      %2 = arith.constant 1 : i32
+// CHECK-NEXT:      "cf.br"(%2) [^1] : (i32) -> ()
+// CHECK-NEXT:    ^1(%3 : i32):
+// CHECK-NEXT:      %4 = arith.constant 1 : i32
+// CHECK-NEXT:      %5 = arith.addi %3, %4 : i32
+// CHECK-NEXT:      func.return %5 : i32
 // CHECK-NEXT:    }
 
 /// The same test as above except that we are testing on a cfg embedded within
@@ -233,19 +233,19 @@ func.func @up_propagate_region() -> i32 {
   }
 
 // CHECK:         func.func @up_propagate_region() -> i32 {
-// CHECK-NEXT:      %29 = "foo.region"() ({
-// CHECK-NEXT:        %30 = arith.constant 0 : i32
-// CHECK-NEXT:        %31 = arith.constant true
-// CHECK-NEXT:        "cf.cond_br"(%31, %30) [^6, ^7] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
-// CHECK-NEXT:      ^6:
-// CHECK-NEXT:        %32 = arith.constant 1 : i32
-// CHECK-NEXT:        "cf.br"(%32) [^7] : (i32) -> ()
-// CHECK-NEXT:      ^7(%33 : i32):
-// CHECK-NEXT:        %34 = arith.constant 1 : i32
-// CHECK-NEXT:        %35 = arith.addi %33, %34 : i32
-// CHECK-NEXT:        "foo.yield"(%35) : (i32) -> ()
+// CHECK-NEXT:      %0 = "foo.region"() ({
+// CHECK-NEXT:        %1 = arith.constant 0 : i32
+// CHECK-NEXT:        %2 = arith.constant true
+// CHECK-NEXT:        "cf.cond_br"(%2, %1) [^0, ^1] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
+// CHECK-NEXT:      ^0:
+// CHECK-NEXT:        %3 = arith.constant 1 : i32
+// CHECK-NEXT:        "cf.br"(%3) [^1] : (i32) -> ()
+// CHECK-NEXT:      ^1(%4 : i32):
+// CHECK-NEXT:        %5 = arith.constant 1 : i32
+// CHECK-NEXT:        %6 = arith.addi %4, %5 : i32
+// CHECK-NEXT:        "foo.yield"(%6) : (i32) -> ()
 // CHECK-NEXT:      }) : () -> i32
-// CHECK-NEXT:      func.return %29 : i32
+// CHECK-NEXT:      func.return %0 : i32
 // CHECK-NEXT:    }
 
 /// This test checks that nested regions that are isolated from above are
@@ -265,16 +265,16 @@ func.func @nested_isolated() -> i32 {
   }
 
 // CHECK:         func.func @nested_isolated() -> i32 {
-// CHECK-NEXT:      %36 = arith.constant 1 : i32
+// CHECK-NEXT:      %0 = arith.constant 1 : i32
 // CHECK-NEXT:      func.func @nested_func() {
-// CHECK-NEXT:        %37 = arith.constant 1 : i32
-// CHECK-NEXT:        "foo.yield"(%37) : (i32) -> ()
+// CHECK-NEXT:        %1 = arith.constant 1 : i32
+// CHECK-NEXT:        "foo.yield"(%1) : (i32) -> ()
 // CHECK-NEXT:      }
 // CHECK-NEXT:      "foo.region"() ({
-// CHECK-NEXT:        %38 = arith.constant 1 : i32
-// CHECK-NEXT:        "foo.yield"(%38) : (i32) -> ()
+// CHECK-NEXT:        %1 = arith.constant 1 : i32
+// CHECK-NEXT:        "foo.yield"(%1) : (i32) -> ()
 // CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      func.return %36 : i32
+// CHECK-NEXT:      func.return %0 : i32
 // CHECK-NEXT:    }
 
 /// This test is checking that CSE gracefully handles values in graph regions
@@ -293,10 +293,10 @@ func.func @use_before_def() {
 
 // CHECK:         func.func @use_before_def() {
 // CHECK-NEXT:      "test.graph_region"() ({
-// CHECK-NEXT:        %39 = arith.addi %40, %41 : i32
-// CHECK-NEXT:        %40 = arith.constant 1 : i32
-// CHECK-NEXT:        %41 = arith.constant 1 : i32
-// CHECK-NEXT:        "foo.yield"(%39) : (i32) -> ()
+// CHECK-NEXT:        %0 = arith.addi %1, %2 : i32
+// CHECK-NEXT:        %1 = arith.constant 1 : i32
+// CHECK-NEXT:        %2 = arith.constant 1 : i32
+// CHECK-NEXT:        "foo.yield"(%0) : (i32) -> ()
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
@@ -313,10 +313,10 @@ func.func @use_before_def() {
   }
 
 // CHECK:         func.func @remove_direct_duplicated_read_op() -> i32 {
-// CHECK-NEXT:      %42 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      %43 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      %44 = arith.addi %42, %43 : i32
-// CHECK-NEXT:      func.return %44 : i32
+// CHECK-NEXT:      %0 = "test.op_with_memread"() : () -> i32
+// CHECK-NEXT:      %1 = "test.op_with_memread"() : () -> i32
+// CHECK-NEXT:      %2 = arith.addi %0, %1 : i32
+// CHECK-NEXT:      func.return %2 : i32
 // CHECK-NEXT:    }
 
 
@@ -336,15 +336,15 @@ func.func @use_before_def() {
   }
 
 // CHECK:         func.func @remove_multiple_duplicated_read_op() -> i64 {
-// CHECK-NEXT:      %45 = "test.op_with_memread"() : () -> i64
-// CHECK-NEXT:      %46 = "test.op_with_memread"() : () -> i64
-// CHECK-NEXT:      %47 = arith.addi %45, %46 : i64
-// CHECK-NEXT:      %48 = "test.op_with_memread"() : () -> i64
-// CHECK-NEXT:      %49 = arith.addi %47, %48 : i64
-// CHECK-NEXT:      %50 = "test.op_with_memread"() : () -> i64
-// CHECK-NEXT:      %51 = arith.addi %49, %50 : i64
-// CHECK-NEXT:      func.return %51 : i64
-// CHECK-NEXT:    
+// CHECK-NEXT:      %0 = "test.op_with_memread"() : () -> i64
+// CHECK-NEXT:      %1 = "test.op_with_memread"() : () -> i64
+// CHECK-NEXT:      %2 = arith.addi %0, %1 : i64
+// CHECK-NEXT:      %3 = "test.op_with_memread"() : () -> i64
+// CHECK-NEXT:      %4 = arith.addi %2, %3 : i64
+// CHECK-NEXT:      %5 = "test.op_with_memread"() : () -> i64
+// CHECK-NEXT:      %6 = arith.addi %4, %5 : i64
+// CHECK-NEXT:      func.return %6 : i64
+// CHECK-NEXT:    }
 
 /// This test is checking that CSE is not removing duplicated read op that
 /// have write op in between.
@@ -359,11 +359,11 @@ func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
   }
 
 // CHECK:         func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
-// CHECK-NEXT:      %52 = "test.op_with_memread"() : () -> i32
+// CHECK-NEXT:      %0 = "test.op_with_memread"() : () -> i32
 // CHECK-NEXT:      "test.op_with_memwrite"() : () -> ()
-// CHECK-NEXT:      %53 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      %54 = arith.addi %52, %53 : i32
-// CHECK-NEXT:      func.return %54 : i32
+// CHECK-NEXT:      %1 = "test.op_with_memread"() : () -> i32
+// CHECK-NEXT:      %2 = arith.addi %0, %1 : i32
+// CHECK-NEXT:      func.return %2 : i32
 // CHECK-NEXT:    }
 
 // Check that an operation with a single region can CSE.
@@ -379,12 +379,12 @@ func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
     func.return %65, %66 : tensor<?x?xf32>, tensor<?x?xf32>
   }
 
-// CHECK:         func.func @cse_single_block_ops(%arg0_5 : tensor<?x?xf32>, %arg1_2 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-// CHECK-NEXT:      %55 = "test.pureop"(%arg0_5, %arg1_2) ({
-// CHECK-NEXT:      ^8(%arg2 : f32):
+// CHECK:         func.func @cse_single_block_ops(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+// CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
+// CHECK-NEXT:      ^0(%arg2 : f32):
 // CHECK-NEXT:        "test.region_yield"(%arg2) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-// CHECK-NEXT:      func.return %55, %55 : tensor<?x?xf32>, tensor<?x?xf32>
+// CHECK-NEXT:      func.return %0, %0 : tensor<?x?xf32>, tensor<?x?xf32>
 // CHECK-NEXT:    }
 
 // Operations with different number of bbArgs dont CSE.
@@ -400,16 +400,16 @@ func.func @no_cse_varied_bbargs(%arg0_6 : tensor<?x?xf32>, %arg1_3 : tensor<?x?x
     func.return %67, %68 : tensor<?x?xf32>, tensor<?x?xf32>
   }
 
-// CHECK:         func.func @no_cse_varied_bbargs(%arg0_6 : tensor<?x?xf32>, %arg1_3 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-// CHECK-NEXT:      %56 = "test.pureop"(%arg0_6, %arg1_3) ({
-// CHECK-NEXT:      ^9(%arg2_1 : f32, %arg3 : f32):
+// CHECK:         func.func @no_cse_varied_bbargs(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+// CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
+// CHECK-NEXT:      ^0(%arg2 : f32, %arg3 : f32):
+// CHECK-NEXT:        "test.region_yield"(%arg2) : (f32) -> ()
+// CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
+// CHECK-NEXT:      %1 = "test.pureop"(%arg0, %arg1) ({
+// CHECK-NEXT:      ^1(%arg2_1 : f32):
 // CHECK-NEXT:        "test.region_yield"(%arg2_1) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-// CHECK-NEXT:      %57 = "test.pureop"(%arg0_6, %arg1_3) ({
-// CHECK-NEXT:      ^10(%arg2_2 : f32):
-// CHECK-NEXT:        "test.region_yield"(%arg2_2) : (f32) -> ()
-// CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-// CHECK-NEXT:      func.return %56, %57 : tensor<?x?xf32>, tensor<?x?xf32>
+// CHECK-NEXT:      func.return %0, %1 : tensor<?x?xf32>, tensor<?x?xf32>
 // CHECK-NEXT:    }
 
 // Operations with different regions dont CSE
@@ -424,16 +424,16 @@ func.func @no_cse_region_difference_simple(%arg0_7 : tensor<?x?xf32>, %arg1_4 : 
     }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
     func.return %69, %70 : tensor<?x?xf32>, tensor<?x?xf32>
   }
-// CHECK:         func.func @no_cse_region_difference_simple(%arg0_7 : tensor<?x?xf32>, %arg1_4 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-// CHECK-NEXT:      %58 = "test.pureop"(%arg0_7, %arg1_4) ({
-// CHECK-NEXT:      ^11(%arg2_3 : f32, %arg3_1 : f32):
-// CHECK-NEXT:        "test.region_yield"(%arg2_3) : (f32) -> ()
+// CHECK:         func.func @no_cse_region_difference_simple(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+// CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
+// CHECK-NEXT:      ^0(%arg2 : f32, %arg3 : f32):
+// CHECK-NEXT:        "test.region_yield"(%arg2) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-// CHECK-NEXT:      %59 = "test.pureop"(%arg0_7, %arg1_4) ({
-// CHECK-NEXT:      ^12(%arg2_4 : f32, %arg3_2 : f32):
-// CHECK-NEXT:        "test.region_yield"(%arg3_2) : (f32) -> ()
+// CHECK-NEXT:      %1 = "test.pureop"(%arg0, %arg1) ({
+// CHECK-NEXT:      ^1(%arg2_1 : f32, %arg3_1 : f32):
+// CHECK-NEXT:        "test.region_yield"(%arg3_1) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-// CHECK-NEXT:      func.return %58, %59 : tensor<?x?xf32>, tensor<?x?xf32>
+// CHECK-NEXT:      func.return %0, %1 : tensor<?x?xf32>, tensor<?x?xf32>
 // CHECK-NEXT:    }
 
 // Operation with identical region with multiple statements CSE.
@@ -455,15 +455,15 @@ func.func @cse_single_block_ops_identical_bodies(%arg0_8 : tensor<?x?xf32>, %arg
     func.return %71, %75 : tensor<?x?xf32>, tensor<?x?xf32>
 }
 
-// CHECK:         func.func @cse_single_block_ops_identical_bodies(%arg0_8 : tensor<?x?xf32>, %arg1_5 : tensor<?x?xf32>, %arg2_5 : f32, %arg3_3 : i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-// CHECK-NEXT:      %60 = "test.pureop"(%arg0_8, %arg1_5) ({
-// CHECK-NEXT:      ^13(%arg4 : f32, %arg5 : f32):
-// CHECK-NEXT:        %61 = arith.divf %arg4, %arg5 : f32
-// CHECK-NEXT:        %62 = "arith.remf"(%arg4, %arg2_5) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
-// CHECK-NEXT:        %63 = arith.select %arg3_3, %61, %62 : f32
-// CHECK-NEXT:        "test.region_yield"(%63) : (f32) -> ()
+// CHECK:         func.func @cse_single_block_ops_identical_bodies(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>, %arg2 : f32, %arg3 : i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+// CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
+// CHECK-NEXT:      ^0(%arg4 : f32, %arg5 : f32):
+// CHECK-NEXT:        %1 = arith.divf %arg4, %arg5 : f32
+// CHECK-NEXT:        %2 = "arith.remf"(%arg4, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+// CHECK-NEXT:        %3 = arith.select %arg3, %1, %2 : f32
+// CHECK-NEXT:        "test.region_yield"(%3) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-// CHECK-NEXT:      func.return %60, %60 : tensor<?x?xf32>, tensor<?x?xf32>
+// CHECK-NEXT:      func.return %0, %0 : tensor<?x?xf32>, tensor<?x?xf32>
 // CHECK-NEXT:    }
 
 // Operation with non-identical regions dont CSE.
@@ -485,22 +485,22 @@ func.func @no_cse_single_block_ops_different_bodies(%arg0_9 : tensor<?x?xf32>, %
     func.return %79, %83 : tensor<?x?xf32>, tensor<?x?xf32>
   }
 
-// CHECK:         func.func @no_cse_single_block_ops_different_bodies(%arg0_9 : tensor<?x?xf32>, %arg1_6 : tensor<?x?xf32>, %arg2_6 : f32, %arg3_4 : i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
-// CHECK-NEXT:      %64 = "test.pureop"(%arg0_9, %arg1_6) ({
-// CHECK-NEXT:      ^14(%arg4_1 : f32, %arg5_1 : f32):
-// CHECK-NEXT:        %65 = arith.divf %arg4_1, %arg5_1 : f32
-// CHECK-NEXT:        %66 = "arith.remf"(%arg4_1, %arg2_6) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
-// CHECK-NEXT:        %67 = arith.select %arg3_4, %65, %66 : f32
-// CHECK-NEXT:        "test.region_yield"(%67) : (f32) -> ()
+// CHECK:         func.func @no_cse_single_block_ops_different_bodies(%arg0 : tensor<?x?xf32>, %arg1 : tensor<?x?xf32>, %arg2 : f32, %arg3 : i1) -> (tensor<?x?xf32>, tensor<?x?xf32>) {
+// CHECK-NEXT:      %0 = "test.pureop"(%arg0, %arg1) ({
+// CHECK-NEXT:      ^0(%arg4 : f32, %arg5 : f32):
+// CHECK-NEXT:        %1 = arith.divf %arg4, %arg5 : f32
+// CHECK-NEXT:        %2 = "arith.remf"(%arg4, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+// CHECK-NEXT:        %3 = arith.select %arg3, %1, %2 : f32
+// CHECK-NEXT:        "test.region_yield"(%3) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-// CHECK-NEXT:      %68 = "test.pureop"(%arg0_9, %arg1_6) ({
-// CHECK-NEXT:      ^15(%arg4_2 : f32, %arg5_2 : f32):
-// CHECK-NEXT:        %69 = arith.divf %arg4_2, %arg5_2 : f32
-// CHECK-NEXT:        %70 = "arith.remf"(%arg4_2, %arg2_6) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
-// CHECK-NEXT:        %71 = arith.select %arg3_4, %70, %69 : f32
-// CHECK-NEXT:        "test.region_yield"(%71) : (f32) -> ()
+// CHECK-NEXT:      %4 = "test.pureop"(%arg0, %arg1) ({
+// CHECK-NEXT:      ^1(%arg4_1 : f32, %arg5_1 : f32):
+// CHECK-NEXT:        %5 = arith.divf %arg4_1, %arg5_1 : f32
+// CHECK-NEXT:        %6 = "arith.remf"(%arg4_1, %arg2) <{"fastmath" = #arith.fastmath<none>}> : (f32, f32) -> f32
+// CHECK-NEXT:        %7 = arith.select %arg3, %6, %5 : f32
+// CHECK-NEXT:        "test.region_yield"(%7) : (f32) -> ()
 // CHECK-NEXT:      }) : (tensor<?x?xf32>, tensor<?x?xf32>) -> tensor<?x?xf32>
-// CHECK-NEXT:      func.return %64, %68 : tensor<?x?xf32>, tensor<?x?xf32>
+// CHECK-NEXT:      func.return %0, %4 : tensor<?x?xf32>, tensor<?x?xf32>
 // CHECK-NEXT:    }
 
 func.func @failing_issue_59135(%arg0_10 : tensor<2x2xi1>, %arg1_7 : f32, %arg2_8 : tensor<2xi1>) -> (tensor<2xi1>, tensor<2xi1>) {
@@ -520,15 +520,15 @@ func.func @failing_issue_59135(%arg0_10 : tensor<2x2xi1>, %arg1_7 : f32, %arg2_8
     func.return %89, %91 : tensor<2xi1>, tensor<2xi1>
   }
 
-// CHECK-NEXT:    func.func @failing_issue_59135(%arg0_10 : tensor<2x2xi1>, %arg1_7 : f32, %arg2_7 : tensor<2xi1>) -> (tensor<2xi1>, tensor<2xi1>) {
-// CHECK-NEXT:      %72 = arith.constant false
-// CHECK-NEXT:      %73 = arith.constant true
-// CHECK-NEXT:      %74 = "test.pureop"(%arg2_7) ({
-// CHECK-NEXT:      ^16(%arg3_5 : i1):
-// CHECK-NEXT:        "test.region_yield"(%73) : (i1) -> ()
+// CHECK:         func.func @failing_issue_59135(%arg0 : tensor<2x2xi1>, %arg1 : f32, %arg2 : tensor<2xi1>) -> (tensor<2xi1>, tensor<2xi1>) {
+// CHECK-NEXT:      %0 = arith.constant false
+// CHECK-NEXT:      %1 = arith.constant true
+// CHECK-NEXT:      %2 = "test.pureop"(%arg2) ({
+// CHECK-NEXT:      ^0(%arg3 : i1):
+// CHECK-NEXT:        "test.region_yield"(%1) : (i1) -> ()
 // CHECK-NEXT:      }) : (tensor<2xi1>) -> tensor<2xi1>
-// CHECK-NEXT:      %75 = arith.maxsi %72, %73 : i1
-// CHECK-NEXT:      func.return %74, %74 : tensor<2xi1>, tensor<2xi1>
+// CHECK-NEXT:      %3 = arith.maxsi %0, %1 : i1
+// CHECK-NEXT:      func.return %2, %2 : tensor<2xi1>, tensor<2xi1>
 // CHECK-NEXT:    }
 
 func.func @cse_multiple_regions(%arg0_11 : i1, %arg1_8 : tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
@@ -547,14 +547,14 @@ func.func @cse_multiple_regions(%arg0_11 : i1, %arg1_8 : tensor<5xf32>) -> (tens
     func.return %94, %96 : tensor<5xf32>, tensor<5xf32>
   }
 
-// CHECK:         func.func @cse_multiple_regions(%arg0_11 : i1, %arg1_8 : tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
-// CHECK-NEXT:      %76 = "test.pureop"(%arg0_11) ({
-// CHECK-NEXT:        %77 = tensor.empty() : tensor<5xf32>
-// CHECK-NEXT:        "test.termop"(%77) : (tensor<5xf32>) -> ()
+// CHECK:         func.func @cse_multiple_regions(%arg0 : i1, %arg1 : tensor<5xf32>) -> (tensor<5xf32>, tensor<5xf32>) {
+// CHECK-NEXT:      %0 = "test.pureop"(%arg0) ({
+// CHECK-NEXT:        %1 = tensor.empty() : tensor<5xf32>
+// CHECK-NEXT:        "test.termop"(%1) : (tensor<5xf32>) -> ()
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:        "test.termop"(%arg1_8) : (tensor<5xf32>) -> ()
+// CHECK-NEXT:        "test.termop"(%arg1) : (tensor<5xf32>) -> ()
 // CHECK-NEXT:      }) : (i1) -> tensor<5xf32>
-// CHECK-NEXT:      func.return %76, %76 : tensor<5xf32>, tensor<5xf32>
+// CHECK-NEXT:      func.return %0, %0 : tensor<5xf32>, tensor<5xf32>
 // CHECK-NEXT:    }
 
 // xDSL doesn't have the notion of sideffects.
@@ -573,17 +573,17 @@ func.func @cse_multiple_regions(%arg0_11 : i1, %arg1_8 : tensor<5xf32>) -> (tens
   }
 
 // CHECK:         func.func @cse_recursive_effects_success() -> (i32, i32, i32) {
-// CHECK-NEXT:      %78 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      %79 = arith.constant true
-// CHECK-NEXT:      %80 = "scf.if"(%79) ({
-// CHECK-NEXT:        %81 = arith.constant 42 : i32
-// CHECK-NEXT:        scf.yield %81 : i32
+// CHECK-NEXT:      %0 = "test.op_with_memread"() : () -> i32
+// CHECK-NEXT:      %1 = arith.constant true
+// CHECK-NEXT:      %2 = "scf.if"(%1) ({
+// CHECK-NEXT:        %3 = arith.constant 42 : i32
+// CHECK-NEXT:        scf.yield %3 : i32
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:        %82 = arith.constant 24 : i32
-// CHECK-NEXT:        scf.yield %82 : i32
+// CHECK-NEXT:        %4 = arith.constant 24 : i32
+// CHECK-NEXT:        scf.yield %4 : i32
 // CHECK-NEXT:      }) : (i1) -> i32
-// CHECK-NEXT:      %83 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      func.return %78, %83, %80 : i32, i32, i32
+// CHECK-NEXT:      %5 = "test.op_with_memread"() : () -> i32
+// CHECK-NEXT:      func.return %0, %5, %2 : i32, i32, i32
 // CHECK-NEXT:    }
 
 // xDSL doesn't have the notion of sideffects.
@@ -603,16 +603,16 @@ func.func @cse_recursive_effects_failure() -> (i32, i32, i32) {
   }
 
 // CHECK:         func.func @cse_recursive_effects_failure() -> (i32, i32, i32) {
-// CHECK-NEXT:      %84 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      %85 = arith.constant true
-// CHECK-NEXT:      %86 = "scf.if"(%85) ({
+// CHECK-NEXT:      %0 = "test.op_with_memread"() : () -> i32
+// CHECK-NEXT:      %1 = arith.constant true
+// CHECK-NEXT:      %2 = "scf.if"(%1) ({
 // CHECK-NEXT:        "test.op_with_memwrite"() : () -> ()
-// CHECK-NEXT:        %87 = arith.constant 42 : i32
-// CHECK-NEXT:        scf.yield %87 : i32
+// CHECK-NEXT:        %3 = arith.constant 42 : i32
+// CHECK-NEXT:        scf.yield %3 : i32
 // CHECK-NEXT:      }, {
-// CHECK-NEXT:        %88 = arith.constant 24 : i32
-// CHECK-NEXT:        scf.yield %88 : i32
+// CHECK-NEXT:        %4 = arith.constant 24 : i32
+// CHECK-NEXT:        scf.yield %4 : i32
 // CHECK-NEXT:      }) : (i1) -> i32
-// CHECK-NEXT:      %89 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      func.return %84, %89, %86 : i32, i32, i32
+// CHECK-NEXT:      %5 = "test.op_with_memread"() : () -> i32
+// CHECK-NEXT:      func.return %0, %5, %2 : i32, i32, i32
 // CHECK-NEXT:    }
