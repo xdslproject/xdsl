@@ -133,7 +133,7 @@ class CSEDriver:
 
             # Just replace results
             def wasVisited(use: Use):
-                return self.known_ops.get(use.operation) is None
+                return use.operation not in self.known_ops
 
             for o, n in zip(op.results, existing.results, strict=True):
                 if all(wasVisited(u) for u in o.uses):
