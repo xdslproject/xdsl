@@ -49,6 +49,8 @@ from xdsl.dialects.arith import (
 from xdsl.dialects.builtin import (
     AnyTensorType,
     AnyVectorType,
+    Float16Type,
+    Float32Type,
     FloatAttr,
     IndexType,
     IntegerType,
@@ -368,3 +370,17 @@ def test_extui_incorrect_bitwidth():
     # bitwidth of b has to be larger than the one of a
     with pytest.raises(VerifyException):
         _extui_op = ExtUIOp(a, i32).verify()
+
+
+def test_op():
+    one = Constant(FloatAttr(1.0, Float16Type()))
+    two = Constant(FloatAttr(2.0, Float32Type()))
+    addf = Addf(one, two)
+    assert isa(addf, BinaryOperation[Attribute])
+    # it'd be great if the following would pass
+    assert not isa(addf, BinaryOperation[Float16Type | Float32Type])
+    assert isa(addf, BinaryOperation)
+    assert isa(addf, FloatingPointLikeBinaryOp)
+    assert not isa(
+        addf, BinaryOperation[int]  # pyright: ignore [reportGeneralTypeIssues]
+    )

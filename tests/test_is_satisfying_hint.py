@@ -1,24 +1,25 @@
-from typing import Any, Generic, Literal, TypeAlias, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeAlias, TypeVar
 
-from xdsl.dialects.arith import (
-    Addf,
-    BinaryOperation,
-    Constant,
-    FloatingPointLikeBinaryOp,
-)
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
+    Float16Type,
     Float32Type,
-    FloatAttr,
     FloatData,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
 )
-from xdsl.ir import Attribute, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_attr_definition
+from xdsl.ir import Attribute, OpResult, ParametrizedAttribute
+from xdsl.irdl import (
+    ConstraintVar,
+    IRDLOperation,
+    ParameterDef,
+    irdl_attr_definition,
+    irdl_op_definition,
+    result_def,
+)
 from xdsl.utils.hints import isa
 
 
@@ -410,15 +411,33 @@ def test_literal():
 ################################################################################
 
 
+class BaseOp(Generic[_T], IRDLOperation):
+    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    result: OpResult = result_def(T)
+
+    def __init__(self):
+        # hard-coding any random type to instantiate the object
+        super().__init__(operands=[], result_types=[Float32Type()])
+
+
+class SubOp(Generic[_T], BaseOp[_T]):
+    def __init__(self):
+        super().__init__()
+
+
+SubOpAlias = SubOp[Annotated[Attribute, Float16Type]]
+
+
+@irdl_op_definition
+class TestOp(SubOpAlias):
+    name = "test_op"
+
+
 def test_op():
-    one = Constant(FloatAttr(1.0, Float32Type()))
-    two = Constant(FloatAttr(2.0, Float32Type()))
-    addf = Addf(one, two)
-    assert isa(addf, BinaryOperation[Attribute])
-    assert isa(addf, BinaryOperation)
-    # assert isa(addf, BinaryOperation[Float32Type])
-    # assert not isa(addf, BinaryOperation[Float16Type])
-    assert isa(addf, FloatingPointLikeBinaryOp)
-    assert not isa(
-        addf, BinaryOperation[int]  # pyright: ignore [reportGeneralTypeIssues]
-    )
+    op = TestOp()
+    assert isa(op, BaseOp[Attribute])
+    assert isa(op, SubOp[Attribute])
+    assert isa(op, SubOpAlias)
+    assert isa(op, TestOp)
+
+    assert not isa(op, BaseOp[int])  # pyright: ignore [reportGeneralTypeIssues]
