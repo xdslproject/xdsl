@@ -92,8 +92,7 @@ func.func @different_ops() -> (i32, i32) {
 // CHECK:         func.func @different_attributes(%arg0_2 : index, %arg1_1 : index) -> (i1, i1, i1) {
 // CHECK-NEXT:      %11 = arith.cmpi slt, %arg0_2, %arg1_1 : index
 // CHECK-NEXT:      %12 = arith.cmpi ne, %arg0_2, %arg1_1 : index
-// CHECK-NEXT:      %13 = arith.cmpi ne, %arg0_2, %arg1_1 : index
-// CHECK-NEXT:      func.return %11, %12, %13 : i1, i1, i1
+// CHECK-NEXT:      func.return %11, %12, %12 : i1, i1, i1
 // CHECK-NEXT:    }
 
 /// Check that operations with side effects are not eliminated.
@@ -104,9 +103,9 @@ func.func @different_ops() -> (i32, i32) {
     func.return %23, %24 : memref<2x1xf32>, memref<2x1xf32>
   }
 // CHECK:         func.func @side_effect() -> (memref<2x1xf32>, memref<2x1xf32>) {
+// CHECK-NEXT:      %13 = memref.alloc() : memref<2x1xf32>
 // CHECK-NEXT:      %14 = memref.alloc() : memref<2x1xf32>
-// CHECK-NEXT:      %15 = memref.alloc() : memref<2x1xf32>
-// CHECK-NEXT:      func.return %14, %15 : memref<2x1xf32>, memref<2x1xf32>
+// CHECK-NEXT:      func.return %13, %14 : memref<2x1xf32>, memref<2x1xf32>
 // CHECK-NEXT:    }
 
 /// Check that operation definitions are properly propagated down the dominance
