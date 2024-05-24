@@ -616,3 +616,36 @@ func.func @cse_recursive_effects_failure() -> (i32, i32, i32) {
 // CHECK-NEXT:      %89 = "test.op_with_memread"() : () -> i32
 // CHECK-NEXT:      func.return %84, %89, %86 : i32, i32, i32
 // CHECK-NEXT:    }
+
+// Check that no CSE happens on a recursively side-effecting ops containing side-effects.
+func.func @no_cse_multiple_regions_side_effect(%arg0_12 : i1, %arg1_9 : memref<5xf32>) -> (memref<5xf32>, memref<5xf32>) {
+    %90 = "scf.if"(%arg0_12) ({
+      %91 = memref.alloc() : memref<5xf32>
+      scf.yield %91 : memref<5xf32>
+    }, {
+      scf.yield %arg1_9 : memref<5xf32>
+    }) : (i1) -> memref<5xf32>
+    %92 = "scf.if"(%arg0_12) ({
+      %93 = memref.alloc() : memref<5xf32>
+      scf.yield %93 : memref<5xf32>
+    }, {
+      scf.yield %arg1_9 : memref<5xf32>
+    }) : (i1) -> memref<5xf32>
+    func.return %90, %92 : memref<5xf32>, memref<5xf32>
+}
+
+// CHECK:          func.func @no_cse_multiple_regions_side_effect(%arg0_12 : i1, %arg1_9 : memref<5xf32>) -> (memref<5xf32>, memref<5xf32>) {
+// CHECK-NEXT:       %90 = "scf.if"(%arg0_12) ({
+// CHECK-NEXT:         %91 = memref.alloc() : memref<5xf32>
+// CHECK-NEXT:         scf.yield %91 : memref<5xf32>
+// CHECK-NEXT:       }, {
+// CHECK-NEXT:         scf.yield %arg1_9 : memref<5xf32>
+// CHECK-NEXT:       }) : (i1) -> memref<5xf32>
+// CHECK-NEXT:       %92 = "scf.if"(%arg0_12) ({
+// CHECK-NEXT:         %93 = memref.alloc() : memref<5xf32>
+// CHECK-NEXT:         scf.yield %93 : memref<5xf32>
+// CHECK-NEXT:       }, {
+// CHECK-NEXT:         scf.yield %arg1_9 : memref<5xf32>
+// CHECK-NEXT:       }) : (i1) -> memref<5xf32>
+// CHECK-NEXT:       func.return %90, %92 : memref<5xf32>, memref<5xf32>
+// CHECK-NEXT:     }
