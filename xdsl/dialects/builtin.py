@@ -1046,15 +1046,15 @@ class DenseResourceAttr(ParametrizedAttribute):
 class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | AnyFloat]
+    elt_type: ParameterDef[IntegerType | IndexType | AnyFloat]
     data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
 
     def verify(self):
-        if isinstance(self.elt_type, IntegerType):
+        if isinstance(self.elt_type, IntegerType | IndexType):
             for d in self.data.data:
                 if isinstance(d, FloatData):
                     raise VerifyException(
-                        "dense array of integer element type "
+                        "dense array of integer or index element type "
                         "should only contain integers"
                     )
         else:
