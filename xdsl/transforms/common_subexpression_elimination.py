@@ -91,17 +91,29 @@ class KnownOps:
         return self._known_ops.pop(OperationInfo(k))
 
 
-@dataclass
 class CSEDriver:
     """
     Boilerplate class to handle and carry the state for CSE.
     """
 
-    rewriter: Rewriter
-    to_erase: set[Operation] = field(default_factory=set)
-    known_ops: KnownOps = KnownOps()
+    _rewriter: Rewriter
+    _to_erase: set[Operation] = field(default_factory=set)
+    _known_ops: KnownOps = KnownOps()
 
-    def simplify_operation(self, op: Operation):
+    def __init__(self):
+        self._rewriter = Rewriter()
+        self._to_erase = set()
+        self._known_ops = KnownOps()
+
+    def _mark_erasure(self, op: Operation):
+        self._to_erase.add(op)
+
+    def _commit_erasures(self):
+        for o in self._to_erase:
+            if o.parent is not None:
+                self._rewriter.erase_op(o)
+
+    def _simplify_operation(self, op: Operation):
         """
         Simplify a single operation: replace it by a corresponding known operation in
         scope, if any.
@@ -113,7 +125,7 @@ class CSEDriver:
 
         # If the operation is already trivially dead just add it to the erase list.
         if is_trivially_dead(op):
-            self.to_erase.add(op)
+            self._mark_erasure(op)
             return
 
         # Don't simplify operations with regions that have multiple blocks.
@@ -129,11 +141,11 @@ class CSEDriver:
             return
 
         # This operation rings a bell!
-        if existing := self.known_ops.get(op):
+        if existing := self._known_ops.get(op):
 
             # Just replace results
             def wasVisited(use: Use):
-                return use.operation not in self.known_ops
+                return use.operation not in self._known_ops
 
             for o, n in zip(op.results, existing.results, strict=True):
                 if all(wasVisited(u) for u in o.uses):
@@ -141,14 +153,14 @@ class CSEDriver:
 
             # If no uses remain, we can mark this operation for erasure
             if all(not r.uses for r in op.results):
-                self.to_erase.add(op)
+                self._mark_erasure(op)
 
             return
 
         # First time seeing this one, noting it down!
-        self.known_ops[op] = op
+        self._known_ops[op] = op
 
-    def simplify_block(self, block: Block):
+    def _simplify_block(self, block: Block):
         for op in block.ops:
 
             if op.regions:
@@ -159,39 +171,48 @@ class CSEDriver:
                 if might_be_isolated:
                     # Then save the current scope for later, but continue inside with a
                     # blank slate
-                    old_scope = self.known_ops
-                    self.known_ops = KnownOps()
+                    old_scope = self._known_ops
+                    self._known_ops = KnownOps()
                     for region in op.regions:
-                        self.simplify_region(region)
-                    self.known_ops = old_scope
+                        self._simplify_region(region)
+                    self._known_ops = old_scope
                 else:
                     for region in op.regions:
-                        self.simplify_region(region)
+                        self._simplify_region(region)
 
-            self.simplify_operation(op)
+            self._simplify_operation(op)
 
-    def simplify_region(self, region: Region):
+    def _simplify_region(self, region: Region):
         if not region.blocks:
             return
 
         if len(region.blocks) == 1:
 
-            old_scope = self.known_ops
-            self.known_ops = KnownOps(self.known_ops)
+            old_scope = self._known_ops
+            self._known_ops = KnownOps(self._known_ops)
 
-            self.simplify_block(region.block)
+            self._simplify_block(region.block)
 
-            self.known_ops = old_scope
+            self._known_ops = old_scope
+
+    def simplify(self, thing: Operation | Block | Region):
+        match thing:
+            case Operation():
+                for region in thing.regions:
+                    self._simplify_region(region)
+            case Block():
+                self._simplify_block(thing)
+            case Region():
+                self._simplify_region(thing)
+        self._commit_erasures()
+
+
+def cse(thing: Operation | Block | Region):
+    CSEDriver().simplify(thing)
 
 
 class CommonSubexpressionElimination(ModulePass):
     name = "cse"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        rewriter = Rewriter()
-        driver = CSEDriver(rewriter)
-        for region in op.regions:
-            driver.simplify_region(region)
-        for o in driver.to_erase:
-            if o.parent is not None:
-                rewriter.erase_op(o)
+        cse(op)
