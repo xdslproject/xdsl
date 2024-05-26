@@ -4,7 +4,15 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp, f64, i1
+from xdsl.dialects.builtin import (
+    DenseIntOrFPElementsAttr,
+    IntegerAttr,
+    ModuleOp,
+    TensorType,
+    f64,
+    i1,
+    i32,
+)
 from xdsl.interpreter import Interpreter, PythonValues
 from xdsl.interpreters.ptr import RawPtr, TypedPtr
 from xdsl.interpreters.riscv import RiscvFunctions
@@ -356,3 +364,19 @@ def test_register_contents():
 
     assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
     assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.T0), ()) == (1,)
+
+
+def test_values():
+    module_op = ModuleOp([])
+
+    riscv_functions = RiscvFunctions()
+    interpreter = Interpreter(module_op)
+    interpreter.register_implementations(riscv_functions)
+    assert interpreter.value_for_attribute(IntegerAttr(1, i32), riscv.Registers.A0) == 1
+
+    assert interpreter.value_for_attribute(
+        DenseIntOrFPElementsAttr.create_dense_int(
+            TensorType(i32, [2, 3]), list(range(6))
+        ),
+        riscv.Registers.A0,
+    ) == TypedPtr.new_int32(list(range(6)))
