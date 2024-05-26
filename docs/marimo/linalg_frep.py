@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.4.11"
+__generated_with = "0.6.4"
 app = marimo.App()
 
 
@@ -34,18 +34,20 @@ def __():
 
 @app.cell
 def __(mo):
-    mo.md("""
-    # Using xDSL to Lower Matrix Multiplication from `linalg` to Snitch
+    mo.md(
+        """
+        # Using xDSL to Lower Matrix Multiplication from `linalg` to Snitch
 
-    This notebook is a detailed guide through the steps involved in lowering a high-level definition of matrix multiplication to Snitch.
+        This notebook is a detailed guide through the steps involved in lowering a high-level definition of matrix multiplication to Snitch.
 
-    The current state of the lowering is unfinished, as some parts still need to be implemented.
-    The source and target, however, are well defined, so we effectively have three parts:
+        The current state of the lowering is unfinished, as some parts still need to be implemented.
+        The source and target, however, are well defined, so we effectively have three parts:
 
-    1. Top-down, going from the linalg definition to the closest abstraction we have to Snitch
-    2. fantasy IR that we'd like to be able to reach in the middle
-    3. Bottom-up, the highest-level IR that we can write by hand that we know lowers to optimal code for our semantics
-    """)
+        1. Top-down, going from the linalg definition to the closest abstraction we have to Snitch
+        2. fantasy IR that we'd like to be able to reach in the middle
+        3. Bottom-up, the highest-level IR that we can write by hand that we know lowers to optimal code for our semantics
+        """
+    )
     return
 
 
@@ -184,11 +186,13 @@ def __(apply, ctx, mo, streamified_m):
 
 @app.cell
 def __(mo):
-    mo.md("""
-    ## Fantasy Land
+    mo.md(
+        """
+        ## Fantasy Land
 
-    The next few steps are not fully implemented
-    """)
+        The next few steps are not fully implemented
+        """
+    )
     return
 
 
@@ -372,11 +376,13 @@ def __(
 
 @app.cell
 def __(mo):
-    mo.md("""
-    ## Bottom-up
+    mo.md(
+        """
+        ## Bottom-up
 
-    The next steps are fully functional, meaning that we are confident that the assembly generated when lowering from a starting IR yields the assembly we have tested to be optimal on our target platform.
-    """)
+        The next steps are fully functional, meaning that we are confident that the assembly generated when lowering from a starting IR yields the assembly we have tested to be optimal on our target platform.
+        """
+    )
     return
 
 
