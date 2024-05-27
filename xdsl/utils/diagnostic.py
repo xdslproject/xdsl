@@ -16,14 +16,9 @@ class Diagnostic:
         """Add a message to an operation."""
         self.op_messages.setdefault(op, []).append(message)
 
-    def raise_exception(
-        self,
-        message: str,
-        ir: IRNode,
-        exception_type: type[Exception] = DiagnosticException,
-        underlying_error: Exception | None = None,
-    ) -> NoReturn:
-        """Raise an exception, that will also print all messages in the IR."""
+    def get_output(self, ir: IRNode) -> str:
+        """Get all messages in the IR."""
+
         from xdsl.printer import Printer
 
         f = StringIO()
@@ -39,4 +34,17 @@ class Diagnostic:
         else:
             assert "xDSL internal error: get_toplevel_object returned unknown construct"
 
-        raise exception_type(message + "\n\n" + f.getvalue()) from underlying_error
+        return f.getvalue()
+
+    def raise_exception(
+        self,
+        message: str,
+        ir: IRNode,
+        exception_type: type[Exception] = DiagnosticException,
+        underlying_error: Exception | None = None,
+    ) -> NoReturn:
+        """Raise an exception, that will also print all messages in the IR."""
+
+        raise exception_type(
+            message + "\n\n" + self.get_output(ir)
+        ) from underlying_error
