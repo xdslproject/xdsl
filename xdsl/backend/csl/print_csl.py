@@ -72,7 +72,7 @@ class CslPrintContext:
             if len(ftyp.outputs) == 0
             else self.mlir_type_to_csl_type(ftyp.outputs.data[0])
         )
-        self.print(f"{introducer} {name.data}({args}) {ret} {{")
+        self.print(f"\n{introducer} {name.data}({args}) {ret} {{")
         self.descend().print_block(bdy.block)
         self.print("}")
 
