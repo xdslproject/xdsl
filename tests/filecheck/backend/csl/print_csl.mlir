@@ -48,7 +48,21 @@
     csl.return
   }
 
-  // TODO(dk949): control_task
+  csl.task @control_task() attributes {kind = #csl<task_kind control>, id = 42 : i6} {
+    csl.return
+  }
+
+  csl.task @data_task_no_bind(%arg: f32) attributes {kind = #csl<task_kind data>} {
+    csl.return
+  }
+
+  csl.task @local_task_no_bind() attributes {kind = #csl<task_kind local>} {
+    csl.return
+  }
+
+  csl.task @control_task_no_bind() attributes {kind = #csl<task_kind control>} {
+    csl.return
+  }
 
 
   "memref.global"() {"sym_name" = "uninit_array", "type" = memref<10xf32>, "sym_visibility" = "public", "initial_value"} : () -> ()
@@ -247,6 +261,25 @@ csl.func @gemv() {
 // CHECK-NEXT: }
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @bind_local_task(local_task, @get_local_task_id(1));
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: task control_task() void {
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: comptime {
+// CHECK-NEXT:   @bind_control_task(control_task, @get_control_task_id(42));
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: task data_task_no_bind(arg0 : f32) void {
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: task local_task_no_bind() void {
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: task control_task_no_bind() void {
+// CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: var uninit_array : [10]f32;
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
