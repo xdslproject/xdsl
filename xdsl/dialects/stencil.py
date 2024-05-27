@@ -62,7 +62,9 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    NoMemoryEffect,
     Pure,
+    RecursiveMemoryEffect,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -414,7 +416,11 @@ class ApplyOp(IRDLOperation):
     res: VarOpResult = var_result_def(TempType)
 
     traits = frozenset(
-        [IsolatedFromAbove(), ApplyOpHasCanonicalizationPatternsTrait(), Pure()]
+        [
+            IsolatedFromAbove(),
+            ApplyOpHasCanonicalizationPatternsTrait(),
+            RecursiveMemoryEffect(),
+        ]
     )
 
     def print(self, printer: Printer):
@@ -569,7 +575,7 @@ class CastOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
-    traits = frozenset([Pure()])
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def get(
@@ -648,7 +654,7 @@ class CombineOp(IRDLOperation):
 
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(), Pure()]
 
 
 @irdl_op_definition
@@ -694,7 +700,7 @@ class DynAccessOp(IRDLOperation):
         "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
     )
 
-    traits = frozenset([HasAncestor(ApplyOp), Pure()])
+    traits = frozenset([HasAncestor(ApplyOp), NoMemoryEffect()])
 
     def __init__(
         self,
@@ -1091,6 +1097,8 @@ class BufferOp(IRDLOperation):
 
     assembly_format = "$temp attr-dict-with-keyword `:` type($temp)"
 
+    traits = frozenset([Pure()])
+
     def __init__(self, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
@@ -1252,7 +1260,7 @@ class ReturnOp(IRDLOperation):
             return 1
         return prod(self.unroll)
 
-    traits = frozenset([HasParent(ApplyOp), IsTerminator()])
+    traits = frozenset([HasParent(ApplyOp), IsTerminator(), Pure()])
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):

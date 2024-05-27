@@ -92,8 +92,7 @@ func.func @different_ops() -> (i32, i32) {
 // CHECK:         func.func @different_attributes(%arg0 : index, %arg1 : index) -> (i1, i1, i1) {
 // CHECK-NEXT:      %0 = arith.cmpi slt, %arg0, %arg1 : index
 // CHECK-NEXT:      %1 = arith.cmpi ne, %arg0, %arg1 : index
-// CHECK-NEXT:      %2 = arith.cmpi ne, %arg0, %arg1 : index
-// CHECK-NEXT:      func.return %0, %1, %2 : i1, i1, i1
+// CHECK-NEXT:      func.return %0, %1, %1 : i1, i1, i1
 // CHECK-NEXT:    }
 
 /// Check that operations with side effects are not eliminated.
@@ -527,7 +526,6 @@ func.func @failing_issue_59135(%arg0_10 : tensor<2x2xi1>, %arg1_7 : f32, %arg2_8
 // CHECK-NEXT:      ^0(%arg3 : i1):
 // CHECK-NEXT:        "test.region_yield"(%1) : (i1) -> ()
 // CHECK-NEXT:      }) : (tensor<2xi1>) -> tensor<2xi1>
-// CHECK-NEXT:      %3 = arith.maxsi %0, %1 : i1
 // CHECK-NEXT:      func.return %2, %2 : tensor<2xi1>, tensor<2xi1>
 // CHECK-NEXT:    }
 
