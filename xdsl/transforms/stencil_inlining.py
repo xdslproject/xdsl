@@ -362,7 +362,6 @@ class StencilInliningPass(ModulePass):
                     UnusedOperands(),
                     RedundantOperands(),
                 ]
-            ),
-            walk_reverse=False,
+            )
         )
         walker.rewrite_module(op)
