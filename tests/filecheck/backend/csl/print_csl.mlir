@@ -317,9 +317,9 @@ csl.func @gemv() {
 // CHECK-NEXT:   const step : i16 = 1;
 // CHECK-NEXT:   thing.some_func(lb, ub);
 // CHECK-NEXT:   const res : i32 = thing.some_func(lb, ub);
-// CHECK-NEXT:   const v0 : comptime_struct = thing.some_field;
-// CHECK-NEXT:   const v1 : f32 = 3.14;
-// CHECK-NEXT:   const v02 : f16 = 2.718;
+// CHECK-NEXT:   const v1 : comptime_struct = thing.some_field;
+// CHECK-NEXT:   const v2 : f32 = 3.14;
+// CHECK-NEXT:   const v0 : f16 = 2.718;
 // CHECK-NEXT:   const u32cst : u32 = 44;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
@@ -350,11 +350,11 @@ csl.func @gemv() {
 // CHECK-NEXT:   const lb : i32 = 0;
 // CHECK-NEXT:   const step : i32 = 1;
 // CHECK-NEXT:   const ub : i32 = 6;
-// CHECK-NEXT:   const ub0 : i32 = 4;
+// CHECK-NEXT:   const ub1 : i32 = 4;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i32, lb, ub0, step)) |i| {
+// CHECK-NEXT:   for(@range(i32, lb, ub1, step)) |i| {
 // CHECK-NEXT:     const tmp : f32 = 0.0;
-// CHECK-NEXT:     var tmp1 : f32 = tmp;
+// CHECK-NEXT:     var tmp2 : f32 = tmp;
 // CHECK-NEXT:
 // CHECK-NEXT:     for(@range(i32, lb, ub, step)) |j| {
 // CHECK-NEXT:       //unknown op Muli(%ix6 = arith.muli %i, %ub : index)
