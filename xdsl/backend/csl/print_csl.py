@@ -323,6 +323,14 @@ class CslPrintContext:
                         export_val = name
                     with self._in_block("comptime"):
                         self.print(f"@export_symbol({export_val}, {q_name});")
+                case csl.LayoutOp(body=bdy):
+                    with self._in_block("layout"):
+                        self.print_block(bdy.block)
+                        for name, val in self._symbols_to_export.items():
+                            ty = self.attribute_value_to_str(val[0])
+                            # If specified, get mutability as true/false from python bool
+                            mut = str(val[1]).lower() if val[1] is not None else ""
+                            self.print(f'@export_name("{name}", {ty}, {mut});')
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
