@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Literal
 
@@ -10,6 +11,7 @@ from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
     FloatAttr,
+    FunctionType,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -18,15 +20,17 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     Signedness,
     SignednessAttr,
+    StringAttr,
     TypeAttribute,
     UnitAttr,
 )
-from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue
 
 
 @dataclass
 class CslPrintContext:
     _INDEX = "i32"
+    _INDENT = "  "
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -41,6 +45,45 @@ class CslPrintContext:
         """
         for l in text.split("\n"):
             print(self._prefix + prefix + l, file=self.output, end=end)
+
+    @contextmanager
+    def _in_block(self, block_name: str):
+        self.print(f"{block_name} {{")
+        old_prefix = self._prefix
+        self._prefix += self._INDENT
+        yield
+        self._prefix = old_prefix
+        self.print("}")
+        pass
+
+    def _task_or_fn(
+        self, introducer: str, name: StringAttr, bdy: Region, ftyp: FunctionType
+    ):
+        args = ", ".join(
+            f"{self._get_variable_name_for(arg)} : {self.mlir_type_to_csl_type(arg.type)}"
+            for arg in bdy.block.args
+        )
+        ret = (
+            "void"
+            if len(ftyp.outputs) == 0
+            else self.mlir_type_to_csl_type(ftyp.outputs.data[0])
+        )
+        self.print(f"{introducer} {name.data}({args}) {ret} {{")
+        self.descend().print_block(bdy.block)
+        self.print("}")
+
+    def _wrapp_task_id(self, kind: csl.TaskKind, id: int):
+        if kind == csl.TaskKind.DATA:
+            return f"@get_color({id})"
+        return str(id)
+
+    def _bind_task(self, name: str, kind: csl.TaskKind, id: csl.ColorIdAttr | None):
+        if id is None:
+            return
+        with self._in_block("comptime"):
+            self.print(
+                f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrapp_task_id(kind, id.value.data)}));"
+            )
 
     def _memref_global_init(self, init: Attribute, type: str):
         match init:
@@ -200,16 +243,20 @@ class CslPrintContext:
 
                     var = f"{self._var_use(res)} = " if res is not None else ""
                     self.print(f"{var}{struct_var}.{field.data}({args});")
+                case csl.CallOp(callee=callee, args=args, result=res):
+                    args = ", ".join(map(self._get_variable_name_for, args))
+                    var = f"{self._var_use(res)} = " if res is not None else ""
+                    self.print(f"{var}{callee.string_value()}({args});")
                 case csl.MemberAccessOp(struct=struct, field=field, result=res):
                     struct_var = self._get_variable_name_for(struct)
                     self.print(f"{self._var_use(res)} = {struct_var}.{field.data};")
-                case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(
-                    ftyp.inputs
-                ) == 0 and len(ftyp.outputs) == 0:
-                    # only functions without input / outputs supported for now.
-                    self.print(f"\nfn {name.data}() {{")
-                    self.descend().print_block(bdy.block)
-                    self.print("}")
+                case csl.TaskOp(
+                    sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id
+                ):
+                    self._task_or_fn("task", name, bdy, ftyp)
+                    self._bind_task(name.data, kind.data, id)
+                case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp):
+                    self._task_or_fn("fn", name, bdy, ftyp)
                 case csl.ReturnOp(ret_val=None):
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
@@ -266,7 +313,7 @@ class CslPrintContext:
             output=self.output,
             variables=self.variables.copy(),
             _counter=self._counter,
-            _prefix=self._prefix + "  ",
+            _prefix=self._prefix + self._INDENT,
         )
 
 
