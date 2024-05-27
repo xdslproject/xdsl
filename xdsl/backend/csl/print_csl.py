@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, Literal
+from typing import IO, Literal, cast
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
@@ -24,13 +24,14 @@ from xdsl.dialects.builtin import (
     TypeAttribute,
     UnitAttr,
 )
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, BlockOps, Region, SSAValue
 
 
 @dataclass
 class CslPrintContext:
     _INDEX = "i32"
     _INDENT = "  "
+    DIVIDER = "// >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //"
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -349,11 +350,32 @@ class CslPrintContext:
         )
 
 
+def _get_layout_program(ops: BlockOps) -> tuple[csl.CslModuleOp, csl.CslModuleOp]:
+    ops_list = list(ops)
+    assert all(
+        isinstance(mod, csl.CslModuleOp) for mod in ops_list
+    ), "Expected all top level ops to be csl.module"
+    # We have asserted that this is true above
+    ops_list = cast(list[csl.CslModuleOp], ops_list)
+    assert len(ops_list) == 2, "Expected exactly two top level modules"
+    # This allows program and layout to be scpecified in any order
+    prog = next(
+        filter(lambda mod: mod.kind.data == csl.ModuleKind.PROGRAM, ops_list), None
+    )
+    layout = next(
+        filter(lambda mod: mod.kind.data == csl.ModuleKind.LAYOUT, ops_list), None
+    )
+    assert prog is not None, "Expected exactly 1 program module"
+    assert layout is not None, "Expected exactly 1 layout module"
+    return layout, prog
+
+
 def print_to_csl(prog: ModuleOp, output: IO[str]):
     """
     Takes a module op and prints it to the given output stream.
     """
     ctx = CslPrintContext(output)
-    for mod in prog.body.block.ops:
-        assert isinstance(mod, csl.CslModuleOp)
-        ctx.print_block(mod.body.block)
+    layout, program = _get_layout_program(prog.body.block.ops)
+    ctx.print_block(program.body.block)
+    ctx.print(ctx.DIVIDER)
+    ctx.print_block(layout.body.block)
