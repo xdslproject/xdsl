@@ -31,6 +31,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.transforms.canonicalization_patterns.stencil import (
     RedundantOperands,
+    UnusedOperands,
     UnusedResults,
 )
 from xdsl.transforms.experimental.stencil_shape_inference import update_result_size
@@ -98,7 +99,15 @@ def is_rerouting_possible(producer: ApplyOp, consumer: ApplyOp):
     Check if rerouting is possible.
     """
     # Perform producer consumer inlining instead
-    return not has_single_consumer(producer, consumer)
+    if has_single_consumer(producer, consumer):
+        return False
+    for operand in consumer.operands:
+        if isinstance(operand.owner, Operation):
+            if (operand.owner is not producer) and is_before_in_block(
+                producer, operand.owner
+            ):
+                return False
+    return True
 
 
 def is_inlining_possible(producer: ApplyOp, consumer: ApplyOp):
@@ -106,7 +115,7 @@ def is_inlining_possible(producer: ApplyOp, consumer: ApplyOp):
     Check if inlining is possible.
     """
     # Don't inline any producer with conditional writes.
-    return not any(
+    r = not any(
         store_result.arg is None
         for store_result in producer.walk()
         if isinstance(store_result, StoreResultOp)
@@ -119,6 +128,8 @@ def is_inlining_possible(producer: ApplyOp, consumer: ApplyOp):
             consumer.operands.index(consumer_operand)
         ].uses
     )
+
+    return r
 
 
 class StencilReroutingPattern(RewritePattern):
@@ -190,6 +201,7 @@ class StencilReroutingPattern(RewritePattern):
                 if use.operation is new_consumer:
                     continue
                 use.operation.operands[use.index] = rres
+
         rewriter.replace_op(
             consumer, new_consumer, new_consumer.res[: len(consumer.res)]
         )
@@ -347,9 +359,10 @@ class StencilInliningPass(ModulePass):
                     StencilReroutingPattern(),
                     StencilInliningPattern(),
                     UnusedResults(),
+                    UnusedOperands(),
                     RedundantOperands(),
                 ]
             ),
-            walk_reverse=True,
+            walk_reverse=False,
         )
         walker.rewrite_module(op)
