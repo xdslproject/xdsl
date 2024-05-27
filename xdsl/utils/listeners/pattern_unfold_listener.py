@@ -62,11 +62,28 @@ def print_block_creation(b: Block):
 
 class PatternUnfoldListener(PatternRewriterListener):
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        insertion: bool = True,
+        removal: bool = True,
+        modification: bool = True,
+        replacement: bool = True,
+        block_creation: bool = True,
+    ):
+        operation_insertion_handler = [print_operation_insertion] if insertion else []
+        operation_removal_handler = [print_operation_removal] if removal else []
+        operation_modification_handler = (
+            [print_operation_modification] if modification else []
+        )
+        operation_replacement_handler = (
+            [print_operation_replacement] if replacement else []
+        )
+        block_creation_handler = [print_block_creation] if block_creation else []
         super().__init__(
-            operation_insertion_handler=[print_operation_insertion],
-            block_creation_handler=[print_block_creation],
-            operation_removal_handler=[print_operation_removal],
-            operation_modification_handler=[print_operation_modification],
-            operation_replacement_handler=[print_operation_replacement],
+            operation_insertion_handler=operation_insertion_handler,
+            block_creation_handler=block_creation_handler,
+            operation_removal_handler=operation_removal_handler,
+            operation_modification_handler=operation_modification_handler,
+            operation_replacement_handler=operation_replacement_handler,
         )
