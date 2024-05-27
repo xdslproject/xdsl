@@ -38,6 +38,9 @@ class CslPrintContext:
     _counter: int = field(default=0)
 
     _prefix: str = field(default="")
+    _symbols_to_export: dict[str, tuple[TypeAttribute, bool | None]] = field(
+        default_factory=dict
+    )
 
     def print(self, text: str, prefix: str = "", end: str = "\n"):
         """
@@ -114,6 +117,15 @@ class CslPrintContext:
             return f"{self._get_variable_name_for(val)}"
         else:
             return f"{intro} {self._get_variable_name_for(val)} : {self.mlir_type_to_csl_type(val.type)}"
+
+    def _export_sym_constness(self, ty: FunctionType | csl.PtrType):
+        if isinstance(ty, FunctionType):
+            return None
+        match ty.constness.data:
+            case csl.PtrConst.VAR:
+                return True
+            case csl.PtrConst.CONST:
+                return False
 
     def _get_variable_name_for(self, val: SSAValue, hint: str | None = None) -> str:
         """
@@ -299,6 +311,18 @@ class CslPrintContext:
                 case memref.GetGlobal(name_=name, memref=res):
                     # We print the array definition when the global is defined
                     self.variables[res] = name.string_value()
+                case csl.SymbolExportOp(value=val, type=ty) as exp:
+                    name = exp.get_name()
+                    q_name = f'"{name}"'
+                    self._symbols_to_export[name] = (ty, self._export_sym_constness(ty))
+                    ty = self.attribute_value_to_str(ty)
+                    if val is not None:
+                        export_val = self._get_variable_name_for(val)
+                    else:
+                        # Use symbol ref name if operand not provided
+                        export_val = name
+                    with self._in_block("comptime"):
+                        self.print(f"@export_symbol({export_val}, {q_name});")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
