@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
 )
 from xdsl.ir import Attribute, Block, BlockOps, Region, SSAValue
+from xdsl.irdl import Operand
 
 
 @dataclass
@@ -101,6 +102,11 @@ class CslPrintContext:
                 return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
             case other:
                 return f"<unknown memref.global init type {other}>"
+
+    def _binop(self, lhs: Operand, rhs: Operand, res: SSAValue, op: str):
+        name_lhs = self._get_variable_name_for(lhs)
+        name_rhs = self._get_variable_name_for(rhs)
+        return f"{self._var_use(res)} = {name_lhs} {op} {name_rhs};"
 
     def _var_use(
         self, val: SSAValue, intro: Literal["const"] | Literal["var"] = "const"
