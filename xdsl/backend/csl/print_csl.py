@@ -327,6 +327,14 @@ class CslPrintContext:
                     name_in = self._get_variable_name_for(inp)
                     type_out = self.mlir_type_to_csl_type(res.type)
                     self.print(f"{self._var_use(res)} = @as({type_out}, {name_in});")
+                case arith.Muli(lhs=lhs, rhs=rhs, result=res) | arith.Mulf(
+                    lhs=lhs, rhs=rhs, result=res
+                ):
+                    self.print(self._binop(lhs, rhs, res, "*"))
+                case arith.Addi(lhs=lhs, rhs=rhs, result=res) | arith.Addf(
+                    lhs=lhs, rhs=rhs, result=res
+                ):
+                    self.print(self._binop(lhs, rhs, res, "+"))
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
