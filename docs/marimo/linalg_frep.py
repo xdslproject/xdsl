@@ -28,7 +28,8 @@ def __():
         return (dedented
             .replace("riscv.", "rv.")
             .replace("riscv_func.", "rv_func.")
-            .replace("riscv_scf.", "rv_scf."))
+            .replace("riscv_scf.", "rv_scf.")
+            .replace("riscv_snitch.", "rv_snitch."))
     return ModuleOp, pp, re, regex
 
 
