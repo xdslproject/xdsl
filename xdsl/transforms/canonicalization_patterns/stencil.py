@@ -57,13 +57,11 @@ class UnusedOperands(RewritePattern):
 
         new = stencil.ApplyOp.get(
             operands,
-            new_block := Block(arg_types=bbargs_type),
+            block := Block(arg_types=bbargs_type),
             [cast(stencil.TempType[Attribute], r.type) for r in op.res],
         )
 
-        rewriter.inline_block_at_start(
-            op.region.detach_block(0), new.region.block, new_block.args
-        )
+        rewriter.inline_block_at_start(op.region.block, block, block.args)
         rewriter.replace_matched_op(new)
 
 
