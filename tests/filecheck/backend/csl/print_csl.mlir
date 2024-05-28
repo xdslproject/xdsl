@@ -325,14 +325,14 @@ csl.func @gemv() {
 // CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
 // CHECK-NEXT:     //unknown op SIToFPOp(%idx_f32 = arith.sitofp %idx : i16 to f32
 // CHECK-NEXT:     //unknown op IndexCastOp(%idx_index = "arith.index_cast"(%idx) : (i16) -> index)
-// CHECK-NEXT:     //unknown op Store(memref.store %idx_f32, %A[%idx_index] : memref<24xf32>)
+// CHECK-NEXT:     A[idx_index] = idx_f32;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   const ub3 : i16 = 6;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub3, step)) |j| {
 // CHECK-NEXT:     const val : f32 = 1.0;
 // CHECK-NEXT:     //unknown op IndexCastOp(%j_idx = "arith.index_cast"(%j) : (i16) -> index)
-// CHECK-NEXT:     //unknown op Store(memref.store %val, %x[%j_idx] : memref<6xf32>)
+// CHECK-NEXT:     x[j_idx] = val;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   const ub4 : i16 = 6;
 // CHECK-NEXT:
@@ -340,8 +340,8 @@ csl.func @gemv() {
 // CHECK-NEXT:     const c2 : f32 = 2.0;
 // CHECK-NEXT:     const c0 : f32 = 0.0;
 // CHECK-NEXT:     //unknown op IndexCastOp(%i_idx = "arith.index_cast"(%i) : (i16) -> index)
-// CHECK-NEXT:     //unknown op Store(memref.store %c2, %b[%i_idx] : memref<4xf32>)
-// CHECK-NEXT:     //unknown op Store(memref.store %c0, %y[%i_idx] : memref<4xf32>)
+// CHECK-NEXT:     b[i_idx] = c2;
+// CHECK-NEXT:     y[i_idx] = c0;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
