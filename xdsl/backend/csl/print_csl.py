@@ -189,6 +189,19 @@ class CslPrintContext:
                 shape = ", ".join(str(s) for s in t.get_shape())
                 type = self.mlir_type_to_csl_type(t.get_element_type())
                 return f"[{shape}]{type}"
+            case csl.PtrType(type=ty, kind=kind, constness=const):
+                match kind.data:
+                    case csl.PtrKind.SINGLE:
+                        sym = "*"
+                    case csl.PtrKind.MANY:
+                        sym = "[*]"
+                match const.data:
+                    case csl.PtrConst.CONST:
+                        mut = "const "
+                    case csl.PtrConst.VAR:
+                        mut = ""
+                ty = self.mlir_type_to_csl_type(ty)
+                return f"{sym}{mut}{ty}"
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -312,6 +325,14 @@ class CslPrintContext:
                 case memref.GetGlobal(name_=name, memref=res):
                     # We print the array definition when the global is defined
                     self.variables[res] = name.string_value()
+                case csl.AddressOfOp(value=val, res=res):
+                    val_name = self._get_variable_name_for(val)
+                    ty = res.type
+                    assert isinstance(
+                        ty, csl.PtrType
+                    ), f"Result of {csl.AddressOfOp.name} has to be a pointer"
+                    use = self._var_use(res, ty.constness.data.value)
+                    self.print(f"{use} = &{val_name};")
                 case csl.SymbolExportOp(value=val, type=ty) as exp:
                     name = exp.get_name()
                     q_name = f'"{name}"'
