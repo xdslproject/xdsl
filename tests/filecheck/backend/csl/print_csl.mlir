@@ -285,11 +285,11 @@ csl.func @gemv() {
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
 
-// CHECK-NEXT: //unknown op AddressOfOp(%uninit_ptr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>)
-// CHECK-NEXT: //unknown op AddressOfOp(%global_ptr = "csl.addressof"(%global_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>)
-// CHECK-NEXT: //unknown op AddressOfOp(%const_ptr = "csl.addressof"(%const_array) : (memref<10xi32>) -> !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>)
-// CHECK-NEXT: //unknown op AddressOfOp(%ptr_to_arr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const var>>)
-// CHECK-NEXT: //unknown op AddressOfOp(%ptr_to_val = "csl.addressof"(%const27) : (i16) -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const const>>)
+// CHECK-NEXT: var uninit_ptr : [*]f32 = &uninit_array;
+// CHECK-NEXT: var global_ptr : [*]f32 = &global_array;
+// CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
+// CHECK-NEXT: var ptr_to_arr : *[10]f32 = &uninit_array;
+// CHECK-NEXT: const ptr_to_val : *const i16 = &const27;
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(global_ptr, "ptr_name");
 // CHECK-NEXT: }
