@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -506,7 +506,7 @@ class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     pass
 
 
-DataElement = TypeVar("DataElement", covariant=True)
+DataElement = TypeVar("DataElement", covariant=True, bound=Hashable)
 
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
@@ -760,6 +760,17 @@ class OpOperands(Sequence[SSAValue]):
 
     def __len__(self) -> int:
         return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+    def __eq__(self, other: object):
+        if not isinstance(other, OpOperands):
+            return False
+        return (
+            self._op._operands  # pyright: ignore[reportPrivateUsage]
+            == other._op._operands  # pyright: ignore[reportPrivateUsage]
+        )
+
+    def __hash__(self):
+        return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
 @dataclass

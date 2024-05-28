@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import IO
+from typing import IO, Literal
 
-from xdsl.dialects import arith, csl, scf
+from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
+    ContainerType,
+    DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -12,15 +14,19 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
     Signedness,
     SignednessAttr,
+    TypeAttribute,
+    UnitAttr,
 )
 from xdsl.ir import Attribute, Block, SSAValue
 
 
 @dataclass
 class CslPrintContext:
+    _INDEX = "i32"
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -35,6 +41,36 @@ class CslPrintContext:
         """
         for l in text.split("\n"):
             print(self._prefix + prefix + l, file=self.output, end=end)
+
+    def _memref_global_init(self, init: Attribute, type: str):
+        match init:
+            case UnitAttr():
+                return ""
+            case DenseIntOrFPElementsAttr():
+                data = init.data.data
+                assert (
+                    len(data) == 1
+                ), f"Memref global initialiser has to have 1 value, got {len(data)}"
+                return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
+            case other:
+                return f"<unknown memref.global init type {other}>"
+
+    def _var_use(
+        self, val: SSAValue, intro: Literal["const"] | Literal["var"] = "const"
+    ):
+        """
+        Automates delcaration and use of variables.
+
+        If a variable has not been declared (i.e. it's associated ssa value is
+        not in self.variables), declare it with an approptiate name and type.
+        Otherwise, just use the variable name.
+
+        Optionally, introducer can be specified as var or const (const by default).
+        """
+        if val in self.variables:
+            return f"{self._get_variable_name_for(val)}"
+        else:
+            return f"{intro} {self._get_variable_name_for(val)} : {self.mlir_type_to_csl_type(val.type)}"
 
     def _get_variable_name_for(self, val: SSAValue, hint: str | None = None) -> str:
         """
@@ -83,6 +119,8 @@ class CslPrintContext:
                 return "f16"
             case Float32Type():
                 return "f32"
+            case IndexType():
+                return self._INDEX
             case IntegerType(
                 width=IntAttr(data=width),
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
@@ -90,6 +128,11 @@ class CslPrintContext:
                 return f"u{width}"
             case IntegerType(width=IntAttr(data=width)):
                 return f"i{width}"
+            case MemRefType():
+                t: ContainerType[TypeAttribute] = type_attr
+                shape = ", ".join(str(s) for s in t.get_shape())
+                type = self.mlir_type_to_csl_type(t.get_element_type())
+                return f"[{shape}]{type}"
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -132,15 +175,11 @@ class CslPrintContext:
                 case arith.Constant(value=v, result=r):
                     # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
 
-                    # convert the attributes type to a csl type:
-                    type_name = self.attribute_type_to_str(v)
                     # convert the carried value to a csl value
                     value_str = self.attribute_value_to_str(v)
 
                     # emit a constant instantiation:
-                    self.print(
-                        f"const {self._get_variable_name_for(r)} : {type_name} = {value_str};"
-                    )
+                    self.print(f"{self._var_use(r)} = {value_str};")
                 case csl.ImportModuleConstOp(module=module, params=params, result=res):
                     name = self._get_variable_name_for(res)
 
@@ -159,20 +198,11 @@ class CslPrintContext:
                     args = ", ".join(self._get_variable_name_for(arg) for arg in args)
                     struct_var = self._get_variable_name_for(struct)
 
-                    text = ""
-                    if res is not None:
-                        name = self._get_variable_name_for(res)
-                        text += (
-                            f"const {name} : {self.mlir_type_to_csl_type(res.type)} = "
-                        )
-
-                    self.print(f"{text}{struct_var}.{field.data}({args});")
+                    var = f"{self._var_use(res)} = " if res is not None else ""
+                    self.print(f"{var}{struct_var}.{field.data}({args});")
                 case csl.MemberAccessOp(struct=struct, field=field, result=res):
-                    name = self._get_variable_name_for(res)
                     struct_var = self._get_variable_name_for(struct)
-                    self.print(
-                        f"const {name} : {self.mlir_type_to_csl_type(res.type)} = {struct_var}.{field.data};"
-                    )
+                    self.print(f"{self._var_use(res)} = {struct_var}.{field.data};")
                 case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp) if len(
                     ftyp.inputs
                 ) == 0 and len(ftyp.outputs) == 0:
@@ -184,13 +214,44 @@ class CslPrintContext:
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
                     self.print(f"return {self._get_variable_name_for(val)};")
-                case scf.For(lb=lower, ub=upper, step=stp, body=bdy):
-                    idx, *_ = bdy.block.args
+                case scf.For(
+                    lb=lower, ub=upper, step=stp, body=bdy, res=results, iter_args=iters
+                ):
+                    idx, *args = bdy.block.args
+                    # declare for loop iterators as mutable variables and match their names to for result names
+                    for result, iter, arg in zip(results, iters, args):
+                        iter_name = self._get_variable_name_for(iter)
+                        self.print(f"{self._var_use(result, 'var')} = {iter_name};")
+                        self.variables[arg] = self.variables[result]
+                    # Search for all yield operations and match yield argument names to for argument names
+                    for op in bdy.block.ops:
+                        if not isinstance(op, scf.Yield):
+                            continue
+                        for yield_arg, arg in zip(op.arguments, args):
+                            self.variables[yield_arg] = self.variables[arg]
+
+                    idx_type = self.mlir_type_to_csl_type(idx.type)
+                    lower_name, upper_name, stp_name, idx_name = map(
+                        self._get_variable_name_for, (lower, upper, stp, idx)
+                    )
                     self.print(
-                        f"\nfor(@range({self.mlir_type_to_csl_type(idx.type)}, {self._get_variable_name_for(lower)}, {self._get_variable_name_for(upper)}, {self._get_variable_name_for(stp)})) |{self._get_variable_name_for(idx)}| {{"
+                        f"\nfor(@range({idx_type}, {lower_name}, {upper_name}, {stp_name})) |{idx_name}| {{"
                     )
                     self.descend().print_block(bdy.block)
                     self.print("}")
+                case scf.Yield():
+                    pass
+                case memref.Global(
+                    sym_name=name, type=ty, initial_value=init, constant=const
+                ):
+                    name = name.data
+                    ty = self.mlir_type_to_csl_type(ty)
+                    init = self._memref_global_init(init, ty)
+                    var = "var" if const is None else "const"
+                    self.print(f"{var} {name} : {ty}{init};")
+                case memref.GetGlobal(name_=name, memref=res):
+                    # We print the array definition when the global is defined
+                    self.variables[res] = name.string_value()
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 

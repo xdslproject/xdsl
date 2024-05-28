@@ -46,9 +46,9 @@ builtin.module {
     func.return %3 : !test.type<"int">
   }
 
-  // CHECK: func.func @arg_rec_block(%2 : !test.type<"int">) -> !test.type<"int"> {
-  // CHECK-NEXT:   %3 = func.call @arg_rec_block(%2) : (!test.type<"int">) -> !test.type<"int">
-  // CHECK-NEXT:   func.return %3 : !test.type<"int">
+  // CHECK: func.func @arg_rec_block(%0 : !test.type<"int">) -> !test.type<"int"> {
+  // CHECK-NEXT:   %1 = func.call @arg_rec_block(%0) : (!test.type<"int">) -> !test.type<"int">
+  // CHECK-NEXT:   func.return %1 : !test.type<"int">
   // CHECK-NEXT: }
 
   func.func private @external_fn(i32) -> (i32, i32)
