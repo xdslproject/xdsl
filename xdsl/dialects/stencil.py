@@ -385,10 +385,15 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.stencil import (
             RedundantOperands,
+            UnusedOperands,
             UnusedResults,
         )
 
-        return (RedundantOperands(), UnusedResults())
+        return (
+            RedundantOperands(),
+            UnusedResults(),
+            UnusedOperands(),
+        )
 
 
 @irdl_op_definition
