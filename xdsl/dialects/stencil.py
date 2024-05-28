@@ -54,8 +54,18 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasAncestor, HasParent, IsolatedFromAbove, IsTerminator
+from xdsl.traits import (
+    HasAncestor,
+    HasCanonicalisationPatternsTrait,
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    NoMemoryEffect,
+    Pure,
+    RecursiveMemoryEffect,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -370,6 +380,22 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
         super().__init__([type])
 
 
+class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.stencil import (
+            RedundantOperands,
+            UnusedOperands,
+            UnusedResults,
+        )
+
+        return (
+            RedundantOperands(),
+            UnusedResults(),
+            UnusedOperands(),
+        )
+
+
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
@@ -394,7 +420,13 @@ class ApplyOp(IRDLOperation):
     region: Region = region_def()
     res: VarOpResult = var_result_def(TempType)
 
-    traits = frozenset([IsolatedFromAbove()])
+    traits = frozenset(
+        [
+            IsolatedFromAbove(),
+            ApplyOpHasCanonicalizationPatternsTrait(),
+            RecursiveMemoryEffect(),
+        ]
+    )
 
     def print(self, printer: Printer):
         def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
@@ -466,6 +498,11 @@ class ApplyOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
+        for operand, argument in zip(self.operands, self.region.block.args):
+            if operand.type != argument.type:
+                raise VerifyException(
+                    f"Expected argument type to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
+                )
         if len(self.res) < 1:
             raise VerifyException(
                 f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
@@ -548,6 +585,8 @@ class CastOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
+    traits = frozenset([NoMemoryEffect()])
+
     @staticmethod
     def get(
         field: SSAValue | Operation,
@@ -621,9 +660,11 @@ class CombineOp(IRDLOperation):
     upperext = var_operand_def(TempType)
     results_ = var_result_def(TempType)
 
+    traits = frozenset([Pure()])
+
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(), Pure()]
 
 
 @irdl_op_definition
@@ -668,6 +709,8 @@ class DynAccessOp(IRDLOperation):
     assembly_format = (
         "$temp `[` $offset `]` `in` $lb `:` $ub attr-dict-with-keyword `:` type($temp)"
     )
+
+    traits = frozenset([HasAncestor(ApplyOp), NoMemoryEffect()])
 
     def __init__(
         self,
@@ -746,7 +789,7 @@ class IndexOp(IRDLOperation):
 
     assembly_format = "$dim $offset attr-dict-with-keyword"
 
-    traits = frozenset([HasAncestor(ApplyOp)])
+    traits = frozenset([HasAncestor(ApplyOp), Pure()])
 
     def get_apply(self):
         """
@@ -800,7 +843,7 @@ class AccessOp(IRDLOperation):
         )
     )
 
-    traits = frozenset([HasAncestor(ApplyOp)])
+    traits = frozenset([HasAncestor(ApplyOp), Pure()])
 
     def print(self, printer: Printer):
         printer.print(" ")
@@ -1064,6 +1107,8 @@ class BufferOp(IRDLOperation):
 
     assembly_format = "$temp attr-dict-with-keyword `:` type($temp)"
 
+    traits = frozenset([Pure()])
+
     def __init__(self, temp: SSAValue | Operation):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
@@ -1194,6 +1239,8 @@ class StoreResultOp(IRDLOperation):
 
     assembly_format = "$arg attr-dict-with-keyword `:` type($res)"
 
+    traits = frozenset([HasAncestor(ApplyOp), Pure()])
+
 
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
@@ -1223,7 +1270,7 @@ class ReturnOp(IRDLOperation):
             return 1
         return prod(self.unroll)
 
-    traits = frozenset([HasParent(ApplyOp), IsTerminator()])
+    traits = frozenset([HasParent(ApplyOp), IsTerminator(), Pure()])
 
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):

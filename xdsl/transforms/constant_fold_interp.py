@@ -30,6 +30,10 @@ class ConstantFoldInterpPattern(RewritePattern):
             # Only rewrite operations that don't have side-effects
             return
 
+        # No need to rewrite operations that are already constant-like
+        if op.has_trait(ConstantLike):
+            return
+
         if not all(
             isinstance(operand, OpResult) and operand.op.has_trait(ConstantLike)
             for operand in op.operands

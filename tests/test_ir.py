@@ -165,6 +165,23 @@ def test_op_operands_indexing():
     assert tuple(op.operands) == (val2, val2)
 
 
+def test_op_operands_comparison():
+    """Test `__eq__`, and `__hash__` on `op.operands`."""
+    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    op1 = test.TestOp.create(operands=[val1, val2])
+    op2 = test.TestOp.create(operands=[val1, val2])
+    op1.verify()
+    op2.verify()
+
+    assert op1.operands == op2.operands
+    assert hash(op1.operands) == hash(op2.operands)
+
+    op1.operands[0] = val2
+    op1.verify()
+
+    assert op1.operands != op2.operands
+
+
 def test_op_clone():
     a = TestWithPropOp.create(properties={"prop": i32}, attributes={"attr": i64})
     b = a.clone()
