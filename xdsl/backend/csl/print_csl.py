@@ -202,6 +202,10 @@ class CslPrintContext:
                         mut = ""
                 ty = self.mlir_type_to_csl_type(ty)
                 return f"{sym}{mut}{ty}"
+            case FunctionType(inputs=inp, outputs=out) if len(out) <= 1:
+                args = map(self.mlir_type_to_csl_type, inp)
+                ret = self.mlir_type_to_csl_type(out.data[0]) if len(out) else "void"
+                return f"fn({', '.join(args)}) {ret}"
             case _:
                 return f"<!unknown type {type_attr}>"
 
