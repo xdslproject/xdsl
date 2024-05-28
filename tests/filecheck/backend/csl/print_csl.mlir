@@ -407,10 +407,10 @@ csl.func @gemv() {
 // CHECK-NEXT:   //unknown op ConstStructOp(%params = "csl.const_struct"() <{"items" = {"hello" = 123 : i32}}> : () -> !csl.comptime_struct)
 // CHECK-NEXT:   const x_coord1 : i32 = 1;
 // CHECK-NEXT:   //unknown op SetTileCodeOp("csl.set_tile_code"(%x_coord1, %y_coord, %params) <{"file" = "file.csl"}> : (i32, i32, !csl.comptime_struct) -> ())
-// CHECK-NEXT:   @export_name("ptr_name", <!unknown value !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>>, true);
-// CHECK-NEXT:   @export_name("another_ptr", <!unknown value !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>>, false);
-// CHECK-NEXT:   @export_name("no_args_no_return", <!unknown value () -> ()>, );
-// CHECK-NEXT:   @export_name("args_no_return", <!unknown value (i32, i32) -> ()>, );
+// CHECK-NEXT:   @export_name("ptr_name", [*]f32, true);
+// CHECK-NEXT:   @export_name("another_ptr", [*]const i32, false);
+// CHECK-NEXT:   @export_name("no_args_no_return", fn() void, );
+// CHECK-NEXT:   @export_name("args_no_return", fn(i32, i32) void, );
 // CHECK-NEXT: }
 
 // CHECK-EMPTY:
