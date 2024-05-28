@@ -28,7 +28,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, Pure
 
 
 @irdl_op_definition
@@ -110,6 +110,49 @@ class TestTermOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class TestPureOp(IRDLOperation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference from TestOp is that it satisfies the Pure trait, so we can
+    test region CSE - this op assumes no side effects nowhere in its regions.
+    """
+
+    name = "test.pureop"
+
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+    successor: VarSuccessor = var_successor_def()
+
+    prop1 = opt_prop_def(Attribute)
+    prop2 = opt_prop_def(Attribute)
+    prop3 = opt_prop_def(Attribute)
+
+    traits = frozenset([Pure()])
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] = (),
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            properties=properties,
+            successors=(successors,),
+            regions=(regions,),
+        )
+
+
 @irdl_attr_definition
 class TestType(Data[str], TypeAttribute):
     """
@@ -130,4 +173,14 @@ class TestType(Data[str], TypeAttribute):
             printer.print_string_literal(self.data)
 
 
-Test = Dialect("test", [TestOp, TestTermOp], [TestType])
+Test = Dialect(
+    "test",
+    [
+        TestOp,
+        TestPureOp,
+        TestTermOp,
+    ],
+    [
+        TestType,
+    ],
+)
