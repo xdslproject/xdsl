@@ -281,9 +281,6 @@ class DsdType(EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute
 
     name = "csl.dsd"
 
-    def get_element_type(self) -> DsdKind:
-        return self.data
-
 
 @irdl_attr_definition
 class ColorType(ParametrizedAttribute, TypeAttribute):
@@ -699,10 +696,7 @@ class GetDsdOp(IRDLOperation):
             raise VerifyException("DSD can have at most 4 dimensions")
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
-        if (
-            len(self.sizes) > 1
-            and self.result.type.get_element_type() == DsdKind.mem1d_dsd
-        ):
+        if len(self.sizes) > 1 and self.result.type.data == DsdKind.mem1d_dsd:
             raise VerifyException(
                 "DSD with more than 1 dimension cannot be of type mem1d_dsd"
             )
