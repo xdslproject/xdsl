@@ -384,12 +384,12 @@ csl.func @gemv() {
 // CHECK-NEXT:     var tmp2 : f32 = tmp;
 // CHECK-NEXT:
 // CHECK-NEXT:     for(@range(i32, lb, ub, step)) |j| {
-// CHECK-NEXT:       //unknown op Muli(%ix6 = arith.muli %i, %ub : index)
-// CHECK-NEXT:       //unknown op Addi(%ix6pj = arith.addi %ix6, %j : index)
-// CHECK-NEXT:       //unknown op Mulf(%Axx = arith.mulf %A_loaded, %x_loaded : f32)
-// CHECK-NEXT:       //unknown op Addf(%tmp_next = arith.addf %tmp_iter, %Axx : f32)
+// CHECK-NEXT:       const ix6 : i32 = i * ub;
+// CHECK-NEXT:       const ix6pj : i32 = ix6 +  j;
+// CHECK-NEXT:       const Axx : f32 = (A[ix6pj]) * (x[j]);
+// CHECK-NEXT:       tmp2 = tmp2 + Axx;
 // CHECK-NEXT:     }
-// CHECK-NEXT:     //unknown op Addf(%tmp_plus_bi = arith.addf %tmp, %bi : f32)
+// CHECK-NEXT:     const tmp_plus_bi : f32 =  tmp2 + (b[i]);
 // CHECK-NEXT:     y[i] = tmp_plus_bi;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
