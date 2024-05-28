@@ -147,6 +147,10 @@ csl.func @initialize() {
 // CHECK-NEXT:     %scalar_ptr = "csl.addressof"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>
 // CHECK-NEXT:     %many_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const const>>
 // CHECK-NEXT:     %single_arr_ptr = "csl.addressof"(%arr) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const const>>
+// CHECK-NEXT:     %dsd_1d = "csl.get_dsd"(%arr, %scalar) : (memref<10xf32>, i32) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:     %dsd_2d = "csl.get_dsd"(%arr, %scalar, %scalar) : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:     %dsd_3d = "csl.get_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:     %dsd_4d = "csl.get_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: %global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>

@@ -274,7 +274,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
 
 @irdl_attr_definition
-class DsdType(EnumAttribute[DsdKind], TypeAttribute):
+class DsdType(EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute):
     """
     Represents a DSD in CSL.
     """
