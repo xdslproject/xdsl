@@ -94,6 +94,11 @@ class TaskKind(StrEnum):
     CONTROL = "control"
 
 
+class DsdKind(StrEnum):
+    mem1d_dsd = "mem1d_dsd"
+    mem4d_dsd = "mem4d_dsd"
+
+
 class _FuncBase(IRDLOperation, ABC):
     """
     Base class for the shared functionalty of FuncOp and TaskOp
@@ -266,6 +271,18 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     def get_element_type(self) -> Attribute:
         return self.type
+
+
+@irdl_attr_definition
+class DsdType(EnumAttribute[DsdKind], TypeAttribute):
+    """
+    Represents a DSD in CSL.
+    """
+
+    name = "csl.dsd"
+
+    def get_element_type(self) -> DsdKind:
+        return self.data
 
 
 @irdl_attr_definition
@@ -657,6 +674,41 @@ class SetTileCodeOp(IRDLOperation):
 
 
 @irdl_op_definition
+class GetDsdOp(IRDLOperation):
+    """
+    A CSL data structure descriptor (DSD) of the form
+
+    @get_dsd( $result, .{
+       .tensor_access = |i, j| {$sizes[0], $sizes[1]} -> $array_var[i, j]
+    });
+
+    Note: Custom array index expr are not yet supported.
+    """
+
+    name = "csl.get_dsd"
+
+    array_var = operand_def(MemRefType)
+    sizes = var_operand_def(IntegerType)
+
+    result = result_def(DsdType)
+    # ind_vars # todo: generate
+    # expr     # todo: accept as arg
+
+    def verify_(self) -> None:
+        if len(self.sizes) > 4:
+            raise VerifyException("DSD can have at most 4 dimensions")
+        if not isinstance(self.result.type, DsdType):
+            raise VerifyException("DSD type is not DsdType")
+        if (
+            len(self.sizes) > 1
+            and self.result.type.get_element_type() == DsdKind.mem1d_dsd
+        ):
+            raise VerifyException(
+                "DSD with more than 1 dimension cannot be of type mem1d_dsd"
+            )
+
+
+@irdl_op_definition
 class SymbolExportOp(IRDLOperation):
     """
     This op does not correspond to any particular csl operation, it allows a symbol
@@ -829,6 +881,7 @@ CSL = Dialect(
         GetColorOp,
         SetRectangleOp,
         SetTileCodeOp,
+        GetDsdOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
@@ -840,6 +893,7 @@ CSL = Dialect(
         PtrKindAttr,
         PtrConstAttr,
         PtrType,
+        DsdType,
         ColorType,
         ModuleKindAttr,
         TaskKindAttr,
