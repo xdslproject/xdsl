@@ -205,9 +205,9 @@ def test_call():
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) : () -> ()
-  %3 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %4 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %5 = "func.call"(%3, %4) <{"callee" = @func0}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
+  %2 = "func.call"(%0, %1) <{"callee" = @func0}> : (i32, i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 2
@@ -251,8 +251,8 @@ def test_call_II():
     %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
     "func.return"(%1) : (i32) -> ()
   }) : () -> ()
-  %2 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %3 = "func.call"(%2) <{"callee" = @func1}> : (i32) -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %1 = "func.call"(%0) <{"callee" = @func1}> : (i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 1

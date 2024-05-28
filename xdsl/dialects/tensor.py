@@ -28,6 +28,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
+from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -38,6 +39,8 @@ class EmptyOp(IRDLOperation):
     dynamic_sizes = var_operand_def(IndexType)
 
     tensor = result_def(TensorType[Attribute])
+
+    traits = frozenset([Pure()])
 
     def __init__(self, dynamic_sizes: Sequence[SSAValue], tensor_type: Attribute):
         super().__init__(
