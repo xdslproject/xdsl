@@ -39,6 +39,20 @@
     csl.return
   }
 
+  csl.func @casts() {
+    %constI32 = arith.constant 0 : i32
+    %constF32 = arith.constant 0 : f32
+    %castIndex = "arith.index_cast"(%constF32) : (f32) -> index
+    %castF16 = "arith.sitofp"(%constI32) : (i32) -> f16
+    %castI16 = "arith.fptosi"(%constF32) : (f32) -> i16
+    %castF32 = "arith.extf"(%castF16) : (f16) -> f32
+    %castF16again = "arith.truncf"(%constF32) : (f32) -> f16
+    %castI16again = "arith.trunci"(%constI32) : (i32) -> i16
+    %castI32again = "arith.extsi"(%castI16) : (i16) -> i32
+    // TODO(dk949): "arith.extui" // We don't have unsigned integers at the moment
+    csl.return
+  }
+
 
   csl.task @data_task(%arg: f32) attributes {kind = #csl<task_kind data>, id = 0 : i5} {
     csl.return
@@ -249,6 +263,19 @@ csl.func @gemv() {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
+// CHECK-NEXT: fn casts() void {
+// CHECK-NEXT:   const constI32 : i32 = 0;
+// CHECK-NEXT:   const constF32 : f32 = 0.0;
+// CHECK-NEXT:   const castIndex : i32 = @as(i32, constF32);
+// CHECK-NEXT:   const castF16 : f16 = @as(f16, constI32);
+// CHECK-NEXT:   const castI16 : i16 = @as(i16, constF32);
+// CHECK-NEXT:   const castF32 : f32 = @as(f32, castF16);
+// CHECK-NEXT:   const castF16again : f16 = @as(f16, constF32);
+// CHECK-NEXT:   const castI16again : i16 = @as(i16, constI32);
+// CHECK-NEXT:   const castI32again : i32 = @as(i32, castI16);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
 // CHECK-NEXT: task data_task(arg : f32) void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
@@ -323,25 +350,25 @@ csl.func @gemv() {
 // CHECK-NEXT:   const u32cst : u32 = 44;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
-// CHECK-NEXT:     //unknown op SIToFPOp(%idx_f32 = arith.sitofp %idx : i16 to f32
-// CHECK-NEXT:     //unknown op IndexCastOp(%idx_index = "arith.index_cast"(%idx) : (i16) -> index)
-// CHECK-NEXT:     A[idx_index] = idx_f32;
+// CHECK-NEXT:     const idx_f32 : f32 = @as(f32, idx);
+// CHECK-NEXT:     const idx_index : i32 = @as(i32, idx);
+// CHECK-NEXT:     //unknown op Store(memref.store %idx_f32, %A[%idx_index] : memref<24xf32>)
 // CHECK-NEXT:   }
 // CHECK-NEXT:   const ub3 : i16 = 6;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub3, step)) |j| {
 // CHECK-NEXT:     const val : f32 = 1.0;
-// CHECK-NEXT:     //unknown op IndexCastOp(%j_idx = "arith.index_cast"(%j) : (i16) -> index)
-// CHECK-NEXT:     x[j_idx] = val;
+// CHECK-NEXT:     const j_idx : i32 = @as(i32, j);
+// CHECK-NEXT:     //unknown op Store(memref.store %val, %x[%j_idx] : memref<6xf32>)
 // CHECK-NEXT:   }
 // CHECK-NEXT:   const ub4 : i16 = 6;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub4, step)) |i| {
 // CHECK-NEXT:     const c2 : f32 = 2.0;
 // CHECK-NEXT:     const c0 : f32 = 0.0;
-// CHECK-NEXT:     //unknown op IndexCastOp(%i_idx = "arith.index_cast"(%i) : (i16) -> index)
-// CHECK-NEXT:     b[i_idx] = c2;
-// CHECK-NEXT:     y[i_idx] = c0;
+// CHECK-NEXT:     const i_idx : i32 = @as(i32, i);
+// CHECK-NEXT:     //unknown op Store(memref.store %c2, %b[%i_idx] : memref<4xf32>)
+// CHECK-NEXT:     //unknown op Store(memref.store %c0, %y[%i_idx] : memref<4xf32>)
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
