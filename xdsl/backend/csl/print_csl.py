@@ -314,6 +314,19 @@ class CslPrintContext:
                     self.print("}")
                 case scf.Yield():
                     pass
+                case (
+                    arith.IndexCastOp(input=inp, result=res)
+                    | arith.SIToFPOp(input=inp, result=res)
+                    | arith.FPToSIOp(input=inp, result=res)
+                    | arith.ExtFOp(input=inp, result=res)
+                    | arith.TruncFOp(input=inp, result=res)
+                    | arith.TruncIOp(input=inp, result=res)
+                    | arith.ExtSIOp(input=inp, result=res)
+                    | arith.ExtUIOp(input=inp, result=res)
+                ):
+                    name_in = self._get_variable_name_for(inp)
+                    type_out = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"{self._var_use(res)} = @as({type_out}, {name_in});")
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
