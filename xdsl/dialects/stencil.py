@@ -493,6 +493,11 @@ class ApplyOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
+        for operand, argument in zip(self.operands, self.region.block.args):
+            if operand.type != argument.type:
+                raise VerifyException(
+                    f"Expected argument type to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
+                )
         if len(self.res) < 1:
             raise VerifyException(
                 f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
