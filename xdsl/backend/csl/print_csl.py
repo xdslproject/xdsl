@@ -380,7 +380,7 @@ class CslPrintContext:
                     with self._in_block("layout"):
                         self.print_block(bdy.block)
                         for name, val in self._symbols_to_export.items():
-                            ty = self.attribute_value_to_str(val[0])
+                            ty = self.mlir_type_to_csl_type(val[0])
                             # If specified, get mutability as true/false from python bool
                             mut = str(val[1]).lower() if val[1] is not None else ""
                             self.print(f'@export_name("{name}", {ty}, {mut});')
