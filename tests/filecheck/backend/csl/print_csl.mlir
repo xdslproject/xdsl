@@ -352,14 +352,14 @@ csl.func @gemv() {
 // CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
 // CHECK-NEXT:     const idx_f32 : f32 = @as(f32, idx);
 // CHECK-NEXT:     const idx_index : i32 = @as(i32, idx);
-// CHECK-NEXT:     //unknown op Store(memref.store %idx_f32, %A[%idx_index] : memref<24xf32>)
+// CHECK-NEXT:     A[idx_index] = idx_f32;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   const ub3 : i16 = 6;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub3, step)) |j| {
 // CHECK-NEXT:     const val : f32 = 1.0;
 // CHECK-NEXT:     const j_idx : i32 = @as(i32, j);
-// CHECK-NEXT:     //unknown op Store(memref.store %val, %x[%j_idx] : memref<6xf32>)
+// CHECK-NEXT:     x[j_idx] = val;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   const ub4 : i16 = 6;
 // CHECK-NEXT:
@@ -367,8 +367,8 @@ csl.func @gemv() {
 // CHECK-NEXT:     const c2 : f32 = 2.0;
 // CHECK-NEXT:     const c0 : f32 = 0.0;
 // CHECK-NEXT:     const i_idx : i32 = @as(i32, i);
-// CHECK-NEXT:     //unknown op Store(memref.store %c2, %b[%i_idx] : memref<4xf32>)
-// CHECK-NEXT:     //unknown op Store(memref.store %c0, %y[%i_idx] : memref<4xf32>)
+// CHECK-NEXT:     b[i_idx] = c2;
+// CHECK-NEXT:     y[i_idx] = c0;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
@@ -386,14 +386,11 @@ csl.func @gemv() {
 // CHECK-NEXT:     for(@range(i32, lb, ub, step)) |j| {
 // CHECK-NEXT:       //unknown op Muli(%ix6 = arith.muli %i, %ub : index)
 // CHECK-NEXT:       //unknown op Addi(%ix6pj = arith.addi %ix6, %j : index)
-// CHECK-NEXT:       //unknown op Load(%A_loaded = memref.load %A[%ix6pj] : memref<24xf32>)
-// CHECK-NEXT:       //unknown op Load(%x_loaded = memref.load %x[%j] : memref<6xf32>)
 // CHECK-NEXT:       //unknown op Mulf(%Axx = arith.mulf %A_loaded, %x_loaded : f32)
 // CHECK-NEXT:       //unknown op Addf(%tmp_next = arith.addf %tmp_iter, %Axx : f32)
 // CHECK-NEXT:     }
-// CHECK-NEXT:     //unknown op Load(%bi = memref.load %b[%i] : memref<4xf32>)
 // CHECK-NEXT:     //unknown op Addf(%tmp_plus_bi = arith.addf %tmp, %bi : f32)
-// CHECK-NEXT:     //unknown op Store(memref.store %tmp_plus_bi, %y[%i] : memref<4xf32>)
+// CHECK-NEXT:     y[i] = tmp_plus_bi;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
