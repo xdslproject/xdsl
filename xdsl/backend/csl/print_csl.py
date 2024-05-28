@@ -325,6 +325,16 @@ class CslPrintContext:
                 case memref.GetGlobal(name_=name, memref=res):
                     # We print the array definition when the global is defined
                     self.variables[res] = name.string_value()
+                case memref.Store(value=val, memref=arr, indices=idxs):
+                    arr_name = self._get_variable_name_for(arr)
+                    idx_args = ", ".join(map(self._get_variable_name_for, idxs))
+                    val_name = self._get_variable_name_for(val)
+                    self.print(f"{arr_name}[{idx_args}] = {val_name};")
+                case memref.Load(memref=arr, indices=idxs, res=res):
+                    arr_name = self._get_variable_name_for(arr)
+                    idx_args = ", ".join(map(self._get_variable_name_for, idxs))
+                    # Use the array access syntax instead of copying the value out
+                    self.variables[res] = f"({arr_name}[{idx_args}])"
                 case csl.AddressOfOp(value=val, res=res):
                     val_name = self._get_variable_name_for(val)
                     ty = res.type
