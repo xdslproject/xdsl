@@ -421,6 +421,55 @@ class MessageConstraint(AttrConstraint):
         return self.constr.infer(constraint_vars)
 
 
+class RangeConstraint(ABC):
+
+    @abstractmethod
+    def verify(
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+    ) -> None:
+        """
+        Check if the range satisfies the constraint,
+        or raise an exception otherwise.
+        """
+        ...
+
+    def get_resolved_variables(self) -> set[str]:
+        """
+        Get the set of type variables that are always resolved when verifying
+        the constraint.
+        """
+        return set()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        """
+        Check if there is enough information to infer the range given the
+        constraint variables that are already set.
+        """
+        # By default, we cannot infer anything.
+        return False
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Sequence[Attribute]:
+        """
+        Infer the range given the constraint variables that are already set.
+
+        Raises an exception if the range cannot be inferred. If `can_infer`
+        returns `True` with the given constraint variables, this method should
+        not raise an exception.
+        """
+        raise ValueError("Cannot infer range from constraint")
+
+
+class RangeOf(RangeConstraint):
+
+    constr: AttrConstraint
+
+    def verify(
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+    ) -> None:
+        for a in attrs:
+            self.constr.verify(a, constraint_vars)
+
+
 def _irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[Any],
     *,
