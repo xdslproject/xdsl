@@ -89,7 +89,13 @@ class CslPrintContext:
         self.descend().print_block(bdy.block)
         self.print("}")
 
-    def _wrapp_task_id(self, kind: csl.TaskKind, id: int):
+    def _wrapp_task_id(self, kind: csl.TaskKind, id: int) -> str:
+        """
+        When using `@get_<kind>_tadk_id`, data task IDs have to be wrapped in
+        `@get_color`. Local and control task IDs  just get passed directly.
+
+        Returns wrapped ID as a string.
+        """
         if kind == csl.TaskKind.DATA:
             return f"@get_color({id})"
         return str(id)
