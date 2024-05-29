@@ -53,10 +53,16 @@ from .assembly import (
     print_type_pair,
 )
 from .attributes import LabelAttr
-from .register import GeneralRegisterType, RFLAGSRegisterType, X86RegisterType
+from .register import (
+    AVXRegisterType,
+    GeneralRegisterType,
+    RFLAGSRegisterType,
+    X86RegisterType,
+)
 
 R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
 R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
+R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 
 
 class X86Op(Operation, ABC):
@@ -2395,6 +2401,83 @@ class S_JzOp(ConditionalJumpOperation):
     name = "x86.s.jz"
 
 
+class RRROperation(Generic[R1InvT, R2InvT, R3InvT], IRDLOperation, X86Instruction, ABC):
+    """
+    A base class for x86 operations that have three registers.
+    """
+
+    r1 = operand_def(R1InvT)
+    r2 = operand_def(R2InvT)
+    r3 = operand_def(R3InvT)
+
+    result = result_def(R1InvT)
+
+    def __init__(
+        self,
+        r1: Operation | SSAValue,
+        r2: Operation | SSAValue,
+        r3: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        result: R1InvT,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[r1, r2, r3],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[result],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.r1, self.r2, self.r3
+
+
+@irdl_op_definition
+class RRR_Vfmadd231pdOp(
+    RRROperation[AVXRegisterType, AVXRegisterType, AVXRegisterType]
+):
+    """
+    Multiply packed double-precision floating-point elements in r2 and r3, add the intermediate result to r1, and store the final result in r1.
+    https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd
+    """
+
+    name = "x86.rrr.vfmadd231pd"
+
+
+@irdl_op_definition
+class RR_VmovapdOp(R_RR_Operation[AVXRegisterType, AVXRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from zmm1 to zmm2 using writemask k1
+    https://www.felixcloutier.com/x86/movapd
+    """
+
+    name = "x86.rr.vmovapd"
+
+
+@irdl_op_definition
+class MR_VmovapdOp(M_MR_Operation[GeneralRegisterType, AVXRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from zmm1 to m512 using writemask k1
+    https://www.felixcloutier.com/x86/movapd
+    """
+
+    name = "x86.mr.vmovapd"
+
+
+@irdl_op_definition
+class RM_VbroadcastsdOp(R_RM_Operation[AVXRegisterType, GeneralRegisterType]):
+    """
+    Broadcast low double precision floating-point element in m64 to eight locations in zmm1 using writemask k1
+    https://www.felixcloutier.com/x86/vbroadcast
+    """
+
+    name = "x86.rm.vbroadcastsd"
+
+
 class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
     """
     This instruction allows us to create an SSAValue for a given register name.
@@ -2415,6 +2498,11 @@ class GetAnyRegisterOperation(Generic[R1InvT], IRDLOperation, X86Op):
 @irdl_op_definition
 class GetRegisterOp(GetAnyRegisterOperation[GeneralRegisterType]):
     name = "x86.get_register"
+
+
+@irdl_op_definition
+class GetAVXRegisterOp(GetAnyRegisterOperation[AVXRegisterType]):
+    name = "x86.get_avx_register"
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:

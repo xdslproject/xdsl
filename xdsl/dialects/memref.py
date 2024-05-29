@@ -58,6 +58,7 @@ from xdsl.traits import (
     SymbolOpInterface,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
+from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -358,11 +359,15 @@ class GetGlobal(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
     name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
+    def __init__(self, name: str | SymbolRefAttr, return_type: Attribute):
+        if isinstance(name, str):
+            name = SymbolRefAttr(name)
+        super().__init__(result_types=[return_type], properties={"name": name})
+
+    @deprecated_constructor
     @staticmethod
-    def get(name: str, return_type: Attribute) -> GetGlobal:
-        return GetGlobal.build(
-            result_types=[return_type], properties={"name": SymbolRefAttr(name)}
-        )
+    def get(name: str | SymbolRefAttr, return_type: Attribute) -> GetGlobal:
+        return GetGlobal(name, return_type)
 
     assembly_format = "$name `:` type($memref) attr-dict"
 

@@ -24,6 +24,7 @@ from xdsl.ir import (
     OperationInvT,
     Region,
     SSAValue,
+    TypeAttribute,
 )
 from xdsl.traits import CallableOpInterface, IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import InterpretationError
@@ -415,14 +416,16 @@ class _InterpreterFunctionImpls:
         ft, impl = self._cast_impl_dict[types]
         return impl(ft, input_type, output_type, value)
 
-    def attr_value(self, interpreter: Interpreter, attr: Attribute) -> Any:
-        attr_type = type(attr)
+    def attr_value(
+        self, interpreter: Interpreter, attr: Attribute, type_attr: Attribute
+    ) -> Any:
+        attr_type = type(type_attr)
         if attr_type not in self._attr_impl_dict:
             raise InterpretationError(
                 f"Could not find Python value implementation for types {attr_type}"
             )
         ft, impl = self._attr_impl_dict[attr_type]
-        return impl(ft, interpreter, attr)
+        return impl(ft, interpreter, attr, type_attr)
 
     def call_external(
         self, interpreter: Interpreter, sym_name: str, op: Operation, args: PythonValues
@@ -706,8 +709,8 @@ class Interpreter:
 
         return self._impls.cast(o, r, value)
 
-    def value_for_attribute(self, attr: Attribute) -> Any:
-        return self._impls.attr_value(self, attr)
+    def value_for_attribute(self, attr: Attribute, type_attr: Attribute) -> Any:
+        return self._impls.attr_value(self, attr, type_attr)
 
     def get_op_for_symbol(self, symbol: str) -> Operation:
         if symbol in self.symbol_table:
@@ -747,7 +750,10 @@ class Interpreter:
     def interpreter_assert(self, condition: bool, message: str | None = None):
         """Raise InterpretationError if condition is not satisfied."""
         if not condition:
-            raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
+            self.raise_error(message)
+
+    def raise_error(self, message: str | None = None):
+        raise InterpretationError(f"AssertionError: ({self._ctx})({message})")
 
 
 @dataclass
@@ -807,7 +813,7 @@ CastImpl: TypeAlias = Callable[
     Any,
 ]
 AttrImpl: TypeAlias = Callable[
-    [_FT, Interpreter, AttributeInvT],
+    [_FT, Interpreter, Attribute, AttributeInvT],
     Any,
 ]
 
@@ -819,7 +825,7 @@ _CastImplDict: TypeAlias = dict[
 ]
 _AttrImplDict: TypeAlias = dict[
     type[Attribute],
-    AttrImpl[InterpreterFunctions, Attribute],
+    AttrImpl[InterpreterFunctions, TypeAttribute],
 ]
 
 ExtFuncImpl: TypeAlias = Callable[

@@ -92,9 +92,13 @@ def update_result_size(value: SSAValue, size: StencilBoundsAttr):
             )
             for use in res.uses:
                 if isinstance(use.operation, BufferOp):
-                    use.operation.res.type = res.type
-    newtype = TempType(size, cast(TempType[Attribute], value.type).element_type)
+                    update_result_size(use.operation.res, newsize)
+    newsize = size | cast(TempType[Attribute], value.type).bounds
+    newtype = TempType(newsize, cast(TempType[Attribute], value.type).element_type)
     value.type = newtype
+    for use in value.uses:
+        if isinstance(use.operation, ApplyOp):
+            use.operation.region.block.args[use.index].type = newtype
 
 
 class CombineOpShapeInference(RewritePattern):

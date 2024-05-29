@@ -7,7 +7,7 @@ builtin+printf to riscv.
 
 from typing import IO, ClassVar
 
-from riscemu.core import Float64, Instruction, Int32
+from riscemu.core import Instruction, Int32
 from riscemu.instructions.instruction_set import InstructionSet
 
 from xdsl.interpreters.ptr import RawPtr
@@ -31,23 +31,6 @@ class ToyAccelerator(InstructionSet):
 
     def buffer_read(self, ptr: int, len: int) -> RawPtr:
         return RawPtr(self.mmu.read(ptr, len))
-
-    # Missing fcvt.d.w instruction
-
-    def instruction_fcvt_d_w(self, ins: Instruction):
-        """
-        Converts a 32-bit unsigned integer, in integer register rs1 into a double-precision floating-point number in floating-point register rd.
-
-        f[rd] = f64_{u32}(x[rs1])
-
-        https://msyksphinz-self.github.io/riscv-isadoc/html/rvfd.html#fcvt-d-wu
-        """
-
-        rd = ins.get_reg(0)
-        rs1 = ins.get_reg(1)
-
-        rs1_val = self.regs.get(rs1)
-        self.regs.set_f(rd, Float64(float(rs1_val.value)))
 
     # Custom instructions
 
