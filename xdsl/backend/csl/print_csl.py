@@ -60,7 +60,7 @@ class CslPrintContext:
         self.print("}")
         pass
 
-    def _task_or_fn(
+    def _print_task_or_fn(
         self, introducer: str, name: StringAttr, bdy: Region, ftyp: FunctionType
     ):
         args = ", ".join(
@@ -81,7 +81,9 @@ class CslPrintContext:
             return f"@get_color({id})"
         return str(id)
 
-    def _bind_task(self, name: str, kind: csl.TaskKind, id: csl.ColorIdAttr | None):
+    def _print_bind_task(
+        self, name: str, kind: csl.TaskKind, id: csl.ColorIdAttr | None
+    ):
         if id is None:
             return
         with self._in_block("comptime"):
@@ -266,10 +268,10 @@ class CslPrintContext:
                 case csl.TaskOp(
                     sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id
                 ):
-                    self._task_or_fn("task", name, bdy, ftyp)
-                    self._bind_task(name.data, kind.data, id)
+                    self._print_task_or_fn("task", name, bdy, ftyp)
+                    self._print_bind_task(name.data, kind.data, id)
                 case csl.FuncOp(sym_name=name, body=bdy, function_type=ftyp):
-                    self._task_or_fn("fn", name, bdy, ftyp)
+                    self._print_task_or_fn("fn", name, bdy, ftyp)
                 case csl.ReturnOp(ret_val=None):
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
