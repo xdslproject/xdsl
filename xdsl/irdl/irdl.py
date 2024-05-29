@@ -459,6 +459,7 @@ class RangeConstraint(ABC):
         raise ValueError("Cannot infer range from constraint")
 
 
+@dataclass
 class RangeOf(RangeConstraint):
 
     constr: AttrConstraint
@@ -468,6 +469,45 @@ class RangeOf(RangeConstraint):
     ) -> None:
         for a in attrs:
             self.constr.verify(a, constraint_vars)
+
+
+@dataclass
+class SingleOf(RangeConstraint):
+
+    constr: AttrConstraint
+
+    def verify(
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+    ) -> None:
+        if len(attrs) != 1:
+            raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
+        self.constr.verify(attrs[0], constraint_vars)
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constr.can_infer(constraint_names)
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Sequence[Attribute]:
+        return (self.constr.infer(constraint_vars),)
+
+
+def range_constr_coercion(
+    attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint,
+) -> RangeConstraint:
+    if isinstance(attr, RangeConstraint):
+        return attr
+    return RangeOf(attr_constr_coercion(attr))
+
+
+def single_range_constr_coercion(
+    attr: Attribute | type[Attribute] | AttrConstraint,
+) -> RangeConstraint:
+    if isinstance(attr, SingleOf):
+        return attr
+
+    return SingleOf(attr_constr_coercion(attr))
 
 
 def _irdl_list_to_attr_constraint(
@@ -857,11 +897,11 @@ class OptionalDef(VariadicDef):
 class OperandDef(OperandOrResultDef):
     """An IRDL operand definition."""
 
-    constr: AttrConstraint
+    constr: RangeConstraint
     """The operand constraint."""
 
     def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
-        self.constr = attr_constr_coercion(attr)
+        self.constr = single_range_constr_coercion(attr)
 
 
 Operand: TypeAlias = SSAValue
@@ -870,6 +910,11 @@ Operand: TypeAlias = SSAValue
 @dataclass(init=False)
 class VarOperandDef(OperandDef, VariadicDef):
     """An IRDL variadic operand definition."""
+
+    def __init__(
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+    ):
+        self.constr = range_constr_coercion(attr)
 
 
 VarOperand: TypeAlias = list[SSAValue]
@@ -887,16 +932,23 @@ OptOperand: TypeAlias = SSAValue | None
 class ResultDef(OperandOrResultDef):
     """An IRDL result definition."""
 
-    constr: AttrConstraint
+    constr: RangeConstraint
     """The result constraint."""
 
-    def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
-        self.constr = attr_constr_coercion(attr)
+    def __init__(
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+    ):
+        self.constr = range_constr_coercion(attr)
 
 
 @dataclass(init=False)
 class VarResultDef(ResultDef, VariadicDef):
     """An IRDL variadic result definition."""
+
+    def __init__(
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+    ):
+        self.constr = range_constr_coercion(attr)
 
 
 VarOpResult: TypeAlias = list[OpResult]
@@ -1855,25 +1907,27 @@ def irdl_op_verify_regions(op: Operation, op_def: OpDef):
 def irdl_op_verify_arg_list(
     op: Operation,
     op_def: OpDef,
-    construct: VarIRConstruct,
+    construct: Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT],
     constraint_vars: dict[str, Attribute],
 ) -> None:
     """Verify the argument list of an operation."""
     arg_sizes = get_variadic_sizes(op, op_def, construct)
     arg_idx = 0
     var_idx = 0
-    args = get_op_constructs(op, construct)
+    args = cast(
+        Sequence[SSAValue] | Sequence[OpResult], get_op_constructs(op, construct)
+    )
+    args_defs = cast(
+        Sequence[tuple[str, ResultDef]] | Sequence[tuple[str, OperandDef]],
+        get_construct_defs(op_def, construct),
+    )
 
-    def verify_arg(arg: Any, arg_def: Any, arg_idx: int) -> None:
+    def verify_arg(
+        arg: SSAValue | OpResult, arg_def: ResultDef | OperandDef, arg_idx: int
+    ) -> None:
         """Verify a single argument."""
         try:
-            if (
-                construct == VarIRConstruct.OPERAND
-                or construct == VarIRConstruct.RESULT
-            ):
-                arg_def.constr.verify(arg.type, constraint_vars)
-            else:
-                assert False, "Unknown VarIRConstruct value"
+            arg_def.constr.verify((arg.type,), constraint_vars)
         except Exception as e:
             error(
                 op,
@@ -1882,7 +1936,7 @@ def irdl_op_verify_arg_list(
                 e,
             )
 
-    for def_idx, (_, arg_def) in enumerate(get_construct_defs(op_def, construct)):
+    for def_idx, (_, arg_def) in enumerate(args_defs):
         if isinstance(arg_def, VariadicDef):
             for _ in range(arg_sizes[var_idx]):
                 verify_arg(args[arg_idx], arg_def, def_idx)
