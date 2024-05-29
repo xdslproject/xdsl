@@ -24,7 +24,7 @@ from xdsl.dialects.builtin import (
     TypeAttribute,
     UnitAttr,
 )
-from xdsl.ir import Attribute, Block, BlockOps, Region, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue
 
 
 @dataclass
@@ -352,8 +352,8 @@ class CslPrintContext:
         )
 
 
-def _get_layout_program(ops: BlockOps) -> tuple[csl.CslModuleOp, csl.CslModuleOp]:
-    ops_list = list(ops)
+def _get_layout_program(module: ModuleOp) -> tuple[csl.CslModuleOp, csl.CslModuleOp]:
+    ops_list = list(module.body.block.ops)
     assert all(
         isinstance(mod, csl.CslModuleOp) for mod in ops_list
     ), "Expected all top level ops to be csl.module"
@@ -377,7 +377,7 @@ def print_to_csl(prog: ModuleOp, output: IO[str]):
     Takes a module op and prints it to the given output stream.
     """
     ctx = CslPrintContext(output)
-    layout, program = _get_layout_program(prog.body.block.ops)
+    layout, program = _get_layout_program(prog)
     ctx.print_block(program.body.block)
     ctx.print(ctx.DIVIDER)
     ctx.print_block(layout.body.block)
