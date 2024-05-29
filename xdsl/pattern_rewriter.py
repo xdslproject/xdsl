@@ -95,7 +95,6 @@ class PatternRewriter(PatternRewriterListener):
         op = (op,) if isinstance(op, Operation) else op
         if not op:
             return
-
         Rewriter.insert_ops_at_location(op, insertion_point)
 
         for op_ in op:
