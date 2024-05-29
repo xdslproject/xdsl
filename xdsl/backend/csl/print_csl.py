@@ -61,8 +61,15 @@ class CslPrintContext:
         pass
 
     def _print_task_or_fn(
-        self, introducer: str, name: StringAttr, bdy: Region, ftyp: FunctionType
+        self,
+        kind: Literal["fn"] | Literal["task"],
+        name: StringAttr,
+        bdy: Region,
+        ftyp: FunctionType,
     ):
+        """
+        Shared printing logic for printing tasks and functions.
+        """
         args = ", ".join(
             f"{self._get_variable_name_for(arg)} : {self.mlir_type_to_csl_type(arg.type)}"
             for arg in bdy.block.args
@@ -72,7 +79,7 @@ class CslPrintContext:
             if len(ftyp.outputs) == 0
             else self.mlir_type_to_csl_type(ftyp.outputs.data[0])
         )
-        self.print(f"\n{introducer} {name.data}({args}) {ret} {{")
+        self.print(f"\n{kind} {name.data}({args}) {ret} {{")
         self.descend().print_block(bdy.block)
         self.print("}")
 
@@ -121,7 +128,17 @@ class CslPrintContext:
         else:
             return f"{intro} {self._get_variable_name_for(val)} : {self.mlir_type_to_csl_type(val.type)}"
 
-    def _export_sym_constness(self, ty: FunctionType | csl.PtrType):
+    def _export_sym_constness(self, ty: FunctionType | csl.PtrType) -> bool | None:
+        """
+        Derive host-mutability for symbol exporting from MLIR type.
+
+        When exporting symbols we have to specify if they can be modified by the
+        host (true for mutable, false for immutable).
+
+        This is only true for pointer types, function types are always immutable
+        so their mutability cannot be specified (it's a compiler error to do so).
+        We represent this by returning None.
+        """
         if isinstance(ty, FunctionType):
             return None
         match ty.constness.data:
