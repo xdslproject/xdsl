@@ -52,6 +52,12 @@ class CslPrintContext:
 
     @contextmanager
     def _in_block(self, block_name: str):
+        """
+        To be used in a `with` statement.
+        Surrounds everything in the `with` with curly braces and .
+
+        This is used instead of descend when
+        """
         self.print(f"{block_name} {{")
         old_prefix = self._prefix
         self._prefix += self._INDENT
