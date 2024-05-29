@@ -114,7 +114,11 @@ class CslPrintContext:
                 f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrapp_task_id(kind, id.value.data)}));"
             )
 
-    def _memref_global_init(self, init: Attribute, type: str):
+    def _memref_global_init(self, init: Attribute, type: str) -> str:
+        """
+        Generate an initialisation expression (@constants) for global arrays.
+        Expects the memref.global initial_value property.
+        """
         match init:
             case UnitAttr():
                 return ""
