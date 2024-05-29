@@ -8,7 +8,7 @@ from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
 from xdsl.ir import Block, MLContext, Region
 from xdsl.parser import Parser
-from xdsl.rewriter import Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
 
 
 def rewrite_and_compare(
@@ -159,7 +159,7 @@ def test_inline_block_at_end():
         module_block = module.regions[0].blocks[0]
         test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_at_end(test_block, module_block)
+        rewriter.inline_block_at_location(test_block, InsertPoint.at_end(module_block))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -191,7 +191,7 @@ def test_inline_block_before():
         test_op = next(ops_iter)
         test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_before(test_block, test_op)
+        rewriter.inline_block_at_location(test_block, InsertPoint.before(test_op))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -223,7 +223,7 @@ def test_inline_block_after():
         test_op = next(ops_iter)
         test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_after(test_block, constant_op)
+        rewriter.inline_block_at_location(test_block, InsertPoint.after(constant_op))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -335,7 +335,7 @@ def test_insert_op_before():
         constant = Constant.from_int_and_width(34, i64)
         first_op = module.regions[0].blocks[0].first_op
         assert first_op is not None
-        rewriter.insert_op_before(first_op, constant)
+        rewriter.insert_ops_at_location((constant,), InsertPoint.before(first_op))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -359,7 +359,7 @@ def test_insert_op_after():
         constant = Constant.from_int_and_width(34, i64)
         first_op = module.regions[0].blocks[0].first_op
         assert first_op is not None
-        rewriter.insert_op_after(first_op, constant)
+        rewriter.insert_ops_at_location((constant,), InsertPoint.after(first_op))
 
     rewrite_and_compare(prog, expected, transformation)
 

@@ -8,7 +8,7 @@ from functools import wraps
 from types import UnionType
 from typing import TypeVar, Union, final, get_args, get_origin
 
-from xdsl.builder import BuilderListener, InsertPoint
+from xdsl.builder import BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -20,7 +20,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.rewriter import Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.hints import isa
 
 
@@ -251,6 +251,18 @@ class PatternRewriter(PatternRewriterListener):
         self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
         arg.block.erase_arg(arg, safe_erase)
 
+    def inline_block_at_location(
+        self,
+        block: Block,
+        insertion_point: InsertPoint,
+        arg_values: Sequence[SSAValue] = (),
+    ):
+        """
+        Move the block operations to the specified insertion point.
+        """
+        self.has_done_action = True
+        Rewriter.inline_block_at_location(block, insertion_point, arg_values=arg_values)
+
     def inline_block_at_end(
         self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -259,7 +271,9 @@ class PatternRewriter(PatternRewriterListener):
         This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
-        Rewriter.inline_block_at_end(block, target_block, arg_values=arg_values)
+        Rewriter.inline_block_at_location(
+            block, InsertPoint.at_end(target_block), arg_values=arg_values
+        )
 
     def inline_block_at_start(
         self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
@@ -269,7 +283,9 @@ class PatternRewriter(PatternRewriterListener):
         This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
-        Rewriter.inline_block_at_start(block, target_block, arg_values)
+        Rewriter.inline_block_at_location(
+            block, InsertPoint.at_start(target_block), arg_values
+        )
 
     def inline_block_before_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
@@ -288,7 +304,9 @@ class PatternRewriter(PatternRewriterListener):
         The block should not be a parent of the operation.
         """
         self.has_done_action = True
-        Rewriter.inline_block_before(block, op, arg_values=arg_values)
+        Rewriter.inline_block_at_location(
+            block, InsertPoint.before(op), arg_values=arg_values
+        )
 
     def inline_block_after_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
@@ -307,7 +325,9 @@ class PatternRewriter(PatternRewriterListener):
         The block should not be a parent of the operation.
         """
         self.has_done_action = True
-        Rewriter.inline_block_after(block, op, arg_values=arg_values)
+        Rewriter.inline_block_at_location(
+            block, InsertPoint.after(op), arg_values=arg_values
+        )
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""
