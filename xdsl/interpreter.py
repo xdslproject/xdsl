@@ -611,7 +611,7 @@ class Interpreter:
         self.listener.did_interpret_op(op, result.values)
         return result
 
-    def run_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
+    def run_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
         """
         Calls the implementation for the given operation.
         """
@@ -620,7 +620,7 @@ class Interpreter:
 
         return self._run_op(op, inputs).values
 
-    def call_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
+    def call_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
         """
         Calls the implementation for the given operation.
         """

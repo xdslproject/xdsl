@@ -1,5 +1,4 @@
-from xdsl.dialects import arith, builtin, func
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.dialects.irdl import irdl
 from xdsl.interpreter import (
     Interpreter,
@@ -8,7 +7,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.ir import Dialect, MLContext, ParametrizedAttribute
+from xdsl.ir import Dialect, ParametrizedAttribute
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -165,34 +164,12 @@ class IRDLFunctions(InterpreterFunctions):
 
 
 def make_dialect(op: irdl.DialectOp) -> Dialect:
-    interpreter = Interpreter(op.get_toplevel_object())
+    module = op.get_toplevel_object()
+    if not isinstance(module, ModuleOp):
+        raise ValueError("Expected dialect to be nested in a ModuleOp")
+
+    interpreter = Interpreter(module)
     irdl_impl = IRDLFunctions()
     interpreter.register_implementations(irdl_impl)
     interpreter.run_op(op, ())
     return irdl_impl.dialect
-
-
-if __name__ == "__main__":
-    from xdsl.parser import Parser
-
-    ctx = MLContext()
-    ctx.load_dialect(irdl.IRDL)
-    ctx.load_dialect(builtin.Builtin)
-    ctx.load_dialect(func.Func)
-    ctx.load_dialect(arith.Arith)
-
-    f = open("tests/filecheck/dialects/irdl/cmath.irdl.mlir")
-
-    parser = Parser(ctx, f.read())
-
-    module = parser.parse_module()
-    dialect_op = module.body.block.first_op
-    assert isinstance(dialect_op, irdl.DialectOp)
-    dialect = make_dialect(dialect_op)
-
-    ctx.load_dialect(dialect)
-
-    f = open("tests/filecheck/dialects/cmath/cmath_ops.mlir")
-    parser = Parser(ctx, f.read())
-    module = parser.parse_module()
-    print(module)
