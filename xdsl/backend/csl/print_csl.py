@@ -103,6 +103,10 @@ class CslPrintContext:
     def _print_bind_task(
         self, name: str, kind: csl.TaskKind, id: csl.ColorIdAttr | None
     ):
+        """
+        Generate a call to `@bind_<kind>_task` if task ID was specified as a
+        property of the task. Otherwise we assume binding will be done at runtime.
+        """
         if id is None:
             return
         with self._in_block("comptime"):
