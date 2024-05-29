@@ -89,7 +89,7 @@ class CslPrintContext:
         self.descend().print_block(bdy.block)
         self.print("}")
 
-    def _wrapp_task_id(self, kind: csl.TaskKind, id: int) -> str:
+    def _wrap_task_id(self, kind: csl.TaskKind, id: int) -> str:
         """
         When using `@get_<kind>_tadk_id`, data task IDs have to be wrapped in
         `@get_color`. Local and control task IDs  just get passed directly.
@@ -111,7 +111,7 @@ class CslPrintContext:
             return
         with self._in_block("comptime"):
             self.print(
-                f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrapp_task_id(kind, id.value.data)}));"
+                f"@bind_{kind.value}_task({name}, @get_{kind.value}_task_id({self._wrap_task_id(kind, id.value.data)}));"
             )
 
     def _memref_global_init(self, init: Attribute, type: str) -> str:
