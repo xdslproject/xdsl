@@ -20,6 +20,9 @@
 %non_const = "test.op"() : () -> !riscv.reg<>
 // CHECK-NEXT:    %non_const = "test.op"() : () -> !riscv.reg<>
 
+%int0, %int1, %float0 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>)
+// CHECK-NEXT:    %int0, %int1, %float0 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>)
+
 riscv_scf.for %16 : !riscv.reg<> = %non_const to %c64 step %c8 {
     riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 {
         %18 = riscv.li 8 : () -> !riscv.reg<>
@@ -46,9 +49,6 @@ riscv_scf.for %i : !riscv.reg<> = %c0 to %c64 step %c5 {
 // CHECK-NEXT:      %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
 // CHECK-NEXT:      "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:    }
-
-%int0, %int1, %float0 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>)
-// CHECK-NEXT:    %int0, %int1, %float0 = "test.op"() : () -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>)
 
 %e0, %e1, %e2 = riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
     %d0, %d1, %d2 = riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%b0 = %a0, %b1 = %a1, %b2 = %a2) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
@@ -121,6 +121,21 @@ riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
 // CHECK-NEXT:        "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %{{.*}} = riscv.li 42 : () -> !riscv.reg<>
+// CHECK-NEXT:    }
+
+// Indices must be used by the same operation
+riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
+    riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 {
+        "test.op"(%16) : (!riscv.reg<>) -> ()
+        "test.op"(%17) : (!riscv.reg<>) -> ()
+    }
+}
+
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:      }
 // CHECK-NEXT:    }
 
 // Cannot fuse inner loop with iteration arguments
@@ -222,6 +237,57 @@ riscv_scf.for %16 : !riscv.reg<> = %non_const to %c64 step %c8 {
 // CHECK-NEXT:        }
 // CHECK-NEXT:    }
 
+// Inner loop lb must be constant
+riscv_scf.for %16 : !riscv.reg<> = %non_const to %c64 step %c8 {
+    riscv_scf.for %17 : !riscv.reg<> = %non_const to %c8 step %c1 {
+        %18 = riscv.li 8 : () -> !riscv.reg<>
+        %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "test.op"(%19) : (!riscv.reg<>) -> ()
+    }
+}
+
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %non_const to %c64 step %c8 {
+// CHECK-NEXT:        riscv_scf.for %{{.*}} : !riscv.reg<> = %non_const to %c8 step %c1 {
+// CHECK-NEXT:            %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:            %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:            "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:        }
+// CHECK-NEXT:    }
+
+// Inner loop ub must be constant
+riscv_scf.for %16 : !riscv.reg<> = %non_const to %c64 step %c8 {
+    riscv_scf.for %17 : !riscv.reg<> = %c0 to %non_const step %c1 {
+        %18 = riscv.li 8 : () -> !riscv.reg<>
+        %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "test.op"(%19) : (!riscv.reg<>) -> ()
+    }
+}
+
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %non_const to %c64 step %c8 {
+// CHECK-NEXT:        riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %non_const step %c1 {
+// CHECK-NEXT:            %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:            %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:            "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:        }
+// CHECK-NEXT:    }
+
+// Outer loop step must be constant
+riscv_scf.for %16 : !riscv.reg<> = %non_const to %c64 step %non_const {
+    riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 {
+        %18 = riscv.li 8 : () -> !riscv.reg<>
+        %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "test.op"(%19) : (!riscv.reg<>) -> ()
+    }
+}
+
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %non_const to %c64 step %non_const {
+// CHECK-NEXT:        riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %c8 step %c1 {
+// CHECK-NEXT:            %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:            %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:            "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:        }
+// CHECK-NEXT:    }
+
 // Inner loop step must evenly divide outer loop step
 riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
     riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c3 {
@@ -242,6 +308,23 @@ riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
 // Inner loop step must evenly divide outer loop step
 riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
     riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c3 {
+        %18 = riscv.li 8 : () -> !riscv.reg<>
+        %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "test.op"(%19) : (!riscv.reg<>) -> ()
+    }
+}
+
+// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+
+// Inner loop ub must equal divide outer loop step
+riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 {
+    riscv_scf.for %17 : !riscv.reg<> = %c0 to %c5 step %c3 {
         %18 = riscv.li 8 : () -> !riscv.reg<>
         %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
         "test.op"(%19) : (!riscv.reg<>) -> ()
@@ -285,6 +368,50 @@ riscv_scf.for %i : !riscv.reg<> = %non_const to %c64 step %c5 {
 // CHECK-NEXT:            %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
 // CHECK-NEXT:            "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:        }
+// CHECK-NEXT:    }
+
+// Iter args failures:
+
+// Different order of induction arguments
+%h0, %h1, %h2 = riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+    %d0, %d1, %d2 = riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%b0 = %a1, %b1 = %a0, %b2 = %a2) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+        %18 = riscv.li 8 : () -> !riscv.reg<>
+        %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "test.op"(%19) : (!riscv.reg<>) -> ()
+        riscv_scf.yield %b0, %b1, %b2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+    }
+    riscv_scf.yield %d0, %d1, %d2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+}
+
+// CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+// CHECK-NEXT:      %{{.*}}, %{{.*}}, %{{.*}} = riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+// CHECK-NEXT:        %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:        riscv_scf.yield %{{.*}}, %{{.*}}, %{{.*}} : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+// CHECK-NEXT:      }
+// CHECK-NEXT:      riscv_scf.yield %{{.*}}, %{{.*}}, %{{.*}} : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+// CHECK-NEXT:    }
+
+
+%x0, %x1, %x2 = riscv_scf.for %16 : !riscv.reg<> = %c0 to %c64 step %c8 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+    %d0, %d1 = riscv_scf.for %17 : !riscv.reg<> = %c0 to %c8 step %c1 iter_args(%b0 = %a0, %b1 = %a1) -> (!riscv.reg<>, !riscv.reg<>) {
+        %18 = riscv.li 8 : () -> !riscv.reg<>
+        %19 = riscv.add %16, %17 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+        "test.op"(%19) : (!riscv.reg<>) -> ()
+        riscv_scf.yield %b0, %b1 : !riscv.reg<>, !riscv.reg<>
+    }
+    riscv_scf.yield %d0, %d1, %a2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
+}
+
+// CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+// CHECK-NEXT:      %{{.*}}, %{{.*}} = riscv_scf.for %{{.*}} : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (!riscv.reg<>, !riscv.reg<>) {
+// CHECK-NEXT:        %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:        %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:        riscv_scf.yield %{{.*}}, %{{.*}} : !riscv.reg<>, !riscv.reg<>
+// CHECK-NEXT:      }
+// CHECK-NEXT:      riscv_scf.yield %{{.*}}, %{{.*}}, %{{.*}} : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
 // CHECK-NEXT:    }
 
 // CHECK-NEXT:  }
