@@ -68,7 +68,7 @@ class CslPrintContext:
 
     def _print_task_or_fn(
         self,
-        kind: Literal["fn"] | Literal["task"],
+        kind: Literal["fn", "task"],
         name: StringAttr,
         bdy: Region,
         ftyp: FunctionType,
