@@ -65,6 +65,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Comb
 
+    def get_csl():
+        from xdsl.dialects.csl import CSL
+
+        return CSL
+
     def get_dmp():
         from xdsl.dialects.experimental.dmp import DMP
 
@@ -271,6 +276,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "cf": get_cf,
         "cmath": get_cmath,
         "comb": get_comb,
+        "csl": get_csl,
         "dmp": get_dmp,
         "fir": get_fir,
         "fsm": get_fsm,
@@ -346,10 +352,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_linalg_to_loops.ConvertLinalgToLoopsPass
 
-    def get_stencil_tensorize_z_dimension():
-        from xdsl.transforms.experimental import stencil_tensorize_z_dimension
+    def get_convert_ml_program_to_memref():
+        from xdsl.transforms import convert_ml_program_to_memref
 
-        return stencil_tensorize_z_dimension.StencilTensorizeZDimension
+        return convert_ml_program_to_memref.ConvertMlProgramToMemrefPass
 
     def get_convert_riscv_scf_for_to_frep():
         from xdsl.transforms import convert_riscv_scf_for_to_frep
@@ -385,6 +391,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.backend.riscv.lowering import convert_riscv_scf_to_riscv_cf
 
         return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
+
+    def get_cse():
+        from xdsl.transforms import common_subexpression_elimination
+
+        return common_subexpression_elimination.CommonSubexpressionElimination
 
     def get_dce():
         from xdsl.transforms import dead_code_elimination
@@ -476,10 +487,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_register_allocation.RISCVRegisterAllocation
 
-    def get_riscv_scf_loop_fusion():
-        from xdsl.transforms import riscv_scf_loop_fusion
+    def get_scf_for_loop_flatten():
+        from xdsl.transforms import scf_for_loop_flatten
 
-        return riscv_scf_loop_fusion.RiscvScfLoopFusionPass
+        return scf_for_loop_flatten.ScfForLoopFlattenPass
 
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
@@ -571,6 +582,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return replace_incompatible_fpga.ReplaceIncompatibleFPGA
 
+    def get_stencil_tensorize_z_dimension():
+        from xdsl.transforms.experimental import stencil_tensorize_z_dimension
+
+        return stencil_tensorize_z_dimension.StencilTensorizeZDimension
+
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
 
@@ -591,9 +607,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
-        "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
@@ -604,6 +620,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
+        "cse": get_cse,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
@@ -627,12 +644,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "riscv-cse": get_riscv_cse,
-        "riscv-scf-loop-fusion": get_riscv_scf_loop_fusion,
+        "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
+        "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-unroll": get_stencil_unroll,
         "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
     }

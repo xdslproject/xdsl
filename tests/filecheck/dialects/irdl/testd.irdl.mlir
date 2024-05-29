@@ -3,6 +3,25 @@
 builtin.module {
   // CHECK: irdl.dialect @testd {
   irdl.dialect @testd {
+
+    // CHECK:      irdl.type @base_name {
+    // CHECK-NEXT:   %{{.*}} = irdl.base "!my_dialect.type_name"
+    // CHECK-NEXT:   irdl.parameters(%{{.*}})
+    // CHECK-NEXT: }
+    irdl.type @base_name {
+      %0 = irdl.base "!my_dialect.type_name"
+      irdl.parameters(%0)
+    }
+
+    // CHECK:      irdl.type @base_ref {
+    // CHECK-NEXT:   %{{.*}} = irdl.base @base_name
+    // CHECK-NEXT:   irdl.parameters(%{{.*}})
+    // CHECK-NEXT: }
+    irdl.type @base_ref {
+      %0 = irdl.base @base_name
+      irdl.parameters(%0)
+    }
+
     // CHECK:      irdl.type @parametric {
     // CHECK-NEXT:   %{{.*}} = irdl.any
     // CHECK-NEXT:   irdl.parameters(%{{.*}})

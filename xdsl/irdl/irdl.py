@@ -81,7 +81,7 @@ class IRDLAnnotations(Enum):
 #
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttrConstraint(ABC):
     """Constrain an attribute to a certain value."""
 
@@ -123,7 +123,7 @@ class AttrConstraint(ABC):
         return None
 
 
-@dataclass
+@dataclass(frozen=True)
 class VarConstraint(AttrConstraint):
     """
     Constraint variable. If the variable is already set, this will constrain
@@ -179,7 +179,7 @@ class ConstraintVar:
     """The variable name. All uses of that name refer to the same variable."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class EqAttrConstraint(AttrConstraint):
     """Constrain an attribute to be equal to another attribute."""
 
@@ -200,7 +200,7 @@ class EqAttrConstraint(AttrConstraint):
         return type(self.attr)
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseAttr(AttrConstraint):
     """Constrain an attribute to be of a given base type."""
 
@@ -230,12 +230,12 @@ def attr_constr_coercion(
         return attr
     if isinstance(attr, Attribute):
         return EqAttrConstraint(attr)
-    if isclass(attr) and issubclass(attr, Attribute):
+    if isclass(attr):
         return BaseAttr(attr)
     assert False
 
 
-@dataclass
+@dataclass(frozen=True)
 class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
 
@@ -243,17 +243,24 @@ class AnyAttr(AttrConstraint):
         pass
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class AnyOf(AttrConstraint):
     """Ensure that an attribute satisfies one of the given constraints."""
 
-    attr_constrs: list[AttrConstraint]
+    attr_constrs: tuple[AttrConstraint, ...]
     """The list of constraints that are checked."""
 
     def __init__(
         self, attr_constrs: Sequence[Attribute | type[Attribute] | AttrConstraint]
     ):
-        self.attr_constrs = [attr_constr_coercion(constr) for constr in attr_constrs]
+        constrs: tuple[AttrConstraint, ...] = tuple(
+            attr_constr_coercion(constr) for constr in attr_constrs
+        )
+        object.__setattr__(
+            self,
+            "attr_constrs",
+            constrs,
+        )
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         for attr_constr in self.attr_constrs:
@@ -285,11 +292,11 @@ class AnyOf(AttrConstraint):
         return None
 
 
-@dataclass()
+@dataclass(frozen=True)
 class AllOf(AttrConstraint):
     """Ensure that an attribute satisfies all the given constraints."""
 
-    attr_constrs: list[AttrConstraint]
+    attr_constrs: tuple[AttrConstraint, ...]
     """The list of constraints that are checked."""
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -334,7 +341,7 @@ class AllOf(AttrConstraint):
         return None
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class ParamAttrConstraint(AttrConstraint):
     """
     Constrain an attribute to be of a given type,
@@ -344,7 +351,7 @@ class ParamAttrConstraint(AttrConstraint):
     base_attr: type[ParametrizedAttribute]
     """The base attribute type."""
 
-    param_constrs: list[AttrConstraint]
+    param_constrs: tuple[AttrConstraint, ...]
     """The attribute parameter constraints"""
 
     def __init__(
@@ -352,8 +359,9 @@ class ParamAttrConstraint(AttrConstraint):
         base_attr: type[ParametrizedAttribute],
         param_constrs: Sequence[(Attribute | type[Attribute] | AttrConstraint)],
     ):
-        self.base_attr = base_attr
-        self.param_constrs = [attr_constr_coercion(constr) for constr in param_constrs]
+        constrs = tuple(attr_constr_coercion(constr) for constr in param_constrs)
+        object.__setattr__(self, "base_attr", base_attr)
+        object.__setattr__(self, "param_constrs", constrs)
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, self.base_attr):
@@ -383,7 +391,7 @@ class ParamAttrConstraint(AttrConstraint):
         return None
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class MessageConstraint(AttrConstraint):
     """
     Attach a message to a constraint, to provide more context when the constraint
@@ -396,8 +404,8 @@ class MessageConstraint(AttrConstraint):
     def __init__(
         self, constr: AttrConstraint | Attribute | type[Attribute], message: str
     ):
-        self.constr = attr_constr_coercion(constr)
-        self.message = message
+        object.__setattr__(self, "constr", attr_constr_coercion(constr))
+        object.__setattr__(self, "message", message)
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         try:
@@ -459,7 +467,7 @@ def _irdl_list_to_attr_constraint(
     if len(constraints) == 0:
         return AnyAttr()
     if len(constraints) > 1:
-        return AllOf(constraints)
+        return AllOf(tuple(constraints))
     return constraints[0]
 
 
@@ -522,7 +530,7 @@ def irdl_to_attr_constraint(
             raise Exception(f"GenericData args must have length 1, got {args}")
         origin = cast(type[GenericData[Any]], origin)
         args = cast(tuple[Attribute], args)
-        return AllOf([BaseAttr(origin), origin.generic_constraint_coercion(args)])
+        return AllOf((BaseAttr(origin), origin.generic_constraint_coercion(args)))
 
     # Generic ParametrizedAttributes case
     # We translate it to constraints over the attribute parameters.
@@ -2465,15 +2473,10 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return runtime_final(
-            dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
-                type(
-                    cls.__name__,
-                    (cls,),  # pyright: ignore[reportUnknownArgumentType]
-                    dict(cls.__dict__),
-                )
-            )
-        )
+        # This used to be convoluted
+        # But Data is already frozen itself, so any child Attribute still throws on
+        # .data!
+        return runtime_final(cast(TypeAttributeInvT, cls))
     raise TypeError(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
         "'ParametrizedAttribute'"

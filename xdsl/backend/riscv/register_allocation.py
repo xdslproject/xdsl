@@ -188,9 +188,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         assert isinstance(block_args[0].type, IntRegisterType)
         self.allocate(block_args[0])
 
-        # Operands
-        for operand in loop.operands:
-            self.allocate(operand)
+        # Step and ub are used throughout loop
+        self.allocate(loop.ub)
+        self.allocate(loop.step)
 
         # Reserve the loop carried variables for allocation within the body
         for iter_arg in loop.iter_args:
@@ -204,6 +204,11 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         for iter_arg in loop.iter_args:
             assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
             self.available_registers.unreserve_register(iter_arg.type)
+
+        # lb is only used as an input to the loop, so free induction variable before
+        # allocating lb to it in case it's not yet allocated
+        self._free(block_args[0])
+        self.allocate(loop.lb)
 
     def allocate_frep_loop(self, loop: riscv_snitch.FRepOperation) -> None:
         """

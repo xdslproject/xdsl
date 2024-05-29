@@ -8,14 +8,14 @@ authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
     "immutabledict<4.2.1",
-    "typing-extensions>=4.7,<5",
+    "typing-extensions>=4.7,<4.13",
     "ordered-set==4.1.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.15.2", "textual==0.59.0", "pyclip==0.7"]
-onnx = ["onnx==1.16"]
+extras = ["riscemu==2.2.6", "wgpu==0.15.2", "textual==0.63.2", "pyclip==0.7"]
+onnx = ["onnx==1.16.1"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
