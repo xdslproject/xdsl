@@ -1554,10 +1554,7 @@ class OpDef:
         irdl_op_verify_arg_list(op, self, VarIRConstruct.RESULT, constraint_vars)
 
         # Verify regions.
-        irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION, constraint_vars)
-
-        # Verify successors.
-        irdl_op_verify_arg_list(op, self, VarIRConstruct.SUCCESSOR, constraint_vars)
+        irdl_op_verify_regions(op, self)
 
         # Verify properties.
         for prop_name, attr_def in self.properties.items():
@@ -1846,6 +1843,15 @@ def get_operand_result_or_region(
         return args[begin_arg]
 
 
+def irdl_op_verify_regions(op: Operation, op_def: OpDef):
+    for i, (region, (name, region_def)) in enumerate(zip(op.regions, op_def.regions)):
+        if isinstance(region_def, SingleBlockRegionDef) and len(region.blocks) != 1:
+            raise VerifyException(
+                f"Region '{name}' at position {i} expected a single block, but got "
+                f"{len(region.blocks)} blocks"
+            )
+
+
 def irdl_op_verify_arg_list(
     op: Operation,
     op_def: OpDef,
@@ -1866,13 +1872,6 @@ def irdl_op_verify_arg_list(
                 or construct == VarIRConstruct.RESULT
             ):
                 arg_def.constr.verify(arg.type, constraint_vars)
-            elif construct == VarIRConstruct.REGION:
-                if isinstance(arg_def, SingleBlockRegionDef) and len(arg.blocks) != 1:
-                    raise VerifyException(
-                        "expected a single block, but got " f"{len(arg.blocks)} blocks"
-                    )
-            elif construct == VarIRConstruct.SUCCESSOR:
-                pass
             else:
                 assert False, "Unknown VarIRConstruct value"
         except Exception as e:
