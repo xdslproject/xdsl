@@ -16,7 +16,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.experimental.dmp.decompositions import (
     DomainDecompositionStrategy,
     GridSlice2d,
@@ -440,7 +440,7 @@ class MpiLoopInvariantCodeMotion:
             op.ref.owner, memref.Alloc
         ):
             op.detach()
-            rewriter.insert_op_after(op.ref.owner, op)
+            rewriter.insert_ops_at_location((op,), InsertPoint.after(op.ref.owner))
             return
 
         base = op
@@ -472,12 +472,14 @@ class MpiLoopInvariantCodeMotion:
             block = parent.regions[0].blocks[-1]
             return_op = block.last_op
             assert return_op is not None
-            rewriter.insert_op_before(return_op, mpi.Finalize())
+            rewriter.insert_ops_at_location(
+                (mpi.Finalize(),), InsertPoint.before(return_op)
+            )
 
         ops = list(collect_args_recursive(op))
         for found_op in ops:
             found_op.detach()
-            rewriter.insert_op_before(base, found_op)
+            rewriter.insert_ops_at_location((found_op,), InsertPoint.before(base))
 
     def get_matcher(
         self,
