@@ -370,6 +370,13 @@ class CslPrintContext:
 
 
 def _get_layout_program(module: ModuleOp) -> tuple[csl.CslModuleOp, csl.CslModuleOp]:
+    """
+    Get the layout and program `csl.module`s from the top level `builtin.module`.
+
+    Makes sure there is exactly 1 layout and 1 program `csl.module`.
+
+    Returns layout first, then program.
+    """
     ops_list = list(module.body.block.ops)
     assert all(
         isinstance(mod, csl.CslModuleOp) for mod in ops_list
