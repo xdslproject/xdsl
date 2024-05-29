@@ -3,16 +3,10 @@ from itertools import compress
 
 from xdsl.builder import InsertPoint
 from xdsl.dialects import affine, arith, linalg, memref_stream, scf
-from xdsl.dialects.builtin import (
-    AffineMapAttr,
-    IndexType,
-    IntegerAttr,
-)
-from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
+from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
+from xdsl.ir import Block, BlockArgument, Operation, OpResult, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-)
+from xdsl.pattern_rewriter import PatternRewriter
 
 
 def indices_for_map(
@@ -68,6 +62,105 @@ def indices_for_map(
     return output_indices
 
 
+def _insert_loop_nest(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    zero_op: arith.Constant,
+    one_op: arith.Constant,
+    bounds: tuple[OpResult, ...],
+    iter_args: Sequence[SSAValue],
+    make_body: Callable[
+        [PatternRewriter, InsertPoint, Sequence[BlockArgument], Sequence[SSAValue]],
+        Sequence[SSAValue],
+    ],
+) -> Sequence[SSAValue]:
+    """
+    Creates a perfect loop nest, populating the innermost body with the provided
+    `make_body` function.
+    If `iter_args` are passed in, the loop nest will pass them from parent loop to child
+    loop, and the results of `make_body` are expected to be equal in length to
+    `iter_args`.
+    """
+    if not bounds:
+        return make_body(rewriter, insertion_point, (), iter_args)
+
+    iter_arg_types = tuple(arg.type for arg in iter_args)
+    loops: list[scf.For] = []
+    index = IndexType()
+
+    for i, ub in enumerate(bounds):
+        loop = scf.For(
+            zero_op.result,
+            ub,
+            one_op.result,
+            iter_args,
+            Region(Block(arg_types=(index, *iter_arg_types))),
+        )
+        iter_args = loop.body.block.args[1:]
+        loops.append(loop)
+        rewriter.insert_op_at_location(loop, insertion_point)
+        results = loop.results
+
+        if i + 1 == len(bounds):
+            results = make_body(
+                rewriter,
+                InsertPoint.at_start(loop.body.block),
+                tuple(loop.body.block.args[0] for loop in loops),
+                iter_args,
+            )
+            if len(results) != len(iter_args):
+                raise ValueError(
+                    "Unexpected number of results from `make_body` helper "
+                    f"({len(results)}), expected {len(iter_args)}"
+                )
+        rewriter.insert_op_at_end(scf.Yield(*results), loop.body.block)
+        insertion_point = InsertPoint.at_start(loop.body.block)
+
+    return loops[0].results
+
+
+def _insert_load_ops(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    ind_vars: Sequence[BlockArgument],
+    affine_map_attrs: Sequence[AffineMapAttr],
+    operands: Sequence[SSAValue],
+    args: Sequence[BlockArgument],
+    load: Callable[
+        [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
+    ],
+) -> Sequence[tuple[int, SSAValue]]:
+    res: list[tuple[int, SSAValue]] = []
+    for i, (affine_map_attr, operand, arg) in enumerate(
+        zip(affine_map_attrs, operands, args, strict=True)
+    ):
+        if not arg.uses:
+            continue
+        affine_map = affine_map_attr.data
+        indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
+        res_val = load(operand, indices, rewriter, insertion_point)
+        res.append((i, res_val))
+    return res
+
+
+def _insert_store_ops(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    ind_vars: Sequence[BlockArgument],
+    output_indexing_maps: Sequence[AffineMapAttr],
+    yield_operands: Sequence[SSAValue],
+    output_operands: Sequence[SSAValue],
+    store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
+):
+    for affine_map_attr, yield_value, ref in zip(
+        output_indexing_maps, yield_operands, output_operands, strict=True
+    ):
+        affine_map = affine_map_attr.data
+        indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
+        store_op = store(yield_value, ref, indices)
+        rewriter.insert_op_at_location(store_op, insertion_point)
+
+
 def rewrite_generic_to_loops(
     rewriter: PatternRewriter,
     op: linalg.Generic | memref_stream.GenericOp,
@@ -92,64 +185,60 @@ def rewrite_generic_to_loops(
     if bound_constant_values:
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
-    index = IndexType()
+    def make_body(
+        rewriter: PatternRewriter,
+        insertion_point: InsertPoint,
+        ind_vars: Sequence[BlockArgument],
+        iter_args: Sequence[SSAValue],
+    ) -> Sequence[SSAValue]:
+        assert not iter_args
 
-    # Insert loop nest, from the outtermost loop inwards
-
-    loop_args: list[BlockArgument] = []
-    insertion_target = InsertPoint.before(op)
-
-    for ub in bound_constant_values:
-        loop = scf.For(
-            zero_op.result,
-            ub,
-            one_op.result,
-            (),
-            Region(Block((yield_op := scf.Yield(),), arg_types=(index,))),
+        loaded_values = _insert_load_ops(
+            rewriter,
+            insertion_point,
+            ind_vars,
+            op.indexing_maps.data,
+            op.operands,
+            op.body.block.args,
+            load,
         )
-        loop_args.append(loop.body.block.args[0])
-        rewriter.insert_op_at_location(loop, insertion_target)
-        insertion_target = InsertPoint.before(yield_op)
 
-    # Add load ops before the innermost scf.yield operation
+        for i, val in loaded_values:
+            op.body.block.args[i].replace_by(val)
 
-    for affine_map_attr, operand, arg in zip(
-        op.indexing_maps.data, op.operands, op.body.block.args, strict=True
-    ):
-        if not arg.uses:
-            continue
-        affine_map = affine_map_attr.data
-        indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
-        res = load(operand, indices, rewriter, insertion_target)
-        arg.replace_by(res)
+        yield_op = op.body.block.last_op
+        assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
 
-    # Add store ops before the yield operation in the generic body
+        # Erase the yield op, we still have access to its operands
+        rewriter.erase_op(yield_op)
 
-    yield_op = op.body.block.last_op
-    assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
+        while op.body.block.args:
+            rewriter.erase_block_argument(op.body.block.args[0])
 
-    output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
-    output_operands = op.operands[-len(op.outputs) :]
-    for affine_map_attr, yield_value, ref in zip(
-        output_indexing_maps, yield_op.operands, output_operands, strict=True
-    ):
-        affine_map = affine_map_attr.data
-        indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
-        store_op = store(yield_value, ref, indices)
-        rewriter.insert_op_before(store_op, yield_op)
+        rewriter.inline_block_at_location(op.body.block, insertion_point)
 
-    # Now that the linalg yield op operands have been converted to stores, remove
+        output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
+        output_operands = op.operands[-len(op.outputs) :]
+        _insert_store_ops(
+            rewriter,
+            insertion_point,
+            ind_vars,
+            output_indexing_maps,
+            yield_op.operands,
+            output_operands,
+            store,
+        )
 
-    rewriter.erase_op(yield_op)
+        return ()
 
-    # Inline generic body into innermost scf loop
-    # The operands have already been remapped
-
-    while op.body.block.args:
-        rewriter.erase_block_argument(op.body.block.args[0])
-
-    rewriter.inline_block_at_location(op.body.block, insertion_target)
-
-    # Erase generic
+    _insert_loop_nest(
+        rewriter,
+        InsertPoint.before(op),
+        zero_op,
+        one_op,
+        bound_constant_values,
+        (),
+        make_body,
+    )
 
     rewriter.erase_matched_op()
