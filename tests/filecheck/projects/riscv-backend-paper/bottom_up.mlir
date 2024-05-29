@@ -1,14 +1,14 @@
-// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,riscv-scf-loop-flatten,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
     %Y: memref<1x1x3x3xf64>,
     %Z: memref<1x1x6x6xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c6 = arith.constant 6 : i32
-    %c9 = arith.constant 9 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c6 = arith.constant 6 : index
+    %c9 = arith.constant 9 : index
 
     %zero_float = arith.constant 0.0 : f64
 
@@ -250,12 +250,12 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<8x8xf64>,
     %G : memref<8x8xf64>
   ) {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c2 = arith.constant 2 : i32
-    %c4 = arith.constant 4 : i32
-    %c8 = arith.constant 8 : i32
-    %frep_count = arith.constant 6 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c4 = arith.constant 4 : index
+    %c8 = arith.constant 8 : index
+    %frep_count = arith.constant 6 : index
 
     memref_stream.streaming_region {
       patterns = [
@@ -404,11 +404,11 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c7 = arith.constant 7 : i32
-    %c9 = arith.constant 9 : i32
-    %c512 = arith.constant 512 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c7 = arith.constant 7 : index
+    %c9 = arith.constant 9 : index
+    %c512 = arith.constant 512 : index
 
     %min_val = arith.constant -10000.0 : f64
 
@@ -534,11 +534,11 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c7 = arith.constant 7 : i32
-    %c9 = arith.constant 9 : i32
-    %c512 = arith.constant 512 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c7 = arith.constant 7 : index
+    %c9 = arith.constant 9 : index
+    %c512 = arith.constant 512 : index
 
     %zero_float = arith.constant 0.0 : f64
 
