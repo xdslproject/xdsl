@@ -118,6 +118,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
             new_ub = op.ub
             new_step = inner_loop.step
         else:
+
             if (outer_lb := get_constant_value(op.lb)) is None:
                 return
 
