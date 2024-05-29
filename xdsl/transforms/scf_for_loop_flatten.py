@@ -1,7 +1,7 @@
-from typing import cast
+from typing import Any, cast
 
-from xdsl.dialects import builtin, riscv, riscv_scf
-from xdsl.ir import MLContext
+from xdsl.dialects import arith, builtin, scf
+from xdsl.ir import MLContext, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -9,7 +9,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 
 #  This pass flattens pairs nested loops into a single loop.
 #
@@ -38,17 +37,28 @@ from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 #
 
 
+def get_constant_value(
+    value: SSAValue,
+) -> builtin.IntegerAttr[builtin.IndexType] | None:
+    if isinstance(value.owner, arith.Constant) and isinstance(
+        val := value.owner.value, builtin.IntegerAttr
+    ):
+        val = cast(builtin.IntegerAttr[Any], val)
+        if isinstance(val.type, builtin.IndexType):
+            return val
+
+
 class FlattenNestedLoopsPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
         if op.iter_args:
             return
 
         outer_body = op.body.block
-        if not isinstance(inner_loop := outer_body.first_op, riscv_scf.ForOp):
+        if not isinstance(inner_loop := outer_body.first_op, scf.For):
             # Outer loop must contain inner loop
             return
-        if inner_loop is not cast(riscv_scf.YieldOp, outer_body.last_op).prev_op:
+        if inner_loop is not cast(scf.Yield, outer_body.last_op).prev_op:
             # Outer loop must contain only inner loop and yield
             return
         if inner_loop.iter_args:
@@ -88,11 +98,11 @@ class FlattenNestedLoopsPattern(RewritePattern):
 
             user = outer_user
 
-            if not isinstance(user, riscv.AddOp):
+            if not isinstance(user, arith.Addi):
                 return
 
             # We can fuse
-            user.rd.replace_by(inner_index)
+            user.result.replace_by(inner_index)
             rewriter.erase_op(user)
             new_ub = op.ub
             new_step = inner_loop.step
@@ -108,19 +118,17 @@ class FlattenNestedLoopsPattern(RewritePattern):
             factor = (
                 inner_ub.value.data - inner_lb.value.data
             ) // inner_step.value.data
-            factor_op = riscv.LiOp(factor, rd=riscv.Registers.UNALLOCATED_INT)
-            new_ub_op = riscv.MulOp(
-                op.ub, factor_op.rd, rd=riscv.Registers.UNALLOCATED_INT
-            )
+            factor_op = arith.Constant(builtin.IntegerAttr(factor, builtin.IndexType()))
+            new_ub_op = arith.Muli(op.ub, factor_op.result)
             rewriter.insert_op_before_matched_op((factor_op, new_ub_op))
-            new_ub = new_ub_op.rd
+            new_ub = new_ub_op.result
             new_step = op.step
 
         moved_region = rewriter.move_region_contents_to_new_regions(inner_loop.body)
         rewriter.erase_op(inner_loop)
 
         rewriter.replace_matched_op(
-            riscv_scf.ForOp(
+            scf.For(
                 op.lb,
                 new_ub,
                 new_step,
@@ -130,7 +138,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
         )
 
 
-class RiscvScfLoopFlattenPass(ModulePass):
+class ScfForLoopFlattenPass(ModulePass):
     """
     Folds perfect loop nests if they can be represented with a single loop.
     Currently does this by matching the inner loop range with the outer loop step.
@@ -142,7 +150,7 @@ class RiscvScfLoopFlattenPass(ModulePass):
      - the loops must have no iteration arguments.
     """
 
-    name = "riscv-scf-loop-flatten"
+    name = "scf-for-loop-flatten"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(FlattenNestedLoopsPattern()).rewrite_module(op)

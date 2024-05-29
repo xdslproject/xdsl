@@ -208,10 +208,20 @@ class PatternRewriter(PatternRewriterListener):
         for old_result, new_result in zip(op.results, new_results):
             self._replace_all_uses_with(old_result, new_result)
 
-        if op.results:
+            # Preserve name hints for ops with multiple results
+            if new_result is not None and not new_result.name_hint:
+                new_result.name_hint = old_result.name_hint
+
+        # Add name hints for existing ops, only if there is a single new result
+        if (
+            len(new_results) == 1
+            and (only_result := new_results[0]) is not None
+            and (name_hint := only_result.name_hint) is not None
+        ):
             for new_op in new_ops:
                 for res in new_op.results:
-                    res.name_hint = op.results[0].name_hint
+                    if not res.name_hint:
+                        res.name_hint = name_hint
 
         # Then, erase the original operation
         self.erase_op(op, safe_erase=safe_erase)

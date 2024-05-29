@@ -1,14 +1,14 @@
-// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,riscv-scf-loop-flatten,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
     %Y: memref<1x1x3x3xf64>,
     %Z: memref<1x1x6x6xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c6 = arith.constant 6 : i32
-    %c9 = arith.constant 9 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c6 = arith.constant 6 : index
+    %c9 = arith.constant 9 : index
 
     %zero_float = arith.constant 0.0 : f64
 
@@ -48,44 +48,44 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:  .globl conv_2d_nchw_fchw_d1_s1_3x3
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  conv_2d_nchw_fchw_d1_s1_3x3:
-// CHECK-NEXT:      mv t4, a0
-// CHECK-NEXT:      mv t3, a1
+// CHECK-NEXT:      mv t3, a0
+// CHECK-NEXT:      mv t0, a1
 // CHECK-NEXT:      mv t1, a2
 // CHECK-NEXT:      fcvt.d.w ft3, zero
-// CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      li a5, 2
-// CHECK-NEXT:      li t6, 2
-// CHECK-NEXT:      li a3, 5
-// CHECK-NEXT:      li a4, 5
-// CHECK-NEXT:      scfgwi a5, 64
-// CHECK-NEXT:      scfgwi t6, 96
-// CHECK-NEXT:      scfgwi a3, 128
-// CHECK-NEXT:      scfgwi a4, 160
-// CHECK-NEXT:      scfgwi t5, 192
-// CHECK-NEXT:      li t5, 48
-// CHECK-NEXT:      scfgwi t5, 224
-// CHECK-NEXT:      li t5, -136
-// CHECK-NEXT:      scfgwi t5, 256
-// CHECK-NEXT:      li t5, -120
-// CHECK-NEXT:      scfgwi t5, 288
-// CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      li a4, 2
-// CHECK-NEXT:      li a3, 2
-// CHECK-NEXT:      li t6, 35
-// CHECK-NEXT:      scfgwi a4, 65
-// CHECK-NEXT:      scfgwi a3, 97
-// CHECK-NEXT:      scfgwi t6, 129
-// CHECK-NEXT:      scfgwi t5, 193
-// CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      scfgwi t5, 225
-// CHECK-NEXT:      li t5, -64
-// CHECK-NEXT:      scfgwi t5, 257
-// CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      li t6, 35
-// CHECK-NEXT:      scfgwi t6, 66
-// CHECK-NEXT:      scfgwi t5, 194
-// CHECK-NEXT:      scfgwi t4, 864
-// CHECK-NEXT:      scfgwi t3, 833
+// CHECK-NEXT:      li t4, 2
+// CHECK-NEXT:      scfgwi t4, 64
+// CHECK-NEXT:      li t4, 2
+// CHECK-NEXT:      scfgwi t4, 96
+// CHECK-NEXT:      li t4, 5
+// CHECK-NEXT:      scfgwi t4, 128
+// CHECK-NEXT:      li t4, 5
+// CHECK-NEXT:      scfgwi t4, 160
+// CHECK-NEXT:      li t4, 8
+// CHECK-NEXT:      scfgwi t4, 192
+// CHECK-NEXT:      li t4, 48
+// CHECK-NEXT:      scfgwi t4, 224
+// CHECK-NEXT:      li t4, -136
+// CHECK-NEXT:      scfgwi t4, 256
+// CHECK-NEXT:      li t4, -120
+// CHECK-NEXT:      scfgwi t4, 288
+// CHECK-NEXT:      li t4, 2
+// CHECK-NEXT:      scfgwi t4, 65
+// CHECK-NEXT:      li t4, 2
+// CHECK-NEXT:      scfgwi t4, 97
+// CHECK-NEXT:      li t4, 35
+// CHECK-NEXT:      scfgwi t4, 129
+// CHECK-NEXT:      li t4, 8
+// CHECK-NEXT:      scfgwi t4, 193
+// CHECK-NEXT:      li t4, 8
+// CHECK-NEXT:      scfgwi t4, 225
+// CHECK-NEXT:      li t4, -64
+// CHECK-NEXT:      scfgwi t4, 257
+// CHECK-NEXT:      li t4, 35
+// CHECK-NEXT:      scfgwi t4, 66
+// CHECK-NEXT:      li t4, 8
+// CHECK-NEXT:      scfgwi t4, 194
+// CHECK-NEXT:      scfgwi t3, 864
+// CHECK-NEXT:      scfgwi t0, 833
 // CHECK-NEXT:      scfgwi t1, 898
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t1, 36
@@ -143,9 +143,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t0, a2
+// CHECK-NEXT:      li t3, 127
+// CHECK-NEXT:      scfgwi t3, 95
 // CHECK-NEXT:      li t3, 8
-// CHECK-NEXT:      li t4, 127
-// CHECK-NEXT:      scfgwi t4, 95
 // CHECK-NEXT:      scfgwi t3, 223
 // CHECK-NEXT:      scfgwi t2, 768
 // CHECK-NEXT:      scfgwi t1, 769
@@ -188,9 +188,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t0, a2
+// CHECK-NEXT:      li t3, 127
+// CHECK-NEXT:      scfgwi t3, 95
 // CHECK-NEXT:      li t3, 8
-// CHECK-NEXT:      li t4, 127
-// CHECK-NEXT:      scfgwi t4, 95
 // CHECK-NEXT:      scfgwi t3, 223
 // CHECK-NEXT:      scfgwi t2, 768
 // CHECK-NEXT:      scfgwi t1, 769
@@ -229,9 +229,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:  fill:
 // CHECK-NEXT:      fmv.d ft3, fa0
 // CHECK-NEXT:      mv t0, a0
+// CHECK-NEXT:      li t1, 255
+// CHECK-NEXT:      scfgwi t1, 64
 // CHECK-NEXT:      li t1, 8
-// CHECK-NEXT:      li t2, 255
-// CHECK-NEXT:      scfgwi t2, 64
 // CHECK-NEXT:      scfgwi t1, 192
 // CHECK-NEXT:      scfgwi t0, 896
 // CHECK-NEXT:      csrrsi zero, 1984, 1
@@ -250,12 +250,12 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<8x8xf64>,
     %G : memref<8x8xf64>
   ) {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c2 = arith.constant 2 : i32
-    %c4 = arith.constant 4 : i32
-    %c8 = arith.constant 8 : i32
-    %frep_count = arith.constant 6 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c4 = arith.constant 4 : index
+    %c8 = arith.constant 8 : index
+    %frep_count = arith.constant 6 : index
 
     memref_stream.streaming_region {
       patterns = [
@@ -331,46 +331,46 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:  .globl matmul
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  matmul:
-// CHECK-NEXT:      mv t4, a0
-// CHECK-NEXT:      mv t3, a1
+// CHECK-NEXT:      mv t3, a0
+// CHECK-NEXT:      mv t0, a1
 // CHECK-NEXT:      mv t1, a2
-// CHECK-NEXT:      li a3, 3
-// CHECK-NEXT:      li a4, 7
-// CHECK-NEXT:      li a5, 1
-// CHECK-NEXT:      li t5, 7
-// CHECK-NEXT:      scfgwi a3, 64
-// CHECK-NEXT:      scfgwi a4, 96
-// CHECK-NEXT:      scfgwi a5, 128
-// CHECK-NEXT:      scfgwi t5, 160
+// CHECK-NEXT:      li t4, 3
+// CHECK-NEXT:      scfgwi t4, 64
+// CHECK-NEXT:      li t4, 7
+// CHECK-NEXT:      scfgwi t4, 96
+// CHECK-NEXT:      li t4, 1
+// CHECK-NEXT:      scfgwi t4, 128
+// CHECK-NEXT:      li t4, 7
+// CHECK-NEXT:      scfgwi t4, 160
 // CHECK-NEXT:      scfgwi zero, 192
-// CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      scfgwi t5, 224
-// CHECK-NEXT:      li t5, -56
-// CHECK-NEXT:      scfgwi t5, 256
-// CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      scfgwi t5, 288
-// CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      li a5, 3
-// CHECK-NEXT:      li a4, 7
-// CHECK-NEXT:      li a3, 1
-// CHECK-NEXT:      li t6, 7
-// CHECK-NEXT:      scfgwi a5, 65
-// CHECK-NEXT:      scfgwi a4, 97
-// CHECK-NEXT:      scfgwi a3, 129
-// CHECK-NEXT:      scfgwi t6, 161
-// CHECK-NEXT:      scfgwi t5, 193
-// CHECK-NEXT:      li t5, 40
-// CHECK-NEXT:      scfgwi t5, 225
-// CHECK-NEXT:      li t5, -440
-// CHECK-NEXT:      scfgwi t5, 257
-// CHECK-NEXT:      li t5, -504
-// CHECK-NEXT:      scfgwi t5, 289
-// CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      li t6, 63
-// CHECK-NEXT:      scfgwi t6, 66
-// CHECK-NEXT:      scfgwi t5, 194
-// CHECK-NEXT:      scfgwi t4, 864
-// CHECK-NEXT:      scfgwi t3, 865
+// CHECK-NEXT:      li t4, 8
+// CHECK-NEXT:      scfgwi t4, 224
+// CHECK-NEXT:      li t4, -56
+// CHECK-NEXT:      scfgwi t4, 256
+// CHECK-NEXT:      li t4, 8
+// CHECK-NEXT:      scfgwi t4, 288
+// CHECK-NEXT:      li t4, 3
+// CHECK-NEXT:      scfgwi t4, 65
+// CHECK-NEXT:      li t4, 7
+// CHECK-NEXT:      scfgwi t4, 97
+// CHECK-NEXT:      li t4, 1
+// CHECK-NEXT:      scfgwi t4, 129
+// CHECK-NEXT:      li t4, 7
+// CHECK-NEXT:      scfgwi t4, 161
+// CHECK-NEXT:      li t4, 8
+// CHECK-NEXT:      scfgwi t4, 193
+// CHECK-NEXT:      li t4, 40
+// CHECK-NEXT:      scfgwi t4, 225
+// CHECK-NEXT:      li t4, -440
+// CHECK-NEXT:      scfgwi t4, 257
+// CHECK-NEXT:      li t4, -504
+// CHECK-NEXT:      scfgwi t4, 289
+// CHECK-NEXT:      li t4, 63
+// CHECK-NEXT:      scfgwi t4, 66
+// CHECK-NEXT:      li t4, 8
+// CHECK-NEXT:      scfgwi t4, 194
+// CHECK-NEXT:      scfgwi t3, 864
+// CHECK-NEXT:      scfgwi t0, 865
 // CHECK-NEXT:      scfgwi t1, 898
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t1, 16
@@ -404,11 +404,11 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c7 = arith.constant 7 : i32
-    %c9 = arith.constant 9 : i32
-    %c512 = arith.constant 512 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c7 = arith.constant 7 : index
+    %c9 = arith.constant 9 : index
+    %c512 = arith.constant 512 : index
 
     %min_val = arith.constant -10000.0 : f64
 
@@ -444,31 +444,31 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:  .globl pooling_nchw_max_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  pooling_nchw_max_d1_s2_3x3:
-// CHECK-NEXT:      mv t3, a0
+// CHECK-NEXT:      mv t0, a0
 // CHECK-NEXT:      mv t1, a1
-// CHECK-NEXT:      li t4, -10000
-// CHECK-NEXT:      fcvt.d.w ft3, t4
-// CHECK-NEXT:      li t4, 8
-// CHECK-NEXT:      li a3, 2
-// CHECK-NEXT:      li a2, 2
-// CHECK-NEXT:      li t6, 6
-// CHECK-NEXT:      li t5, 6
-// CHECK-NEXT:      scfgwi a3, 64
-// CHECK-NEXT:      scfgwi a2, 96
-// CHECK-NEXT:      scfgwi t6, 128
-// CHECK-NEXT:      scfgwi t5, 160
-// CHECK-NEXT:      scfgwi t4, 192
-// CHECK-NEXT:      li t4, 112
-// CHECK-NEXT:      scfgwi t4, 224
-// CHECK-NEXT:      li t4, -256
-// CHECK-NEXT:      scfgwi t4, 256
-// CHECK-NEXT:      li t4, -112
-// CHECK-NEXT:      scfgwi t4, 288
-// CHECK-NEXT:      li t4, 8
-// CHECK-NEXT:      li t5, 48
-// CHECK-NEXT:      scfgwi t5, 65
-// CHECK-NEXT:      scfgwi t4, 193
-// CHECK-NEXT:      scfgwi t3, 864
+// CHECK-NEXT:      li t3, -10000
+// CHECK-NEXT:      fcvt.d.w ft3, t3
+// CHECK-NEXT:      li t3, 2
+// CHECK-NEXT:      scfgwi t3, 64
+// CHECK-NEXT:      li t3, 2
+// CHECK-NEXT:      scfgwi t3, 96
+// CHECK-NEXT:      li t3, 6
+// CHECK-NEXT:      scfgwi t3, 128
+// CHECK-NEXT:      li t3, 6
+// CHECK-NEXT:      scfgwi t3, 160
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 192
+// CHECK-NEXT:      li t3, 112
+// CHECK-NEXT:      scfgwi t3, 224
+// CHECK-NEXT:      li t3, -256
+// CHECK-NEXT:      scfgwi t3, 256
+// CHECK-NEXT:      li t3, -112
+// CHECK-NEXT:      scfgwi t3, 288
+// CHECK-NEXT:      li t3, 48
+// CHECK-NEXT:      scfgwi t3, 65
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 193
+// CHECK-NEXT:      scfgwi t0, 864
 // CHECK-NEXT:      scfgwi t1, 897
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t1, 49
@@ -513,9 +513,9 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
 // CHECK-NEXT:      fcvt.d.w ft3, zero
+// CHECK-NEXT:      li t2, 255
+// CHECK-NEXT:      scfgwi t2, 95
 // CHECK-NEXT:      li t2, 8
-// CHECK-NEXT:      li t3, 255
-// CHECK-NEXT:      scfgwi t3, 95
 // CHECK-NEXT:      scfgwi t2, 223
 // CHECK-NEXT:      scfgwi t1, 768
 // CHECK-NEXT:      scfgwi t0, 897
@@ -534,11 +534,11 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c7 = arith.constant 7 : i32
-    %c9 = arith.constant 9 : i32
-    %c512 = arith.constant 512 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c7 = arith.constant 7 : index
+    %c9 = arith.constant 9 : index
+    %c512 = arith.constant 512 : index
 
     %zero_float = arith.constant 0.0 : f64
 
@@ -574,30 +574,30 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:  .globl pooling_nchw_sum_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  pooling_nchw_sum_d1_s2_3x3:
-// CHECK-NEXT:      mv t3, a0
+// CHECK-NEXT:      mv t0, a0
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      fcvt.d.w ft3, zero
-// CHECK-NEXT:      li t4, 8
-// CHECK-NEXT:      li a3, 2
-// CHECK-NEXT:      li a2, 2
-// CHECK-NEXT:      li t6, 6
-// CHECK-NEXT:      li t5, 6
-// CHECK-NEXT:      scfgwi a3, 64
-// CHECK-NEXT:      scfgwi a2, 96
-// CHECK-NEXT:      scfgwi t6, 128
-// CHECK-NEXT:      scfgwi t5, 160
-// CHECK-NEXT:      scfgwi t4, 192
-// CHECK-NEXT:      li t4, 112
-// CHECK-NEXT:      scfgwi t4, 224
-// CHECK-NEXT:      li t4, -256
-// CHECK-NEXT:      scfgwi t4, 256
-// CHECK-NEXT:      li t4, -112
-// CHECK-NEXT:      scfgwi t4, 288
-// CHECK-NEXT:      li t4, 8
-// CHECK-NEXT:      li t5, 48
-// CHECK-NEXT:      scfgwi t5, 65
-// CHECK-NEXT:      scfgwi t4, 193
-// CHECK-NEXT:      scfgwi t3, 864
+// CHECK-NEXT:      li t3, 2
+// CHECK-NEXT:      scfgwi t3, 64
+// CHECK-NEXT:      li t3, 2
+// CHECK-NEXT:      scfgwi t3, 96
+// CHECK-NEXT:      li t3, 6
+// CHECK-NEXT:      scfgwi t3, 128
+// CHECK-NEXT:      li t3, 6
+// CHECK-NEXT:      scfgwi t3, 160
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 192
+// CHECK-NEXT:      li t3, 112
+// CHECK-NEXT:      scfgwi t3, 224
+// CHECK-NEXT:      li t3, -256
+// CHECK-NEXT:      scfgwi t3, 256
+// CHECK-NEXT:      li t3, -112
+// CHECK-NEXT:      scfgwi t3, 288
+// CHECK-NEXT:      li t3, 48
+// CHECK-NEXT:      scfgwi t3, 65
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 193
+// CHECK-NEXT:      scfgwi t0, 864
 // CHECK-NEXT:      scfgwi t1, 897
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t1, 49

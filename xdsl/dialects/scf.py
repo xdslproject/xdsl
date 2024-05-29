@@ -56,6 +56,8 @@ class While(IRDLOperation):
     before_region: Region = region_def()
     after_region: Region = region_def()
 
+    traits = frozenset([RecursiveMemoryEffect()])
+
     def __init__(
         self,
         arguments: Sequence[SSAValue | Operation],
@@ -226,7 +228,11 @@ class For(IRDLOperation):
     body: Region = region_def("single_block")
 
     traits = frozenset(
-        [SingleBlockImplicitTerminator(Yield), ForOpHasCanonicalizationPatternsTrait()]
+        [
+            SingleBlockImplicitTerminator(Yield),
+            ForOpHasCanonicalizationPatternsTrait(),
+            RecursiveMemoryEffect(),
+        ]
     )
 
     def __init__(
@@ -399,7 +405,7 @@ class ParallelOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset([SingleBlockImplicitTerminator(Yield)])
+    traits = frozenset([SingleBlockImplicitTerminator(Yield), RecursiveMemoryEffect()])
 
     def __init__(
         self,
@@ -531,6 +537,8 @@ class ReduceOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
+    traits = frozenset([RecursiveMemoryEffect()])
+
     def __init__(
         self,
         argument: SSAValue | Operation,
@@ -585,7 +593,7 @@ class ReduceReturnOp(IRDLOperation):
     name = "scf.reduce.return"
     result: Operand = operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(ReduceOp), IsTerminator()])
+    traits = frozenset([HasParent(ReduceOp), IsTerminator(), Pure()])
 
     def __init__(self, result: SSAValue | Operation):
         super().__init__(operands=[result])
@@ -604,7 +612,7 @@ class Condition(IRDLOperation):
     cond: Operand = operand_def(IntegerType(1))
     arguments: VarOperand = var_operand_def(AnyAttr())
 
-    traits = frozenset([HasParent(While), IsTerminator()])
+    traits = frozenset([HasParent(While), IsTerminator(), Pure()])
 
     def __init__(
         self,

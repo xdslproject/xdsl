@@ -11,6 +11,7 @@ from xdsl.irdl import (
     opt_prop_def,
     result_def,
 )
+from xdsl.traits import Pure
 
 
 @irdl_op_definition
@@ -30,6 +31,8 @@ class AbsFOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -58,6 +61,8 @@ class AbsIOp(IRDLOperation):
     name = "math.absi"
     operand: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
+
+    traits = frozenset([Pure()])
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -92,6 +97,8 @@ class Atan2Op(IRDLOperation):
     lhs: Operand = operand_def(AnyFloat)
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self,
@@ -128,6 +135,8 @@ class AtanOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -158,6 +167,8 @@ class CbrtOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -190,6 +201,8 @@ class CeilOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -224,6 +237,8 @@ class CopySignOp(IRDLOperation):
     lhs: Operand = operand_def(AnyFloat)
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self,
@@ -261,6 +276,8 @@ class CosOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -288,6 +305,8 @@ class CountLeadingZerosOp(IRDLOperation):
     operand: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
+    traits = frozenset([Pure()])
+
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
         return super().__init__(operands=[operand], result_types=[operand.type])
@@ -309,6 +328,8 @@ class CountTrailingZerosOp(IRDLOperation):
     operand: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
+    traits = frozenset([Pure()])
+
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
         return super().__init__(operands=[operand], result_types=[operand.type])
@@ -329,6 +350,8 @@ class CtPopOp(IRDLOperation):
     name = "math.ctpop"
     operand: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
+
+    traits = frozenset([Pure()])
 
     def __init__(self, operand: Operation | SSAValue):
         operand = SSAValue.get(operand)
@@ -355,6 +378,8 @@ class ErfOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -387,6 +412,8 @@ class Exp2Op(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -422,6 +449,8 @@ class ExpM1Op(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -453,6 +482,8 @@ class ExpOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -495,6 +526,8 @@ class FPowIOp(IRDLOperation):
     rhs: Operand = operand_def(IntegerType)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self,
         lhs: Operation | SSAValue,
@@ -530,6 +563,8 @@ class FloorOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -570,6 +605,8 @@ class FmaOp(IRDLOperation):
     c: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self,
         a: Operation | SSAValue,
@@ -606,6 +643,8 @@ class IPowIOp(IRDLOperation):
     rhs: Operand = operand_def(IntegerType)
     result: OpResult = result_def(IntegerType)
 
+    traits = frozenset([Pure()])
+
     def __init__(self, lhs: Operation | SSAValue, rhs: Operation | SSAValue):
         lhs = SSAValue.get(lhs)
         rhs = SSAValue.get(rhs)
@@ -629,6 +668,8 @@ class Log10Op(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -661,6 +702,8 @@ class Log1pOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -690,6 +733,8 @@ class Log2Op(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -718,6 +763,8 @@ class LogOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -751,6 +798,8 @@ class PowFOp(IRDLOperation):
     lhs: Operand = operand_def(AnyFloat)
     rhs: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self,
@@ -791,6 +840,8 @@ class RoundEvenOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -826,6 +877,8 @@ class RoundOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -853,6 +906,8 @@ class RsqrtOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -886,6 +941,8 @@ class SinOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -913,6 +970,8 @@ class SqrtOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -943,6 +1002,8 @@ class TanOp(IRDLOperation):
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
 
+    traits = frozenset([Pure()])
+
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
@@ -971,6 +1032,8 @@ class TanhOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
@@ -1005,6 +1068,8 @@ class TruncOp(IRDLOperation):
     fastmath: FastMathFlagsAttr | None = opt_prop_def(FastMathFlagsAttr)
     operand: Operand = operand_def(AnyFloat)
     result: OpResult = result_def(AnyFloat)
+
+    traits = frozenset([Pure()])
 
     def __init__(
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None

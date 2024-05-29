@@ -1106,7 +1106,7 @@ def test_all_of_attr_inference():
     @irdl_op_definition
     class OneOperandEqTypeAllOfNested(IRDLOperation):
         name = "test.one_operand_eq_type_all_of_nested"
-        index = operand_def(AllOf([AnyAttr(), EqAttrConstraint(UnitType())]))
+        index = operand_def(AllOf((AnyAttr(), EqAttrConstraint(UnitType()))))
 
         assembly_format = "attr-dict $index"
 
