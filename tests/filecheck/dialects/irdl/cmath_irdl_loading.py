@@ -7,24 +7,32 @@ from xdsl.parser import Parser
 from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.traits import SymbolTable
 
+# Test dynamically registering a dialect from an IRDL file
+
 if __name__ == "__main__":
 
+    # Register all dialects for lazy-loading
     ctx = MLContext()
     for n, f in get_all_dialects().items():
+        # Except cmath to avoid conflict with the one we're going to load from its IRDL description
         if n == "cmath":
             continue
         ctx.register_dialect(n, f)
 
+    # Open the IRDL description of cmath, parse it
     f = open("tests/filecheck/dialects/irdl/cmath.irdl.mlir")
     parser = Parser(ctx, f.read())
     module = parser.parse_module()
 
+    # Make it a PyRDL Dialect
     dialect_op = SymbolTable.lookup_symbol(module, "cmath")
     assert isinstance(dialect_op, DialectOp)
     dialect = make_dialect(dialect_op)
 
+    # Register it for lazy loading
     ctx.register_dialect("cmath", lambda: dialect)
 
+    # Roundtrip a cmath file!
     f = open("tests/filecheck/dialects/cmath/cmath_ops.mlir")
     parser = Parser(ctx, f.read())
     module = parser.parse_module()
