@@ -16,10 +16,12 @@ from xdsl.interpreter import (
     InterpreterFunctions,
     PythonValues,
     impl,
+    impl_attr,
     impl_cast,
     register_impls,
 )
 from xdsl.interpreters import ptr
+from xdsl.interpreters.builtin import xtype_for_el_type
 from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.bitwise_casts import convert_u32_to_f32
 from xdsl.utils.comparisons import to_signed, to_unsigned
@@ -582,3 +584,25 @@ class RiscvFunctions(InterpreterFunctions):
         value: Any,
     ) -> Any:
         return value
+
+    @impl_attr(riscv.IntRegisterType)
+    def register_value(
+        self,
+        interpreter: Interpreter,
+        attr: Attribute,
+        type_attr: riscv.IntRegisterType,
+    ) -> Any:
+        match attr:
+            case IntegerAttr():
+                return attr.value.data
+            case builtin.DenseIntOrFPElementsAttr():
+                data = [el.value.data for el in attr.data]
+                data_ptr = ptr.TypedPtr[Any].new(
+                    data,
+                    xtype=xtype_for_el_type(
+                        attr.get_element_type(), interpreter.index_bitwidth
+                    ),
+                )
+                return data_ptr
+            case _:
+                interpreter.raise_error(f"Unknown value type for int register: {attr}")
