@@ -60,9 +60,9 @@ riscv_scf.for %i : !riscv.reg<> = %c0 to %c64 step %c5 {
     riscv_scf.yield %d0, %d1, %d2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
 }
 
-// CHECK-NEXT:    %e0, %e1, %e2 = riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %c64 step %c1 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
-// CHECK-NEXT:      %1 = riscv.li 8 : () -> !riscv.reg<>
-// CHECK-NEXT:      "test.op"(%0) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:    %e0, %e1, %e2 = riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %c64 step %c1 iter_args(%b0 = %int1, %b1 = %int1, %b2 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
+// CHECK-NEXT:      %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
+// CHECK-NEXT:      "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
 // CHECK-NEXT:      riscv_scf.yield %b0, %b1, %b2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
 // CHECK-NEXT:    }
 
@@ -75,11 +75,12 @@ riscv_scf.for %i : !riscv.reg<> = %c0 to %c64 step %c5 {
     riscv_scf.yield %d0, %d1, %d2 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
 }
 
-// CHECK-NEXT:    %{{.*}} = riscv.li 2 : () -> !riscv.reg<>
+// CHECK-NEXT:    %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
 // CHECK-NEXT:    %{{.*}} = riscv.mul %c64, %{{.*}} : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %{{.*}} step %c5 {
+// CHECK-NEXT:    %g0, %g1, %g2 = riscv_scf.for %{{.*}} : !riscv.reg<> = %c0 to %{{.*}} step %c8 iter_args(%b0_1 = %int1, %b1_1 = %int1, %b2_1 = %float0) -> (!riscv.reg<>, !riscv.reg<>, !riscv.freg<>) {
 // CHECK-NEXT:      %{{.*}} = riscv.li 8 : () -> !riscv.reg<>
 // CHECK-NEXT:      "test.op"(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:      riscv_scf.yield %b0_1, %b1_1, %b2_1 : !riscv.reg<>, !riscv.reg<>, !riscv.freg<>
 // CHECK-NEXT:    }
 
 // Failures add induction variables:

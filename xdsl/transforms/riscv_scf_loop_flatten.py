@@ -58,28 +58,26 @@ class FlattenNestedLoopsPattern(RewritePattern):
             if not inner_loop.iter_args:
                 return
             if len(op.iter_args) != len(inner_loop.iter_args):
+                print("d")
                 return
             if not all(
                 lhs.type == rhs.type
                 for (lhs, rhs) in zip(op.iter_args, inner_loop.iter_args)
             ):
+                print("e")
                 return
-            print(
-                "hello",
-                [arg.name_hint for arg in op.iter_args],
-                [arg.name_hint for arg in inner_loop.iter_args],
-            )
-
-            # return
         elif inner_loop.iter_args:
             return
 
         if (inner_lb := get_constant_value(inner_loop.lb)) is None:
+            print("g")
             return
 
         if (inner_ub := get_constant_value(inner_loop.ub)) is None:
+            print("h")
             return
         if (outer_step := get_constant_value(op.step)) is None:
+            print("i")
             return
         if (inner_step := get_constant_value(inner_loop.step)) is None:
             return
@@ -92,6 +90,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 return
 
             if inner_ub != outer_step:
+                print("l")
                 return
 
             if outer_step.value.data % inner_step.value.data:
@@ -104,6 +103,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
             outer_user = next(iter(outer_index.uses)).operation
             inner_user = next(iter(inner_index.uses)).operation
             if outer_user is not inner_user:
+                print("o")
                 return
 
             user = outer_user
@@ -117,7 +117,6 @@ class FlattenNestedLoopsPattern(RewritePattern):
             new_ub = op.ub
             new_step = inner_loop.step
         else:
-
             if (outer_lb := get_constant_value(op.lb)) is None:
                 return
 
