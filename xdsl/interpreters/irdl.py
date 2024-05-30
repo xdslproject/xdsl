@@ -28,7 +28,9 @@ class IRDLFunctions(InterpreterFunctions):
 
     variable_counter = 0
 
-    types: dict[StringAttr, type[ParametrizedAttribute]] = {}
+    @staticmethod
+    def dialects(interpreter: Interpreter):
+        return interpreter.get_data(IRDLFunctions, "irdl.dialects", dict)
 
     def variable_wrap(self, constr: AttrConstraint):
         self.variable_counter += 1
@@ -157,7 +159,7 @@ class IRDLFunctions(InterpreterFunctions):
                 case _:
                     pass
         interpreter.run_ssacfg_region(op.body, ())
-        self.dialect = Dialect(
+        self.dialects(interpreter)[op.sym_name.data] = Dialect(
             op.sym_name.data, list(self.ops.values()), list(self.attrs.values())
         )
         return ()
@@ -172,4 +174,4 @@ def make_dialect(op: irdl.DialectOp) -> Dialect:
     irdl_impl = IRDLFunctions()
     interpreter.register_implementations(irdl_impl)
     interpreter.run_op(op, ())
-    return irdl_impl.dialect
+    return interpreter.get_data(IRDLFunctions, "irdl.dialects", dict)[op.sym_name.data]
