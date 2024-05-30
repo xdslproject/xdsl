@@ -1,6 +1,6 @@
 from typing import cast
 
-from xdsl.dialects.builtin import ModuleOp, StringAttr
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.irdl import irdl
 from xdsl.interpreter import (
     Interpreter,
@@ -9,7 +9,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.ir import Dialect, ParametrizedAttribute
+from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -23,6 +23,7 @@ from xdsl.irdl import (
     get_accessors_from_op_def,
     get_accessors_from_param_attr_def,
 )
+from xdsl.traits import SymbolTable
 
 
 @register_impls
@@ -37,6 +38,24 @@ class IRDLFunctions(InterpreterFunctions):
     @staticmethod
     def set_dialect(interpreter: Interpreter, name: str, dialect: Dialect) -> None:
         interpreter.get_data(IRDLFunctions, "irdl.dialects", dict)[name] = dialect
+
+    @staticmethod
+    def get_op(interpreter: Interpreter, name: str) -> type[Operation]:
+        ops = IRDLFunctions.get_dialect(interpreter, name.split(".", 1)[0]).operations
+        for op in ops:
+            if op.name == name:
+                return op
+        raise ValueError(f"Operation {name} not found")
+
+    @staticmethod
+    def get_attr(interpreter: Interpreter, name: str) -> type[ParametrizedAttribute]:
+        attrs = IRDLFunctions.get_dialect(interpreter, name.split(".", 1)[0]).attributes
+        for attr in attrs:
+            if attr.name == name:
+                if not issubclass(attr, ParametrizedAttribute):
+                    raise ValueError(f"Attribute {name} is not parametrized")
+                return attr
+        raise ValueError(f"Attribute {name} not found")
 
     @staticmethod
     def get_op_def(interpreter: Interpreter, name: str) -> OpDef:
@@ -87,7 +106,12 @@ class IRDLFunctions(InterpreterFunctions):
     def run_parametric(
         self, interpreter: Interpreter, op: irdl.ParametricOp, args: PythonValues
     ):
-        base_type = self.attrs[op.base_type.root_reference]
+        base_attr_op = SymbolTable.lookup_symbol(op, op.base_type)
+        if not isinstance(base_attr_op, irdl.AttributeOp | irdl.TypeOp):
+            raise ValueError(
+                f"Expected AttributeOp or TypeOp, got {type(base_attr_op)}"
+            )
+        base_type = self.get_attr(interpreter, base_attr_op.qualified_name)
         constr = ParamAttrConstraint(base_type, args)
         if len(op.output.uses) > 1:
             constr = self.variable_wrap(constr)
@@ -101,8 +125,7 @@ class IRDLFunctions(InterpreterFunctions):
         for k, v in get_accessors_from_param_attr_def(
             self.get_attr_def(interpreter, name)
         ).items():
-            setattr(self.attrs[op.sym_name], k, v)
-        setattr(self.attrs[op.sym_name], "name", name)
+            setattr(self.get_attr(interpreter, name), k, v)
         return ()
 
     @impl(irdl.OperandsOp)
@@ -137,8 +160,7 @@ class IRDLFunctions(InterpreterFunctions):
         for k, v in get_accessors_from_op_def(
             self.get_op_def(interpreter, name), None
         ).items():
-            setattr(self.ops[op.sym_name], k, v)
-        setattr(self.ops[op.sym_name], "name", name)
+            setattr(self.get_op(interpreter, name), k, v)
         return ()
 
     @impl(irdl.ParametersOp)
@@ -157,37 +179,41 @@ class IRDLFunctions(InterpreterFunctions):
     def run_dialect(
         self, interpreter: Interpreter, op: irdl.DialectOp, args: PythonValues
     ):
-        self.ops: dict[StringAttr, type[IRDLOperation]] = {}
-        self.attrs: dict[StringAttr, type[ParametrizedAttribute]] = {}
-
+        operations: list[type[Operation]] = []
+        attributes: list[type[Attribute]] = []
         for entry in op.body.block.ops:
             match entry:
                 case irdl.OperationOp():
-                    self.ops[entry.sym_name] = type.__new__(
-                        type(IRDLOperation),
-                        entry.sym_name.data,
-                        IRDLOperation.__mro__,
-                        dict(IRDLOperation.__dict__),
+                    operations.append(
+                        type.__new__(
+                            type(IRDLOperation),
+                            entry.sym_name.data,
+                            IRDLOperation.__mro__,
+                            dict(IRDLOperation.__dict__)
+                            | {"name": entry.qualified_name},
+                        )
                     )
 
                 case irdl.TypeOp():
-                    self.attrs[entry.sym_name] = type.__new__(
-                        type(ParametrizedAttribute),
-                        entry.sym_name.data,
-                        ParametrizedAttribute.__mro__,
-                        dict(ParametrizedAttribute.__dict__),
+                    attributes.append(
+                        type.__new__(
+                            type(ParametrizedAttribute),
+                            entry.sym_name.data,
+                            ParametrizedAttribute.__mro__,
+                            dict(ParametrizedAttribute.__dict__)
+                            | {"name": entry.qualified_name},
+                        )
                     )
 
                 case _:
                     pass
-        interpreter.run_ssacfg_region(op.body, ())
+
         self.set_dialect(
             interpreter,
             op.sym_name.data,
-            Dialect(
-                op.sym_name.data, list(self.ops.values()), list(self.attrs.values())
-            ),
+            Dialect(op.sym_name.data, operations, attributes),
         )
+        interpreter.run_ssacfg_region(op.body, ())
         return ()
 
 
