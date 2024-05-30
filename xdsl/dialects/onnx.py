@@ -1116,7 +1116,6 @@ class Sigmoid(IRDLOperation):
                 f"tensor input shape {input_tensor_shape} is not equal to tensor output shape {output_tensor_shape}"
             )
 
-            
 ONNX = Dialect(
     "onnx",
     [
