@@ -105,7 +105,7 @@ class NoneAttr(ParametrizedAttribute):
     name = "none"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ArrayOfConstraint(AttrConstraint):
     """
     A constraint that enforces an ArrayData whose elements all satisfy
@@ -115,7 +115,7 @@ class ArrayOfConstraint(AttrConstraint):
     elem_constr: AttrConstraint
 
     def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
-        self.elem_constr = attr_constr_coercion(constr)
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(constr))
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, ArrayAttr):
@@ -792,7 +792,7 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class ContainerOf(AttrConstraint):
     """A type constraint that can be nested once in a vector or a tensor."""
 
@@ -801,7 +801,7 @@ class ContainerOf(AttrConstraint):
     def __init__(
         self, elem_constr: Attribute | type[Attribute] | AttrConstraint
     ) -> None:
-        self.elem_constr = attr_constr_coercion(elem_constr)
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
@@ -822,7 +822,7 @@ RankedVectorOrTensorOf: TypeAlias = (
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank.
@@ -840,7 +840,7 @@ class VectorRankConstraint(AttrConstraint):
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorBaseTypeConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given base type.
@@ -859,7 +859,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorBaseTypeAndRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank and base type.
@@ -873,10 +873,10 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         constraint = AllOf(
-            [
+            (
                 VectorBaseTypeConstraint(self.expected_type),
                 VectorRankConstraint(self.expected_rank),
-            ]
+            )
         )
         constraint.verify(attr, constraint_vars)
 

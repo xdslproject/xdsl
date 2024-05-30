@@ -7,6 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.transforms.common_subexpression_elimination import cse
 
 
 class RedundantOperands(RewritePattern):
@@ -30,14 +31,37 @@ class RedundantOperands(RewritePattern):
         if not found_duplicate:
             return
 
+        bbargs = op.region.block.args
+        for i, a in enumerate(bbargs):
+            if rbargs[i] == i:
+                continue
+            a.replace_by(bbargs[rbargs[i]])
+
+        cse(op.region.block)
+
+
+class UnusedOperands(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
+        op_args = op.region.block.args
+        unused = {a for a in op_args if not a.uses}
+        if not unused:
+            return
+        bbargs = [a for a in op_args if a not in unused]
+        bbargs_type = [a.type for a in bbargs]
+        operands = [a for i, a in enumerate(op.args) if op_args[i] not in unused]
+
+        for arg in unused:
+            op.region.block.erase_arg(arg)
+
         new = stencil.ApplyOp.get(
-            unique_operands,
-            block := Block(arg_types=[uo.type for uo in unique_operands]),
+            operands,
+            block := Block(arg_types=bbargs_type),
             [cast(stencil.TempType[Attribute], r.type) for r in op.res],
         )
-        rewriter.inline_block_at_start(
-            op.region.block, block, [block.args[i] for i in rbargs]
-        )
+
+        rewriter.inline_block_at_start(op.region.block, block, block.args)
         rewriter.replace_matched_op(new)
 
 

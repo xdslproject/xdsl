@@ -1,3 +1,7 @@
+import re
+
+import pytest
+
 from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv
 
@@ -51,9 +55,20 @@ def test_reserve_register():
     assert register_queue.reserved_registers[riscv.IntRegisterType("j0")] == 1
 
     register_queue.unreserve_register(riscv.IntRegisterType("j0"))
-    # assert riscv.IntRegisterType("j0") not in register_queue.reserved_registers
+    assert riscv.IntRegisterType("j0") not in register_queue.reserved_registers
+    assert riscv.IntRegisterType("j0") not in register_queue.available_int_registers
 
-    assert register_queue.pop(riscv.IntRegisterType).register_name == "j0"
+    # Check assertion error when reserving an available register
+    reg = register_queue.pop(riscv.IntRegisterType)
+    register_queue.push(reg)
+    register_queue.reserve_register(reg)
+    with pytest.raises(
+        AssertionError,
+        match=re.escape(
+            f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
+        ),
+    ):
+        register_queue.pop(riscv.IntRegisterType)
 
 
 def test_limit():

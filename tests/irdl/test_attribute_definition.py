@@ -613,7 +613,7 @@ def test_data_with_generic_missing_generic_data_failure():
 A = TypeVar("A", bound=Attribute)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DataListAttr(AttrConstraint):
     """
     A constraint that enforces that the elements of a ListData all respect
