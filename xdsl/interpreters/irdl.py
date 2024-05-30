@@ -1,3 +1,5 @@
+from typing import cast
+
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.dialects.irdl import irdl
 from xdsl.interpreter import (
@@ -71,18 +73,18 @@ class IRDLFunctions(InterpreterFunctions):
 
     @impl(irdl.TypeOp)
     def run_type(self, interpreter: Interpreter, op: irdl.TypeOp, args: PythonValues):
+        dialect_op = cast(irdl.DialectOp, op.parent_op())
+        dialect_name = dialect_op.sym_name.data
         self.current = op.sym_name
         self.attrs_defs[self.current] = ParamAttrDef(
-            f"{self.dialect_name}.{op.sym_name.data}", []
+            f"{dialect_name}.{op.sym_name.data}", []
         )
         interpreter.run_ssacfg_region(op.body, ())
         for k, v in get_accessors_from_param_attr_def(
             self.attrs_defs[self.current]
         ).items():
             setattr(self.attrs[op.sym_name], k, v)
-        setattr(
-            self.attrs[op.sym_name], "name", f"{self.dialect_name}.{op.sym_name.data}"
-        )
+        setattr(self.attrs[op.sym_name], "name", f"{dialect_name}.{op.sym_name.data}")
         return ()
 
     @impl(irdl.OperandsOp)
@@ -107,16 +109,16 @@ class IRDLFunctions(InterpreterFunctions):
     def run_operation(
         self, interpreter: Interpreter, op: irdl.OperationOp, args: PythonValues
     ):
+        dialect_op = cast(irdl.DialectOp, op.parent_op())
+        dialect_name = dialect_op.sym_name.data
         self.current = op.sym_name
-        self.ops_defs[self.current] = OpDef(f"{self.dialect_name}.{op.sym_name.data}")
+        self.ops_defs[self.current] = OpDef(f"{dialect_name}.{op.sym_name.data}")
         interpreter.run_ssacfg_region(op.body, ())
         for k, v in get_accessors_from_op_def(
             self.ops_defs[self.current], None
         ).items():
             setattr(self.ops[op.sym_name], k, v)
-        setattr(
-            self.ops[op.sym_name], "name", f"{self.dialect_name}.{op.sym_name.data}"
-        )
+        setattr(self.ops[op.sym_name], "name", f"{dialect_name}.{op.sym_name.data}")
         return ()
 
     @impl(irdl.ParametersOp)
@@ -132,7 +134,6 @@ class IRDLFunctions(InterpreterFunctions):
     def run_dialect(
         self, interpreter: Interpreter, op: irdl.DialectOp, args: PythonValues
     ):
-        self.dialect_name = op.sym_name.data
         self.ops: dict[StringAttr, type[IRDLOperation]] = {}
         self.attrs: dict[StringAttr, type[ParametrizedAttribute]] = {}
         self.ops_defs: dict[StringAttr, OpDef] = {}
