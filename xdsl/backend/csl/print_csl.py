@@ -124,7 +124,7 @@ class CslPrintContext:
         """
         name_lhs = self._get_variable_name_for(lhs)
         name_rhs = self._get_variable_name_for(rhs)
-        return f"{self._var_use(res)} = {name_lhs} {op} {name_rhs};"
+        self.print(f"{self._var_use(res)} = {name_lhs} {op} {name_rhs};")
 
     def _var_use(
         self, val: SSAValue, intro: Literal["const"] | Literal["var"] = "const"
@@ -366,11 +366,11 @@ class CslPrintContext:
                 case arith.Muli(lhs=lhs, rhs=rhs, result=res) | arith.Mulf(
                     lhs=lhs, rhs=rhs, result=res
                 ):
-                    self.print(self._print_binop(lhs, rhs, res, "*"))
+                    self._print_binop(lhs, rhs, res, "*")
                 case arith.Addi(lhs=lhs, rhs=rhs, result=res) | arith.Addf(
                     lhs=lhs, rhs=rhs, result=res
                 ):
-                    self.print(self._print_binop(lhs, rhs, res, "+"))
+                    self._print_binop(lhs, rhs, res, "+")
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
