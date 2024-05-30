@@ -251,6 +251,18 @@ class PatternRewriter(PatternRewriterListener):
         self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
         arg.block.erase_arg(arg, safe_erase)
 
+    def inline_block_at_location(
+        self,
+        block: Block,
+        insertion_point: InsertPoint,
+        arg_values: Sequence[SSAValue] = (),
+    ):
+        """
+        Move the block operations to the specified insertion point.
+        """
+        self.has_done_action = True
+        Rewriter.inline_block_at_location(block, insertion_point, arg_values=arg_values)
+
     def inline_block_at_end(
         self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
     ):
