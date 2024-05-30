@@ -10,7 +10,7 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Annotated, TypeAlias
 
@@ -97,6 +97,8 @@ class TaskKind(StrEnum):
 class DsdKind(StrEnum):
     mem1d_dsd = "mem1d_dsd"
     mem4d_dsd = "mem4d_dsd"
+    fabin_dsd = "fabin_dsd"
+    fabout_dsd = "fabout_dsd"
 
 
 class _FuncBase(IRDLOperation, ABC):
@@ -673,33 +675,94 @@ class SetTileCodeOp(IRDLOperation):
 @irdl_op_definition
 class GetDsdOp(IRDLOperation):
     """
-    A CSL data structure descriptor (DSD) of the form
+    CSL built-in for DSDs of the form
 
-    @get_dsd( $result, .{
-       .tensor_access = |i, j| {$sizes[0], $sizes[1]} -> $array_var[i, j]
+    @get_dsd( [ mem1d_dsd | mem4d_dsd ] .{
+       .tensor_access = |i, j| {$sizes[0], $sizes[1]} -> $array_var[$strides[0] * i + $offsets[0], $strides[1] * j + offsets[1]]
     });
 
-    Note: Custom array index expr are not yet supported.
+    or
+
+    @get_dsd( [ fabin_dsd | fabout_dsd ], .{
+        .extent = $sizes[0],
+        .fabric_color = $fabric_color,
+        .control = $control,                            # fabout_dsd only, not implemented
+        .wavelet_index_offset = $wavelet_index_offset,  # fabout_dsd only, not implemented
+    });
     """
 
     name = "csl.get_dsd"
 
-    array_var = operand_def(MemRefType)
-    sizes = var_operand_def(IntegerType)
+    base_addr = opt_operand_def(MemRefType)
+    sizes = prop_def(ArrayAttr[AnyIntegerAttr])
+
+    offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+    strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    fabric_color = opt_prop_def(ColorIdAttr)
 
     result = result_def(DsdType)
-    # ind_vars # todo: generate
-    # expr     # todo: accept as arg
+
+    def __init__(
+        self,
+        result: DsdType,
+        base_addr: SSAValue | Operation,
+        sizes: Iterable[int],
+        offsets: Iterable[int] | None = None,
+        strides: Iterable[int] | None = None,
+    ):
+        new_strides = (
+            ArrayAttr(IntegerAttr.from_int_and_width(s, 16) for s in strides)
+            if strides
+            else None
+        )
+        new_offsets = (
+            ArrayAttr(IntegerAttr.from_int_and_width(o, 16) for o in offsets)
+            if offsets
+            else None
+        )
+        new_sizes = ArrayAttr(IntegerAttr.from_int_and_width(s, 16) for s in sizes)
+        super().__init__(
+            operands=[base_addr],
+            result_types=[result],
+            properties={
+                "sizes": new_sizes,
+                "strides": new_strides,
+                "offsets": new_offsets,
+            },
+        )
 
     def verify_(self) -> None:
-        if len(self.sizes) > 4:
-            raise VerifyException("DSD can have at most 4 dimensions")
+        if not len(self.sizes) >= 1:
+            raise VerifyException("DSDs need to be at least one-dimensional")
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
-        if len(self.sizes) > 1 and self.result.type.data == DsdKind.mem1d_dsd:
+        if (
+            self.result.type.data
+            in [DsdKind.mem1d_dsd, DsdKind.fabin_dsd, DsdKind.fabout_dsd]
+            and len(self.sizes) != 1
+        ):
+            raise VerifyException("DSD of this type must have exactly one dimension")
+        if self.result.type.data == DsdKind.mem4d_dsd and (
+            len(self.sizes) < 1 or len(self.sizes) > 4
+        ):
             raise VerifyException(
-                "DSD with more than 1 dimension cannot be of type mem1d_dsd"
+                "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
             )
+        if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
+            raise VerifyException("Mem DSD must be of type mem1d_dsd or mem4d_dsd")
+        if self.result.type.data in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
+            if self.base_addr is None:
+                raise VerifyException("Mem DSD needs base_addr specified")
+        else:
+            if (
+                self.base_addr is not None
+                or self.offsets is not None
+                or self.strides is not None
+            ):
+                raise VerifyException(
+                    "Fabric DSD cannot specify base_addr, offsets, and strides"
+                )
 
 
 @irdl_op_definition
@@ -783,6 +846,8 @@ class AddressOfOp(IRDLOperation):
             // const invalid: [*][10]f32 = &x;
         """
 
+        # GetDsdOp(DsdType(DsdKind("mem4d_dsd")), self.prev_op.prev_op.results[0],
+        #          list((self.prev_op.prev_op.results[1], self.prev_op.prev_op.results[1])))
         res_elem_ty = res_ty.get_element_type()
         if res_elem_ty == val_ty.get_element_type():
             if res_ty.kind.data != PtrKind.MANY:
