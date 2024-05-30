@@ -57,6 +57,16 @@ class FuncOpCallableInterface(CallableOpInterface):
         assert isinstance(op, FuncOp)
         return op.body
 
+    @classmethod
+    def get_argument_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.inputs.data
+
+    @classmethod
+    def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.outputs.data
+
 
 @irdl_op_definition
 class FuncOp(IRDLOperation):
@@ -115,15 +125,7 @@ class FuncOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        # Parse visibility keyword if present
-        if parser.parse_optional_keyword("public"):
-            visibility = "public"
-        elif parser.parse_optional_keyword("nested"):
-            visibility = "nested"
-        elif parser.parse_optional_keyword("private"):
-            visibility = "private"
-        else:
-            visibility = None
+        visibility = parser.parse_optional_visibility_keyword()
 
         (
             name,

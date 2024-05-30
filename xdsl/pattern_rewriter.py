@@ -208,10 +208,20 @@ class PatternRewriter(PatternRewriterListener):
         for old_result, new_result in zip(op.results, new_results):
             self._replace_all_uses_with(old_result, new_result)
 
-        if op.results:
+            # Preserve name hints for ops with multiple results
+            if new_result is not None and not new_result.name_hint:
+                new_result.name_hint = old_result.name_hint
+
+        # Add name hints for existing ops, only if there is a single new result
+        if (
+            len(new_results) == 1
+            and (only_result := new_results[0]) is not None
+            and (name_hint := only_result.name_hint) is not None
+        ):
             for new_op in new_ops:
                 for res in new_op.results:
-                    res.name_hint = op.results[0].name_hint
+                    if not res.name_hint:
+                        res.name_hint = name_hint
 
         # Then, erase the original operation
         self.erase_op(op, safe_erase=safe_erase)
@@ -241,28 +251,34 @@ class PatternRewriter(PatternRewriterListener):
         self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
         arg.block.erase_arg(arg, safe_erase)
 
-    def inline_block_at_end(self, block: Block, target_block: Block):
+    def inline_block_at_end(
+        self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations to the end of another block.
         This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
-        Rewriter.inline_block_at_end(block, target_block)
+        Rewriter.inline_block_at_end(block, target_block, arg_values=arg_values)
 
-    def inline_block_at_start(self, block: Block, target_block: Block):
+    def inline_block_at_start(
+        self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations to the start of another block.
         This block should not be a parent of the block to move to.
         """
         self.has_done_action = True
-        Rewriter.inline_block_at_start(block, target_block)
+        Rewriter.inline_block_at_start(block, target_block, arg_values)
 
-    def inline_block_before_matched_op(self, block: Block):
+    def inline_block_before_matched_op(
+        self, block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations before the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block_before(block, self.current_operation)
+        self.inline_block_before(block, self.current_operation, arg_values=arg_values)
 
     def inline_block_before(
         self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
@@ -274,20 +290,24 @@ class PatternRewriter(PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_block_before(block, op, arg_values=arg_values)
 
-    def inline_block_after_matched_op(self, block: Block):
+    def inline_block_after_matched_op(
+        self, block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations after the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block_after(block, self.current_operation)
+        self.inline_block_after(block, self.current_operation, arg_values=arg_values)
 
-    def inline_block_after(self, block: Block, op: Operation):
+    def inline_block_after(
+        self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations after the given operation.
         The block should not be a parent of the operation.
         """
         self.has_done_action = True
-        Rewriter.inline_block_after(block, op)
+        Rewriter.inline_block_after(block, op, arg_values=arg_values)
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""

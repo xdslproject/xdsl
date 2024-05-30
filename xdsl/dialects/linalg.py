@@ -25,7 +25,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
 )
-from xdsl.ir import Attribute, Dialect, EnumAttribute, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, EnumAttribute, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -47,6 +47,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -418,6 +419,44 @@ class AddOp(IRDLOperation):
 
 
 @irdl_op_definition
+class SubOp(IRDLOperation):
+    """
+    Subtracts two tensors elementwise.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgsub-linalgsubop
+    """
+
+    name = "linalg.sub"
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    assembly_format = (
+        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+        super().__init__(
+            operands=(inputs, outputs),
+            result_types=result_types,
+        )
+
+
+@irdl_op_definition
 class FillOp(IRDLOperation):
     """
     Fills the output tensor with the given value.
@@ -445,11 +484,12 @@ class FillOp(IRDLOperation):
 
     def __init__(
         self,
-        inputs: Sequence[SSAValue],
-        outputs: Sequence[SSAValue] = (),
+        inputs: Sequence[SSAValue | Operation],
+        outputs: Sequence[SSAValue | Operation] = (),
         res: Sequence[Attribute] | None = None,
     ):
         if res is None:
+            assert isa(outputs, Sequence[SSAValue]), "cannot infer result_types"
             result_types = tuple(output.type for output in outputs)
         else:
             result_types = res
@@ -868,6 +908,7 @@ Linalg = Dialect(
         Generic,
         YieldOp,
         AddOp,
+        SubOp,
         FillOp,
         MulOp,
         TransposeOp,

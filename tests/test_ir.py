@@ -165,6 +165,23 @@ def test_op_operands_indexing():
     assert tuple(op.operands) == (val2, val2)
 
 
+def test_op_operands_comparison():
+    """Test `__eq__`, and `__hash__` on `op.operands`."""
+    val1, val2 = TestSSAValue(i32), TestSSAValue(i32)
+    op1 = test.TestOp.create(operands=[val1, val2])
+    op2 = test.TestOp.create(operands=[val1, val2])
+    op1.verify()
+    op2.verify()
+
+    assert op1.operands == op2.operands
+    assert hash(op1.operands) == hash(op2.operands)
+
+    op1.operands[0] = val2
+    op1.verify()
+
+    assert op1.operands != op2.operands
+
+
 def test_op_clone():
     a = TestWithPropOp.create(properties={"prop": i32}, attributes={"attr": i64})
     b = a.clone()
@@ -851,10 +868,9 @@ def test_op_custom_verify_is_done_last():
     a = Constant.from_int_and_width(1, i32)
     # CustomVerify expects a i64, not i32
     b = CustomVerify.get(a.result)
-    with pytest.raises(Exception) as e:
+    with pytest.raises(VerifyException) as e:
         b.verify()
-    assert e.value.args[0] != "Custom Verification Check"
-    assert "test.custom_verify_op operation does not verify" in e.value.args[0]
+    assert "Custom Verification Check" not in e.value.args[0]
 
 
 def test_block_walk():

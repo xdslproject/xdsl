@@ -6,7 +6,7 @@ Follows definitions as of CIRCT commit `f8c7faec1e8447521a1ea9a0836b6923a132c79e
 [2] https://circt.llvm.org/docs/RationaleSymbols/
 """
 
-from abc import ABC
+import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
@@ -37,6 +37,7 @@ from xdsl.irdl import (
     IRDLOperation,
     SingleBlockRegion,
     VarOperand,
+    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -44,6 +45,7 @@ from xdsl.irdl import (
     region_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser, BaseParser, Parser
 from xdsl.printer import Printer
@@ -235,7 +237,7 @@ class InnerRefUserOpInterfaceTrait(OpTrait):
 
 @dataclass(frozen=True)
 class InnerRefNamespaceTrait(OpTrait):
-    """Trait for operations defining a new scope for InnerRef’s. Operations with this trait must be a SymbolTable."""
+    """Trait for operations defining a new scope for InnerRef's. Operations with this trait must be a SymbolTable."""
 
     def verify(self, op: Operation):
         if not op.has_trait(trait := SymbolTable):
@@ -254,7 +256,7 @@ class InnerRefNamespaceTrait(OpTrait):
                 inner_ref_user_op_trait.verify_inner_refs(inner_op, namespace)
 
 
-class InnerRefNamespaceLike(ABC, OpTrait):
+class InnerRefNamespaceLike(abc.ABC, OpTrait):
     """Trait-metaclass to check whether an operation is explicitly an IRN or appears compatible."""
 
     ...
@@ -471,6 +473,9 @@ class Direction(Enum):
     def is_input_like(self) -> bool:
         return self == Direction.INPUT
 
+    def is_output_like(self) -> bool:
+        return self == Direction.OUTPUT
+
 
 @irdl_attr_definition
 class DirectionAttr(Data[Direction]):
@@ -609,11 +614,197 @@ class ParamDeclAttr(ParametrizedAttribute):
             )
 
 
+class HWModuleLike(OpTrait, abc.ABC):
+    """
+    Represents an operation that can be interpreted as a hardware module.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def get_hw_module_type(cls, op: Operation) -> ModuleType:
+        """
+        Returns the type of the module.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def set_hw_module_type(cls, op: Operation, module_type: ModuleType) -> None:
+        """
+        Sets the type of the module.
+        """
+        raise NotImplementedError()
+
+
+class ParsedModuleHeader(NamedTuple):
+    """
+    Represents the parsed common base of all modules.
+    It consists mostly of the ports and parameters of the
+    module.
+    """
+
+    class ModuleArg(NamedTuple):
+        port_dir: Direction
+        port_name: str
+        port_ssa: Parser.Argument | None
+        port_type: TypeAttribute
+        port_attrs: dict[str, Attribute]
+        port_location: LocationAttr | None
+
+    visibility: StringAttr | None
+    module_name: StringAttr
+    parameters: ArrayAttr[ParamDeclAttr]
+    args: list[ModuleArg]
+
+    def get_module_type(self) -> ModuleType:
+        return ModuleType(
+            [
+                ArrayAttr(
+                    tuple(
+                        ModulePort(
+                            (
+                                StringAttr(arg.port_name),
+                                arg.port_type,
+                                DirectionAttr(arg.port_dir),
+                            )
+                        )
+                        for arg in self.args
+                    )
+                )
+            ]
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "ParsedModuleHeader":
+        def parse_optional_port_name() -> str | None:
+            return (
+                parser.parse_optional_identifier()
+                or parser.parse_optional_str_literal()
+            )
+
+        def parse_module_arg() -> ParsedModuleHeader.ModuleArg:
+            port_dir = Direction.parse(parser, short=True)
+            if port_dir.is_input_like():
+                port_ssa = parser.parse_argument(expect_type=False)
+                port_name = parse_optional_port_name()
+                if port_name is None:
+                    port_name = port_ssa.name.text[1:]
+            else:
+                port_ssa = None
+                port_name = parse_optional_port_name()
+                if port_name is None:
+                    parser.raise_error(
+                        "expected identifier or string literal as port name"
+                    )
+            parser.parse_punctuation(":")
+            port_type = parser.parse_attribute()
+            if not isinstance(port_type, TypeAttribute):
+                parser.raise_error("port type must be a type attribute")
+
+            port_attrs = parser.parse_optional_attr_dict()
+            port_location = parser.parse_optional_location()
+
+            # Resolve the argument
+            if port_ssa is not None:
+                port_ssa = Parser.Argument(port_ssa.name, port_type)
+
+            return ParsedModuleHeader.ModuleArg(
+                port_dir, port_name, port_ssa, port_type, port_attrs, port_location
+            )
+
+        sym_visibility = parser.parse_optional_visibility_keyword()
+        name = parser.parse_symbol_name()
+        parameters = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.ANGLE,
+            lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
+        )
+        args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parse_module_arg
+        )
+
+        return cls(
+            visibility=sym_visibility,
+            module_name=name,
+            parameters=ArrayAttr(parameters if parameters is not None else []),
+            args=args,
+        )
+
+
+def print_module_header(
+    *,
+    printer: Printer,
+    visibility: StringAttr | None,
+    module_name: StringAttr,
+    parameters: ArrayAttr[ParamDeclAttr] | None,
+    arg_ssa_iter: Iterable[SSAValue | str],
+    module_type: ModuleType,
+):
+    """
+    Prints the common header of a module.
+    The `arg_ssa_iter` parameter provides the SSA names to be
+    used for input-like parameters, either using the print
+    name of an SSA value, or a string decided beforehand.
+    """
+    if visibility is not None:
+        printer.print(f" {visibility.data}")
+    printer.print(" @")
+    printer.print_identifier_or_string_literal(module_name.data)
+
+    # Print parameters
+    if parameters is not None and len(parameters.data) != 0:
+        with printer.in_angle_brackets():
+            printer.print_list(
+                parameters.data,
+                lambda x: x.print_free_standing_parameters(printer),
+            )
+
+    printer.print("(")
+    arg_iter = iter(arg_ssa_iter)
+
+    def print_port(port: ModulePort):
+        ssa_arg = next(arg_iter) if port.dir.data.is_input_like() else None
+        port.dir.data.print(printer, short=True)
+        printer.print(" ")
+
+        # Print argument
+        if ssa_arg is not None:
+            if isinstance(ssa_arg, SSAValue):
+                used_name = printer.print_ssa_value(ssa_arg)
+            else:
+                assert isinstance(ssa_arg, str)
+                printer.print(f"%{ssa_arg}")
+                used_name = ssa_arg
+            if port.port_name.data != used_name:
+                printer.print(" ")
+                printer.print_identifier_or_string_literal(port.port_name.data)
+        else:
+            printer.print_identifier_or_string_literal(port.port_name.data)
+        printer.print(": ")
+        printer.print_attribute(port.type)
+
+    printer.print_list(module_type.ports.data, print_port)
+
+    printer.print(")")
+
+
 _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT: list[str] = [
     "sym_name",
     "module_type",
     "parameters",
+    "sym_visibility",
 ]
+
+
+class HWModulesHWModuleLike(HWModuleLike):
+    @classmethod
+    def get_hw_module_type(cls, op: Operation) -> ModuleType:
+        assert isinstance(op, HWModuleOp | HWModuleExternOp)
+        return op.module_type
+
+    @classmethod
+    def set_hw_module_type(cls, op: Operation, module_type: ModuleType) -> None:
+        assert isinstance(op, HWModuleOp | HWModuleExternOp)
+        op.module_type = module_type
 
 
 @irdl_op_definition
@@ -628,6 +819,7 @@ class HWModuleOp(IRDLOperation):
 
     sym_name: StringAttr = attr_def(StringAttr)
     module_type: ModuleType = attr_def(ModuleType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
     parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
     body: SingleBlockRegion = region_def("single_block")
@@ -637,9 +829,8 @@ class HWModuleOp(IRDLOperation):
             (
                 SymbolOpInterface(),
                 IsolatedFromAbove(),
-                InnerRefNamespaceTrait(),
-                SymbolTable(),
                 SingleBlockImplicitTerminator(OutputOp),
+                HWModulesHWModuleLike(),
             )
         )
     )
@@ -650,12 +841,18 @@ class HWModuleOp(IRDLOperation):
         module_type: ModuleType,
         body: Region,
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
+        visibility: str | StringAttr | None = None,
     ):
         attributes: dict[str, Attribute] = {
             "sym_name": sym_name,
             "module_type": module_type,
             "parameters": parameters,
         }
+
+        if visibility:
+            if isinstance(visibility, str):
+                visibility = StringAttr(visibility)
+            attributes["sym_visibility"] = visibility
 
         return super().__init__(
             attributes=attributes,
@@ -686,86 +883,22 @@ class HWModuleOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> "HWModuleOp":
-        class ModuleArg(NamedTuple):
-            port_dir: Direction
-            port_name: str
-            port_ssa: Parser.Argument | None
-            port_type: TypeAttribute
-            port_attrs: dict[str, Attribute]
-            port_location: LocationAttr | None
+        module_header = ParsedModuleHeader.parse(parser)
 
-        def parse_optional_port_name() -> str | None:
-            return (
-                parser.parse_optional_identifier()
-                or parser.parse_optional_str_literal()
-            )
-
-        def parse_module_arg() -> ModuleArg:
-            port_dir = Direction.parse(parser, short=True)
-            if port_dir.is_input_like():
-                port_ssa = parser.parse_argument(expect_type=False)
-                port_name = parse_optional_port_name()
-                if port_name is None:
-                    port_name = port_ssa.name.text[1:]
-            else:
-                port_ssa = None
-                port_name = parse_optional_port_name()
-                if port_name is None:
-                    parser.raise_error(
-                        "expected identifier or string literal as port name"
-                    )
-            parser.parse_punctuation(":")
-            port_type = parser.parse_attribute()
-            if not isinstance(port_type, TypeAttribute):
-                parser.raise_error("port type must be a type attribute")
-
-            port_attrs = parser.parse_optional_attr_dict()
-            port_location = parser.parse_optional_location()
-
-            # Resolve the argument
-            if port_ssa is not None:
-                port_ssa = Parser.Argument(port_ssa.name, port_type)
-
-            return ModuleArg(
-                port_dir, port_name, port_ssa, port_type, port_attrs, port_location
-            )
-
-        name = parser.parse_symbol_name()
-        parameters = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.ANGLE,
-            lambda: ParamDeclAttr(ParamDeclAttr.parse_free_standing_parameters(parser)),
-        )
-        args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parse_module_arg
-        )
         attrs = parser.parse_optional_attr_dict_with_keyword(
             _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT
         )
 
-        # Extract the ModuleOp attributes and arguments from the parsed arg port list
-        region_args: list[Parser.Argument] = []
-        module_ports: list[ModulePort] = []
-        for arg in args:
-            if arg.port_ssa:
-                region_args.append(arg.port_ssa)
-            module_ports.append(
-                ModulePort(
-                    [
-                        StringAttr(arg.port_name),
-                        arg.port_type,
-                        DirectionAttr(arg.port_dir),
-                    ]
-                )
-            )
-
+        # Create a body region suitable for the ports of the module.
+        region_args = tuple(arg.port_ssa for arg in module_header.args if arg.port_ssa)
         body = parser.parse_region(region_args)
-        parameters = ArrayAttr(parameters if parameters is not None else [])
 
         module_op = cls(
-            name,
-            ModuleType([ArrayAttr(module_ports)]),
+            module_header.module_name,
+            module_header.get_module_type(),
             body,
-            parameters,
+            module_header.parameters,
+            module_header.visibility,
         )
 
         if attrs is not None:
@@ -774,39 +907,14 @@ class HWModuleOp(IRDLOperation):
         return module_op
 
     def print(self, printer: Printer):
-        printer.print(" @")
-        printer.print_identifier_or_string_literal(self.sym_name.data)
-
-        # Print parameters
-        if self.parameters is not None and len(self.parameters.data) != 0:
-            with printer.in_angle_brackets():
-                printer.print_list(
-                    self.parameters.data,
-                    lambda x: x.print_free_standing_parameters(printer),
-                )
-
-        printer.print("(")
-        arg_iter = iter(self.body.block.args)
-
-        def print_port(port: ModulePort):
-            ssa_arg = next(arg_iter) if port.dir.data.is_input_like() else None
-            port.dir.data.print(printer, short=True)
-            printer.print(" ")
-
-            # Print argument
-            if ssa_arg is not None:
-                used_name = printer.print_ssa_value(ssa_arg)
-                if port.port_name.data != used_name:
-                    printer.print(" ")
-                    printer.print_identifier_or_string_literal(port.port_name.data)
-            else:
-                printer.print_identifier_or_string_literal(port.port_name.data)
-            printer.print(": ")
-            printer.print_attribute(port.type)
-
-        printer.print_list(self.module_type.ports.data, print_port)
-
-        printer.print(")")
+        print_module_header(
+            printer=printer,
+            visibility=self.sym_visibility,
+            module_name=self.sym_name,
+            parameters=self.parameters,
+            arg_ssa_iter=self.body.block.args,
+            module_type=self.module_type,
+        )
         printer.print_op_attributes(
             self.attributes,
             reserved_attr_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
@@ -814,6 +922,326 @@ class HWModuleOp(IRDLOperation):
         )
         printer.print(" ")
         printer.print_region(self.body, print_entry_block_args=False)
+
+
+@irdl_op_definition
+class HWModuleExternOp(IRDLOperation):
+    """
+    The "hw.module.extern" operation represents an external reference to a
+    Verilog module, including a given name and a list of ports.
+
+    The 'verilogName' attribute (when present) specifies the spelling of the
+    module name in Verilog we can use.
+    """
+
+    name = "hw.module.extern"
+
+    sym_name: StringAttr = attr_def(StringAttr)
+    module_type: ModuleType = attr_def(ModuleType)
+    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+    parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    verilog_name: StringAttr | None = opt_attr_def(StringAttr, attr_name="verilogName")
+
+    traits = traits_def(
+        lambda: frozenset(
+            (
+                SymbolOpInterface(),
+                HWModulesHWModuleLike(),
+            )
+        )
+    )
+
+    def __init__(
+        self,
+        sym_name: StringAttr,
+        module_type: ModuleType,
+        parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
+        visibility: str | StringAttr | None = None,
+    ):
+        attributes: dict[str, Attribute] = {
+            "sym_name": sym_name,
+            "module_type": module_type,
+            "parameters": parameters,
+        }
+
+        if visibility:
+            if isinstance(visibility, str):
+                visibility = StringAttr(visibility)
+            attributes["sym_visibility"] = visibility
+
+        return super().__init__(attributes=attributes)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "HWModuleExternOp":
+        module_header = ParsedModuleHeader.parse(parser)
+
+        attrs = parser.parse_optional_attr_dict_with_keyword(
+            _MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT
+        )
+
+        module_op = cls(
+            module_header.module_name,
+            module_header.get_module_type(),
+            module_header.parameters,
+            module_header.visibility,
+        )
+
+        if attrs is not None:
+            module_op.attributes.update(attrs.data)
+
+        return module_op
+
+    def print(self, printer: Printer):
+        # TODO: use the actual port name when it is a valid SSA name
+        arg_ssa_names = tuple(
+            f"port{i}"
+            for i, port in enumerate(self.module_type.ports.data)
+            if port.dir.data.is_input_like()
+        )
+        print_module_header(
+            printer=printer,
+            visibility=self.sym_visibility,
+            module_name=self.sym_name,
+            parameters=self.parameters,
+            arg_ssa_iter=arg_ssa_names,
+            module_type=self.module_type,
+        )
+        printer.print_op_attributes(
+            self.attributes,
+            reserved_attr_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
+            print_keyword=True,
+        )
+
+
+@irdl_op_definition
+class InstanceOp(IRDLOperation):
+    """
+    This represents an instance of a module. The inputs and outputs are the
+    referenced module's inputs and outputs. The argNames and resultNames
+    attributes must match the referenced module's input and output names.
+    """
+
+    name = "hw.instance"
+
+    instance_name = attr_def(StringAttr, attr_name="instanceName")
+    module_name: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr, attr_name="moduleName")
+    inputs: VarOperand = var_operand_def()
+    outputs: VarOpResult = var_result_def()
+    arg_names: ArrayAttr[StringAttr] = attr_def(
+        ArrayAttr[StringAttr], attr_name="argNames"
+    )
+    result_names: ArrayAttr[StringAttr] = attr_def(
+        ArrayAttr[StringAttr], attr_name="resultNames"
+    )
+    inner_sym = opt_attr_def(InnerSymAttr)
+
+    def __init__(
+        self,
+        instance_name: str,
+        module_name: FlatSymbolRefAttr,
+        inputs: Iterable[tuple[str, SSAValue]],
+        outputs: Iterable[tuple[str, TypeAttribute]],
+        inner_sym: InnerSymAttr | None = None,
+    ):
+        arg_names = ArrayAttr(StringAttr(port[0]) for port in inputs)
+        result_names = ArrayAttr(StringAttr(port[0]) for port in outputs)
+        attributes: dict[str, Attribute] = {
+            "instanceName": StringAttr(instance_name),
+            "moduleName": module_name,
+            "argNames": arg_names,
+            "resultNames": result_names,
+        }
+        if inner_sym is not None:
+            attributes["inner_sym"] = inner_sym
+        super().__init__(
+            operands=(tuple(port[1] for port in inputs),),
+            result_types=(tuple(port[1] for port in outputs),),
+            attributes=attributes,
+        )
+
+    def verify_(self) -> None:
+        if len(self.arg_names.data) != len(self.inputs):
+            raise VerifyException(
+                "Instance has a different amount of argument names "
+                f"({len(self.arg_names.data)}) "
+                f"and arguments ({len(self.inputs)})"
+            )
+        if len(self.result_names.data) != len(self.outputs):
+            raise VerifyException(
+                "Instance has a different amount of result names "
+                f"({len(self.result_names.data)}) "
+                f"and results ({len(self.outputs)})"
+            )
+
+        module = SymbolTable.lookup_symbol(self, self.module_name)
+        if module is None:
+            raise VerifyException(f"Module {self.module_name} not found")
+
+        hw_module_like = module.get_trait(HWModuleLike)
+        if hw_module_like is None:
+            raise VerifyException(
+                f"Module {self.module_name} must be a HWModuleLike, "
+                f"found '{module.name}'"
+            )
+
+        def check_same_or_exception(
+            reference: Iterable[str], candidate: Iterable[str], kind: str
+        ):
+            reference_set = set(reference)
+            visited: set[str] = set()
+            for candidate in candidate:
+                if candidate in visited:
+                    raise VerifyException(
+                        f"Multiple definitions for {kind} '{candidate}'"
+                    )
+                visited.add(candidate)
+                if candidate not in reference_set:
+                    raise VerifyException(f"Unknown {kind} '{candidate}'")
+                reference_set.remove(candidate)
+            if len(reference_set) != 0:
+                raise VerifyException(f"Missing {kind} '{reference_set.pop()}'")
+
+        module_args = (
+            port.port_name.data
+            for port in hw_module_like.get_hw_module_type(module).ports
+            if port.dir.data.is_input_like()
+        )
+        result_args = (
+            port.port_name.data
+            for port in hw_module_like.get_hw_module_type(module).ports
+            if port.dir.data.is_output_like()
+        )
+
+        check_same_or_exception(
+            module_args, (arg.data for arg in self.arg_names.data), "input port"
+        )
+
+        check_same_or_exception(
+            result_args,
+            (result.data for result in self.result_names.data),
+            "output port",
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "InstanceOp":
+        instance_name = parser.parse_str_literal(" (instance name)")
+        inner_sym = None
+        if parser.parse_optional_keyword("sym") is not None:
+            inner_sym = parser.parse_attribute()
+            if not isinstance(inner_sym, InnerSymAttr):
+                parser.raise_error("Expected inner symbol attribute")
+        module_name = parser.parse_attribute()
+        if (
+            not isinstance(module_name, SymbolRefAttr)
+            or len(module_name.nested_references.data) != 0
+        ):
+            parser.raise_error("Expected flat symbol reference")
+        if parser.parse_optional_punctuation("<") is not None:
+            parser.raise_error("Instance parameters are not supported yet")
+
+        def parse_input_port():
+            port_name = (
+                parser.parse_optional_str_literal()
+                or parser.parse_optional_identifier()
+            )
+            if port_name is None:
+                parser.raise_error("Expected port name as identifier or string literal")
+            parser.parse_punctuation(":")
+            port_operand = parser.parse_unresolved_operand()
+            parser.parse_punctuation(":")
+            port_type = parser.parse_type()
+            port_value = parser.resolve_operand(port_operand, port_type)
+            return (port_name, port_value)
+
+        def parse_output_port():
+            port_name = (
+                parser.parse_optional_str_literal()
+                or parser.parse_optional_identifier()
+            )
+            if port_name is None:
+                parser.raise_error("Expected port name as identifier or string literal")
+            parser.parse_punctuation(":")
+            port_type = parser.parse_type()
+            return (port_name, port_type)
+
+        input_ports = parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN, parse_input_port, "input port list expected"
+        )
+        parser.parse_punctuation("->")
+        output_ports = parser.parse_comma_separated_list(
+            Parser.Delimiter.PAREN, parse_output_port, "output port list expected"
+        )
+        attributes_attr = parser.parse_optional_attr_dict_with_reserved_attr_names(
+            (
+                "instanceName",
+                "moduleName",
+                "argNames",
+                "resultNames",
+                "inner_sym",
+            )
+        )
+        attributes = attributes_attr.data if attributes_attr is not None else {}
+
+        operands = tuple(port[1] for port in input_ports)
+        result_types = tuple(port[1] for port in output_ports)
+        attributes["instanceName"] = StringAttr(instance_name)
+        attributes["moduleName"] = module_name
+        attributes["argNames"] = ArrayAttr(StringAttr(port[0]) for port in input_ports)
+        attributes["resultNames"] = ArrayAttr(
+            StringAttr(port[0]) for port in output_ports
+        )
+        if inner_sym is not None:
+            attributes["inner_sym"] = inner_sym
+        return cls.create(
+            operands=operands, result_types=result_types, attributes=attributes
+        )
+
+    def print(self, printer: Printer) -> None:
+        printer.print(" ")
+        printer.print_attribute(self.instance_name)
+        printer.print(" ")
+        if self.inner_sym is not None:
+            printer.print("sym ")
+            printer.print_attribute(self.inner_sym)
+            printer.print(" ")
+        printer.print_attribute(self.module_name)
+
+        def print_input_port(name: str, operand: SSAValue):
+            printer.print_identifier_or_string_literal(name)
+            printer.print(": ")
+            printer.print_operand(operand)
+            printer.print(": ")
+            printer.print_attribute(operand.type)
+
+        def print_output_port(name: str, port_type: Attribute):
+            printer.print_identifier_or_string_literal(name)
+            printer.print(": ")
+            printer.print_attribute(port_type)
+
+        printer.print("(")
+        printer.print_list(
+            zip((name.data for name in self.arg_names), self.operands),
+            lambda x: print_input_port(*x),
+        )
+        printer.print(") -> (")
+        printer.print_list(
+            zip(
+                (name.data for name in self.result_names),
+                (result.type for result in self.results),
+            ),
+            lambda x: print_output_port(*x),
+        )
+        printer.print(")")
+        printer.print_op_attributes(
+            self.attributes,
+            reserved_attr_names=(
+                "instanceName",
+                "moduleName",
+                "argNames",
+                "resultNames",
+                "inner_sym",
+            ),
+        )
 
 
 @irdl_op_definition
@@ -876,7 +1304,9 @@ class OutputOp(IRDLOperation):
 HW = Dialect(
     "hw",
     [
+        HWModuleExternOp,
         HWModuleOp,
+        InstanceOp,
         OutputOp,
     ],
     [

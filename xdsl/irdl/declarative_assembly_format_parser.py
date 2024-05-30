@@ -10,16 +10,18 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import pairwise
+from typing import cast
 
-from xdsl.ir import Attribute
+from xdsl.dialects.builtin import Builtin
+from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
+    AttrOrPropDef,
     AttrSizedOperandSegments,
     OpDef,
-    OptAttributeDef,
     OptionalDef,
     OptOperandDef,
-    OptPropertyDef,
     OptResultDef,
+    ParamAttrConstraint,
     ParsePropInAttrDict,
     VariadicDef,
     VarOperandDef,
@@ -366,13 +368,41 @@ class FormatParser(BaseParser):
                 if attr_or_prop == "property"
                 else self.op_def.attributes.get(attr_name)
             )
-            match attr_def:
-                case OptAttributeDef() | OptPropertyDef():
-                    return OptionalAttributeVariable(
-                        variable_name, attr_or_prop == "property"
-                    )
-                case _:
-                    return AttributeVariable(variable_name, attr_or_prop == "property")
+            if isinstance(attr_def, AttrOrPropDef):
+                unique_base = attr_def.constr.get_unique_base()
+                # Always qualify builtin attributes
+                # This is technically an approximation, but appears to be good enough
+                # for xDSL right now.
+                unique_type = None
+                if unique_base is not None and issubclass(unique_base, TypedAttribute):
+                    constr = attr_def.constr
+                    # TODO: generalize.
+                    # https://github.com/xdslproject/xdsl/issues/2499
+                    if isinstance(constr, ParamAttrConstraint):
+                        type_constraint = constr.param_constrs[
+                            unique_base.get_type_index()
+                        ]
+                        if type_constraint.can_infer(set()):
+                            unique_type = type_constraint.infer({})
+                if (
+                    unique_base is not None
+                    and unique_base in Builtin.attributes
+                    and unique_type is None
+                ):
+                    unique_base = None
+
+                # Chill pyright with TypedAttribute without parameter
+                unique_base = cast(type[Attribute] | None, unique_base)
+
+                variable_type = (
+                    OptionalAttributeVariable
+                    if isinstance(attr_def, OptionalDef)
+                    else AttributeVariable
+                )
+                is_property = attr_or_prop == "property"
+                return variable_type(
+                    variable_name, is_property, unique_base, unique_type
+                )
 
         self.raise_error(
             "expected variable to refer to an operand, "

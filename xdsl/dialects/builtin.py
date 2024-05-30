@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -31,6 +31,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
@@ -40,6 +41,7 @@ from xdsl.irdl import (
     AttrConstraint,
     GenericData,
     IRDLOperation,
+    MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
     VarOperand,
@@ -103,7 +105,7 @@ class NoneAttr(ParametrizedAttribute):
     name = "none"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ArrayOfConstraint(AttrConstraint):
     """
     A constraint that enforces an ArrayData whose elements all satisfy
@@ -113,7 +115,7 @@ class ArrayOfConstraint(AttrConstraint):
     elem_constr: AttrConstraint
 
     def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
-        self.elem_constr = attr_constr_coercion(constr)
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(constr))
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, ArrayAttr):
@@ -236,25 +238,6 @@ class SymbolRefAttr(ParametrizedAttribute):
         return root
 
 
-@dataclass
-class CustomErrorMessageAttrConstraint(AttrConstraint):
-    """Emit a different error message if a verification exception was caught."""
-
-    constraint: AttrConstraint
-    new_message: str | Callable[[Attribute], str]
-
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        try:
-            self.constraint.verify(attr, constraint_vars)
-        except VerifyException as e:
-            new_message = (
-                self.new_message
-                if isinstance(self.new_message, str)
-                else self.new_message(attr)
-            )
-            raise VerifyException(new_message) from e
-
-
 class EmptyArrayAttrConstraint(AttrConstraint):
     """
     Constrain attribute to be empty ArrayData
@@ -268,7 +251,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
             raise VerifyException(f"expected empty array, but got {attr}")
 
 
-FlatSymbolRefAttrConstraint = CustomErrorMessageAttrConstraint(
+FlatSymbolRefAttrConstraint = MessageConstraint(
     ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
     "Unexpected nested symbols in FlatSymbolRefAttr.",
 )
@@ -410,7 +393,6 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
-
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -418,7 +400,10 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 
 
 @irdl_attr_definition
-class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
+class IntegerAttr(
+    Generic[_IntegerAttrType],
+    TypedAttribute[_IntegerAttrType],
+):
     name = "integer"
     value: ParameterDef[IntAttr]
     type: ParameterDef[_IntegerAttrType]
@@ -464,6 +449,21 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
                 f"type {self.type} which supports values in the "
                 f"range [{min_value}, {max_value})"
             )
+
+    @classmethod
+    def parse_with_type(
+        cls: type[IntegerAttr[_IntegerAttrType]],
+        parser: AttrParser,
+        type: Attribute,
+    ) -> IntegerAttr[_IntegerAttrType]:
+        assert isinstance(type, IntegerType) or isinstance(type, IndexType)
+        return cast(
+            IntegerAttr[_IntegerAttrType],
+            IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type),
+        )
+
+    def print_without_type(self, printer: Printer):
+        return printer.print(self.value.data)
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -792,7 +792,7 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class ContainerOf(AttrConstraint):
     """A type constraint that can be nested once in a vector or a tensor."""
 
@@ -801,7 +801,7 @@ class ContainerOf(AttrConstraint):
     def __init__(
         self, elem_constr: Attribute | type[Attribute] | AttrConstraint
     ) -> None:
-        self.elem_constr = attr_constr_coercion(elem_constr)
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
@@ -822,7 +822,7 @@ RankedVectorOrTensorOf: TypeAlias = (
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank.
@@ -840,7 +840,7 @@ class VectorRankConstraint(AttrConstraint):
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorBaseTypeConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given base type.
@@ -859,7 +859,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorBaseTypeAndRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank and base type.
@@ -873,10 +873,10 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         constraint = AllOf(
-            [
+            (
                 VectorBaseTypeConstraint(self.expected_type),
                 VectorRankConstraint(self.expected_rank),
-            ]
+            )
         )
         constraint.verify(attr, constraint_vars)
 
@@ -1046,15 +1046,15 @@ class DenseResourceAttr(ParametrizedAttribute):
 class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | AnyFloat]
+    elt_type: ParameterDef[IntegerType | IndexType | AnyFloat]
     data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
 
     def verify(self):
-        if isinstance(self.elt_type, IntegerType):
+        if isinstance(self.elt_type, IntegerType | IndexType):
             for d in self.data.data:
                 if isinstance(d, FloatData):
                     raise VerifyException(
-                        "dense array of integer element type "
+                        "dense array of integer or index element type "
                         "should only contain integers"
                     )
         else:

@@ -24,6 +24,16 @@ hw.module @custom_param<p1: i42, "p2 with wack name": i1>() {
   hw.output
 }
 
+// CHECK: hw.module private @private_module() {
+// CHECK-NEXT: hw.output
+// CHECK-NEXT: }
+// CHECK-GENERIC: "hw.module"() ({
+// CHECK-GENERIC-NEXT: "hw.output"() : () -> ()
+// CHECK-GENERIC-NEXT: }) {"sym_name" = "private_module", "module_type" = !hw.modty<>, "parameters" = [], "sym_visibility" = "private"} : () -> ()
+hw.module private @private_module() {
+  hw.output
+}
+
 // CHECK: hw.module @"wack name!!"() {
 // CHECK-NEXT: hw.output
 // CHECK-NEXT: }
@@ -45,6 +55,10 @@ hw.module @name_preserve(in %preserve: i8) {
 hw.module @more_attrs() attributes {"foo"} {
   hw.output
 }
+
+// CHECK: hw.module.extern @extern(in %{{.*}} foo: i32, in %{{.*}} hello: i16, out baz: i8)
+// CHECK-GENERIC: "hw.module.extern"() {"sym_name" = "extern", "module_type" = !hw.modty<input foo : i32, input hello : i16, output baz : i8>, "parameters" = []} : () -> ()
+hw.module.extern @extern(in %foo: i32, in %bar "hello": i16, out baz: i8)
 
 
 // Generic format input tests

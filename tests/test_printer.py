@@ -5,6 +5,7 @@ from io import StringIO
 import pytest
 from conftest import assert_print_op
 
+from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import (
@@ -12,6 +13,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IntAttr,
     IntegerType,
+    ModuleOp,
     SymbolRefAttr,
     UnitAttr,
     i32,
@@ -339,6 +341,38 @@ def test_print_custom_name():
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
+
+    assert_print_op(module, expected, None)
+
+
+def test_print_clashing_names():
+    """
+    Test the printer's value name printing logic's robustness against clashing names.
+
+    This example now expects to print names i, i_1, i_2; it used to print i, i_1, i_1,
+    printing a duplicate name for two values, meaning invalid IR as input for both MLIR
+    and xDSL.
+    """
+
+    expected = """\
+"builtin.module"() ({
+  %i = "test.op"() : () -> i32
+  %i_1 = "test.op"() : () -> i32
+  %i_2 = "test.op"() : () -> i32
+}) : () -> ()
+"""
+
+    ctx = MLContext()
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
+
+    with ImplicitBuilder((module := ModuleOp([])).body):
+        i = test.TestOp.create(result_types=[i32])
+        i.results[0].name_hint = "i"
+        j = test.TestOp.create(result_types=[i32])
+        j.results[0].name_hint = "i"
+        k = test.TestOp.create(result_types=[i32])
+        k.results[0].name_hint = "i_1"
 
     assert_print_op(module, expected, None)
 
@@ -702,6 +736,23 @@ def test_dictionary_attr():
 
     prog = """
 "func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"arg_attrs" = {"key_one" = "value_one", "key_two" = "value_two", "key_three" = 72 : i64, "unit_attr"}} : () -> ()
+    """
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+
+    assert_print_op(parsed, prog, None)
+
+
+def test_densearray_attr():
+    """Test that a DenseArrayAttr can be parsed and then printed."""
+
+    prog = """
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"bool_attrs" = array<i1: false, true>, "int_attr" = array<i32: 19, 23, 55>, "float_attr" = array<f32: 0.34>} : () -> ()
     """
 
     ctx = MLContext()

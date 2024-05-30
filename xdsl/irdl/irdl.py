@@ -26,6 +26,7 @@ from typing import (
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     Block,
     Data,
@@ -35,6 +36,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
+    TypedAttribute,
 )
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
@@ -60,7 +62,7 @@ if TYPE_CHECKING:
 def error(op: Operation, msg: str, e: Exception):
     diag = Diagnostic()
     diag.add_message(op, msg)
-    diag.raise_exception(f"{op.name} operation does not verify", op, type(e), e)
+    diag.raise_exception(msg, op, type(e), e)
 
 
 class IRDLAnnotations(Enum):
@@ -79,7 +81,7 @@ class IRDLAnnotations(Enum):
 #
 
 
-@dataclass
+@dataclass(frozen=True)
 class AttrConstraint(ABC):
     """Constrain an attribute to a certain value."""
 
@@ -121,7 +123,7 @@ class AttrConstraint(ABC):
         return None
 
 
-@dataclass
+@dataclass(frozen=True)
 class VarConstraint(AttrConstraint):
     """
     Constraint variable. If the variable is already set, this will constrain
@@ -177,7 +179,7 @@ class ConstraintVar:
     """The variable name. All uses of that name refer to the same variable."""
 
 
-@dataclass
+@dataclass(frozen=True)
 class EqAttrConstraint(AttrConstraint):
     """Constrain an attribute to be equal to another attribute."""
 
@@ -198,7 +200,7 @@ class EqAttrConstraint(AttrConstraint):
         return type(self.attr)
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseAttr(AttrConstraint):
     """Constrain an attribute to be of a given base type."""
 
@@ -228,12 +230,12 @@ def attr_constr_coercion(
         return attr
     if isinstance(attr, Attribute):
         return EqAttrConstraint(attr)
-    if isclass(attr) and issubclass(attr, Attribute):
+    if isclass(attr):
         return BaseAttr(attr)
     assert False
 
 
-@dataclass
+@dataclass(frozen=True)
 class AnyAttr(AttrConstraint):
     """Constraint that is verified by all attributes."""
 
@@ -241,17 +243,24 @@ class AnyAttr(AttrConstraint):
         pass
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class AnyOf(AttrConstraint):
     """Ensure that an attribute satisfies one of the given constraints."""
 
-    attr_constrs: list[AttrConstraint]
+    attr_constrs: tuple[AttrConstraint, ...]
     """The list of constraints that are checked."""
 
     def __init__(
         self, attr_constrs: Sequence[Attribute | type[Attribute] | AttrConstraint]
     ):
-        self.attr_constrs = [attr_constr_coercion(constr) for constr in attr_constrs]
+        constrs: tuple[AttrConstraint, ...] = tuple(
+            attr_constr_coercion(constr) for constr in attr_constrs
+        )
+        object.__setattr__(
+            self,
+            "attr_constrs",
+            constrs,
+        )
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         for attr_constr in self.attr_constrs:
@@ -283,11 +292,11 @@ class AnyOf(AttrConstraint):
         return None
 
 
-@dataclass()
+@dataclass(frozen=True)
 class AllOf(AttrConstraint):
     """Ensure that an attribute satisfies all the given constraints."""
 
-    attr_constrs: list[AttrConstraint]
+    attr_constrs: tuple[AttrConstraint, ...]
     """The list of constraints that are checked."""
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
@@ -332,7 +341,7 @@ class AllOf(AttrConstraint):
         return None
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class ParamAttrConstraint(AttrConstraint):
     """
     Constrain an attribute to be of a given type,
@@ -342,7 +351,7 @@ class ParamAttrConstraint(AttrConstraint):
     base_attr: type[ParametrizedAttribute]
     """The base attribute type."""
 
-    param_constrs: list[AttrConstraint]
+    param_constrs: tuple[AttrConstraint, ...]
     """The attribute parameter constraints"""
 
     def __init__(
@@ -350,8 +359,9 @@ class ParamAttrConstraint(AttrConstraint):
         base_attr: type[ParametrizedAttribute],
         param_constrs: Sequence[(Attribute | type[Attribute] | AttrConstraint)],
     ):
-        self.base_attr = base_attr
-        self.param_constrs = [attr_constr_coercion(constr) for constr in param_constrs]
+        constrs = tuple(attr_constr_coercion(constr) for constr in param_constrs)
+        object.__setattr__(self, "base_attr", base_attr)
+        object.__setattr__(self, "param_constrs", constrs)
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, self.base_attr):
@@ -379,6 +389,44 @@ class ParamAttrConstraint(AttrConstraint):
         if is_runtime_final(self.base_attr):
             return self.base_attr
         return None
+
+
+@dataclass(frozen=True, init=False)
+class MessageConstraint(AttrConstraint):
+    """
+    Attach a message to a constraint, to provide more context when the constraint
+    is not satisfied.
+    """
+
+    constr: AttrConstraint
+    message: str
+
+    def __init__(
+        self, constr: AttrConstraint | Attribute | type[Attribute], message: str
+    ):
+        object.__setattr__(self, "constr", attr_constr_coercion(constr))
+        object.__setattr__(self, "message", message)
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        try:
+            return self.constr.verify(attr, constraint_vars)
+        except VerifyException as e:
+            raise VerifyException(
+                f"{self.message}\nUnderlying verification failure: {e.args[0]}",
+                *e.args[1:],
+            )
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def get_unique_base(self) -> type[Attribute] | None:
+        return self.constr.get_unique_base()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constr.can_infer(constraint_names)
+
+    def infer(self, constraint_vars: dict[str, Attribute]) -> Attribute:
+        return self.constr.infer(constraint_vars)
 
 
 def _irdl_list_to_attr_constraint(
@@ -419,7 +467,7 @@ def _irdl_list_to_attr_constraint(
     if len(constraints) == 0:
         return AnyAttr()
     if len(constraints) > 1:
-        return AllOf(constraints)
+        return AllOf(tuple(constraints))
     return constraints[0]
 
 
@@ -482,7 +530,7 @@ def irdl_to_attr_constraint(
             raise Exception(f"GenericData args must have length 1, got {args}")
         origin = cast(type[GenericData[Any]], origin)
         args = cast(tuple[Attribute], args)
-        return AllOf([BaseAttr(origin), origin.generic_constraint_coercion(args)])
+        return AllOf((BaseAttr(origin), origin.generic_constraint_coercion(args)))
 
     # Generic ParametrizedAttributes case
     # We translate it to constraints over the attribute parameters.
@@ -1032,7 +1080,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -1044,7 +1092,7 @@ def prop_def(
 
 
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -1056,7 +1104,7 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -1070,7 +1118,7 @@ def attr_def(
 
 
 def opt_attr_def(
-    constraint: type[AttributeInvT] | TypeVar,
+    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -1790,7 +1838,7 @@ def irdl_op_verify_arg_list(
             error(
                 op,
                 f"{get_construct_name(construct)} at position "
-                f"{arg_idx} does not verify!\n{e}",
+                f"{arg_idx} does not verify:\n{e}",
                 e,
             )
 
@@ -2081,14 +2129,10 @@ def irdl_op_arg_definition(
         )
 
 
-def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
-    """Decorator used on classes to define a new operation definition."""
-
-    assert issubclass(
-        cls, IRDLOperation
-    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
-
-    op_def = OpDef.from_pyrdl(cls)
+def get_accessors_from_op_def(
+    op_def: OpDef, custom_verify: Any | None
+) -> dict[str, Any]:
+    """Get python accessors from an operation definition."""
     new_attrs = dict[str, Any]()
 
     # Add operand access fields
@@ -2175,14 +2219,6 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
 
     new_attrs["get_irdl_definition"] = get_irdl_definition
 
-    custom_verify = getattr(cls, "verify_")
-
-    def verify_(self: IRDLOperation):
-        op_def.verify(self)
-        custom_verify(self)
-
-    new_attrs["verify_"] = verify_
-
     if op_def.assembly_format is not None:
         from xdsl.irdl.declarative_assembly_format import FormatProgram
 
@@ -2204,6 +2240,29 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
 
         new_attrs["parse"] = parse_with_format
         new_attrs["print"] = print_with_format
+
+    if custom_verify is not None:
+
+        def verify_(self: IRDLOperation):
+            op_def.verify(self)
+            custom_verify(self)
+
+        new_attrs["verify_"] = verify_
+    else:
+        new_attrs["verify_"] = op_def.verify
+
+    return new_attrs
+
+
+def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
+    """Decorator used on classes to define a new operation definition."""
+
+    assert issubclass(
+        cls, IRDLOperation
+    ), f"class {cls.__name__} should be a subclass of IRDLOperation"
+
+    op_def = OpDef.from_pyrdl(cls)
+    new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))
 
     return type.__new__(
         type(cls), cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs}
@@ -2322,6 +2381,25 @@ class ParamAttrDef:
         name = clsdict["name"]
 
         param_hints = irdl_param_attr_get_param_type_hints(pyrdl_def)
+        if issubclass(pyrdl_def, TypedAttribute):
+            pyrdl_def = cast(type[TypedAttribute[Attribute]], pyrdl_def)
+            try:
+                param_names = [name for name, _ in param_hints]
+                type_index = param_names.index("type")
+            except ValueError:
+                raise PyRDLAttrDefinitionError(
+                    f"TypedAttribute {pyrdl_def.__name__} should have a 'type' parameter."
+                )
+            typed_hint = param_hints[type_index][1]
+            if get_origin(typed_hint) is Annotated:
+                typed_hint = get_args(typed_hint)[0]
+            type_var = get_type_var_mapping(pyrdl_def)[1][AttributeCovT]
+
+            if typed_hint != type_var:
+                raise ValueError(
+                    "A TypedAttribute `type` parameter must be of the same type"
+                    " as the type variable in the TypedAttribute base class."
+                )
 
         parameters = list[tuple[str, AttrConstraint]]()
         for param_name, param_type in param_hints:
@@ -2366,6 +2444,13 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     for idx, (param_name, _) in enumerate(attr_def.parameters):
         new_fields[param_name] = param_name_field(idx)
 
+    if issubclass(cls, TypedAttribute):
+        parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
+        type_index = parameter_names.index("type")
+        new_fields["get_type_index"] = lambda: type_index
+
+    cls = cast(type[_PAttrT], cls)
+
     @classmethod
     def get_irdl_definition(cls: type[_PAttrT]):
         return attr_def
@@ -2388,15 +2473,10 @@ def irdl_attr_definition(cls: TypeAttributeInvT) -> TypeAttributeInvT:
     if issubclass(cls, ParametrizedAttribute):
         return irdl_param_attr_definition(cls)
     if issubclass(cls, Data):
-        return runtime_final(
-            dataclass(frozen=True)(  # pyright: ignore[reportGeneralTypeIssues]
-                type(
-                    cls.__name__,
-                    (cls,),  # pyright: ignore[reportUnknownArgumentType]
-                    dict(cls.__dict__),
-                )
-            )
-        )
+        # This used to be convoluted
+        # But Data is already frozen itself, so any child Attribute still throws on
+        # .data!
+        return runtime_final(cast(TypeAttributeInvT, cls))
     raise TypeError(
         f"Class {cls.__name__} should either be a subclass of 'Data' or "
         "'ParametrizedAttribute'"

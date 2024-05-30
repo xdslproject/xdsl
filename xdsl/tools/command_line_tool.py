@@ -9,6 +9,7 @@ from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import ParseError
+from xdsl.utils.lexer import Span
 
 
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
@@ -64,6 +65,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Comb
 
+    def get_csl():
+        from xdsl.dialects.csl import CSL
+
+        return CSL
+
     def get_dmp():
         from xdsl.dialects.experimental.dmp import DMP
 
@@ -88,6 +94,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.gpu import GPU
 
         return GPU
+
+    def get_hlfir():
+        from xdsl.dialects.experimental.hlfir import HLFIR
+
+        return HLFIR
 
     def get_hls():
         from xdsl.dialects.experimental.hls import HLS
@@ -265,11 +276,13 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "cf": get_cf,
         "cmath": get_cmath,
         "comb": get_comb,
+        "csl": get_csl,
         "dmp": get_dmp,
         "fir": get_fir,
         "fsm": get_fsm,
         "func": get_func,
         "gpu": get_gpu,
+        "hlfir": get_hlfir,
         "hls": get_hls,
         "hw": get_hw,
         "linalg": get_linalg,
@@ -339,6 +352,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_linalg_to_loops.ConvertLinalgToLoopsPass
 
+    def get_convert_ml_program_to_memref():
+        from xdsl.transforms import convert_ml_program_to_memref
+
+        return convert_ml_program_to_memref.ConvertMlProgramToMemrefPass
+
     def get_convert_riscv_scf_for_to_frep():
         from xdsl.transforms import convert_riscv_scf_for_to_frep
 
@@ -374,6 +392,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
 
+    def get_cse():
+        from xdsl.transforms import common_subexpression_elimination
+
+        return common_subexpression_elimination.CommonSubexpressionElimination
+
     def get_dce():
         from xdsl.transforms import dead_code_elimination
 
@@ -383,6 +406,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.frontend.passes.desymref import DesymrefyPass
 
         return DesymrefyPass
+
+    def get_gpu_allocs():
+        from xdsl.transforms import gpu_allocs
+
+        return gpu_allocs.MemrefToGPUPass
 
     def get_gpu_map_parallel_loops():
         from xdsl.transforms import gpu_map_parallel_loops
@@ -453,6 +481,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import riscv_register_allocation
 
         return riscv_register_allocation.RISCVRegisterAllocation
+
+    def get_scf_for_loop_flatten():
+        from xdsl.transforms import scf_for_loop_flatten
+
+        return scf_for_loop_flatten.ScfForLoopFlattenPass
 
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
@@ -544,6 +577,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return replace_incompatible_fpga.ReplaceIncompatibleFPGA
 
+    def get_stencil_tensorize_z_dimension():
+        from xdsl.transforms.experimental import stencil_tensorize_z_dimension
+
+        return stencil_tensorize_z_dimension.StencilTensorizeZDimension
+
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
 
@@ -566,6 +604,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
+        "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
@@ -576,10 +615,12 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
+        "cse": get_cse,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
+        "memref-to-gpu": get_gpu_allocs,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
@@ -597,11 +638,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "riscv-cse": get_riscv_cse,
+        "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
+        "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-unroll": get_stencil_unroll,
         "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
     }
@@ -694,7 +737,9 @@ class CommandLineTool:
 
         self.available_frontends["mlir"] = parse_mlir
 
-    def parse_chunk(self, chunk: IO[str], file_extension: str) -> ModuleOp | None:
+    def parse_chunk(
+        self, chunk: IO[str], file_extension: str, start_offset: int = 0
+    ) -> ModuleOp | None:
         """
         Parse the input file by invoking the parser specified by the `parser`
         argument. If not set, the parser registered for this file extension
@@ -704,6 +749,8 @@ class CommandLineTool:
         try:
             return self.available_frontends[file_extension](chunk)
         except ParseError as e:
+            s = e.span
+            e.span = Span(s.start, s.end, s.input, start_offset)
             if "parsing_diagnostics" in self.args and self.args.parsing_diagnostics:
                 print(e.with_context())
             else:

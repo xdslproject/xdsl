@@ -7,6 +7,7 @@ import pytest
 from xdsl.dialects import builtin, func, test
 from xdsl.dialects.builtin import (
     IndexType,
+    IntegerAttr,
     IntegerType,
     ModuleOp,
     TensorType,
@@ -18,12 +19,13 @@ from xdsl.interpreter import (
     InterpreterFunctions,
     PythonValues,
     impl,
+    impl_attr,
     impl_cast,
     impl_external,
     register_impls,
 )
 from xdsl.interpreters.builtin import BuiltinFunctions
-from xdsl.ir import Operation
+from xdsl.ir import Attribute, Operation
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import TestSSAValue
 
@@ -199,3 +201,38 @@ def test_run_op_interpreter_args():
         (TensorType(f32, [4]),),
     )
     assert interpreter.run_op(op_2, (1,)) == (1,)
+
+
+def test_mixed_values():
+    @dataclass
+    @register_impls
+    class TestFuncA(InterpreterFunctions):
+
+        @impl_attr(IndexType)
+        def index_value(
+            self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType
+        ) -> int:
+            return 1
+
+    @dataclass
+    @register_impls
+    class TestFuncB(InterpreterFunctions):
+
+        @impl_attr(IntegerType)
+        def index_value(
+            self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType
+        ) -> int:
+            return 1
+
+    i = Interpreter(
+        ModuleOp([func.FuncOp.external("testfunc", [builtin.i32], [])]),
+        index_bitwidth=32,
+    )
+
+    i.register_implementations(TestFuncA())
+    i.register_implementations(TestFuncB())
+
+    index = IndexType()
+
+    assert i.value_for_attribute(IntegerAttr(1, i32), i32) == 1
+    assert i.value_for_attribute(IntegerAttr(1, i32), index) == 1

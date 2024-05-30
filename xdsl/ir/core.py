@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -317,6 +317,11 @@ class SSAValue(ABC):
     def name_hint(self, name: str | None):
         # only allow valid names
         if SSAValue.is_valid_name(name):
+            # Remove `_` followed by numbers at the end of the name
+            if name is not None:
+                r1 = re.compile(r"(_\d+)+$")
+                if match := r1.search(name):
+                    name = name[: match.start()]
             self._name = name
         else:
             raise ValueError(
@@ -501,7 +506,7 @@ class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     pass
 
 
-DataElement = TypeVar("DataElement", covariant=True)
+DataElement = TypeVar("DataElement", covariant=True, bound=Hashable)
 
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
@@ -666,6 +671,29 @@ class ParametrizedAttribute(Attribute):
         super()._verify()
 
 
+class TypedAttribute(ParametrizedAttribute, Generic[AttributeCovT], ABC):
+    """
+    An attribute with a type.
+    """
+
+    @staticmethod
+    def get_type_index() -> int: ...
+
+    @classmethod
+    def parse_with_type(
+        cls: type[TypedAttribute[AttributeCovT]],
+        parser: AttrParser,
+        type: Attribute,
+    ) -> TypedAttribute[AttributeCovT]:
+        """
+        Parse the attribute with the given type.
+        """
+        ...
+
+    @abstractmethod
+    def print_without_type(self, printer: Printer): ...
+
+
 @dataclass(init=False)
 class IRNode(ABC):
     def is_ancestor(self, op: IRNode) -> bool:
@@ -732,6 +760,17 @@ class OpOperands(Sequence[SSAValue]):
 
     def __len__(self) -> int:
         return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+    def __eq__(self, other: object):
+        if not isinstance(other, OpOperands):
+            return False
+        return (
+            self._op._operands  # pyright: ignore[reportPrivateUsage]
+            == other._op._operands  # pyright: ignore[reportPrivateUsage]
+        )
+
+    def __hash__(self):
+        return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
 @dataclass

@@ -933,6 +933,140 @@ class MatMul(IRDLOperation):
 
 
 @irdl_op_definition
+class Transpose(IRDLOperation):
+    """
+    The transpose_tensor function takes a tensor as input and returns its transpose.
+    Transposing a tensor means flipping its dimensions, so that rows become columns and vice versa.
+    """
+
+    name = "onnx.Transpose"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    tensor_input = operand_def(TensorType[T])
+
+    perm = opt_attr_def(ArrayAttr[AnyIntegerAttr], attr_name="perm")
+
+    tensor_output = result_def(TensorType[T])
+
+    assembly_format = (
+        "`(` $tensor_input `)` attr-dict `:` `(` type($tensor_input) "
+        "`)` `->` type($tensor_output) "
+    )
+
+    def __init__(self, tensor_input: SSAValue, perm: Attribute):
+        super().__init__(
+            attributes={"perm": perm},
+            operands=[tensor_input],
+            result_types=[tensor_input.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(
+            tensor_input_type := self.tensor_input.type, TensorType
+        ) or not isinstance(tensor_output_type := self.tensor_output.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        tensor_input_shape = tensor_input_type.get_shape()
+        tensor_output_shape = tensor_output_type.get_shape()
+
+        # numbers in perm cannot be repeated
+        if self.perm is not None:
+
+            for _, int_attr in enumerate(self.perm.data):
+                attr_value = int_attr.value.data
+                count = self.perm.data.count(int_attr)
+                if count != 1:
+                    raise VerifyException(
+                        f"permutation can not contain more than one occurrence of the same dimension: dimension #{attr_value} appears {count} times."
+                    )
+
+            # numbers in perm must be between 0 and len(tensor_input_shape)-1
+            perm_size = len(self.perm.data)
+            for int_index, int_attr in enumerate(self.perm.data):
+                int_index = int_index + 0
+                int_attr_val = int_attr.value.data
+                if int_attr_val < 0 or int_attr_val >= perm_size:
+                    raise VerifyException(
+                        f"permutation can only contain values between 0 and {perm_size}-1: dimension #{int_index} value is {int_attr_val}"
+                    )
+
+            # len(tensor_input_shape) must be equal to len(perm)
+            perm_size = len(self.perm.data)
+            input_size = len(tensor_input_shape)
+            if perm_size != input_size:
+                raise VerifyException(
+                    f"permutation and inputs dimensions must have the same size: #dimensions input is {input_size}, #dimension perimutation is {perm_size}"
+                )
+
+            # check output shape
+            for index_attr, int_attr in enumerate(self.perm.data):
+                int_attr_val = int_attr.value.data
+                if tensor_output_shape[index_attr] != tensor_input_shape[int_attr_val]:
+                    raise VerifyException(
+                        f"incorrect output shape: output dimension #{index_attr} should be equal to {tensor_input_shape[int_attr_val]}"
+                    )
+
+
+@irdl_op_definition
+class Squeeze(IRDLOperation):
+    """
+    Squeeze the input tensor along the specified axes.
+
+    Squeezing a tensor removes dimensions of size 1, effectively reducing the rank of the tensor and collapsing those dimensions.
+    This operation is particularly useful for removing unnecessary singleton dimensions, which may arise from broadcasting or previous operations.
+
+    Args:
+        input_tensor: The input tensor to be squeezed. This tensor should be a multi-dimensional array-like object.
+        axes: A list of axes along which to squeeze the tensor. If provided, only the specified axes will be squeezed. If not provided, all dimensions of size 1 will be squeezed.
+
+    Returns:
+        output_tensor: The squeezed tensor.
+    """
+
+    name = "onnx.Squeeze"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    input_tensor = operand_def(TensorType[T])
+    axes = opt_attr_def(IntegerAttr, attr_name="axes")
+
+    output_tensor = result_def(TensorType[T])
+
+    assembly_format = "`(` $input_tensor `)` attr-dict `:` `(` type($input_tensor) `)` `->` type($output_tensor) "
+
+    def __init__(
+        self,
+        input_tensor: SSAValue,
+        axes: Attribute,
+    ):
+        super().__init__(
+            attributes={
+                "axes": axes,
+            },
+            operands=[input_tensor],
+            result_types=[input_tensor.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(input_tensor_type := self.input_tensor.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        input_tensor_shape = input_tensor_type.get_shape()
+
+        if self.axes is not None:
+            axes_value = self.axes.value.data
+
+            # axes out of bounds: the axes value must between 0 and len(input_tensor.shape)-1
+            if axes_value < 0 or axes_value >= len(input_tensor_shape):
+                max_axes_value = len(input_tensor_shape) - 1
+                raise VerifyException(
+                    f"axes to squeeze must be between 0 and {max_axes_value}, axes: {axes_value}"
+                )
+
+@irdl_op_definition
 class Sigmoid(IRDLOperation):
     """
     Applies the sigmoid function element-wise to all elements of the input tensor.
@@ -982,7 +1116,7 @@ class Sigmoid(IRDLOperation):
                 f"tensor input shape {input_tensor_shape} is not equal to tensor output shape {output_tensor_shape}"
             )
 
-
+            
 ONNX = Dialect(
     "onnx",
     [
@@ -998,7 +1132,9 @@ ONNX = Dialect(
         Mul,
         Relu,
         Reshape,
-        Sigmoid,
         Sub,
+        Transpose,
+        Squeeze,
+        Sigmoid,
     ],
 )

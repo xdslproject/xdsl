@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -8,7 +9,7 @@ from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
-    from xdsl.ir import Operation, Region
+    from xdsl.ir import Attribute, Operation, Region
     from xdsl.pattern_rewriter import RewritePattern
 
 
@@ -31,10 +32,6 @@ class OpTrait:
 
 
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
-
-
-class Pure(OpTrait):
-    """A trait that signals that an operation has no side effects."""
 
 
 class ConstantLike(OpTrait):
@@ -66,6 +63,42 @@ class HasParent(OpTrait):
             )
         names = ", ".join(f"'{p.name}'" for p in self.parameters)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
+
+
+@dataclass(frozen=True)
+class HasAncestor(OpTrait):
+    """
+    Constraint the operation to have a specific operation as ancestor, i.e. transitive
+    parent.
+    """
+
+    parameters: tuple[type[Operation], ...]
+
+    def __init__(self, head_param: type[Operation], *tail_params: type[Operation]):
+        super().__init__((head_param, *tail_params))
+
+    def verify(self, op: Operation) -> None:
+        if self.get_ancestor(op) is None:
+            if len(self.parameters) == 1:
+                raise VerifyException(
+                    f"'{op.name}' expects ancestor op '{self.parameters[0].name}'"
+                )
+            names = ", ".join(f"'{p.name}'" for p in self.parameters)
+            raise VerifyException(
+                f"'{op.name}' expects ancestor op to be one of {names}"
+            )
+
+    def walk_ancestors(self, op: Operation) -> Iterator[Operation]:
+        """Iterates over the ancestors of an operation, including the input"""
+        curr = op
+        yield curr
+        while (curr := curr.parent_op()) is not None:
+            yield curr
+
+    def get_ancestor(self, op: Operation) -> Operation | None:
+        ancestors = self.walk_ancestors(op)
+        matching_ancestors = (a for a in ancestors if isinstance(a, self.parameters))
+        return next(matching_ancestors, None)
 
 
 class IsTerminator(OpTrait):
@@ -196,7 +229,7 @@ class IsolatedFromAbove(OpTrait):
                         if not op.is_ancestor(operand.owner):
                             raise VerifyException(
                                 "Operation using value defined out of its "
-                                "IsolatedFromAbove parent!"
+                                f"IsolatedFromAbove parent: {child_op}"
                             )
                     # Check nested regions too; unless the operation is IsolatedFromAbove
                     # too; in which case it will check itself.
@@ -376,11 +409,22 @@ class CallableOpInterface(OpTrait, abc.ABC):
     """
 
     @classmethod
+    @abc.abstractmethod
     def get_callable_region(cls, op: Operation) -> Region:
         """
         Returns the body of the operation
         """
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def get_argument_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        raise NotImplementedError()
+
+    @classmethod
+    @abc.abstractmethod
+    def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True)
@@ -398,3 +442,59 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
+
+
+class MemoryEffect(OpTrait):
+    """
+    A trait that enables operations to expose their side-effects or absence thereof.
+
+    NB: The MLIR implementation further allows to describe what *kind* of side-effects
+    an operation has, e.g., read-only, or allocation.
+    This one is a stripped down version for now, just saying if there are any
+    side-effects or not.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def has_effects(cls, op: Operation) -> bool:
+        raise NotImplementedError()
+
+
+def is_side_effect_free(op: Operation):
+    """
+    Boilerplate helper to check if a generic operation is side effect free for sure.
+    """
+    # If it doesn't say, safely assume it has side effects.
+    if not (trait := op.get_trait(MemoryEffect)):
+        return False
+    return not trait.has_effects(op)
+
+
+class NoMemoryEffect(MemoryEffect):
+    """
+    A trait that signals that an operation never has side effects.
+    """
+
+    @classmethod
+    def has_effects(cls, op: Operation) -> bool:
+        return False
+
+
+class RecursiveMemoryEffect(MemoryEffect):
+    """
+    A trait that signals that an operation has the side effects of its contained
+    operations.
+
+    NB: Upstream, this a separate class, but in our current binary side effect
+    implementation, it's easier to have it this way in my opinion.
+    """
+
+    @classmethod
+    def has_effects(cls, op: Operation) -> bool:
+        if not op.regions:
+            return True
+        return not all(is_side_effect_free(o) for r in op.regions for o in r.walk())
+
+
+class Pure(NoMemoryEffect):
+    """A trait that signals that an operation has no side effects."""
