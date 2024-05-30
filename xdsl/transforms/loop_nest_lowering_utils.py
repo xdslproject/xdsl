@@ -102,6 +102,7 @@ def _insert_loop_nest(
         results = loop.results
 
         if i + 1 == len(bounds):
+            # Innermost loop iteration
             results = make_body(
                 rewriter,
                 InsertPoint.at_start(loop.body.block),
