@@ -22,6 +22,8 @@ from xdsl.irdl import (
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
+    OptionalDef,
+    VariadicDef,
     VarIRConstruct,
 )
 from xdsl.parser import Parser, UnresolvedOperand
@@ -178,10 +180,7 @@ class FormatProgram:
                         continue
                     if isinstance(operand_type, Attribute):
                         operand_type = [operand_type]
-                    for ot in operand_type:
-                        if ot is None:
-                            continue
-                        operand_def.constr.verify(ot, state.constraint_variables)
+                    operand_def.constr.verify(operand_type, state.constraint_variables)
                 for (_, result_def), result_type in zip(
                     op_def.results, state.result_types, strict=True
                 ):
@@ -189,10 +188,7 @@ class FormatProgram:
                         continue
                     if isinstance(result_type, Attribute):
                         result_type = [result_type]
-                    for rt in result_type:
-                        if rt is None:
-                            continue
-                        result_def.constr.verify(rt, state.constraint_variables)
+                    result_def.constr.verify(result_type, state.constraint_variables)
             except VerifyException as e:
                 parser.raise_error(
                     "Verification error while inferring operation type: " + str(e)
@@ -207,14 +203,22 @@ class FormatProgram:
             zip(state.operand_types, op_def.operands, strict=True)
         ):
             if operand_type is None:
-                operand_type = operand_def.constr.infer(state.constraint_variables)
                 operand = state.operands[i]
-                if isinstance(operand, UnresolvedOperand):
-                    state.operand_types[i] = operand_type
-                elif isinstance(operand, list):
-                    state.operand_types[i] = cast(
-                        list[Attribute | None], [operand_type]
-                    ) * len(operand)
+                range_length = len(operand) if isinstance(operand, list) else 1
+                operand_type = operand_def.constr.infer(
+                    range_length, state.constraint_variables
+                )
+                if isinstance(operand_def, OptionalDef):
+                    operand_type = (
+                        list[Attribute | None]()
+                        if len(operand_type) == 0
+                        else operand_type[0]
+                    )
+                elif isinstance(operand_def, VariadicDef):
+                    operand_type = cast(list[Attribute | None], operand_type)
+                else:
+                    operand_type = operand_type[0]
+                state.operand_types[i] = operand_type
 
     def resolve_result_types(self, state: ParsingState, op_def: OpDef) -> None:
         """
@@ -225,17 +229,22 @@ class FormatProgram:
             zip(state.result_types, op_def.results, strict=True)
         ):
             if result_type is None:
-                result_type = result_def.constr.infer(state.constraint_variables)
-                state.result_types[i] = result_def.constr.infer(
-                    state.constraint_variables
-                )
                 result_type = state.result_types[i]
-                if isinstance(result_type, Attribute):
-                    state.result_types[i] = result_type
-                elif isinstance(result_type, list):
-                    state.result_types[i] = cast(
-                        list[Attribute | None], [result_type]
-                    ) * len(result_type)
+                range_length = len(result_type) if isinstance(result_type, list) else 1
+                result_type = result_def.constr.infer(
+                    range_length, state.constraint_variables
+                )
+                if isinstance(result_def, OptionalDef):
+                    result_type = (
+                        list[Attribute | None]()
+                        if len(result_type) == 0
+                        else result_type[0]
+                    )
+                elif isinstance(result_def, VariadicDef):
+                    result_type = cast(list[Attribute | None], result_type)
+                else:
+                    result_type = result_type[0]
+                state.result_types[i] = result_type
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
         """

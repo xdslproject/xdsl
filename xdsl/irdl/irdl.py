@@ -425,11 +425,12 @@ class RangeConstraint(ABC):
 
     @abstractmethod
     def verify(
-        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+        self, attrs: Sequence[Attribute | None], constraint_vars: dict[str, Attribute]
     ) -> None:
         """
         Check if the range satisfies the constraint,
         or raise an exception otherwise.
+        The range can contain Nones, which represent an attribute not to be checked.
         """
         ...
 
@@ -448,7 +449,9 @@ class RangeConstraint(ABC):
         # By default, we cannot infer anything.
         return False
 
-    def infer(self, constraint_vars: dict[str, Attribute]) -> Sequence[Attribute]:
+    def infer(
+        self, length: int, constraint_vars: dict[str, Attribute]
+    ) -> list[Attribute]:
         """
         Infer the range given the constraint variables that are already set.
 
@@ -465,10 +468,23 @@ class RangeOf(RangeConstraint):
     constr: AttrConstraint
 
     def verify(
-        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+        self, attrs: Sequence[Attribute | None], constraint_vars: dict[str, Attribute]
     ) -> None:
         for a in attrs:
+            if a is None:
+                continue
             self.constr.verify(a, constraint_vars)
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constr.can_infer(constraint_names)
+
+    def infer(
+        self, length: int, constraint_vars: dict[str, Attribute]
+    ) -> list[Attribute]:
+        return [self.constr.infer(constraint_vars)] * length
 
 
 @dataclass
@@ -477,10 +493,12 @@ class SingleOf(RangeConstraint):
     constr: AttrConstraint
 
     def verify(
-        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+        self, attrs: Sequence[Attribute | None], constraint_vars: dict[str, Attribute]
     ) -> None:
         if len(attrs) != 1:
             raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
+        if attrs[0] is None:
+            return
         self.constr.verify(attrs[0], constraint_vars)
 
     def get_resolved_variables(self) -> set[str]:
@@ -489,8 +507,10 @@ class SingleOf(RangeConstraint):
     def can_infer(self, constraint_names: set[str]) -> bool:
         return self.constr.can_infer(constraint_names)
 
-    def infer(self, constraint_vars: dict[str, Attribute]) -> Sequence[Attribute]:
-        return (self.constr.infer(constraint_vars),)
+    def infer(
+        self, length: int, constraint_vars: dict[str, Attribute]
+    ) -> list[Attribute]:
+        return [self.constr.infer(constraint_vars)]
 
 
 def range_constr_coercion(
