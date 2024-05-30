@@ -475,18 +475,19 @@ def _make_dense_layouts(layout: T, map: dict[str, dlt.Layout]) -> T:
             return new_layout
     elif isinstance(layout, dlt.AbstractLayoutAttr):
         layout: dlt.AbstractLayoutAttr = layout
-        sub_layouts = [_make_dense_layouts(child, map) for child in layout.children]
+        sub_layouts = []
+        for child in layout.children:
+            sub_layout = _make_dense_layouts(child.child, map)
+            for dim in list(child.dimensions):
+                sub_layout = dlt.DenseLayoutAttr(sub_layout, dim)
+            for member in list(child.member_specifiers):
+                sub_layout = dlt.MemberLayoutAttr(sub_layout, member)
+            sub_layouts.append(sub_layout)
         if len(sub_layouts) == 1:
             sub_layout = sub_layouts[0]
         else:
             assert len(sub_layouts) > 1
             sub_layout = dlt.StructLayoutAttr(sub_layouts)
-        dimensions = list(layout.dimensions)
-        for dim in dimensions:
-            sub_layout = dlt.DenseLayoutAttr(sub_layout, dim)
-        members = list(layout.member_specifiers)
-        for member in members:
-            sub_layout = dlt.MemberLayoutAttr(sub_layout, member)
         return sub_layout
     else:
         children = [_make_dense_layouts(child, map) for child in layout.get_children()]

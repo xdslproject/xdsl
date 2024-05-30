@@ -22,6 +22,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import UseDefChainTrait
 from xdsl.transforms.experimental.dlt.layout_graph import LayoutGraph
+from xdsl.transforms.experimental.dlt_ptr_type_rewriter import PtrIdentityTypeRewriter
 
 
 class _Namer:
@@ -50,16 +51,17 @@ class DLTGeneratePtrIdentitiesRewriter(RewritePattern):
 
         namer = _Namer(self.prefix)
         layout_graph = LayoutGraph()
+
         initial_identities_set: set[StringAttr] = set()
 
         # collect existing identities as we want to preserve them where possible
         for op in scope.walk():
             for result in [result for result in op.results if isinstance(result.type, dlt.PtrType) and result.type.has_identity]:
                 initial_identities_set.add(result.type.identification)
-                layout_graph.ident_count[result.type.identification].add(result)
+                layout_graph.add_ssa_value(result)
             for arg in [arg for region in op.regions for block in region.blocks for arg in block.args if isinstance(arg.type, dlt.PtrType) and arg.type.has_identity]:
                 initial_identities_set.add(arg.type.identification)
-                layout_graph.ident_count[arg.type.identification].add(arg)
+                layout_graph.add_ssa_value(arg)
 
         # give everything else that doesn't already have an identity, an identity, propagating them as we go
         for op in scope.walk():
@@ -70,26 +72,24 @@ class DLTGeneratePtrIdentitiesRewriter(RewritePattern):
 
         # add edges to graph for selections, and account for extents that are required.
         for ptr_ident, ssa_values in layout_graph.ident_count.items():
-            layout_graph.graph_edges.setdefault(ptr_ident, set())
-            layout_graph.required_extents[ptr_ident] = set()
             for ssa_val, use in [(ssa_val, use) for ssa_val in ssa_values for use in ssa_val.uses]:
                 if isinstance(use.operation, dlt.SelectOp):
                     select_op = cast(SelectOp, use.operation)
                     out_ptr = cast(dlt.PtrType, select_op.res.type)
                     if out_ptr.identification not in layout_graph.ident_count:
                         raise ValueError()
-                    layout_graph.graph_edges[ptr_ident].add((select_op.members, dlt.SetAttr(select_op.dimensions), out_ptr.identification))
+                    layout_graph.add_edge(ptr_ident, select_op.members, select_op.dimensions, out_ptr.identification)
                 elif isinstance(use.operation, dlt.IterateOp):
                     iterate_op = cast(dlt.IterateOp, use.operation)
                     block_arg, dimses = iterate_op.get_block_arg_and_dims_for_input_arg(use)
                     if dimses is not None:
-                        dim_attrs = dlt.SetAttr({dim for dims in dimses for dim in dims})
+                        dim_attrs = {dim for dims in dimses for dim in dims}
                         out_ptr = cast(dlt.PtrType, block_arg.type)
-                        layout_graph.graph_edges[ptr_ident].add((dlt.SetAttr([]), dim_attrs, out_ptr.identification))
+                        layout_graph.add_edge(ptr_ident, [], dim_attrs, out_ptr.identification)
                 elif isinstance(use.operation, dlt.ExtractExtentOp):
                     extract_op = cast(dlt.ExtractExtentOp, use.operation)
                     if isinstance(extract_op.extent, dlt.InitDefinedExtentAttr):
-                        layout_graph.required_extents[ptr_ident].add(extract_op.extent)
+                        layout_graph.add_extent_constraint(ptr_ident, extract_op.extent)
                 else:
                     # used somewhere else? but we don't really care as select/Iterate is the only thing that constrains changes to the the ptr type
                     pass
@@ -113,10 +113,10 @@ class DLTGeneratePtrIdentitiesRewriter(RewritePattern):
             ident = namer.get_next()
             new_ptr = current_ptr.with_identification(ident)
             result.type = new_ptr
-            layout_graph.ident_count[ident].add(result)
+            layout_graph.add_ssa_value(result)
             self.propagate_ident(result, current_ptr, ident, layout_graph, rewriter)
         else:
-            layout_graph.ident_count[current_ptr.identification].add(result)
+            layout_graph.add_ssa_value(result)
 
     def propagate_ident(self, result: SSAValue,
                         old_ptr: dlt.PtrType,
@@ -129,13 +129,13 @@ class DLTGeneratePtrIdentitiesRewriter(RewritePattern):
             for ssa in ssa_values:
                 this_ptr = ssa.type
                 if this_ptr.has_identity:
-                    layout_graph.graph_edges.setdefault(identity, set()).add((None, None, this_ptr.identification))
+                    layout_graph.add_equality_edge(identity, this_ptr.identification)
                 else:
                     new_ptr = old_ptr.with_identification(identity)
                     ssa.type = new_ptr
                     modified_op = ssa.owner if isinstance(ssa.owner, Operation) else ssa.owner.parent_op()
                     rewriter.handle_operation_modification(modified_op)
-                    layout_graph.ident_count[identity].add(ssa)
+                    layout_graph.add_ssa_value(ssa)
                     self.propagate_ident(ssa, old_ptr, identity, layout_graph, rewriter)
 
 
@@ -153,16 +153,8 @@ class DLTSimplifyPtrIdentitiesRewriter(RewritePattern):
             else:
                 initial_identities_set = set()
 
-            # organise identities into groups that are identical (have None edges)
-            identical_groups = []
-            for ident in layout_graph.ident_count:
-                identicals = [finish for ms, ds, finish in layout_graph.graph_edges[ident] if ms is None] + [ident]
-                if any(indentical in group for group in identical_groups for indentical in identicals):
-                    group = \
-                    [group for group in identical_groups if any(identical in group for identical in identicals)][0]
-                else:
-                    identical_groups.append(group := set())
-                group.update(identicals)
+            # organise identities into groups that are identical (have equality edges)
+            identical_groups = layout_graph.get_equality_groups()
 
             # replace identities in groups to simplify the graph
             type_rewriters = []
@@ -173,20 +165,9 @@ class DLTSimplifyPtrIdentitiesRewriter(RewritePattern):
 
                     assert len(layout_graph.ident_count[leader]) > 0
                     new_ptr = list(layout_graph.ident_count[leader])[0].type
-
-                    @dataclass
-                    class PtrIdentityTypeRewriter(TypeConversionPattern):
-
-                        def __init__(self, ptr, group):
-                            self.ptr = ptr
-                            self.group = group
-                            super().__init__(recursive=True)
-                        @attr_type_rewrite_pattern
-                        def convert_type(self, typ: dlt.PtrType, /) -> Attribute | None:
-                            if typ.identification in self.group:
-                                return self.ptr
-
                     type_rewriters.append(PtrIdentityTypeRewriter(new_ptr, group))
 
             type_rewriter = PatternRewriteWalker(GreedyRewritePatternApplier(type_rewriters), listener=rewriter)
             type_rewriter.rewrite_op(scope)
+
+

@@ -38,7 +38,8 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     NoTerminator,
-    SingleBlockImplicitTerminator, UseDefChainTrait,
+    SingleBlockImplicitTerminator,
+    UseDefChainTrait,
 )
 from xdsl.utils.exceptions import ComplexVerifyException
 from xdsl.utils.hints import isa
@@ -136,6 +137,11 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
         return SetAttr(self.data.difference([val]))
 
     def difference(self, val: Iterable[AttributeCovT]) -> SetAttr[AttributeCovT]:
+        return SetAttr(self.data.difference(val))
+
+    def remove(self, val: Iterable[AttributeCovT]) -> SetAttr[AttributeCovT]:
+        if not frozenset(val).issubset(self.data):
+            raise ValueError("Cannot remove elements that do not exist in the set. If this is expected, use difference() instead of remove()")
         return SetAttr(self.data.difference(val))
 
     def union(self, val: Iterable[AttributeCovT]) -> SetAttr[AttributeCovT]:
@@ -278,6 +284,26 @@ class Extent(ParametrizedAttribute, abc.ABC):
                 "An extent must be at least one of: static, compile-time, init-time, dynamic"
             )
 
+    @classmethod
+    def internal_parse_any_extent(cls, parser: AttrParser) -> Extent:
+        with parser.in_angle_brackets():
+            extent_type = parser.parse_identifier()
+            parser.parse_punctuation("|")
+            match extent_type:
+                case "S":
+                    # StaticExtent
+                    return StaticExtentAttr(*StaticExtentAttr.internal_parse_extent(parser))
+                case "Sc":
+                    return ScopeDefinedExtentAttr(*ScopeDefinedExtentAttr.internal_parse_extent(parser))
+                case "I":
+                    return InitDefinedExtentAttr(*InitDefinedExtentAttr.internal_parse_extent(parser))
+                case "D":
+                    return DynamicExtentAttr(*DynamicExtentAttr.internal_parse_extent(parser))
+
+    @abstractmethod
+    def internal_print_extent(self, printer: Printer) -> None:
+        raise NotImplementedError()
+
 
 class BaseExtent(Extent, ABC):
     def base_extents(self) -> list[Self]:
@@ -331,6 +357,26 @@ class StaticExtentAttr(BaseExtent):
         if self.value.value.data < 0:
             raise VerifyException(f"Extent cannot be negative: {self}")
 
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_characters("S|")
+            result = StaticExtentAttr.internal_parse_extent(parser)
+        return result
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            self.internal_print_extent(printer)
+
+    @classmethod
+    def internal_parse_extent(cls, parser: AttrParser) -> list[Attribute]:
+        i = parser.parse_integer(allow_boolean= False, allow_negative = False)
+        return [IntegerAttr(i, IndexType())]
+
+    def internal_print_extent(self, printer: Printer) -> None:
+        printer.print("S|")
+        printer.print(self.value.value.data)
+
 
 @irdl_attr_definition
 class ScopeDefinedExtentAttr(BaseExtent):
@@ -348,6 +394,27 @@ class ScopeDefinedExtentAttr(BaseExtent):
 
     def verify(self) -> None:
         pass
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_characters("Sc|")
+            result = ScopeDefinedExtentAttr.internal_parse_extent(parser)
+        return result
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            self.internal_print_extent(printer)
+
+    @classmethod
+    def internal_parse_extent(cls, parser: AttrParser) -> list[Attribute]:
+        s = parser.parse_identifier()
+        return [StringAttr(s)]
+
+    def internal_print_extent(self, printer: Printer) -> None:
+        printer.print("Sc|")
+        printer.print(self.value.data)
+
 
 
 class RunTimeBaseExtent(BaseExtent, abc.ABC):
@@ -387,6 +454,26 @@ class InitDefinedExtentAttr(RunTimeBaseExtent):
     def verify(self) -> None:
         pass
 
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_characters("I|")
+            result = InitDefinedExtentAttr.internal_parse_extent(parser)
+        return result
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            self.internal_print_extent(printer)
+
+    @classmethod
+    def internal_parse_extent(cls, parser: AttrParser) -> list[Attribute]:
+        s = parser.parse_identifier()
+        return [StringAttr(s)]
+
+    def internal_print_extent(self, printer: Printer) -> None:
+        printer.print("I|")
+        printer.print(self.value.data)
+
 
 @irdl_attr_definition
 class DynamicExtentAttr(RunTimeBaseExtent):
@@ -407,6 +494,26 @@ class DynamicExtentAttr(RunTimeBaseExtent):
 
     def verify(self) -> None:
         pass
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_characters("D|")
+            result = DynamicExtentAttr.internal_parse_extent(parser)
+        return result
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            self.internal_print_extent(printer)
+
+    @classmethod
+    def internal_parse_extent(cls, parser: AttrParser) -> list[Attribute]:
+        s = parser.parse_identifier()
+        return [StringAttr(s)]
+
+    def internal_print_extent(self, printer: Printer) -> None:
+        printer.print("D|")
+        printer.print(self.value.data)
 
 
 @irdl_attr_definition
@@ -451,13 +558,16 @@ class DimensionAttr(ParametrizedAttribute):
     def internal_parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         dn = StringAttr(parser.parse_identifier())
         parser.parse_punctuation(":")
-        ext = parser.parse_attribute()
+        ext = Extent.internal_parse_any_extent(parser)
+        # ext = parser.parse_attribute()
         return [dn, ext]
 
     def internal_print_parameters(self, printer: Printer) -> None:
         printer.print(self.dimensionName.data)
         printer.print(":")
-        printer.print_attribute(self.extent)
+        with printer.in_angle_brackets():
+            self.extent.internal_print_extent(printer)
+        # printer.print_attribute(self.extent)
 
 
 @irdl_attr_definition
@@ -652,6 +762,10 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[Attribute, ...]:
+        return cls.internal_parse_parameters(parser)
+
+    @classmethod
+    def internal_parse_parameters(cls, parser: AttrParser) -> tuple[Attribute, ...]:
         es = parser.parse_comma_separated_list(
             parser.Delimiter.ANGLE,
             lambda: ElementAttr(tuple(ElementAttr.internal_parse_parameters(parser))),
@@ -661,12 +775,15 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
         return tuple([es_set])
 
     def print_parameters(self, printer: Printer) -> None:
+        self.internal_print_parameters(printer)
+
+    def internal_print_parameters(self, printer: Printer) -> None:
+        values = list(self.elements)
+        sorted_values = [
+            values[i]
+            for s, i in sorted([(str(s), i) for i, s in enumerate(values)])
+        ]
         with printer.in_angle_brackets():
-            values = list(self.elements)
-            sorted_values = [
-                values[i]
-                for s, i in sorted([(str(s), i) for i, s in enumerate(values)])
-            ]
             printer.print_list(
                 sorted_values, lambda v: v.internal_print_parameters(printer)
             )
@@ -760,6 +877,36 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
             ]
         )
 
+    def has_selectable_type(self, sub_type: TypeType) -> set[tuple[SetAttr[MemberAttr], SetAttr[DimensionAttr]]]:
+        possible_selections = None
+        for s_elem in sub_type.elements:
+            possible_elems = [
+                e for e in self.elements
+                if e.has_members(s_elem.member_specifiers)
+                and e.has_dimensions(s_elem.dimensions)
+                and e.base_type == s_elem.base_type
+            ]
+            if len(possible_elems) == 0:
+                return set()
+            possible_elem_selections = [
+                (e.member_specifiers.remove(s_elem.member_specifiers),
+                 e.dimensions.remove(s_elem.dimensions))
+                for e in possible_elems
+            ]
+            if possible_selections is None:
+                possible_selections = {ps:{e:s_elem}
+                    for e, ps in zip(possible_elems, possible_elem_selections)
+                }
+            else:
+                possible_selections = {ps: map | {possible_elems[possible_elem_selections.index(ps)]:s_elem}
+                                       for ps, map in possible_selections.items()
+                                       if ps in possible_elem_selections
+                                       and possible_elems[possible_elem_selections.index(ps)] not in map}
+        return set(possible_selections.keys())
+
+
+
+
     def get_single_element(self) -> None | ElementAttr:
         if len(self.elements) == 1:
             return list(self.elements)[0]
@@ -820,6 +967,10 @@ class Layout(ParametrizedAttribute, abc.ABC):
         )
 
     @abstractmethod
+    def node_matches(self, other: Layout) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
     def get_children(self) -> list[Layout]:
         raise NotImplementedError()
 
@@ -837,6 +988,9 @@ class Layout(ParametrizedAttribute, abc.ABC):
 
     def get_all_runtime_base_extents(self) -> set[RunTimeBaseExtent]:
         return {e for e in self.get_all_extents() if isinstance(e, RunTimeBaseExtent)}
+
+    def get_all_init_base_extents(self) -> set[RunTimeBaseExtent]:
+        return {e for e in self.get_all_extents() if isinstance(e, InitDefinedExtentAttr)}
 
     def named_sub_layouts(self) -> dict[str, Layout]:
         map = {}
@@ -874,25 +1028,13 @@ class Layout(ParametrizedAttribute, abc.ABC):
     def abstract_layout(typetype: TypeType, name: StringAttr | str = None) -> Layout:
         parts = []
         for elem in typetype.elements:
-            parts.append(Layout.abstract_element_layout(elem))
-        layout = AbstractLayoutAttr([], [], parts)
+            parts.append((elem.member_specifiers, elem.dimensions, PrimitiveLayoutAttr(elem.base_type)))
+        layout = AbstractLayoutAttr(parts)
 
         if name is not None:
             layout = NamedLayoutAttr(name, layout)
 
         return layout
-
-    @staticmethod
-    def abstract_element_layout(
-        elem: ElementAttr, name: StringAttr | str = None
-    ) -> Layout:
-        base = PrimitiveLayoutAttr(elem.base_type)
-
-        part = AbstractLayoutAttr(elem.member_specifiers, elem.dimensions, [base])
-
-        if name is not None:
-            part = NamedLayoutAttr(name, part)
-        return part
 
 
 class AnyLayout(AttrConstraint):
@@ -901,8 +1043,76 @@ class AnyLayout(AttrConstraint):
             raise Exception(f"expected Layout Attribute but got {attr}")
 
 
+class KnowledgeLayout(Layout, abc.ABC):
+
+    @property
+    def is_knowledge(self) -> bool:
+        return True
+
+    @property
+    def contents_type(self) -> TypeType:
+        return self.get_child().contents_type
+
+    def get_stage(self) -> Stage | None:
+        return self.get_child().get_stage()
+
+    def get_all_extents(self) -> set[Extent]:
+        return self.get_child().get_all_extents()
+
+    def get_child(self) -> Layout:
+        return self.get_children()[0]
+
+    def can_be_dropped(self, dominating_knowledge: set[KnowledgeLayout]) -> bool:
+        return False
+
+    def can_be_injected(self, dominating_knowledge: set[KnowledgeLayout]) -> bool:
+        return False
+
+    @abstractmethod
+    def get_parameters(self) -> tuple[Attribute, ...]:
+        raise NotImplementedError()
+
+    def matches(self, other: KnowledgeLayout) -> bool:
+        return (
+            isinstance(other, type(self))
+            and self.get_parameters() == other.get_parameters()
+        )
+
+    def node_matches(self, other: Layout) -> bool:
+        return  isinstance(other, type(self)) and self.matches(other)
+
+
 @irdl_attr_definition
-class NamedLayoutAttr(Layout):
+class ReadOnlyLayoutAttr(KnowledgeLayout):
+
+    name = "dlt.layout.readOnly"
+    child: ParameterDef[AnyLayout()]
+
+    def __init__(self, child: Layout):
+        super().__init__((child,))
+
+    def can_be_dropped(self, dominating_knowledge: set[KnowledgeLayout]) -> bool:
+        return any(self.matches(k) for k in dominating_knowledge)
+
+    def can_be_injected(self, dominating_knowledge: set[KnowledgeLayout]) -> bool:
+        return not any(self.matches(k) for k in dominating_knowledge)
+
+    def get_children(self) -> list[Layout]:
+        return [self.child]
+
+    def from_new_children(self, children: list[Layout]) -> Self:
+        assert len(children) == 1
+        return ReadOnlyLayoutAttr(children[0])
+
+    def verify(self) -> None:
+        super().verify()
+
+    def get_parameters(self) -> tuple[()]:
+        return ()
+
+
+@irdl_attr_definition
+class NamedLayoutAttr(KnowledgeLayout):
 
     name = "dlt.layout.named"
     child: ParameterDef[AnyLayout()]
@@ -945,35 +1155,71 @@ class NamedLayoutAttr(Layout):
                 f"{self.abstract_name}"
             )
 
+    def get_parameters(self) -> tuple[StringAttr]:
+        return (self.abstract_name,)
+
+
+@irdl_attr_definition
+class AbstractChildAttr(ParametrizedAttribute):
+    name = "dlt.abstractChild"
+    member_specifiers: ParameterDef[SetAttr[MemberAttr]]
+    dimensions: ParameterDef[SetAttr[DimensionAttr]]
+    child: ParameterDef[AnyLayout()]
+
+    def __init__(
+        self,
+        member_specifiers: Iterable[member_specifiers],
+        dimensions: Iterable[DimensionAttr],
+        child: Layout,
+    ):
+        super().__init__((SetAttr(member_specifiers), SetAttr(dimensions), child))
+
+    def verify(self) -> None:
+        super().verify()
+        child = cast(Layout, self.child)
+        try:
+            contents_type = child.contents_type.add_members(
+                self.member_specifiers
+            ).add_dimensions(self.dimensions)
+        except ValueError as e:
+            raise VerifyException(
+                "Unable to form contents type - probably because member or dimension appears in both the child and this attribute"
+            ) from e
+
+    @property
+    def contents_type(self) -> TypeType:
+        return self.child.contents_type.add_members(self.member_specifiers).add_dimensions(self.dimensions)
+
 
 @irdl_attr_definition
 class AbstractLayoutAttr(Layout):
 
     name = "dlt.layout.abstract"
 
-    children: ParameterDef[SetAttr[AnyLayout()]]
-    member_specifiers: ParameterDef[SetAttr[MemberAttr]]
-    dimensions: ParameterDef[SetAttr[DimensionAttr]]
+    children: ParameterDef[ArrayAttr[AbstractChildAttr]]
 
     def __init__(
         self,
-        member_specifiers: Iterable[member_specifiers],
-        dimensions: Iterable[DimensionAttr],
-        children: Iterable[Layout],
+        children: Iterable[AbstractChildAttr | tuple[Iterable[MemberAttr], Iterable[DimensionAttr], Layout]],
     ):
-        super().__init__(
-            (SetAttr(children), SetAttr(member_specifiers), SetAttr(dimensions))
-        )
+        cs = []
+        for child in children:
+            if isinstance(child, AbstractChildAttr):
+                cs.append(child)
+            elif isinstance(child, tuple) and len(child) == 3:
+                cs.append(AbstractChildAttr(*child))
+            else:
+                raise ValueError("Cannot produce Abstract Layout Attribute from child that is malformed")
+        children = ArrayAttr(cs)
+        if len(children) != len({c.contents_type for c in children}):
+            raise ValueError(
+                "Abstract Layout's children must have unique contents types"
+            )
+        super().__init__((children,))
 
     @property
     def contents_type(self) -> TypeType:
-        return TypeType(
-            [
-                e.add_members(self.member_specifiers).add_dimensions(self.dimensions)
-                for c in self.children
-                for e in c.contents_type.elements
-            ]
-        )
+        return TypeType([e for child in self.children for e in child.contents_type.elements])
 
     @property
     def is_abstract(self) -> bool:
@@ -983,21 +1229,30 @@ class AbstractLayoutAttr(Layout):
         super().verify()
         if len(self.children) == 0:
             raise VerifyException(f"{self.name} must have at least 1 child layout")
+        try:
+            t = self.contents_type
+        except ValueError | VerifyException as e:
+            raise VerifyException("Abstract Layout's content Type cannot be formed") from e
 
     def get_children(self) -> list[Layout]:
-        return list(self.children)
+        return [child.child for child in self.children]
 
     def from_new_children(self, children: list[Layout]) -> Self:
         assert len(children) == len(self.children)
-        return AbstractLayoutAttr(self.member_specifiers, self.dimensions, children)
+        return AbstractLayoutAttr([AbstractChildAttr(child.member_specifiers, child.dimensions, new_child) for child, new_child in zip(self.children, children)])
 
     def get_stage(self) -> None:
         return None
 
     def get_all_extents(self) -> set[Extent]:
-        return {e for child in self.children for e in child.get_all_extents()} | {
-            dim.extent for dim in self.dimensions
-        }
+        return {e for child in self.children for e in child.child.get_all_extents()} | {dim.extent for child in self.children for dim in child.dimensions}
+
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, AbstractLayoutAttr) and \
+            len(self.children) == len(other.children) and \
+            [c.member_specifers == o.member_specifiers and
+             c.dimensions == o.dimensions
+             for c, o in zip(self.children, other.children)]
 
 
 @irdl_attr_definition
@@ -1024,6 +1279,9 @@ class PrimitiveLayoutAttr(Layout):
 
     def get_all_extents(self) -> set[Extent]:
         return set()
+
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, PrimitiveLayoutAttr) and self.base_type == other.base_type
 
 
 @irdl_attr_definition
@@ -1082,6 +1340,9 @@ class DenseLayoutAttr(Layout):
                 f"- it has an incompatible Stage."
             )
 
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, DenseLayoutAttr) and self.dimension == other.dimension
+
 
 @irdl_attr_definition
 class MemberLayoutAttr(Layout):
@@ -1128,6 +1389,9 @@ class MemberLayoutAttr(Layout):
     def get_all_extents(self) -> set[Extent]:
         return self.child.get_all_extents()
 
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, MemberLayoutAttr) and self.member_specifier == other.member_specifier
+
 
 @irdl_attr_definition
 class StructLayoutAttr(Layout):
@@ -1155,7 +1419,7 @@ class StructLayoutAttr(Layout):
         child_stages = [child.get_stage() for child in self.children]
         if any(stage is None for stage in child_stages):
             return None
-        return max(*child_stages)
+        return max(child_stages)
 
     def get_all_extents(self) -> set[Extent]:
         return {e for child in self.children for e in child.get_all_extents()}
@@ -1167,6 +1431,9 @@ class StructLayoutAttr(Layout):
                 f"{self.name} does not support the Dynamic Staged extents of the sub-layouts: "
                 f"{[child for child in self.children if child.get_stage() > Stage.INIT]}"
             )
+
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, StructLayoutAttr) and len(self.children) == len(other.children)
 
 
 # class IndexedLayout(abc.ABC):
@@ -1243,9 +1510,18 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             self.filled_dimensions,
             self.filled_extents,
             base=self.is_base,
-            identity=identity
+            identity=identity,
         )
 
+    def without_identification(self) -> PtrType:
+        return PtrType(
+            self.contents_type,
+            self.layout,
+            self.filled_members,
+            self.filled_dimensions,
+            self.filled_extents,
+            base=self.is_base,
+        )
 
     def with_layout_name(self, name: str | StringAttr, preserve_ident=False) -> PtrType:
         return PtrType(
@@ -1255,10 +1531,12 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             self.filled_dimensions,
             self.filled_extents,
             base=self.is_base,
-            identity=self.identification if preserve_ident else ""
+            identity=self.identification if preserve_ident else "",
         )
 
-    def with_new_layout(self, layout: Layout, remove_bloat=False, preserve_ident=False) -> PtrType:
+    def with_new_layout(
+        self, layout: Layout, remove_bloat=False, preserve_ident=False
+    ) -> PtrType:
         filled_members = set(self.filled_members)
         filled_dimensions = list(self.filled_dimensions)
         filled_extents = list(self.filled_extents)
@@ -1270,13 +1548,7 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             useful_dims = contents_type.all_dimension_attributes()
             filled_dimensions = [d for d in filled_dimensions if d in useful_dims]
             contents_type = contents_type.select_dimensions(filled_dimensions)
-            useful_extents = {
-                extent
-                for element in contents_type.elements
-                for dimension in element.dimensions
-                for extent in dimension.extent.base_extents()
-                if Stage.STATIC < extent.get_stage() < Stage.DYNAMIC
-            }
+            useful_extents = {e for e in layout.get_all_runtime_base_extents() if isinstance(e, InitDefinedExtentAttr)}
             filled_extents = [e for e in filled_extents if e in useful_extents]
         return PtrType(
             self.contents_type,
@@ -1285,29 +1557,107 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             ArrayAttr(filled_dimensions),
             ArrayAttr(filled_extents),
             base=self.is_base,
-            identity=self.identification if preserve_ident else ""
+            identity=self.identification if preserve_ident else "",
         )
 
     def verify(self) -> None:
         layout_type: TypeType = self.layout.contents_type
-        layout_type = layout_type.select_members(self.filled_members)
-        layout_type = layout_type.select_dimensions(self.filled_dimensions)
-        if layout_type != self.contents_type:
+        ptr_type = layout_type.select_members(self.filled_members)
+        ptr_type = ptr_type.select_dimensions(self.filled_dimensions)
+        if ptr_type != self.contents_type:
             raise VerifyException(
                 f"{self.name}: layout does not provide the expected contents type"
             )
-        extents = {
-            extent
-            for element in layout_type.elements
-            for dimension in element.dimensions
-            for extent in dimension.extent.base_extents()
-            if Stage.STATIC < extent.get_stage() < Stage.DYNAMIC
-        }
+
+        extents = {e for e in self.layout.get_all_runtime_base_extents() if isinstance(e, InitDefinedExtentAttr)}
         for e in extents:
             if e not in self.filled_extents:
                 raise VerifyException(
                     f"{self.name}: filled base extents does not have expected extent: {e}"
                 )
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> tuple[Attribute, ...]:
+        with parser.in_angle_brackets:
+            return cls.internal_parse_parameters(parser)
+
+    @classmethod
+    def internal_parse_parameters(cls, parser: AttrParser) -> tuple[Attribute, ...]:
+        ident = StringAttr(parser.parse_str_literal())
+        parser.parse_punctuation(",")
+        base = StringAttr("Y") if parser.parse_boolean() else StringAttr("N")
+        parser.parse_punctuation(",")
+        content_type = TypeType(*TypeType.internal_parse_parameters(parser))
+        parser.parse_punctuation(",")
+        filled_members = SetAttr(parser.parse_comma_separated_list(parser.Delimiter.BRACES,
+                                                           lambda: MemberAttr(MemberAttr.internal_parse_parameters(parser))))
+        parser.parse_punctuation(",")
+        filled_dimensions = SetAttr(parser.parse_comma_separated_list(parser.Delimiter.SQUARE,
+                                                                   lambda: DimensionAttr(
+                                                                       DimensionAttr.internal_parse_parameters(parser))))
+        parser.parse_punctuation(",")
+        filled_extents = SetAttr(parser.parse_comma_separated_list(parser.Delimiter.SQUARE,
+                                                                      lambda: InitDefinedExtentAttr(
+                                                                          *InitDefinedExtentAttr.internal_parse_extent(
+                                                                              parser))))
+        parser.parse_punctuation(",")
+        layout = parser.parse_attribute()
+        return tuple([content_type, layout, filled_members, filled_dimensions, filled_extents, base, ident])
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            self.internal_print_parameters(printer)
+
+    def internal_print_parameters(self, printer: Printer) -> None:
+        printer.print("\"")
+        printer.print(self.identification.data)
+        printer.print("\"")
+        printer.print(", ")
+        if self.is_base:
+            printer.print("true")
+        else:
+            printer.print("false")
+        printer.print_string(", ")
+        self.contents_type.internal_print_parameters(printer)
+        printer.print_string(", ")
+
+        values = list(self.filled_members)
+        sorted_values = [
+            values[i]
+            for s, i in sorted([(str(m), i) for i, m in enumerate(values)])
+        ]
+        printer.print("{")
+        printer.print_list(
+            sorted_values, lambda m: m.internal_print_parameters(printer)
+        )
+        printer.print("}")
+        printer.print(", ")
+
+        values = list(self.filled_dimensions)
+        sorted_values = [
+            values[i]
+            for s, i in sorted([(str(d), i) for i, d in enumerate(values)])
+        ]
+        printer.print("[")
+        printer.print_list(
+            sorted_values, lambda d: d.internal_print_parameters(printer)
+        )
+        printer.print("]")
+        printer.print(", ")
+
+        values = list(self.filled_extents)
+        sorted_values = [
+            values[i]
+            for s, i in sorted([(str(e), i) for i, e in enumerate(values)])
+        ]
+        printer.print("[")
+        printer.print_list(
+            sorted_values, lambda e: e.internal_print_extent(printer)
+        )
+        printer.print("]")
+        printer.print(", ")
+
+        printer.print_attribute(self.layout)
 
 
 # @irdl_attr_definition
@@ -1639,7 +1989,9 @@ class SelectOp(DTLLayoutScopedOp):
                 f"{res_type.contents_type}"
             )
         if res_type.is_base:
-            raise VerifyException("Once selected, a Ptr-Type cannot be a memory handle base")
+            raise VerifyException(
+                "Once selected, a Ptr-Type cannot be a memory handle base"
+            )
         # maybe we should calculate if the layouts are valid here too, but this requires some infrastructure for finding
         # sub-layouts from the layout given the selected members and dimensions - and there is not a unique answer as
         # we don't *need* to enforce that the layout is minimal at all steps given the filled_members and
@@ -1906,7 +2258,10 @@ class IterateUseDefChainTrait(UseDefChainTrait):
             if index >= other_args:
                 arg_index = index - other_args
                 other_block_args = len(op.extents) + len(op.tensors)
-                return {op.body.block.args[other_block_args + arg_index], op.res[arg_index]}
+                return {
+                    op.body.block.args[other_block_args + arg_index],
+                    op.res[arg_index],
+                }
         elif isinstance(op, IterateYieldOp):
             parent_op = op.parent_op()
             if isinstance(parent_op, IterateOp):
@@ -2029,7 +2384,8 @@ class IterateOp(DTLLayoutScopedOp):
             )
         if self.body.block.args:
             induction_vars = [
-                (i, self.body.block.args[i], extent) for i, extent in enumerate(self.extents)
+                (i, self.body.block.args[i], extent)
+                for i, extent in enumerate(self.extents)
             ]
             extent_arg_idx = 0
             for i, induction_var, extent in induction_vars:
@@ -2245,11 +2601,16 @@ class AllocOp(DTLLayoutScopedOp):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    def __init__(self, ptr: PtrType|TypeType, extents: dict[InitDefinedExtentAttr, SSAValue], initial_values: Sequence[SSAValue] = None) -> None:
+    def __init__(
+        self,
+        ptr: PtrType | TypeType,
+        extents: dict[InitDefinedExtentAttr, SSAValue],
+        initial_values: Sequence[SSAValue] = None,
+    ) -> None:
         if len(extents) > 0:
             extents, extent_vars = zip(*extents.items())
         else:
-            extents, extent_vars = [],[]
+            extents, extent_vars = [], []
         if isinstance(ptr, TypeType):
             ptr = PtrType(ptr).as_base()
         if initial_values is None:
@@ -2258,7 +2619,8 @@ class AllocOp(DTLLayoutScopedOp):
         super().__init__(
             operands=[initial_values, extent_vars],
             attributes={"init_extents": builtin.ArrayAttr(extents)},
-            result_types=[ptr],)
+            result_types=[ptr],
+        )
 
     def init_extent_mapping(self):
         return {e: s for e, s in zip(self.init_extents, self.init_extent_sizes)}
