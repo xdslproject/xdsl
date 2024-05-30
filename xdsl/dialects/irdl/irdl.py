@@ -107,6 +107,13 @@ class TypeOp(IRDLOperation):
         if self.body.block.ops:
             printer.print_region(self.body)
 
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified TypeOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
+
 
 @irdl_op_definition
 class AttributeOp(IRDLOperation):
@@ -136,6 +143,13 @@ class AttributeOp(IRDLOperation):
         printer.print(" @", self.sym_name.data, " ")
         if self.body.block.ops:
             printer.print_region(self.body)
+
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified AttributeOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
 
 @irdl_op_definition
@@ -192,6 +206,13 @@ class OperationOp(IRDLOperation):
         printer.print(" @", self.sym_name.data, " ")
         if self.body.block.ops:
             printer.print_region(self.body)
+
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified OperationOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
 
 @irdl_op_definition
