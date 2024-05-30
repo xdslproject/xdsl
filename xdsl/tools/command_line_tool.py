@@ -482,10 +482,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_register_allocation.RISCVRegisterAllocation
 
-    def get_riscv_scf_loop_flatten():
-        from xdsl.transforms import riscv_scf_loop_flatten
+    def get_scf_for_loop_flatten():
+        from xdsl.transforms import scf_for_loop_flatten
 
-        return riscv_scf_loop_flatten.RiscvScfLoopFlattenPass
+        return scf_for_loop_flatten.ScfForLoopFlattenPass
 
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
@@ -541,6 +541,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.backend.riscv.lowering import convert_scf_to_riscv_scf
 
         return convert_scf_to_riscv_scf.ConvertScfToRiscvPass
+
+    def get_function_constant_pinning():
+        from xdsl.transforms.experimental.function_constant_pinning import (
+            FunctionConstantPinningPass,
+        )
+
+        return FunctionConstantPinningPass
 
     def get_lower_scf_for_to_labels():
         from xdsl.backend.riscv import riscv_scf_to_asm
@@ -620,6 +627,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
         "frontend-desymrefy": get_desymrefy,
+        "function-constant-pinning": get_function_constant_pinning,
         "memref-to-gpu": get_gpu_allocs,
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
@@ -638,7 +646,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
         "riscv-cse": get_riscv_cse,
-        "riscv-scf-loop-flatten": get_riscv_scf_loop_flatten,
+        "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,

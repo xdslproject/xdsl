@@ -127,7 +127,7 @@ def test_any_attr_verify():
     any_constraint.verify(IntData(0), {})
 
 
-@dataclass
+@dataclass(frozen=True)
 class LessThan(AttrConstraint):
     bound: int
 
@@ -138,7 +138,7 @@ class LessThan(AttrConstraint):
             raise VerifyException(f"{attr} should hold a value less than {self.bound}")
 
 
-@dataclass
+@dataclass(frozen=True)
 class GreaterThan(AttrConstraint):
     bound: int
 
@@ -187,7 +187,7 @@ def test_allof_verify():
     Check that an AllOf constraint verifies if all of the constraints
     verify.
     """
-    constraint = AllOf([LessThan(10), GreaterThan(0)])
+    constraint = AllOf((LessThan(10), GreaterThan(0)))
     constraint.verify(IntData(1), {})
     constraint.verify(IntData(9), {})
     constraint.verify(IntData(5), {})
@@ -198,7 +198,7 @@ def test_allof_verify_fail():
     Check that an AllOf constraint fails to verify if one of the constraints
     fails to verify.
     """
-    constraint = AllOf([LessThan(10), GreaterThan(0)])
+    constraint = AllOf((LessThan(10), GreaterThan(0)))
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(IntData(10), {})
@@ -214,7 +214,7 @@ def test_allof_verify_multiple_failures():
     Check that an AllOf constraint provides verification info for all related constraints
     even when one of them fails.
     """
-    constraint = AllOf([LessThan(5), GreaterThan(8)])
+    constraint = AllOf((LessThan(5), GreaterThan(8)))
 
     with pytest.raises(VerifyException) as e:
         constraint.verify(IntData(7), {})
