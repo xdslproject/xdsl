@@ -80,6 +80,10 @@ def _insert_loop_nest(
     If `iter_args` are passed in, the loop nest will pass them from parent loop to child
     loop, and the results of `make_body` are expected to be equal in length to
     `iter_args`.
+
+    `zero_op` and `one_op` are operations ƒor the `0` and `1` index constants for the
+    loop nest lower bound and step. The upper bounds are specified by the `bounds`
+    arguement.
     """
     if not bounds:
         return make_body(rewriter, insertion_point, (), iter_args)
