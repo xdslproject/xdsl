@@ -743,6 +743,19 @@ class Interpreter:
 
         return data
 
+    def set_data(
+        self,
+        functions: type[InterpreterFunctions],
+        key: str,
+        value: Any,
+    ):
+        if functions not in self._impl_data:
+            functions_data: dict[str, Any] = {}
+            self._impl_data[functions] = functions_data
+        else:
+            functions_data = self._impl_data[functions]
+        functions_data[key] = value
+
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""
         print(*args, **kwargs, file=self.file)

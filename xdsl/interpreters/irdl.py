@@ -29,8 +29,6 @@ from xdsl.traits import SymbolTable
 @register_impls
 class IRDLFunctions(InterpreterFunctions):
 
-    variable_counter = 0
-
     @staticmethod
     def get_dialect(interpreter: Interpreter, name: str) -> Dialect:
         """
@@ -99,15 +97,24 @@ class IRDLFunctions(InterpreterFunctions):
         """
         interpreter.get_data(IRDLFunctions, "irdl.attr_defs", dict)[name] = attr_def
 
-    def variable_wrap(self, constr: AttrConstraint):
-        self.variable_counter += 1
-        return VarConstraint(f"V{self.variable_counter}", constr)
+    @staticmethod
+    def next_variable_counter(interpreter: Interpreter) -> int:
+        counter = interpreter.get_data(
+            IRDLFunctions, "irdl.variable_counters", lambda: 0
+        )
+        interpreter.set_data(IRDLFunctions, "irdl.variable_counters", counter + 1)
+        return counter
+
+    @staticmethod
+    def variable_wrap(interpreter: Interpreter, constr: AttrConstraint):
+        counter = IRDLFunctions.next_variable_counter(interpreter)
+        return VarConstraint(f"V{counter}", constr)
 
     @impl(irdl.IsOp)
     def run_is(self, interpreter: Interpreter, op: irdl.IsOp, args: PythonValues):
         constr = EqAttrConstraint(op.expected)
         if len(op.output.uses) > 1:
-            constr = self.variable_wrap(constr)
+            constr = self.variable_wrap(interpreter, constr)
         return (constr,)
 
     @impl(irdl.AnyOfOp)
@@ -116,14 +123,14 @@ class IRDLFunctions(InterpreterFunctions):
     ):
         constr = AnyOf(args)
         if len(op.output.uses) > 1:
-            constr = self.variable_wrap(constr)
+            constr = self.variable_wrap(interpreter, constr)
         return (constr,)
 
     @impl(irdl.AnyOp)
     def run_any(self, interpreter: Interpreter, op: irdl.AnyOp, args: PythonValues):
         constr = AnyAttr()
         if len(op.output.uses) > 1:
-            constr = self.variable_wrap(constr)
+            constr = self.variable_wrap(interpreter, constr)
         return (constr,)
 
     @impl(irdl.ParametricOp)
@@ -138,7 +145,7 @@ class IRDLFunctions(InterpreterFunctions):
         base_type = self.get_attr(interpreter, base_attr_op.qualified_name)
         constr = ParamAttrConstraint(base_type, args)
         if len(op.output.uses) > 1:
-            constr = self.variable_wrap(constr)
+            constr = self.variable_wrap(interpreter, constr)
         return (constr,)
 
     @impl(irdl.TypeOp)
