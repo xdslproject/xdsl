@@ -1066,6 +1066,7 @@ class Squeeze(IRDLOperation):
                     f"axes to squeeze must be between 0 and {max_axes_value}, axes: {axes_value}"
                 )
 
+
 @irdl_op_definition
 class Sigmoid(IRDLOperation):
     """
@@ -1084,7 +1085,7 @@ class Sigmoid(IRDLOperation):
 
     name = "onnx.Sigmoid"
 
-    T = Annotated[TensorType[AnyFloat], ConstraintVar("T")]
+    T = Annotated[AnyFloat, ConstraintVar("T")]
     input_tensor = operand_def(TensorType[T])
     output_tensor = result_def(TensorType[T])
 
@@ -1115,6 +1116,7 @@ class Sigmoid(IRDLOperation):
             raise VerifyException(
                 f"tensor input shape {input_tensor_shape} is not equal to tensor output shape {output_tensor_shape}"
             )
+
 
 ONNX = Dialect(
     "onnx",
