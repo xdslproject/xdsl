@@ -153,10 +153,13 @@ class IRDLFunctions(InterpreterFunctions):
         name = op.qualified_name
         self._set_attr_def(interpreter, name, ParamAttrDef(name, []))
         interpreter.run_ssacfg_region(op.body, ())
-        for k, v in get_accessors_from_param_attr_def(
+
+        attr = self.get_attr(interpreter, name)
+        to_inject = get_accessors_from_param_attr_def(
             self._get_attr_def(interpreter, name)
-        ).items():
-            setattr(self.get_attr(interpreter, name), k, v)
+        )
+        for k, v in to_inject.items():
+            setattr(attr, k, v)
         return ()
 
     @impl(irdl.OperandsOp)
