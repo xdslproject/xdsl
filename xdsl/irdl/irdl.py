@@ -1636,6 +1636,9 @@ class OpDef:
         # Verify regions.
         irdl_op_verify_regions(op, self)
 
+        # verify successors
+        get_variadic_sizes(op, self, VarIRConstruct.SUCCESSOR)
+
         # Verify properties.
         for prop_name, attr_def in self.properties.items():
             if prop_name not in op.properties:
@@ -1924,6 +1927,7 @@ def get_operand_result_or_region(
 
 
 def irdl_op_verify_regions(op: Operation, op_def: OpDef):
+    get_variadic_sizes(op, op_def, VarIRConstruct.REGION)
     for i, (region, (name, region_def)) in enumerate(zip(op.regions, op_def.regions)):
         if isinstance(region_def, SingleBlockRegionDef) and len(region.blocks) != 1:
             raise VerifyException(
