@@ -190,10 +190,11 @@ class IRDLFunctions(InterpreterFunctions):
         name = op.qualified_name
         self._set_op_def(interpreter, name, OpDef(name))
         interpreter.run_ssacfg_region(op.body, ())
-        for k, v in get_accessors_from_op_def(
-            self._get_op_def(interpreter, name), None
-        ).items():
-            setattr(self.get_op(interpreter, name), k, v)
+        op_def = self._get_op_def(interpreter, name)
+        op_type = self.get_op(interpreter, name)
+        to_inject = get_accessors_from_op_def(op_def, None)
+        for k, v in to_inject.items():
+            setattr(op_type, k, v)
         return ()
 
     @impl(irdl.ParametersOp)
