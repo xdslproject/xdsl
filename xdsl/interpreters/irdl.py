@@ -155,9 +155,8 @@ class IRDLFunctions(InterpreterFunctions):
         interpreter.run_ssacfg_region(op.body, ())
 
         attr = self.get_attr(interpreter, name)
-        to_inject = get_accessors_from_param_attr_def(
-            self._get_attr_def(interpreter, name)
-        )
+        attr_def = self._get_attr_def(interpreter, name)
+        to_inject = get_accessors_from_param_attr_def(attr_def)
         for k, v in to_inject.items():
             setattr(attr, k, v)
         return ()
