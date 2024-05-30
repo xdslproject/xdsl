@@ -31,6 +31,8 @@ from xdsl.dialects.arith import (
     MinSI,
     MinUI,
     Mulf,
+    MulSIExtended,
+    MulUIExtended,
     Negf,
     OrI,
     RemSI,
@@ -170,6 +172,26 @@ def test_addui_extend(
         with pytest.raises((VerifyException, ValueError)):
             op = AddUIExtended(lhs, rhs, attributes, sum_type)
             op.verify()
+
+
+@pytest.mark.parametrize("op_type", [MulSIExtended, MulUIExtended])
+def test_mul_extended(op_type: type[MulSIExtended | MulUIExtended]):
+    lhs = TestSSAValue(i32)
+    rhs = TestSSAValue(i32)
+
+    op = op_type(lhs, rhs)
+
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.low.type == i32
+    assert op.high.type == i32
+
+    op2 = op_type(lhs, rhs, i64)
+
+    assert op2.lhs == lhs
+    assert op2.rhs == rhs
+    assert op2.low.type == i64
+    assert op2.high.type == i64
 
 
 class Test_float_arith_construction:
