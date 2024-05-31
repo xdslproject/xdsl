@@ -1954,28 +1954,33 @@ def irdl_op_verify_arg_list(
         get_construct_defs(op_def, construct),
     )
 
-    def verify_arg(
-        arg: SSAValue | OpResult, arg_def: ResultDef | OperandDef, arg_idx: int
+    def verify_sequence(
+        arg: Sequence[SSAValue], arg_def: ResultDef | OperandDef, arg_idx: int
     ) -> None:
         """Verify a single argument."""
         try:
-            arg_def.constr.verify((arg.type,), constraint_vars)
+            arg_def.constr.verify(tuple(a.type for a in arg), constraint_vars)
         except Exception as e:
+            if len(arg) == 1:
+                pos = f"{arg_idx}"
+            else:
+                pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
             error(
                 op,
                 f"{get_construct_name(construct)} at position "
-                f"{arg_idx} does not verify:\n{e}",
+                f"{pos} does not verify:\n{e}",
                 e,
             )
 
     for def_idx, (_, arg_def) in enumerate(args_defs):
         if isinstance(arg_def, VariadicDef):
-            for _ in range(arg_sizes[var_idx]):
-                verify_arg(args[arg_idx], arg_def, def_idx)
-                arg_idx += 1
+            verify_sequence(
+                args[arg_idx : arg_idx + arg_sizes[var_idx]], arg_def, def_idx
+            )
+            arg_idx += arg_sizes[var_idx]
             var_idx += 1
         else:
-            verify_arg(args[arg_idx], arg_def, def_idx)
+            verify_sequence((args[arg_idx],), arg_def, def_idx)
             arg_idx += 1
 
 
