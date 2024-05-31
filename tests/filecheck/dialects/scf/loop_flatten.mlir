@@ -83,6 +83,24 @@ scf.for %i = %c0 to %c64 step %c5 {
 // CHECK-NEXT:      scf.yield %b0_1, %b1_1, %b2_1 : index, index, f32
 // CHECK-NEXT:    }
 
+// Inner yield does not forward the iteration arguments
+%g3, %g4, %g5 = scf.for %16 = %c0 to %c64 step %c8 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (index, index, f32) {
+    %d0, %d1, %d2 = scf.for %17 = %c0 to %c8 step %c1 iter_args(%b0 = %a0, %b1 = %a1, %b2 = %a2) -> (index, index, f32) {
+        %k = arith.constant 8 : index
+        %j = "test.op"(%k) : (index) -> index
+        scf.yield %j, %b1, %b2 : index, index, f32
+    }
+    scf.yield %d0, %d1, %d2 : index, index, f32
+}
+
+// CHECK-NEXT:    %{{.*}} = arith.constant 8 : index
+// CHECK-NEXT:    %{{.*}} = arith.muli %c64, %{{.*}} : index
+// CHECK-NEXT:    %g3, %g4, %g5 = scf.for %{{.*}} = %c0 to %{{.*}} step %c8 iter_args(%b0_2 = %int1, %b1_2 = %int1, %b2_2 = %float0) -> (index, index, f32) {
+// CHECK-NEXT:      %{{.*}} = arith.constant 8 : index
+// CHECK-NEXT:      %j_1 = "test.op"(%{{.*}}) : (index) -> index
+// CHECK-NEXT:      scf.yield %j_1, %b1_2, %b2_2 : index, index, f32
+// CHECK-NEXT:    }
+
 // Failures add induction variables:
 
 // Cannot fuse outer loop with iteration arguments
@@ -410,6 +428,27 @@ scf.for %i = %non_const to %c64 step %c5 {
 // CHECK-NEXT:        %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK-NEXT:        "test.op"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:        scf.yield %{{.*}}, %{{.*}} : index, index
+// CHECK-NEXT:      }
+// CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}}, %{{.*}} : index, index, f32
+// CHECK-NEXT:    }
+
+// Different order of yielded values
+%k0, %k1, %k2 = scf.for %16 = %c0 to %c64 step %c8 iter_args(%a0 = %int1, %a1 = %int1, %a2 = %float0) -> (index, index, f32) {
+    %d0, %d1, %d2 = scf.for %17 = %c0 to %c8 step %c1 iter_args(%b0 = %a0, %b1 = %a1, %b2 = %a2) -> (index, index, f32) {
+        %18 = arith.constant 8 : index
+        %19 = arith.addi %16, %17 : index
+        "test.op"(%19) : (index) -> ()
+        scf.yield %b0, %b1, %b2 : index, index, f32
+    }
+    scf.yield %d1, %d0, %d2 : index, index, f32
+}
+
+// CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (index, index, f32) {
+// CHECK-NEXT:      %{{.*}}, %{{.*}}, %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (index, index, f32) {
+// CHECK-NEXT:        %{{.*}} = arith.constant 8 : index
+// CHECK-NEXT:        %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK-NEXT:        "test.op"(%{{.*}}) : (index) -> ()
+// CHECK-NEXT:        scf.yield %{{.*}}, %{{.*}}, %{{.*}} : index, index, f32
 // CHECK-NEXT:      }
 // CHECK-NEXT:      scf.yield %{{.*}}, %{{.*}}, %{{.*}} : index, index, f32
 // CHECK-NEXT:    }

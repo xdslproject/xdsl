@@ -4,9 +4,9 @@
 func.func @main(%A: memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x3xf64>) -> memref<4x3xf64> {
     linalg.generic {
         indexing_maps = [
-            affine_map<(d0, d1, d2) -> (d0, d1)>,
-            affine_map<(d0, d1, d2) -> (d1, d2)>,
-            affine_map<(d0, d1, d2) -> (d0, d2)>
+            affine_map<(d0, d1, d2) -> (d0, d2)>,
+            affine_map<(d0, d1, d2) -> (d2, d1)>,
+            affine_map<(d0, d1, d2) -> (d0, d1)>
         ],
         iterator_types = ["parallel", "parallel", "reduction"]
     } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) outs(%C : memref<4x3xf64>) {

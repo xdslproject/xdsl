@@ -8,6 +8,7 @@ memrefs instead of registers storing pointers.
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
+from enum import auto
 from itertools import product
 from typing import Any, cast
 
@@ -15,9 +16,15 @@ from typing_extensions import Self
 
 from xdsl.dialects import memref, stream
 from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, IntAttr, StringAttr
-from xdsl.dialects.linalg import IteratorType, IteratorTypeAttr
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+)
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -32,6 +39,36 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
+
+
+class IteratorType(StrEnum):
+    "Iterator type for memref_stream Attribute"
+
+    PARALLEL = auto()
+    REDUCTION = auto()
+
+
+@irdl_attr_definition
+class IteratorTypeAttr(EnumAttribute[IteratorType]):
+    name = "memref_stream.iterator_type"
+
+    @classmethod
+    def parallel(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.PARALLEL)
+
+    @classmethod
+    def reduction(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.REDUCTION)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> IteratorType:
+        with parser.in_angle_brackets():
+            return super().parse_parameter(parser)
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            super().print_parameter(printer)
 
 
 @irdl_attr_definition
@@ -502,6 +539,7 @@ MemrefStream = Dialect(
         YieldOp,
     ],
     [
+        IteratorTypeAttr,
         StridePattern,
     ],
 )
