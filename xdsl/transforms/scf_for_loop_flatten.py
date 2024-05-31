@@ -72,6 +72,11 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 for (lhs, rhs) in zip(op.body.blocks[0].args[1:], inner_loop.iter_args)
             ):
                 return
+            if not all(
+                lhs is rhs
+                for (lhs, rhs) in zip(inner_loop.results, outer_yield_op.operands)
+            ):
+                return
         elif inner_loop.iter_args:
             return
 
