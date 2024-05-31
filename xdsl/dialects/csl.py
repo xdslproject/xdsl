@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
     ArrayAttr,
+    BoolAttr,
     ContainerType,
     DictionaryAttr,
     Float16Type,
@@ -92,6 +93,13 @@ class TaskKind(StrEnum):
     LOCAL = "local"
     DATA = "data"
     CONTROL = "control"
+
+
+class DsdKind(StrEnum):
+    mem1d_dsd = "mem1d_dsd"
+    mem4d_dsd = "mem4d_dsd"
+    fabin_dsd = "fabin_dsd"
+    fabout_dsd = "fabout_dsd"
 
 
 class _FuncBase(IRDLOperation, ABC):
@@ -266,6 +274,15 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     def get_element_type(self) -> Attribute:
         return self.type
+
+
+@irdl_attr_definition
+class DsdType(EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute):
+    """
+    Represents a DSD in CSL.
+    """
+
+    name = "csl.dsd"
 
 
 @irdl_attr_definition
@@ -656,6 +673,90 @@ class SetTileCodeOp(IRDLOperation):
     params = opt_operand_def(ComptimeStructType)
 
 
+class _GetDsdOp(IRDLOperation, ABC):
+    """
+    Abstract base class for CSL @get_dsd()
+    """
+
+    sizes = var_operand_def(IntegerType)
+    result = result_def(DsdType)
+
+
+@irdl_op_definition
+class GetMemdDsdOp(_GetDsdOp):
+    """
+    CSL built-in for DSDs of the form
+
+    @get_dsd( [ mem1d_dsd | mem4d_dsd ] .{
+       .tensor_access = |i, j| {$sizes[0], $sizes[1]} -> $array_var[$strides[0] * i + $offsets[0], $strides[1] * j + offsets[1]]
+    });
+    """
+
+    name = "csl.get_mem_dsd"
+    base_addr = operand_def(MemRefType)
+    offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+    strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    def verify_(self) -> None:
+        if not isinstance(self.result.type, DsdType):
+            raise VerifyException("DSD type is not DsdType")
+        if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
+            raise VerifyException("DSD type must be memory DSD")
+        if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
+            raise VerifyException(
+                "DSD of type mem1d_dsd must have exactly one dimension"
+            )
+        if self.result.type.data == DsdKind.mem4d_dsd and (
+            len(self.sizes) < 1 or len(self.sizes) > 4
+        ):
+            raise VerifyException(
+                "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
+            )
+        if self.offsets is not None and len(self.offsets) != len(self.sizes):
+            raise VerifyException(
+                "Dimensions of offsets must match dimensions of sizes"
+            )
+        if self.strides is not None and len(self.strides) != len(self.sizes):
+            raise VerifyException(
+                "Dimensions of strides must match dimensions of sizes"
+            )
+
+
+@irdl_op_definition
+class GetFabDsdOp(_GetDsdOp):
+    """
+    CSL built-in for DSDs of the form
+
+    @get_dsd( [ fabin_dsd | fabout_dsd ], .{
+        .extent = $sizes[0],
+        .fabric_color = $fabric_color,
+        .control = $control,                            # fabout_dsd only, not implemented
+        .wavelet_index_offset = $wavelet_index_offset,  # fabout_dsd only, not implemented
+    });
+    """
+
+    name = "csl.get_fabin_dsd"
+    fabric_color = opt_prop_def(ColorIdAttr)
+    control = opt_prop_def(BoolAttr)
+    wavelet_index_offset = opt_prop_def(AnyIntegerAttr)
+
+    def verify_(self) -> None:
+        if not isinstance(self.result.type, DsdType):
+            raise VerifyException("DSD type is not DsdType")
+        if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
+            raise VerifyException("DSD type must be fabric DSD")
+        if len(self.sizes) != 1:
+            raise VerifyException("Fabric DSDs must have exactly one dimension")
+        if (
+            self.result.type.data == DsdKind.fabin_dsd
+            and self.control is not None
+            or self.wavelet_index_offset is not None
+        ):
+            raise VerifyException(
+                "DSD of type fabin_dsd cannot specify control and wavelet_index_offset"
+            )
+
+
 @irdl_op_definition
 class SymbolExportOp(IRDLOperation):
     """
@@ -737,6 +838,8 @@ class AddressOfOp(IRDLOperation):
             // const invalid: [*][10]f32 = &x;
         """
 
+        # GetDsdOp(DsdType(DsdKind("mem4d_dsd")), self.prev_op.prev_op.results[0],
+        #          list((self.prev_op.prev_op.results[1], self.prev_op.prev_op.results[1])))
         res_elem_ty = res_ty.get_element_type()
         if res_elem_ty == val_ty.get_element_type():
             if res_ty.kind.data != PtrKind.MANY:
@@ -829,6 +932,8 @@ CSL = Dialect(
         GetColorOp,
         SetRectangleOp,
         SetTileCodeOp,
+        GetMemdDsdOp,
+        GetFabDsdOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
@@ -840,6 +945,7 @@ CSL = Dialect(
         PtrKindAttr,
         PtrConstAttr,
         PtrType,
+        DsdType,
         ColorType,
         ModuleKindAttr,
         TaskKindAttr,

@@ -52,6 +52,7 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     ConstantLike,
     HasCanonicalisationPatternsTrait,
+    IsolatedFromAbove,
     IsTerminator,
     NoTerminator,
     Pure,
@@ -2623,7 +2624,7 @@ class AssemblySectionOp(IRDLOperation, RISCVOp):
     directive: StringAttr = attr_def(StringAttr)
     data: Region = region_def("single_block")
 
-    traits = frozenset([NoTerminator()])
+    traits = frozenset([NoTerminator(), IsolatedFromAbove()])
 
     def __init__(
         self,
