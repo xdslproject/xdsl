@@ -131,3 +131,14 @@ def test_any_all_of_init(op_type: type[AllOfOp | AnyOfOp]):
 
     assert op.args == (val1, val2)
     assert op.output.type == AttributeType()
+
+
+@pytest.mark.parametrize("op_type", [OperationOp, TypeOp, AttributeOp])
+def test_qualified_name(op_type: type[OperationOp | TypeOp | AttributeOp]):
+    """Test qualified_name property of OperationOp, TypeOp, AttributeOp."""
+    op = op_type.create(
+        attributes={"sym_name": StringAttr("myname")}, regions=[Region(Block())]
+    )
+    dialect = DialectOp("mydialect", Region(Block([op])))
+    dialect.verify()
+    assert op.qualified_name == "mydialect.myname"
