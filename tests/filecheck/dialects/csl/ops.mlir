@@ -74,6 +74,10 @@ csl.func @initialize() {
     %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3, 4], "offsets" = [1, 2]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
     %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
     %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+    %dsd_1d2 = "csl.set_dsd_base_addr"(%dsd_1d, %arr) : (!csl<dsd mem1d_dsd>, memref<10xf32>) -> !csl<dsd mem1d_dsd>
+    %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %scalar) : (!csl<dsd mem1d_dsd>, i32) -> !csl<dsd mem1d_dsd>
+    %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %scalar) : (!csl<dsd mem1d_dsd>, i32) -> !csl<dsd mem1d_dsd>
+    %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %scalar) : (!csl<dsd mem1d_dsd>, i32) -> !csl<dsd mem1d_dsd>
 
 
   csl.return
@@ -151,6 +155,10 @@ csl.func @initialize() {
 // CHECK-NEXT:     %dsd_2d = "csl.get_mem_dsd"(%arr, %scalar, %scalar) <{"strides" = [3 : i64, 4 : i64], "offsets" = [1 : i64, 2 : i64]}> : (memref<10xf32>, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:     %dsd_3d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32) -> !csl<dsd mem4d_dsd>
 // CHECK-NEXT:     %dsd_4d = "csl.get_mem_dsd"(%arr, %scalar, %scalar, %scalar, %scalar) : (memref<10xf32>, i32, i32, i32, i32) -> !csl<dsd mem4d_dsd>
+// CHECK-NEXT:     %dsd_1d2 = "csl.set_dsd_base_addr"(%dsd_1d, %arr) : (!csl<dsd mem1d_dsd>, memref<10xf32>) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:     %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %scalar) : (!csl<dsd mem1d_dsd>, i32) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:     %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %scalar) : (!csl<dsd mem1d_dsd>, i32) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT:     %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %scalar) : (!csl<dsd mem1d_dsd>, i32) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: %global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>

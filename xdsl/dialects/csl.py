@@ -758,6 +758,119 @@ class GetFabDsdOp(_GetDsdOp):
 
 
 @irdl_op_definition
+class SetDsdBaseAddrOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different base_addr.
+    Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
+
+    Implements the CSL built-in
+    @set_dsd_base_addr(input_dsd, base_addr)
+    """
+
+    name = "csl.set_dsd_base_addr"
+
+    op = operand_def(DsdType)
+    base_addr = operand_def(MemRefType | PtrType)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+        ):
+            raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
+        if (
+            isinstance(self.base_addr.type, PtrType)
+            and not self.base_addr.type.kind.data == PtrKind.MANY
+        ):
+            raise VerifyException(
+                f"{self.name} cannot operate on pointers of kind {self.base_addr.type}"
+            )
+
+
+@irdl_op_definition
+class IncrementDsdOffsetOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different offset
+    Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
+
+    Implements the CSL built-in
+    @increment_dsd_offset(input_dsd, offset, elem_type)
+
+    where offset is a 16-bit signed int that may be negative,
+    and elem_type is used to convert offset into words (any u,i,f type of 16,32 bit)
+    elem_type should be derived by the printer
+    """
+
+    name = "csl.increment_dsd_offset"
+
+    op = operand_def(DsdType)
+    offset = operand_def(IntegerType)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+        ):
+            raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
+
+
+@irdl_op_definition
+class SetDsdLengthOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different length
+    Only works on 1-dimensional DSDs, i.e., mem1d_dsd and any fabric DSDs
+
+    Implements the CSL built-in
+    @set_dsd_length(input_dsd, length)
+    """
+
+    name = "csl.set_dsd_length"
+    op = operand_def(DsdType)
+    length = operand_def(IntegerType)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.data == DsdKind.mem4d_dsd
+        ):
+            raise VerifyException(
+                f"{self.name} must operate on one-dimensional DSD types"
+            )
+
+
+@irdl_op_definition
+class SetDsdStrideOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different stride
+    Only works mem1d_dsd
+
+    Implements the CSL built-in
+    @set_dsd_stride(input_dsd, stride)
+    """
+
+    name = "csl.set_dsd_stride"
+    op = operand_def(DsdType)
+    stride = operand_def(IntegerType)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.data != DsdKind.mem1d_dsd
+        ):
+            raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
+
+
+@irdl_op_definition
 class SymbolExportOp(IRDLOperation):
     """
     This op does not correspond to any particular csl operation, it allows a symbol
@@ -934,6 +1047,10 @@ CSL = Dialect(
         SetTileCodeOp,
         GetMemdDsdOp,
         GetFabDsdOp,
+        SetDsdBaseAddrOp,
+        IncrementDsdOffsetOp,
+        SetDsdLengthOp,
+        SetDsdStrideOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
