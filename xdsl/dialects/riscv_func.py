@@ -36,7 +36,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
+from xdsl.traits import (
+    CallableOpInterface,
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    SymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -163,7 +169,13 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset([SymbolOpInterface(), FuncOpCallableInterface()])
+    traits = frozenset(
+        [
+            SymbolOpInterface(),
+            FuncOpCallableInterface(),
+            IsolatedFromAbove(),
+        ]
+    )
 
     def __init__(
         self,
