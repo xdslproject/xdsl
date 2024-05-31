@@ -357,6 +357,47 @@ class Muli(SignlessIntegerBinaryOp):
     traits = frozenset([Pure()])
 
 
+class MulExtendedBase(IRDLOperation):
+    """Base class for extended multiplication operations."""
+
+    T = Annotated[Attribute, ConstraintVar("T"), signlessIntegerLike]
+
+    lhs: Operand = operand_def(T)
+    rhs: Operand = operand_def(T)
+    low: OpResult = result_def(T)
+    high: OpResult = result_def(T)
+
+    traits = frozenset([Pure()])
+
+    def __init__(
+        self,
+        operand1: SSAValue,
+        operand2: SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            result_type = SSAValue.get(operand1).type
+        super().__init__(
+            operands=[operand1, operand2], result_types=[result_type, result_type]
+        )
+
+    assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
+
+
+@irdl_op_definition
+class MulUIExtended(MulExtendedBase):
+    """Extended unsigned integer multiplication operation."""
+
+    name = "arith.mului_extended"
+
+
+@irdl_op_definition
+class MulSIExtended(MulExtendedBase):
+    """Extended unsigned integer multiplication operation."""
+
+    name = "arith.mulsi_extended"
+
+
 @irdl_op_definition
 class Subi(SignlessIntegerBinaryOp):
     name = "arith.subi"
@@ -1066,6 +1107,8 @@ Arith = Dialect(
         AddUIExtended,
         Subi,
         Muli,
+        MulUIExtended,
+        MulSIExtended,
         DivUI,
         DivSI,
         FloorDivSI,
