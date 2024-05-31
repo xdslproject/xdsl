@@ -84,6 +84,10 @@ csl.func @initialize() {
     %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) : (tensor<510xf32>, i32) -> !csl.dsd<#csl<dsd_kind mem1d_dsd>, f32>
     %tensor_dsd2 = "csl.set_dsd_base_addr"(%dsd_1d, %tens) : (!csl.dsd<#csl<dsd_kind mem1d_dsd>, f32>, tensor<510xf32>) -> !csl.dsd<#csl<dsd_kind mem1d_dsd>, f32>
 
+    %fabin_dsd = "csl.get_fab_dsd"(%scalar) : (i32) -> !csl.dsd<#csl<dsd_kind fabin_dsd>, none>
+    %fabout_dsd = "csl.get_fab_dsd"(%scalar) : (i32) -> !csl.dsd<#csl<dsd_kind fabout_dsd>, none>
+
+
   csl.return
 }
 
@@ -167,6 +171,8 @@ csl.func @initialize() {
 // CHECK-NEXT:     %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %int8) : (!csl.dsd<#csl<dsd_kind mem1d_dsd>, f32>, si8) -> !csl.dsd<#csl<dsd_kind mem1d_dsd>, f32>
 // CHECK-NEXT:     %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) : (tensor<510xf32>, i32) -> !csl.dsd<#csl<dsd_kind mem1d_dsd>, f32>
 // CHECK-NEXT:     %tensor_dsd2 = "csl.set_dsd_base_addr"(%dsd_1d, %tens) : (!csl.dsd<#csl<dsd_kind mem1d_dsd>, f32>, tensor<510xf32>) -> !csl.dsd<#csl<dsd_kind mem1d_dsd>, f32>
+// CHECK-NEXT:     %fabin_dsd = "csl.get_fab_dsd"(%scalar) : (i32) -> !csl.dsd<#csl<dsd_kind fabin_dsd>, none>
+// CHECK-NEXT:     %fabout_dsd = "csl.get_fab_dsd"(%scalar) : (i32) -> !csl.dsd<#csl<dsd_kind fabout_dsd>, none>
 // CHECK-NEXT:     csl.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: %global_ptr = "test.op"() : () -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const var>>

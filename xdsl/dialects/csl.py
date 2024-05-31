@@ -287,10 +287,10 @@ DsdElementType: TypeAlias = (
     NoneType
     | Float16Type
     | Float32Type
-    | IntegerAttr[Annotated[IntegerType, IntegerType(16, Signedness.SIGNED)]]
-    | IntegerAttr[Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]]
-    | IntegerAttr[Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]]
-    | IntegerAttr[Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]]
+    | Annotated[IntegerType, IntegerType(16, Signedness.SIGNED)]
+    | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
+    | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
+    | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
 )
 
 
@@ -759,7 +759,7 @@ class GetFabDsdOp(_GetDsdOp):
     });
     """
 
-    name = "csl.get_fabin_dsd"
+    name = "csl.get_fab_dsd"
     fabric_color = opt_prop_def(ColorIdAttr)
     control = opt_prop_def(BoolAttr)
     wavelet_index_offset = opt_prop_def(AnyIntegerAttr)
