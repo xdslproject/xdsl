@@ -41,6 +41,7 @@
 
   csl.func @casts() {
     %constI32 = arith.constant 0 : i32
+    %constU16 = arith.constant 0 : ui16
     %constF32 = arith.constant 0 : f32
     %castIndex = "arith.index_cast"(%constF32) : (f32) -> index
     %castF16 = "arith.sitofp"(%constI32) : (i32) -> f16
@@ -49,7 +50,7 @@
     %castF16again = "arith.truncf"(%constF32) : (f32) -> f16
     %castI16again = "arith.trunci"(%constI32) : (i32) -> i16
     %castI32again = "arith.extsi"(%castI16) : (i16) -> i32
-    // TODO(dk949): "arith.extui" // We don't have unsigned integers at the moment
+    %castU32 = "arith.extui"(%constU16)  : (ui16) -> ui32
     csl.return
   }
 
@@ -265,6 +266,7 @@ csl.func @gemv() {
 // CHECK-NEXT:
 // CHECK-NEXT: fn casts() void {
 // CHECK-NEXT:   const constI32 : i32 = 0;
+// CHECK-NEXT:   const constU16 : u16 = 0;
 // CHECK-NEXT:   const constF32 : f32 = 0.0;
 // CHECK-NEXT:   const castIndex : i32 = @as(i32, constF32);
 // CHECK-NEXT:   const castF16 : f16 = @as(f16, constI32);
@@ -273,6 +275,7 @@ csl.func @gemv() {
 // CHECK-NEXT:   const castF16again : f16 = @as(f16, constF32);
 // CHECK-NEXT:   const castI16again : i16 = @as(i16, constI32);
 // CHECK-NEXT:   const castI32again : i32 = @as(i32, castI16);
+// CHECK-NEXT:   const castU32 : u32 = @as(u32, constU16);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
