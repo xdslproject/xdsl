@@ -161,9 +161,11 @@
     riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
     riscv.assembly_section ".text" {
-      %nested_addi = riscv.addi %1, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
+      %inner = riscv.li 5 : () -> !riscv.reg<j1>
+      %nested_addi = riscv.addi %inner, 1 : (!riscv.reg<j1>) -> !riscv.reg<j1>
     }
     // CHECK-NEXT:  .text
+    // CHECK-NEXT:  li j1, 5
     // CHECK-NEXT:  addi j1, j1, 1
     riscv.label "label0"
     // CHECK-NEXT: label0:

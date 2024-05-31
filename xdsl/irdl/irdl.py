@@ -2426,17 +2426,13 @@ class ParamAttrDef:
 _PAttrT = TypeVar("_PAttrT", bound=ParametrizedAttribute)
 
 
-def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
-    """Decorator used on classes to define a new attribute definition."""
-
-    attr_def = ParamAttrDef.from_pyrdl(cls)
-
+def get_accessors_from_param_attr_def(attr_def: ParamAttrDef):
     # New fields and methods added to the attribute
     new_fields = dict[str, Any]()
 
     def param_name_field(idx: int):
         @property
-        def field(self: _PAttrT):
+        def field(self: ParametrizedAttribute):
             return self.parameters[idx]
 
         return field
@@ -2444,18 +2440,26 @@ def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
     for idx, (param_name, _) in enumerate(attr_def.parameters):
         new_fields[param_name] = param_name_field(idx)
 
+    @classmethod
+    def get_irdl_definition(cls: type[_PAttrT]):
+        return attr_def
+
+    new_fields["get_irdl_definition"] = get_irdl_definition
+    return new_fields
+
+
+def irdl_param_attr_definition(cls: type[_PAttrT]) -> type[_PAttrT]:
+    """Decorator used on classes to define a new attribute definition."""
+
+    attr_def = ParamAttrDef.from_pyrdl(cls)
+    new_fields = get_accessors_from_param_attr_def(attr_def)
+
     if issubclass(cls, TypedAttribute):
         parameter_names: tuple[str] = tuple(zip(*attr_def.parameters))[0]
         type_index = parameter_names.index("type")
         new_fields["get_type_index"] = lambda: type_index
 
     cls = cast(type[_PAttrT], cls)
-
-    @classmethod
-    def get_irdl_definition(cls: type[_PAttrT]):
-        return attr_def
-
-    new_fields["get_irdl_definition"] = get_irdl_definition
 
     return runtime_final(
         dataclass(frozen=True, init=False)(

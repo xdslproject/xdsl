@@ -46,9 +46,9 @@ builtin.module {
     riscv_func.return %3 : !riscv.reg<>
   }
 
-  // CHECK: riscv_func.func @arg_rec_block(%2 : !riscv.reg<>) -> !riscv.reg<> {
-  // CHECK-NEXT:   %3 = riscv_func.call @arg_rec_block(%2) : (!riscv.reg<>) -> !riscv.reg<>
-  // CHECK-NEXT:   riscv_func.return %3 : !riscv.reg<>
+  // CHECK: riscv_func.func @arg_rec_block(%{{\d+}} : !riscv.reg<>) -> !riscv.reg<> {
+  // CHECK-NEXT:   %{{\d+}} = riscv_func.call @arg_rec_block(%{{\d+}}) : (!riscv.reg<>) -> !riscv.reg<>
+  // CHECK-NEXT:   riscv_func.return %{{\d+}} : !riscv.reg<>
   // CHECK-NEXT: }
 
   riscv_func.func @multi_return_body(%a : !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>) {
