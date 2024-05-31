@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
+    Signedness,
     StringAttr,
     SymbolRefAttr,
 )
@@ -807,7 +808,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(IntegerType)
+    offset = operand_def(IntegerType(16, Signedness.SIGNED))
     result = result_def(DsdType)
 
     def verify_(self) -> None:
@@ -832,7 +833,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
-    length = operand_def(IntegerType)
+    length = operand_def(IntegerType(16, Signedness.UNSIGNED))
     result = result_def(DsdType)
 
     def verify_(self) -> None:
@@ -858,7 +859,7 @@ class SetDsdStrideOp(IRDLOperation):
 
     name = "csl.set_dsd_stride"
     op = operand_def(DsdType)
-    stride = operand_def(IntegerType)
+    stride = operand_def(IntegerType(8, Signedness.SIGNED))
     result = result_def(DsdType)
 
     def verify_(self) -> None:
