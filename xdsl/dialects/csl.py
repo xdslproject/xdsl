@@ -10,7 +10,7 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Annotated, TypeAlias
 
@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
     ArrayAttr,
+    BoolAttr,
     ContainerType,
     DictionaryAttr,
     Float16Type,
@@ -672,16 +673,59 @@ class SetTileCodeOp(IRDLOperation):
     params = opt_operand_def(ComptimeStructType)
 
 
+class _GetDsdOp(IRDLOperation, ABC):
+    """
+    Abstract base class for CSL @get_dsd()
+    """
+
+    sizes = var_operand_def(IntegerType)
+    result = result_def(DsdType)
+
+
 @irdl_op_definition
-class GetDsdOp(IRDLOperation):
+class GetMemdDsdOp(_GetDsdOp):
     """
     CSL built-in for DSDs of the form
 
     @get_dsd( [ mem1d_dsd | mem4d_dsd ] .{
        .tensor_access = |i, j| {$sizes[0], $sizes[1]} -> $array_var[$strides[0] * i + $offsets[0], $strides[1] * j + offsets[1]]
     });
+    """
 
-    or
+    name = "csl.get_mem_dsd"
+    base_addr = operand_def(MemRefType)
+    offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+    strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    def verify_(self) -> None:
+        if not isinstance(self.result.type, DsdType):
+            raise VerifyException("DSD type is not DsdType")
+        if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
+            raise VerifyException("DSD type must be memory DSD")
+        if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
+            raise VerifyException(
+                "DSD of type mem1d_dsd must have exactly one dimension"
+            )
+        if self.result.type.data == DsdKind.mem4d_dsd and (
+            len(self.sizes) < 1 or len(self.sizes) > 4
+        ):
+            raise VerifyException(
+                "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
+            )
+        if self.offsets is not None and len(self.offsets) != len(self.sizes):
+            raise VerifyException(
+                "Dimensions of offsets must match dimensions of sizes"
+            )
+        if self.strides is not None and len(self.strides) != len(self.sizes):
+            raise VerifyException(
+                "Dimensions of strides must match dimensions of sizes"
+            )
+
+
+@irdl_op_definition
+class GetFabDsdOp(_GetDsdOp):
+    """
+    CSL built-in for DSDs of the form
 
     @get_dsd( [ fabin_dsd | fabout_dsd ], .{
         .extent = $sizes[0],
@@ -691,78 +735,26 @@ class GetDsdOp(IRDLOperation):
     });
     """
 
-    name = "csl.get_dsd"
-
-    base_addr = opt_operand_def(MemRefType)
-    sizes = prop_def(ArrayAttr[AnyIntegerAttr])
-
-    offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
-    strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
-
+    name = "csl.get_fabin_dsd"
     fabric_color = opt_prop_def(ColorIdAttr)
-
-    result = result_def(DsdType)
-
-    def __init__(
-        self,
-        result: DsdType,
-        base_addr: SSAValue | Operation,
-        sizes: Iterable[int],
-        offsets: Iterable[int] | None = None,
-        strides: Iterable[int] | None = None,
-    ):
-        new_strides = (
-            ArrayAttr(IntegerAttr.from_int_and_width(s, 16) for s in strides)
-            if strides
-            else None
-        )
-        new_offsets = (
-            ArrayAttr(IntegerAttr.from_int_and_width(o, 16) for o in offsets)
-            if offsets
-            else None
-        )
-        new_sizes = ArrayAttr(IntegerAttr.from_int_and_width(s, 16) for s in sizes)
-        super().__init__(
-            operands=[base_addr],
-            result_types=[result],
-            properties={
-                "sizes": new_sizes,
-                "strides": new_strides,
-                "offsets": new_offsets,
-            },
-        )
+    control = opt_prop_def(BoolAttr)
+    wavelet_index_offset = opt_prop_def(AnyIntegerAttr)
 
     def verify_(self) -> None:
-        if not len(self.sizes) >= 1:
-            raise VerifyException("DSDs need to be at least one-dimensional")
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
+        if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
+            raise VerifyException("DSD type must be fabric DSD")
+        if len(self.sizes) != 1:
+            raise VerifyException("Fabric DSDs must have exactly one dimension")
         if (
-            self.result.type.data
-            in [DsdKind.mem1d_dsd, DsdKind.fabin_dsd, DsdKind.fabout_dsd]
-            and len(self.sizes) != 1
-        ):
-            raise VerifyException("DSD of this type must have exactly one dimension")
-        if self.result.type.data == DsdKind.mem4d_dsd and (
-            len(self.sizes) < 1 or len(self.sizes) > 4
+            self.result.type.data == DsdKind.fabin_dsd
+            and self.control is not None
+            or self.wavelet_index_offset is not None
         ):
             raise VerifyException(
-                "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
+                "DSD of type fabin_dsd cannot specify control and wavelet_index_offset"
             )
-        if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
-            raise VerifyException("Mem DSD must be of type mem1d_dsd or mem4d_dsd")
-        if self.result.type.data in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
-            if self.base_addr is None:
-                raise VerifyException("Mem DSD needs base_addr specified")
-        else:
-            if (
-                self.base_addr is not None
-                or self.offsets is not None
-                or self.strides is not None
-            ):
-                raise VerifyException(
-                    "Fabric DSD cannot specify base_addr, offsets, and strides"
-                )
 
 
 @irdl_op_definition
@@ -940,7 +932,8 @@ CSL = Dialect(
         GetColorOp,
         SetRectangleOp,
         SetTileCodeOp,
-        GetDsdOp,
+        GetMemdDsdOp,
+        GetFabDsdOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
