@@ -8,7 +8,7 @@ from functools import wraps
 from types import UnionType
 from typing import TypeVar, Union, final, get_args, get_origin
 
-from xdsl.builder import BuilderListener
+from xdsl.builder import BuilderListener, InsertPoint
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -20,7 +20,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import Rewriter
 from xdsl.utils.hints import isa
 
 
