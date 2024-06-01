@@ -198,7 +198,6 @@ def rewrite_generic_to_loops(
     inner_bounds = bound_constant_values[outer_bound_count:]
     if outer_bound_count != len(bound_constant_values):
         # Imperfectly nested
-        inner_load_count = ins_count
         outer_indexing_maps = op.indexing_maps.data[ins_count:]
         inner_indexing_maps = op.indexing_maps.data[:ins_count]
         outer_op_block_args = op.body.block.args[ins_count:]
@@ -207,7 +206,6 @@ def rewrite_generic_to_loops(
         inner_load_operands = op.inputs
 
     else:
-        inner_load_count = 0
         outer_indexing_maps = op.indexing_maps.data
         inner_indexing_maps = ()
         outer_op_block_args = op.body.block.args
@@ -257,7 +255,7 @@ def rewrite_generic_to_loops(
                 inner_iter_args,
                 strict=True,
             ):
-                op.body.block.args[i + inner_load_count].replace_by(arg)
+                op.body.block.args[i + len(inner_loaded_values)].replace_by(arg)
 
             # Replace block argument use with load op results
             for i, val in inner_loaded_values:
