@@ -10,8 +10,8 @@ builtin.module {
 
     func.func @main() {
         %A = memref.get_global @a : memref<2x3xf64>
-        %B = "memref.get_global"() {"name" = @b} : () -> memref<2x3xf64>
-        %C = "memref.get_global"() {"name" = @c} : () -> memref<2x3xf64>
+        %B = memref.get_global @b : memref<2x3xf64>
+        %C = memref.get_global @c : memref<2x3xf64>
         linalg.generic {
             indexing_maps = [
                 affine_map<(d0, d1) -> (d0, d1)>,
