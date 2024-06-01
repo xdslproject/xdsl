@@ -270,8 +270,7 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations to the end of another block.
         This block should not be a parent of the block to move to.
         """
-        self.has_done_action = True
-        Rewriter.inline_block_at_location(
+        self.inline_block_at_location(
             block, InsertPoint.at_end(target_block), arg_values=arg_values
         )
 
@@ -282,9 +281,8 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations to the start of another block.
         This block should not be a parent of the block to move to.
         """
-        self.has_done_action = True
-        Rewriter.inline_block_at_location(
-            block, InsertPoint.at_start(target_block), arg_values
+        self.inline_block_at_location(
+            block, InsertPoint.at_start(target_block), arg_values=arg_values
         )
 
     def inline_block_before_matched_op(
@@ -303,8 +301,7 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations before the given operation.
         The block should not be a parent of the operation.
         """
-        self.has_done_action = True
-        Rewriter.inline_block_at_location(
+        self.inline_block_at_location(
             block, InsertPoint.before(op), arg_values=arg_values
         )
 
@@ -324,8 +321,7 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations after the given operation.
         The block should not be a parent of the operation.
         """
-        self.has_done_action = True
-        Rewriter.inline_block_at_location(
+        self.inline_block_at_location(
             block, InsertPoint.after(op), arg_values=arg_values
         )
 

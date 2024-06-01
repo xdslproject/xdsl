@@ -15,7 +15,7 @@ memref_stream.generic {
 ^0(%a : f64, %b : f64, %acc_old : f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
-    linalg.yield %acc_new : f64
+    memref_stream.yield %acc_new : f64
 }
 
 // CHECK:       builtin.module {
@@ -24,6 +24,6 @@ memref_stream.generic {
 // CHECK-NEXT:    ^{{.*}}(%{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64):
 // CHECK-NEXT:      %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
-// CHECK-NEXT:      linalg.yield %{{.*}} : f64
+// CHECK-NEXT:      memref_stream.yield %{{.*}} : f64
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

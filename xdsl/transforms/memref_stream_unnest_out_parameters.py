@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.dialects import linalg, memref_stream
+from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
@@ -25,14 +25,12 @@ class UnnestOutParametersPattern(RewritePattern):
         num_outputs = len(op.outputs)
         if not num_outputs:
             return
-        if linalg.IteratorTypeAttr.window() in op.iterator_types:
-            raise NotImplementedError()
 
         num_parallel = sum(
-            i == linalg.IteratorTypeAttr.parallel() for i in op.iterator_types
+            i == memref_stream.IteratorTypeAttr.parallel() for i in op.iterator_types
         )
         num_reduction = sum(
-            i == linalg.IteratorTypeAttr.reduction() for i in op.iterator_types
+            i == memref_stream.IteratorTypeAttr.reduction() for i in op.iterator_types
         )
         if num_parallel == len(op.iterator_types):
             return

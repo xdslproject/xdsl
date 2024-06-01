@@ -30,7 +30,6 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
-    IsTerminator,
     NoTerminator,
     SymbolOpInterface,
     SymbolTable,
@@ -108,6 +107,13 @@ class TypeOp(IRDLOperation):
         if self.body.block.ops:
             printer.print_region(self.body)
 
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified TypeOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
+
 
 @irdl_op_definition
 class AttributeOp(IRDLOperation):
@@ -137,6 +143,13 @@ class AttributeOp(IRDLOperation):
         printer.print(" @", self.sym_name.data, " ")
         if self.body.block.ops:
             printer.print_region(self.body)
+
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified AttributeOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
 
 @irdl_op_definition
@@ -194,6 +207,13 @@ class OperationOp(IRDLOperation):
         if self.body.block.ops:
             printer.print_region(self.body)
 
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified OperationOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
+
 
 @irdl_op_definition
 class OperandsOp(IRDLOperation):
@@ -229,7 +249,7 @@ class ResultsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = frozenset([IsTerminator(), HasParent(OperationOp)])
+    traits = frozenset([HasParent(OperationOp)])
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
