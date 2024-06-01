@@ -34,7 +34,6 @@ def indices_for_map(
     output_indices: list[SSAValue] = []
     for expr in affine_map.results:
         if isinstance(expr, AffineDimExpr):
-            print("dimexpr", affine_map, input_index_vals, expr.position)
             output_indices.append(input_index_vals[expr.position])
         else:
             used_dims = expr.used_dims()
@@ -92,7 +91,6 @@ def _insert_loop_nest(
     iter_arg_types = tuple(arg.type for arg in iter_args)
     loops: list[scf.For] = []
     index = IndexType()
-    print("iter_arg_types", iter_arg_types)
 
     for i, ub in enumerate(bounds):
         loop = scf.For(
@@ -231,7 +229,6 @@ def rewrite_generic_to_loops(
             outer_op_block_args,
             load,
         )
-        print("outer", outer_loaded_values)
 
         def inner_make_body(
             rewriter: PatternRewriter,
@@ -249,7 +246,6 @@ def rewrite_generic_to_loops(
                 inner_op_block_args,
                 load,
             )
-            print("inner", inner_loaded_values)
 
             # Replace block argument use with iter args
             for (i, _), arg in zip(
