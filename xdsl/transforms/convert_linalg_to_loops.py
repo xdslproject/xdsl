@@ -37,7 +37,18 @@ class LowerGenericOpPattern(RewritePattern):
                 "lowering for linalg.generic with results not yet supported"
             )
 
-        rewrite_generic_to_loops(rewriter, op, load, memref.Store.get)
+        rewrite_generic_to_loops(
+            rewriter,
+            InsertPoint.before(op),
+            op.get_static_loop_ranges(),
+            op.indexing_maps.data,
+            op.indexing_maps.data[-len(op.outputs) :],
+            op.operands,
+            op.outputs,
+            op.body.block,
+            load,
+            memref.Store.get,
+        )
 
 
 class ConvertLinalgToLoopsPass(ModulePass):

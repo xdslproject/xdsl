@@ -14,7 +14,10 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.loop_nest_lowering_utils import rewrite_generic_to_loops
+from xdsl.transforms.loop_nest_lowering_utils import (
+    rewrite_generic_to_imperfect_loops,
+    rewrite_generic_to_loops,
+)
 
 
 def load(
@@ -47,7 +50,41 @@ class LowerGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
-        rewrite_generic_to_loops(rewriter, op, load, store)
+        ins_count = len(op.inputs)
+        ubs = op.get_static_loop_ranges()
+        outer_bound_count = min(len(ubs), *(m.data.num_dims for m in op.indexing_maps))
+        if outer_bound_count != len(ubs):
+            # Imperfectly nested
+            rewrite_generic_to_imperfect_loops(
+                rewriter,
+                InsertPoint.before(op),
+                ubs[:outer_bound_count],
+                ubs[outer_bound_count:],
+                op.indexing_maps.data[ins_count:],
+                op.indexing_maps.data[:ins_count],
+                op.indexing_maps.data[ins_count:],
+                op.outputs,
+                op.inputs,
+                op.outputs,
+                op.body.block.args[ins_count:],
+                op.body.block.args[:ins_count],
+                op.body.block,
+                load,
+                store,
+            )
+        else:
+            rewrite_generic_to_loops(
+                rewriter,
+                InsertPoint.before(op),
+                ubs,
+                op.indexing_maps.data,
+                op.indexing_maps.data[-len(op.outputs) :],
+                op.operands,
+                op.outputs,
+                op.body.block,
+                load,
+                store,
+            )
 
 
 class ConvertMemrefStreamToLoopsPass(ModulePass):
