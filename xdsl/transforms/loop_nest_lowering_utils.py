@@ -4,7 +4,7 @@ from itertools import compress
 from xdsl.builder import InsertPoint
 from xdsl.dialects import affine, arith, linalg, memref_stream, scf
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
-from xdsl.ir import Block, BlockArgument, Operation, OpResult, Region, SSAValue
+from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 
@@ -67,7 +67,7 @@ def _insert_loop_nest(
     insertion_point: InsertPoint,
     zero_op: arith.Constant,
     one_op: arith.Constant,
-    bounds: tuple[OpResult, ...],
+    bounds: Sequence[SSAValue],
     iter_args: Sequence[SSAValue],
     make_body: Callable[
         [PatternRewriter, InsertPoint, Sequence[BlockArgument], Sequence[SSAValue]],
@@ -164,6 +164,79 @@ def _insert_store_ops(
         indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
         store_op = store(yield_value, ref, indices)
         rewriter.insert_op_at_location(store_op, insertion_point)
+
+
+def _rewrite_generic_to_loops(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    zero_op: arith.Constant,
+    one_op: arith.Constant,
+    ub_vals: Sequence[SSAValue],
+    load_indexing_maps: tuple[AffineMapAttr, ...],
+    store_indexing_maps: tuple[AffineMapAttr, ...],
+    load_operands: tuple[SSAValue, ...],
+    store_operands: tuple[SSAValue, ...],
+    block: Block,
+    load: Callable[
+        [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
+    ],
+    store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
+) -> None:
+    def make_body(
+        rewriter: PatternRewriter,
+        insertion_point: InsertPoint,
+        ind_vars: Sequence[BlockArgument],
+        iter_args: Sequence[SSAValue],
+    ) -> Sequence[SSAValue]:
+        assert not iter_args
+
+        loaded_values = _insert_load_ops(
+            rewriter,
+            insertion_point,
+            ind_vars,
+            load_indexing_maps,
+            load_operands,
+            block.args,
+            load,
+        )
+
+        for i, val in loaded_values:
+            block.args[i].replace_by(val)
+
+        yield_op = block.last_op
+        assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
+
+        # Erase the yield op, we still have access to its operands
+        rewriter.erase_op(yield_op)
+
+        while block.args:
+            rewriter.erase_block_argument(block.args[0])
+
+        rewriter.inline_block_at_location(block, insertion_point)
+
+        _insert_store_ops(
+            rewriter,
+            insertion_point,
+            ind_vars,
+            store_indexing_maps,
+            yield_op.operands,
+            store_operands,
+            store,
+        )
+
+        return ()
+
+    _insert_loop_nest(
+        rewriter,
+        insertion_point,
+        zero_op,
+        one_op,
+        ub_vals,
+        (),
+        make_body,
+    )
+
+    rewriter.erase_matched_op()
 
 
 def rewrite_generic_to_loops(
