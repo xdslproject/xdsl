@@ -173,8 +173,6 @@ def rewrite_generic_to_loops(
         [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
     ],
     store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
-    *,
-    imperfectly_nested: bool = False,
 ) -> None:
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
@@ -193,23 +191,29 @@ def rewrite_generic_to_loops(
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
     ins_count = len(op.inputs)
-    if imperfectly_nested:
-        outer_bound_count = min(
-            len(bound_constant_values), *(m.data.num_dims for m in op.indexing_maps)
-        )
-        outer_bounds = bound_constant_values[:outer_bound_count]
-        inner_bounds = bound_constant_values[outer_bound_count:]
+    outer_bound_count = min(
+        len(bound_constant_values), *(m.data.num_dims for m in op.indexing_maps)
+    )
+    outer_bounds = bound_constant_values[:outer_bound_count]
+    inner_bounds = bound_constant_values[outer_bound_count:]
+    if outer_bound_count != len(bound_constant_values):
+        # Imperfectly nested
+        inner_load_count = ins_count
         outer_indexing_maps = op.indexing_maps.data[ins_count:]
         inner_indexing_maps = op.indexing_maps.data[:ins_count]
         outer_op_block_args = op.body.block.args[ins_count:]
         inner_op_block_args = op.body.block.args[:ins_count]
+        outer_load_operands = op.outputs
+        inner_load_operands = op.inputs
+
     else:
-        outer_bounds = bound_constant_values
-        inner_bounds = ()
+        inner_load_count = 0
         outer_indexing_maps = op.indexing_maps.data
         inner_indexing_maps = ()
         outer_op_block_args = op.body.block.args
         inner_op_block_args = ()
+        outer_load_operands = tuple(op.operands)
+        inner_load_operands = ()
 
     def outer_make_body(
         rewriter: PatternRewriter,
@@ -225,7 +229,7 @@ def rewrite_generic_to_loops(
             insertion_point,
             outer_ind_vars,
             outer_indexing_maps,
-            op.outputs,
+            outer_load_operands,
             outer_op_block_args,
             load,
         )
@@ -242,7 +246,7 @@ def rewrite_generic_to_loops(
                 insertion_point,
                 (*outer_ind_vars, *inner_ind_vars),
                 inner_indexing_maps,
-                op.inputs,
+                inner_load_operands,
                 inner_op_block_args,
                 load,
             )
@@ -253,7 +257,7 @@ def rewrite_generic_to_loops(
                 inner_iter_args,
                 strict=True,
             ):
-                op.body.block.args[i + ins_count].replace_by(arg)
+                op.body.block.args[i + inner_load_count].replace_by(arg)
 
             # Replace block argument use with load op results
             for i, val in inner_loaded_values:
