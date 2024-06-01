@@ -1,6 +1,6 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from xdsl.dialects import linalg, memref_stream
+from xdsl.dialects import memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
@@ -16,9 +16,7 @@ from xdsl.pattern_rewriter import (
 )
 
 
-@dataclass
 class UnnestOutParametersPattern(RewritePattern):
-    streams: int = field()
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -27,14 +25,12 @@ class UnnestOutParametersPattern(RewritePattern):
         num_outputs = len(op.outputs)
         if not num_outputs:
             return
-        if linalg.IteratorTypeAttr.window() in op.iterator_types:
-            raise NotImplementedError()
 
         num_parallel = sum(
-            i == linalg.IteratorTypeAttr.parallel() for i in op.iterator_types
+            i == memref_stream.IteratorTypeAttr.parallel() for i in op.iterator_types
         )
         num_reduction = sum(
-            i == linalg.IteratorTypeAttr.reduction() for i in op.iterator_types
+            i == memref_stream.IteratorTypeAttr.reduction() for i in op.iterator_types
         )
         if num_parallel == len(op.iterator_types):
             return
@@ -61,10 +57,8 @@ class MemrefStreamUnnestOutParametersPass(ModulePass):
 
     name = "memref-stream-unnest-out-parameters"
 
-    streams: int = field(default=3)
-
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            UnnestOutParametersPattern(self.streams),
+            UnnestOutParametersPattern(),
             apply_recursively=False,
         ).rewrite_module(op)
