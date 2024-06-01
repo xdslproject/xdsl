@@ -51,17 +51,33 @@ def get_constant_value(
 class FlattenNestedLoopsPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
-        if op.iter_args:
-            return
-
         outer_body = op.body.block
         if not isinstance(inner_loop := outer_body.first_op, scf.For):
             # Outer loop must contain inner loop
             return
-        if inner_loop is not cast(scf.Yield, outer_body.last_op).prev_op:
+        if (
+            inner_loop
+            is not (outer_yield_op := cast(scf.Yield, outer_body.last_op)).prev_op
+        ):
             # Outer loop must contain only inner loop and yield
             return
-        if inner_loop.iter_args:
+
+        if op.iter_args:
+            if not inner_loop.iter_args:
+                return
+            if len(op.iter_args) != len(inner_loop.iter_args):
+                return
+            if not all(
+                lhs is rhs
+                for (lhs, rhs) in zip(op.body.blocks[0].args[1:], inner_loop.iter_args)
+            ):
+                return
+            if not all(
+                lhs is rhs
+                for (lhs, rhs) in zip(inner_loop.results, outer_yield_op.operands)
+            ):
+                return
+        elif inner_loop.iter_args:
             return
 
         if (inner_lb := get_constant_value(inner_loop.lb)) is None:
@@ -125,6 +141,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
             new_step = op.step
 
         moved_region = rewriter.move_region_contents_to_new_regions(inner_loop.body)
+        rewriter.erase_op(outer_yield_op)
         rewriter.erase_op(inner_loop)
 
         rewriter.replace_matched_op(
@@ -132,7 +149,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 op.lb,
                 new_ub,
                 new_step,
-                (),
+                op.iter_args,
                 moved_region,
             )
         )
