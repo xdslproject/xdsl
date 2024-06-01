@@ -2,9 +2,9 @@ from collections.abc import Callable, Sequence
 from itertools import compress
 
 from xdsl.builder import InsertPoint
-from xdsl.dialects import affine, arith, linalg, memref_stream, scf
+from xdsl.dialects import affine, arith, scf
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
-from xdsl.ir import Block, BlockArgument, Operation, OpResult, Region, SSAValue
+from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 
@@ -67,7 +67,7 @@ def _insert_loop_nest(
     insertion_point: InsertPoint,
     zero_op: arith.Constant,
     one_op: arith.Constant,
-    bounds: tuple[OpResult, ...],
+    bounds: Sequence[SSAValue],
     iter_args: Sequence[SSAValue],
     make_body: Callable[
         [PatternRewriter, InsertPoint, Sequence[BlockArgument], Sequence[SSAValue]],
@@ -168,7 +168,13 @@ def _insert_store_ops(
 
 def rewrite_generic_to_loops(
     rewriter: PatternRewriter,
-    op: linalg.Generic | memref_stream.GenericOp,
+    insertion_point: InsertPoint,
+    ubs: Sequence[int],
+    load_indexing_maps: Sequence[AffineMapAttr],
+    store_indexing_maps: Sequence[AffineMapAttr],
+    load_operands: Sequence[SSAValue],
+    store_operands: Sequence[SSAValue],
+    block: Block,
     load: Callable[
         [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
     ],
@@ -176,8 +182,6 @@ def rewrite_generic_to_loops(
 ) -> None:
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
-
-    ubs = op.get_static_loop_ranges()
 
     bound_constant_ops = tuple(
         arith.Constant(IntegerAttr.from_index_int_value(ub)) for ub in ubs
@@ -202,35 +206,33 @@ def rewrite_generic_to_loops(
             rewriter,
             insertion_point,
             ind_vars,
-            op.indexing_maps.data,
-            op.operands,
-            op.body.block.args,
+            load_indexing_maps,
+            load_operands,
+            block.args,
             load,
         )
 
         for i, val in loaded_values:
-            op.body.block.args[i].replace_by(val)
+            block.args[i].replace_by(val)
 
-        yield_op = op.body.block.last_op
-        assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
+        yield_op = block.last_op
+        assert yield_op is not None
 
         # Erase the yield op, we still have access to its operands
         rewriter.erase_op(yield_op)
 
-        while op.body.block.args:
-            rewriter.erase_block_argument(op.body.block.args[0])
+        while block.args:
+            rewriter.erase_block_argument(block.args[0])
 
-        rewriter.inline_block_at_location(op.body.block, insertion_point)
+        rewriter.inline_block_at_location(block, insertion_point)
 
-        output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
-        output_operands = op.operands[-len(op.outputs) :]
         _insert_store_ops(
             rewriter,
             insertion_point,
             ind_vars,
-            output_indexing_maps,
+            store_indexing_maps,
             yield_op.operands,
-            output_operands,
+            store_operands,
             store,
         )
 
@@ -238,7 +240,7 @@ def rewrite_generic_to_loops(
 
     _insert_loop_nest(
         rewriter,
-        InsertPoint.before(op),
+        insertion_point,
         zero_op,
         one_op,
         bound_constant_values,
