@@ -74,17 +74,6 @@ def _insert_loop_nest(
         Sequence[SSAValue],
     ],
 ) -> Sequence[SSAValue]:
-    """
-    Creates a perfect loop nest, populating the innermost body with the provided
-    `make_body` function.
-    If `iter_args` are passed in, the loop nest will pass them from parent loop to child
-    loop, and the results of `make_body` are expected to be equal in length to
-    `iter_args`.
-
-    `zero_op` and `one_op` are operations ƒor the `0` and `1` index constants for the
-    loop nest lower bound and step. The upper bounds are specified by the `bounds`
-    arguement.
-    """
     if not bounds:
         return make_body(rewriter, insertion_point, (), iter_args)
 
@@ -106,18 +95,12 @@ def _insert_loop_nest(
         results = loop.results
 
         if i + 1 == len(bounds):
-            # Innermost loop iteration
             results = make_body(
                 rewriter,
                 InsertPoint.at_start(loop.body.block),
                 tuple(loop.body.block.args[0] for loop in loops),
                 iter_args,
             )
-            if len(results) != len(iter_args):
-                raise ValueError(
-                    "Unexpected number of results from `make_body` helper "
-                    f"({len(results)}), expected {len(iter_args)}"
-                )
         rewriter.insert_op_at_end(scf.Yield(*results), loop.body.block)
         insertion_point = InsertPoint.at_start(loop.body.block)
 
@@ -192,52 +175,78 @@ def rewrite_generic_to_loops(
     if bound_constant_values:
         rewriter.insert_op_before_matched_op((zero_op, one_op))
 
-    def make_body(
+    def outer_make_body(
         rewriter: PatternRewriter,
         insertion_point: InsertPoint,
-        ind_vars: Sequence[BlockArgument],
-        iter_args: Sequence[SSAValue],
+        outer_ind_vars: Sequence[BlockArgument],
+        _: Sequence[SSAValue],
     ) -> Sequence[SSAValue]:
-        assert not iter_args
-
-        loaded_values = _insert_load_ops(
+        # Add load ops
+        outer_loaded_values = _insert_load_ops(
             rewriter,
             insertion_point,
-            ind_vars,
+            outer_ind_vars,
             op.indexing_maps.data,
             op.operands,
             op.body.block.args,
             load,
         )
 
-        for i, val in loaded_values:
-            op.body.block.args[i].replace_by(val)
+        def inner_make_body(
+            rewriter: PatternRewriter,
+            insertion_point: InsertPoint,
+            inner_ind_vars: Sequence[BlockArgument],
+            inner_iter_args: Sequence[SSAValue],
+        ):
+            assert not inner_ind_vars
 
-        yield_op = op.body.block.last_op
-        assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
+            # Replace block argument use with load op results
+            for (i, _), arg in zip(outer_loaded_values, inner_iter_args):
+                op.body.block.args[i].replace_by(arg)
 
-        # Erase the yield op, we still have access to its operands
-        rewriter.erase_op(yield_op)
+            yield_op = op.body.block.last_op
+            assert isinstance(yield_op, linalg.YieldOp | memref_stream.YieldOp)
 
-        while op.body.block.args:
-            rewriter.erase_block_argument(op.body.block.args[0])
+            # Erase the yield op, we still have access to its operands
+            rewriter.erase_op(yield_op)
 
-        rewriter.inline_block_at_location(op.body.block, insertion_point)
+            # Inline generic body into innermost scf loop
+            # The operands have already been remapped
 
+            while op.body.block.args:
+                rewriter.erase_block_argument(op.body.block.args[0])
+
+            rewriter.inline_block_at_location(op.body.block, insertion_point)
+
+            return yield_op.operands
+
+        # Insert inner loop nest, from the outtermost loop inwards
+        inner_loop_nest_results = _insert_loop_nest(
+            rewriter,
+            insertion_point,
+            zero_op,
+            one_op,
+            (),
+            tuple(val for _, val in outer_loaded_values),
+            inner_make_body,
+        )
+
+        # Finally, add store ops
         output_indexing_maps = op.indexing_maps.data[-len(op.outputs) :]
         output_operands = op.operands[-len(op.outputs) :]
         _insert_store_ops(
             rewriter,
             insertion_point,
-            ind_vars,
+            outer_ind_vars,
             output_indexing_maps,
-            yield_op.operands,
+            inner_loop_nest_results,
             output_operands,
             store,
         )
 
         return ()
 
+    # Insert outer loop nest, from the outtermost loop inwards
     _insert_loop_nest(
         rewriter,
         InsertPoint.before(op),
@@ -245,7 +254,9 @@ def rewrite_generic_to_loops(
         one_op,
         bound_constant_values,
         (),
-        make_body,
+        outer_make_body,
     )
+
+    # Erase generic
 
     rewriter.erase_matched_op()
