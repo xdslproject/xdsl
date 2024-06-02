@@ -21,7 +21,7 @@ def load(
     source: SSAValue,
     indices: Sequence[SSAValue],
     rewriter: PatternRewriter,
-    target_op: Operation,
+    insert_point: InsertPoint,
 ) -> SSAValue:
     if isinstance(source.type, memref.MemRefType):
         op = memref.Load.get(source, indices)
@@ -29,7 +29,7 @@ def load(
         op = memref_stream.ReadOp(source)
     else:
         return source
-    rewriter.insert_op(op, InsertPoint.before(target_op))
+    rewriter.insert_op(op, insert_point)
     return op.res
 
 

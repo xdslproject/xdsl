@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from xdsl.dialects import linalg, memref
 from xdsl.dialects.builtin import MemRefType, ModuleOp
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import MLContext, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -19,11 +19,11 @@ def load(
     value: SSAValue,
     indices: Sequence[SSAValue],
     rewriter: PatternRewriter,
-    insertion_target: Operation,
+    insertion_target: InsertPoint,
 ) -> SSAValue:
     if isinstance(value.type, MemRefType):
         op = memref.Load.get(value, indices)
-        rewriter.insert_op(op, InsertPoint.before(insertion_target))
+        rewriter.insert_op(op, insertion_target)
         return op.res
     else:
         return value

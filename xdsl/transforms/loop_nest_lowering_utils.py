@@ -17,7 +17,7 @@ from xdsl.rewriter import InsertPoint
 
 def indices_for_map(
     rewriter: PatternRewriter,
-    target_op: Operation,
+    insertion_point: InsertPoint,
     affine_map: AffineMap,
     input_index_vals: Sequence[SSAValue],
 ) -> Sequence[SSAValue]:
@@ -60,7 +60,7 @@ def indices_for_map(
                     new_index_vals,
                     AffineMapAttr(new_affine_map),
                 ),
-                InsertPoint.before(target_op),
+                insertion_point,
             )
 
             output_indices.append(apply_op.result)
@@ -72,7 +72,7 @@ def rewrite_generic_to_loops(
     rewriter: PatternRewriter,
     op: linalg.Generic | memref_stream.GenericOp,
     load: Callable[
-        [SSAValue, Sequence[SSAValue], PatternRewriter, Operation], SSAValue
+        [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
     ],
     store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
 ) -> None:
@@ -97,7 +97,7 @@ def rewrite_generic_to_loops(
     # Insert loop nest, from the outtermost loop inwards
 
     loop_args: list[BlockArgument] = []
-    insertion_target: Operation = op
+    insertion_target = InsertPoint.before(op)
 
     for ub in bound_constant_values:
         loop = scf.For(
@@ -108,8 +108,8 @@ def rewrite_generic_to_loops(
             Region(Block((yield_op := scf.Yield(),), arg_types=(index,))),
         )
         loop_args.append(loop.body.block.args[0])
-        rewriter.insert_op(loop, InsertPoint.before(insertion_target))
-        insertion_target = yield_op
+        rewriter.insert_op(loop, insertion_target)
+        insertion_target = InsertPoint.before(yield_op)
 
     # Add load ops before the innermost scf.yield operation
 
@@ -148,7 +148,7 @@ def rewrite_generic_to_loops(
     while op.body.block.args:
         rewriter.erase_block_argument(op.body.block.args[0])
 
-    rewriter.inline_block(op.body.block, InsertPoint.before(insertion_target))
+    rewriter.inline_block(op.body.block, insertion_target)
 
     # Erase generic
 
