@@ -49,6 +49,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -306,7 +307,7 @@ class BufferOpToMemref(RewritePattern):
         dealloc = memref.Dealloc.get(alloc.memref)
 
         if not op.res.uses:
-            rewriter.insert_op_after(dealloc, op)
+            rewriter.insert_op_after_matched_op(dealloc)
             rewriter.erase_matched_op()
             return
 
@@ -464,7 +465,7 @@ class StencilStoreToSubview(RewritePattern):
             name = subview.source.name_hint + "_storeview"
         subview.result.name_hint = name
         if isinstance(field.owner, Operation):
-            rewriter.insert_op_after(subview, field.owner)
+            rewriter.insert_op(subview, InsertPoint.after(field.owner))
         else:
             rewriter.insert_op_at_start(subview, field.owner)
 

@@ -61,6 +61,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
     AccessOpToMemref,
     CastOpToMemref,
@@ -871,7 +872,7 @@ class StencilStoreToSubview(RewritePattern):
                 name = subview.source.name_hint + "_storeview"
             subview.result.name_hint = name
             if isinstance(field.owner, Operation):
-                rewriter.insert_op_after(subview, field.owner)
+                rewriter.insert_op(subview, InsertPoint.after(field.owner))
             else:
                 rewriter.insert_op_at_start(subview, field.owner)
 

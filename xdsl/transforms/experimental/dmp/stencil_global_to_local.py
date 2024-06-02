@@ -440,7 +440,7 @@ class MpiLoopInvariantCodeMotion:
             op.ref.owner, memref.Alloc
         ):
             op.detach()
-            rewriter.insert_ops_at_location((op,), InsertPoint.after(op.ref.owner))
+            rewriter.insert_ops((op,), InsertPoint.after(op.ref.owner))
             return
 
         base = op
@@ -472,14 +472,12 @@ class MpiLoopInvariantCodeMotion:
             block = parent.regions[0].blocks[-1]
             return_op = block.last_op
             assert return_op is not None
-            rewriter.insert_ops_at_location(
-                (mpi.Finalize(),), InsertPoint.before(return_op)
-            )
+            rewriter.insert_ops((mpi.Finalize(),), InsertPoint.before(return_op))
 
         ops = list(collect_args_recursive(op))
         for found_op in ops:
             found_op.detach()
-            rewriter.insert_ops_at_location((found_op,), InsertPoint.before(base))
+            rewriter.insert_ops((found_op,), InsertPoint.before(base))
 
     def get_matcher(
         self,

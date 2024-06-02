@@ -28,6 +28,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -415,7 +416,7 @@ def test_insert_op_before():
 
             first_op = mod.ops.first
             assert first_op is not None
-            rewriter.insert_op_before(new_cst, first_op)
+            rewriter.insert_op(new_cst, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -444,7 +445,7 @@ def test_insert_op_after():
 
             first_op = mod.ops.first
             assert first_op is not None
-            rewriter.insert_op_after(new_cst, first_op)
+            rewriter.insert_op(new_cst, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -1071,7 +1072,7 @@ def test_move_region_contents_to_new_regions():
             new_region = rewriter.move_region_contents_to_new_regions(old_op.regions[0])
             res_types = [r.type for r in old_op.results]
             new_op = test.TestOp.create(result_types=res_types, regions=[new_region])
-            rewriter.insert_op_after(new_op, old_op)
+            rewriter.insert_op(new_op, InsertPoint.after(old_op))
 
     rewrite_and_compare(
         prog,

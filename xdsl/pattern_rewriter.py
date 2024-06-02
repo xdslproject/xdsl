@@ -8,6 +8,8 @@ from functools import wraps
 from types import UnionType
 from typing import TypeVar, Union, final, get_args, get_origin
 
+from typing_extensions import deprecated
+
 from xdsl.builder import BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
@@ -87,7 +89,7 @@ class PatternRewriter(PatternRewriterListener):
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
-    def insert_op_at_location(
+    def insert_op(
         self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
     ):
         """Insert operations at a certain location in a block."""
@@ -95,38 +97,39 @@ class PatternRewriter(PatternRewriterListener):
         op = (op,) if isinstance(op, Operation) else op
         if not op:
             return
-        Rewriter.insert_ops_at_location(op, insertion_point)
+        Rewriter.insert_ops(op, insertion_point)
 
         for op_ in op:
             self.handle_operation_insertion(op_)
 
     def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations before the matched operation."""
-        self.insert_op_at_location(op, InsertPoint.before(self.current_operation))
+        self.insert_op(op, InsertPoint.before(self.current_operation))
 
     def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations after the matched operation."""
-        self.insert_op_at_location(op, InsertPoint.after(self.current_operation))
+        self.insert_op(op, InsertPoint.after(self.current_operation))
 
     def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations at the end of a block."""
-        self.insert_op_at_location(op, InsertPoint.at_end(block))
+        self.insert_op(op, InsertPoint.at_end(block))
 
     def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations at the start of a block."""
-        self.insert_op_at_location(op, InsertPoint.at_start(block))
+        self.insert_op(op, InsertPoint.at_start(block))
 
     def insert_op_before(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
         """Insert operations before an operation."""
-        self.insert_op_at_location(op, InsertPoint.before(target_op))
+        self.insert_op(op, InsertPoint.before(target_op))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_after(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
         """Insert operations after an operation."""
-        self.insert_op_at_location(op, InsertPoint.after(target_op))
+        self.insert_op(op, InsertPoint.after(target_op))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """

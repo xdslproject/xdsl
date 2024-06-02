@@ -335,7 +335,7 @@ def test_insert_op_before():
         constant = Constant.from_int_and_width(34, i64)
         first_op = module.regions[0].blocks[0].first_op
         assert first_op is not None
-        rewriter.insert_ops_at_location((constant,), InsertPoint.before(first_op))
+        rewriter.insert_ops((constant,), InsertPoint.before(first_op))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -359,7 +359,7 @@ def test_insert_op_after():
         constant = Constant.from_int_and_width(34, i64)
         first_op = module.regions[0].blocks[0].first_op
         assert first_op is not None
-        rewriter.insert_ops_at_location((constant,), InsertPoint.after(first_op))
+        rewriter.insert_ops((constant,), InsertPoint.after(first_op))
 
     rewrite_and_compare(prog, expected, transformation)
 

@@ -11,6 +11,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 
 PIN_CONSTANT_VALS = "pin_to_constants"
@@ -52,7 +53,7 @@ class FunctionConstantPinning(RewritePattern):
         # insert the specialized function after the generic function (the one we matched on)
         rewriter.insert_op_after_matched_op(new_func)
         # insert a compare to the value we specialize and, and branch on if we are equal
-        rewriter.insert_op_after(
+        rewriter.insert_op(
             [
                 cst := arith.Constant(val, split_op.results[0].type),
                 is_eq := arith.Cmpi(split_op.results[0], cst, "eq"),
@@ -74,7 +75,7 @@ class FunctionConstantPinning(RewritePattern):
                     Region(dest_block := Block()),
                 ),
             ],
-            split_op,
+            InsertPoint.after(split_op),
         )
 
         # iterate over the remainder of the function:

@@ -11,6 +11,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 def find_same_target_store(load: memref.Load):
@@ -181,7 +182,7 @@ class LoopHoistMemref(RewritePattern):
             memref.Store.get(new_for_op.res[idx], store.memref, store.indices)
             for idx, store in enumerate(load_store_pairs.values())
         ]
-        rewriter.insert_op_after(new_stores, for_op)
+        rewriter.insert_op(new_stores, InsertPoint.after(for_op))
 
         rewriter.insert_op_before(new_for_op, for_op)
         rewriter.erase_op(for_op)
