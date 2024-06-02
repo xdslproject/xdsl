@@ -521,6 +521,17 @@ class GenericOp(IRDLOperation):
 
         return generic
 
+    def verify_(self) -> None:
+        # Iterator types are in the expected order
+        iterator_types = self.iterator_types.data
+        if not all(
+            a.data <= b.data for a, b in zip(iterator_types, iterator_types[1:])
+        ):
+
+            raise VerifyException(
+                f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
+            )
+
 
 @irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
