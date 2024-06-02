@@ -148,7 +148,7 @@ def rewrite_generic_to_loops(
     while op.body.block.args:
         rewriter.erase_block_argument(op.body.block.args[0])
 
-    rewriter.inline_block_before(op.body.block, insertion_target)
+    rewriter.inline_block(op.body.block, InsertPoint.before(insertion_target))
 
     # Erase generic
 

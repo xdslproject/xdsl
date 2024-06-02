@@ -269,6 +269,7 @@ class PatternRewriter(PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
 
+    @deprecated("Please use `inline_block` instead")
     def inline_block_at_end(
         self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -280,6 +281,7 @@ class PatternRewriter(PatternRewriterListener):
             block, InsertPoint.at_end(target_block), arg_values=arg_values
         )
 
+    @deprecated("Please use `inline_block` instead")
     def inline_block_at_start(
         self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -298,8 +300,11 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations before the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block_before(block, self.current_operation, arg_values=arg_values)
+        self.inline_block(
+            block, InsertPoint.before(self.current_operation), arg_values=arg_values
+        )
 
+    @deprecated("Please use `inline_block` instead")
     def inline_block_before(
         self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
     ):
@@ -316,8 +321,11 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations after the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block_after(block, self.current_operation, arg_values=arg_values)
+        self.inline_block(
+            block, InsertPoint.after(self.current_operation), arg_values=arg_values
+        )
 
+    @deprecated("Please use `inline_block` instead")
     def inline_block_after(
         self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
     ):

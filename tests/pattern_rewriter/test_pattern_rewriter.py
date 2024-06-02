@@ -831,7 +831,7 @@ def test_inline_block_before():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block_before(inner_block, first_op)
+                    rewriter.inline_block(inner_block, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -870,7 +870,9 @@ def test_inline_block_at_before_when_op_is_matched_op():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.inline_block_before(matched_op.regs[0].blocks[0], matched_op)
+                rewriter.inline_block(
+                    matched_op.regs[0].blocks[0], InsertPoint.before(matched_op)
+                )
 
     rewrite_and_compare(
         prog,
@@ -924,8 +926,8 @@ def test_inline_block_before_with_args():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block_before(
-                        inner_block, first_op, outer_block.args
+                    rewriter.inline_block(
+                        inner_block, InsertPoint.before(first_op), outer_block.args
                     )
 
     rewrite_and_compare(
@@ -977,7 +979,7 @@ def test_inline_block_after():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_block, first_op)
+                        rewriter.inline_block(inner_block, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -1028,7 +1030,9 @@ def test_inline_block_after_matched():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_block, matched_op)
+                        rewriter.inline_block(
+                            inner_block, InsertPoint.after(matched_op)
+                        )
 
     rewrite_and_compare(
         prog,
