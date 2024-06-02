@@ -1015,7 +1015,9 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
                 for data_stream in self.data_streams:
                     data_stream.op.detach()
-                    rewriter.insert_op_before(data_stream.op, parent_dataflow)
+                    rewriter.insert_op(
+                        data_stream.op, InsertPoint.before(parent_dataflow)
+                    )
 
 
 @dataclass

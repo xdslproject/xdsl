@@ -1140,7 +1140,7 @@ def test_insert_same_block():
             # Allocate before first use
             rewriter.insert_op_at_start(alloc, block)
             # Deallocate after last use
-            rewriter.insert_op_before(dealloc, last_op)
+            rewriter.insert_op(dealloc, InsertPoint.before(last_op))
             # Init instead of creating, and replace result with allocated value
             rewriter.replace_matched_op(init, alloc.res)
 

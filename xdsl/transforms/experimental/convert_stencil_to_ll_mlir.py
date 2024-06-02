@@ -299,8 +299,8 @@ class BufferOpToMemref(RewritePattern):
             [1] * temp_t.get_num_dims(),
         )
 
-        rewriter.insert_op_before(alloc, first_op)
-        rewriter.insert_op_before(view, first_op)
+        rewriter.insert_op(alloc, InsertPoint.before(first_op))
+        rewriter.insert_op(view, InsertPoint.before(first_op))
 
         update_return_target(self.return_targets, op.temp, view.result)
 
@@ -311,7 +311,7 @@ class BufferOpToMemref(RewritePattern):
             rewriter.erase_matched_op()
             return
 
-        rewriter.insert_op_before(dealloc, last_op)
+        rewriter.insert_op(dealloc, InsertPoint.before(last_op))
         rewriter.replace_matched_op([], [view.result])
 
 

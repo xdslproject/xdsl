@@ -12,6 +12,7 @@ from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import (
     PatternRewriter,
 )
+from xdsl.rewriter import InsertPoint
 
 
 def indices_for_map(
@@ -54,12 +55,12 @@ def indices_for_map(
                 new_index_vals = tuple(compress(new_index_vals, selectors))
                 new_affine_map = new_affine_map.compress_dims(selectors)
 
-            rewriter.insert_op_before(
+            rewriter.insert_op(
                 apply_op := affine.ApplyOp(
                     new_index_vals,
                     AffineMapAttr(new_affine_map),
                 ),
-                target_op,
+                InsertPoint.before(target_op),
             )
 
             output_indices.append(apply_op.result)
@@ -107,7 +108,7 @@ def rewrite_generic_to_loops(
             Region(Block((yield_op := scf.Yield(),), arg_types=(index,))),
         )
         loop_args.append(loop.body.block.args[0])
-        rewriter.insert_op_before(loop, insertion_target)
+        rewriter.insert_op(loop, InsertPoint.before(insertion_target))
         insertion_target = yield_op
 
     # Add load ops before the innermost scf.yield operation
@@ -135,7 +136,7 @@ def rewrite_generic_to_loops(
         affine_map = affine_map_attr.data
         indices = indices_for_map(rewriter, insertion_target, affine_map, loop_args)
         store_op = store(yield_value, ref, indices)
-        rewriter.insert_op_before(store_op, yield_op)
+        rewriter.insert_op(store_op, InsertPoint.before(yield_op))
 
     # Now that the linalg yield op operands have been converted to stores, remove
 

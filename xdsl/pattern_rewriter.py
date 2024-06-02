@@ -118,6 +118,7 @@ class PatternRewriter(PatternRewriterListener):
         """Insert operations at the start of a block."""
         self.insert_op(op, InsertPoint.at_start(block))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_before(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
@@ -194,7 +195,7 @@ class PatternRewriter(PatternRewriterListener):
             new_ops = [new_ops]
 
         # First, insert the new operations before the matched operation
-        self.insert_op_before(new_ops, op)
+        self.insert_op(new_ops, InsertPoint.before(op))
 
         if isinstance(new_ops, Operation):
             new_ops = [new_ops]
