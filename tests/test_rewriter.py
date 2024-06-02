@@ -159,7 +159,7 @@ def test_inline_block_at_end():
         module_block = module.regions[0].blocks[0]
         test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_at_location(test_block, InsertPoint.at_end(module_block))
+        rewriter.inline_block(test_block, InsertPoint.at_end(module_block))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -191,7 +191,7 @@ def test_inline_block_before():
         test_op = next(ops_iter)
         test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_at_location(test_block, InsertPoint.before(test_op))
+        rewriter.inline_block(test_block, InsertPoint.before(test_op))
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -223,7 +223,7 @@ def test_inline_block_after():
         test_op = next(ops_iter)
         test_block = test_op.regions[0].blocks[0]
 
-        rewriter.inline_block_at_location(test_block, InsertPoint.after(constant_op))
+        rewriter.inline_block(test_block, InsertPoint.after(constant_op))
 
     rewrite_and_compare(prog, expected, transformation)
 

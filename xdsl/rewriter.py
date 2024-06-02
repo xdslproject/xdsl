@@ -120,7 +120,7 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
-    def inline_block_at_location(
+    def inline_block(
         source: Block, insertion_point: InsertPoint, arg_values: Sequence[SSAValue] = ()
     ):
         """
@@ -179,7 +179,7 @@ class Rewriter:
             parent_region.detach_block(source)
         source.erase()
 
-    @deprecated("Please use `inline_block_at_location` instead")
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_at_end(
         inlined_block: Block, extended_block: Block, arg_values: Sequence[SSAValue] = ()
@@ -189,11 +189,11 @@ class Rewriter:
         This block should not be a parent of the block to move to.
         The block operations should not use the block arguments.
         """
-        Rewriter.inline_block_at_location(
+        Rewriter.inline_block(
             inlined_block, InsertPoint.at_end(extended_block), arg_values=arg_values
         )
 
-    @deprecated("Please use `inline_block_at_location` instead")
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_at_start(
         inlined_block: Block, extended_block: Block, arg_values: Sequence[SSAValue] = ()
@@ -203,20 +203,18 @@ class Rewriter:
         This block should not be a parent of the block to move to.
         The block operations should not use the block arguments.
         """
-        Rewriter.inline_block_at_location(
+        Rewriter.inline_block(
             inlined_block, InsertPoint.at_start(extended_block), arg_values=arg_values
         )
 
-    @deprecated("Please use `inline_block_at_location` instead")
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_before(
         source: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
     ):
-        Rewriter.inline_block_at_location(
-            source, InsertPoint.before(op), arg_values=arg_values
-        )
+        Rewriter.inline_block(source, InsertPoint.before(op), arg_values=arg_values)
 
-    @deprecated("Please use `inline_block_at_location` instead")
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_after(
         block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
@@ -226,9 +224,7 @@ class Rewriter:
         The block should not be a parent of the operation.
         The block operations should not use the block arguments.
         """
-        Rewriter.inline_block_at_location(
-            block, InsertPoint.after(op), arg_values=arg_values
-        )
+        Rewriter.inline_block(block, InsertPoint.after(op), arg_values=arg_values)
 
     @staticmethod
     def insert_block_after(block: Block | list[Block], target: Block):
