@@ -268,13 +268,13 @@ class Rewriter:
         else:
             insertion_point.block.add_ops(ops)
 
-    @deprecated("Please use `insert_op_at_location` instead")
+    @deprecated("Please use `insert_ops` instead")
     @staticmethod
     def insert_op_after(op: Operation, new_op: Operation):
         """Inserts a new operation after another operation."""
         Rewriter.insert_ops((new_op,), InsertPoint.after(op))
 
-    @deprecated("Please use `insert_op_at_location` instead")
+    @deprecated("Please use `insert_ops` instead")
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
         """Inserts a new operation before another operation."""
