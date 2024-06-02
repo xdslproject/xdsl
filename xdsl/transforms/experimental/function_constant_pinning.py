@@ -89,13 +89,15 @@ class FunctionConstantPinning(RewritePattern):
                 # detatch the function
                 function_remainder.detach()
                 # re-insert it inside the else block of the if statement
-                rewriter.insert_op_at_end(function_remainder, dest_block)
+                rewriter.insert_op(function_remainder, InsertPoint.at_end(dest_block))
                 # go to next op
                 function_remainder = next_op
                 next_op = function_remainder.next_op
 
         # insert a yield that yields the return values
-        rewriter.insert_op_at_end(scf.Yield(*function_remainder.operands), dest_block)
+        rewriter.insert_op(
+            scf.Yield(*function_remainder.operands), InsertPoint.at_end(dest_block)
+        )
         # return the results of the scf.if
         rewriter.replace_op(function_remainder, func.Return(*scf_if.results))
 

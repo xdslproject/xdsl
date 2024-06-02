@@ -467,7 +467,7 @@ class StencilStoreToSubview(RewritePattern):
         if isinstance(field.owner, Operation):
             rewriter.insert_op(subview, InsertPoint.after(field.owner))
         else:
-            rewriter.insert_op_at_start(subview, field.owner)
+            rewriter.insert_op(subview, InsertPoint.at_start(field.owner))
 
         rewriter.erase_matched_op()
 

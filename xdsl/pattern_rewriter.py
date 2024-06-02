@@ -110,10 +110,12 @@ class PatternRewriter(PatternRewriterListener):
         """Insert operations after the matched operation."""
         self.insert_op(op, InsertPoint.after(self.current_operation))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations at the end of a block."""
         self.insert_op(op, InsertPoint.at_end(block))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations at the start of a block."""
         self.insert_op(op, InsertPoint.at_start(block))

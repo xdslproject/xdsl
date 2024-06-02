@@ -387,7 +387,7 @@ def test_insert_op_at_start():
         def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
             new_cst = Constant.from_int_and_width(42, i32)
 
-            rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
+            rewriter.insert_op(new_cst, InsertPoint.at_start(mod.regions[0].blocks[0]))
 
     rewrite_and_compare(
         prog,
@@ -1138,7 +1138,7 @@ def test_insert_same_block():
             )
 
             # Allocate before first use
-            rewriter.insert_op_at_start(alloc, block)
+            rewriter.insert_op(alloc, InsertPoint.at_start(block))
             # Deallocate after last use
             rewriter.insert_op(dealloc, InsertPoint.before(last_op))
             # Init instead of creating, and replace result with allocated value
