@@ -418,6 +418,21 @@ class CslPrintContext:
                             # If specified, get mutability as true/false from python bool
                             mut = str(val[1]).lower() if val[1] is not None else ""
                             inner.print(f'@export_name("{name}", {ty}, {mut});')
+                case csl.ConstStructOp(
+                    items=items, ssa_fields=fields, ssa_values=values, res=res
+                ):
+                    items = items or DictionaryAttr({})
+                    fields = fields or ArrayAttr([])
+                    # First print the fields defined by attributes
+                    self.print(f"{self._var_use(res)} = .{{")
+                    for k, v in items.data.items():
+                        v = self.attribute_value_to_str(v)
+                        self.print(f".{k} = {v},", prefix=self._INDENT)
+                    # Then the fields defined by operands, with their corresponding names
+                    for k, v in zip(fields.data, values):
+                        v = self._get_variable_name_for(v)
+                        self.print(f".{k.data} = {v},", prefix=self._INDENT)
+                    self.print("};")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
