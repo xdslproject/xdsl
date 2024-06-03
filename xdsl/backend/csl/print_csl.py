@@ -440,6 +440,25 @@ class CslPrintContext:
                         v = self._get_variable_name_for(v)
                         self.print(f".{k.data} = {v},", prefix=self._INDENT)
                     self.print("};")
+                case csl.SetTileCodeOp(
+                    file=file, x_coord=x_coord, y_coord=y_coord, params=params
+                ):
+                    file = self.attribute_value_to_str(file)
+                    x = self._get_variable_name_for(x_coord)
+                    y = self._get_variable_name_for(y_coord)
+                    params = self._get_variable_name_for(params) if params else ""
+                    self.print(f"@set_tile_code({x}, {y}, {file}, {params});")
+                case csl.SetRectangleOp(x_dim=x_dim, y_dim=y_dim):
+                    x = self._get_variable_name_for(x_dim)
+                    y = self._get_variable_name_for(y_dim)
+                    self.print(f"@set_rectangle({x}, {y});")
+                case csl.GetColorOp(id=id, res=res):
+                    id = self.attribute_value_to_str(id)
+                    self.print(f"{self._var_use(res)} = @get_color({id});")
+                case csl.RpcOp(id=id):
+                    id = self._get_variable_name_for(id)
+                    with self.descend("comptime") as inner:
+                        inner.print(f"@rpc(@get_data_task_id({id}));")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
