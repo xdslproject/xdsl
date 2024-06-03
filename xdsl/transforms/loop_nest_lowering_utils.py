@@ -167,9 +167,12 @@ def _insert_store_ops(
     store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
 ):
     """
-    Inserts the load operations at the specified insertion point.
+    Inserts the store operations at the specified insertion point.
     The `ind_vars` are the induction variables for this loop nest, corresponding to the
     domain of the affine maps.
+    The `yield_operands` are the operands of the yield operation that is being replaced
+    with stores.
+    The `output_operands` are the structures to store into.
     The `output_indexing_maps`, `yield_operands`, and `output_operands` must have the same length.
     """
     for affine_map_attr, yield_value, ref in zip(
