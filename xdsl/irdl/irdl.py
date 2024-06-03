@@ -429,6 +429,113 @@ class MessageConstraint(AttrConstraint):
         return self.constr.infer(constraint_vars)
 
 
+class RangeConstraint(ABC):
+
+    @abstractmethod
+    def verify(
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+    ) -> None:
+        """
+        Check if the range satisfies the constraint, or raise an exception otherwise.
+        The range can contain Nones, which represent an attribute not to be checked.
+        """
+        ...
+
+    def get_resolved_variables(self) -> set[str]:
+        """
+        Get the set of type variables that are always resolved when verifying
+        the constraint.
+        """
+        return set()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        """
+        Check if there is enough information to infer the range given the
+        constraint variables that are already set.
+        """
+        # By default, we cannot infer anything.
+        return False
+
+    def infer(
+        self, length: int, constraint_vars: dict[str, Attribute]
+    ) -> list[Attribute]:
+        """
+        Infer the range given the constraint variables that are already set.
+
+        Raises an exception if the range cannot be inferred. If `can_infer`
+        returns `True` with the given constraint variables, this method should
+        not raise an exception.
+        """
+        raise ValueError("Cannot infer range from constraint")
+
+
+@dataclass
+class RangeOf(RangeConstraint):
+    """
+    Constrain each element in a range to satisfy a given constraint.
+    """
+
+    constr: AttrConstraint
+
+    def verify(
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+    ) -> None:
+        for a in attrs:
+            self.constr.verify(a, constraint_vars)
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constr.can_infer(constraint_names)
+
+    def infer(
+        self, length: int, constraint_vars: dict[str, Attribute]
+    ) -> list[Attribute]:
+        return [self.constr.infer(constraint_vars)] * length
+
+
+@dataclass
+class SingleOf(RangeConstraint):
+    """
+    Constrain a range to only contain a single element, which should satisfy a given constraint.
+    """
+
+    constr: AttrConstraint
+
+    def verify(
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
+    ) -> None:
+        if len(attrs) != 1:
+            raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
+        self.constr.verify(attrs[0], constraint_vars)
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.constr.can_infer(constraint_names)
+
+    def infer(
+        self, length: int, constraint_vars: dict[str, Attribute]
+    ) -> list[Attribute]:
+        return [self.constr.infer(constraint_vars)]
+
+
+def range_constr_coercion(
+    attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint,
+) -> RangeConstraint:
+    if isinstance(attr, RangeConstraint):
+        return attr
+    return RangeOf(attr_constr_coercion(attr))
+
+
+def single_range_constr_coercion(
+    attr: Attribute | type[Attribute] | AttrConstraint,
+) -> RangeConstraint:
+    return SingleOf(attr_constr_coercion(attr))
+
+
 def _irdl_list_to_attr_constraint(
     pyrdl_constraints: Sequence[Any],
     *,
@@ -816,11 +923,11 @@ class OptionalDef(VariadicDef):
 class OperandDef(OperandOrResultDef):
     """An IRDL operand definition."""
 
-    constr: AttrConstraint
+    constr: RangeConstraint
     """The operand constraint."""
 
     def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
-        self.constr = attr_constr_coercion(attr)
+        self.constr = single_range_constr_coercion(attr)
 
 
 Operand: TypeAlias = SSAValue
@@ -829,6 +936,11 @@ Operand: TypeAlias = SSAValue
 @dataclass(init=False)
 class VarOperandDef(OperandDef, VariadicDef):
     """An IRDL variadic operand definition."""
+
+    def __init__(
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+    ):
+        self.constr = range_constr_coercion(attr)
 
 
 VarOperand: TypeAlias = list[SSAValue]
@@ -846,16 +958,23 @@ OptOperand: TypeAlias = SSAValue | None
 class ResultDef(OperandOrResultDef):
     """An IRDL result definition."""
 
-    constr: AttrConstraint
+    constr: RangeConstraint
     """The result constraint."""
 
-    def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
-        self.constr = attr_constr_coercion(attr)
+    def __init__(
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+    ):
+        self.constr = range_constr_coercion(attr)
 
 
 @dataclass(init=False)
 class VarResultDef(ResultDef, VariadicDef):
     """An IRDL variadic result definition."""
+
+    def __init__(
+        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+    ):
+        self.constr = range_constr_coercion(attr)
 
 
 VarOpResult: TypeAlias = list[OpResult]
@@ -1513,10 +1632,10 @@ class OpDef:
         irdl_op_verify_arg_list(op, self, VarIRConstruct.RESULT, constraint_vars)
 
         # Verify regions.
-        irdl_op_verify_arg_list(op, self, VarIRConstruct.REGION, constraint_vars)
+        irdl_op_verify_regions(op, self)
 
         # Verify successors.
-        irdl_op_verify_arg_list(op, self, VarIRConstruct.SUCCESSOR, constraint_vars)
+        get_variadic_sizes(op, self, VarIRConstruct.SUCCESSOR)
 
         # Verify properties.
         for prop_name, attr_def in self.properties.items():
@@ -1805,51 +1924,61 @@ def get_operand_result_or_region(
         return args[begin_arg]
 
 
+def irdl_op_verify_regions(op: Operation, op_def: OpDef):
+    get_variadic_sizes(op, op_def, VarIRConstruct.REGION)
+    for i, (region, (name, region_def)) in enumerate(zip(op.regions, op_def.regions)):
+        if isinstance(region_def, SingleBlockRegionDef) and len(region.blocks) != 1:
+            raise VerifyException(
+                f"Region '{name}' at position {i} expected a single block, but got "
+                f"{len(region.blocks)} blocks"
+            )
+
+
 def irdl_op_verify_arg_list(
     op: Operation,
     op_def: OpDef,
-    construct: VarIRConstruct,
+    construct: Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT],
     constraint_vars: dict[str, Attribute],
 ) -> None:
     """Verify the argument list of an operation."""
     arg_sizes = get_variadic_sizes(op, op_def, construct)
     arg_idx = 0
     var_idx = 0
-    args = get_op_constructs(op, construct)
+    args = cast(
+        Sequence[SSAValue] | Sequence[OpResult], get_op_constructs(op, construct)
+    )
+    args_defs = cast(
+        Sequence[tuple[str, ResultDef]] | Sequence[tuple[str, OperandDef]],
+        get_construct_defs(op_def, construct),
+    )
 
-    def verify_arg(arg: Any, arg_def: Any, arg_idx: int) -> None:
+    def verify_sequence(
+        arg: Sequence[SSAValue], arg_def: ResultDef | OperandDef, arg_idx: int
+    ) -> None:
         """Verify a single argument."""
         try:
-            if (
-                construct == VarIRConstruct.OPERAND
-                or construct == VarIRConstruct.RESULT
-            ):
-                arg_def.constr.verify(arg.type, constraint_vars)
-            elif construct == VarIRConstruct.REGION:
-                if isinstance(arg_def, SingleBlockRegionDef) and len(arg.blocks) != 1:
-                    raise VerifyException(
-                        "expected a single block, but got " f"{len(arg.blocks)} blocks"
-                    )
-            elif construct == VarIRConstruct.SUCCESSOR:
-                pass
-            else:
-                assert False, "Unknown VarIRConstruct value"
+            arg_def.constr.verify(tuple(a.type for a in arg), constraint_vars)
         except Exception as e:
+            if len(arg) == 1:
+                pos = f"{arg_idx}"
+            else:
+                pos = f"{arg_idx} to {arg_idx + len(arg) - 1}"
             error(
                 op,
                 f"{get_construct_name(construct)} at position "
-                f"{arg_idx} does not verify:\n{e}",
+                f"{pos} does not verify:\n{e}",
                 e,
             )
 
-    for def_idx, (_, arg_def) in enumerate(get_construct_defs(op_def, construct)):
+    for def_idx, (_, arg_def) in enumerate(args_defs):
         if isinstance(arg_def, VariadicDef):
-            for _ in range(arg_sizes[var_idx]):
-                verify_arg(args[arg_idx], arg_def, def_idx)
-                arg_idx += 1
+            verify_sequence(
+                args[arg_idx : arg_idx + arg_sizes[var_idx]], arg_def, def_idx
+            )
+            arg_idx += arg_sizes[var_idx]
             var_idx += 1
         else:
-            verify_arg(args[arg_idx], arg_def, def_idx)
+            verify_sequence((args[arg_idx],), arg_def, def_idx)
             arg_idx += 1
 
 
