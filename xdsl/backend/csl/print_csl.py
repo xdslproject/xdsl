@@ -261,10 +261,16 @@ class CslPrintContext:
         match attr:
             case IntAttr(data=val):
                 return str(val)
+            case IntegerAttr(
+                value=val, type=IntegerType(width=IntAttr(data=width))
+            ) if width == 1:
+                return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
                 return str(val.data)
             case FloatAttr(value=val):
                 return str(val.data)
+            case StringAttr() as s:
+                return f'"{s.data}"'
             case _:
                 return f"<!unknown value {attr}>"
 
