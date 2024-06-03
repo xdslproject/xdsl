@@ -521,6 +521,15 @@ class GenericOp(IRDLOperation):
 
         return generic
 
+    def verify_(self) -> None:
+        # Parallel iterator types must preceed reduction iterators
+        iterator_types = self.iterator_types.data
+        num_parallel = iterator_types.count(IteratorTypeAttr.parallel())
+        if IteratorTypeAttr.parallel() in iterator_types[num_parallel:]:
+            raise VerifyException(
+                f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
+            )
+
 
 @irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
