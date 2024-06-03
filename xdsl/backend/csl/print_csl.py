@@ -6,8 +6,10 @@ from typing import IO, Literal, cast
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     ContainerType,
     DenseIntOrFPElementsAttr,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -197,8 +199,14 @@ class CslPrintContext:
         - float types: f16, f32
         - pointers: [*]f32
         - arrays: [64]f32
+        - function: fn(i32) f16
+        - color
+        - comptime_struct
+        - imported_module
+        - type
+        - comptime_string
 
-        This method does not yet support all the types and will be expanded as needed later.
+        This method supports all of these except type and comptime_string
         """
         match type_attr:
             case csl.ComptimeStructType():
@@ -240,6 +248,8 @@ class CslPrintContext:
                 args = map(self.mlir_type_to_csl_type, inp)
                 ret = self.mlir_type_to_csl_type(out.data[0]) if len(out) else "void"
                 return f"fn({', '.join(args)}) {ret}"
+            case csl.ColorType():
+                return "color"
             case _:
                 return f"<!unknown type {type_attr}>"
 
