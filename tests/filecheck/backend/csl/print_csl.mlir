@@ -39,6 +39,21 @@
     csl.return
   }
 
+  csl.func @casts() {
+    %constI32 = arith.constant 0 : i32
+    %constU16 = arith.constant 0 : ui16
+    %constF32 = arith.constant 0 : f32
+    %castIndex = "arith.index_cast"(%constU16) : (ui16) -> index
+    %castF16 = "arith.sitofp"(%constI32) : (i32) -> f16
+    %castI16 = "arith.fptosi"(%constF32) : (f32) -> i16
+    %castF32 = "arith.extf"(%castF16) : (f16) -> f32
+    %castF16again = "arith.truncf"(%constF32) : (f32) -> f16
+    %castI16again = "arith.trunci"(%constI32) : (i32) -> i16
+    %castI32again = "arith.extsi"(%castI16) : (i16) -> i32
+    %castU32 = "arith.extui"(%constU16)  : (ui16) -> ui32
+    csl.return
+  }
+
 
   csl.task @data_task(%arg: f32) attributes {kind = #csl<task_kind data>, id = 0 : i5} {
     csl.return
@@ -249,6 +264,21 @@ csl.func @gemv() {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
+// CHECK-NEXT: fn casts() void {
+// CHECK-NEXT:   const constI32 : i32 = 0;
+// CHECK-NEXT:   const constU16 : u16 = 0;
+// CHECK-NEXT:   const constF32 : f32 = 0.0;
+// CHECK-NEXT:   const castIndex : i32 = @as(i32, constU16);
+// CHECK-NEXT:   const castF16 : f16 = @as(f16, constI32);
+// CHECK-NEXT:   const castI16 : i16 = @as(i16, constF32);
+// CHECK-NEXT:   const castF32 : f32 = @as(f32, castF16);
+// CHECK-NEXT:   const castF16again : f16 = @as(f16, constF32);
+// CHECK-NEXT:   const castI16again : i16 = @as(i16, constI32);
+// CHECK-NEXT:   const castI32again : i32 = @as(i32, castI16);
+// CHECK-NEXT:   const castU32 : u32 = @as(u32, constU16);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
 // CHECK-NEXT: task data_task(arg : f32) void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
@@ -285,11 +315,11 @@ csl.func @gemv() {
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
 
-// CHECK-NEXT: //unknown op AddressOfOp(%uninit_ptr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>)
-// CHECK-NEXT: //unknown op AddressOfOp(%global_ptr = "csl.addressof"(%global_array) : (memref<10xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>)
-// CHECK-NEXT: //unknown op AddressOfOp(%const_ptr = "csl.addressof"(%const_array) : (memref<10xi32>) -> !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>)
-// CHECK-NEXT: //unknown op AddressOfOp(%ptr_to_arr = "csl.addressof"(%uninit_array) : (memref<10xf32>) -> !csl.ptr<memref<10xf32>, #csl<ptr_kind single>, #csl<ptr_const var>>)
-// CHECK-NEXT: //unknown op AddressOfOp(%ptr_to_val = "csl.addressof"(%const27) : (i16) -> !csl.ptr<i16, #csl<ptr_kind single>, #csl<ptr_const const>>)
+// CHECK-NEXT: var uninit_ptr : [*]f32 = &uninit_array;
+// CHECK-NEXT: var global_ptr : [*]f32 = &global_array;
+// CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
+// CHECK-NEXT: var ptr_to_arr : *[10]f32 = &uninit_array;
+// CHECK-NEXT: const ptr_to_val : *const i16 = &const27;
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(global_ptr, "ptr_name");
 // CHECK-NEXT: }
@@ -323,25 +353,25 @@ csl.func @gemv() {
 // CHECK-NEXT:   const u32cst : u32 = 44;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
-// CHECK-NEXT:     //unknown op SIToFPOp(%idx_f32 = arith.sitofp %idx : i16 to f32
-// CHECK-NEXT:     //unknown op IndexCastOp(%idx_index = "arith.index_cast"(%idx) : (i16) -> index)
-// CHECK-NEXT:     //unknown op Store(memref.store %idx_f32, %A[%idx_index] : memref<24xf32>)
+// CHECK-NEXT:     const idx_f32 : f32 = @as(f32, idx);
+// CHECK-NEXT:     const idx_index : i32 = @as(i32, idx);
+// CHECK-NEXT:     A[idx_index] = idx_f32;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   const ub3 : i16 = 6;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub3, step)) |j| {
 // CHECK-NEXT:     const val : f32 = 1.0;
-// CHECK-NEXT:     //unknown op IndexCastOp(%j_idx = "arith.index_cast"(%j) : (i16) -> index)
-// CHECK-NEXT:     //unknown op Store(memref.store %val, %x[%j_idx] : memref<6xf32>)
+// CHECK-NEXT:     const j_idx : i32 = @as(i32, j);
+// CHECK-NEXT:     x[j_idx] = val;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   const ub4 : i16 = 6;
 // CHECK-NEXT:
 // CHECK-NEXT:   for(@range(i16, lb, ub4, step)) |i| {
 // CHECK-NEXT:     const c2 : f32 = 2.0;
 // CHECK-NEXT:     const c0 : f32 = 0.0;
-// CHECK-NEXT:     //unknown op IndexCastOp(%i_idx = "arith.index_cast"(%i) : (i16) -> index)
-// CHECK-NEXT:     //unknown op Store(memref.store %c2, %b[%i_idx] : memref<4xf32>)
-// CHECK-NEXT:     //unknown op Store(memref.store %c0, %y[%i_idx] : memref<4xf32>)
+// CHECK-NEXT:     const i_idx : i32 = @as(i32, i);
+// CHECK-NEXT:     b[i_idx] = c2;
+// CHECK-NEXT:     y[i_idx] = c0;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
@@ -357,16 +387,13 @@ csl.func @gemv() {
 // CHECK-NEXT:     var tmp2 : f32 = tmp;
 // CHECK-NEXT:
 // CHECK-NEXT:     for(@range(i32, lb, ub, step)) |j| {
-// CHECK-NEXT:       //unknown op Muli(%ix6 = arith.muli %i, %ub : index)
-// CHECK-NEXT:       //unknown op Addi(%ix6pj = arith.addi %ix6, %j : index)
-// CHECK-NEXT:       //unknown op Load(%A_loaded = memref.load %A[%ix6pj] : memref<24xf32>)
-// CHECK-NEXT:       //unknown op Load(%x_loaded = memref.load %x[%j] : memref<6xf32>)
-// CHECK-NEXT:       //unknown op Mulf(%Axx = arith.mulf %A_loaded, %x_loaded : f32)
-// CHECK-NEXT:       //unknown op Addf(%tmp_next = arith.addf %tmp_iter, %Axx : f32)
+// CHECK-NEXT:       const ix6 : i32 = i * ub;
+// CHECK-NEXT:       const ix6pj : i32 = ix6 +  j;
+// CHECK-NEXT:       const Axx : f32 = (A[ix6pj]) * (x[j]);
+// CHECK-NEXT:       tmp2 = tmp2 + Axx;
 // CHECK-NEXT:     }
-// CHECK-NEXT:     //unknown op Load(%bi = memref.load %b[%i] : memref<4xf32>)
-// CHECK-NEXT:     //unknown op Addf(%tmp_plus_bi = arith.addf %tmp, %bi : f32)
-// CHECK-NEXT:     //unknown op Store(memref.store %tmp_plus_bi, %y[%i] : memref<4xf32>)
+// CHECK-NEXT:     const tmp_plus_bi : f32 =  tmp2 + (b[i]);
+// CHECK-NEXT:     y[i] = tmp_plus_bi;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
@@ -383,10 +410,10 @@ csl.func @gemv() {
 // CHECK-NEXT:   //unknown op ConstStructOp(%params = "csl.const_struct"() <{"items" = {"hello" = 123 : i32}}> : () -> !csl.comptime_struct)
 // CHECK-NEXT:   const x_coord1 : i32 = 1;
 // CHECK-NEXT:   //unknown op SetTileCodeOp("csl.set_tile_code"(%x_coord1, %y_coord, %params) <{"file" = "file.csl"}> : (i32, i32, !csl.comptime_struct) -> ())
-// CHECK-NEXT:   @export_name("ptr_name", <!unknown value !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>>, true);
-// CHECK-NEXT:   @export_name("another_ptr", <!unknown value !csl.ptr<i32, #csl<ptr_kind many>, #csl<ptr_const const>>>, false);
-// CHECK-NEXT:   @export_name("no_args_no_return", <!unknown value () -> ()>, );
-// CHECK-NEXT:   @export_name("args_no_return", <!unknown value (i32, i32) -> ()>, );
+// CHECK-NEXT:   @export_name("ptr_name", [*]f32, true);
+// CHECK-NEXT:   @export_name("another_ptr", [*]const i32, false);
+// CHECK-NEXT:   @export_name("no_args_no_return", fn() void, );
+// CHECK-NEXT:   @export_name("args_no_return", fn(i32, i32) void, );
 // CHECK-NEXT: }
 
 // CHECK-EMPTY:

@@ -13,6 +13,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.loop_nest_lowering_utils import rewrite_generic_to_loops
 
 
@@ -20,7 +21,7 @@ def load(
     source: SSAValue,
     indices: Sequence[SSAValue],
     rewriter: PatternRewriter,
-    target_op: Operation,
+    insert_point: InsertPoint,
 ) -> SSAValue:
     if isinstance(source.type, memref.MemRefType):
         op = memref.Load.get(source, indices)
@@ -28,7 +29,7 @@ def load(
         op = memref_stream.ReadOp(source)
     else:
         return source
-    rewriter.insert_op_before(op, target_op)
+    rewriter.insert_op_at_location(op, insert_point)
     return op.res
 
 
