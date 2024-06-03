@@ -43,7 +43,7 @@
     %constI32 = arith.constant 0 : i32
     %constU16 = arith.constant 0 : ui16
     %constF32 = arith.constant 0 : f32
-    %castIndex = "arith.index_cast"(%constF32) : (f32) -> index
+    %castIndex = "arith.index_cast"(%constU16) : (ui16) -> index
     %castF16 = "arith.sitofp"(%constI32) : (i32) -> f16
     %castI16 = "arith.fptosi"(%constF32) : (f32) -> i16
     %castF32 = "arith.extf"(%castF16) : (f16) -> f32
@@ -268,7 +268,7 @@ csl.func @gemv() {
 // CHECK-NEXT:   const constI32 : i32 = 0;
 // CHECK-NEXT:   const constU16 : u16 = 0;
 // CHECK-NEXT:   const constF32 : f32 = 0.0;
-// CHECK-NEXT:   const castIndex : i32 = @as(i32, constF32);
+// CHECK-NEXT:   const castIndex : i32 = @as(i32, constU16);
 // CHECK-NEXT:   const castF16 : f16 = @as(f16, constI32);
 // CHECK-NEXT:   const castI16 : i16 = @as(i16, constF32);
 // CHECK-NEXT:   const castF32 : f32 = @as(f32, castF16);
