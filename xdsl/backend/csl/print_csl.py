@@ -418,6 +418,13 @@ class CslPrintContext:
                             # If specified, get mutability as true/false from python bool
                             mut = str(val[1]).lower() if val[1] is not None else ""
                             inner.print(f'@export_name("{name}", {ty}, {mut});')
+                case csl.ParamOp(init_value=init, param_name=name, res=res):
+                    if init is None:
+                        init = ""
+                    else:
+                        init = f" = { self.attribute_value_to_str(init)}"
+                    ty = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"param {name.data} : {ty}{init};")
                 case csl.ConstStructOp(
                     items=items, ssa_fields=fields, ssa_values=values, res=res
                 ):
