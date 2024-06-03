@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, TypeAlias, TypeVar
+from typing import Annotated, ClassVar, TypeAlias, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
@@ -894,7 +894,9 @@ class SetDsdStrideOp(IRDLOperation):
 
 class _BuiltinDsdOpBase(IRDLOperation, ABC):
     ops = var_operand_def()
-    signature: list[tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]]
+    signature: ClassVar[
+        list[tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]]
+    ]
 
     def verify_(self) -> None:
         def typcheck(
@@ -917,7 +919,9 @@ class _BuiltinDsdOpBase(IRDLOperation, ABC):
 class FaddsOp(_BuiltinDsdOpBase):
     name = "csl.fadds"
 
-    signature = [
+    signature: ClassVar[
+        list[tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]]
+    ] = [
         (DsdType, DsdType, DsdType),
         (DsdType, Float16Type, DsdType),
         (DsdType, DsdType, Float16Type),
