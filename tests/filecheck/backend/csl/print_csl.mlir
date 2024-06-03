@@ -246,10 +246,15 @@ csl.func @gemv() {
 // CHECK-NEXT: fn args_no_return(a : i32, b : i32) void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
-// CHECK-NEXT: //unknown op ConstStructOp(%empty_struct = "csl.const_struct"() : () -> !csl.comptime_struct)
-// CHECK-NEXT: //unknown op ConstStructOp(%attribute_struct = "csl.const_struct"() <{"items" = {"hello" = 1.230000e+02 : f32}}> : () -> !csl.comptime_struct)
+// CHECK-NEXT: const empty_struct : comptime_struct = .{
+// CHECK-NEXT: };
+// CHECK-NEXT: const attribute_struct : comptime_struct = .{
+// CHECK-NEXT:   .hello = 123.0,
+// CHECK-NEXT: };
 // CHECK-NEXT: const const27 : i16 = 27;
-// CHECK-NEXT: //unknown op ConstStructOp(%ssa_struct = "csl.const_struct"(%const27) <{"ssa_fields" = ["val"]}> : (i16) -> !csl.comptime_struct)
+// CHECK-NEXT: const ssa_struct : comptime_struct = .{
+// CHECK-NEXT:   .val = const27,
+// CHECK-NEXT: };
 // CHECK-NEXT: const no_param_import : imported_module = @import_module("<mod>");
 // CHECK-NEXT: const param_import : imported_module = @import_module("<mod>", ssa_struct);
 // CHECK-NEXT: param_import.foo();
@@ -332,9 +337,10 @@ csl.func @gemv() {
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(args_no_return, "args_no_return");
 // CHECK-NEXT: }
-// CHECK-NEXT: //unknown op GetColorOp(%col = "csl.get_color"() <{"id" = 15 : i5}> : () -> !csl.color)
-// CHECK-NEXT: //unknown op RpcOp("csl.rpc"(%col) : (!csl.color) -> ())
-
+// CHECK-NEXT: const col : color = @get_color(15);
+// CHECK-NEXT: comptime {
+// CHECK-NEXT:   @rpc(@get_data_task_id(col));
+// CHECK-NEXT: }
 // CHECK-NEXT: var A : [24]f32 = @constants([24]f32, 0);
 // CHECK-NEXT: var x : [6]f32 = @constants([6]f32, 0);
 // CHECK-NEXT: var b : [4]f32 = @constants([4]f32, 0);
@@ -398,18 +404,20 @@ csl.func @gemv() {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //
-// CHECK-NEXT: //unknown op ParamOp(%p1 = "csl.param"() <{"param_name" = "param_1"}> : () -> i32)
-// CHECK-NEXT: //unknown op ParamOp(%p2 = "csl.param"() <{"param_name" = "param_2", "init_value" = 1.300000e+00 : f16}> : () -> f16)
+// CHECK-NEXT: param param_1 : i32;
+// CHECK-NEXT: param param_2 : f16 = 1.3;
 // CHECK-NEXT: layout {
 // CHECK-NEXT:   const x_dim : i32 = 4;
 // CHECK-NEXT:   const y_dim : i32 = 6;
-// CHECK-NEXT:   //unknown op SetRectangleOp("csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ())
+// CHECK-NEXT:   @set_rectangle(x_dim, y_dim);
 // CHECK-NEXT:   const x_coord0 : i32 = 0;
 // CHECK-NEXT:   const y_coord : i32 = 0;
-// CHECK-NEXT:   //unknown op SetTileCodeOp("csl.set_tile_code"(%x_coord0, %y_coord) <{"file" = "file.csl"}> : (i32, i32) -> ())
-// CHECK-NEXT:   //unknown op ConstStructOp(%params = "csl.const_struct"() <{"items" = {"hello" = 123 : i32}}> : () -> !csl.comptime_struct)
+// CHECK-NEXT:   @set_tile_code(x_coord0, y_coord, "file.csl", )
+// CHECK-NEXT:   const params : comptime_struct = .{
+// CHECK-NEXT:     .hello = 123
+// CHECK-NEXT:   };
 // CHECK-NEXT:   const x_coord1 : i32 = 1;
-// CHECK-NEXT:   //unknown op SetTileCodeOp("csl.set_tile_code"(%x_coord1, %y_coord, %params) <{"file" = "file.csl"}> : (i32, i32, !csl.comptime_struct) -> ())
+// CHECK-NEXT:   @set_tile_code(x_coord1, y_coord, "file.csl", params);
 // CHECK-NEXT:   @export_name("ptr_name", [*]f32, true);
 // CHECK-NEXT:   @export_name("another_ptr", [*]const i32, false);
 // CHECK-NEXT:   @export_name("no_args_no_return", fn() void, );
