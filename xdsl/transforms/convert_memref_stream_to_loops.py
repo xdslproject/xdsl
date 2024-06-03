@@ -47,7 +47,18 @@ class LowerGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
-        rewrite_generic_to_loops(rewriter, op, load, store)
+        rewrite_generic_to_loops(
+            rewriter,
+            InsertPoint.before(op),
+            op.get_static_loop_ranges(),
+            op.indexing_maps.data,
+            op.indexing_maps.data[-len(op.outputs) :],
+            op.operands,
+            op.outputs,
+            op.body.block,
+            load,
+            store,
+        )
 
 
 class ConvertMemrefStreamToLoopsPass(ModulePass):
