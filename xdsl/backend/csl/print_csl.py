@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
 )
 from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.irdl import Operand
 
 
 @dataclass
@@ -114,6 +115,16 @@ class CslPrintContext:
                 return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
             case other:
                 return f"<unknown memref.global init type {other}>"
+
+    def _print_binop(self, lhs: Operand, rhs: Operand, res: SSAValue, op: str):
+        """
+        Prints statement of the form `res = lhs op rhs;`
+
+        Used to print various binary operations.
+        """
+        name_lhs = self._get_variable_name_for(lhs)
+        name_rhs = self._get_variable_name_for(rhs)
+        self.print(f"{self._var_use(res)} = {name_lhs} {op} {name_rhs};")
 
     def _var_use(
         self, val: SSAValue, intro: Literal["const"] | Literal["var"] = "const"
@@ -212,6 +223,23 @@ class CslPrintContext:
                 shape = ", ".join(str(s) for s in t.get_shape())
                 type = self.mlir_type_to_csl_type(t.get_element_type())
                 return f"[{shape}]{type}"
+            case csl.PtrType(type=ty, kind=kind, constness=const):
+                match kind.data:
+                    case csl.PtrKind.SINGLE:
+                        sym = "*"
+                    case csl.PtrKind.MANY:
+                        sym = "[*]"
+                match const.data:
+                    case csl.PtrConst.CONST:
+                        mut = "const "
+                    case csl.PtrConst.VAR:
+                        mut = ""
+                ty = self.mlir_type_to_csl_type(ty)
+                return f"{sym}{mut}{ty}"
+            case FunctionType(inputs=inp, outputs=out) if len(out) <= 1:
+                args = map(self.mlir_type_to_csl_type, inp)
+                ret = self.mlir_type_to_csl_type(out.data[0]) if len(out) else "void"
+                return f"fn({', '.join(args)}) {ret}"
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -322,6 +350,27 @@ class CslPrintContext:
                         inner.print_block(bdy.block)
                 case scf.Yield():
                     pass
+                case (
+                    arith.IndexCastOp(input=inp, result=res)
+                    | arith.SIToFPOp(input=inp, result=res)
+                    | arith.FPToSIOp(input=inp, result=res)
+                    | arith.ExtFOp(input=inp, result=res)
+                    | arith.TruncFOp(input=inp, result=res)
+                    | arith.TruncIOp(input=inp, result=res)
+                    | arith.ExtSIOp(input=inp, result=res)
+                    | arith.ExtUIOp(input=inp, result=res)
+                ):
+                    name_in = self._get_variable_name_for(inp)
+                    type_out = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"{self._var_use(res)} = @as({type_out}, {name_in});")
+                case arith.Muli(lhs=lhs, rhs=rhs, result=res) | arith.Mulf(
+                    lhs=lhs, rhs=rhs, result=res
+                ):
+                    self._print_binop(lhs, rhs, res, "*")
+                case arith.Addi(lhs=lhs, rhs=rhs, result=res) | arith.Addf(
+                    lhs=lhs, rhs=rhs, result=res
+                ):
+                    self._print_binop(lhs, rhs, res, "+")
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
@@ -333,6 +382,21 @@ class CslPrintContext:
                 case memref.GetGlobal(name_=name, memref=res):
                     # We print the array definition when the global is defined
                     self.variables[res] = name.string_value()
+                case memref.Store(value=val, memref=arr, indices=idxs):
+                    arr_name = self._get_variable_name_for(arr)
+                    idx_args = ", ".join(map(self._get_variable_name_for, idxs))
+                    val_name = self._get_variable_name_for(val)
+                    self.print(f"{arr_name}[{idx_args}] = {val_name};")
+                case memref.Load(memref=arr, indices=idxs, res=res):
+                    arr_name = self._get_variable_name_for(arr)
+                    idx_args = ", ".join(map(self._get_variable_name_for, idxs))
+                    # Use the array access syntax instead of copying the value out
+                    self.variables[res] = f"({arr_name}[{idx_args}])"
+                case csl.AddressOfOp(value=val, res=res):
+                    val_name = self._get_variable_name_for(val)
+                    ty = cast(csl.PtrType, res.type)
+                    use = self._var_use(res, ty.constness.data.value)
+                    self.print(f"{use} = &{val_name};")
                 case csl.SymbolExportOp(value=val, type=ty) as exp:
                     name = exp.get_name()
                     q_name = f'"{name}"'
@@ -349,7 +413,7 @@ class CslPrintContext:
                     with self.descend("layout") as inner:
                         inner.print_block(bdy.block)
                         for name, val in inner._symbols_to_export.items():
-                            ty = inner.attribute_value_to_str(val[0])
+                            ty = inner.mlir_type_to_csl_type(val[0])
                             # If specified, get mutability as true/false from python bool
                             mut = str(val[1]).lower() if val[1] is not None else ""
                             inner.print(f'@export_name("{name}", {ty}, {mut});')
