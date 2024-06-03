@@ -1483,6 +1483,12 @@ class OpDef:
                 if field_name in field_names:
                     # already registered value for field name
                     continue
+                if (
+                    field_name in annotations
+                    and field_name.isupper()
+                    and annotations[field_name].startswith("ClassVar[")
+                ):
+                    continue
 
                 value = clsdict[field_name]
 
