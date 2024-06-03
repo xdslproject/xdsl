@@ -28,8 +28,11 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
+    NoneType,
+    Signedness,
     StringAttr,
     SymbolRefAttr,
+    TensorType,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
@@ -100,6 +103,10 @@ class DsdKind(StrEnum):
     mem4d_dsd = "mem4d_dsd"
     fabin_dsd = "fabin_dsd"
     fabout_dsd = "fabout_dsd"
+
+
+class DsdKindAttr(EnumAttribute[DsdKind], SpacedOpaqueSyntaxAttribute):
+    name = "csl.dsd_kind"
 
 
 class _FuncBase(IRDLOperation, ABC):
@@ -276,13 +283,30 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
+DsdElementType: TypeAlias = (
+    NoneType
+    | Float16Type
+    | Float32Type
+    | Annotated[IntegerType, IntegerType(16, Signedness.SIGNED)]
+    | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
+    | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
+    | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
+)
+
+
 @irdl_attr_definition
-class DsdType(EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute):
+# class DsdType(ParametrizedAttribute, EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute):
+class DsdType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
     """
     Represents a DSD in CSL.
     """
 
     name = "csl.dsd"
+    kind: ParameterDef[DsdKindAttr]
+    type: ParameterDef[DsdElementType]
+
+    def get_element_type(self) -> Attribute:
+        return self.type
 
 
 @irdl_attr_definition
@@ -683,7 +707,7 @@ class _GetDsdOp(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class GetMemdDsdOp(_GetDsdOp):
+class GetMemDsdOp(_GetDsdOp):
     """
     CSL built-in for DSDs of the form
 
@@ -693,20 +717,20 @@ class GetMemdDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(MemRefType)
+    base_addr = operand_def(MemRefType | TensorType)
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
 
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
-        if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
+        if self.result.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException("DSD type must be memory DSD")
-        if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
+        if self.result.type.kind.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
             raise VerifyException(
                 "DSD of type mem1d_dsd must have exactly one dimension"
             )
-        if self.result.type.data == DsdKind.mem4d_dsd and (
+        if self.result.type.kind.data == DsdKind.mem4d_dsd and (
             len(self.sizes) < 1 or len(self.sizes) > 4
         ):
             raise VerifyException(
@@ -735,7 +759,7 @@ class GetFabDsdOp(_GetDsdOp):
     });
     """
 
-    name = "csl.get_fabin_dsd"
+    name = "csl.get_fab_dsd"
     fabric_color = opt_prop_def(ColorIdAttr)
     control = opt_prop_def(BoolAttr)
     wavelet_index_offset = opt_prop_def(AnyIntegerAttr)
@@ -743,18 +767,132 @@ class GetFabDsdOp(_GetDsdOp):
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
-        if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
+        if self.result.type.kind.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
             raise VerifyException("DSD type must be fabric DSD")
         if len(self.sizes) != 1:
             raise VerifyException("Fabric DSDs must have exactly one dimension")
         if (
-            self.result.type.data == DsdKind.fabin_dsd
+            self.result.type.kind.data == DsdKind.fabin_dsd
             and self.control is not None
             or self.wavelet_index_offset is not None
         ):
             raise VerifyException(
                 "DSD of type fabin_dsd cannot specify control and wavelet_index_offset"
             )
+
+
+@irdl_op_definition
+class SetDsdBaseAddrOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different base_addr.
+    Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
+
+    Implements the CSL built-in
+    @set_dsd_base_addr(input_dsd, base_addr)
+    """
+
+    name = "csl.set_dsd_base_addr"
+
+    op = operand_def(DsdType)
+    base_addr = operand_def(MemRefType | TensorType | PtrType)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.op.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+        ):
+            raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
+        if (
+            isinstance(self.base_addr.type, PtrType)
+            and not self.base_addr.type.kind.data == PtrKind.MANY
+        ):
+            raise VerifyException(
+                f"{self.name} cannot operate on pointers of kind {self.base_addr.type}"
+            )
+
+
+@irdl_op_definition
+class IncrementDsdOffsetOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different offset
+    Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
+
+    Implements the CSL built-in
+    @increment_dsd_offset(input_dsd, offset, elem_type)
+
+    where offset is a 16-bit signed int that may be negative,
+    and elem_type is used to convert offset into words (any u,i,f type of 16,32 bit)
+    elem_type should be derived by the printer
+    """
+
+    name = "csl.increment_dsd_offset"
+
+    op = operand_def(DsdType)
+    offset = operand_def(IntegerType(16, Signedness.SIGNED))
+    elem_type = prop_def(DsdElementType)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.op.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+        ):
+            raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
+
+
+@irdl_op_definition
+class SetDsdLengthOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different length
+    Only works on 1-dimensional DSDs, i.e., mem1d_dsd and any fabric DSDs
+
+    Implements the CSL built-in
+    @set_dsd_length(input_dsd, length)
+    """
+
+    name = "csl.set_dsd_length"
+    op = operand_def(DsdType)
+    length = operand_def(IntegerType(16, Signedness.UNSIGNED))
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.kind.data == DsdKind.mem4d_dsd
+        ):
+            raise VerifyException(
+                f"{self.name} must operate on one-dimensional DSD types"
+            )
+
+
+@irdl_op_definition
+class SetDsdStrideOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different stride
+    Only works mem1d_dsd
+
+    Implements the CSL built-in
+    @set_dsd_stride(input_dsd, stride)
+    """
+
+    name = "csl.set_dsd_stride"
+    op = operand_def(DsdType)
+    stride = operand_def(IntegerType(8, Signedness.SIGNED))
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.kind.data != DsdKind.mem1d_dsd
+        ):
+            raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
 
 
 @irdl_op_definition
@@ -932,8 +1070,12 @@ CSL = Dialect(
         GetColorOp,
         SetRectangleOp,
         SetTileCodeOp,
-        GetMemdDsdOp,
+        GetMemDsdOp,
         GetFabDsdOp,
+        SetDsdBaseAddrOp,
+        IncrementDsdOffsetOp,
+        SetDsdLengthOp,
+        SetDsdStrideOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
@@ -945,6 +1087,7 @@ CSL = Dialect(
         PtrKindAttr,
         PtrConstAttr,
         PtrType,
+        DsdKindAttr,
         DsdType,
         ColorType,
         ModuleKindAttr,
