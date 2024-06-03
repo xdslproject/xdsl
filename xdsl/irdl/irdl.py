@@ -532,9 +532,6 @@ def range_constr_coercion(
 def single_range_constr_coercion(
     attr: Attribute | type[Attribute] | AttrConstraint,
 ) -> RangeConstraint:
-    if isinstance(attr, SingleOf):
-        return attr
-
     return SingleOf(attr_constr_coercion(attr))
 
 
