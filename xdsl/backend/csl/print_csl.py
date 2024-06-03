@@ -274,21 +274,6 @@ class CslPrintContext:
             case _:
                 return f"<!unknown value {attr}>"
 
-    def attribute_type_to_str(self, attr: Attribute) -> str:
-        """
-        Takes a value-carrying attribute and (IntegerAttr, FloatAttr, etc.)
-        and converts it to a csl expression representing the value's type (f32, u16, ...)
-        """
-        match attr:
-            case IntAttr():
-                return "<!indeterminate IntAttr type>"
-            case IntegerAttr(type=(IntegerType() | IndexType()) as int_t):
-                return self.mlir_type_to_csl_type(int_t)
-            case FloatAttr(type=(Float16Type() | Float32Type()) as float_t):
-                return self.mlir_type_to_csl_type(float_t)
-            case _:
-                return f"<!unknown type of {attr}>"
-
     def print_block(self, body: Block):
         """
         Walks over a block and prints every operation in the block.
