@@ -472,7 +472,7 @@ class RangeConstraint(ABC):
 
 @dataclass
 class RangeOf(RangeConstraint):
-
+"""Constraint each element in a range to satisfy a given constraint."""
     constr: AttrConstraint
 
     def verify(
