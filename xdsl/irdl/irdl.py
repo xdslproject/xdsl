@@ -433,7 +433,7 @@ class RangeConstraint(ABC):
 
     @abstractmethod
     def verify(
-        self, attrs: Sequence[Attribute | None], constraint_vars: dict[str, Attribute]
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
     ) -> None:
         """
         Check if the range satisfies the constraint, or raise an exception otherwise.
@@ -478,11 +478,9 @@ class RangeOf(RangeConstraint):
     constr: AttrConstraint
 
     def verify(
-        self, attrs: Sequence[Attribute | None], constraint_vars: dict[str, Attribute]
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
     ) -> None:
         for a in attrs:
-            if a is None:
-                continue
             self.constr.verify(a, constraint_vars)
 
     def get_resolved_variables(self) -> set[str]:
@@ -506,12 +504,10 @@ class SingleOf(RangeConstraint):
     constr: AttrConstraint
 
     def verify(
-        self, attrs: Sequence[Attribute | None], constraint_vars: dict[str, Attribute]
+        self, attrs: Sequence[Attribute], constraint_vars: dict[str, Attribute]
     ) -> None:
         if len(attrs) != 1:
             raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
-        if attrs[0] is None:
-            return
         self.constr.verify(attrs[0], constraint_vars)
 
     def get_resolved_variables(self) -> set[str]:

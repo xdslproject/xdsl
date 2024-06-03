@@ -180,6 +180,7 @@ class FormatProgram:
                         continue
                     if isinstance(operand_type, Attribute):
                         operand_type = [operand_type]
+                    assert isa(operand_type, list[Attribute])
                     operand_def.constr.verify(operand_type, state.constraint_variables)
                 for (_, result_def), result_type in zip(
                     op_def.results, state.result_types, strict=True
@@ -188,6 +189,7 @@ class FormatProgram:
                         continue
                     if isinstance(result_type, Attribute):
                         result_type = [result_type]
+                    assert isa(result_type, list[Attribute])
                     result_def.constr.verify(result_type, state.constraint_variables)
             except VerifyException as e:
                 parser.raise_error(
