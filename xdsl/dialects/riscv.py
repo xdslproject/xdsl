@@ -2777,6 +2777,10 @@ class WfiOp(NullaryOperation):
 
 
 class AllocatedMemoryEffect(MemoryEffect):
+    """
+    An assembly operation that only has side-effect if some registers are allocated to
+    it.
+    """
 
     @classmethod
     def has_effects(cls, op: Operation) -> bool:
