@@ -135,6 +135,15 @@ def _insert_load_ops(
         [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
     ],
 ) -> Sequence[tuple[int, SSAValue]]:
+    """
+    Inserts the load operations at the specified insertion point.
+    The `ind_vars` are the induction variables for this loop nest, corresponding to the
+    domain of the affine maps.
+    The `operands` are the structures to load from.
+    The `args` are the block arguments corresponding to the use of the load; if there are
+    no uses, the loads are not inserted.
+    The `affine_map_attrs`, `operands`, and `args` must have the same length.
+    """
     res: list[tuple[int, SSAValue]] = []
     for i, (affine_map_attr, operand, arg) in enumerate(
         zip(affine_map_attrs, operands, args, strict=True)
@@ -157,6 +166,15 @@ def _insert_store_ops(
     output_operands: Sequence[SSAValue],
     store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
 ):
+    """
+    Inserts the store operations at the specified insertion point.
+    The `ind_vars` are the induction variables for this loop nest, corresponding to the
+    domain of the affine maps.
+    The `yield_operands` are the operands of the yield operation that is being replaced
+    with stores.
+    The `output_operands` are the structures to store into.
+    The `output_indexing_maps`, `yield_operands`, and `output_operands` must have the same length.
+    """
     for affine_map_attr, yield_value, ref in zip(
         output_indexing_maps, yield_operands, output_operands, strict=True
     ):
