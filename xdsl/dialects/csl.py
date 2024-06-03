@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, TypeAlias
+from typing import Annotated, TypeAlias, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
@@ -46,6 +46,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrConstraint,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
@@ -285,6 +286,14 @@ DsdElementType: TypeAlias = (
     | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
     | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
     | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
+)
+
+
+f16_pointer = PtrType(
+    [Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+f32_pointer = PtrType(
+    [Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
 )
 
 
@@ -883,6 +892,39 @@ class SetDsdStrideOp(IRDLOperation):
             raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
 
 
+class _BuiltinDsdOpBase(IRDLOperation, ABC):
+    ops = var_operand_def()
+    signature: list[tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]]
+
+    def verify_(self) -> None:
+        def typcheck(
+            op_typ: Attribute,
+            sig_typ: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+        ) -> bool:
+            if isinstance(sig_typ, type):
+                return isinstance(op_typ, sig_typ)
+            else:
+                return op_typ == sig_typ
+
+        for sig in self.signature:
+            if len(self.ops) == len(sig):
+                if all(typcheck(op.type, sig_t) for (op, sig_t) in zip(self.ops, sig)):
+                    return
+        raise VerifyException("Cannot find matching type signature")
+
+
+@irdl_op_definition
+class FaddsOp(_BuiltinDsdOpBase):
+    name = "csl.fadds"
+
+    signature = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
 @irdl_op_definition
 class SymbolExportOp(IRDLOperation):
     """
@@ -1064,6 +1106,7 @@ CSL = Dialect(
         IncrementDsdOffsetOp,
         SetDsdLengthOp,
         SetDsdStrideOp,
+        FaddsOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,

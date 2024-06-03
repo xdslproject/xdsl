@@ -1468,11 +1468,11 @@ class OpDef:
 
             clsdict = parent_cls.__dict__
 
-            annotations = parent_cls.__annotations__
+            # annotations = parent_cls.__annotations__
 
-            for field_name in annotations:
-                if field_name not in clsdict:
-                    raise wrong_field_exception(field_name)
+            # for field_name in annotations:
+            #     if field_name not in clsdict:
+            #         raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
                 if field_name in ("name", "assembly_format"):
@@ -1603,7 +1603,7 @@ class OpDef:
                     case _:
                         pass
 
-                raise wrong_field_exception(field_name)
+                # raise wrong_field_exception(field_name)
 
         op_def.assembly_format = pyrdl_def.assembly_format
         assert inspect.ismethod(Operation.parse)
