@@ -28,7 +28,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     ModuleOp,
-    NoneType,
     Signedness,
     StringAttr,
     SymbolRefAttr,
@@ -41,6 +40,7 @@ from xdsl.ir import (
     Dialect,
     EnumAttribute,
     Operation,
+    OpResult,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
@@ -103,10 +103,6 @@ class DsdKind(StrEnum):
     mem4d_dsd = "mem4d_dsd"
     fabin_dsd = "fabin_dsd"
     fabout_dsd = "fabout_dsd"
-
-
-class DsdKindAttr(EnumAttribute[DsdKind], SpacedOpaqueSyntaxAttribute):
-    name = "csl.dsd_kind"
 
 
 class _FuncBase(IRDLOperation, ABC):
@@ -283,30 +279,13 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
-DsdElementType: TypeAlias = (
-    NoneType
-    | Float16Type
-    | Float32Type
-    | Annotated[IntegerType, IntegerType(16, Signedness.SIGNED)]
-    | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
-    | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
-    | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
-)
-
-
 @irdl_attr_definition
-# class DsdType(ParametrizedAttribute, EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute):
-class DsdType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+class DsdType(EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute):
     """
     Represents a DSD in CSL.
     """
 
     name = "csl.dsd"
-    kind: ParameterDef[DsdKindAttr]
-    type: ParameterDef[DsdElementType]
-
-    def get_element_type(self) -> Attribute:
-        return self.type
 
 
 @irdl_attr_definition
@@ -724,13 +703,13 @@ class GetMemDsdOp(_GetDsdOp):
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
-        if self.result.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
+        if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
             raise VerifyException("DSD type must be memory DSD")
-        if self.result.type.kind.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
+        if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
             raise VerifyException(
                 "DSD of type mem1d_dsd must have exactly one dimension"
             )
-        if self.result.type.kind.data == DsdKind.mem4d_dsd and (
+        if self.result.type.data == DsdKind.mem4d_dsd and (
             len(self.sizes) < 1 or len(self.sizes) > 4
         ):
             raise VerifyException(
@@ -767,12 +746,12 @@ class GetFabDsdOp(_GetDsdOp):
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
             raise VerifyException("DSD type is not DsdType")
-        if self.result.type.kind.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
+        if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
             raise VerifyException("DSD type must be fabric DSD")
         if len(self.sizes) != 1:
             raise VerifyException("Fabric DSDs must have exactly one dimension")
         if (
-            self.result.type.kind.data == DsdKind.fabin_dsd
+            self.result.type.data == DsdKind.fabin_dsd
             and self.control is not None
             or self.wavelet_index_offset is not None
         ):
@@ -781,8 +760,13 @@ class GetFabDsdOp(_GetDsdOp):
             )
 
 
+class _ModifyDsdOp(IRDLOperation, ABC):
+    op = operand_def(DsdType)
+    result = result_def(DsdType)
+
+
 @irdl_op_definition
-class SetDsdBaseAddrOp(IRDLOperation):
+class SetDsdBaseAddrOp(_ModifyDsdOp):
     """
     Returns a clone of the DSD with a different base_addr.
     Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
@@ -795,14 +779,13 @@ class SetDsdBaseAddrOp(IRDLOperation):
 
     op = operand_def(DsdType)
     base_addr = operand_def(MemRefType | TensorType | PtrType)
-    result = result_def(DsdType)
 
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
             or not isinstance(self.op.type, DsdType)
-            or self.result.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
-            or self.op.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
         ):
             raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
         if (
@@ -815,7 +798,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
 
 
 @irdl_op_definition
-class IncrementDsdOffsetOp(IRDLOperation):
+class IncrementDsdOffsetOp(_ModifyDsdOp):
     """
     Returns a clone of the DSD with a different offset
     Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
@@ -832,21 +815,34 @@ class IncrementDsdOffsetOp(IRDLOperation):
 
     op = operand_def(DsdType)
     offset = operand_def(IntegerType(16, Signedness.SIGNED))
-    elem_type = prop_def(DsdElementType)
-    result = result_def(DsdType)
+
+    def get_element_type(self):
+        assert isinstance(self.op, OpResult)
+        op = self.op.op
+        while op:
+            if isinstance(op, _ModifyDsdOp):
+                assert isinstance(op.op, OpResult)
+                op = op.op.op
+            elif isinstance(op, GetFabDsdOp):
+                return None
+            elif isinstance(op, GetMemDsdOp):
+                if isinstance(op.base_addr.type, ContainerType):
+                    return op.base_addr.type.get_element_type()
+                return None
+        return None
 
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
             or not isinstance(self.op.type, DsdType)
-            or self.result.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
-            or self.op.type.kind.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
         ):
             raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
 
 
 @irdl_op_definition
-class SetDsdLengthOp(IRDLOperation):
+class SetDsdLengthOp(_ModifyDsdOp):
     """
     Returns a clone of the DSD with a different length
     Only works on 1-dimensional DSDs, i.e., mem1d_dsd and any fabric DSDs
@@ -858,13 +854,12 @@ class SetDsdLengthOp(IRDLOperation):
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
     length = operand_def(IntegerType(16, Signedness.UNSIGNED))
-    result = result_def(DsdType)
 
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
             or not isinstance(self.op.type, DsdType)
-            or self.result.type.kind.data == DsdKind.mem4d_dsd
+            or self.result.type.data == DsdKind.mem4d_dsd
         ):
             raise VerifyException(
                 f"{self.name} must operate on one-dimensional DSD types"
@@ -872,7 +867,7 @@ class SetDsdLengthOp(IRDLOperation):
 
 
 @irdl_op_definition
-class SetDsdStrideOp(IRDLOperation):
+class SetDsdStrideOp(_ModifyDsdOp):
     """
     Returns a clone of the DSD with a different stride
     Only works mem1d_dsd
@@ -884,13 +879,12 @@ class SetDsdStrideOp(IRDLOperation):
     name = "csl.set_dsd_stride"
     op = operand_def(DsdType)
     stride = operand_def(IntegerType(8, Signedness.SIGNED))
-    result = result_def(DsdType)
 
     def verify_(self) -> None:
         if (
             not isinstance(self.result.type, DsdType)
             or not isinstance(self.op.type, DsdType)
-            or self.result.type.kind.data != DsdKind.mem1d_dsd
+            or self.result.type.data != DsdKind.mem1d_dsd
         ):
             raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
 
@@ -1087,7 +1081,6 @@ CSL = Dialect(
         PtrKindAttr,
         PtrConstAttr,
         PtrType,
-        DsdKindAttr,
         DsdType,
         ColorType,
         ModuleKindAttr,
