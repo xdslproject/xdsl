@@ -436,8 +436,7 @@ class RangeConstraint(ABC):
         self, attrs: Sequence[Attribute | None], constraint_vars: dict[str, Attribute]
     ) -> None:
         """
-        Check if the range satisfies the constraint,
-        or raise an exception otherwise.
+        Check if the range satisfies the constraint, or raise an exception otherwise.
         The range can contain Nones, which represent an attribute not to be checked.
         """
         ...
