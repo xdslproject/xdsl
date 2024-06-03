@@ -971,8 +971,14 @@ class IndexCastOp(IRDLOperation):
         return super().__init__(operands=[input_arg], result_types=[target_type])
 
     def verify_(self) -> None:
-        if isinstance(self.input.type, IndexType) + isinstance(self.result.type, IndexType) != 1:
-            raise VerifyException("'arith.index_cast' op operand type 'index' and result type 'index' are cast incompatible")
+        if (
+            isinstance(self.input.type, IndexType)
+            + isinstance(self.result.type, IndexType)
+            != 1
+        ):
+            raise VerifyException(
+                f"'arith.index_cast' op operand type '{self.input.type}' and result type '{self.input.type}' are cast incompatible"
+            )
 
 
 @irdl_op_definition
