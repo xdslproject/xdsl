@@ -1636,7 +1636,7 @@ class OpDef:
         # Verify regions.
         irdl_op_verify_regions(op, self)
 
-        # verify successors
+        # Verify successors.
         get_variadic_sizes(op, self, VarIRConstruct.SUCCESSOR)
 
         # Verify properties.
