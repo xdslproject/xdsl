@@ -472,7 +472,10 @@ class RangeConstraint(ABC):
 
 @dataclass
 class RangeOf(RangeConstraint):
-"""Constraint each element in a range to satisfy a given constraint."""
+    """
+    Constrain each element in a range to satisfy a given constraint.
+    """
+
     constr: AttrConstraint
 
     def verify(
@@ -497,7 +500,10 @@ class RangeOf(RangeConstraint):
 
 @dataclass
 class SingleOf(RangeConstraint):
-"""Constraint a range to only contain a single element, which should satisfy a given constraint."""
+    """
+    Constrain a range to only contain a single element, which should satisfy a given constraint.
+    """
+
     constr: AttrConstraint
 
     def verify(
