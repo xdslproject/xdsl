@@ -961,14 +961,18 @@ class Minnumf(FloatingPointLikeBinaryOp):
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
-    input: Operand = operand_def()
+    input: Operand = operand_def(IntegerType | IndexType)
 
-    result: OpResult = result_def()
+    result: OpResult = result_def(IntegerType | IndexType)
 
     traits = frozenset([Pure()])
 
     def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
         return super().__init__(operands=[input_arg], result_types=[target_type])
+
+    def verify_(self) -> None:
+        if isinstance(self.input.type, IndexType) + isinstance(self.result.type, IndexType) != 1:
+            raise VerifyException("'arith.index_cast' op operand type 'index' and result type 'index' are cast incompatible")
 
 
 @irdl_op_definition
