@@ -394,10 +394,7 @@ class CslPrintContext:
                     self.variables[res] = f"({arr_name}[{idx_args}])"
                 case csl.AddressOfOp(value=val, res=res):
                     val_name = self._get_variable_name_for(val)
-                    ty = res.type
-                    assert isinstance(
-                        ty, csl.PtrType
-                    ), f"Result of {csl.AddressOfOp.name} has to be a pointer"
+                    ty = cast(csl.PtrType, res.type)
                     use = self._var_use(res, ty.constness.data.value)
                     self.print(f"{use} = &{val_name};")
                 case csl.SymbolExportOp(value=val, type=ty) as exp:
