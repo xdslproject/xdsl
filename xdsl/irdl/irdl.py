@@ -1486,7 +1486,7 @@ class OpDef:
                 if (
                     field_name in annotations
                     and field_name.isupper()
-                    and annotations[field_name].startswith("ClassVar[")
+                    and get_origin(annotations[field_name]) is ClassVar
                 ):
                     continue
 
