@@ -967,6 +967,8 @@ class IndexCastOp(IRDLOperation):
 
     traits = frozenset([Pure()])
 
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
     def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
         super().__init__(operands=[input_arg], result_types=[target_type])
 
