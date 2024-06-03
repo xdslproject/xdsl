@@ -40,7 +40,6 @@ from xdsl.ir import (
     Dialect,
     EnumAttribute,
     Operation,
-    OpResult,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
@@ -277,6 +276,16 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     def get_element_type(self) -> Attribute:
         return self.type
+
+
+DsdElementType: TypeAlias = (
+    Float16Type
+    | Float32Type
+    | Annotated[IntegerType, IntegerType(16, Signedness.SIGNED)]
+    | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
+    | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
+    | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
+)
 
 
 @irdl_attr_definition
@@ -760,13 +769,8 @@ class GetFabDsdOp(_GetDsdOp):
             )
 
 
-class _ModifyDsdOp(IRDLOperation, ABC):
-    op = operand_def(DsdType)
-    result = result_def(DsdType)
-
-
 @irdl_op_definition
-class SetDsdBaseAddrOp(_ModifyDsdOp):
+class SetDsdBaseAddrOp(IRDLOperation):
     """
     Returns a clone of the DSD with a different base_addr.
     Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
@@ -779,6 +783,7 @@ class SetDsdBaseAddrOp(_ModifyDsdOp):
 
     op = operand_def(DsdType)
     base_addr = operand_def(MemRefType | TensorType | PtrType)
+    result = result_def(DsdType)
 
     def verify_(self) -> None:
         if (
@@ -798,7 +803,7 @@ class SetDsdBaseAddrOp(_ModifyDsdOp):
 
 
 @irdl_op_definition
-class IncrementDsdOffsetOp(_ModifyDsdOp):
+class IncrementDsdOffsetOp(IRDLOperation):
     """
     Returns a clone of the DSD with a different offset
     Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
@@ -815,26 +820,8 @@ class IncrementDsdOffsetOp(_ModifyDsdOp):
 
     op = operand_def(DsdType)
     offset = operand_def(IntegerType(16, Signedness.SIGNED))
-
-    def get_element_type(self) -> Float16Type | Float32Type | IntegerType | None:
-        assert isinstance(self.op, OpResult)
-        op = self.op.op
-        while op:
-            if isinstance(op, _ModifyDsdOp):
-                assert isinstance(op.op, OpResult)
-                op = op.op.op
-            elif isinstance(op, GetFabDsdOp):
-                return None
-            elif isinstance(op, GetMemDsdOp):
-                if isinstance(op.base_addr.type, ContainerType):
-                    assert isinstance(
-                        res := op.base_addr.type.get_element_type(),  # pyright: ignore [reportUnknownVariableType]
-                        Float16Type | Float32Type | IntegerType,
-                    )
-                    return res
-                    # return op.base_addr.type.get_element_type()
-                return None
-        return None
+    elem_type = prop_def(DsdElementType)
+    result = result_def(DsdType)
 
     def verify_(self) -> None:
         if (
@@ -847,7 +834,7 @@ class IncrementDsdOffsetOp(_ModifyDsdOp):
 
 
 @irdl_op_definition
-class SetDsdLengthOp(_ModifyDsdOp):
+class SetDsdLengthOp(IRDLOperation):
     """
     Returns a clone of the DSD with a different length
     Only works on 1-dimensional DSDs, i.e., mem1d_dsd and any fabric DSDs
@@ -859,6 +846,7 @@ class SetDsdLengthOp(_ModifyDsdOp):
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
     length = operand_def(IntegerType(16, Signedness.UNSIGNED))
+    result = result_def(DsdType)
 
     def verify_(self) -> None:
         if (
@@ -872,7 +860,7 @@ class SetDsdLengthOp(_ModifyDsdOp):
 
 
 @irdl_op_definition
-class SetDsdStrideOp(_ModifyDsdOp):
+class SetDsdStrideOp(IRDLOperation):
     """
     Returns a clone of the DSD with a different stride
     Only works mem1d_dsd
@@ -884,6 +872,7 @@ class SetDsdStrideOp(_ModifyDsdOp):
     name = "csl.set_dsd_stride"
     op = operand_def(DsdType)
     stride = operand_def(IntegerType(8, Signedness.SIGNED))
+    result = result_def(DsdType)
 
     def verify_(self) -> None:
         if (
