@@ -79,7 +79,6 @@ csl.func @initialize() {
     %dsd_1d2 = "csl.set_dsd_base_addr"(%dsd_1d, %arr) : (!csl<dsd mem1d_dsd>, memref<10xf32>) -> !csl<dsd mem1d_dsd>
     %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %int16) : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
     %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
-    //%dsd_1d4 = "csl.set_dsd_length"(%u16, %dsd_1d3) : (ui16, !csl<dsd mem1d_dsd>) -> !csl<dsd mem1d_dsd>
     %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %int8) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
 
     %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>

@@ -816,7 +816,7 @@ class IncrementDsdOffsetOp(_ModifyDsdOp):
     op = operand_def(DsdType)
     offset = operand_def(IntegerType(16, Signedness.SIGNED))
 
-    def get_element_type(self):
+    def get_element_type(self) -> Float16Type | Float32Type | IntegerType | None:
         assert isinstance(self.op, OpResult)
         op = self.op.op
         while op:
@@ -827,7 +827,12 @@ class IncrementDsdOffsetOp(_ModifyDsdOp):
                 return None
             elif isinstance(op, GetMemDsdOp):
                 if isinstance(op.base_addr.type, ContainerType):
-                    return op.base_addr.type.get_element_type()
+                    assert isinstance(
+                        res := op.base_addr.type.get_element_type(),  # pyright: ignore [reportUnknownVariableType]
+                        Float16Type | Float32Type | IntegerType,
+                    )
+                    return res
+                    # return op.base_addr.type.get_element_type()
                 return None
         return None
 
