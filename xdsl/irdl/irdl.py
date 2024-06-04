@@ -1602,6 +1602,7 @@ class OpDef:
                         continue
                     case _:
                         pass
+
                 raise wrong_field_exception(field_name)
 
         op_def.assembly_format = pyrdl_def.assembly_format
