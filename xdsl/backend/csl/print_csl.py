@@ -6,8 +6,10 @@ from typing import IO, Literal, cast
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     ContainerType,
     DenseIntOrFPElementsAttr,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -25,6 +27,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
 )
 from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.irdl import Operand
 
 
 @dataclass
@@ -115,6 +118,16 @@ class CslPrintContext:
             case other:
                 return f"<unknown memref.global init type {other}>"
 
+    def _print_binop(self, lhs: Operand, rhs: Operand, res: SSAValue, op: str):
+        """
+        Prints statement of the form `res = lhs op rhs;`
+
+        Used to print various binary operations.
+        """
+        name_lhs = self._get_variable_name_for(lhs)
+        name_rhs = self._get_variable_name_for(rhs)
+        self.print(f"{self._var_use(res)} = {name_lhs} {op} {name_rhs};")
+
     def _var_use(
         self, val: SSAValue, intro: Literal["const"] | Literal["var"] = "const"
     ):
@@ -186,8 +199,14 @@ class CslPrintContext:
         - float types: f16, f32
         - pointers: [*]f32
         - arrays: [64]f32
+        - function: fn(i32) f16
+        - color
+        - comptime_struct
+        - imported_module
+        - type
+        - comptime_string
 
-        This method does not yet support all the types and will be expanded as needed later.
+        This method supports all of these except type and comptime_string
         """
         match type_attr:
             case csl.ComptimeStructType():
@@ -212,6 +231,25 @@ class CslPrintContext:
                 shape = ", ".join(str(s) for s in t.get_shape())
                 type = self.mlir_type_to_csl_type(t.get_element_type())
                 return f"[{shape}]{type}"
+            case csl.PtrType(type=ty, kind=kind, constness=const):
+                match kind.data:
+                    case csl.PtrKind.SINGLE:
+                        sym = "*"
+                    case csl.PtrKind.MANY:
+                        sym = "[*]"
+                match const.data:
+                    case csl.PtrConst.CONST:
+                        mut = "const "
+                    case csl.PtrConst.VAR:
+                        mut = ""
+                ty = self.mlir_type_to_csl_type(ty)
+                return f"{sym}{mut}{ty}"
+            case FunctionType(inputs=inp, outputs=out) if len(out) <= 1:
+                args = map(self.mlir_type_to_csl_type, inp)
+                ret = self.mlir_type_to_csl_type(out.data[0]) if len(out) else "void"
+                return f"fn({', '.join(args)}) {ret}"
+            case csl.ColorType():
+                return "color"
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -223,27 +261,18 @@ class CslPrintContext:
         match attr:
             case IntAttr(data=val):
                 return str(val)
+            case IntegerAttr(
+                value=val, type=IntegerType(width=IntAttr(data=width))
+            ) if width == 1:
+                return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
                 return str(val.data)
             case FloatAttr(value=val):
                 return str(val.data)
+            case StringAttr() as s:
+                return f'"{s.data}"'
             case _:
                 return f"<!unknown value {attr}>"
-
-    def attribute_type_to_str(self, attr: Attribute) -> str:
-        """
-        Takes a value-carrying attribute and (IntegerAttr, FloatAttr, etc.)
-        and converts it to a csl expression representing the value's type (f32, u16, ...)
-        """
-        match attr:
-            case IntAttr():
-                return "<!indeterminate IntAttr type>"
-            case IntegerAttr(type=(IntegerType() | IndexType()) as int_t):
-                return self.mlir_type_to_csl_type(int_t)
-            case FloatAttr(type=(Float16Type() | Float32Type()) as float_t):
-                return self.mlir_type_to_csl_type(float_t)
-            case _:
-                return f"<!unknown type of {attr}>"
 
     def print_block(self, body: Block):
         """
@@ -322,6 +351,27 @@ class CslPrintContext:
                         inner.print_block(bdy.block)
                 case scf.Yield():
                     pass
+                case (
+                    arith.IndexCastOp(input=inp, result=res)
+                    | arith.SIToFPOp(input=inp, result=res)
+                    | arith.FPToSIOp(input=inp, result=res)
+                    | arith.ExtFOp(input=inp, result=res)
+                    | arith.TruncFOp(input=inp, result=res)
+                    | arith.TruncIOp(input=inp, result=res)
+                    | arith.ExtSIOp(input=inp, result=res)
+                    | arith.ExtUIOp(input=inp, result=res)
+                ):
+                    name_in = self._get_variable_name_for(inp)
+                    type_out = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"{self._var_use(res)} = @as({type_out}, {name_in});")
+                case arith.Muli(lhs=lhs, rhs=rhs, result=res) | arith.Mulf(
+                    lhs=lhs, rhs=rhs, result=res
+                ):
+                    self._print_binop(lhs, rhs, res, "*")
+                case arith.Addi(lhs=lhs, rhs=rhs, result=res) | arith.Addf(
+                    lhs=lhs, rhs=rhs, result=res
+                ):
+                    self._print_binop(lhs, rhs, res, "+")
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
@@ -333,6 +383,21 @@ class CslPrintContext:
                 case memref.GetGlobal(name_=name, memref=res):
                     # We print the array definition when the global is defined
                     self.variables[res] = name.string_value()
+                case memref.Store(value=val, memref=arr, indices=idxs):
+                    arr_name = self._get_variable_name_for(arr)
+                    idx_args = ", ".join(map(self._get_variable_name_for, idxs))
+                    val_name = self._get_variable_name_for(val)
+                    self.print(f"{arr_name}[{idx_args}] = {val_name};")
+                case memref.Load(memref=arr, indices=idxs, res=res):
+                    arr_name = self._get_variable_name_for(arr)
+                    idx_args = ", ".join(map(self._get_variable_name_for, idxs))
+                    # Use the array access syntax instead of copying the value out
+                    self.variables[res] = f"({arr_name}[{idx_args}])"
+                case csl.AddressOfOp(value=val, res=res):
+                    val_name = self._get_variable_name_for(val)
+                    ty = cast(csl.PtrType, res.type)
+                    use = self._var_use(res, ty.constness.data.value)
+                    self.print(f"{use} = &{val_name};")
                 case csl.SymbolExportOp(value=val, type=ty) as exp:
                     name = exp.get_name()
                     q_name = f'"{name}"'
@@ -349,10 +414,51 @@ class CslPrintContext:
                     with self.descend("layout") as inner:
                         inner.print_block(bdy.block)
                         for name, val in inner._symbols_to_export.items():
-                            ty = inner.attribute_value_to_str(val[0])
+                            ty = inner.mlir_type_to_csl_type(val[0])
                             # If specified, get mutability as true/false from python bool
                             mut = str(val[1]).lower() if val[1] is not None else ""
                             inner.print(f'@export_name("{name}", {ty}, {mut});')
+                case csl.ParamOp(init_value=init, param_name=name, res=res):
+                    if init is None:
+                        init = ""
+                    else:
+                        init = f" = { self.attribute_value_to_str(init)}"
+                    ty = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"param {name.data} : {ty}{init};")
+                case csl.ConstStructOp(
+                    items=items, ssa_fields=fields, ssa_values=values, res=res
+                ):
+                    items = items or DictionaryAttr({})
+                    fields = fields or ArrayAttr([])
+                    # First print the fields defined by attributes
+                    self.print(f"{self._var_use(res)} = .{{")
+                    for k, v in items.data.items():
+                        v = self.attribute_value_to_str(v)
+                        self.print(f".{k} = {v},", prefix=self._INDENT)
+                    # Then the fields defined by operands, with their corresponding names
+                    for k, v in zip(fields.data, values):
+                        v = self._get_variable_name_for(v)
+                        self.print(f".{k.data} = {v},", prefix=self._INDENT)
+                    self.print("};")
+                case csl.SetTileCodeOp(
+                    file=file, x_coord=x_coord, y_coord=y_coord, params=params
+                ):
+                    file = self.attribute_value_to_str(file)
+                    x = self._get_variable_name_for(x_coord)
+                    y = self._get_variable_name_for(y_coord)
+                    params = self._get_variable_name_for(params) if params else ""
+                    self.print(f"@set_tile_code({x}, {y}, {file}, {params});")
+                case csl.SetRectangleOp(x_dim=x_dim, y_dim=y_dim):
+                    x = self._get_variable_name_for(x_dim)
+                    y = self._get_variable_name_for(y_dim)
+                    self.print(f"@set_rectangle({x}, {y});")
+                case csl.GetColorOp(id=id, res=res):
+                    id = self.attribute_value_to_str(id)
+                    self.print(f"{self._var_use(res)} = @get_color({id});")
+                case csl.RpcOp(id=id):
+                    id = self._get_variable_name_for(id)
+                    with self.descend("comptime") as inner:
+                        inner.print(f"@rpc(@get_data_task_id({id}));")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
