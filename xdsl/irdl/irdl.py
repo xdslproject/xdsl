@@ -1472,8 +1472,6 @@ class OpDef:
 
             for field_name in annotations:
                 if field_name not in clsdict:
-                    if field_name.isupper():
-                        continue
                     raise wrong_field_exception(field_name)
 
             for field_name in clsdict:
@@ -1604,8 +1602,6 @@ class OpDef:
                         continue
                     case _:
                         pass
-                if field_name.isupper():
-                    continue
                 raise wrong_field_exception(field_name)
 
         op_def.assembly_format = pyrdl_def.assembly_format

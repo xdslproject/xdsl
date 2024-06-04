@@ -9,10 +9,10 @@ This is meant to be used in conjunction with the `-t csl` printing option to gen
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, ClassVar, TypeAlias, TypeVar
+from typing import Annotated, TypeAlias, TypeVar
 
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
@@ -892,11 +892,18 @@ class SetDsdStrideOp(IRDLOperation):
             raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
 
 
+FunctionSignatures = list[
+    tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]
+]
+
+
 class _BuiltinDsdOpBase(IRDLOperation, ABC):
     ops = var_operand_def()
-    SIGNATURE: ClassVar[
-        list[tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]]
-    ]
+
+    @staticmethod
+    @abstractmethod
+    def get_signatures() -> FunctionSignatures:
+        raise NotImplementedError()
 
     def verify_(self) -> None:
         def typcheck(
@@ -908,7 +915,7 @@ class _BuiltinDsdOpBase(IRDLOperation, ABC):
             else:
                 return op_typ == sig_typ
 
-        for sig in self.SIGNATURE:
+        for sig in self.get_signatures():
             if len(self.ops) == len(sig):
                 if all(typcheck(op.type, sig_t) for (op, sig_t) in zip(self.ops, sig)):
                     return
@@ -919,14 +926,14 @@ class _BuiltinDsdOpBase(IRDLOperation, ABC):
 class FaddsOp(_BuiltinDsdOpBase):
     name = "csl.fadds"
 
-    SIGNATURE: ClassVar[
-        list[tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]]
-    ] = [
-        (DsdType, DsdType, DsdType),
-        (DsdType, Float16Type, DsdType),
-        (DsdType, DsdType, Float16Type),
-        (f16_pointer, Float16Type, DsdType),
-    ]
+    @staticmethod
+    def get_signatures() -> FunctionSignatures:
+        return [
+            (DsdType, DsdType, DsdType),
+            (DsdType, Float16Type, DsdType),
+            (DsdType, DsdType, Float16Type),
+            (f16_pointer, Float16Type, DsdType),
+        ]
 
 
 @irdl_op_definition
