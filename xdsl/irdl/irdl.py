@@ -1447,7 +1447,8 @@ class OpDef:
                 "operand_def(<Constraint>), results with "
                 "result_def(<Constraint>), regions with "
                 "region_def(), attributes with "
-                "attr_def(<Constraint>), and properties with prop_def(<Constraint>)"
+                "attr_def(<Constraint>), properties with prop_def(<Constraint>), "
+                "and constants (indicated by uppercase field names) as ClassVar."
             )
 
         op_def = OpDef(pyrdl_def.name)
@@ -1482,6 +1483,18 @@ class OpDef:
                     continue
                 if field_name in field_names:
                     # already registered value for field name
+                    continue
+                if (
+                    field_name in annotations
+                    and field_name.isupper()
+                    and (
+                        get_origin(annotations[field_name]) is ClassVar
+                        or (
+                            isinstance(annotations[field_name], str)
+                            and annotations[field_name].startswith("ClassVar")
+                        )
+                    )
+                ):
                     continue
 
                 value = clsdict[field_name]
