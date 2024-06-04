@@ -894,7 +894,7 @@ class SetDsdStrideOp(IRDLOperation):
 
 class _BuiltinDsdOpBase(IRDLOperation, ABC):
     ops = var_operand_def()
-    signature: ClassVar[
+    SIGNATURE: ClassVar[
         list[tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]]
     ]
 
@@ -908,7 +908,7 @@ class _BuiltinDsdOpBase(IRDLOperation, ABC):
             else:
                 return op_typ == sig_typ
 
-        for sig in self.signature:
+        for sig in self.SIGNATURE:
             if len(self.ops) == len(sig):
                 if all(typcheck(op.type, sig_t) for (op, sig_t) in zip(self.ops, sig)):
                     return
@@ -919,7 +919,7 @@ class _BuiltinDsdOpBase(IRDLOperation, ABC):
 class FaddsOp(_BuiltinDsdOpBase):
     name = "csl.fadds"
 
-    signature: ClassVar[
+    SIGNATURE: ClassVar[
         list[tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]]
     ] = [
         (DsdType, DsdType, DsdType),
