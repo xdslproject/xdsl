@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# do not remove 'from __future__ import annotations'
 from typing import ClassVar
 
 import pytest

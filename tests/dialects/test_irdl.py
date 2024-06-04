@@ -1,3 +1,4 @@
+# do not include 'from __future__ import annotations' in this file
 from typing import ClassVar
 
 import pytest
