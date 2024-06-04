@@ -105,6 +105,12 @@ class DsdKind(StrEnum):
     fabout_dsd = "fabout_dsd"
 
 
+class BuiltinOpPrecisionKind(StrEnum):
+    half = "h"
+    mixed = "hs"
+    single = "s"
+
+
 class _FuncBase(IRDLOperation, ABC):
     """
     Base class for the shared functionalty of FuncOp and TaskOp
@@ -304,6 +310,17 @@ class DsdType(EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute
     """
 
     name = "csl.dsd"
+
+
+@irdl_attr_definition
+class BuiltinOpPrecisionType(
+    EnumAttribute[BuiltinOpPrecisionKind], TypeAttribute, SpacedOpaqueSyntaxAttribute
+):
+    """
+    Represents a precision in CSL.
+    """
+
+    name = "csl.precision"
 
 
 @irdl_attr_definition
@@ -900,10 +917,8 @@ FunctionSignatures = list[
 class _BuiltinDsdOpBase(IRDLOperation, ABC):
     ops = var_operand_def()
 
-    @staticmethod
     @abstractmethod
-    def get_signatures() -> FunctionSignatures:
-        raise NotImplementedError()
+    def get_signatures(self) -> FunctionSignatures: ...
 
     def verify_(self) -> None:
         def typcheck(
@@ -922,18 +937,36 @@ class _BuiltinDsdOpBase(IRDLOperation, ABC):
         raise VerifyException("Cannot find matching type signature")
 
 
+class _MultiprecisionDsdOpBase(_BuiltinDsdOpBase):
+    precision = prop_def(BuiltinOpPrecisionType)
+
+
 @irdl_op_definition
-class FaddsOp(_BuiltinDsdOpBase):
+class FaddOp(_MultiprecisionDsdOpBase):
     name = "csl.fadds"
 
-    @staticmethod
-    def get_signatures() -> FunctionSignatures:
-        return [
-            (DsdType, DsdType, DsdType),
-            (DsdType, Float16Type, DsdType),
-            (DsdType, DsdType, Float16Type),
-            (f16_pointer, Float16Type, DsdType),
-        ]
+    def get_signatures(self) -> FunctionSignatures:
+        if self.precision.data == BuiltinOpPrecisionKind.half:
+            return [
+                (DsdType, DsdType, DsdType),
+                (DsdType, Float16Type, DsdType),
+                (DsdType, DsdType, Float16Type),
+                (f16_pointer, Float16Type, DsdType),
+            ]
+        elif self.precision.data == BuiltinOpPrecisionKind.mixed:
+            return [
+                (DsdType, DsdType, DsdType),
+                (DsdType, Float16Type, DsdType),
+                (DsdType, DsdType, Float16Type),
+                (f32_pointer, Float32Type, DsdType),
+            ]
+        else:
+            return [
+                (DsdType, DsdType, DsdType),
+                (DsdType, Float32Type, DsdType),
+                (DsdType, DsdType, Float32Type),
+                (f32_pointer, Float32Type, DsdType),
+            ]
 
 
 @irdl_op_definition
@@ -1117,7 +1150,7 @@ CSL = Dialect(
         IncrementDsdOffsetOp,
         SetDsdLengthOp,
         SetDsdStrideOp,
-        FaddsOp,
+        FaddOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
@@ -1130,6 +1163,7 @@ CSL = Dialect(
         PtrConstAttr,
         PtrType,
         DsdType,
+        BuiltinOpPrecisionType,
         ColorType,
         ModuleKindAttr,
         TaskKindAttr,
