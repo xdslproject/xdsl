@@ -1,12 +1,12 @@
 from collections.abc import Callable, Sequence
 from itertools import compress
 
-from xdsl.builder import InsertPoint
 from xdsl.dialects import affine, arith, scf
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
 from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
 
 
 def indices_for_map(
@@ -49,7 +49,7 @@ def indices_for_map(
                 new_index_vals = tuple(compress(new_index_vals, selectors))
                 new_affine_map = new_affine_map.compress_dims(selectors)
 
-            rewriter.insert_op_at_location(
+            rewriter.insert_op(
                 apply_op := affine.ApplyOp(
                     new_index_vals,
                     AffineMapAttr(new_affine_map),
@@ -102,7 +102,7 @@ def _insert_loop_nest(
         )
         iter_args = loop.body.block.args[1:]
         loops.append(loop)
-        rewriter.insert_op_at_location(loop, insertion_point)
+        rewriter.insert_op(loop, insertion_point)
         results = loop.results
 
         if i + 1 == len(bounds):
@@ -118,7 +118,7 @@ def _insert_loop_nest(
                     "Unexpected number of results from `make_body` helper "
                     f"({len(results)}), expected {len(iter_args)}"
                 )
-        rewriter.insert_op_at_end(scf.Yield(*results), loop.body.block)
+        rewriter.insert_op(scf.Yield(*results), InsertPoint.at_end(loop.body.block))
         insertion_point = InsertPoint.at_start(loop.body.block)
 
     return loops[0].results
@@ -181,7 +181,7 @@ def _insert_store_ops(
         affine_map = affine_map_attr.data
         indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
         store_op = store(yield_value, ref, indices)
-        rewriter.insert_op_at_location(store_op, insertion_point)
+        rewriter.insert_op(store_op, insertion_point)
 
 
 def rewrite_generic_to_loops(
@@ -242,7 +242,7 @@ def rewrite_generic_to_loops(
         while block.args:
             rewriter.erase_block_argument(block.args[0])
 
-        rewriter.inline_block_at_location(block, insertion_point)
+        rewriter.inline_block(block, insertion_point)
 
         _insert_store_ops(
             rewriter,
@@ -297,8 +297,8 @@ def rewrite_generic_to_imperfect_loops(
     inner_bound_constant_ops = tuple(
         arith.Constant(IntegerAttr.from_index_int_value(ub)) for ub in inner_ubs
     )
-    rewriter.insert_op_at_location(outer_bound_constant_ops, insertion_point)
-    rewriter.insert_op_at_location(inner_bound_constant_ops, insertion_point)
+    rewriter.insert_op(outer_bound_constant_ops, insertion_point)
+    rewriter.insert_op(inner_bound_constant_ops, insertion_point)
     outer_bound_constant_values = tuple(op.result for op in outer_bound_constant_ops)
     inner_bound_constant_values = tuple(op.result for op in inner_bound_constant_ops)
 
@@ -367,7 +367,7 @@ def rewrite_generic_to_imperfect_loops(
             while block.args:
                 rewriter.erase_block_argument(block.args[0])
 
-            rewriter.inline_block_at_location(block, insertion_point)
+            rewriter.inline_block(block, insertion_point)
 
             return yield_op.operands
 

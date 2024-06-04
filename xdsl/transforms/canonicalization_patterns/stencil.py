@@ -7,6 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import cse
 
 
@@ -61,7 +62,7 @@ class UnusedOperands(RewritePattern):
             [cast(stencil.TempType[Attribute], r.type) for r in op.res],
         )
 
-        rewriter.inline_block_at_start(op.region.block, block, block.args)
+        rewriter.inline_block(op.region.block, InsertPoint.at_start(block), block.args)
         rewriter.replace_matched_op(new)
 
 
