@@ -6,8 +6,10 @@ from typing import IO, Literal, cast
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     ContainerType,
     DenseIntOrFPElementsAttr,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -197,8 +199,14 @@ class CslPrintContext:
         - float types: f16, f32
         - pointers: [*]f32
         - arrays: [64]f32
+        - function: fn(i32) f16
+        - color
+        - comptime_struct
+        - imported_module
+        - type
+        - comptime_string
 
-        This method does not yet support all the types and will be expanded as needed later.
+        This method supports all of these except type and comptime_string
         """
         match type_attr:
             case csl.ComptimeStructType():
@@ -240,6 +248,8 @@ class CslPrintContext:
                 args = map(self.mlir_type_to_csl_type, inp)
                 ret = self.mlir_type_to_csl_type(out.data[0]) if len(out) else "void"
                 return f"fn({', '.join(args)}) {ret}"
+            case csl.ColorType():
+                return "color"
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -251,27 +261,18 @@ class CslPrintContext:
         match attr:
             case IntAttr(data=val):
                 return str(val)
+            case IntegerAttr(
+                value=val, type=IntegerType(width=IntAttr(data=width))
+            ) if width == 1:
+                return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
                 return str(val.data)
             case FloatAttr(value=val):
                 return str(val.data)
+            case StringAttr() as s:
+                return f'"{s.data}"'
             case _:
                 return f"<!unknown value {attr}>"
-
-    def attribute_type_to_str(self, attr: Attribute) -> str:
-        """
-        Takes a value-carrying attribute and (IntegerAttr, FloatAttr, etc.)
-        and converts it to a csl expression representing the value's type (f32, u16, ...)
-        """
-        match attr:
-            case IntAttr():
-                return "<!indeterminate IntAttr type>"
-            case IntegerAttr(type=(IntegerType() | IndexType()) as int_t):
-                return self.mlir_type_to_csl_type(int_t)
-            case FloatAttr(type=(Float16Type() | Float32Type()) as float_t):
-                return self.mlir_type_to_csl_type(float_t)
-            case _:
-                return f"<!unknown type of {attr}>"
 
     def print_block(self, body: Block):
         """
@@ -417,6 +418,47 @@ class CslPrintContext:
                             # If specified, get mutability as true/false from python bool
                             mut = str(val[1]).lower() if val[1] is not None else ""
                             inner.print(f'@export_name("{name}", {ty}, {mut});')
+                case csl.ParamOp(init_value=init, param_name=name, res=res):
+                    if init is None:
+                        init = ""
+                    else:
+                        init = f" = { self.attribute_value_to_str(init)}"
+                    ty = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"param {name.data} : {ty}{init};")
+                case csl.ConstStructOp(
+                    items=items, ssa_fields=fields, ssa_values=values, res=res
+                ):
+                    items = items or DictionaryAttr({})
+                    fields = fields or ArrayAttr([])
+                    # First print the fields defined by attributes
+                    self.print(f"{self._var_use(res)} = .{{")
+                    for k, v in items.data.items():
+                        v = self.attribute_value_to_str(v)
+                        self.print(f".{k} = {v},", prefix=self._INDENT)
+                    # Then the fields defined by operands, with their corresponding names
+                    for k, v in zip(fields.data, values):
+                        v = self._get_variable_name_for(v)
+                        self.print(f".{k.data} = {v},", prefix=self._INDENT)
+                    self.print("};")
+                case csl.SetTileCodeOp(
+                    file=file, x_coord=x_coord, y_coord=y_coord, params=params
+                ):
+                    file = self.attribute_value_to_str(file)
+                    x = self._get_variable_name_for(x_coord)
+                    y = self._get_variable_name_for(y_coord)
+                    params = self._get_variable_name_for(params) if params else ""
+                    self.print(f"@set_tile_code({x}, {y}, {file}, {params});")
+                case csl.SetRectangleOp(x_dim=x_dim, y_dim=y_dim):
+                    x = self._get_variable_name_for(x_dim)
+                    y = self._get_variable_name_for(y_dim)
+                    self.print(f"@set_rectangle({x}, {y});")
+                case csl.GetColorOp(id=id, res=res):
+                    id = self.attribute_value_to_str(id)
+                    self.print(f"{self._var_use(res)} = @get_color({id});")
+                case csl.RpcOp(id=id):
+                    id = self._get_variable_name_for(id)
+                    with self.descend("comptime") as inner:
+                        inner.print(f"@rpc(@get_data_task_id({id}));")
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
