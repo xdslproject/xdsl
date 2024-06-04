@@ -160,10 +160,10 @@ class MyOpWithClassVarInvalid(IRDLOperation):
     var: ClassVar[str] = "hello_world"
 
 
-def testClassVarOnOp():
+def test_class_var_on_op():
     irdl_op_definition(MyOpWithClassVar)
 
 
-def testClassVarOnOpInvalid():
+def test_class_var_on_op_invalid():
     with pytest.raises(PyRDLOpDefinitionError, match="is neither a"):
         irdl_op_definition(MyOpWithClassVarInvalid)

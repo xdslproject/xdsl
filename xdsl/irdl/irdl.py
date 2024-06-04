@@ -1447,7 +1447,8 @@ class OpDef:
                 "operand_def(<Constraint>), results with "
                 "result_def(<Constraint>), regions with "
                 "region_def(), attributes with "
-                "attr_def(<Constraint>), and properties with prop_def(<Constraint>)"
+                "attr_def(<Constraint>), properties with prop_def(<Constraint>), "
+                "and constants (indicated by uppercase field names) as ClassVar."
             )
 
         op_def = OpDef(pyrdl_def.name)
