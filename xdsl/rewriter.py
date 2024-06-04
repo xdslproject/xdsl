@@ -257,24 +257,27 @@ class Rewriter:
         region.insert_block(block_list, pos)
 
     @staticmethod
-    def insert_ops(ops: Sequence[Operation], insertion_point: InsertPoint):
+    def insert_op(
+        op_or_ops: Operation | Sequence[Operation], insertion_point: InsertPoint
+    ):
         """Insert operations at a certain location in a block."""
+        ops = (op_or_ops,) if isinstance(op_or_ops, Operation) else op_or_ops
         if insertion_point.insert_before is not None:
             insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)
         else:
             insertion_point.block.add_ops(ops)
 
-    @deprecated("Please use `insert_ops` instead")
+    @deprecated("Please use `insert_op` instead")
     @staticmethod
     def insert_op_after(op: Operation, new_op: Operation):
         """Inserts a new operation after another operation."""
-        Rewriter.insert_ops((new_op,), InsertPoint.after(op))
+        Rewriter.insert_op(new_op, InsertPoint.after(op))
 
-    @deprecated("Please use `insert_ops` instead")
+    @deprecated("Please use `insert_op` instead")
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
         """Inserts a new operation before another operation."""
-        Rewriter.insert_ops((new_op,), InsertPoint.before(op))
+        Rewriter.insert_op(new_op, InsertPoint.before(op))
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:
