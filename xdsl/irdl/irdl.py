@@ -1472,6 +1472,14 @@ class OpDef:
             annotations = parent_cls.__annotations__
 
             for field_name in annotations:
+                if field_name.isupper() and (
+                    get_origin(annotations[field_name]) is ClassVar
+                    or (
+                        isinstance(annotations[field_name], str)
+                        and annotations[field_name].startswith("ClassVar")
+                    )
+                ):
+                    continue
                 if field_name not in clsdict:
                     raise wrong_field_exception(field_name)
 
