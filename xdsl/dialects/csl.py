@@ -1095,7 +1095,11 @@ class Fh2xp16Op(_BuiltinDsdOp):
     name = "csl.fh2xp16"
 
     def get_signatures(self) -> FunctionSignatures:
-        return [(DsdType, DsdType), (DsdType, Float16Type), (i16_pointer, Float16Type)]
+        return [
+            (DsdType, DsdType),
+            (DsdType, Float16Type),
+            (i16_pointer, Float16Type),
+        ]
 
 
 @irdl_op_definition
