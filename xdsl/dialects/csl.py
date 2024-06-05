@@ -301,6 +301,22 @@ f16_pointer = PtrType(
 f32_pointer = PtrType(
     [Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
 )
+u16_value = IntegerType(16, Signedness.UNSIGNED)
+i16_value = IntegerType(16, Signedness.SIGNED)
+u32_value = IntegerType(32, Signedness.UNSIGNED)
+i32_value = IntegerType(32, Signedness.SIGNED)
+i16_pointer = PtrType(
+    [i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+u16_pointer = PtrType(
+    [u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+i32_pointer = PtrType(
+    [i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+u32_pointer = PtrType(
+    [u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
 
 
 @irdl_attr_definition
@@ -845,7 +861,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(IntegerType(16, Signedness.SIGNED))
+    offset = operand_def(i16_value)
     elem_type = prop_def(DsdElementType)
     result = result_def(DsdType)
 
@@ -871,7 +887,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
-    length = operand_def(IntegerType(16, Signedness.UNSIGNED))
+    length = operand_def(u16_value)
     result = result_def(DsdType)
 
     def verify_(self) -> None:
@@ -941,8 +957,98 @@ class _MultiprecisionDsdOpBase(_BuiltinDsdOpBase):
     precision = prop_def(BuiltinOpPrecisionType)
 
 
+class _SymmetricBinary16BitOp(_BuiltinDsdOpBase):
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType, DsdType),
+            (DsdType, i16_value, DsdType),
+            (DsdType, u16_value, DsdType),
+            (DsdType, DsdType, i16_value),
+            (DsdType, DsdType, u16_value),
+        ]
+
+
+@irdl_op_definition
+class Add16Op(_SymmetricBinary16BitOp):
+    """
+    Implements @add16 and @addc16
+    """
+
+    name = "csl.add16"
+    with_carry = opt_prop_def(BoolAttr)
+
+
+@irdl_op_definition
+class And16Op(_SymmetricBinary16BitOp):
+    """
+    Implements @and16
+    """
+
+    name = "csl.and16"
+
+
+@irdl_op_definition
+class ClzOp(_BuiltinDsdOpBase):
+    """
+    Implements @clz
+    """
+
+    name = "csl.clz"
+
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType),
+            (DsdType, i16_value),
+            (DsdType, u16_value),
+        ]
+
+
+@irdl_op_definition
+class CtzOp(_BuiltinDsdOpBase):
+    """
+    Implements @ctz
+    """
+
+    name = "csl.ctz"
+
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType),
+            (DsdType, i16_value),
+            (DsdType, u16_value),
+        ]
+
+
+@irdl_op_definition
+class FabsOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fabsh and @fabss
+    """
+
+    name = "csl.fabs"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (DsdType, DsdType),
+                    (DsdType, Float16Type),
+                ]
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (DsdType, DsdType),
+                    (DsdType, Float32Type),
+                ]
+            case _:
+                return []
+
+
 @irdl_op_definition
 class FaddOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @faddh, @faddhs, and @fadds
+    """
+
     name = "csl.fadds"
 
     def get_signatures(self) -> FunctionSignatures:
@@ -967,6 +1073,387 @@ class FaddOp(_MultiprecisionDsdOpBase):
                 (DsdType, DsdType, Float32Type),
                 (f32_pointer, Float32Type, DsdType),
             ]
+
+
+@irdl_op_definition
+class Fh2sOp(_BuiltinDsdOpBase):
+    """
+    Implements @fh2s
+    """
+
+    name = "csl.fh2s"
+
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType),
+            (DsdType, Float16Type),
+        ]
+
+
+@irdl_op_definition
+class Fh2xp16Op(_BuiltinDsdOpBase):
+    """
+    Implements @fh2xp16
+    """
+
+    name = "csl.fh2xp16"
+
+    def get_signatures(self) -> FunctionSignatures:
+        return [(DsdType, DsdType), (DsdType, Float16Type), (i16_pointer, Float16Type)]
+
+
+@irdl_op_definition
+class FmacOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fmach, @fmachs, and @fmacs
+    """
+
+    name = "csl.fmac"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [(DsdType, DsdType, DsdType, Float16Type)]
+            case BuiltinOpPrecisionKind.mixed:
+                return [(DsdType, DsdType, DsdType, Float16Type)]
+            case BuiltinOpPrecisionKind.single:
+                return [(DsdType, DsdType, DsdType, Float32Type)]
+
+
+@irdl_op_definition
+class FmaxOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fmaxh and @fmaxs
+    """
+
+    name = "csl.fmax"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float16Type, DsdType),
+                    (DsdType, DsdType, Float16Type),
+                    (f16_pointer, Float16Type, DsdType),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float32Type, DsdType),
+                    (DsdType, DsdType, Float32Type),
+                    (f32_pointer, Float32Type, DsdType),
+                ]
+
+
+@irdl_op_definition
+class FmovOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fmovh and @fmovs
+    """
+
+    name = "csl.fmov"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (DsdType, DsdType),
+                    (f16_pointer, DsdType),
+                    (DsdType, Float16Type),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (DsdType, DsdType),
+                    (f32_pointer, DsdType),
+                    (DsdType, Float32Type),
+                ]
+
+
+@irdl_op_definition
+class FmulOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fmulh and @fmuls
+    """
+
+    name = "csl.fmul"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float16Type, DsdType),
+                    (DsdType, DsdType, Float16Type),
+                    (f16_pointer, Float16Type, DsdType),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float32Type, DsdType),
+                    (DsdType, DsdType, Float32Type),
+                    (f32_pointer, Float32Type, DsdType),
+                ]
+
+
+@irdl_op_definition
+class FnegOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fnegh and @fnegs
+    """
+
+    name = "csl.fneg"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (DsdType, DsdType),
+                    (DsdType, Float16Type),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (DsdType, DsdType),
+                    (DsdType, Float32Type),
+                ]
+
+
+@irdl_op_definition
+class FnormOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fnormh and @fnorms
+    """
+
+    name = "csl.fnorm"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (f16_pointer, Float16Type),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (f32_pointer, Float32Type),
+                ]
+
+
+@irdl_op_definition
+class Fs2hOp(_BuiltinDsdOpBase):
+    """
+    Implements @fs2h
+    """
+
+    name = "csl.fs2h"
+
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType),
+            (DsdType, Float32Type),
+        ]
+
+
+@irdl_op_definition
+class Fs2xp16Op(_BuiltinDsdOpBase):
+    """
+    Implements @fs2xp16
+    """
+
+    name = "csl.fs2xp16"
+
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType),
+            (DsdType, Float32Type),
+            (i16_pointer, Float32Type),  # todo this might be an error in the CSL docs
+        ]
+
+
+@irdl_op_definition
+class FscaleOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fscaleh and @fscales
+    """
+
+    name = "csl.fscale"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (f16_pointer, Float16Type, i16_value),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (f32_pointer, Float32Type, i16_value),
+                ]
+
+
+@irdl_op_definition
+class FsubOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @fsubh and @fsubs
+    """
+
+    name = "csl.fsub"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float16Type, DsdType),
+                    (DsdType, DsdType, Float16Type),
+                    (f16_pointer, Float16Type, DsdType),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float32Type, DsdType),
+                    (DsdType, DsdType, Float32Type),
+                    (f32_pointer, Float32Type, DsdType),
+                ]
+
+
+@irdl_op_definition
+class MovOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @mov16 and @mov32
+    """
+
+    name = "csl.mov"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (DsdType, DsdType),
+                    (i16_pointer, DsdType),
+                    (u16_pointer, DsdType),
+                    (DsdType, i16_value),
+                    (DsdType, u16_value),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (DsdType, DsdType),
+                    (i32_pointer, DsdType),
+                    (u32_pointer, DsdType),
+                    (DsdType, i32_value),
+                    (DsdType, u32_value),
+                ]
+
+
+@irdl_op_definition
+class Or16Op(_SymmetricBinary16BitOp):
+    """
+    Implements @or16
+    """
+
+    name = "csl.or16"
+
+
+@irdl_op_definition
+class PopcntOp(_BuiltinDsdOpBase):
+    """
+    Implements @popcnt
+    """
+
+    name = "csl.popcnt"
+
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType),
+            (DsdType, i16_value),
+            (DsdType, u16_value),
+        ]
+
+
+@irdl_op_definition
+class Sar16Op(_SymmetricBinary16BitOp):
+    """
+    Implements @sar16
+    """
+
+    name = "csl.sar16"
+
+
+@irdl_op_definition
+class Sll16Op(_SymmetricBinary16BitOp):
+    """
+    Implements @sll16
+    """
+
+    name = "csl.sll16"
+
+
+@irdl_op_definition
+class Slr16Op(_SymmetricBinary16BitOp):
+    """
+    Implements @slr16
+    """
+
+    name = "csl.slr16"
+
+
+@irdl_op_definition
+class Sub16Op(_BuiltinDsdOpBase):
+    """
+    Implements @sub16
+    """
+
+    name = "csl.sub16"
+
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType, DsdType),
+            (DsdType, DsdType, i16_value),
+            (DsdType, DsdType, u16_value),
+        ]
+
+
+@irdl_op_definition
+class Xor16Op(_SymmetricBinary16BitOp):
+    """
+    Implements @xor16
+    """
+
+    name = "csl.xor16"
+
+
+@irdl_op_definition
+class Xp162fOp(_MultiprecisionDsdOpBase):
+    """
+    Implements @xp162fh and @xp162fs
+    """
+
+    name = "csl.xp162f"
+
+    def get_signatures(self) -> FunctionSignatures:
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.mixed:
+                return []
+            case _:
+                return [
+                    (DsdType, DsdType),
+                    (DsdType, i16_value),
+                    (DsdType, u16_value),
+                ]
 
 
 @irdl_op_definition
@@ -1150,7 +1637,33 @@ CSL = Dialect(
         IncrementDsdOffsetOp,
         SetDsdLengthOp,
         SetDsdStrideOp,
+        Add16Op,
+        And16Op,
+        ClzOp,
+        CtzOp,
+        FabsOp,
         FaddOp,
+        Fh2sOp,
+        Fh2xp16Op,
+        FmacOp,
+        FmaxOp,
+        FmovOp,
+        FmulOp,
+        FnegOp,
+        FnormOp,
+        Fs2hOp,
+        Fs2xp16Op,
+        FscaleOp,
+        FsubOp,
+        MovOp,
+        Or16Op,
+        PopcntOp,
+        Sar16Op,
+        Sll16Op,
+        Slr16Op,
+        Sub16Op,
+        Xor16Op,
+        Xp162fOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
