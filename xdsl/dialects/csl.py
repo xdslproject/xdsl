@@ -968,6 +968,15 @@ class _SymmetricBinary16BitOp(_BuiltinDsdOpBase):
         ]
 
 
+class _Unary16BitOp(_BuiltinDsdOpBase):
+    def get_signatures(self) -> FunctionSignatures:
+        return [
+            (DsdType, DsdType),
+            (DsdType, i16_value),
+            (DsdType, u16_value),
+        ]
+
+
 @irdl_op_definition
 class Add16Op(_SymmetricBinary16BitOp):
     """
@@ -988,35 +997,21 @@ class And16Op(_SymmetricBinary16BitOp):
 
 
 @irdl_op_definition
-class ClzOp(_BuiltinDsdOpBase):
+class ClzOp(_Unary16BitOp):
     """
     Implements @clz
     """
 
     name = "csl.clz"
 
-    def get_signatures(self) -> FunctionSignatures:
-        return [
-            (DsdType, DsdType),
-            (DsdType, i16_value),
-            (DsdType, u16_value),
-        ]
-
 
 @irdl_op_definition
-class CtzOp(_BuiltinDsdOpBase):
+class CtzOp(_Unary16BitOp):
     """
     Implements @ctz
     """
 
     name = "csl.ctz"
-
-    def get_signatures(self) -> FunctionSignatures:
-        return [
-            (DsdType, DsdType),
-            (DsdType, i16_value),
-            (DsdType, u16_value),
-        ]
 
 
 @irdl_op_definition
@@ -1369,19 +1364,12 @@ class Or16Op(_SymmetricBinary16BitOp):
 
 
 @irdl_op_definition
-class PopcntOp(_BuiltinDsdOpBase):
+class PopcntOp(_Unary16BitOp):
     """
     Implements @popcnt
     """
 
     name = "csl.popcnt"
-
-    def get_signatures(self) -> FunctionSignatures:
-        return [
-            (DsdType, DsdType),
-            (DsdType, i16_value),
-            (DsdType, u16_value),
-        ]
 
 
 @irdl_op_definition
