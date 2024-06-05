@@ -1263,6 +1263,7 @@ class Fs2hOp(_BuiltinDsdOp):
 class Fs2xp16Op(_BuiltinDsdOp):
     """
     Implements @fs2xp16
+    Note: this actually converts to i16, not to i32
     """
 
     name = "csl.fs2xp16"
@@ -1271,7 +1272,7 @@ class Fs2xp16Op(_BuiltinDsdOp):
         return [
             (DsdType, DsdType),
             (DsdType, Float32Type),
-            (i16_pointer, Float32Type),  # todo this might be an error in the CSL docs
+            (i16_pointer, Float32Type),
         ]
 
 
@@ -1292,7 +1293,6 @@ class FscaleOp(_MultiprecisionDsdOp):
             case BuiltinOpPrecisionKind.mixed:
                 return []
             case BuiltinOpPrecisionKind.single:
-                # todo i16_value might be wrong in the docs
                 return [
                     (f32_pointer, Float32Type, i16_value),
                 ]
