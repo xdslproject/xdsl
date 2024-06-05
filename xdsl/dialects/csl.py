@@ -1044,7 +1044,7 @@ class FaddOp(_MultiprecisionDsdOp):
     Implements @faddh, @faddhs, and @fadds
     """
 
-    name = "csl.fadds"
+    name = "csl.fadd"
 
     def get_signatures(self) -> FunctionSignatures:
         match self.precision.data:
@@ -1292,6 +1292,7 @@ class FscaleOp(_MultiprecisionDsdOp):
             case BuiltinOpPrecisionKind.mixed:
                 return []
             case BuiltinOpPrecisionKind.single:
+                # todo i16_value might be wrong in the docs
                 return [
                     (f32_pointer, Float32Type, i16_value),
                 ]
