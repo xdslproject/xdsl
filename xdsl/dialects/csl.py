@@ -930,7 +930,7 @@ FunctionSignatures = list[
 ]
 
 
-class _BuiltinDsdOpBase(IRDLOperation, ABC):
+class _BuiltinDsdOp(IRDLOperation, ABC):
     ops = var_operand_def()
 
     @abstractmethod
@@ -953,11 +953,11 @@ class _BuiltinDsdOpBase(IRDLOperation, ABC):
         raise VerifyException("Cannot find matching type signature")
 
 
-class _MultiprecisionDsdOpBase(_BuiltinDsdOpBase):
+class _MultiprecisionDsdOp(_BuiltinDsdOp):
     precision = prop_def(BuiltinOpPrecisionType)
 
 
-class _SymmetricBinary16BitOp(_BuiltinDsdOpBase):
+class _SymmetricBinary16BitOp(_BuiltinDsdOp):
     def get_signatures(self) -> FunctionSignatures:
         return [
             (DsdType, DsdType, DsdType),
@@ -968,7 +968,7 @@ class _SymmetricBinary16BitOp(_BuiltinDsdOpBase):
         ]
 
 
-class _Unary16BitOp(_BuiltinDsdOpBase):
+class _Unary16BitOp(_BuiltinDsdOp):
     def get_signatures(self) -> FunctionSignatures:
         return [
             (DsdType, DsdType),
@@ -1015,7 +1015,7 @@ class CtzOp(_Unary16BitOp):
 
 
 @irdl_op_definition
-class FabsOp(_MultiprecisionDsdOpBase):
+class FabsOp(_MultiprecisionDsdOp):
     """
     Implements @fabsh and @fabss
     """
@@ -1039,7 +1039,7 @@ class FabsOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class FaddOp(_MultiprecisionDsdOpBase):
+class FaddOp(_MultiprecisionDsdOp):
     """
     Implements @faddh, @faddhs, and @fadds
     """
@@ -1047,31 +1047,32 @@ class FaddOp(_MultiprecisionDsdOpBase):
     name = "csl.fadds"
 
     def get_signatures(self) -> FunctionSignatures:
-        if self.precision.data == BuiltinOpPrecisionKind.half:
-            return [
-                (DsdType, DsdType, DsdType),
-                (DsdType, Float16Type, DsdType),
-                (DsdType, DsdType, Float16Type),
-                (f16_pointer, Float16Type, DsdType),
-            ]
-        elif self.precision.data == BuiltinOpPrecisionKind.mixed:
-            return [
-                (DsdType, DsdType, DsdType),
-                (DsdType, Float16Type, DsdType),
-                (DsdType, DsdType, Float16Type),
-                (f32_pointer, Float32Type, DsdType),
-            ]
-        else:
-            return [
-                (DsdType, DsdType, DsdType),
-                (DsdType, Float32Type, DsdType),
-                (DsdType, DsdType, Float32Type),
-                (f32_pointer, Float32Type, DsdType),
-            ]
+        match self.precision.data:
+            case BuiltinOpPrecisionKind.half:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float16Type, DsdType),
+                    (DsdType, DsdType, Float16Type),
+                    (f16_pointer, Float16Type, DsdType),
+                ]
+            case BuiltinOpPrecisionKind.mixed:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float16Type, DsdType),
+                    (DsdType, DsdType, Float16Type),
+                    (f32_pointer, Float32Type, DsdType),
+                ]
+            case BuiltinOpPrecisionKind.single:
+                return [
+                    (DsdType, DsdType, DsdType),
+                    (DsdType, Float32Type, DsdType),
+                    (DsdType, DsdType, Float32Type),
+                    (f32_pointer, Float32Type, DsdType),
+                ]
 
 
 @irdl_op_definition
-class Fh2sOp(_BuiltinDsdOpBase):
+class Fh2sOp(_BuiltinDsdOp):
     """
     Implements @fh2s
     """
@@ -1086,7 +1087,7 @@ class Fh2sOp(_BuiltinDsdOpBase):
 
 
 @irdl_op_definition
-class Fh2xp16Op(_BuiltinDsdOpBase):
+class Fh2xp16Op(_BuiltinDsdOp):
     """
     Implements @fh2xp16
     """
@@ -1098,7 +1099,7 @@ class Fh2xp16Op(_BuiltinDsdOpBase):
 
 
 @irdl_op_definition
-class FmacOp(_MultiprecisionDsdOpBase):
+class FmacOp(_MultiprecisionDsdOp):
     """
     Implements @fmach, @fmachs, and @fmacs
     """
@@ -1116,7 +1117,7 @@ class FmacOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class FmaxOp(_MultiprecisionDsdOpBase):
+class FmaxOp(_MultiprecisionDsdOp):
     """
     Implements @fmaxh and @fmaxs
     """
@@ -1144,7 +1145,7 @@ class FmaxOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class FmovOp(_MultiprecisionDsdOpBase):
+class FmovOp(_MultiprecisionDsdOp):
     """
     Implements @fmovh and @fmovs
     """
@@ -1170,7 +1171,7 @@ class FmovOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class FmulOp(_MultiprecisionDsdOpBase):
+class FmulOp(_MultiprecisionDsdOp):
     """
     Implements @fmulh and @fmuls
     """
@@ -1198,7 +1199,7 @@ class FmulOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class FnegOp(_MultiprecisionDsdOpBase):
+class FnegOp(_MultiprecisionDsdOp):
     """
     Implements @fnegh and @fnegs
     """
@@ -1222,7 +1223,7 @@ class FnegOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class FnormOp(_MultiprecisionDsdOpBase):
+class FnormOp(_MultiprecisionDsdOp):
     """
     Implements @fnormh and @fnorms
     """
@@ -1244,7 +1245,7 @@ class FnormOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class Fs2hOp(_BuiltinDsdOpBase):
+class Fs2hOp(_BuiltinDsdOp):
     """
     Implements @fs2h
     """
@@ -1259,7 +1260,7 @@ class Fs2hOp(_BuiltinDsdOpBase):
 
 
 @irdl_op_definition
-class Fs2xp16Op(_BuiltinDsdOpBase):
+class Fs2xp16Op(_BuiltinDsdOp):
     """
     Implements @fs2xp16
     """
@@ -1275,7 +1276,7 @@ class Fs2xp16Op(_BuiltinDsdOpBase):
 
 
 @irdl_op_definition
-class FscaleOp(_MultiprecisionDsdOpBase):
+class FscaleOp(_MultiprecisionDsdOp):
     """
     Implements @fscaleh and @fscales
     """
@@ -1297,7 +1298,7 @@ class FscaleOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class FsubOp(_MultiprecisionDsdOpBase):
+class FsubOp(_MultiprecisionDsdOp):
     """
     Implements @fsubh and @fsubs
     """
@@ -1325,7 +1326,7 @@ class FsubOp(_MultiprecisionDsdOpBase):
 
 
 @irdl_op_definition
-class MovOp(_MultiprecisionDsdOpBase):
+class MovOp(_MultiprecisionDsdOp):
     """
     Implements @mov16 and @mov32
     """
@@ -1400,7 +1401,7 @@ class Slr16Op(_SymmetricBinary16BitOp):
 
 
 @irdl_op_definition
-class Sub16Op(_BuiltinDsdOpBase):
+class Sub16Op(_BuiltinDsdOp):
     """
     Implements @sub16
     """
@@ -1425,7 +1426,7 @@ class Xor16Op(_SymmetricBinary16BitOp):
 
 
 @irdl_op_definition
-class Xp162fOp(_MultiprecisionDsdOpBase):
+class Xp162fOp(_MultiprecisionDsdOp):
     """
     Implements @xp162fh and @xp162fs
     """
