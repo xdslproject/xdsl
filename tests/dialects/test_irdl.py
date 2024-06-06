@@ -183,4 +183,5 @@ class MySubWithClassVarOverload(MySuperWithClassVarDef):
 
 
 def test_class_var_on_super():
+    irdl_op_definition(MySuperWithClassVarDef)
     irdl_op_definition(MySubWithClassVarOverload)
