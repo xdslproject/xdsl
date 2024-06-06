@@ -273,8 +273,6 @@ class CslPrintContext:
                 return str(val.data)
             case StringAttr() as s:
                 return f'"{s.data}"'
-            case csl.DsdType() as dsd:
-                return dsd.data
             case _:
                 return f"<!unknown value {attr}>"
 
@@ -483,7 +481,7 @@ class CslPrintContext:
                     ]
                     accesses_str = ", ".join(accesses)
                     self.print(
-                        f"{self._var_use(result)} = @get_dsd( {self.attribute_value_to_str(result.type)} .{{"
+                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)} .{{"
                     )
                     self.print(
                         f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {base_addr.name_hint}[ {accesses_str} ]"
@@ -497,7 +495,7 @@ class CslPrintContext:
                     result=result,
                 ):
                     self.print(
-                        f"{self._var_use(result)} = @get_dsd({self.attribute_value_to_str(result.type)}, .{{ "
+                        f"{self._var_use(result)} = @get_dsd({self.mlir_type_to_csl_type(result.type)}, .{{ "
                     )
                     self.print(f"  .extent = {self._get_variable_name_for(extent[0])},")
                     self.print(
