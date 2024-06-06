@@ -619,6 +619,12 @@ csl.func @builtins() {
 // CHECK-NEXT:   const f16_value : f16 = 7.0;
 // CHECK-NEXT:   const f32_value : f32 = 8.0;
 // CHECK-NEXT:   const col1 : color = @get_color(3);
+// CHECK-NEXT:   var f16_pointer : *f16 = &f16_value;
+// CHECK-NEXT:   var f32_pointer : *f32 = &f32_value;
+// CHECK-NEXT:   var i16_pointer : *i16 = &i16_value;
+// CHECK-NEXT:   var i32_pointer : *i32 = &i32_value;
+// CHECK-NEXT:   var u16_pointer : *u16 = &u16_value;
+// CHECK-NEXT:   var u32_pointer : *u32 = &u32_value;
 // CHECK-NEXT:   const dsd_2d : mem4d_dsd = @get_dsd( mem4d_dsd .{
 // CHECK-NEXT:     .tensor_access = | d0, d1 | { i32_value, i32_value } -> A[ 3 * d0 + 1, 4 * d1 + 2 ]
 // CHECK-NEXT:   });
@@ -637,13 +643,149 @@ csl.func @builtins() {
 // CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, i8_value);
 // CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
-// CHECK-NEXT:     .fabric_color = None,
+// CHECK-NEXT:     .fabric_color = col1,
 // CHECK-NEXT:   }});
 // CHECK-NEXT:   const fabout_dsd : fabout_dsd = @get_dsd(fabout_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
-// CHECK-NEXT:     .fabric_color = None,
+// CHECK-NEXT:     .fabric_color = col1,
+// CHECK-NEXT:     .wavelet_index_offset = false,
+// CHECK-NEXT:     .control = true,
 // CHECK-NEXT:   }});
 // CHECK-NEXT:   @add16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @add16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @add16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @add16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @add16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @addc16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @addc16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @addc16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @addc16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @addc16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @and16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @and16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @and16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @and16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @and16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @clz(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @clz(dest_dsd, i16_value);
+// CHECK-NEXT:   @clz(dest_dsd, u16_value);
+// CHECK-NEXT:   @ctz(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @ctz(dest_dsd, i16_value);
+// CHECK-NEXT:   @ctz(dest_dsd, u16_value);
+// CHECK-NEXT:   @fabsh(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fabsh(dest_dsd, f16_value);
+// CHECK-NEXT:   @fabss(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fabss(dest_dsd, f32_value);
+// CHECK-NEXT:   @faddh(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @faddh(dest_dsd, f16_value, src_dsd1);
+// CHECK-NEXT:   @faddh(dest_dsd, src_dsd1, f16_value);
+// CHECK-NEXT:   @faddh(f16_pointer, f16_value, src_dsd1);
+// CHECK-NEXT:   @faddhs(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @faddhs(dest_dsd, f16_value, src_dsd1);
+// CHECK-NEXT:   @faddhs(dest_dsd, src_dsd1, f16_value);
+// CHECK-NEXT:   @faddhs(f32_pointer, f32_value, src_dsd1);
+// CHECK-NEXT:   @fadds(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fadds(dest_dsd, f32_value, src_dsd1);
+// CHECK-NEXT:   @fadds(dest_dsd, src_dsd1, f32_value);
+// CHECK-NEXT:   @fadds(f32_pointer, f32_value, src_dsd1);
+// CHECK-NEXT:   @fh2s(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fh2s(dest_dsd, f16_value);
+// CHECK-NEXT:   @fh2xp16(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fh2xp16(dest_dsd, f16_value);
+// CHECK-NEXT:   @fh2xp16(i16_pointer, f16_value);
+// CHECK-NEXT:   @fmach(dest_dsd, src_dsd1, src_dsd2, f16_value);
+// CHECK-NEXT:   @fmachs(dest_dsd, src_dsd1, src_dsd2, f16_value);
+// CHECK-NEXT:   @fmacs(dest_dsd, src_dsd1, src_dsd2, f32_value);
+// CHECK-NEXT:   @fmaxh(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fmaxh(dest_dsd, f16_value, src_dsd1);
+// CHECK-NEXT:   @fmaxh(dest_dsd, src_dsd1, f16_value);
+// CHECK-NEXT:   @fmaxh(f16_pointer, f16_value, src_dsd1);
+// CHECK-NEXT:   @fmaxs(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fmaxs(dest_dsd, f32_value, src_dsd1);
+// CHECK-NEXT:   @fmaxs(dest_dsd, src_dsd1, f32_value);
+// CHECK-NEXT:   @fmaxs(f32_pointer, f32_value, src_dsd1);
+// CHECK-NEXT:   @fmovh(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fmovh(f16_pointer, src_dsd1);
+// CHECK-NEXT:   @fmovh(dest_dsd, f16_value);
+// CHECK-NEXT:   @fmovs(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fmovs(f32_pointer, src_dsd1);
+// CHECK-NEXT:   @fmovs(dest_dsd, f32_value);
+// CHECK-NEXT:   @fmulh(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fmulh(dest_dsd, f16_value, src_dsd1);
+// CHECK-NEXT:   @fmulh(dest_dsd, src_dsd1, f16_value);
+// CHECK-NEXT:   @fmulh(f16_pointer, f16_value, src_dsd1);
+// CHECK-NEXT:   @fmuls(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fmuls(dest_dsd, f32_value, src_dsd1);
+// CHECK-NEXT:   @fmuls(dest_dsd, src_dsd1, f32_value);
+// CHECK-NEXT:   @fmuls(f32_pointer, f32_value, src_dsd1);
+// CHECK-NEXT:   @fnegh(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fnegh(dest_dsd, f16_value);
+// CHECK-NEXT:   @fnegs(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fnegs(dest_dsd, f32_value);
+// CHECK-NEXT:   @fnormh(f16_pointer, f16_value);
+// CHECK-NEXT:   @fnorms(f32_pointer, f32_value);
+// CHECK-NEXT:   @fs2h(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fs2h(dest_dsd, f32_value);
+// CHECK-NEXT:   @fs2xp16(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fs2xp16(dest_dsd, f32_value);
+// CHECK-NEXT:   @fs2xp16(i16_pointer, f32_value);
+// CHECK-NEXT:   @fscaleh(f16_pointer, f16_value, i16_value);
+// CHECK-NEXT:   @fscales(f32_pointer, f32_value, i16_value);
+// CHECK-NEXT:   @fsubh(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fsubh(dest_dsd, f16_value, src_dsd1);
+// CHECK-NEXT:   @fsubh(dest_dsd, src_dsd1, f16_value);
+// CHECK-NEXT:   @fsubh(f16_pointer, f16_value, src_dsd1);
+// CHECK-NEXT:   @fsubs(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fsubs(dest_dsd, f32_value, src_dsd1);
+// CHECK-NEXT:   @fsubs(dest_dsd, src_dsd1, f32_value);
+// CHECK-NEXT:   @fsubs(f32_pointer, f32_value, src_dsd1);
+// CHECK-NEXT:   @mov16(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @mov16(i16_pointer, src_dsd1);
+// CHECK-NEXT:   @mov16(u16_pointer, src_dsd1);
+// CHECK-NEXT:   @mov16(dest_dsd, i16_value);
+// CHECK-NEXT:   @mov16(dest_dsd, u16_value);
+// CHECK-NEXT:   @mov32(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @mov32(i32_pointer, src_dsd1);
+// CHECK-NEXT:   @mov32(u32_pointer, src_dsd1);
+// CHECK-NEXT:   @mov32(dest_dsd, i32_value);
+// CHECK-NEXT:   @mov32(dest_dsd, u32_value);
+// CHECK-NEXT:   @or16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @or16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @or16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @or16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @or16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @popcnt(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @popcnt(dest_dsd, i16_value);
+// CHECK-NEXT:   @popcnt(dest_dsd, u16_value);
+// CHECK-NEXT:   @sar16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @sar16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @sar16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @sar16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @sar16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @sll16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @sll16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @sll16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @sll16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @sll16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @slr16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @slr16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @slr16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @slr16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @slr16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @sub16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @sub16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @sub16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @xor16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @xor16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @xp162fh(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @xp162fh(dest_dsd, i16_value);
+// CHECK-NEXT:   @xp162fh(dest_dsd, u16_value);
+// CHECK-NEXT:   @xp162fs(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @xp162fs(dest_dsd, i16_value);
+// CHECK-NEXT:   @xp162fs(dest_dsd, u16_value);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //
