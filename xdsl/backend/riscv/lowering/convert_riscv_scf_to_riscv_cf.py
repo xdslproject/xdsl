@@ -7,6 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 class LowerRiscvScfForPattern(RewritePattern):
@@ -124,7 +125,7 @@ class LowerRiscvScfForPattern(RewritePattern):
 
         # Move lb to new register to initialize the iv.
         # Skip for loop if condition is not satisfied at start.
-        rewriter.insert_op_at_end(
+        rewriter.insert_op(
             (
                 mv_op := riscv.MVOp(op.lb, rd=iv_reg),
                 riscv_cf.BgeOp(
@@ -136,12 +137,12 @@ class LowerRiscvScfForPattern(RewritePattern):
                     first_body_block,
                 ),
             ),
-            init_block,
+            InsertPoint.at_end(init_block),
         )
 
         # Insert label at the start of the first body block.
-        rewriter.insert_op_at_start(
-            riscv.LabelOp(f"scf_body_{suffix}"), first_body_block
+        rewriter.insert_op(
+            riscv.LabelOp(f"scf_body_{suffix}"), InsertPoint.at_start(first_body_block)
         )
 
         # Replace operation by arguments to the newly end block.

@@ -12,6 +12,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 def insert_stride_pattern_ops(
@@ -94,7 +95,7 @@ def insert_stride_pattern_ops(
         new_ops.extend((a_inc_op, new_a_op, stride_op, set_stride_op))
         a_op = new_a_op
 
-    rewriter.insert_op_before(new_ops, target_op)
+    rewriter.insert_op(new_ops, InsertPoint.before(target_op))
 
 
 class LowerStreamingRegionOp(RewritePattern):

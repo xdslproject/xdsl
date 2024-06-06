@@ -23,7 +23,7 @@ def load(
 ) -> SSAValue:
     if isinstance(value.type, MemRefType):
         op = memref.Load.get(value, indices)
-        rewriter.insert_op_at_location(op, insertion_target)
+        rewriter.insert_op(op, insertion_target)
         return op.res
     else:
         return value

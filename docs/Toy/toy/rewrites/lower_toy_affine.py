@@ -59,12 +59,12 @@ def insert_alloc_and_dealloc(
 
     # Make sure to allocate at the beginning of the block.
     alloc = memref.Alloc.get(type.element_type, None, type.shape)
-    rewriter.insert_op_at_start(alloc, block)
+    rewriter.insert_op(alloc, InsertPoint.at_start(block))
 
     # Make sure to deallocate this alloc at the end of the block. This is fine as toy
     # functions have no control flow.
     dealloc = memref.Dealloc.get(alloc)
-    rewriter.insert_op_before(dealloc, block.last_op)
+    rewriter.insert_op(dealloc, InsertPoint.before(block.last_op))
 
     return alloc
 
@@ -382,7 +382,7 @@ class ConstantOpLowering(RewritePattern):
         ]
 
         # Insert constants used before the alloc, not before matched operation
-        rewriter.insert_op_before(constants, alloc)
+        rewriter.insert_op(constants, InsertPoint.before(alloc))
 
         # Replace the constant by the stores, and its result by the allocated value
         rewriter.replace_matched_op(stores, (alloc.memref,))

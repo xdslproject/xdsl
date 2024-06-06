@@ -9,6 +9,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 def get_register_ops_from_values(
@@ -83,7 +84,7 @@ class LowerRiscvScfToLabels(RewritePattern):
         # Replace args of the body with operations that get the registers bound
         # to them.
         for get_target_register in get_register_ops_from_values(body.args):
-            body.insert_op_before(get_target_register, body.first_op)
+            rewriter.insert_op(get_target_register, InsertPoint.at_start(body))
 
         # Also replace the loop results directly with the registers bound to them.
         for get_target_register in get_register_ops_from_values(op.results):

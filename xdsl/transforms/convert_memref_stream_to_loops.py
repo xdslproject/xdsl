@@ -32,7 +32,7 @@ def load(
         op = memref_stream.ReadOp(source)
     else:
         return source
-    rewriter.insert_op_at_location(op, insert_point)
+    rewriter.insert_op(op, insert_point)
     return op.res
 
 

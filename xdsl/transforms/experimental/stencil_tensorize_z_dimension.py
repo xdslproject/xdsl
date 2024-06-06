@@ -43,6 +43,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -140,7 +141,7 @@ class AccessOpTensorize(RewritePattern):
         extract = ExtractSliceOp.from_static_parameters(
             a, [z_offset], element_t.get_shape()
         )
-        rewriter.insert_op_before(a, op)
+        rewriter.insert_op(a, InsertPoint.before(op))
         rewriter.replace_matched_op(extract)
 
 
@@ -159,16 +160,16 @@ def arithBinaryOpTensorize(
     elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
         emptyop = EmptyOp((), op.lhs.type)
         fillop = FillOp((op.rhs,), (emptyop,), (op.lhs.type,))
-        rewriter.insert_op_before(emptyop, op)
-        rewriter.insert_op_before(fillop, op)
+        rewriter.insert_op(emptyop, InsertPoint.before(op))
+        rewriter.insert_op(fillop, InsertPoint.before(op))
         rewriter.replace_matched_op(
             type_constructor(op.lhs, fillop, flags=None, result_type=op.lhs.type)
         )
     elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
         emptyop = EmptyOp((), op.rhs.type)
         fillop = FillOp((op.lhs,), (emptyop,), (op.rhs.type,))
-        rewriter.insert_op_before(emptyop, op)
-        rewriter.insert_op_before(fillop, op)
+        rewriter.insert_op(emptyop, InsertPoint.before(op))
+        rewriter.insert_op(fillop, InsertPoint.before(op))
         rewriter.replace_matched_op(
             type_constructor(fillop, op.rhs, flags=None, result_type=op.rhs.type)
         )
