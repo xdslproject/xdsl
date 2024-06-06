@@ -783,10 +783,8 @@ class GetFabDsdOp(_GetDsdOp):
             raise VerifyException("DSD type must be fabric DSD")
         if len(self.sizes) != 1:
             raise VerifyException("Fabric DSDs must have exactly one dimension")
-        if (
-            self.result.type.data == DsdKind.fabin_dsd
-            and self.control is not None
-            or self.wavelet_index_offset is not None
+        if self.result.type.data == DsdKind.fabin_dsd and (
+            self.control is not None or self.wavelet_index_offset is not None
         ):
             raise VerifyException(
                 "DSD of type fabin_dsd cannot specify control and wavelet_index_offset"
