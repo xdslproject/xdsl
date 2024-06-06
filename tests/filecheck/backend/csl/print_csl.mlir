@@ -210,6 +210,212 @@ csl.func @gemv() {
   csl.return
 }
 
+csl.func @builtins() {
+  %i8_value = arith.constant 10 : si8
+  %i16_value = arith.constant 10 : si16
+  %u16_value = arith.constant 12 : ui16
+  %i32_value = arith.constant 100 : si32
+  %u32_value = arith.constant 120 : ui32
+  %f16_value = arith.constant 7.0 : f16
+  %f32_value = arith.constant 8.0 : f32
+  %col_1 = "csl.get_color"() <{id = 3 : i5}> : () -> !csl.color
+  %f16_pointer = "csl.addressof"(%f16_value) : (f16) -> !csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %f32_pointer = "csl.addressof"(%f32_value) : (f32) -> !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %i16_pointer = "csl.addressof"(%i16_value) : (si16) -> !csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %i32_pointer = "csl.addressof"(%i32_value) : (si32) -> !csl.ptr<si32, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %u16_pointer = "csl.addressof"(%u16_value) : (ui16) -> !csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %u32_pointer = "csl.addressof"(%u32_value) : (ui32) -> !csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>
+
+  %A = memref.get_global @A : memref<24xf32>
+  %dsd_2d = "csl.get_mem_dsd"(%A, %i32_value, %i32_value) <{"strides" = [3, 4], "offsets" = [1, 2]}> : (memref<24xf32>, si32, si32) -> !csl<dsd mem4d_dsd>
+  %dest_dsd = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+  %src_dsd1 = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+  %src_dsd2 = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+
+  %dsd_1d2 = "csl.set_dsd_base_addr"(%dest_dsd, %A) : (!csl<dsd mem1d_dsd>, memref<24xf32>) -> !csl<dsd mem1d_dsd>
+  %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %i16_value) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+  %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
+  %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %i8_value) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
+
+  %fabin_dsd = "csl.get_fab_dsd"(%col_1, %i32_value) : (!csl.color, si32) -> !csl<dsd fabin_dsd>
+  %fabout_dsd = "csl.get_fab_dsd"(%col_1, %i32_value) <{"control"= true, "wavelet_index_offset" = false}>: (!csl.color, si32) -> !csl<dsd fabout_dsd>
+
+  "csl.add16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.add16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.add16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.add16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.add16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.addc16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.addc16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.addc16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.addc16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.addc16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.and16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.and16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.and16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.and16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.and16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.clz"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.clz"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.clz"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.ctz"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.ctz"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.ctz"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.fabsh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fabsh"(%dest_dsd, %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
+
+  "csl.fabss"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fabss"(%dest_dsd, %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
+
+  "csl.faddh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.faddh"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.faddh"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.faddh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.faddhs"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.faddhs"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.faddhs"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.faddhs"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.fadds"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fadds"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fadds"(%dest_dsd,    %src_dsd1,  %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.fadds"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.fh2s"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fh2s"(%dest_dsd, %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
+
+  "csl.fh2xp16"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fh2xp16"(%dest_dsd,    %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.fh2xp16"(%i16_pointer, %f16_value) : (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16) -> ()
+
+  "csl.fmach" (%dest_dsd, %src_dsd1, %src_dsd2, %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.fmachs"(%dest_dsd, %src_dsd1, %src_dsd2, %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.fmacs" (%dest_dsd, %src_dsd1, %src_dsd2, %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
+
+  "csl.fmaxh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmaxh"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmaxh"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.fmaxh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.fmaxs"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmaxs"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmaxs"(%dest_dsd,    %src_dsd1,  %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.fmaxs"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.fmovh"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmovh"(%f16_pointer, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmovh"(%dest_dsd,    %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
+
+  "csl.fmovs"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmovs"(%f32_pointer, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmovs"(%dest_dsd,    %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
+
+  "csl.fmulh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmulh"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmulh"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.fmulh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.fmuls"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmuls"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmuls"(%dest_dsd,    %src_dsd1,  %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.fmuls"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.fnegh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fnegh"(%dest_dsd, %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
+
+  "csl.fnegs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fnegs"(%dest_dsd, %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
+
+  "csl.fnormh"(%f16_pointer, %f16_value) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16) -> ()
+  "csl.fnorms"(%f32_pointer, %f32_value) : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32) -> ()
+
+  "csl.fs2h"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fs2h"(%dest_dsd, %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
+
+  "csl.fs2xp16"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fs2xp16"(%dest_dsd,    %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.fs2xp16"(%i16_pointer, %f32_value) : (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, f32) -> ()
+
+  "csl.fscaleh"(%f16_pointer, %f16_value, %i16_value) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, si16) -> ()
+  "csl.fscales"(%f32_pointer, %f32_value, %i16_value) : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, si16) -> ()
+
+  "csl.fsubh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fsubh"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fsubh"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.fsubh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.fsubs"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fsubs"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fsubs"(%dest_dsd,    %src_dsd1,  %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.fsubs"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
+
+  "csl.mov16"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.mov16"(%i16_pointer, %src_dsd1)  : (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.mov16"(%u16_pointer, %src_dsd1)  : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.mov16"(%dest_dsd,    %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.mov16"(%dest_dsd,    %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.mov32"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.mov32"(%i32_pointer, %src_dsd1)  : (!csl.ptr<si32, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.mov32"(%u32_pointer, %src_dsd1)  : (!csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.mov32"(%dest_dsd,    %i32_value) : (!csl<dsd mem1d_dsd>, si32) -> ()
+  "csl.mov32"(%dest_dsd,    %u32_value) : (!csl<dsd mem1d_dsd>, ui32) -> ()
+
+  "csl.or16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.or16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.or16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.or16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.or16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.popcnt"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.popcnt"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.popcnt"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.sar16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sar16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sar16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sar16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.sar16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.sll16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sll16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sll16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sll16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.sll16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.slr16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.slr16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.slr16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.slr16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.slr16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.sub16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sub16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.sub16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.xor16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.xor16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.xor16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.xor16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.xor16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.xp162fh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.xp162fh"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.xp162fh"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+
+  "csl.xp162fs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.xp162fs"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.xp162fs"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+
+  csl.return
+}
+
 }) {sym_name = "program"} : () -> ()
 
 
@@ -401,6 +607,43 @@ csl.func @gemv() {
 // CHECK-NEXT:     const tmp_plus_bi : f32 =  tmp2 + (b[i]);
 // CHECK-NEXT:     y[i] = tmp_plus_bi;
 // CHECK-NEXT:   }
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: fn builtins() void {
+// CHECK-NEXT:   const i8_value : i8 = 10;
+// CHECK-NEXT:   const i16_value : i16 = 10;
+// CHECK-NEXT:   const u16_value : u16 = 12;
+// CHECK-NEXT:   const i32_value : i32 = 100;
+// CHECK-NEXT:   const u32_value : u32 = 120;
+// CHECK-NEXT:   const f16_value : f16 = 7.0;
+// CHECK-NEXT:   const f32_value : f32 = 8.0;
+// CHECK-NEXT:   const col1 : color = @get_color(3);
+// CHECK-NEXT:   const dsd_2d : mem4d_dsd = @get_dsd( mem4d_dsd .{
+// CHECK-NEXT:     .tensor_access = | d0, d1 | { i32_value, i32_value } -> A[ 3 * d0 + 1, 4 * d1 + 2 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const dest_dsd : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const src_dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const src_dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const dsd_1d2 : mem1d_dsd = @set_dsd_base_addr(dest_dsd, A);
+// CHECK-NEXT:   const dsd_1d3 : mem1d_dsd = @increment_dsd_offset(dsd_1d2, i16_value, f32);
+// CHECK-NEXT:   const dsd_1d4 : mem1d_dsd = @set_dsd_length(dsd_1d3, u16_value);
+// CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, i8_value);
+// CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
+// CHECK-NEXT:     .extent = i32_value,
+// CHECK-NEXT:     .fabric_color = None,
+// CHECK-NEXT:   }});
+// CHECK-NEXT:   const fabout_dsd : fabout_dsd = @get_dsd(fabout_dsd, .{
+// CHECK-NEXT:     .extent = i32_value,
+// CHECK-NEXT:     .fabric_color = None,
+// CHECK-NEXT:   }});
+// CHECK-NEXT:   @add16(dest_dsd, src_dsd1, src_dsd2);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //
