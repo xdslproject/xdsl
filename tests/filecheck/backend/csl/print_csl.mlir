@@ -210,6 +210,18 @@ csl.func @gemv() {
   csl.return
 }
 
+csl.func @builtins() {
+  %i16_value, %i32_value, %u16_value, %u32_value, %f16_value, %f32_value = "test.op"() : () -> (si16, si32, ui16, ui32, f16, f32)
+  %i16_pointer, %i32_pointer = "test.op"() : () -> (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<si32, #csl<ptr_kind single>, #csl<ptr_const var>>)
+  %u16_pointer, %u32_pointer = "test.op"() : () -> (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>)
+  %f16_pointer, %f32_pointer = "test.op"() : () -> (!csl.ptr<f16,  #csl<ptr_kind single>, #csl<ptr_const var>>, !csl.ptr<f32,  #csl<ptr_kind single>, #csl<ptr_const var>>)
+  %tens = "test.op"() : () -> (tensor<510xf32>)
+  %dsd_2d = "csl.get_mem_dsd"(%tens, %i32_value, %i32_value) <{"strides" = [3, 4], "offsets" = [1, 2]}> : (tensor<510xf32>, si32, si32) -> !csl<dsd mem4d_dsd>
+  %dest_dsd = "csl.get_mem_dsd"(%tens, %i32_value) : (tensor<510xf32>, si32) -> !csl<dsd mem1d_dsd>
+
+  csl.return
+}
+
 }) {sym_name = "program"} : () -> ()
 
 
