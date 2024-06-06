@@ -772,9 +772,9 @@ class GetFabDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_fab_dsd"
-    fabric_color = opt_prop_def(ColorIdAttr)
+    fabric_color = operand_def(ColorType)
     control = opt_prop_def(BoolAttr)
-    wavelet_index_offset = opt_prop_def(AnyIntegerAttr)
+    wavelet_index_offset = opt_prop_def(BoolAttr)
 
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
