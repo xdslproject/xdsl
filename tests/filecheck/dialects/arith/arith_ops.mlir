@@ -190,4 +190,7 @@
 
   // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mulsi_extended %{{.*}}, %{{.*}} : i32
   // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mulsi_extended %{{.*}}, %{{.*}} : index
+
+  %index = arith.index_cast %lhsi32 : i32 to index
+  // CHECK-NEXT: %index = arith.index_cast %lhsi32 : i32 to index
 }) : () -> ()

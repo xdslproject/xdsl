@@ -654,7 +654,7 @@ class Cmpi(ComparisonOperation):
             }
             arg = Cmpi._get_comparison_predicate(arg, cmpi_comparison_operations)
 
-        return super().__init__(
+        super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
@@ -751,7 +751,7 @@ class Cmpf(ComparisonOperation):
             }
             arg = Cmpf._get_comparison_predicate(arg, cmpf_comparison_operations)
 
-        return super().__init__(
+        super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
@@ -814,7 +814,7 @@ class Select(IRDLOperation):
         operand3: Operation | SSAValue,
     ):
         operand2 = SSAValue.get(operand2)
-        return super().__init__(
+        super().__init__(
             operands=[operand1, operand2, operand3], result_types=[operand2.type]
         )
 
@@ -887,7 +887,7 @@ class Negf(IRDLOperation):
         self, operand: Operation | SSAValue, fastmath: FastMathFlagsAttr | None = None
     ):
         operand = SSAValue.get(operand)
-        return super().__init__(
+        super().__init__(
             attributes={"fastmath": fastmath},
             operands=[operand],
             result_types=[operand.type],
@@ -961,14 +961,24 @@ class Minnumf(FloatingPointLikeBinaryOp):
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
-    input: Operand = operand_def()
+    input: Operand = operand_def(IntegerType | IndexType)
 
-    result: OpResult = result_def()
+    result: OpResult = result_def(IntegerType | IndexType)
 
     traits = frozenset([Pure()])
 
+    assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
+
     def __init__(self, input_arg: SSAValue | Operation, target_type: Attribute):
-        return super().__init__(operands=[input_arg], result_types=[target_type])
+        super().__init__(operands=[input_arg], result_types=[target_type])
+
+    def verify_(self) -> None:
+        it = IndexType
+        # exactly one of input or result must be of IndexType, no more, no less.
+        if not isinstance(self.input.type, it) ^ isinstance(self.result.type, it):
+            raise VerifyException(
+                f"'arith.index_cast' op operand type '{self.input.type}' and result type '{self.input.type}' are cast incompatible"
+            )
 
 
 @irdl_op_definition
@@ -983,7 +993,7 @@ class FPToSIOp(IRDLOperation):
     traits = frozenset([Pure()])
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return super().__init__(operands=[op], result_types=[target_type])
+        super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -998,7 +1008,7 @@ class SIToFPOp(IRDLOperation):
     traits = frozenset([Pure()])
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
-        return super().__init__(operands=[op], result_types=[target_type])
+        super().__init__(operands=[op], result_types=[target_type])
 
 
 @irdl_op_definition
@@ -1009,7 +1019,7 @@ class ExtFOp(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
-        return super().__init__(operands=[op], result_types=[target_type])
+        super().__init__(operands=[op], result_types=[target_type])
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
@@ -1024,7 +1034,7 @@ class TruncFOp(IRDLOperation):
     result: OpResult = result_def(AnyFloat)
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
-        return super().__init__(operands=[op], result_types=[target_type])
+        super().__init__(operands=[op], result_types=[target_type])
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
@@ -1039,7 +1049,7 @@ class TruncIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return super().__init__(operands=[op], result_types=[target_type])
+        super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
         assert isinstance(self.input.type, IntegerType)
@@ -1062,7 +1072,7 @@ class ExtSIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return super().__init__(operands=[op], result_types=[target_type])
+        super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
         assert isinstance(self.input.type, IntegerType)
@@ -1083,7 +1093,7 @@ class ExtUIOp(IRDLOperation):
     result: OpResult = result_def(IntegerType)
 
     def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return super().__init__(operands=[op], result_types=[target_type])
+        super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
         assert isinstance(self.input.type, IntegerType)
