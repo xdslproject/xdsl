@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, ClassVar, TypeAlias, TypeVar
+from typing import Annotated, ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
@@ -46,7 +46,6 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AttrConstraint,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
@@ -908,9 +907,7 @@ class SetDsdStrideOp(IRDLOperation):
             raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
 
 
-FunctionSignatures = list[
-    tuple[AttrConstraint | Attribute | type[Attribute] | TypeVar, ...]
-]
+FunctionSignatures = list[tuple[Attribute | type[Attribute], ...]]
 
 
 class BuiltinDsdOp(IRDLOperation, ABC):
@@ -921,7 +918,7 @@ class BuiltinDsdOp(IRDLOperation, ABC):
     def verify_(self) -> None:
         def typcheck(
             op_typ: Attribute,
-            sig_typ: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+            sig_typ: Attribute | type[Attribute],
         ) -> bool:
             if isinstance(sig_typ, type):
                 return isinstance(op_typ, sig_typ)
