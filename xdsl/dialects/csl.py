@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, TypeAlias
+from typing import Annotated, ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
@@ -285,6 +285,30 @@ DsdElementType: TypeAlias = (
     | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
     | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
     | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
+)
+
+
+f16_pointer = PtrType(
+    [Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+f32_pointer = PtrType(
+    [Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+u16_value = IntegerType(16, Signedness.UNSIGNED)
+i16_value = IntegerType(16, Signedness.SIGNED)
+u32_value = IntegerType(32, Signedness.UNSIGNED)
+i32_value = IntegerType(32, Signedness.SIGNED)
+i16_pointer = PtrType(
+    [i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+u16_pointer = PtrType(
+    [u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+i32_pointer = PtrType(
+    [i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+u32_pointer = PtrType(
+    [u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
 )
 
 
@@ -819,7 +843,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
     name = "csl.increment_dsd_offset"
 
     op = operand_def(DsdType)
-    offset = operand_def(IntegerType(16, Signedness.SIGNED))
+    offset = operand_def(i16_value)
     elem_type = prop_def(DsdElementType)
     result = result_def(DsdType)
 
@@ -845,7 +869,7 @@ class SetDsdLengthOp(IRDLOperation):
 
     name = "csl.set_dsd_length"
     op = operand_def(DsdType)
-    length = operand_def(IntegerType(16, Signedness.UNSIGNED))
+    length = operand_def(u16_value)
     result = result_def(DsdType)
 
     def verify_(self) -> None:
@@ -881,6 +905,435 @@ class SetDsdStrideOp(IRDLOperation):
             or self.result.type.data != DsdKind.mem1d_dsd
         ):
             raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
+
+
+FunctionSignatures = list[tuple[Attribute | type[Attribute], ...]]
+
+
+class BuiltinDsdOp(IRDLOperation, ABC):
+    ops = var_operand_def()
+
+    SIGNATURES: ClassVar[FunctionSignatures]
+
+    def verify_(self) -> None:
+        def typcheck(
+            op_typ: Attribute,
+            sig_typ: Attribute | type[Attribute],
+        ) -> bool:
+            if isinstance(sig_typ, type):
+                return isinstance(op_typ, sig_typ)
+            else:
+                return op_typ == sig_typ
+
+        for sig in self.SIGNATURES:
+            if len(self.ops) == len(sig):
+                if all(typcheck(op.type, sig_t) for (op, sig_t) in zip(self.ops, sig)):
+                    return
+        raise VerifyException("Cannot find matching type signature")
+
+
+class SymmetricBinary16BitOp(BuiltinDsdOp):
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, i16_value, DsdType),
+        (DsdType, u16_value, DsdType),
+        (DsdType, DsdType, i16_value),
+        (DsdType, DsdType, u16_value),
+    ]
+
+
+class Unary16BitOp(BuiltinDsdOp):
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, i16_value),
+        (DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class Add16Op(SymmetricBinary16BitOp):
+    name = "csl.add16"
+
+
+@irdl_op_definition
+class Add16cOp(SymmetricBinary16BitOp):
+    name = "csl.addc16"
+
+
+@irdl_op_definition
+class And16Op(SymmetricBinary16BitOp):
+    name = "csl.and16"
+
+
+@irdl_op_definition
+class ClzOp(Unary16BitOp):
+    name = "csl.clz"
+
+
+@irdl_op_definition
+class CtzOp(Unary16BitOp):
+    name = "csl.ctz"
+
+
+@irdl_op_definition
+class FabshOp(BuiltinDsdOp):
+    name = "csl.fabsh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class FabssOp(BuiltinDsdOp):
+    name = "csl.fabss"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class FaddhOp(BuiltinDsdOp):
+    name = "csl.faddh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FaddhsOp(BuiltinDsdOp):
+    name = "csl.faddhs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FaddsOp(BuiltinDsdOp):
+    name = "csl.fadds"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float32Type, DsdType),
+        (DsdType, DsdType, Float32Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class Fh2sOp(BuiltinDsdOp):
+    name = "csl.fh2s"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class Fh2xp16Op(BuiltinDsdOp):
+    name = "csl.fh2xp16"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float16Type),
+        (i16_pointer, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class FmachOp(BuiltinDsdOp):
+    name = "csl.fmach"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType, Float16Type)
+    ]
+
+
+@irdl_op_definition
+class FmachsOp(BuiltinDsdOp):
+    name = "csl.fmachs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType, Float16Type)
+    ]
+
+
+@irdl_op_definition
+class FmacsOp(BuiltinDsdOp):
+    name = "csl.fmacs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType, Float32Type)
+    ]
+
+
+@irdl_op_definition
+class FmaxhOp(BuiltinDsdOp):
+    name = "csl.fmaxh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FmaxsOp(BuiltinDsdOp):
+    name = "csl.fmaxs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float32Type, DsdType),
+        (DsdType, DsdType, Float32Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FmovhOp(BuiltinDsdOp):
+    name = "csl.fmovh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (f16_pointer, DsdType),
+        (DsdType, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class FmovsOp(BuiltinDsdOp):
+    name = "csl.fmovs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (f32_pointer, DsdType),
+        (DsdType, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class FmulhOp(BuiltinDsdOp):
+    name = "csl.fmulh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FmulsOp(BuiltinDsdOp):
+    name = "csl.fmuls"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float32Type, DsdType),
+        (DsdType, DsdType, Float32Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FneghOp(BuiltinDsdOp):
+    name = "csl.fnegh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class FnegsOp(BuiltinDsdOp):
+    name = "csl.fnegs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class FnormhOp(BuiltinDsdOp):
+    name = "csl.fnormh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [(f16_pointer, Float16Type)]
+
+
+@irdl_op_definition
+class FnormsOp(BuiltinDsdOp):
+    name = "csl.fnorms"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [(f32_pointer, Float32Type)]
+
+
+@irdl_op_definition
+class Fs2hOp(BuiltinDsdOp):
+    name = "csl.fs2h"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class Fs2xp16Op(BuiltinDsdOp):
+    """
+    Implements @fs2xp16
+    Note: this actually converts to i16, not to i32
+    """
+
+    name = "csl.fs2xp16"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float32Type),
+        (i16_pointer, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class FscalehOp(BuiltinDsdOp):
+    name = "csl.fscaleh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [(f16_pointer, Float16Type, i16_value)]
+
+
+@irdl_op_definition
+class FscalesOp(BuiltinDsdOp):
+    name = "csl.fscales"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [(f32_pointer, Float32Type, i16_value)]
+
+
+@irdl_op_definition
+class FsubhOp(BuiltinDsdOp):
+    name = "csl.fsubh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FsubsOp(BuiltinDsdOp):
+    name = "csl.fsubs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float32Type, DsdType),
+        (DsdType, DsdType, Float32Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class Mov16Op(BuiltinDsdOp):
+    name = "csl.mov16"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (i16_pointer, DsdType),
+        (u16_pointer, DsdType),
+        (DsdType, i16_value),
+        (DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class Mov32Op(BuiltinDsdOp):
+    name = "csl.mov32"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (i32_pointer, DsdType),
+        (u32_pointer, DsdType),
+        (DsdType, i32_value),
+        (DsdType, u32_value),
+    ]
+
+
+@irdl_op_definition
+class Or16Op(SymmetricBinary16BitOp):
+    name = "csl.or16"
+
+
+@irdl_op_definition
+class PopcntOp(Unary16BitOp):
+    name = "csl.popcnt"
+
+
+@irdl_op_definition
+class Sar16Op(SymmetricBinary16BitOp):
+    name = "csl.sar16"
+
+
+@irdl_op_definition
+class Sll16Op(SymmetricBinary16BitOp):
+    name = "csl.sll16"
+
+
+@irdl_op_definition
+class Slr16Op(SymmetricBinary16BitOp):
+    name = "csl.slr16"
+
+
+@irdl_op_definition
+class Sub16Op(BuiltinDsdOp):
+    name = "csl.sub16"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, DsdType, i16_value),
+        (DsdType, DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class Xor16Op(SymmetricBinary16BitOp):
+    name = "csl.xor16"
+
+
+@irdl_op_definition
+class Xp162fhOp(BuiltinDsdOp):
+    name = "csl.xp162fh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, i16_value),
+        (DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class Xp162fsOp(BuiltinDsdOp):
+    name = "csl.xp162fs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, i16_value),
+        (DsdType, u16_value),
+    ]
 
 
 @irdl_op_definition
@@ -1064,6 +1517,48 @@ CSL = Dialect(
         IncrementDsdOffsetOp,
         SetDsdLengthOp,
         SetDsdStrideOp,
+        Add16Op,
+        Add16cOp,
+        And16Op,
+        ClzOp,
+        CtzOp,
+        FabshOp,
+        FabssOp,
+        FaddhOp,
+        FaddhsOp,
+        FaddsOp,
+        Fh2sOp,
+        Fh2xp16Op,
+        FmachOp,
+        FmachsOp,
+        FmacsOp,
+        FmaxhOp,
+        FmaxsOp,
+        FmovhOp,
+        FmovsOp,
+        FmulhOp,
+        FmulsOp,
+        FneghOp,
+        FnegsOp,
+        FnormhOp,
+        FnormsOp,
+        Fs2hOp,
+        Fs2xp16Op,
+        FscalehOp,
+        FscalesOp,
+        FsubhOp,
+        FsubsOp,
+        Mov16Op,
+        Mov32Op,
+        Or16Op,
+        PopcntOp,
+        Sar16Op,
+        Sll16Op,
+        Slr16Op,
+        Sub16Op,
+        Xor16Op,
+        Xp162fhOp,
+        Xp162fsOp,
         AddressOfOp,
         SymbolExportOp,
         RpcOp,
