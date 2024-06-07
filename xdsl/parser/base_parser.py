@@ -6,7 +6,7 @@ that is inherited from the different parsers used in xDSL.
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
-from enum import Enum, StrEnum
+from enum import Enum
 from typing import NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
