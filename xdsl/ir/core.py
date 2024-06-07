@@ -608,17 +608,7 @@ class EnumAttribute(Data[EnumType]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
-        enum_type = cls.enum_type
-
-        val = parser.parse_identifier()
-        if val not in enum_type.__members__.values():
-            enum_values = list(enum_type)
-            if len(enum_values) == 1:
-                parser.raise_error(f"Expected `{enum_values[0]}`.")
-            parser.raise_error(
-                f"Expected `{'`, `'.join(enum_values[:-1])}` or `{enum_values[-1]}`."
-            )
-        return cast(EnumType, enum_type(val))
+        return cast(EnumType, parser.parse_str_enum(cls.enum_type))
 
 
 @dataclass(frozen=True, init=False)
