@@ -6,11 +6,12 @@ that is inherited from the different parsers used in xDSL.
 from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
-from enum import Enum, StrEnum
+from enum import Enum
 from typing import NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, StringLiteral, Token
+from xdsl.utils.str_enum import StrEnum
 
 
 @dataclass(init=False)
@@ -544,7 +545,9 @@ class BaseParser:
         enum_values = tuple(enum_type)
         if len(enum_values) == 1:
             self.raise_error(f"Expected `{enum_values[0]}`.")
-        self.raise_error(f"Expected `{'`, `'.join(enum_values[:-1])}` or `{enum_values[-1]}`.")
+        self.raise_error(
+            f"Expected `{'`, `'.join(enum_values[:-1])}`, or `{enum_values[-1]}`."
+        )
 
     def parse_optional_str_enum(self, enum_type: type[_EnumType]) -> _EnumType | None:
         """Parse a string enum value, if present."""
