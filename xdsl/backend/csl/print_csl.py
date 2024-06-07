@@ -250,6 +250,8 @@ class CslPrintContext:
                 return f"fn({', '.join(args)}) {ret}"
             case csl.ColorType():
                 return "color"
+            case csl.DsdType() as dsd:
+                return dsd.data
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -459,6 +461,82 @@ class CslPrintContext:
                     id = self._get_variable_name_for(id)
                     with self.descend("comptime") as inner:
                         inner.print(f"@rpc(@get_data_task_id({id}));")
+                case csl.GetMemDsdOp(
+                    base_addr=base_addr,
+                    offsets=offsets,
+                    strides=strides,
+                    sizes=sizes,
+                    result=result,
+                ):
+                    sizes_str = ", ".join(
+                        self._get_variable_name_for(size) for size in sizes
+                    )
+                    ind_vars = ["d" + str(i) for i in range(len(sizes))]
+                    ind_vars_str = ", ".join(ind_vars)
+                    accesses = [
+                        (f"{str(strides.data[i].value.data)} * " if strides else "")
+                        + ind_vars[i]
+                        + (f" + {str(offsets.data[i].value.data)}" if offsets else "")
+                        for i in range(len(ind_vars))
+                    ]
+                    accesses_str = ", ".join(accesses)
+                    self.print(
+                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)} .{{"
+                    )
+                    self.print(
+                        f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {base_addr.name_hint}[ {accesses_str} ]"
+                    )
+                    self.print("});")
+                case csl.GetFabDsdOp(
+                    sizes=extent,
+                    fabric_color=fabric_color,
+                    queue_id=queue_id,
+                    control=control,
+                    wavelet_index_offset=wavelet_index_offset,
+                    result=result,
+                ):
+                    self.print(
+                        f"{self._var_use(result)} = @get_dsd({self.mlir_type_to_csl_type(result.type)}, .{{ "
+                    )
+                    self.print(f"  .extent = {self._get_variable_name_for(extent[0])},")
+                    q_type = (
+                        "input"
+                        if result.type == csl.DsdType(csl.DsdKind.fabin_dsd)
+                        else "output"
+                    )
+                    self.print(
+                        f"  .{q_type}_queue = @get_{q_type}_queue({queue_id.value.data}),"
+                    )
+                    self.print(f"  .fabric_color = {fabric_color},")
+                    if wavelet_index_offset:
+                        self.print(f"  .wavelet_index_offset = {wavelet_index_offset},")
+                    if control:
+                        self.print(f"  .control = {control},")
+                    self.print("}});")
+                case csl.SetDsdBaseAddrOp(
+                    op=input_dsd, base_addr=base_addr, result=result
+                ):
+                    self.print(
+                        f"{self._var_use(result)} = @set_dsd_base_addr({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(base_addr)});"
+                    )
+                case csl.IncrementDsdOffsetOp(
+                    op=input_dsd, offset=offset, elem_type=elem_type, result=result
+                ):
+                    self.print(
+                        f"{self._var_use(result)} = @increment_dsd_offset({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(offset)}, {self.mlir_type_to_csl_type(elem_type)});"
+                    )
+                case csl.SetDsdLengthOp(op=input_dsd, length=length, result=result):
+                    self.print(
+                        f"{self._var_use(result)} = @set_dsd_length({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(length)});"
+                    )
+                case csl.SetDsdStrideOp(op=input_dsd, stride=stride, result=result):
+                    self.print(
+                        f"{self._var_use(result)} = @set_dsd_stride({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(stride)});"
+                    )
+                case csl.BuiltinDsdOp(ops=ops):
+                    self.print(
+                        f"@{op.name.removeprefix('csl.')}({', '.join(map(self._get_variable_name_for, ops))});"
+                    )
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 

@@ -84,8 +84,8 @@ csl.func @initialize() {
     %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>
     %tensor_dsd2 = "csl.set_dsd_base_addr"(%dsd_1d, %tens) : (!csl<dsd mem1d_dsd>, tensor<510xf32>) -> !csl<dsd mem1d_dsd>
 
-    %fabin_dsd = "csl.get_fab_dsd"(%scalar) : (i32) -> !csl<dsd fabin_dsd>
-    %fabout_dsd = "csl.get_fab_dsd"(%scalar) : (i32) -> !csl<dsd fabout_dsd>
+    %fabin_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 2 : i5 , "queue_id" = 0 : i3}> : (i32) -> !csl<dsd fabin_dsd>
+    %fabout_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 3 : i5 , "queue_id" = 1 : i3, "control"= true, "wavelet_index_offset" = false}>: (i32) -> !csl<dsd fabout_dsd>
 
     %f16_ptr, %f16_val, %f32_ptr = "test.op"() : () -> (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>)
     "csl.faddh"(%dsd_1d1, %dsd_1d2, %dsd_1d3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
@@ -362,8 +362,8 @@ csl.func @builtins() {
 // CHECK-NEXT:     %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %int8) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:     %tensor_dsd1 = "csl.get_mem_dsd"(%tens, %scalar) : (tensor<510xf32>, i32) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT:     %tensor_dsd2 = "csl.set_dsd_base_addr"(%dsd_1d, %tens) : (!csl<dsd mem1d_dsd>, tensor<510xf32>) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT:     %fabin_dsd = "csl.get_fab_dsd"(%scalar) : (i32) -> !csl<dsd fabin_dsd>
-// CHECK-NEXT:     %fabout_dsd = "csl.get_fab_dsd"(%scalar) : (i32) -> !csl<dsd fabout_dsd>
+// CHECK-NEXT:     %fabin_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 2 : i5, "queue_id" = 0 : i3}> : (i32) -> !csl<dsd fabin_dsd>
+// CHECK-NEXT:     %fabout_dsd = "csl.get_fab_dsd"(%scalar) <{"fabric_color" = 3 : i5, "queue_id" = 1 : i3, "control" = true, "wavelet_index_offset" = false}> : (i32) -> !csl<dsd fabout_dsd>
 // CHECK-NEXT:     %f16_ptr, %f16_val, %f32_ptr = "test.op"() : () -> (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>)
 // CHECK-NEXT:     "csl.faddh"(%dsd_1d1, %dsd_1d2, %dsd_1d3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:     "csl.faddh"(%f16_ptr, %f16_val, %dsd_1d3) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
