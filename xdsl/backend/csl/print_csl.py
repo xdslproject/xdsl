@@ -490,6 +490,7 @@ class CslPrintContext:
                 case csl.GetFabDsdOp(
                     sizes=extent,
                     fabric_color=fabric_color,
+                    queue_id=queue_id,
                     control=control,
                     wavelet_index_offset=wavelet_index_offset,
                     result=result,
@@ -498,9 +499,15 @@ class CslPrintContext:
                         f"{self._var_use(result)} = @get_dsd({self.mlir_type_to_csl_type(result.type)}, .{{ "
                     )
                     self.print(f"  .extent = {self._get_variable_name_for(extent[0])},")
-                    self.print(
-                        f"  .fabric_color = {self._get_variable_name_for(fabric_color)},"
+                    q_type = (
+                        "input"
+                        if result.type == csl.DsdType(csl.DsdKind.fabin_dsd)
+                        else "output"
                     )
+                    self.print(
+                        f"  .{q_type}_queue = @get_{q_type}_queue({queue_id.value.data}),"
+                    )
+                    self.print(f"  .fabric_color = {fabric_color},")
                     if wavelet_index_offset:
                         self.print(f"  .wavelet_index_offset = {wavelet_index_offset},")
                     if control:

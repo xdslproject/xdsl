@@ -335,6 +335,7 @@ ColorIdAttr: TypeAlias = (
     | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
 )
 
+QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
 # NOTE: Some of these values cannot be set by default, because we don't have
@@ -772,7 +773,8 @@ class GetFabDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_fab_dsd"
-    fabric_color = operand_def(ColorType)
+    fabric_color = prop_def(ColorIdAttr)
+    queue_id = prop_def(QueueIdAttr)
     control = opt_prop_def(BoolAttr)
     wavelet_index_offset = opt_prop_def(BoolAttr)
 

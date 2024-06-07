@@ -237,8 +237,8 @@ csl.func @builtins() {
   %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
   %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %i8_value) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
 
-  %fabin_dsd = "csl.get_fab_dsd"(%col_1, %i32_value) : (!csl.color, si32) -> !csl<dsd fabin_dsd>
-  %fabout_dsd = "csl.get_fab_dsd"(%col_1, %i32_value) <{"control"= true, "wavelet_index_offset" = false}>: (!csl.color, si32) -> !csl<dsd fabout_dsd>
+  %fabin_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 2 : i5 , "queue_id" = 0 : i3}> : (si32) -> !csl<dsd fabin_dsd>
+  %fabout_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 3 : i5 , "queue_id" = 1 : i3, "control"= true, "wavelet_index_offset" = false}>: (si32) -> !csl<dsd fabout_dsd>
 
   "csl.add16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.addc16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
@@ -511,11 +511,13 @@ csl.func @builtins() {
 // CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, i8_value);
 // CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
-// CHECK-NEXT:     .fabric_color = col1,
+// CHECK-NEXT:     .input_queue = @get_input_queue(0),
+// CHECK-NEXT:     .fabric_color = 2 : i5,
 // CHECK-NEXT:   }});
 // CHECK-NEXT:   const fabout_dsd : fabout_dsd = @get_dsd(fabout_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
-// CHECK-NEXT:     .fabric_color = col1,
+// CHECK-NEXT:     .output_queue = @get_output_queue(1),
+// CHECK-NEXT:     .fabric_color = 3 : i5,
 // CHECK-NEXT:     .wavelet_index_offset = false,
 // CHECK-NEXT:     .control = true,
 // CHECK-NEXT:   }});
