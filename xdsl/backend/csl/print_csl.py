@@ -219,6 +219,8 @@ class CslPrintContext:
                 return "f32"
             case IndexType():
                 return self._INDEX
+            case IntegerType(width=IntAttr(1)):
+                return "bool"
             case IntegerType(
                 width=IntAttr(data=width),
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
@@ -328,6 +330,20 @@ class CslPrintContext:
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
                     self.print(f"return {self._get_variable_name_for(val)};")
+                case scf.If(
+                    cond=cond, true_region=true_region, false_region=false_region
+                ):
+                    with self.descend(
+                        f"if ({self._get_variable_name_for(cond)})"
+                    ) as inner:
+                        inner.print_block(true_region.block)
+                    if false_region:
+                        if not (
+                            len(false_region.block.ops) == 1
+                            and isinstance(false_region.block.first_op, scf.Yield)
+                        ):
+                            with self.descend("else") as inner:
+                                inner.print_block(false_region.block)
                 case scf.For(
                     lb=lower, ub=upper, step=stp, body=bdy, res=results, iter_args=iters
                 ):

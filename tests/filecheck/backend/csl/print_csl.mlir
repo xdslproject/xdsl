@@ -210,6 +210,27 @@ csl.func @gemv() {
   csl.return
 }
 
+csl.func @ctrlflow() {
+  %0 = arith.constant 0 : i1
+  %1 = arith.constant 1 : i1
+  %i32_value = arith.constant 100 : si32
+  "scf.if"(%0) ({
+    %2 = arith.constant 2 : si32
+    scf.yield
+  }, {
+    %3 = arith.constant 3 : si32
+    scf.yield
+  }) : (i1) -> ()
+
+  "scf.if"(%1) ({
+    %4 = arith.constant 4 : si32
+    scf.yield
+  }, {
+    scf.yield
+  }) : (i1) -> ()
+  csl.return
+}
+
 csl.func @builtins() {
   %i8_value = arith.constant 10 : si8
   %i16_value = arith.constant 10 : si16
@@ -474,6 +495,22 @@ csl.func @builtins() {
 // CHECK-NEXT:     }
 // CHECK-NEXT:     const tmp_plus_bi : f32 =  tmp2 + (b[i]);
 // CHECK-NEXT:     y[i] = tmp_plus_bi;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: fn ctrlflow() void {
+// CHECK-NEXT:   const v1 : bool = false;
+// CHECK-NEXT:   const v2 : bool = true;
+// CHECK-NEXT:   const i32_value : i32 = 100;
+// CHECK-NEXT:   if (v1) {
+// CHECK-NEXT:     const v3 : i32 = 2;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   else {
+// CHECK-NEXT:     const v3 : i32 = 3;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   if (v2) {
+// CHECK-NEXT:     const v3 : i32 = 4;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
