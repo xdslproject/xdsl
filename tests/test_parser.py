@@ -1,4 +1,3 @@
-from enum import StrEnum
 from io import StringIO
 from typing import cast
 
