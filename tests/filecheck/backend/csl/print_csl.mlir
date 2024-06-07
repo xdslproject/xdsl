@@ -241,177 +241,45 @@ csl.func @builtins() {
   %fabout_dsd = "csl.get_fab_dsd"(%col_1, %i32_value) <{"control"= true, "wavelet_index_offset" = false}>: (!csl.color, si32) -> !csl<dsd fabout_dsd>
 
   "csl.add16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.add16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.add16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.add16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.add16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.addc16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.addc16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.addc16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.addc16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.addc16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.and16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.and16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
   "csl.and16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.and16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.and16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.clz"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.clz"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.clz"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.ctz"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.ctz"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
   "csl.ctz"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.fabsh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.fabsh"(%dest_dsd, %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
-
-  "csl.fabss"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.fabss"(%dest_dsd, %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
-
-  "csl.faddh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.faddh"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.faddh"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
   "csl.faddh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
-
-  "csl.faddhs"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.faddhs"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.faddhs"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
   "csl.faddhs"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
-
   "csl.fadds"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fadds"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fadds"(%dest_dsd,    %src_dsd1,  %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
-  "csl.fadds"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
-
-  "csl.fh2s"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.fh2s"(%dest_dsd, %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
-
-  "csl.fh2xp16"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fh2xp16"(%dest_dsd,    %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
   "csl.fh2xp16"(%i16_pointer, %f16_value) : (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16) -> ()
-
-  "csl.fmach" (%dest_dsd, %src_dsd1, %src_dsd2, %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
-  "csl.fmachs"(%dest_dsd, %src_dsd1, %src_dsd2, %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
   "csl.fmacs" (%dest_dsd, %src_dsd1, %src_dsd2, %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
-
   "csl.fmaxh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmaxh"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmaxh"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
-  "csl.fmaxh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
-
-  "csl.fmaxs"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.fmaxs"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmaxs"(%dest_dsd,    %src_dsd1,  %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
-  "csl.fmaxs"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
-
-  "csl.fmovh"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.fmovh"(%f16_pointer, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmovh"(%dest_dsd,    %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
-
-  "csl.fmovs"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmovs"(%f32_pointer, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
   "csl.fmovs"(%dest_dsd,    %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
-
   "csl.fmulh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmulh"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmulh"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
-  "csl.fmulh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
-
-  "csl.fmuls"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmuls"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fmuls"(%dest_dsd,    %src_dsd1,  %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
   "csl.fmuls"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
-
   "csl.fnegh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fnegh"(%dest_dsd, %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
-
-  "csl.fnegs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.fnegs"(%dest_dsd, %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
-
   "csl.fnormh"(%f16_pointer, %f16_value) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16) -> ()
   "csl.fnorms"(%f32_pointer, %f32_value) : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32) -> ()
-
   "csl.fs2h"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fs2h"(%dest_dsd, %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
-
-  "csl.fs2xp16"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fs2xp16"(%dest_dsd,    %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
   "csl.fs2xp16"(%i16_pointer, %f32_value) : (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, f32) -> ()
-
   "csl.fscaleh"(%f16_pointer, %f16_value, %i16_value) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, si16) -> ()
   "csl.fscales"(%f32_pointer, %f32_value, %i16_value) : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, si16) -> ()
-
-  "csl.fsubh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fsubh"(%dest_dsd,    %f16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fsubh"(%dest_dsd,    %src_dsd1,  %f16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f16) -> ()
   "csl.fsubh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
-
-  "csl.fsubs"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fsubs"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
-  "csl.fsubs"(%dest_dsd,    %src_dsd1,  %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
   "csl.fsubs"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
-
-  "csl.mov16"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.mov16"(%i16_pointer, %src_dsd1)  : (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
   "csl.mov16"(%u16_pointer, %src_dsd1)  : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.mov16"(%dest_dsd,    %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.mov16"(%dest_dsd,    %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.mov32"(%dest_dsd,    %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
   "csl.mov32"(%i32_pointer, %src_dsd1)  : (!csl.ptr<si32, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.mov32"(%u32_pointer, %src_dsd1)  : (!csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.mov32"(%dest_dsd,    %i32_value) : (!csl<dsd mem1d_dsd>, si32) -> ()
-  "csl.mov32"(%dest_dsd,    %u32_value) : (!csl<dsd mem1d_dsd>, ui32) -> ()
-
-  "csl.or16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.or16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.or16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.or16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
   "csl.or16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
   "csl.popcnt"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.popcnt"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.popcnt"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
-
   "csl.sar16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.sar16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.sar16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.sar16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.sar16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.sll16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.sll16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
   "csl.sll16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.sll16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.sll16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.slr16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.slr16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.slr16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
   "csl.slr16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.slr16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
-  "csl.sub16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.sub16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
   "csl.sub16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
   "csl.xor16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.xor16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.xor16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
-  "csl.xor16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.xor16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
-
   "csl.xp162fh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.xp162fh"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.xp162fh"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
-
   "csl.xp162fs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
-  "csl.xp162fs"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
-  "csl.xp162fs"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
 
   csl.return
 }
@@ -652,140 +520,45 @@ csl.func @builtins() {
 // CHECK-NEXT:     .control = true,
 // CHECK-NEXT:   }});
 // CHECK-NEXT:   @add16(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @add16(dest_dsd, i16_value, src_dsd1);
-// CHECK-NEXT:   @add16(dest_dsd, u16_value, src_dsd1);
-// CHECK-NEXT:   @add16(dest_dsd, src_dsd1, i16_value);
-// CHECK-NEXT:   @add16(dest_dsd, src_dsd1, u16_value);
-// CHECK-NEXT:   @addc16(dest_dsd, src_dsd1, src_dsd2);
 // CHECK-NEXT:   @addc16(dest_dsd, i16_value, src_dsd1);
-// CHECK-NEXT:   @addc16(dest_dsd, u16_value, src_dsd1);
-// CHECK-NEXT:   @addc16(dest_dsd, src_dsd1, i16_value);
-// CHECK-NEXT:   @addc16(dest_dsd, src_dsd1, u16_value);
-// CHECK-NEXT:   @and16(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @and16(dest_dsd, i16_value, src_dsd1);
 // CHECK-NEXT:   @and16(dest_dsd, u16_value, src_dsd1);
-// CHECK-NEXT:   @and16(dest_dsd, src_dsd1, i16_value);
-// CHECK-NEXT:   @and16(dest_dsd, src_dsd1, u16_value);
-// CHECK-NEXT:   @clz(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @clz(dest_dsd, i16_value);
-// CHECK-NEXT:   @clz(dest_dsd, u16_value);
-// CHECK-NEXT:   @ctz(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @ctz(dest_dsd, i16_value);
 // CHECK-NEXT:   @ctz(dest_dsd, u16_value);
-// CHECK-NEXT:   @fabsh(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @fabsh(dest_dsd, f16_value);
-// CHECK-NEXT:   @fabss(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @fabss(dest_dsd, f32_value);
-// CHECK-NEXT:   @faddh(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @faddh(dest_dsd, f16_value, src_dsd1);
-// CHECK-NEXT:   @faddh(dest_dsd, src_dsd1, f16_value);
 // CHECK-NEXT:   @faddh(f16_pointer, f16_value, src_dsd1);
-// CHECK-NEXT:   @faddhs(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @faddhs(dest_dsd, f16_value, src_dsd1);
-// CHECK-NEXT:   @faddhs(dest_dsd, src_dsd1, f16_value);
 // CHECK-NEXT:   @faddhs(f32_pointer, f32_value, src_dsd1);
 // CHECK-NEXT:   @fadds(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @fadds(dest_dsd, f32_value, src_dsd1);
-// CHECK-NEXT:   @fadds(dest_dsd, src_dsd1, f32_value);
-// CHECK-NEXT:   @fadds(f32_pointer, f32_value, src_dsd1);
-// CHECK-NEXT:   @fh2s(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @fh2s(dest_dsd, f16_value);
-// CHECK-NEXT:   @fh2xp16(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @fh2xp16(dest_dsd, f16_value);
 // CHECK-NEXT:   @fh2xp16(i16_pointer, f16_value);
-// CHECK-NEXT:   @fmach(dest_dsd, src_dsd1, src_dsd2, f16_value);
-// CHECK-NEXT:   @fmachs(dest_dsd, src_dsd1, src_dsd2, f16_value);
 // CHECK-NEXT:   @fmacs(dest_dsd, src_dsd1, src_dsd2, f32_value);
 // CHECK-NEXT:   @fmaxh(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @fmaxh(dest_dsd, f16_value, src_dsd1);
-// CHECK-NEXT:   @fmaxh(dest_dsd, src_dsd1, f16_value);
-// CHECK-NEXT:   @fmaxh(f16_pointer, f16_value, src_dsd1);
-// CHECK-NEXT:   @fmaxs(dest_dsd, src_dsd1, src_dsd2);
 // CHECK-NEXT:   @fmaxs(dest_dsd, f32_value, src_dsd1);
-// CHECK-NEXT:   @fmaxs(dest_dsd, src_dsd1, f32_value);
-// CHECK-NEXT:   @fmaxs(f32_pointer, f32_value, src_dsd1);
-// CHECK-NEXT:   @fmovh(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @fmovh(f16_pointer, src_dsd1);
-// CHECK-NEXT:   @fmovh(dest_dsd, f16_value);
-// CHECK-NEXT:   @fmovs(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @fmovs(f32_pointer, src_dsd1);
 // CHECK-NEXT:   @fmovs(dest_dsd, f32_value);
 // CHECK-NEXT:   @fmulh(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @fmulh(dest_dsd, f16_value, src_dsd1);
-// CHECK-NEXT:   @fmulh(dest_dsd, src_dsd1, f16_value);
-// CHECK-NEXT:   @fmulh(f16_pointer, f16_value, src_dsd1);
-// CHECK-NEXT:   @fmuls(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @fmuls(dest_dsd, f32_value, src_dsd1);
-// CHECK-NEXT:   @fmuls(dest_dsd, src_dsd1, f32_value);
 // CHECK-NEXT:   @fmuls(f32_pointer, f32_value, src_dsd1);
 // CHECK-NEXT:   @fnegh(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @fnegh(dest_dsd, f16_value);
-// CHECK-NEXT:   @fnegs(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @fnegs(dest_dsd, f32_value);
 // CHECK-NEXT:   @fnormh(f16_pointer, f16_value);
 // CHECK-NEXT:   @fnorms(f32_pointer, f32_value);
 // CHECK-NEXT:   @fs2h(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @fs2h(dest_dsd, f32_value);
-// CHECK-NEXT:   @fs2xp16(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @fs2xp16(dest_dsd, f32_value);
 // CHECK-NEXT:   @fs2xp16(i16_pointer, f32_value);
 // CHECK-NEXT:   @fscaleh(f16_pointer, f16_value, i16_value);
 // CHECK-NEXT:   @fscales(f32_pointer, f32_value, i16_value);
-// CHECK-NEXT:   @fsubh(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @fsubh(dest_dsd, f16_value, src_dsd1);
-// CHECK-NEXT:   @fsubh(dest_dsd, src_dsd1, f16_value);
 // CHECK-NEXT:   @fsubh(f16_pointer, f16_value, src_dsd1);
-// CHECK-NEXT:   @fsubs(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @fsubs(dest_dsd, f32_value, src_dsd1);
-// CHECK-NEXT:   @fsubs(dest_dsd, src_dsd1, f32_value);
 // CHECK-NEXT:   @fsubs(f32_pointer, f32_value, src_dsd1);
-// CHECK-NEXT:   @mov16(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @mov16(i16_pointer, src_dsd1);
 // CHECK-NEXT:   @mov16(u16_pointer, src_dsd1);
-// CHECK-NEXT:   @mov16(dest_dsd, i16_value);
-// CHECK-NEXT:   @mov16(dest_dsd, u16_value);
-// CHECK-NEXT:   @mov32(dest_dsd, src_dsd1);
 // CHECK-NEXT:   @mov32(i32_pointer, src_dsd1);
-// CHECK-NEXT:   @mov32(u32_pointer, src_dsd1);
-// CHECK-NEXT:   @mov32(dest_dsd, i32_value);
-// CHECK-NEXT:   @mov32(dest_dsd, u32_value);
-// CHECK-NEXT:   @or16(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @or16(dest_dsd, i16_value, src_dsd1);
-// CHECK-NEXT:   @or16(dest_dsd, u16_value, src_dsd1);
-// CHECK-NEXT:   @or16(dest_dsd, src_dsd1, i16_value);
 // CHECK-NEXT:   @or16(dest_dsd, src_dsd1, u16_value);
 // CHECK-NEXT:   @popcnt(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @popcnt(dest_dsd, i16_value);
-// CHECK-NEXT:   @popcnt(dest_dsd, u16_value);
 // CHECK-NEXT:   @sar16(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @sar16(dest_dsd, i16_value, src_dsd1);
-// CHECK-NEXT:   @sar16(dest_dsd, u16_value, src_dsd1);
-// CHECK-NEXT:   @sar16(dest_dsd, src_dsd1, i16_value);
-// CHECK-NEXT:   @sar16(dest_dsd, src_dsd1, u16_value);
-// CHECK-NEXT:   @sll16(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @sll16(dest_dsd, i16_value, src_dsd1);
 // CHECK-NEXT:   @sll16(dest_dsd, u16_value, src_dsd1);
-// CHECK-NEXT:   @sll16(dest_dsd, src_dsd1, i16_value);
-// CHECK-NEXT:   @sll16(dest_dsd, src_dsd1, u16_value);
-// CHECK-NEXT:   @slr16(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @slr16(dest_dsd, i16_value, src_dsd1);
-// CHECK-NEXT:   @slr16(dest_dsd, u16_value, src_dsd1);
 // CHECK-NEXT:   @slr16(dest_dsd, src_dsd1, i16_value);
-// CHECK-NEXT:   @slr16(dest_dsd, src_dsd1, u16_value);
-// CHECK-NEXT:   @sub16(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @sub16(dest_dsd, src_dsd1, i16_value);
 // CHECK-NEXT:   @sub16(dest_dsd, src_dsd1, u16_value);
 // CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, src_dsd2);
-// CHECK-NEXT:   @xor16(dest_dsd, i16_value, src_dsd1);
-// CHECK-NEXT:   @xor16(dest_dsd, u16_value, src_dsd1);
-// CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, i16_value);
-// CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, u16_value);
 // CHECK-NEXT:   @xp162fh(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @xp162fh(dest_dsd, i16_value);
-// CHECK-NEXT:   @xp162fh(dest_dsd, u16_value);
 // CHECK-NEXT:   @xp162fs(dest_dsd, src_dsd1);
-// CHECK-NEXT:   @xp162fs(dest_dsd, i16_value);
-// CHECK-NEXT:   @xp162fs(dest_dsd, u16_value);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT: // >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //
