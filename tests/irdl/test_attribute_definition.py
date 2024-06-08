@@ -33,6 +33,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     BaseAttr,
+    ConstraintContext,
     ConstraintVar,
     GenericData,
     MessageConstraint,
@@ -347,7 +348,11 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext | None = None,
+    ) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(
                 f"Expected {IntData.name} attribute, but got {attr.name}."
@@ -563,7 +568,7 @@ def test_informative_constraint():
         VerifyException,
         match="User-enlightening message.\nUnderlying verification failure: Expected attribute #none but got #builtin.int<1>",
     ):
-        constr.verify(IntAttr(1), {})
+        constr.verify(IntAttr(1))
     assert constr.get_resolved_variables() == set()
     assert constr.get_unique_base() == NoneAttr
 
@@ -622,10 +627,14 @@ class DataListAttr(AttrConstraint):
 
     elem_constr: AttrConstraint
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext | None = None,
+    ) -> None:
         attr = cast(ListData[Attribute], attr)
         for e in attr.data:
-            self.elem_constr.verify(e, constraint_vars)
+            self.elem_constr.verify(e, constraint_context)
 
 
 @irdl_attr_definition
