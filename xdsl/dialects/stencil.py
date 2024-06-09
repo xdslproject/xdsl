@@ -1142,6 +1142,9 @@ class TensorIgnoreSizeConstraint(VarConstraint):
                 and attr.get_element_type() == other.get_element_type()
             ):
                 return
+        import pdb
+
+        pdb.set_trace()
         super().verify(attr, constraint_context)
 
 
