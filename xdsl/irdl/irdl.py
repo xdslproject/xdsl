@@ -989,10 +989,12 @@ OptOpResult: TypeAlias = OpResult | None
 
 
 @dataclass(init=True)
-class RegionDef(Region):
+class RegionDef:
     """
     An IRDL region definition.
     """
+
+    entry_args: RangeConstraint = field(default_factory=lambda: RangeOf(AnyAttr()))
 
 
 @dataclass
@@ -1147,6 +1149,18 @@ class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
 
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
+    entry_args: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+
+    def __init__(
+        self,
+        cls: type[RegionDef],
+        entry_args: (
+            RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+        ),
+    ):
+        super().__init__(cls)
+        self.entry_args = entry_args
+
     pass
 
 
@@ -1294,6 +1308,9 @@ def opt_operand_def(
 def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
+    entry_args: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -1302,12 +1319,15 @@ def region_def(
     Defines a region of an operation.
     """
     cls = RegionDef if single_block is None else SingleBlockRegionDef
-    return cast(Region, _RegionFieldDef(cls))
+    return cast(Region, _RegionFieldDef(cls, entry_args))
 
 
 def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
+    entry_args: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -1316,12 +1336,15 @@ def var_region_def(
     Defines a variadic region of an operation.
     """
     cls = VarRegionDef if single_block is None else VarSingleBlockRegionDef
-    return cast(VarRegion, _RegionFieldDef(cls))
+    return cast(VarRegion, _RegionFieldDef(cls, entry_args))
 
 
 def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
+    entry_args: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
     init: Literal[False] = False,
@@ -1330,7 +1353,7 @@ def opt_region_def(
     Defines an optional region of an operation.
     """
     cls = OptRegionDef if single_block is None else OptSingleBlockRegionDef
-    return cast(OptRegion, _RegionFieldDef(cls))
+    return cast(OptRegion, _RegionFieldDef(cls, entry_args))
 
 
 def successor_def(
@@ -1581,6 +1604,26 @@ class OpDef:
                         type_var_mapping=type_var_mapping,
                     )
 
+                # Get attribute constraints from a list of pyrdl constraints
+                def get_range_constraint(
+                    pyrdl_constr: (
+                        RangeConstraint
+                        | AttrConstraint
+                        | Attribute
+                        | type[Attribute]
+                        | TypeVar
+                    ),
+                ) -> RangeConstraint:
+                    if isinstance(pyrdl_constr, RangeConstraint):
+                        return pyrdl_constr
+                    return RangeOf(
+                        _irdl_list_to_attr_constraint(
+                            (pyrdl_constr,),
+                            allow_type_var=True,
+                            type_var_mapping=type_var_mapping,
+                        )
+                    )
+
                 field_names.add(field_name)
 
                 match value:
@@ -1609,7 +1652,8 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "property")
                         continue
                     case _RegionFieldDef():
-                        region_def = value.cls()
+                        constraint = get_range_constraint(value.entry_args)
+                        region_def = value.cls(constraint)
                         op_def.regions.append((field_name, region_def))
                         continue
                     case _SuccessorFieldDef():
@@ -1648,7 +1692,7 @@ class OpDef:
         irdl_op_verify_arg_list(op, self, VarIRConstruct.RESULT, constraint_vars)
 
         # Verify regions.
-        irdl_op_verify_regions(op, self)
+        irdl_op_verify_regions(op, self, constraint_vars)
 
         # Verify successors.
         get_variadic_sizes(op, self, VarIRConstruct.SUCCESSOR)
@@ -1940,7 +1984,9 @@ def get_operand_result_or_region(
         return args[begin_arg]
 
 
-def irdl_op_verify_regions(op: Operation, op_def: OpDef):
+def irdl_op_verify_regions(
+    op: Operation, op_def: OpDef, constraint_vars: dict[str, Attribute]
+):
     get_variadic_sizes(op, op_def, VarIRConstruct.REGION)
     for i, (region, (name, region_def)) in enumerate(zip(op.regions, op_def.regions)):
         if isinstance(region_def, SingleBlockRegionDef) and len(region.blocks) != 1:
@@ -1948,6 +1994,16 @@ def irdl_op_verify_regions(op: Operation, op_def: OpDef):
                 f"Region '{name}' at position {i} expected a single block, but got "
                 f"{len(region.blocks)} blocks"
             )
+        if len(region.blocks) > 0:
+            entry_args_types = tuple(a.type for a in region.blocks[0].args)
+            try:
+                region_def.entry_args.verify(entry_args_types, constraint_vars)
+            except Exception as e:
+                error(
+                    op,
+                    f"region #{i} entry arguments do not verify:\n{e}",
+                    e,
+                )
 
 
 def irdl_op_verify_arg_list(
