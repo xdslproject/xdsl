@@ -183,6 +183,10 @@ AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
 
 @dataclass(frozen=True)
 class ArrayRangeConstraint(AttrConstraint):
+    """
+    Constrains an ArrayAttr's content to a given range constraint.
+    """
+
     constr: RangeConstraint
 
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
