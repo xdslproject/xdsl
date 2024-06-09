@@ -22,8 +22,8 @@ from xdsl.dialects import builtin, func
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatAttr,
-    ArrayAttr,
-    IndexType,
+    AnyIntegerAttr, ArrayAttr,
+    FloatAttr, IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -520,7 +520,7 @@ class DynamicExtentAttr(RunTimeBaseExtent):
 class DimensionAttr(ParametrizedAttribute):
     name = "dlt.dimension"
     dimensionName: ParameterDef[StringAttr]
-    extent: ParameterDef[AnyExtent()]
+    extent: ParameterDef[Extent]
 
     def __init__(
         self,
@@ -938,6 +938,8 @@ class TypeType(ParametrizedAttribute, TypeAttribute):
         return select_dim
 
 
+
+
 class Layout(ParametrizedAttribute, abc.ABC):
 
     @property
@@ -951,20 +953,8 @@ class Layout(ParametrizedAttribute, abc.ABC):
             yield from child.walk()
 
     @property
-    def is_knowledge(self) -> bool:
-        return False
-
-    @property
     def is_abstract(self) -> bool:
         return any(child.is_abstract for child in self.get_children())
-
-    def get_name(self) -> str | None:
-        return None
-
-    def has_named_sub_layout(self) -> bool:
-        return self.get_name is not None or any(
-            child.has_named_sub_layout for child in self.get_children()
-        )
 
     @abstractmethod
     def node_matches(self, other: Layout) -> bool:
@@ -992,37 +982,19 @@ class Layout(ParametrizedAttribute, abc.ABC):
     def get_all_init_base_extents(self) -> set[RunTimeBaseExtent]:
         return {e for e in self.get_all_extents() if isinstance(e, InitDefinedExtentAttr)}
 
-    def named_sub_layouts(self) -> dict[str, Layout]:
-        map = {}
-        for layout in self.walk():
-            if isinstance(layout, NamedLayoutAttr):
-                map[layout.abstract_name.data] = layout
-        return map
-
     def has_sub_layout(self, other: Layout) -> bool:
         for l in self.walk():
             if other == l:
                 return True
         return False
 
+    @abstractmethod
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        raise NotImplementedError()
+
     def verify(self) -> None:
         if self.contents_type is None:
             raise VerifyException("Cannot produce contents type for layout")
-        map = {}
-        for layout in self.walk():
-            if isinstance(layout, NamedLayoutAttr):
-                if layout.abstract_name.data in map:
-                    if map[layout.abstract_name.data] != layout:
-                        raise VerifyException(
-                            f"Internal named layout contradiction within layout: {self} for layout {layout.abstract_name}."
-                        )
-                map[layout.abstract_name.data] = layout
-
-        if self.is_knowledge:
-            if len(self.get_children()) != 1:
-                raise VerifyException(
-                    f"Knowledge layout nodes must have 1 and only 1 child node"
-                )
 
     @staticmethod
     def abstract_layout(typetype: TypeType, name: StringAttr | str = None) -> Layout:
@@ -1031,16 +1003,31 @@ class Layout(ParametrizedAttribute, abc.ABC):
             parts.append((elem.member_specifiers, elem.dimensions, PrimitiveLayoutAttr(elem.base_type)))
         layout = AbstractLayoutAttr(parts)
 
-        if name is not None:
-            layout = NamedLayoutAttr(name, layout)
+        # if name is not None:
+        #     layout = NamedLayoutAttr(name, layout)
 
         return layout
 
 
-class AnyLayout(AttrConstraint):
+class AnyDirectLayout(AttrConstraint):
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, Layout):
             raise Exception(f"expected Layout Attribute but got {attr}")
+        layout = cast(Layout, attr)
+        if layout.indexed_by() != None:
+            raise Exception(f"Layout indexed by {layout.indexed_by()} but None is expected for a Direct Layout.")
+
+DirectLayout = typing.Annotated[Layout, AnyDirectLayout()]
+
+class AnyIndexedLayout(AttrConstraint):
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isinstance(attr, Layout):
+            raise Exception(f"expected Layout Attribute but got {attr}")
+        layout = cast(Layout, attr)
+        if layout.indexed_by() not in [IndexType(), IndexRangeType()]:
+            raise Exception(f"Layout is not Indexed by Index or IndexRangeType, got {layout.indexed_by()} instead.")
+
+IndexedLayout = typing.Annotated[Layout, AnyIndexedLayout()]
 
 
 class KnowledgeLayout(Layout, abc.ABC):
@@ -1061,6 +1048,9 @@ class KnowledgeLayout(Layout, abc.ABC):
 
     def get_child(self) -> Layout:
         return self.get_children()[0]
+
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return self.get_child().indexed_by()
 
     def can_be_dropped(self, dominating_knowledge: set[KnowledgeLayout]) -> bool:
         return False
@@ -1086,7 +1076,7 @@ class KnowledgeLayout(Layout, abc.ABC):
 class ReadOnlyLayoutAttr(KnowledgeLayout):
 
     name = "dlt.layout.readOnly"
-    child: ParameterDef[AnyLayout()]
+    child: ParameterDef[DirectLayout]
 
     def __init__(self, child: Layout):
         super().__init__((child,))
@@ -1110,53 +1100,53 @@ class ReadOnlyLayoutAttr(KnowledgeLayout):
     def get_parameters(self) -> tuple[()]:
         return ()
 
-
-@irdl_attr_definition
-class NamedLayoutAttr(KnowledgeLayout):
-
-    name = "dlt.layout.named"
-    child: ParameterDef[AnyLayout()]
-    abstract_name: ParameterDef[StringAttr]
-
-    def __init__(self, name: str | StringAttr, child: Layout):
-        if isinstance(name, str):
-            name = StringAttr(name)
-        super().__init__((child, name))
-
-    @property
-    def contents_type(self) -> TypeType:
-        return self.child.contents_type
-
-    @property
-    def is_knowledge(self) -> bool:
-        return True
-
-    def get_name(self) -> str:
-        return self.abstract_name.data
-
-    def get_children(self) -> list[Layout]:
-        return [self.child]
-
-    def from_new_children(self, children: list[Layout]) -> Self:
-        assert len(children) == 1
-        return NamedLayoutAttr(self.abstract_name, children[0])
-
-    def get_stage(self) -> Stage | None:
-        return self.child.get_stage()
-
-    def get_all_extents(self) -> set[Extent]:
-        return self.child.get_all_extents()
-
-    def verify(self) -> None:
-        super().verify()
-        if self.abstract_name.data == "":
-            raise VerifyException(
-                f"{self.name}: Named layout cannot have empty string name but found: "
-                f"{self.abstract_name}"
-            )
-
-    def get_parameters(self) -> tuple[StringAttr]:
-        return (self.abstract_name,)
+#
+# @irdl_attr_definition
+# class NamedLayoutAttr(KnowledgeLayout):
+#
+#     name = "dlt.layout.named"
+#     child: ParameterDef[AnyDirectLayout()]
+#     abstract_name: ParameterDef[StringAttr]
+#
+#     def __init__(self, name: str | StringAttr, child: DirectLayout):
+#         if isinstance(name, str):
+#             name = StringAttr(name)
+#         super().__init__((child, name))
+#
+#     @property
+#     def contents_type(self) -> TypeType:
+#         return self.child.contents_type
+#
+#     @property
+#     def is_knowledge(self) -> bool:
+#         return True
+#
+#     def get_name(self) -> str:
+#         return self.abstract_name.data
+#
+#     def get_children(self) -> list[DirectLayout]:
+#         return [self.child]
+#
+#     def from_new_children(self, children: list[DirectLayout]) -> Self:
+#         assert len(children) == 1
+#         return NamedLayoutAttr(self.abstract_name, children[0])
+#
+#     def get_stage(self) -> Stage | None:
+#         return self.child.get_stage()
+#
+#     def get_all_extents(self) -> set[Extent]:
+#         return self.child.get_all_extents()
+#
+#     def verify(self) -> None:
+#         super().verify()
+#         if self.abstract_name.data == "":
+#             raise VerifyException(
+#                 f"{self.name}: Named layout cannot have empty string name but found: "
+#                 f"{self.abstract_name}"
+#             )
+#
+#     def get_parameters(self) -> tuple[StringAttr]:
+#         return (self.abstract_name,)
 
 
 @irdl_attr_definition
@@ -1164,7 +1154,7 @@ class AbstractChildAttr(ParametrizedAttribute):
     name = "dlt.abstractChild"
     member_specifiers: ParameterDef[SetAttr[MemberAttr]]
     dimensions: ParameterDef[SetAttr[DimensionAttr]]
-    child: ParameterDef[AnyLayout()]
+    child: ParameterDef[DirectLayout]
 
     def __init__(
         self,
@@ -1225,6 +1215,9 @@ class AbstractLayoutAttr(Layout):
     def is_abstract(self) -> bool:
         return True
 
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return None
+
     def verify(self) -> None:
         super().verify()
         if len(self.children) == 0:
@@ -1272,7 +1265,7 @@ class PrimitiveLayoutAttr(Layout):
 
     def from_new_children(self, children: list[Layout]) -> Self:
         assert len(children) == 0
-        return self
+        return PrimitiveLayoutAttr(self.base_type)
 
     def get_stage(self) -> Stage:
         return Stage.STATIC
@@ -1283,11 +1276,56 @@ class PrimitiveLayoutAttr(Layout):
     def node_matches(self, other: Layout) -> bool:
         return isinstance(other, PrimitiveLayoutAttr) and self.base_type == other.base_type
 
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return None
+
+
+@irdl_attr_definition
+class ConstantLayoutAttr(Layout):
+    name = "dlt.layout.constant"
+    base_data: ParameterDef[AnyIntegerAttr | AnyFloatAttr]
+    # base_type: ParameterDef[AcceptedTypes]
+
+    def __init__(self, base_data: AnyIntegerAttr | AnyFloatAttr | int | float):
+        if isinstance(base_data, int):
+            base_data = IntegerAttr(base_data, IndexType())
+        elif isinstance(base_data, float):
+            base_data = FloatAttr(base_data, builtin.f32)
+        super().__init__((base_data,))
+
+    @property
+    def contents_type(self) -> TypeType:
+        return TypeType([ElementAttr([], [], self.base_data.type)])
+
+    def get_children(self) -> list[Layout]:
+        return []
+
+    def from_new_children(self, children: list[Layout]) -> Self:
+        assert len(children) == 0
+        return ConstantLayoutAttr(self.base_data)
+
+    def get_stage(self) -> Stage:
+        return Stage.STATIC
+
+    def get_all_extents(self) -> set[Extent]:
+        return set()
+
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, ConstantLayoutAttr) and self.base_data == other.base_data
+
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return None
+
+    def verify(self) -> None:
+        super().verify()
+        if not isinstance(self.base_data.type, AcceptedTypes):
+            raise VerifyException("Constant Layout cannot use a Constant type outside of AcceptedTypes")
+
 
 @irdl_attr_definition
 class DenseLayoutAttr(Layout):
     name = "dlt.layout.dense"
-    child: ParameterDef[AnyLayout()]
+    child: ParameterDef[DirectLayout]
     dimension: ParameterDef[DimensionAttr]
 
     def __init__(
@@ -1343,11 +1381,14 @@ class DenseLayoutAttr(Layout):
     def node_matches(self, other: Layout) -> bool:
         return isinstance(other, DenseLayoutAttr) and self.dimension == other.dimension
 
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return None
+
 
 @irdl_attr_definition
 class MemberLayoutAttr(Layout):
     name = "dlt.layout.member"
-    child: ParameterDef[AnyLayout()]
+    child: ParameterDef[DirectLayout]
     member_specifier: ParameterDef[MemberAttr]
 
     def __init__(
@@ -1392,11 +1433,14 @@ class MemberLayoutAttr(Layout):
     def node_matches(self, other: Layout) -> bool:
         return isinstance(other, MemberLayoutAttr) and self.member_specifier == other.member_specifier
 
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return self.child.indexed_by()
+
 
 @irdl_attr_definition
 class StructLayoutAttr(Layout):
     name = "dlt.layout.struct"
-    children: ParameterDef[ArrayAttr[AnyLayout()]]
+    children: ParameterDef[ArrayAttr[DirectLayout]]
 
     def __init__(self, children: Iterable[Layout]):
         if not isinstance(children, ArrayAttr):
@@ -1435,16 +1479,147 @@ class StructLayoutAttr(Layout):
     def node_matches(self, other: Layout) -> bool:
         return isinstance(other, StructLayoutAttr) and len(self.children) == len(other.children)
 
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return None
 
-# class IndexedLayout(abc.ABC):
-#     pass
+
+@irdl_attr_definition
+class UnpackedCOOLayoutAttr(Layout):
+    name = "dlt.layout.indexed.unpackedCOO"
+    child: ParameterDef[DirectLayout]
+    dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
+
+    def __init__(self, child: Layout, dimensions: Iterable[DimensionAttr]):
+        if not isinstance(dimensions, ArrayAttr):
+            dimensions = ArrayAttr(dimensions)
+        super().__init__((child, dimensions))
+
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return IndexRangeType()
+
+    @property
+    def contents_type(self) -> TypeType:
+        return self.child.contents_type.add_dimensions(self.dimensions)
+
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, UnpackedCOOLayoutAttr) and self.dimensions == other.dimensions
+
+    def get_children(self) -> list[Layout]:
+        return [self.child]
+
+    def from_new_children(self, children: list[Layout]) -> Self:
+        assert len(children) == 1
+        return UnpackedCOOLayoutAttr(children[0], self.dimensions)
+
+    def get_stage(self) -> Stage | None:
+        child_stage = self.child.get_stage()
+        if child_stage is None:
+            return None
+        dimension_stages = [d.extent.get_stage() for d in self.dimensions]
+        return max(*dimension_stages, child_stage)
+
+    def get_all_extents(self) -> set[Extent]:
+        extents = {d.extent for d in self.dimensions}
+        return self.child.get_all_extents() | extents
+
+
+@irdl_attr_definition
+class IndexingLayoutAttr(Layout):
+    name = "dlt.layout.indexing"
+    directChild: ParameterDef[DirectLayout]
+    indexedChild: ParameterDef[IndexedLayout]
+
+    def __init__(self, directChild: Layout, indexedChild: Layout):
+        super().__init__((directChild, indexedChild))
+
+    @property
+    def contents_type(self) -> TypeType:
+        idx_elems: SetAttr[ElementAttr] = self.indexedChild.contents_type.elements
+        dir_elms: SetAttr[ElementAttr] = self.directChild.contents_type.elements
+        new_elems = []
+        for i_e in idx_elems:
+            for d_e in dir_elms:
+                new_elems.append(i_e.add_members(d_e.member_specifiers).add_dimensions(d_e.dimensions))
+        # cross product of elems in the direct and indexed child. This allows for 
+        return TypeType(new_elems)
+
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, IndexingLayoutAttr)
+
+    def get_children(self) -> list[Layout]:
+        return [self.directChild, self.indexedChild]
+
+    def from_new_children(self, children: list[Layout]) -> Self:
+        assert len(children) == 2
+        return IndexingLayoutAttr(children[0], children[1])
+
+    def get_stage(self) -> Stage | None:
+        child_stages = [child.get_stage() for child in self.get_children()]
+        if any(stage is None for stage in child_stages):
+            return None
+        return max(child_stages)
+
+    def get_all_extents(self) -> set[Extent]:
+        return {e for child in self.get_children() for e in child.get_all_extents()}
+
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return None
+
+    def verify(self) -> None:
+        if self.contents_type is None:
+            raise VerifyException("Cannot produce contents type for layout")
+        index_type = self.indexedChild.indexed_by()
+        if index_type == None:
+            raise VerifyException("Index child is indexed by None - this is not allow.")
+        direct_child_contents = self.directChild.contents_type
+        direct_base_types = [e.base_type for e in direct_child_contents.elements]
+        if not all(index_type == bt for bt in direct_base_types):
+            raise VerifyException(f"Index child calls for index type; {index_type} but direct child has type "
+                                  f"{direct_child_contents} with base types: {direct_base_types}")
+
+
+@irdl_attr_definition
+class ArithDropLayoutAttr(Layout):
+    name = "dlt.layout.arith.drop"
+    child: ParameterDef[DirectLayout]
+    dimension: ParameterDef[DimensionAttr]
+
+    def __init__(self, child: Layout, dim: DimensionAttr):
+        super().__init__((child, dim))
+
+    @property
+    def contents_type(self) -> TypeType:
+        return self.child.contents_type.add_dimension(self.dimension)
+
+    def node_matches(self, other: Layout) -> bool:
+        return isinstance(other, ArithDropLayoutAttr) and self.dimension == other.dimension
+
+    def get_children(self) -> list[Layout]:
+        return [self.child]
+
+    def from_new_children(self, children: list[Layout]) -> Self:
+        assert len(children) == 1
+        return ArithDropLayoutAttr(children[0], self.dimension)
+
+    def get_stage(self) -> Stage | None:
+        child_stage = self.child.get_stage()
+        if child_stage is None:
+            return None
+        else:
+            return max(child_stage, self.dimension.extent.get_stage())
+
+    def get_all_extents(self) -> set[Extent]:
+        return self.child.get_all_extents() | {self.dimension.extent}
+
+    def indexed_by(self) -> None | IndexRangeType | IndexType:
+        return None
 
 
 @irdl_attr_definition
 class PtrType(ParametrizedAttribute, TypeAttribute):
     name = "dlt.ptr"
     contents_type: ParameterDef[TypeType]
-    layout: ParameterDef[AnyLayout()]
+    layout: ParameterDef[DirectLayout]
     filled_members: ParameterDef[SetAttr[MemberAttr]]
     filled_dimensions: ParameterDef[ArrayAttr[DimensionAttr]]
     filled_extents: ParameterDef[ArrayAttr[AnyRunTimeBaseExtent()]]
@@ -1523,16 +1698,16 @@ class PtrType(ParametrizedAttribute, TypeAttribute):
             base=self.is_base,
         )
 
-    def with_layout_name(self, name: str | StringAttr, preserve_ident=False) -> PtrType:
-        return PtrType(
-            self.contents_type,
-            NamedLayoutAttr(name, self.layout),
-            self.filled_members,
-            self.filled_dimensions,
-            self.filled_extents,
-            base=self.is_base,
-            identity=self.identification if preserve_ident else "",
-        )
+    # def with_layout_name(self, name: str | StringAttr, preserve_ident=False) -> PtrType:
+    #     return PtrType(
+    #         self.contents_type,
+    #         NamedLayoutAttr(name, self.layout),
+    #         self.filled_members,
+    #         self.filled_dimensions,
+    #         self.filled_extents,
+    #         base=self.is_base,
+    #         identity=self.identification if preserve_ident else "",
+    #     )
 
     def with_new_layout(
         self, layout: Layout, remove_bloat=False, preserve_ident=False
@@ -1889,16 +2064,15 @@ class LayoutScopeOp(IRDLOperation):
             if function in caller_functions:
                 for i, type in enumerate(function.function_type.inputs):
                     if isinstance(type, PtrType):
-                        if not isinstance(type.layout, NamedLayoutAttr):
+                        if not type.has_identity:
                             violations.setdefault(function, []).append(
-                                f"This function's input {i} must have a named" f"layout"
+                                f"This function's input {i} must have an dlt.ptr identitification"
                             )
                 for i, type in enumerate(function.function_type.outputs):
                     if isinstance(type, PtrType):
-                        if not isinstance(type.layout, NamedLayoutAttr):
+                        if not type.has_identity:
                             violations.setdefault(function, []).append(
-                                f"This function's output {i} must have a named"
-                                f"layout"
+                                f"This function's output {i} must have an dlt.ptr identitification"
                             )
         if violations:
             raise ComplexVerifyException(
@@ -2705,10 +2879,14 @@ DLT = Dialect(
         TypeType,
         IndexRangeType,
         PrimitiveLayoutAttr,
-        NamedLayoutAttr,
+        ConstantLayoutAttr,
+        # NamedLayoutAttr,
         AbstractLayoutAttr,
         StructLayoutAttr,
         DenseLayoutAttr,
+        IndexingLayoutAttr,
+        UnpackedCOOLayoutAttr,
+        ArithDropLayoutAttr,
         PtrType,
     ],
 )

@@ -463,16 +463,16 @@ T = TypeVar("T", dlt.Layout, list[dlt.Layout])
 def _make_dense_layouts(layout: T, map: dict[str, dlt.Layout]) -> T:
     if isinstance(layout, list):
         return [_make_dense_layouts(e, map) for e in layout]
-    elif isinstance(layout, dlt.NamedLayoutAttr):
-        layout: dlt.NamedLayoutAttr = layout
-        if layout.abstract_name.data in map:
-            return map[layout.abstract_name.data]
-        else:
-            sub_layout = _make_dense_layouts(layout.child, map)
-            new_layout = dlt.NamedLayoutAttr(layout.abstract_name, sub_layout)
-            assert new_layout.abstract_name.data not in map
-            map[new_layout.abstract_name.data] = new_layout
-            return new_layout
+    # elif isinstance(layout, dlt.NamedLayoutAttr):
+    #     layout: dlt.NamedLayoutAttr = layout
+    #     if layout.abstract_name.data in map:
+    #         return map[layout.abstract_name.data]
+    #     else:
+    #         sub_layout = _make_dense_layouts(layout.child, map)
+    #         new_layout = dlt.NamedLayoutAttr(layout.abstract_name, sub_layout)
+    #         assert new_layout.abstract_name.data not in map
+    #         map[new_layout.abstract_name.data] = new_layout
+    #         return new_layout
     elif isinstance(layout, dlt.AbstractLayoutAttr):
         layout: dlt.AbstractLayoutAttr = layout
         sub_layouts = []
@@ -547,8 +547,8 @@ def _get_deep_base(
                 layout = None
                 for arg in args + ([operand] if public_arg else []):
                     assert isinstance(arg.type, dlt.PtrType)
-                    assert isinstance(arg.type.layout, dlt.NamedLayoutAttr)
-                    name = arg.type.layout.abstract_name
+                    assert arg.type.has_identity
+                    name = arg.type.identification
                     assert layout_name is None or layout_name == name
                     layout_name = name
                     assert layout is None or layout == arg.type.layout
