@@ -1616,13 +1616,7 @@ class OpDef:
                 ) -> RangeConstraint:
                     if isinstance(pyrdl_constr, RangeConstraint):
                         return pyrdl_constr
-                    return RangeOf(
-                        _irdl_list_to_attr_constraint(
-                            (pyrdl_constr,),
-                            allow_type_var=True,
-                            type_var_mapping=type_var_mapping,
-                        )
-                    )
+                    return RangeOf(get_constraint(pyrdl_constr))
 
                 field_names.add(field_name)
 
