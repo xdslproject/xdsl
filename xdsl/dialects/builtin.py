@@ -45,6 +45,7 @@ from xdsl.irdl import (
     MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
+    RangeConstraint,
     VarOperand,
     VarOpResult,
     attr_constr_coercion,
@@ -178,6 +179,27 @@ class ArrayAttr(GenericData[tuple[AttributeCovT, ...]], Iterable[AttributeCovT])
 
 
 AnyArrayAttr: TypeAlias = ArrayAttr[Attribute]
+
+
+@dataclass(frozen=True)
+class ArrayRangeConstraint(AttrConstraint):
+    constr: RangeConstraint
+
+    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+        if not isa(attr, ArrayAttr[Attribute]):
+            raise VerifyException(f"expected ArrayData attribute, but got {attr}")
+        self.constr.verify(attr.data, constraint_vars)
+
+    def get_resolved_variables(self) -> set[str]:
+        return self.constr.get_resolved_variables()
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        # TODO: This is a first issue with the RangeConstraint inference API, which
+        # requires an expected length, but there is no such thing here.
+        return False
+
+    def get_unique_base(self) -> type[ArrayAttr[Attribute]]:
+        return ArrayAttr[Attribute]
 
 
 @irdl_attr_definition
