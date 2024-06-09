@@ -32,6 +32,7 @@ from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
     BaseAttr,
+    ConstraintContext,
     ConstraintVar,
     IRDLOperation,
     MessageConstraint,
@@ -1127,16 +1128,21 @@ class BufferOp(IRDLOperation):
 
 
 class TensorIgnoreSizeConstraint(VarConstraint):
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        if self.name in constraint_vars:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
+        constraint_context = constraint_context or ConstraintContext()
+        if self.name in constraint_context.variables:
             if (
                 isa(attr, TensorType[Attribute])
-                and isinstance(other := constraint_vars[self.name], TensorType)
+                and isinstance(
+                    other := constraint_context.variables[self.name], TensorType
+                )
                 and len(attr.get_shape()) == len(other.get_shape())
                 and attr.get_element_type() == other.get_element_type()
             ):
                 return
-        super().verify(attr, constraint_vars)
+        super().verify(attr, constraint_context)
 
 
 @irdl_op_definition

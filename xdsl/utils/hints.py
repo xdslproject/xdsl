@@ -89,7 +89,7 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
         constraint = irdl_to_attr_constraint(hint)
         try:
-            constraint.verify(arg, {})
+            constraint.verify(arg)
             return True
         except VerifyException:
             return False

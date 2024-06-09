@@ -1748,7 +1748,7 @@ class OpDef:
         irdl_op_verify_arg_list(op, self, VarIRConstruct.RESULT, constraint_context)
 
         # Verify regions.
-        irdl_op_verify_regions(op, self, constraint_vars)
+        irdl_op_verify_regions(op, self, constraint_context)
 
         # Verify successors.
         get_variadic_sizes(op, self, VarIRConstruct.SUCCESSOR)
@@ -2041,7 +2041,7 @@ def get_operand_result_or_region(
 
 
 def irdl_op_verify_regions(
-    op: Operation, op_def: OpDef, constraint_vars: dict[str, Attribute]
+    op: Operation, op_def: OpDef, constraint_context: ConstraintContext
 ):
     get_variadic_sizes(op, op_def, VarIRConstruct.REGION)
     for i, (region, (name, region_def)) in enumerate(zip(op.regions, op_def.regions)):
@@ -2053,7 +2053,7 @@ def irdl_op_verify_regions(
         if len(region.blocks) > 0:
             entry_args_types = tuple(a.type for a in region.blocks[0].args)
             try:
-                region_def.entry_args.verify(entry_args_types, constraint_vars)
+                region_def.entry_args.verify(entry_args_types, constraint_context)
             except Exception as e:
                 error(
                     op,
