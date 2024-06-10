@@ -84,7 +84,7 @@ class IRDLAnnotations(Enum):
 @dataclass
 class ConstraintContext:
     """
-    Context for constraint variables.
+    Contains the assignment of constraint variables.
     """
 
     variables: dict[str, Attribute] = field(default_factory=dict)
