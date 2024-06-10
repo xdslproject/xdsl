@@ -1754,7 +1754,11 @@ class OpDef:
                     case _ResultFieldDef():
                         if not issubclass(value.cls, VariadicDef):
                             if isinstance(value.param, RangeConstraint):
-                                raise TypeError("Nononono")
+                                raise TypeError(
+                                    "Cannot use a RangeConstraint in result_def, use an "
+                                    "AttrConstraint or var_result_def or "
+                                    "opt_result_def instead."
+                                )
                             constraint = get_constraint(value.param)
                             result_def = value.cls(constraint)
                         else:
@@ -1765,7 +1769,11 @@ class OpDef:
                     case _OperandFieldDef():
                         if not issubclass(value.cls, VariadicDef):
                             if isinstance(value.param, RangeConstraint):
-                                raise TypeError(f"Nononono {value.cls} {value.param}")
+                                raise TypeError(
+                                    "Cannot use a RangeConstraint in operand_def, use an "
+                                    "AttrConstraint or var_operand_def or "
+                                    "opt_operand_def instead."
+                                )
                             constraint = get_constraint(value.param)
                             operand_def = cast(type[OperandDef], value.cls)(constraint)
                         else:
