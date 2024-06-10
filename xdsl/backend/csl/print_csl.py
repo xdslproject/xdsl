@@ -331,14 +331,19 @@ class CslPrintContext:
                 case csl.ReturnOp(ret_val=val) if val is not None:
                     self.print(f"return {self._get_variable_name_for(val)};")
                 case scf.If(
-                    cond=cond, true_region=true_region, false_region=false_region
+                    cond=cond,
+                    output=outputs,
+                    true_region=true_region,
+                    false_region=false_region,
                 ):
+                    for o in outputs:
+                        self.print(f"{self._var_use(o, 'var')};")
                     with self.descend(
                         f"if ({self._get_variable_name_for(cond)})"
                     ) as inner:
                         inner.print_block(true_region.block)
                     if false_region:
-                        if not (
+                        if len(outputs) > 0 or not (
                             len(false_region.block.ops) == 1
                             and isinstance(false_region.block.first_op, scf.Yield)
                         ):
@@ -368,7 +373,13 @@ class CslPrintContext:
                     with self.descend(loop_definition) as inner:
                         inner.print_block(bdy.block)
                 case scf.Yield():
-                    pass
+                    if (
+                        isinstance(op.parent, Block)
+                        and isinstance(op.parent.parent, Region)
+                        and isinstance(ifop := op.parent.parent.parent, scf.If)
+                    ):
+                        for r, y in zip(ifop.results, op.operands):
+                            self.print(f"{self._var_use(r)} = {self._var_use(y)};")
                 case (
                     arith.IndexCastOp(input=inp, result=res)
                     | arith.SIToFPOp(input=inp, result=res)

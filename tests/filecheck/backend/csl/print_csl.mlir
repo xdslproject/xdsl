@@ -228,6 +228,16 @@ csl.func @ctrlflow() {
   }, {
     scf.yield
   }) : (i1) -> ()
+
+  %i32ret = "scf.if"(%0) ({
+    %5 = arith.constant 111 : i32
+    scf.yield %5 : i32
+  }, {
+    %6 = arith.constant 222 : i32
+    scf.yield %6 : i32
+  }) : (i1) -> (i32)
+
+
   csl.return
 }
 
@@ -511,6 +521,15 @@ csl.func @builtins() {
 // CHECK-NEXT:   }
 // CHECK-NEXT:   if (v2) {
 // CHECK-NEXT:     const v3 : i32 = 4;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   var i32ret : i32;
+// CHECK-NEXT:   if (v1) {
+// CHECK-NEXT:     const v3 : i32 = 111;
+// CHECK-NEXT:     i32ret = v3;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   else {
+// CHECK-NEXT:     const v3 : i32 = 222;
+// CHECK-NEXT:     i32ret = v3;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
