@@ -359,6 +359,9 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
 i64 = IntegerType(64)
 i32 = IntegerType(32)
 i1 = IntegerType(1)
+I64 = Annotated[IntegerType, i64]
+I32 = Annotated[IntegerType, i32]
+I1 = Annotated[IntegerType, i1]
 
 
 SignlessIntegerConstraint = ParamAttrConstraint(
