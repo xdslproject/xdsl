@@ -1208,6 +1208,18 @@ class _OpDefField(Generic[_ClsT]):
         self.cls = cls
 
 
+class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
+    param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+
+    def __init__(
+        self,
+        cls: type[_ClsT],
+        param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar,
+    ):
+        super().__init__(cls)
+        self.param = param
+
+
 class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
     param: AttrConstraint | Attribute | type[Attribute] | TypeVar
 
@@ -1220,11 +1232,11 @@ class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
         self.param = param
 
 
-class _OperandFieldDef(_ConstrainedOpDefField[OperandDef,]):
+class _OperandFieldDef(_RangeConstrainedOpDefField[OperandDef,]):
     pass
 
 
-class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
+class _ResultFieldDef(_RangeConstrainedOpDefField[ResultDef]):
     pass
 
 
@@ -1297,7 +1309,9 @@ def result_def(
 
 
 def var_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1310,7 +1324,9 @@ def var_result_def(
 
 
 def opt_result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1390,7 +1406,9 @@ def operand_def(
 
 
 def var_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1403,7 +1421,9 @@ def var_operand_def(
 
 
 def opt_operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1732,14 +1752,28 @@ class OpDef:
 
                 match value:
                     case _ResultFieldDef():
-                        constraint = get_constraint(value.param)
-                        result_def = value.cls(constraint)
+                        if not isinstance(value.cls, VariadicDef):
+                            if isinstance(value.param, RangeConstraint):
+                                raise TypeError("Nononono")
+                            constraint = get_constraint(value.param)
+                            result_def = value.cls(constraint)
+                        else:
+                            constraint = get_range_constraint(value.param)
+                            result_def = value.cls(constraint)
                         op_def.results.append((field_name, result_def))
                         continue
                     case _OperandFieldDef():
-                        constraint = get_constraint(value.param)
-                        attribute_def = value.cls(constraint)
-                        op_def.operands.append((field_name, attribute_def))
+                        if not isinstance(value.cls, VariadicDef):
+                            if isinstance(value.param, RangeConstraint):
+                                raise TypeError("Nononono")
+                            constraint = get_constraint(value.param)
+                            operand_def = cast(type[OperandDef], value.cls)(constraint)
+                        else:
+                            constraint = get_range_constraint(value.param)
+                            operand_def = cast(type[VarOperandDef], value.cls)(
+                                constraint
+                            )
+                        op_def.operands.append((field_name, operand_def))
                         continue
                     case _AttributeFieldDef():
                         constraint = get_constraint(value.param)
