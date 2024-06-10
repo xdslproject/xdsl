@@ -88,7 +88,7 @@ class ConstraintContext:
     """
 
     variables: dict[str, Attribute] = field(default_factory=dict)
-    """The constraint variables."""
+    """The assignment of constraint variables."""
 
     def copy(self):
         return ConstraintContext(self.variables.copy())
