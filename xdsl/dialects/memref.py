@@ -356,7 +356,7 @@ class AtomicRMWOp(IRDLOperation):
     memref = operand_def(MemRefType[T])
     indices = var_operand_def(IndexType)
 
-    kind = prop_def(IntegerAttr[i64])
+    kind = prop_def(IntegerAttr[Annotated[IntegerType, i64]])
 
     result = result_def(T)
 
