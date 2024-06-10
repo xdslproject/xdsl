@@ -39,12 +39,15 @@ builtin.module {
     memref.dealloc %8 : memref<1xindex>
     memref.dealloc %10 : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
     memref.dealloc %11 : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+    %fmemref = "test.op"() : () -> memref<32x32xf32>
+    %e = "test.op"() : () -> f32
+    %207 = "memref.atomic_rmw"(%e, %fmemref, %1, %1) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
 
     func.return
   }
 }
 
-// CHECK-NEXT: builtin.module {
+// CHECK-NEXT:  builtin.module {
 // CHECK-NEXT:    func.func @memref_alloca_scope() {
 // CHECK-NEXT:      "memref.alloca_scope"() ({
 // CHECK-NEXT:        "memref.alloca_scope.return"() : () -> ()
@@ -83,6 +86,9 @@ builtin.module {
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<1xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> memref<32x32xf32>
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> f32
+// CHECK-NEXT:      %{{.*}} = "memref.atomic_rmw"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kind" = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
