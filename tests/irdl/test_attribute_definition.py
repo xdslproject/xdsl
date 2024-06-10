@@ -568,7 +568,7 @@ def test_informative_constraint():
         VerifyException,
         match="User-enlightening message.\nUnderlying verification failure: Expected attribute #none but got #builtin.int<1>",
     ):
-        constr.verify(IntAttr(1))
+        constr.verify(IntAttr(1), ConstraintContext())
     assert constr.get_resolved_variables() == set()
     assert constr.get_unique_base() == NoneAttr
 
@@ -630,7 +630,7 @@ class DataListAttr(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         attr = cast(ListData[Attribute], attr)
         for e in attr.data:

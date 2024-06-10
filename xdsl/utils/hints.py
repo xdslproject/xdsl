@@ -21,6 +21,8 @@ _T = TypeVar("_T")
 
 
 def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
+    from xdsl.irdl import ConstraintContext
+
     """
     Check if `arg` is of the type described by `hint`.
     For now, only lists, dictionaries, unions,
@@ -89,7 +91,7 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
         constraint = irdl_to_attr_constraint(hint)
         try:
-            constraint.verify(arg)
+            constraint.verify(arg, ConstraintContext())
             return True
         except VerifyException:
             return False

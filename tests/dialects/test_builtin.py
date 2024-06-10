@@ -33,6 +33,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
+from xdsl.irdl import ConstraintContext
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -211,7 +212,7 @@ def test_vector_base_type_and_rank_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
-    constraint.verify(vector_type)
+    constraint.verify(vector_type, ConstraintContext())
 
 
 def test_vector_base_type_and_rank_constraint_base_type_mismatch():
@@ -219,7 +220,7 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
     constraint = VectorBaseTypeAndRankConstraint(i64, 2)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(vector_type)
+        constraint.verify(vector_type, ConstraintContext())
     assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
@@ -228,7 +229,7 @@ def test_vector_base_type_and_rank_constraint_rank_mismatch():
     constraint = VectorBaseTypeAndRankConstraint(i32, 3)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(vector_type)
+        constraint.verify(vector_type, ConstraintContext())
     assert e.value.args[0] == "Expected vector rank to be 3, got 2."
 
 
@@ -241,7 +242,7 @@ memref<1x2xi32> should be of type VectorType.
 memref<1x2xi32> should be of type VectorType."""
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(memref_type)
+        constraint.verify(memref_type, ConstraintContext())
     assert e.value.args[0] == error_msg
 
 

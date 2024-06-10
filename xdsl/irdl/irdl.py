@@ -105,7 +105,7 @@ class AttrConstraint(ABC):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         """
         Check if the attribute satisfies the constraint,
@@ -128,7 +128,7 @@ class AttrConstraint(ABC):
         # By default, we cannot infer anything.
         return False
 
-    def infer(self, constraint_context: ConstraintContext | None = None) -> Attribute:
+    def infer(self, constraint_context: ConstraintContext) -> Attribute:
         """
         Infer the attribute given the constraint variables that are already set.
 
@@ -161,9 +161,8 @@ class VarConstraint(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
-        constraint_context = constraint_context or ConstraintContext()
         if self.name in constraint_context.variables:
             if attr != constraint_context.variables[self.name]:
                 raise VerifyException(
@@ -180,7 +179,7 @@ class VarConstraint(AttrConstraint):
     def can_infer(self, constraint_names: set[str]) -> bool:
         return self.name in constraint_names
 
-    def infer(self, constraint_context: ConstraintContext | None = None) -> Attribute:
+    def infer(self, constraint_context: ConstraintContext) -> Attribute:
         constraint_context = constraint_context or ConstraintContext()
         if self.name not in constraint_context.variables:
             raise ValueError(f"Cannot infer attribute from constraint {self}")
@@ -215,7 +214,7 @@ class EqAttrConstraint(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         if attr != self.attr:
             raise VerifyException(f"Expected attribute {self.attr} but got {attr}")
@@ -223,7 +222,7 @@ class EqAttrConstraint(AttrConstraint):
     def can_infer(self, constraint_names: set[str]) -> bool:
         return True
 
-    def infer(self, constraint_context: ConstraintContext | None = None) -> Attribute:
+    def infer(self, constraint_context: ConstraintContext) -> Attribute:
         return self.attr
 
     def get_unique_base(self) -> type[Attribute] | None:
@@ -240,7 +239,7 @@ class BaseAttr(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         if not isinstance(attr, self.attr):
             raise VerifyException(
@@ -276,7 +275,7 @@ class AnyAttr(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         pass
 
@@ -345,7 +344,7 @@ class AllOf(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         exc_bucket: list[VerifyException] = []
 
@@ -414,7 +413,7 @@ class ParamAttrConstraint(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         if not isinstance(attr, self.base_attr):
             raise VerifyException(
@@ -462,7 +461,7 @@ class MessageConstraint(AttrConstraint):
     def verify(
         self,
         attr: Attribute,
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         try:
             return self.constr.verify(attr, constraint_context)
@@ -481,7 +480,7 @@ class MessageConstraint(AttrConstraint):
     def can_infer(self, constraint_names: set[str]) -> bool:
         return self.constr.can_infer(constraint_names)
 
-    def infer(self, constraint_context: ConstraintContext | None = None) -> Attribute:
+    def infer(self, constraint_context: ConstraintContext) -> Attribute:
         return self.constr.infer(constraint_context)
 
 
@@ -491,7 +490,7 @@ class RangeConstraint(ABC):
     def verify(
         self,
         attrs: Sequence[Attribute],
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         """
         Check if the range satisfies the constraint, or raise an exception otherwise.
@@ -515,7 +514,7 @@ class RangeConstraint(ABC):
         return False
 
     def infer(
-        self, length: int, constraint_context: ConstraintContext | None = None
+        self, length: int, constraint_context: ConstraintContext
     ) -> list[Attribute]:
         """
         Infer the range given the constraint variables that are already set.
@@ -538,7 +537,7 @@ class RangeOf(RangeConstraint):
     def verify(
         self,
         attrs: Sequence[Attribute],
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         for a in attrs:
             self.constr.verify(a, constraint_context)
@@ -550,7 +549,7 @@ class RangeOf(RangeConstraint):
         return self.constr.can_infer(constraint_names)
 
     def infer(
-        self, length: int, constraint_context: ConstraintContext | None = None
+        self, length: int, constraint_context: ConstraintContext
     ) -> list[Attribute]:
         return [self.constr.infer(constraint_context)] * length
 
@@ -566,7 +565,7 @@ class SingleOf(RangeConstraint):
     def verify(
         self,
         attrs: Sequence[Attribute],
-        constraint_context: ConstraintContext | None = None,
+        constraint_context: ConstraintContext,
     ) -> None:
         if len(attrs) != 1:
             raise VerifyException(f"Expected a single attribute, got {len(attrs)}")
@@ -579,7 +578,7 @@ class SingleOf(RangeConstraint):
         return self.constr.can_infer(constraint_names)
 
     def infer(
-        self, length: int, constraint_context: ConstraintContext | None = None
+        self, length: int, constraint_context: ConstraintContext
     ) -> list[Attribute]:
         return [self.constr.infer(constraint_context)]
 
