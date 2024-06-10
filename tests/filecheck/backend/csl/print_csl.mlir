@@ -524,12 +524,10 @@ csl.func @builtins() {
 // CHECK-NEXT:   }
 // CHECK-NEXT:   var i32ret : i32;
 // CHECK-NEXT:   if (v1) {
-// CHECK-NEXT:     const v3 : i32 = 111;
-// CHECK-NEXT:     i32ret = v3;
+// CHECK-NEXT:     i32ret = 111;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   else {
-// CHECK-NEXT:     const v3 : i32 = 222;
-// CHECK-NEXT:     i32ret = v3;
+// CHECK-NEXT:     i32ret = 222;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }

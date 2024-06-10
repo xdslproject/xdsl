@@ -338,6 +338,13 @@ class CslPrintContext:
                 ):
                     for o in outputs:
                         self.print(f"{self._var_use(o, 'var')};")
+                    # Search for all yield operations and match yield argument names to for argument names
+                    for blk in [true_region, false_region]:
+                        for op in blk.block.ops:
+                            if not isinstance(op, scf.Yield):
+                                continue
+                            for yield_arg, o in zip(op.arguments, outputs):
+                                self.variables[yield_arg] = self.variables[o]
                     with self.descend(
                         f"if ({self._get_variable_name_for(cond)})"
                     ) as inner:
@@ -373,13 +380,7 @@ class CslPrintContext:
                     with self.descend(loop_definition) as inner:
                         inner.print_block(bdy.block)
                 case scf.Yield():
-                    if (
-                        isinstance(op.parent, Block)
-                        and isinstance(op.parent.parent, Region)
-                        and isinstance(ifop := op.parent.parent.parent, scf.If)
-                    ):
-                        for r, y in zip(ifop.results, op.operands):
-                            self.print(f"{self._var_use(r)} = {self._var_use(y)};")
+                    pass
                 case (
                     arith.IndexCastOp(input=inp, result=res)
                     | arith.SIToFPOp(input=inp, result=res)
