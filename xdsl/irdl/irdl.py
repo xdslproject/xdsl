@@ -1752,7 +1752,7 @@ class OpDef:
 
                 match value:
                     case _ResultFieldDef():
-                        if not isinstance(value.cls, VariadicDef):
+                        if not issubclass(value.cls, VariadicDef):
                             if isinstance(value.param, RangeConstraint):
                                 raise TypeError("Nononono")
                             constraint = get_constraint(value.param)
@@ -1763,9 +1763,9 @@ class OpDef:
                         op_def.results.append((field_name, result_def))
                         continue
                     case _OperandFieldDef():
-                        if not isinstance(value.cls, VariadicDef):
+                        if not issubclass(value.cls, VariadicDef):
                             if isinstance(value.param, RangeConstraint):
-                                raise TypeError("Nononono")
+                                raise TypeError(f"Nononono {value.cls} {value.param}")
                             constraint = get_constraint(value.param)
                             operand_def = cast(type[OperandDef], value.cls)(constraint)
                         else:
