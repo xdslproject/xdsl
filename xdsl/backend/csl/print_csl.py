@@ -340,10 +340,10 @@ class CslPrintContext:
                         self.print(f"{self._var_use(o, 'var')};")
                     # Search for all yield operations and match yield argument names to for argument names
                     for blk in [true_region, false_region]:
-                        for op in blk.block.ops:
-                            if not isinstance(op, scf.Yield):
-                                continue
-                            for yield_arg, o in zip(op.arguments, outputs):
+                        if isinstance(blk.block.last_op, scf.Yield):
+                            for yield_arg, o in zip(
+                                blk.block.last_op.arguments, outputs
+                            ):
                                 self.variables[yield_arg] = self.variables[o]
                     with self.descend(
                         f"if ({self._get_variable_name_for(cond)})"
@@ -366,10 +366,8 @@ class CslPrintContext:
                         self.print(f"{self._var_use(result, 'var')} = {iter_name};")
                         self.variables[arg] = self.variables[result]
                     # Search for all yield operations and match yield argument names to for argument names
-                    for op in bdy.block.ops:
-                        if not isinstance(op, scf.Yield):
-                            continue
-                        for yield_arg, arg in zip(op.arguments, args):
+                    if isinstance(bdy.block.last_op, scf.Yield):
+                        for yield_arg, arg in zip(bdy.block.last_op.arguments, args):
                             self.variables[yield_arg] = self.variables[arg]
 
                     idx_type = self.mlir_type_to_csl_type(idx.type)
