@@ -6,7 +6,9 @@ from typing import Annotated, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyIntegerAttr,
+    AnySignlessIntegerType,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
@@ -339,6 +341,24 @@ class Alloca(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+
+
+@irdl_op_definition
+class AtomicRMWOp(IRDLOperation):
+    name = "memref.atomic_rmw"
+
+    T = Annotated[
+        AnyFloat | AnySignlessIntegerType,
+        ConstraintVar("T"),
+    ]
+
+    value = operand_def(T)
+    memref = operand_def(MemRefType[T])
+    indices = var_operand_def(IndexType)
+
+    kind = prop_def(IntegerAttr[Annotated[IntegerType, i64]])
+
+    result = result_def(T)
 
 
 @irdl_op_definition
@@ -784,6 +804,7 @@ MemRef = Dialect(
         Alloca,
         AllocaScopeOp,
         AllocaScopeReturnOp,
+        AtomicRMWOp,
         CopyOp,
         CollapseShapeOp,
         ExpandShapeOp,
