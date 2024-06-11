@@ -16,8 +16,8 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.traits import NoMemoryEffect
 from xdsl.utils.exceptions import VerifyException
-from xdsl.traits import Pure, NoMemoryEffect
 
 # Transfer ID
 tx_id = i32

@@ -27,13 +27,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    OpResult,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     ConstraintVar,
@@ -57,8 +51,8 @@ from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
     HasParent,
     IsTerminator,
-    SymbolOpInterface,
     NoMemoryEffect,
+    SymbolOpInterface,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.deprecation import deprecated_constructor
