@@ -335,6 +335,7 @@ ColorIdAttr: TypeAlias = (
     | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
 )
 
+QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
 # NOTE: Some of these values cannot be set by default, because we don't have
@@ -772,9 +773,10 @@ class GetFabDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_fab_dsd"
-    fabric_color = opt_prop_def(ColorIdAttr)
+    fabric_color = prop_def(ColorIdAttr)
+    queue_id = prop_def(QueueIdAttr)
     control = opt_prop_def(BoolAttr)
-    wavelet_index_offset = opt_prop_def(AnyIntegerAttr)
+    wavelet_index_offset = opt_prop_def(BoolAttr)
 
     def verify_(self) -> None:
         if not isinstance(self.result.type, DsdType):
@@ -783,10 +785,8 @@ class GetFabDsdOp(_GetDsdOp):
             raise VerifyException("DSD type must be fabric DSD")
         if len(self.sizes) != 1:
             raise VerifyException("Fabric DSDs must have exactly one dimension")
-        if (
-            self.result.type.data == DsdKind.fabin_dsd
-            and self.control is not None
-            or self.wavelet_index_offset is not None
+        if self.result.type.data == DsdKind.fabin_dsd and (
+            self.control is not None or self.wavelet_index_offset is not None
         ):
             raise VerifyException(
                 "DSD of type fabin_dsd cannot specify control and wavelet_index_offset"
