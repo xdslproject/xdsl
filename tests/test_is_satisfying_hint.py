@@ -1,16 +1,25 @@
-from typing import Any, Generic, Literal, TypeAlias, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeAlias, TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
+    Float16Type,
+    Float32Type,
     FloatData,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
 )
-from xdsl.ir import Attribute, ParametrizedAttribute
-from xdsl.irdl import ParameterDef, irdl_attr_definition
+from xdsl.ir import Attribute, OpResult, ParametrizedAttribute
+from xdsl.irdl import (
+    ConstraintVar,
+    IRDLOperation,
+    ParameterDef,
+    irdl_attr_definition,
+    irdl_op_definition,
+    result_def,
+)
 from xdsl.utils.hints import isa
 
 
@@ -395,3 +404,40 @@ def test_literal():
 
     assert not isa(1, Literal["1"])
     assert not isa("1", Literal[1])
+
+
+################################################################################
+# Op
+################################################################################
+
+
+class BaseOp(Generic[_T], IRDLOperation):
+    T = Annotated[Attribute, ConstraintVar("T"), _T]
+    result: OpResult = result_def(T)
+
+    def __init__(self):
+        # hard-coding any random type to instantiate the object
+        super().__init__(operands=[], result_types=[Float32Type()])
+
+
+class SubOp(Generic[_T], BaseOp[_T]):
+    def __init__(self):
+        super().__init__()
+
+
+SubOpAlias = SubOp[Annotated[Attribute, Float16Type]]
+
+
+@irdl_op_definition
+class TestOp(SubOpAlias):
+    name = "test_op"
+
+
+def test_op():
+    op = TestOp()
+    assert isa(op, BaseOp[Attribute])
+    assert isa(op, SubOp[Attribute])
+    assert isa(op, SubOpAlias)
+    assert isa(op, TestOp)
+
+    assert not isa(op, BaseOp[int])  # pyright: ignore [reportGeneralTypeIssues]
