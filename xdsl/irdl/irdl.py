@@ -149,10 +149,8 @@ class AttrConstraint(ABC):
 @dataclass(frozen=True)
 class VarConstraint(AttrConstraint):
     """
-    Constraint variable. If the variable is already set, this will constrain
-    the attribute to be equal to the variable. Otherwise, it will first check that the
-    variable satisfies the variable constraint, then set the variable with the
-    attribute.
+    Constrain an attribute with the given constraint, and constrain all occurences
+    of this constraint (i.e, sharing the same name) to be equal.
     """
 
     name: str
@@ -488,6 +486,9 @@ class MessageConstraint(AttrConstraint):
 
 
 class RangeConstraint(ABC):
+    """
+    Constrain a range of attributes to a certain value.
+    """
 
     @abstractmethod
     def verify(
@@ -532,10 +533,8 @@ class RangeConstraint(ABC):
 @dataclass(frozen=True)
 class RangeVarConstraint(RangeConstraint):
     """
-    Constraint variable. If the variable is already set, this will constrain
-    the attribute to be equal to the variable. Otherwise, it will first check that the
-    variable satisfies the variable constraint, then set the variable with the
-    attribute.
+    Constrain an attribute range with the given constraint, and constrain all occurences
+    of this constraint (i.e, sharing the same name) to be equal.
     """
 
     name: str
