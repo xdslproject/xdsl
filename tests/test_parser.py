@@ -28,6 +28,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.lexer import Token
+from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
 
@@ -882,3 +883,39 @@ def test_parse_visibility(keyword: str, expected: StringAttr | None):
             parser.parse_visibility_keyword()
     else:
         assert parser.parse_visibility_keyword() == expected
+
+
+class MyEnum(StrEnum):
+    A = "a"
+    B = "b"
+    C = "c"
+
+
+@pytest.mark.parametrize(
+    "keyword, expected",
+    [
+        ("a", MyEnum.A),
+        ("b", MyEnum.B),
+        ("c", MyEnum.C),
+        ("cc", None),
+    ],
+)
+def test_parse_str_enum(keyword: str, expected: MyEnum | None):
+    assert Parser(MLContext(), keyword).parse_optional_str_enum(MyEnum) == expected
+
+    parser = Parser(MLContext(), keyword)
+    if expected is None:
+        with pytest.raises(ParseError, match="Expected `a`, `b`, or `c`"):
+            parser.parse_str_enum(MyEnum)
+    else:
+        assert parser.parse_str_enum(MyEnum) == expected
+
+
+class MySingletonEnum(StrEnum):
+    A = "a"
+
+
+def test_parse_singleton_enum_fail():
+    parser = Parser(MLContext(), "b")
+    with pytest.raises(ParseError, match="Expected `a`"):
+        parser.parse_str_enum(MySingletonEnum)

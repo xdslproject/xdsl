@@ -11,6 +11,7 @@ from typing import NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, StringLiteral, Token
+from xdsl.utils.str_enum import StrEnum
 
 
 @dataclass(init=False)
@@ -34,6 +35,7 @@ class ParserState:
 
 
 _AnyInvT = TypeVar("_AnyInvT")
+_EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 
 @dataclass
@@ -534,3 +536,28 @@ class BaseParser:
         kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
         self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
         return punctuation
+
+    def parse_str_enum(self, enum_type: type[_EnumType]) -> _EnumType:
+        """Parse a string enum value."""
+        result = self.parse_optional_str_enum(enum_type)
+        if result is not None:
+            return result
+        enum_values = tuple(enum_type)
+        if len(enum_values) == 1:
+            self.raise_error(f"Expected `{enum_values[0]}`.")
+        self.raise_error(
+            f"Expected `{'`, `'.join(enum_values[:-1])}`, or `{enum_values[-1]}`."
+        )
+
+    def parse_optional_str_enum(self, enum_type: type[_EnumType]) -> _EnumType | None:
+        """Parse a string enum value, if present."""
+
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+
+        val = self._current_token.text
+        if val not in enum_type.__members__.values():
+            return None
+
+        self._consume_token(Token.Kind.BARE_IDENT)
+        return enum_type(val)
