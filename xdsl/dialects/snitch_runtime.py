@@ -17,6 +17,7 @@ from xdsl.irdl import (
     var_operand_def,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.traits import Pure, NoMemoryEffect
 
 # Transfer ID
 tx_id = i32
@@ -45,6 +46,8 @@ class SnitchRuntimeGetInfo(SnitchRuntimeBaseOperation, ABC):
 
     result: OpResult = result_def(i32)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def __init__(
         self,
     ):
@@ -57,6 +60,8 @@ class SnitchRuntimeGetInfoBool(SnitchRuntimeBaseOperation, ABC):
     """
 
     result: OpResult = result_def(i1)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -265,6 +270,8 @@ class GetMemoryInfoBaseOperation(SnitchRuntimeBaseOperation, ABC):
 
     slice_begin: OpResult = result_def(slice_t_begin)
     slice_end: OpResult = result_def(slice_t_end)
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,

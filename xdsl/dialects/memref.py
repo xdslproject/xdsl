@@ -58,6 +58,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     SymbolOpInterface,
+    NoMemoryEffect,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
 from xdsl.utils.deprecation import deprecated_constructor
@@ -379,6 +380,10 @@ class GetGlobal(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
     name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
+    traits = frozenset([NoMemoryEffect()])
+
+    assembly_format = "$name `:` type($memref) attr-dict"
+
     def __init__(self, name: str | SymbolRefAttr, return_type: Attribute):
         if isinstance(name, str):
             name = SymbolRefAttr(name)
@@ -388,8 +393,6 @@ class GetGlobal(IRDLOperation):
     @staticmethod
     def get(name: str | SymbolRefAttr, return_type: Attribute) -> GetGlobal:
         return GetGlobal(name, return_type)
-
-    assembly_format = "$name `:` type($memref) attr-dict"
 
     # TODO how to verify the types, as the global might be defined in another
     # compilation unit
@@ -459,6 +462,8 @@ class Dim(IRDLOperation):
 
     result: OpResult = result_def(IndexType)
 
+    traits = frozenset([NoMemoryEffect()])
+
     @staticmethod
     def from_source_and_index(
         source: SSAValue | Operation, index: SSAValue | Operation
@@ -473,6 +478,8 @@ class Rank(IRDLOperation):
     source: Operand = operand_def(MemRefType[Attribute])
 
     rank: OpResult = result_def(IndexType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
@@ -491,6 +498,8 @@ class AlterShapeOp(IRDLOperation):
     assembly_format = (
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
+
+    traits = frozenset([NoMemoryEffect()])
 
 
 @irdl_op_definition
@@ -518,6 +527,8 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     source: Operand = operand_def(MemRefType)
 
     aligned_pointer: OpResult = result_def(IndexType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def get(source: SSAValue | Operation):
@@ -551,7 +562,7 @@ class Subview(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((MemrefHasCanonicalizationPatternsTrait(),))
+    traits = frozenset((MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect()))
 
     @staticmethod
     def from_static_parameters(
@@ -623,6 +634,8 @@ class Cast(IRDLOperation):
     source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
     dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
 
+    traits = frozenset([NoMemoryEffect()])
+
     @staticmethod
     def get(
         source: SSAValue | Operation,
@@ -637,6 +650,8 @@ class MemorySpaceCast(IRDLOperation):
 
     source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
     dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
