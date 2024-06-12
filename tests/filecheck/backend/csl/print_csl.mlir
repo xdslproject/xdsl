@@ -21,6 +21,8 @@
   %const27 = arith.constant 27 : i16
   %ssa_struct = "csl.const_struct"(%const27) <{ssa_fields = ["val"]}> : (i16) -> !csl.comptime_struct
 
+  %concat = "csl.concat_structs"(%empty_struct, %attribute_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+
   %no_param_import = "csl.import_module"() <{module = "<mod>"}> : () -> !csl.imported_module
   %param_import = "csl.import_module"(%ssa_struct) <{module = "<mod>"}> : (!csl.comptime_struct) -> !csl.imported_module
 
@@ -364,6 +366,7 @@ csl.func @builtins() {
 // CHECK-NEXT: const ssa_struct : comptime_struct = .{
 // CHECK-NEXT:   .val = const27,
 // CHECK-NEXT: };
+// CHECK-NEXT: const concat : comptime_struct = @concat_structs(empty_struct, attribute_struct);
 // CHECK-NEXT: const no_param_import : imported_module = @import_module("<mod>");
 // CHECK-NEXT: const param_import : imported_module = @import_module("<mod>", ssa_struct);
 // CHECK-NEXT: param_import.foo();

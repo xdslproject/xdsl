@@ -406,7 +406,7 @@ class CslPrintContext:
                     a_var = self._get_variable_name_for(a)
                     b_var = self._get_variable_name_for(b)
                     self.print(
-                        f"{self._var_use(res)} = @concat_struct({a_var}, {b_var});"
+                        f"{self._var_use(res)} = @concat_structs({a_var}, {b_var});"
                     )
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const

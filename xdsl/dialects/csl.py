@@ -1526,7 +1526,7 @@ class ConcatStructOp(IRDLOperation):
     Attempting to concatenate two structs with overlapping named fields also results in an error.
     """
 
-    name = "csl.concat_struct"
+    name = "csl.concat_structs"
 
     this_struct = operand_def(ComptimeStructType)
 
