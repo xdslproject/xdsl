@@ -82,3 +82,71 @@ builtin.module {
   }) {sym_name = "layout.csl"} : () -> ()
 
 }
+
+
+// CHECK-NEXT: // FILE: pe.csl
+// CHECK-NEXT: const math : imported_module = @import_module("<math>");
+// CHECK-NEXT: // -----
+// CHECK-NEXT: // FILE: layout.csl
+// CHECK-NEXT: const LAUNCH_ID : i16 = 0;
+// CHECK-NEXT: const LAUNCH : color = @get_color(LAUNCH_ID);
+// CHECK-NEXT: param width : u16;
+// CHECK-NEXT: param height : u16;
+// CHECK-NEXT: param zDim : u16;
+// CHECK-NEXT: //unknown op TestOp(%task_three = "test.op"() {"comment" = "@get_local_task_id(3)"} : () -> i32)
+// CHECK-NEXT: param iterationTaskId : i32 = task_three;
+// CHECK-NEXT: param pattern : u16;
+// CHECK-NEXT: const invariants : comptime_struct = .{
+// CHECK-NEXT:   .iterationTaskId = iterationTaskId,
+// CHECK-NEXT:   .zDim = zDim,
+// CHECK-NEXT:   .pattern = pattern,
+// CHECK-NEXT: };
+// CHECK-NEXT: const util : imported_module = @import_module("util.csl");
+// CHECK-NEXT: const memcpy_call_params : comptime_struct = .{
+// CHECK-NEXT:   .width = width,
+// CHECK-NEXT:   .height = height,
+// CHECK-NEXT:   .LAUNCH = LAUNCH,
+// CHECK-NEXT: };
+// CHECK-NEXT: const memcpy : imported_module = @import_module("<memcpy/get_params>", memcpy_call_params);
+// CHECK-NEXT: const routes_params : comptime_struct = .{
+// CHECK-NEXT:   .peWidth = width,
+// CHECK-NEXT:   .peHeight = height,
+// CHECK-NEXT:   .pattern = pattern,
+// CHECK-NEXT: };
+// CHECK-NEXT: const routes : imported_module = @import_module("routes.csl", routes_params);
+// CHECK-NEXT: layout {
+// CHECK-NEXT:   @set_rectangle(width, height);
+// CHECK-NEXT:   const width_i16 : i16 = @as(i16, width);
+// CHECK-NEXT:   const height_i16 : i16 = @as(i16, height);
+// CHECK-NEXT:   const pattern_i16 : i16 = @as(i16, pattern);
+// CHECK-NEXT:   const cst0 : i16 = 0;
+// CHECK-NEXT:   const cst1 : i16 = 1;
+// CHECK-NEXT:   //unknown op Subi(%pattern_sub_one = arith.subi %pattern_i16, %cst1 : i16)
+// CHECK-NEXT:   //unknown op Subi(%width_sub_pattern = arith.subi %width_i16, %pattern_i16 : i16)
+// CHECK-NEXT:   //unknown op Subi(%height_sub_pattern = arith.subi %width_i16, %pattern_i16 : i16)
+// CHECK-NEXT:
+// CHECK-NEXT:   for(@range(i16, cst0, width_i16, cst1)) |xId| {
+// CHECK-NEXT:
+// CHECK-NEXT:     for(@range(i16, cst0, height_i16, cst1)) |yId| {
+// CHECK-NEXT:       //unknown op Cmpi(%c1 = arith.cmpi slt, %xId, %pattern_sub_one : i16)
+// CHECK-NEXT:       //unknown op Cmpi(%c2 = arith.cmpi slt, %yId, %pattern_sub_one : i16)
+// CHECK-NEXT:       //unknown op Cmpi(%c3 = arith.cmpi slt, %width_sub_pattern, %xId : i16)
+// CHECK-NEXT:       //unknown op Cmpi(%c4 = arith.cmpi slt, %height_sub_pattern, %yId : i16)
+// CHECK-NEXT:       //unknown op AndI(%c1_c2 = arith.andi %c1, %c2 : i1)
+// CHECK-NEXT:       //unknown op AndI(%c3_c4 = arith.andi %c3, %c4 : i1)
+// CHECK-NEXT:       //unknown op AndI(%is_border_region = arith.andi %c1_c2, %c3_c4 : i1)
+// CHECK-NEXT:       const tmp_struct : comptime_struct = .{
+// CHECK-NEXT:         .isBorderRegionPE = is_border_region,
+// CHECK-NEXT:       };
+// CHECK-NEXT:       const params_task : comptime_struct = @concat_struct(invariants, tmp_struct);
+// CHECK-NEXT:       const memcpy_params : comptime_struct = memcpy.get_params(xId);
+// CHECK-NEXT:       const route_params : comptime_struct = routes.computeAllRoutes(xId, yId, width, height, pattern);
+// CHECK-NEXT:       const additional_params : comptime_struct = .{
+// CHECK-NEXT:         .memcpyParams = memcpy_params,
+// CHECK-NEXT:         .stencilCommsParams = route_params,
+// CHECK-NEXT:       };
+// CHECK-NEXT:       const concat_params : comptime_struct = @concat_struct(params_task, additional_params);
+// CHECK-NEXT:       @set_tile_code(xId, yId, "pe.csl", concat_params);
+// CHECK-NEXT:     }
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
