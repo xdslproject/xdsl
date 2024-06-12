@@ -604,7 +604,7 @@ class CslPrintContext:
 
 
 def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
-    layouts = []
+    layouts: list[csl.CslModuleOp] = []
     for op in module.body.ops:
         if isinstance(op, csl.CslModuleOp):
             if op.kind == csl.ModuleKind.LAYOUT:
