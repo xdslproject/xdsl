@@ -522,7 +522,7 @@ class AttrParser(BaseParser):
             memory_space = self.parse_attribute()
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # Otherwise, there is a single argument, so we check based the attribute type.
+        # Otherwise, there is a single argument, so we check based on the attribute type.
         # MLIR bases itself on the `MemRefLayoutAttrInterface`, which we do not support.
         # Therefore, integers and strings are considered to be memory spaces,
         # other attributes are considered to be layout attributes.
