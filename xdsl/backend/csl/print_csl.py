@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Literal, cast
@@ -34,7 +36,6 @@ from xdsl.irdl import Operand
 class CslPrintContext:
     _INDEX = "i32"
     _INDENT = "  "
-    DIVIDER = "// >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //"
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -602,31 +603,12 @@ class CslPrintContext:
         self.print("}")
 
 
-def _get_layout_program(module: ModuleOp) -> tuple[csl.CslModuleOp, csl.CslModuleOp]:
-    """
-    Get the layout and program `csl.module`s from the top level `builtin.module`.
-
-    Makes sure there is exactly 1 layout and 1 program `csl.module`.
-
-    Returns layout first, then program.
-    """
-    ops_list = list(module.body.block.ops)
-    assert all(
-        isinstance(mod, csl.CslModuleOp) for mod in ops_list
-    ), "Expected all top level ops to be csl.module"
-    # We have asserted that this is true above
-    ops_list = cast(list[csl.CslModuleOp], ops_list)
-    assert len(ops_list) == 2, "Expected exactly two top level modules"
-    # This allows program and layout to be scpecified in any order
-    prog = next(
-        filter(lambda mod: mod.kind.data == csl.ModuleKind.PROGRAM, ops_list), None
-    )
-    layout = next(
-        filter(lambda mod: mod.kind.data == csl.ModuleKind.LAYOUT, ops_list), None
-    )
-    assert prog is not None, "Expected exactly 1 program module"
-    assert layout is not None, "Expected exactly 1 layout module"
-    return layout, prog
+def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
+    for op in module.body.ops:
+        if isinstance(op, csl.CslModuleOp):
+            yield op
+        else:
+            warnings.warn("Expected all top-level operations to be `csl.module` ops!")
 
 
 def print_to_csl(prog: ModuleOp, output: IO[str]):
@@ -634,7 +616,10 @@ def print_to_csl(prog: ModuleOp, output: IO[str]):
     Takes a module op and prints it to the given output stream.
     """
     ctx = CslPrintContext(output)
-    layout, program = _get_layout_program(prog)
-    ctx.print_block(program.body.block)
-    ctx.print(ctx.DIVIDER)
-    ctx.print_block(layout.body.block)
+    divider = False
+    for module in get_csl_modules_in_module_op(prog):
+        if divider:
+            ctx.print("// -----")
+        divider = True
+        ctx.print("// FILE: " + module.sym_name.data)
+        ctx.print_block(module.body.block)
