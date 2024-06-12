@@ -604,11 +604,16 @@ class CslPrintContext:
 
 
 def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
+    layouts = []
     for op in module.body.ops:
         if isinstance(op, csl.CslModuleOp):
+            if op.kind == csl.ModuleKind.LAYOUT:
+                layouts.append(op)
+                continue
             yield op
         else:
             warnings.warn("Expected all top-level operations to be `csl.module` ops!")
+    yield from layouts
 
 
 def print_to_csl(prog: ModuleOp, output: IO[str]):
