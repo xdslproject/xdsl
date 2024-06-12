@@ -389,6 +389,7 @@ class CslPrintContext:
                     | arith.TruncIOp(input=inp, result=res)
                     | arith.ExtSIOp(input=inp, result=res)
                     | arith.ExtUIOp(input=inp, result=res)
+                    | csl.SignednessCastOp(inp=inp, result=res)
                 ):
                     name_in = self._get_variable_name_for(inp)
                     type_out = self.mlir_type_to_csl_type(res.type)
@@ -401,6 +402,12 @@ class CslPrintContext:
                     lhs=lhs, rhs=rhs, result=res
                 ):
                     self._print_binop(lhs, rhs, res, "+")
+                case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
+                    a_var = self._get_variable_name_for(a)
+                    b_var = self._get_variable_name_for(b)
+                    self.print(
+                        f"{self._var_use(res)} = @concat_struct({a_var}, {b_var});"
+                    )
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
