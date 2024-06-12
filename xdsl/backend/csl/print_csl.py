@@ -451,7 +451,7 @@ class CslPrintContext:
                     if init is None:
                         init = ""
                     else:
-                        init = f" = { self.attribute_value_to_str(init)}"
+                        init = f" = { self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
                     self.print(f"param {name.data} : {ty}{init};")
                 case csl.ConstStructOp(
@@ -482,7 +482,7 @@ class CslPrintContext:
                     y = self._get_variable_name_for(y_dim)
                     self.print(f"@set_rectangle({x}, {y});")
                 case csl.GetColorOp(id=id, res=res):
-                    id = self.attribute_value_to_str(id)
+                    id = self._get_variable_name_for(id)
                     self.print(f"{self._var_use(res)} = @get_color({id});")
                 case csl.RpcOp(id=id):
                     id = self._get_variable_name_for(id)

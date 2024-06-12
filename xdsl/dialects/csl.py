@@ -46,6 +46,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
@@ -331,19 +332,11 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     name = "csl.color"
 
 
-ColorIdAttr: TypeAlias = (
-    IntegerAttr[Annotated[IntegerType, IntegerType(5)]]
-    | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
-)
+ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
-# NOTE: Some of these values cannot be set by default, because we don't have
-#       corresponding attrinutes for them.
-ParamType: TypeAlias = (
-    Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike
-)
 
 
 @irdl_op_definition
@@ -410,7 +403,7 @@ class ConstStructOp(IRDLOperation):
 class GetColorOp(IRDLOperation):
     name = "csl.get_color"
 
-    id = prop_def(ColorIdAttr)
+    id = operand_def(IntegerType)
     res = result_def(ColorType)
 
 
@@ -1479,21 +1472,19 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
+    T = Annotated[
+        Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike,
+        ConstraintVar("T"),
+    ]
+
     name = "csl.param"
 
     traits = frozenset([HasParent(CslModuleOp)])  # has to be at top level
 
     param_name = prop_def(StringAttr)
-    init_value = opt_prop_def(ParamAttr)
+    init_value = opt_operand_def(T)
 
-    res = result_def(ParamType)
-
-    def verify_(self) -> None:
-        if self.init_value is not None and self.init_value.type != self.res.type:
-            raise VerifyException(
-                "If init_value is specified, it has to have the same type as the op result"
-            )
-        return super().verify_()
+    res = result_def(T)
 
 
 CSL = Dialect(
