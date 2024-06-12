@@ -331,7 +331,7 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     name = "csl.color"
 
 
-ColorIdAttr: TypeAlias = IntegerAttr
+ColorIdAttr: TypeAlias = AnyIntegerAttr
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
