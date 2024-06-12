@@ -451,7 +451,7 @@ class CslPrintContext:
                     if init is None:
                         init = ""
                     else:
-                        init = f" = { self._var_use(init)}"
+                        init = f" = { self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
                     self.print(f"param {name.data} : {ty}{init};")
                 case csl.ConstStructOp(
