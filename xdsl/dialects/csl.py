@@ -64,6 +64,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    HasAncestor,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -701,7 +702,7 @@ class SetRectangleOp(IRDLOperation):
 class SetTileCodeOp(IRDLOperation):
     name = "csl.set_tile_code"
 
-    traits = frozenset([HasParent(LayoutOp)])
+    traits = frozenset([HasAncestor(LayoutOp)])
 
     file = prop_def(StringAttr)
 
