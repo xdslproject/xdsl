@@ -111,7 +111,8 @@
 
   "csl.export"() <{type = (i32, i32) -> (), var_name = @args_no_return}> : () -> ()
 
-    %col  = "csl.get_color"() <{id = 15 : i5}> : () -> !csl.color
+    %cst15 = arith.constant 15 : i32
+    %col  = "csl.get_color"(%cst15) : (i32) -> !csl.color
 
     "csl.rpc"(%col) : (!csl.color) -> ()
 
@@ -249,7 +250,8 @@ csl.func @builtins() {
   %u32_value = arith.constant 120 : ui32
   %f16_value = arith.constant 7.0 : f16
   %f32_value = arith.constant 8.0 : f32
-  %col_1 = "csl.get_color"() <{id = 3 : i5}> : () -> !csl.color
+  %three = arith.constant 3 : i16
+  %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
   %f16_pointer = "csl.addressof"(%f16_value) : (f16) -> !csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>
   %f32_pointer = "csl.addressof"(%f32_value) : (f32) -> !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>
   %i16_pointer = "csl.addressof"(%i16_value) : (si16) -> !csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>
@@ -320,7 +322,8 @@ csl.func @builtins() {
 
 "csl.module"() <{kind=#csl<module_kind layout>}> ({
   %p1 = "csl.param"() <{param_name = "param_1"}> : () -> i32
-  %p2 = "csl.param"() <{param_name = "param_2", init_value = 1.3 : f16}> : () -> f16
+  %init = arith.constant 3.14 : f16
+  %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
 
   csl.layout {
     %x_dim = arith.constant 4 : i32
@@ -443,7 +446,8 @@ csl.func @builtins() {
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(args_no_return, "args_no_return");
 // CHECK-NEXT: }
-// CHECK-NEXT: const col : color = @get_color(15);
+// CHECK-NEXT: const cst15 : i32 = 15;
+// CHECK-NEXT: const col : color = @get_color(cst15);
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @rpc(@get_data_task_id(col));
 // CHECK-NEXT: }
@@ -541,7 +545,8 @@ csl.func @builtins() {
 // CHECK-NEXT:   const u32_value : u32 = 120;
 // CHECK-NEXT:   const f16_value : f16 = 7.0;
 // CHECK-NEXT:   const f32_value : f32 = 8.0;
-// CHECK-NEXT:   const col1 : color = @get_color(3);
+// CHECK-NEXT:   const three : i16 = 3;
+// CHECK-NEXT:   const col1 : color = @get_color(three);
 // CHECK-NEXT:   var f16_pointer : *f16 = &f16_value;
 // CHECK-NEXT:   var f32_pointer : *f32 = &f32_value;
 // CHECK-NEXT:   var i16_pointer : *i16 = &i16_value;
@@ -621,7 +626,8 @@ csl.func @builtins() {
 // CHECK-NEXT: // -----
 // CHECK-NEXT: // FILE: layout.csl
 // CHECK-NEXT: param param_1 : i32;
-// CHECK-NEXT: param param_2 : f16 = 1.3;
+// CHECK-NEXT: const init : f16 = 3.14;
+// CHECK-NEXT: param param_2 : f16 = init;
 // CHECK-NEXT: layout {
 // CHECK-NEXT:   const x_dim : i32 = 4;
 // CHECK-NEXT:   const y_dim : i32 = 6;
