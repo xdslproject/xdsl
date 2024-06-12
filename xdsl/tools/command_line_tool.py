@@ -372,6 +372,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch
 
+    def get_builtin_to_csl():
+        from xdsl.transforms import builtin_to_csl
+
+        return builtin_to_csl.BuiltinToCsl
+
     def get_constant_fold_interp():
         from xdsl.transforms import constant_fold_interp
 
@@ -625,6 +630,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
+        "builtin-to-csl": get_builtin_to_csl,
         "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
