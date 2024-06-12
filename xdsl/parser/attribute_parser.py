@@ -528,7 +528,9 @@ class AttrParser(BaseParser):
         # other attributes are considered to be layout attributes.
 
         # If the argument is an integer or a string, it is a memory space
-        if isa(memory_or_layout, AnyIntegerAttr) or isinstance(memory_or_layout, StringAttr):
+        if isa(memory_or_layout, AnyIntegerAttr) or isinstance(
+            memory_or_layout, StringAttr
+        ):
             return MemRefType(type, shape, memory_space=memory_or_layout)
 
         # Else, it is a memory layout
