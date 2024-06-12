@@ -522,24 +522,17 @@ class AttrParser(BaseParser):
             memory_space = self.parse_attribute()
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # Otherwise, there is a single argument, so we check based on the
-        # attribute type. If we don't know, we return an error.
-        # MLIR base itself on the `MemRefLayoutAttrInterface`, which we do not
-        # support.
+        # Otherwise, there is a single argument, so we check based the attribute type.
+        # MLIR bases itself on the `MemRefLayoutAttrInterface`, which we do not support.
+        # Therefore, integers and strings are considered to be memory spaces,
+        # other attributes are considered to be layout attributes.
 
-        # If the argument is an integer, it is a memory space
-        if isa(memory_or_layout, AnyIntegerAttr):
+        # If the argument is an integer or a string, it is a memory space
+        if isa(memory_or_layout, AnyIntegerAttr) or isinstance(memory_or_layout, StringAttr):
             return MemRefType(type, shape, memory_space=memory_or_layout)
 
-        # We only accept strided layouts and affine_maps
-        if isa(memory_or_layout, StridedLayoutAttr) or (
-            isinstance(memory_or_layout, UnregisteredAttr)
-            and memory_or_layout.attr_name.data == "affine_map"
-        ):
-            return MemRefType(type, shape, layout=memory_or_layout)
-        self.raise_error(
-            "Cannot decide if the given attribute " "is a layout or a memory space!"
-        )
+        # Else, it is a memory layout
+        return MemRefType(type, shape, layout=memory_or_layout)
 
     def _parse_vector_attrs(self) -> AnyVectorType:
         dims: list[int] = []
