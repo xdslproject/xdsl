@@ -517,7 +517,7 @@ class AttrParser(BaseParser):
         memory_or_layout = self.parse_attribute()
 
         # If there is both a memory space and a layout, we know that the
-        # layout is the second one
+        # layout is the first one
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
             return MemRefType(type, shape, memory_or_layout, memory_space)
