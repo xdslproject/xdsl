@@ -62,7 +62,7 @@ builtin.module {
 
                 %tmp_struct = "csl.const_struct"(%is_border_region) <{ssa_fields = ["isBorderRegionPE"]}> : (i1) -> !csl.comptime_struct
 
-                %params_task = "csl.concat_struct"(%invariants, %tmp_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+                %params_task = "csl.concat_structs"(%invariants, %tmp_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 
                 %memcpy_params = "csl.member_call"(%memcpy, %xId) <{field = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
 
@@ -70,7 +70,7 @@ builtin.module {
 
                 %additional_params = "csl.const_struct"(%memcpy_params, %route_params) <{ssa_fields = ["memcpyParams", "stencilCommsParams"]}> : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 
-                %concat_params = "csl.concat_struct"(%params_task, %additional_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+                %concat_params = "csl.concat_structs"(%params_task, %additional_params) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 
                 "csl.set_tile_code"(%xId, %yId, %concat_params) <{file = "pe.csl"}> : (i16, i16, !csl.comptime_struct) -> ()
             }
@@ -138,14 +138,14 @@ builtin.module {
 // CHECK-NEXT:       const tmp_struct : comptime_struct = .{
 // CHECK-NEXT:         .isBorderRegionPE = is_border_region,
 // CHECK-NEXT:       };
-// CHECK-NEXT:       const params_task : comptime_struct = @concat_struct(invariants, tmp_struct);
+// CHECK-NEXT:       const params_task : comptime_struct = @concat_structs(invariants, tmp_struct);
 // CHECK-NEXT:       const memcpy_params : comptime_struct = memcpy.get_params(xId);
 // CHECK-NEXT:       const route_params : comptime_struct = routes.computeAllRoutes(xId, yId, width, height, pattern);
 // CHECK-NEXT:       const additional_params : comptime_struct = .{
 // CHECK-NEXT:         .memcpyParams = memcpy_params,
 // CHECK-NEXT:         .stencilCommsParams = route_params,
 // CHECK-NEXT:       };
-// CHECK-NEXT:       const concat_params : comptime_struct = @concat_struct(params_task, additional_params);
+// CHECK-NEXT:       const concat_params : comptime_struct = @concat_structs(params_task, additional_params);
 // CHECK-NEXT:       @set_tile_code(xId, yId, "pe.csl", concat_params);
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }
