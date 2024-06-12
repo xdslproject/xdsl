@@ -1,70 +1,99 @@
-from collections.abc import Sequence
-
-from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import Attribute, Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.dialects.builtin import IntegerType
+from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
 )
-from xdsl.parser import AttrParser
-from xdsl.printer import Printer
 
 
 @irdl_attr_definition
-class QubitsAttr(ParametrizedAttribute, TypeAttribute):
+class QubitAttr(ParametrizedAttribute, TypeAttribute):
     """
-    Type for a collection of `n` qubits
+    Type for a single qubit
     """
 
-    name = "qssa.qubits"
-
-    # number of qubits
-    n: ParameterDef[IntAttr]
-
-    def __init__(self, n: int | IntAttr):
-        if isinstance(n, int):
-            n = IntAttr(n)
-        super().__init__((n,))
-
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        with parser.in_angle_brackets():
-            n = parser.parse_integer(allow_boolean=False, allow_negative=False)
-            return (IntAttr(n),)
-
-    def print_parameters(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string(f"{self.n.data}")
+    name = "qssa.qubit"
 
 
-qubits1 = QubitsAttr(1)
-qubits2 = QubitsAttr(2)
+qubit = QubitAttr()
 
 
 @irdl_op_definition
 class HGateOp(IRDLOperation):
     name = "qssa.h"
 
-    input = operand_def(qubits1)
+    input = operand_def(qubit)
 
-    output = result_def(qubits1)
+    output = result_def(qubit)
 
     assembly_format = "$input attr-dict"
 
     def __init__(self, input: SSAValue):
-        super().__init__(operands=(input,), result_types=(qubits1,))
+        super().__init__(operands=(input,), result_types=(qubit,))
+
+
+@irdl_op_definition
+class CNotGateOp(IRDLOperation):
+    name = "qssa.cnot"
+
+    in1 = operand_def(qubit)
+
+    in2 = operand_def(qubit)
+
+    out1 = result_def(qubit)
+
+    out2 = result_def(qubit)
+
+    assembly_format = "$in1 $in2 attr-dict"
+
+    def __init__(self, in1: SSAValue, in2: SSAValue):
+        super().__init__(operands=(in1, in2), result_types=(qubit, qubit))
+
+
+@irdl_op_definition
+class CZGateOp(IRDLOperation):
+    name = "qssa.cz"
+
+    in1 = operand_def(qubit)
+
+    in2 = operand_def(qubit)
+
+    out1 = result_def(qubit)
+
+    out2 = result_def(qubit)
+
+    assembly_format = "$in1 $in2 attr-dict"
+
+    def __init__(self, in1: SSAValue, in2: SSAValue):
+        super().__init__(operands=(in1, in2), result_types=(qubit, qubit))
+
+
+@irdl_op_definition
+class MeasureOp(IRDLOperation):
+    name = "qssa.measure"
+
+    input = operand_def(qubit)
+
+    output = result_def(IntegerType(1))
+
+    assembly_format = "$input attr-dict"
+
+    def __init__(self, input: SSAValue):
+        super().__init__(operands=(input,), result_types=(IntegerType(1),))
 
 
 QSSA = Dialect(
     "qssa",
     [
         HGateOp,
+        CZGateOp,
+        CNotGateOp,
+        MeasureOp,
     ],
     [
-        QubitsAttr,
+        QubitAttr,
     ],
 )
