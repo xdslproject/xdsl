@@ -61,7 +61,8 @@ csl.func @initialize() {
       items = {i = 42 : i32, f = 3.7 : f32 }
     }> : (i32, i16, !csl.color) -> !csl.comptime_struct
 
-    %col_1 = "csl.get_color"() <{id = 3 : i5}> : () -> !csl.color
+    %three = arith.constant 3 : i16
+    %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
 
 
     %arr, %scalar, %tens = "test.op"() : () -> (memref<10xf32>, i32, tensor<510xf32>)
@@ -297,7 +298,8 @@ csl.func @builtins() {
 
 "csl.module"() <{kind = #csl<module_kind layout>}> ({
   %comp_const = "csl.param"() <{param_name = "comp_constant"}> : () -> i32
-  %comp_const_with_def = "csl.param"() <{param_name = "comp_constant", init_value = 1 : i32}> : () -> i32
+  %init = arith.constant 3.14 : f16
+  %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
   csl.layout {
     %x_dim, %y_dim = "test.op"() : () -> (i32, i32)
     "csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ()
@@ -345,7 +347,8 @@ csl.func @builtins() {
 // CHECK-NEXT:     %attr_struct = "csl.const_struct"() <{"items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : () -> !csl.comptime_struct
 // CHECK-NEXT:     %ssa_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"]}> : (i32, i16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:     %mixed_struct = "csl.const_struct"(%arg1_1, %arg2_1, %col) <{"ssa_fields" = ["i32_", "i16_", "col"], "items" = {"i" = 42 : i32, "f" = 3.700000e+00 : f32}}> : (i32, i16, !csl.color) -> !csl.comptime_struct
-// CHECK-NEXT:     %col_1 = "csl.get_color"() <{"id" = 3 : i5}> : () -> !csl.color
+// CHECK-NEXT:     %three = arith.constant 3 : i16
+// CHECK-NEXT:     %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
 // CHECK-NEXT:     %arr, %scalar, %tens = "test.op"() : () -> (memref<10xf32>, i32, tensor<510xf32>)
 // CHECK-NEXT:     %int8, %int16, %u16 = "test.op"() : () -> (si8, si16, ui16)
 // CHECK-NEXT:     %scalar_ptr = "csl.addressof"(%scalar) : (i32) -> !csl.ptr<i32, #csl<ptr_kind single>, #csl<ptr_const const>>
@@ -523,7 +526,8 @@ csl.func @builtins() {
 // CHECK-NEXT: }) {"sym_name" = "program"} :  () -> ()
 // CHECK-NEXT: "csl.module"() <{"kind" = #csl<module_kind layout>}> ({
 // CHECK-NEXT:  %comp_const = "csl.param"() <{"param_name" = "comp_constant"}> : () -> i32
-// CHECK-NEXT:  %comp_const_with_def = "csl.param"() <{"param_name" = "comp_constant", "init_value" = 1 : i32}> : () -> i32
+// CHECK-NEXT:  %init = arith.constant 3.140000e+00 : f16
+// CHECK-NEXT:  %p2 = "csl.param"(%init) <{"param_name" = "param_2"}> : (f16) -> f16
 // CHECK-NEXT: csl.layout {
 // CHECK-NEXT:   x_dim, %y_dim = "test.op"() : () -> (i32, i32)
 // CHECK-NEXT:   "csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ()
