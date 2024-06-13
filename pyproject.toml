@@ -37,8 +37,10 @@ dev = [
     # and installs the according version for typechecking.
     "pyright==1.1.345",
 ]
-extras = ["riscemu==2.2.6", "wgpu==0.15.3", "textual==0.63.2", "pyclip==0.7"]
+gui = ["textual==0.63.2", "pyclip==0.7"]
 onnx = ["onnx==1.16.1"]
+riscv = ["riscemu==2.2.6"]
+wgpu = ["wgpu==0.15.3"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"

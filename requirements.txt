@@ -1,1 +1,1 @@
--e .[extras,onnx,dev]
+-e .[gui,riscv,wgpu,onnx,dev]
