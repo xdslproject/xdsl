@@ -522,7 +522,7 @@ class AttrParser(BaseParser):
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
             if not isinstance(memory_or_layout, MemrefLayoutAttr):
-                self.raise_error("Expected a MemRef layout attribute!")
+                self.raise_error("Expected a MemRef layout attribute")
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
         # If the argument is a MemrefLayoutAttr, use it as layout
