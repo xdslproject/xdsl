@@ -8,5 +8,5 @@
     }
   },
   // We want all dependencies except wgpu since that fails on the default container
-	"postCreateCommand": "python -m pip install -r requirements.txt && python -m pip uninstall wgpu"
+  "postCreateCommand": "python -m pip install -e .[gui,riscv,dev]"
 }
