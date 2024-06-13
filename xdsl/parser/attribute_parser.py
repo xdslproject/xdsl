@@ -526,7 +526,7 @@ class AttrParser(BaseParser):
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
         # If the argument is a MemrefLayoutAttr, use it as layout
-        if isa(memory_or_layout, MemrefLayoutAttr):
+        if isinstance(memory_or_layout, MemrefLayoutAttr):
             return MemRefType(type, shape, layout=memory_or_layout)
 
         # Otherwise, consider it as the memory space.
