@@ -1180,7 +1180,7 @@ class MemrefLayoutAttr(Attribute, ABC):
     Interface for any attribute acceptable as a memref layout.
     """
 
-    name = "memref_layout_att"
+    name = "abstract.memref_layout_att"
 
     pass
 
