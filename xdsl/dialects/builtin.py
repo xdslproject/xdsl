@@ -1175,7 +1175,7 @@ class OpaqueAttr(ParametrizedAttribute):
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 
-class MemrefLayoutAttr(Attribute):
+class MemrefLayoutAttr(Attribute, ABC):
     """
     Interface for any attribute acceptable as a memref layout.
     """
