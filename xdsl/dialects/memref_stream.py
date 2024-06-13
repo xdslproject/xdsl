@@ -530,6 +530,43 @@ class GenericOp(IRDLOperation):
                 f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
             )
 
+        if len(self.operands) != len(self.indexing_maps):
+            raise VerifyException(
+                "The number of affine maps must match the number of operands"
+            )
+
+        # Whether or not the operation represents an imperfect loop nest, verify that the
+        # bounds of the outer + inner nests match the domain of the input affine maps
+        input_count = len(self.inputs)
+        input_maps = self.indexing_maps.data[:input_count]
+
+        for i, m in enumerate(input_maps):
+            if m.data.num_symbols:
+                raise NotImplementedError(
+                    f"Symbols currently not implemented in {self.name} indexing maps"
+                )
+            if len(iterator_types) != m.data.num_dims:
+                raise VerifyException(f"Invalid number of dims in indexing map {i}")
+
+        # If the operation represents an imperfect loop nest, the bounds must match the
+        # number of parallel iterators; otherwise they must match the total number of
+        # iterators. In either case, they must all be the same.
+        output_maps = self.indexing_maps.data[input_count:]
+
+        min_dims = min(m.data.num_dims for m in output_maps)
+        max_dims = max(m.data.num_dims for m in output_maps)
+
+        if min_dims != max_dims:
+            raise VerifyException(
+                "The number of dims in output indexing maps must all be the same"
+            )
+
+        if min_dims not in (len(iterator_types), num_parallel):
+            raise VerifyException(
+                "The number of dims in output indexing maps must be "
+                f"{len(iterator_types)} or {num_parallel}"
+            )
+
 
 @irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
