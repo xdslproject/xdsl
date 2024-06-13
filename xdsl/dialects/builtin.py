@@ -1177,7 +1177,7 @@ class OpaqueAttr(ParametrizedAttribute):
 
 class MemrefLayoutAttr(Attribute):
     """
-    Some explanation here
+    Interface for any attribute acceptable as a memref layout.
     """
 
     name = "memref_layout_att"

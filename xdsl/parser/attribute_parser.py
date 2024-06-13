@@ -525,16 +525,11 @@ class AttrParser(BaseParser):
                 self.raise_error("Expected a MemRef layout attribute!")
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # Otherwise, there is a single argument, so we check based on the
-        # attribute type. If we don't know, we return an error.
-        # MLIR base itself on the `MemRefLayoutAttrInterface`, which we do not
-        # support.
-
-        # If the argument is an integer, it is a memory space
+        # If the argument is a MemrefLayoutAttr, use it as layout
         if isa(memory_or_layout, MemrefLayoutAttr):
             return MemRefType(type, shape, layout=memory_or_layout)
 
-        # We only accept strided layouts and affine_maps
+        # Otherwise, consider it as the memory space.
         else:
             return MemRefType(type, shape, memory_space=memory_or_layout)
 
