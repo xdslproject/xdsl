@@ -21,6 +21,8 @@
   %const27 = arith.constant 27 : i16
   %ssa_struct = "csl.const_struct"(%const27) <{ssa_fields = ["val"]}> : (i16) -> !csl.comptime_struct
 
+  %concat = "csl.concat_structs"(%empty_struct, %attribute_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+
   %no_param_import = "csl.import_module"() <{module = "<mod>"}> : () -> !csl.imported_module
   %param_import = "csl.import_module"(%ssa_struct) <{module = "<mod>"}> : (!csl.comptime_struct) -> !csl.imported_module
 
@@ -111,7 +113,8 @@
 
   "csl.export"() <{type = (i32, i32) -> (), var_name = @args_no_return}> : () -> ()
 
-    %col  = "csl.get_color"() <{id = 15 : i5}> : () -> !csl.color
+    %cst15 = arith.constant 15 : i32
+    %col  = "csl.get_color"(%cst15) : (i32) -> !csl.color
 
     "csl.rpc"(%col) : (!csl.color) -> ()
 
@@ -249,7 +252,8 @@ csl.func @builtins() {
   %u32_value = arith.constant 120 : ui32
   %f16_value = arith.constant 7.0 : f16
   %f32_value = arith.constant 8.0 : f32
-  %col_1 = "csl.get_color"() <{id = 3 : i5}> : () -> !csl.color
+  %three = arith.constant 3 : i16
+  %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
   %f16_pointer = "csl.addressof"(%f16_value) : (f16) -> !csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>
   %f32_pointer = "csl.addressof"(%f32_value) : (f32) -> !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>
   %i16_pointer = "csl.addressof"(%i16_value) : (si16) -> !csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>
@@ -315,12 +319,13 @@ csl.func @builtins() {
   csl.return
 }
 
-}) {sym_name = "program"} : () -> ()
+}) {sym_name = "program.csl"} : () -> ()
 
 
 "csl.module"() <{kind=#csl<module_kind layout>}> ({
   %p1 = "csl.param"() <{param_name = "param_1"}> : () -> i32
-  %p2 = "csl.param"() <{param_name = "param_2", init_value = 1.3 : f16}> : () -> f16
+  %init = arith.constant 3.14 : f16
+  %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
 
   csl.layout {
     %x_dim = arith.constant 4 : i32
@@ -333,11 +338,12 @@ csl.func @builtins() {
 
     %params = "csl.const_struct"(){items = {hello = 123 : i32}} : () -> !csl.comptime_struct
     %x_coord1 = arith.constant 1 : i32
-    "csl.set_tile_code"(%x_coord1, %y_coord, %params) <{file = "file.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
+    "csl.set_tile_code"(%x_coord1, %y_coord, %params) <{file = "program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
 
   }
-}) {sym_name = "layout"} : () -> ()
+}) {sym_name = "layout.csl"} : () -> ()
 
+// CHECK-NEXT: // FILE: program.csl
 // CHECK-NEXT:
 // CHECK-NEXT: fn no_args_no_return() void {
 // CHECK-NEXT:   return;
@@ -360,6 +366,7 @@ csl.func @builtins() {
 // CHECK-NEXT: const ssa_struct : comptime_struct = .{
 // CHECK-NEXT:   .val = const27,
 // CHECK-NEXT: };
+// CHECK-NEXT: const concat : comptime_struct = @concat_structs(empty_struct, attribute_struct);
 // CHECK-NEXT: const no_param_import : imported_module = @import_module("<mod>");
 // CHECK-NEXT: const param_import : imported_module = @import_module("<mod>", ssa_struct);
 // CHECK-NEXT: param_import.foo();
@@ -442,7 +449,8 @@ csl.func @builtins() {
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(args_no_return, "args_no_return");
 // CHECK-NEXT: }
-// CHECK-NEXT: const col : color = @get_color(15);
+// CHECK-NEXT: const cst15 : i32 = 15;
+// CHECK-NEXT: const col : color = @get_color(cst15);
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @rpc(@get_data_task_id(col));
 // CHECK-NEXT: }
@@ -540,7 +548,8 @@ csl.func @builtins() {
 // CHECK-NEXT:   const u32_value : u32 = 120;
 // CHECK-NEXT:   const f16_value : f16 = 7.0;
 // CHECK-NEXT:   const f32_value : f32 = 8.0;
-// CHECK-NEXT:   const col1 : color = @get_color(3);
+// CHECK-NEXT:   const three : i16 = 3;
+// CHECK-NEXT:   const col1 : color = @get_color(three);
 // CHECK-NEXT:   var f16_pointer : *f16 = &f16_value;
 // CHECK-NEXT:   var f32_pointer : *f32 = &f32_value;
 // CHECK-NEXT:   var i16_pointer : *i16 = &i16_value;
@@ -617,21 +626,23 @@ csl.func @builtins() {
 // CHECK-NEXT:   @xp162fs(dest_dsd, src_dsd1);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
-// CHECK-NEXT: // >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //
+// CHECK-NEXT: // -----
+// CHECK-NEXT: // FILE: layout.csl
 // CHECK-NEXT: param param_1 : i32;
-// CHECK-NEXT: param param_2 : f16 = 1.3;
+// CHECK-NEXT: const init : f16 = 3.14;
+// CHECK-NEXT: param param_2 : f16 = init;
 // CHECK-NEXT: layout {
 // CHECK-NEXT:   const x_dim : i32 = 4;
 // CHECK-NEXT:   const y_dim : i32 = 6;
 // CHECK-NEXT:   @set_rectangle(x_dim, y_dim);
 // CHECK-NEXT:   const x_coord0 : i32 = 0;
 // CHECK-NEXT:   const y_coord : i32 = 0;
-// CHECK-NEXT:   @set_tile_code(x_coord0, y_coord, "file.csl", )
+// CHECK-NEXT:   @set_tile_code(x_coord0, y_coord, "file.csl", );
 // CHECK-NEXT:   const params : comptime_struct = .{
 // CHECK-NEXT:     .hello = 123
 // CHECK-NEXT:   };
 // CHECK-NEXT:   const x_coord1 : i32 = 1;
-// CHECK-NEXT:   @set_tile_code(x_coord1, y_coord, "file.csl", params);
+// CHECK-NEXT:   @set_tile_code(x_coord1, y_coord, "program.csl", params);
 // CHECK-NEXT:   @export_name("ptr_name", [*]f32, true);
 // CHECK-NEXT:   @export_name("another_ptr", [*]const i32, false);
 // CHECK-NEXT:   @export_name("no_args_no_return", fn() void, );

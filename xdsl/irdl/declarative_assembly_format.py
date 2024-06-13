@@ -19,6 +19,7 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
+    ConstraintContext,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
@@ -48,7 +49,7 @@ class ParsingState:
     result_types: list[Attribute | None | list[Attribute | None]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
-    constraint_variables: dict[str, Attribute]
+    constraint_context: ConstraintContext
 
     def __init__(self, op_def: OpDef):
         if op_def.regions or op_def.successors:
@@ -61,7 +62,7 @@ class ParsingState:
         self.result_types = [None] * len(op_def.results)
         self.attributes = {}
         self.properties = {}
-        self.constraint_variables = {}
+        self.constraint_context = ConstraintContext()
 
 
 @dataclass
@@ -181,7 +182,7 @@ class FormatProgram:
                     if isinstance(operand_type, Attribute):
                         operand_type = [operand_type]
                     assert isa(operand_type, list[Attribute])
-                    operand_def.constr.verify(operand_type, state.constraint_variables)
+                    operand_def.constr.verify(operand_type, state.constraint_context)
                 for (_, result_def), result_type in zip(
                     op_def.results, state.result_types, strict=True
                 ):
@@ -190,7 +191,7 @@ class FormatProgram:
                     if isinstance(result_type, Attribute):
                         result_type = [result_type]
                     assert isa(result_type, list[Attribute])
-                    result_def.constr.verify(result_type, state.constraint_variables)
+                    result_def.constr.verify(result_type, state.constraint_context)
             except VerifyException as e:
                 parser.raise_error(
                     "Verification error while inferring operation type: " + str(e)
@@ -208,7 +209,7 @@ class FormatProgram:
                 operand = state.operands[i]
                 range_length = len(operand) if isinstance(operand, list) else 1
                 operand_type = operand_def.constr.infer(
-                    range_length, state.constraint_variables
+                    range_length, state.constraint_context
                 )
                 if isinstance(operand_def, OptionalDef):
                     operand_type = (
@@ -234,7 +235,7 @@ class FormatProgram:
                 result_type = state.result_types[i]
                 range_length = len(result_type) if isinstance(result_type, list) else 1
                 result_type = result_def.constr.infer(
-                    range_length, state.constraint_variables
+                    range_length, state.constraint_context
                 )
                 if isinstance(result_def, OptionalDef):
                     result_type = (

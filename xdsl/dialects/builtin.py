@@ -39,6 +39,7 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     AttrConstraint,
+    ConstraintContext,
     GenericData,
     IRDLOperation,
     MessageConstraint,
@@ -82,7 +83,9 @@ class ShapedType(ABC):
 
 
 class AnyShapedType(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, ShapedType):
             raise Exception(f"expected type ShapedType but got {attr}")
 
@@ -117,11 +120,11 @@ class ArrayOfConstraint(AttrConstraint):
     def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
         object.__setattr__(self, "elem_constr", attr_constr_coercion(constr))
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         for e in cast(ArrayAttr[Attribute], attr).data:
-            self.elem_constr.verify(e, constraint_vars)
+            self.elem_constr.verify(e, constraint_context)
 
 
 @irdl_attr_definition
@@ -243,7 +246,9 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     Constrain attribute to be empty ArrayData
     """
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         attr = cast(ArrayAttr[Attribute], attr)
@@ -806,12 +811,12 @@ class ContainerOf(AttrConstraint):
     ) -> None:
         object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
             attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
-            self.elem_constr.verify(attr.element_type, constraint_vars)
+            self.elem_constr.verify(attr.element_type, constraint_context)
         else:
-            self.elem_constr.verify(attr, constraint_vars)
+            self.elem_constr.verify(attr, constraint_context)
 
 
 VectorOrTensorOf: TypeAlias = (
@@ -834,7 +839,9 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
@@ -852,7 +859,9 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         attr = cast(VectorType[Attribute], attr)
@@ -874,14 +883,14 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         constraint = AllOf(
             (
                 VectorBaseTypeConstraint(self.expected_type),
                 VectorRankConstraint(self.expected_rank),
             )
         )
-        constraint.verify(attr, constraint_vars)
+        constraint.verify(attr, constraint_context)
 
 
 @irdl_attr_definition

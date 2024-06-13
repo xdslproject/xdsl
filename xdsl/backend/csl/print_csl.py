@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Literal, cast
@@ -34,7 +36,6 @@ from xdsl.irdl import Operand
 class CslPrintContext:
     _INDEX = "i32"
     _INDENT = "  "
-    DIVIDER = "// >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //"
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -388,6 +389,7 @@ class CslPrintContext:
                     | arith.TruncIOp(input=inp, result=res)
                     | arith.ExtSIOp(input=inp, result=res)
                     | arith.ExtUIOp(input=inp, result=res)
+                    | csl.SignednessCastOp(inp=inp, result=res)
                 ):
                     name_in = self._get_variable_name_for(inp)
                     type_out = self.mlir_type_to_csl_type(res.type)
@@ -400,6 +402,12 @@ class CslPrintContext:
                     lhs=lhs, rhs=rhs, result=res
                 ):
                     self._print_binop(lhs, rhs, res, "+")
+                case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
+                    a_var = self._get_variable_name_for(a)
+                    b_var = self._get_variable_name_for(b)
+                    self.print(
+                        f"{self._var_use(res)} = @concat_structs({a_var}, {b_var});"
+                    )
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
@@ -450,7 +458,7 @@ class CslPrintContext:
                     if init is None:
                         init = ""
                     else:
-                        init = f" = { self.attribute_value_to_str(init)}"
+                        init = f" = { self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
                     self.print(f"param {name.data} : {ty}{init};")
                 case csl.ConstStructOp(
@@ -481,7 +489,7 @@ class CslPrintContext:
                     y = self._get_variable_name_for(y_dim)
                     self.print(f"@set_rectangle({x}, {y});")
                 case csl.GetColorOp(id=id, res=res):
-                    id = self.attribute_value_to_str(id)
+                    id = self._get_variable_name_for(id)
                     self.print(f"{self._var_use(res)} = @get_color({id});")
                 case csl.RpcOp(id=id):
                     id = self._get_variable_name_for(id)
@@ -602,31 +610,17 @@ class CslPrintContext:
         self.print("}")
 
 
-def _get_layout_program(module: ModuleOp) -> tuple[csl.CslModuleOp, csl.CslModuleOp]:
-    """
-    Get the layout and program `csl.module`s from the top level `builtin.module`.
-
-    Makes sure there is exactly 1 layout and 1 program `csl.module`.
-
-    Returns layout first, then program.
-    """
-    ops_list = list(module.body.block.ops)
-    assert all(
-        isinstance(mod, csl.CslModuleOp) for mod in ops_list
-    ), "Expected all top level ops to be csl.module"
-    # We have asserted that this is true above
-    ops_list = cast(list[csl.CslModuleOp], ops_list)
-    assert len(ops_list) == 2, "Expected exactly two top level modules"
-    # This allows program and layout to be scpecified in any order
-    prog = next(
-        filter(lambda mod: mod.kind.data == csl.ModuleKind.PROGRAM, ops_list), None
-    )
-    layout = next(
-        filter(lambda mod: mod.kind.data == csl.ModuleKind.LAYOUT, ops_list), None
-    )
-    assert prog is not None, "Expected exactly 1 program module"
-    assert layout is not None, "Expected exactly 1 layout module"
-    return layout, prog
+def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
+    layouts: list[csl.CslModuleOp] = []
+    for op in module.body.ops:
+        if isinstance(op, csl.CslModuleOp):
+            if op.kind == csl.ModuleKind.LAYOUT:
+                layouts.append(op)
+                continue
+            yield op
+        else:
+            warnings.warn("Expected all top-level operations to be `csl.module` ops!")
+    yield from layouts
 
 
 def print_to_csl(prog: ModuleOp, output: IO[str]):
@@ -634,7 +628,10 @@ def print_to_csl(prog: ModuleOp, output: IO[str]):
     Takes a module op and prints it to the given output stream.
     """
     ctx = CslPrintContext(output)
-    layout, program = _get_layout_program(prog)
-    ctx.print_block(program.body.block)
-    ctx.print(ctx.DIVIDER)
-    ctx.print_block(layout.body.block)
+    divider = False
+    for module in get_csl_modules_in_module_op(prog):
+        if divider:
+            ctx.print("// -----")
+        divider = True
+        ctx.print("// FILE: " + module.sym_name.data)
+        ctx.print_block(module.body.block)

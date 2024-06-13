@@ -46,6 +46,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
@@ -64,6 +65,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    HasAncestor,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -330,19 +332,11 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     name = "csl.color"
 
 
-ColorIdAttr: TypeAlias = (
-    IntegerAttr[Annotated[IntegerType, IntegerType(5)]]
-    | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
-)
+ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
 
 QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
 
 ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
-# NOTE: Some of these values cannot be set by default, because we don't have
-#       corresponding attrinutes for them.
-ParamType: TypeAlias = (
-    Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike
-)
 
 
 @irdl_op_definition
@@ -409,7 +403,7 @@ class ConstStructOp(IRDLOperation):
 class GetColorOp(IRDLOperation):
     name = "csl.get_color"
 
-    id = prop_def(ColorIdAttr)
+    id = operand_def(IntegerType)
     res = result_def(ColorType)
 
 
@@ -701,7 +695,7 @@ class SetRectangleOp(IRDLOperation):
 class SetTileCodeOp(IRDLOperation):
     name = "csl.set_tile_code"
 
-    traits = frozenset([HasParent(LayoutOp)])
+    traits = frozenset([HasAncestor(LayoutOp)])
 
     file = prop_def(StringAttr)
 
@@ -1478,49 +1472,81 @@ class ParamOp(IRDLOperation):
     command line by passing params to the compiler.
     """
 
+    T = Annotated[
+        Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike,
+        ConstraintVar("T"),
+    ]
+
     name = "csl.param"
 
     traits = frozenset([HasParent(CslModuleOp)])  # has to be at top level
 
     param_name = prop_def(StringAttr)
-    init_value = opt_prop_def(ParamAttr)
+    init_value = opt_operand_def(T)
 
-    res = result_def(ParamType)
+    res = result_def(T)
+
+
+@irdl_op_definition
+class SignednessCastOp(IRDLOperation):
+    """
+    Cast that throws away signedness attributes
+    """
+
+    name = "csl.mlir.signedness_cast"
+
+    inp = operand_def(IntegerType)
+
+    result = result_def(IntegerType)
+
+    assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
 
     def verify_(self) -> None:
-        if self.init_value is not None and self.init_value.type != self.res.type:
+        assert isinstance(self.inp.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
+        if self.inp.type.width != self.result.type.width:
+            raise VerifyException("Input and output type must be of same bitwidth")
+        if self.inp.type.signedness == self.result.type.signedness:
             raise VerifyException(
-                "If init_value is specified, it has to have the same type as the op result"
+                "Input and output type must be of different signedness"
             )
-        return super().verify_()
+
+
+@irdl_op_definition
+class ConcatStructOp(IRDLOperation):
+    """
+    Concatenate two compile-time known structs
+
+    @concat_structs(this_struct, another_struct);
+
+    this_struct and another_struct are comptime expressions of anonymous struct type.
+
+    Attempting to concatenate a struct with named fields and a struct with nameless fields (e.g. .{1, 2}) results in an error.
+
+    Attempting to concatenate two structs with overlapping named fields also results in an error.
+    """
+
+    name = "csl.concat_structs"
+
+    this_struct = operand_def(ComptimeStructType)
+
+    another_struct = operand_def(ComptimeStructType)
+
+    result = result_def(ComptimeStructType)
 
 
 CSL = Dialect(
     "csl",
     [
-        FuncOp,
-        ReturnOp,
-        ImportModuleConstOp,
-        MemberCallOp,
-        MemberAccessOp,
-        CslModuleOp,
-        LayoutOp,
-        CallOp,
-        TaskOp,
-        ConstStructOp,
-        GetColorOp,
-        SetRectangleOp,
-        SetTileCodeOp,
-        GetMemDsdOp,
-        GetFabDsdOp,
-        SetDsdBaseAddrOp,
-        IncrementDsdOffsetOp,
-        SetDsdLengthOp,
-        SetDsdStrideOp,
         Add16Op,
         Add16cOp,
+        AddressOfOp,
         And16Op,
+        CallOp,
         ClzOp,
+        ConcatStructOp,
+        ConstStructOp,
+        CslModuleOp,
         CtzOp,
         FabshOp,
         FabssOp,
@@ -1548,31 +1574,47 @@ CSL = Dialect(
         FscalesOp,
         FsubhOp,
         FsubsOp,
+        FuncOp,
+        GetColorOp,
+        GetFabDsdOp,
+        GetMemDsdOp,
+        ImportModuleConstOp,
+        IncrementDsdOffsetOp,
+        LayoutOp,
+        MemberAccessOp,
+        MemberCallOp,
         Mov16Op,
         Mov32Op,
         Or16Op,
+        ParamOp,
         PopcntOp,
+        ReturnOp,
+        RpcOp,
         Sar16Op,
+        SetDsdBaseAddrOp,
+        SetDsdLengthOp,
+        SetDsdStrideOp,
+        SetRectangleOp,
+        SetTileCodeOp,
+        SignednessCastOp,
         Sll16Op,
         Slr16Op,
         Sub16Op,
+        SymbolExportOp,
+        TaskOp,
         Xor16Op,
         Xp162fhOp,
         Xp162fsOp,
-        AddressOfOp,
-        SymbolExportOp,
-        RpcOp,
-        ParamOp,
     ],
     [
-        ComptimeStructType,
-        ImportedModuleType,
-        PtrKindAttr,
-        PtrConstAttr,
-        PtrType,
-        DsdType,
         ColorType,
+        ComptimeStructType,
+        DsdType,
+        ImportedModuleType,
+        PtrType,
         ModuleKindAttr,
+        PtrConstAttr,
+        PtrKindAttr,
         TaskKindAttr,
     ],
 )
