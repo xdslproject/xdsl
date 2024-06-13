@@ -26,7 +26,7 @@ from xdsl.dialects.csl import (
     SetRectangleOp,
     SetTileCodeOp,
 )
-from xdsl.dialects.scf import For
+from xdsl.dialects.scf import For, Yield
 from xdsl.dialects.stencil import ApplyOp
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
@@ -118,8 +118,8 @@ def setup_program_module(ctx: TranslationContext) -> None:
         chunk_size := MemberCallOp.get(
             "computeChunkSize",
             IntegerType(16, Signedness.UNSIGNED),
-            ctx.program_params["z_dim"],
             util,
+            ctx.program_params["z_dim"],
             num_chunks,
         ),
     )
@@ -250,8 +250,10 @@ def setup_layout_module(ctx: TranslationContext) -> None:
                 inner_loop_body.args[0],
                 set_tile_params_ext,
             ),
+            Yield(),
         ]
     )
+    outer_loop_body.add_op(Yield())
 
 
 @dataclass(frozen=True)
