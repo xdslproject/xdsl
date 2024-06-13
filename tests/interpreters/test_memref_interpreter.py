@@ -60,7 +60,7 @@ def test_memref_get_global():
             sym_visibility=StringAttr("public"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
-            fetch = memref.GetGlobal.get("my_global", memref_type)
+            fetch = memref.GetGlobal("my_global", memref_type)
 
     interpreter = Interpreter(module, index_bitwidth=32)
     interpreter.register_implementations(MemrefFunctions())

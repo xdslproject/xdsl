@@ -8,7 +8,9 @@ from functools import wraps
 from types import UnionType
 from typing import TypeVar, Union, final, get_args, get_origin
 
-from xdsl.builder import BuilderListener, InsertPoint
+from typing_extensions import deprecated
+
+from xdsl.builder import BuilderListener
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -20,7 +22,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.rewriter import Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.hints import isa
 
 
@@ -87,7 +89,7 @@ class PatternRewriter(PatternRewriterListener):
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
 
-    def insert_op_at_location(
+    def insert_op(
         self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
     ):
         """Insert operations at a certain location in a block."""
@@ -95,38 +97,42 @@ class PatternRewriter(PatternRewriterListener):
         op = (op,) if isinstance(op, Operation) else op
         if not op:
             return
-        Rewriter.insert_ops_at_location(op, insertion_point)
+        Rewriter.insert_op(op, insertion_point)
 
         for op_ in op:
             self.handle_operation_insertion(op_)
 
     def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations before the matched operation."""
-        self.insert_op_at_location(op, InsertPoint.before(self.current_operation))
+        self.insert_op(op, InsertPoint.before(self.current_operation))
 
     def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
         """Insert operations after the matched operation."""
-        self.insert_op_at_location(op, InsertPoint.after(self.current_operation))
+        self.insert_op(op, InsertPoint.after(self.current_operation))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_at_end(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations at the end of a block."""
-        self.insert_op_at_location(op, InsertPoint.at_end(block))
+        self.insert_op(op, InsertPoint.at_end(block))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_at_start(self, op: Operation | Sequence[Operation], block: Block):
         """Insert operations at the start of a block."""
-        self.insert_op_at_location(op, InsertPoint.at_start(block))
+        self.insert_op(op, InsertPoint.at_start(block))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_before(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
         """Insert operations before an operation."""
-        self.insert_op_at_location(op, InsertPoint.before(target_op))
+        self.insert_op(op, InsertPoint.before(target_op))
 
+    @deprecated("Please use `insert_op` instead")
     def insert_op_after(
         self, op: Operation | Sequence[Operation], target_op: Operation
     ):
         """Insert operations after an operation."""
-        self.insert_op_at_location(op, InsertPoint.after(target_op))
+        self.insert_op(op, InsertPoint.after(target_op))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -191,7 +197,7 @@ class PatternRewriter(PatternRewriterListener):
             new_ops = [new_ops]
 
         # First, insert the new operations before the matched operation
-        self.insert_op_before(new_ops, op)
+        self.insert_op(new_ops, InsertPoint.before(op))
 
         if isinstance(new_ops, Operation):
             new_ops = [new_ops]
@@ -206,12 +212,22 @@ class PatternRewriter(PatternRewriterListener):
         # Then, replace the results with new ones
         self.handle_operation_replacement(op, new_results)
         for old_result, new_result in zip(op.results, new_results):
-            self._replace_all_uses_with(old_result, new_result)
+            self._replace_all_uses_with(old_result, new_result, safe_erase=safe_erase)
 
-        if op.results:
+            # Preserve name hints for ops with multiple results
+            if new_result is not None and not new_result.name_hint:
+                new_result.name_hint = old_result.name_hint
+
+        # Add name hints for existing ops, only if there is a single new result
+        if (
+            len(new_results) == 1
+            and (only_result := new_results[0]) is not None
+            and (name_hint := only_result.name_hint) is not None
+        ):
             for new_op in new_ops:
                 for res in new_op.results:
-                    res.name_hint = op.results[0].name_hint
+                    if not res.name_hint:
+                        res.name_hint = name_hint
 
         # Then, erase the original operation
         self.erase_op(op, safe_erase=safe_erase)
@@ -241,6 +257,19 @@ class PatternRewriter(PatternRewriterListener):
         self._replace_all_uses_with(arg, None, safe_erase=safe_erase)
         arg.block.erase_arg(arg, safe_erase)
 
+    def inline_block(
+        self,
+        block: Block,
+        insertion_point: InsertPoint,
+        arg_values: Sequence[SSAValue] = (),
+    ):
+        """
+        Move the block operations to the specified insertion point.
+        """
+        self.has_done_action = True
+        Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
+
+    @deprecated("Please use `inline_block` instead")
     def inline_block_at_end(
         self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -248,9 +277,11 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations to the end of another block.
         This block should not be a parent of the block to move to.
         """
-        self.has_done_action = True
-        Rewriter.inline_block_at_end(block, target_block, arg_values=arg_values)
+        self.inline_block(
+            block, InsertPoint.at_end(target_block), arg_values=arg_values
+        )
 
+    @deprecated("Please use `inline_block` instead")
     def inline_block_at_start(
         self, block: Block, target_block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -258,8 +289,9 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations to the start of another block.
         This block should not be a parent of the block to move to.
         """
-        self.has_done_action = True
-        Rewriter.inline_block_at_start(block, target_block, arg_values)
+        self.inline_block(
+            block, InsertPoint.at_start(target_block), arg_values=arg_values
+        )
 
     def inline_block_before_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
@@ -268,8 +300,11 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations before the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block_before(block, self.current_operation, arg_values=arg_values)
+        self.inline_block(
+            block, InsertPoint.before(self.current_operation), arg_values=arg_values
+        )
 
+    @deprecated("Please use `inline_block` instead")
     def inline_block_before(
         self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
     ):
@@ -277,8 +312,7 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations before the given operation.
         The block should not be a parent of the operation.
         """
-        self.has_done_action = True
-        Rewriter.inline_block_before(block, op, arg_values=arg_values)
+        self.inline_block(block, InsertPoint.before(op), arg_values=arg_values)
 
     def inline_block_after_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
@@ -287,8 +321,11 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations after the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block_after(block, self.current_operation, arg_values=arg_values)
+        self.inline_block(
+            block, InsertPoint.after(self.current_operation), arg_values=arg_values
+        )
 
+    @deprecated("Please use `inline_block` instead")
     def inline_block_after(
         self, block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
     ):
@@ -296,8 +333,7 @@ class PatternRewriter(PatternRewriterListener):
         Move the block operations after the given operation.
         The block should not be a parent of the operation.
         """
-        self.has_done_action = True
-        Rewriter.inline_block_after(block, op, arg_values=arg_values)
+        self.inline_block(block, InsertPoint.after(op), arg_values=arg_values)
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""

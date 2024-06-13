@@ -12,18 +12,26 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, TypeAlias
+from typing import Annotated, ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
+    AnyFloatAttr,
+    AnyIntegerAttr,
     ArrayAttr,
+    BoolAttr,
     ContainerType,
     DictionaryAttr,
+    Float16Type,
+    Float32Type,
     FunctionType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
     ModuleOp,
+    Signedness,
     StringAttr,
     SymbolRefAttr,
+    TensorType,
 )
 from xdsl.dialects.utils import parse_func_op_like, print_func_op_like
 from xdsl.ir import (
@@ -38,6 +46,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     ParametrizedAttribute,
@@ -56,6 +65,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    HasAncestor,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -87,6 +97,13 @@ class TaskKind(StrEnum):
     LOCAL = "local"
     DATA = "data"
     CONTROL = "control"
+
+
+class DsdKind(StrEnum):
+    mem1d_dsd = "mem1d_dsd"
+    mem4d_dsd = "mem4d_dsd"
+    fabin_dsd = "fabin_dsd"
+    fabout_dsd = "fabout_dsd"
 
 
 class _FuncBase(IRDLOperation, ABC):
@@ -263,6 +280,49 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
+DsdElementType: TypeAlias = (
+    Float16Type
+    | Float32Type
+    | Annotated[IntegerType, IntegerType(16, Signedness.SIGNED)]
+    | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
+    | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
+    | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
+)
+
+
+f16_pointer = PtrType(
+    [Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+f32_pointer = PtrType(
+    [Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+u16_value = IntegerType(16, Signedness.UNSIGNED)
+i16_value = IntegerType(16, Signedness.SIGNED)
+u32_value = IntegerType(32, Signedness.UNSIGNED)
+i32_value = IntegerType(32, Signedness.SIGNED)
+i16_pointer = PtrType(
+    [i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+u16_pointer = PtrType(
+    [u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+i32_pointer = PtrType(
+    [i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+u32_pointer = PtrType(
+    [u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+)
+
+
+@irdl_attr_definition
+class DsdType(EnumAttribute[DsdKind], TypeAttribute, SpacedOpaqueSyntaxAttribute):
+    """
+    Represents a DSD in CSL.
+    """
+
+    name = "csl.dsd"
+
+
 @irdl_attr_definition
 class ColorType(ParametrizedAttribute, TypeAttribute):
     """
@@ -272,10 +332,11 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
     name = "csl.color"
 
 
-ColorIdAttr: TypeAlias = (
-    IntegerAttr[Annotated[IntegerType, IntegerType(5)]]
-    | IntegerAttr[Annotated[IntegerType, IntegerType(6)]]
-)
+ColorIdAttr: TypeAlias = IntegerAttr[IntegerType]
+
+QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
+
+ParamAttr: TypeAlias = AnyFloatAttr | AnyIntegerAttr
 
 
 @irdl_op_definition
@@ -342,7 +403,7 @@ class ConstStructOp(IRDLOperation):
 class GetColorOp(IRDLOperation):
     name = "csl.get_color"
 
-    id = prop_def(ColorIdAttr)
+    id = operand_def(IntegerType)
     res = result_def(ColorType)
 
 
@@ -634,7 +695,7 @@ class SetRectangleOp(IRDLOperation):
 class SetTileCodeOp(IRDLOperation):
     name = "csl.set_tile_code"
 
-    traits = frozenset([HasParent(LayoutOp)])
+    traits = frozenset([HasAncestor(LayoutOp)])
 
     file = prop_def(StringAttr)
 
@@ -643,31 +704,917 @@ class SetTileCodeOp(IRDLOperation):
     params = opt_operand_def(ComptimeStructType)
 
 
+class _GetDsdOp(IRDLOperation, ABC):
+    """
+    Abstract base class for CSL @get_dsd()
+    """
+
+    sizes = var_operand_def(IntegerType)
+    result = result_def(DsdType)
+
+
+@irdl_op_definition
+class GetMemDsdOp(_GetDsdOp):
+    """
+    CSL built-in for DSDs of the form
+
+    @get_dsd( [ mem1d_dsd | mem4d_dsd ] .{
+       .tensor_access = |i, j| {$sizes[0], $sizes[1]} -> $array_var[$strides[0] * i + $offsets[0], $strides[1] * j + offsets[1]]
+    });
+    """
+
+    name = "csl.get_mem_dsd"
+    base_addr = operand_def(MemRefType | TensorType)
+    offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+    strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
+
+    def verify_(self) -> None:
+        if not isinstance(self.result.type, DsdType):
+            raise VerifyException("DSD type is not DsdType")
+        if self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]:
+            raise VerifyException("DSD type must be memory DSD")
+        if self.result.type.data == DsdKind.mem1d_dsd and len(self.sizes) != 1:
+            raise VerifyException(
+                "DSD of type mem1d_dsd must have exactly one dimension"
+            )
+        if self.result.type.data == DsdKind.mem4d_dsd and (
+            len(self.sizes) < 1 or len(self.sizes) > 4
+        ):
+            raise VerifyException(
+                "DSD of type mem4d_dsd must have between 1 and 4 dimensions"
+            )
+        if self.offsets is not None and len(self.offsets) != len(self.sizes):
+            raise VerifyException(
+                "Dimensions of offsets must match dimensions of sizes"
+            )
+        if self.strides is not None and len(self.strides) != len(self.sizes):
+            raise VerifyException(
+                "Dimensions of strides must match dimensions of sizes"
+            )
+
+
+@irdl_op_definition
+class GetFabDsdOp(_GetDsdOp):
+    """
+    CSL built-in for DSDs of the form
+
+    @get_dsd( [ fabin_dsd | fabout_dsd ], .{
+        .extent = $sizes[0],
+        .fabric_color = $fabric_color,
+        .control = $control,                            # fabout_dsd only, not implemented
+        .wavelet_index_offset = $wavelet_index_offset,  # fabout_dsd only, not implemented
+    });
+    """
+
+    name = "csl.get_fab_dsd"
+    fabric_color = prop_def(ColorIdAttr)
+    queue_id = prop_def(QueueIdAttr)
+    control = opt_prop_def(BoolAttr)
+    wavelet_index_offset = opt_prop_def(BoolAttr)
+
+    def verify_(self) -> None:
+        if not isinstance(self.result.type, DsdType):
+            raise VerifyException("DSD type is not DsdType")
+        if self.result.type.data not in [DsdKind.fabin_dsd, DsdKind.fabout_dsd]:
+            raise VerifyException("DSD type must be fabric DSD")
+        if len(self.sizes) != 1:
+            raise VerifyException("Fabric DSDs must have exactly one dimension")
+        if self.result.type.data == DsdKind.fabin_dsd and (
+            self.control is not None or self.wavelet_index_offset is not None
+        ):
+            raise VerifyException(
+                "DSD of type fabin_dsd cannot specify control and wavelet_index_offset"
+            )
+
+
+@irdl_op_definition
+class SetDsdBaseAddrOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different base_addr.
+    Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
+
+    Implements the CSL built-in
+    @set_dsd_base_addr(input_dsd, base_addr)
+    """
+
+    name = "csl.set_dsd_base_addr"
+
+    op = operand_def(DsdType)
+    base_addr = operand_def(MemRefType | TensorType | PtrType)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+        ):
+            raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
+        if (
+            isinstance(self.base_addr.type, PtrType)
+            and not self.base_addr.type.kind.data == PtrKind.MANY
+        ):
+            raise VerifyException(
+                f"{self.name} cannot operate on pointers of kind {self.base_addr.type}"
+            )
+
+
+@irdl_op_definition
+class IncrementDsdOffsetOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different offset
+    Only works on memory DSDs, i.e. mem1d_dsd or mem4d_dsd.
+
+    Implements the CSL built-in
+    @increment_dsd_offset(input_dsd, offset, elem_type)
+
+    where offset is a 16-bit signed int that may be negative,
+    and elem_type is used to convert offset into words (any u,i,f type of 16,32 bit)
+    elem_type should be derived by the printer
+    """
+
+    name = "csl.increment_dsd_offset"
+
+    op = operand_def(DsdType)
+    offset = operand_def(i16_value)
+    elem_type = prop_def(DsdElementType)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+            or self.op.type.data not in [DsdKind.mem1d_dsd, DsdKind.mem4d_dsd]
+        ):
+            raise VerifyException(f"{self.name} must operate on mem1d_dsd or mem4d_dsd")
+
+
+@irdl_op_definition
+class SetDsdLengthOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different length
+    Only works on 1-dimensional DSDs, i.e., mem1d_dsd and any fabric DSDs
+
+    Implements the CSL built-in
+    @set_dsd_length(input_dsd, length)
+    """
+
+    name = "csl.set_dsd_length"
+    op = operand_def(DsdType)
+    length = operand_def(u16_value)
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.data == DsdKind.mem4d_dsd
+        ):
+            raise VerifyException(
+                f"{self.name} must operate on one-dimensional DSD types"
+            )
+
+
+@irdl_op_definition
+class SetDsdStrideOp(IRDLOperation):
+    """
+    Returns a clone of the DSD with a different stride
+    Only works mem1d_dsd
+
+    Implements the CSL built-in
+    @set_dsd_stride(input_dsd, stride)
+    """
+
+    name = "csl.set_dsd_stride"
+    op = operand_def(DsdType)
+    stride = operand_def(IntegerType(8, Signedness.SIGNED))
+    result = result_def(DsdType)
+
+    def verify_(self) -> None:
+        if (
+            not isinstance(self.result.type, DsdType)
+            or not isinstance(self.op.type, DsdType)
+            or self.result.type.data != DsdKind.mem1d_dsd
+        ):
+            raise VerifyException(f"{self.name} can only operate on mem1d_dsd type")
+
+
+FunctionSignatures = list[tuple[Attribute | type[Attribute], ...]]
+
+
+class BuiltinDsdOp(IRDLOperation, ABC):
+    ops = var_operand_def()
+
+    SIGNATURES: ClassVar[FunctionSignatures]
+
+    def verify_(self) -> None:
+        def typcheck(
+            op_typ: Attribute,
+            sig_typ: Attribute | type[Attribute],
+        ) -> bool:
+            if isinstance(sig_typ, type):
+                return isinstance(op_typ, sig_typ)
+            else:
+                return op_typ == sig_typ
+
+        for sig in self.SIGNATURES:
+            if len(self.ops) == len(sig):
+                if all(typcheck(op.type, sig_t) for (op, sig_t) in zip(self.ops, sig)):
+                    return
+        raise VerifyException("Cannot find matching type signature")
+
+
+class SymmetricBinary16BitOp(BuiltinDsdOp):
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, i16_value, DsdType),
+        (DsdType, u16_value, DsdType),
+        (DsdType, DsdType, i16_value),
+        (DsdType, DsdType, u16_value),
+    ]
+
+
+class Unary16BitOp(BuiltinDsdOp):
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, i16_value),
+        (DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class Add16Op(SymmetricBinary16BitOp):
+    name = "csl.add16"
+
+
+@irdl_op_definition
+class Add16cOp(SymmetricBinary16BitOp):
+    name = "csl.addc16"
+
+
+@irdl_op_definition
+class And16Op(SymmetricBinary16BitOp):
+    name = "csl.and16"
+
+
+@irdl_op_definition
+class ClzOp(Unary16BitOp):
+    name = "csl.clz"
+
+
+@irdl_op_definition
+class CtzOp(Unary16BitOp):
+    name = "csl.ctz"
+
+
+@irdl_op_definition
+class FabshOp(BuiltinDsdOp):
+    name = "csl.fabsh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class FabssOp(BuiltinDsdOp):
+    name = "csl.fabss"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class FaddhOp(BuiltinDsdOp):
+    name = "csl.faddh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FaddhsOp(BuiltinDsdOp):
+    name = "csl.faddhs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FaddsOp(BuiltinDsdOp):
+    name = "csl.fadds"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float32Type, DsdType),
+        (DsdType, DsdType, Float32Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class Fh2sOp(BuiltinDsdOp):
+    name = "csl.fh2s"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class Fh2xp16Op(BuiltinDsdOp):
+    name = "csl.fh2xp16"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float16Type),
+        (i16_pointer, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class FmachOp(BuiltinDsdOp):
+    name = "csl.fmach"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType, Float16Type)
+    ]
+
+
+@irdl_op_definition
+class FmachsOp(BuiltinDsdOp):
+    name = "csl.fmachs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType, Float16Type)
+    ]
+
+
+@irdl_op_definition
+class FmacsOp(BuiltinDsdOp):
+    name = "csl.fmacs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType, Float32Type)
+    ]
+
+
+@irdl_op_definition
+class FmaxhOp(BuiltinDsdOp):
+    name = "csl.fmaxh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FmaxsOp(BuiltinDsdOp):
+    name = "csl.fmaxs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float32Type, DsdType),
+        (DsdType, DsdType, Float32Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FmovhOp(BuiltinDsdOp):
+    name = "csl.fmovh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (f16_pointer, DsdType),
+        (DsdType, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class FmovsOp(BuiltinDsdOp):
+    name = "csl.fmovs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (f32_pointer, DsdType),
+        (DsdType, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class FmulhOp(BuiltinDsdOp):
+    name = "csl.fmulh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FmulsOp(BuiltinDsdOp):
+    name = "csl.fmuls"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float32Type, DsdType),
+        (DsdType, DsdType, Float32Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FneghOp(BuiltinDsdOp):
+    name = "csl.fnegh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float16Type),
+    ]
+
+
+@irdl_op_definition
+class FnegsOp(BuiltinDsdOp):
+    name = "csl.fnegs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class FnormhOp(BuiltinDsdOp):
+    name = "csl.fnormh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [(f16_pointer, Float16Type)]
+
+
+@irdl_op_definition
+class FnormsOp(BuiltinDsdOp):
+    name = "csl.fnorms"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [(f32_pointer, Float32Type)]
+
+
+@irdl_op_definition
+class Fs2hOp(BuiltinDsdOp):
+    name = "csl.fs2h"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class Fs2xp16Op(BuiltinDsdOp):
+    """
+    Implements @fs2xp16
+    Note: this actually converts to i16, not to i32
+    """
+
+    name = "csl.fs2xp16"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, Float32Type),
+        (i16_pointer, Float32Type),
+    ]
+
+
+@irdl_op_definition
+class FscalehOp(BuiltinDsdOp):
+    name = "csl.fscaleh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [(f16_pointer, Float16Type, i16_value)]
+
+
+@irdl_op_definition
+class FscalesOp(BuiltinDsdOp):
+    name = "csl.fscales"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [(f32_pointer, Float32Type, i16_value)]
+
+
+@irdl_op_definition
+class FsubhOp(BuiltinDsdOp):
+    name = "csl.fsubh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float16Type, DsdType),
+        (DsdType, DsdType, Float16Type),
+        (f16_pointer, Float16Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class FsubsOp(BuiltinDsdOp):
+    name = "csl.fsubs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, Float32Type, DsdType),
+        (DsdType, DsdType, Float32Type),
+        (f32_pointer, Float32Type, DsdType),
+    ]
+
+
+@irdl_op_definition
+class Mov16Op(BuiltinDsdOp):
+    name = "csl.mov16"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (i16_pointer, DsdType),
+        (u16_pointer, DsdType),
+        (DsdType, i16_value),
+        (DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class Mov32Op(BuiltinDsdOp):
+    name = "csl.mov32"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (i32_pointer, DsdType),
+        (u32_pointer, DsdType),
+        (DsdType, i32_value),
+        (DsdType, u32_value),
+    ]
+
+
+@irdl_op_definition
+class Or16Op(SymmetricBinary16BitOp):
+    name = "csl.or16"
+
+
+@irdl_op_definition
+class PopcntOp(Unary16BitOp):
+    name = "csl.popcnt"
+
+
+@irdl_op_definition
+class Sar16Op(SymmetricBinary16BitOp):
+    name = "csl.sar16"
+
+
+@irdl_op_definition
+class Sll16Op(SymmetricBinary16BitOp):
+    name = "csl.sll16"
+
+
+@irdl_op_definition
+class Slr16Op(SymmetricBinary16BitOp):
+    name = "csl.slr16"
+
+
+@irdl_op_definition
+class Sub16Op(BuiltinDsdOp):
+    name = "csl.sub16"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType, DsdType),
+        (DsdType, DsdType, i16_value),
+        (DsdType, DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class Xor16Op(SymmetricBinary16BitOp):
+    name = "csl.xor16"
+
+
+@irdl_op_definition
+class Xp162fhOp(BuiltinDsdOp):
+    name = "csl.xp162fh"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, i16_value),
+        (DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class Xp162fsOp(BuiltinDsdOp):
+    name = "csl.xp162fs"
+
+    SIGNATURES: ClassVar[FunctionSignatures] = [
+        (DsdType, DsdType),
+        (DsdType, i16_value),
+        (DsdType, u16_value),
+    ]
+
+
+@irdl_op_definition
+class SymbolExportOp(IRDLOperation):
+    """
+    This op does not correspond to any particular csl operation, it allows a symbol
+    to be exported in a single operation in both layout and program module.
+
+    It corresponds to @export_name in layout and @export_symbol in program.
+    """
+
+    name = "csl.export"
+
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+
+    value = opt_operand_def(PtrType)
+
+    var_name = prop_def(StringAttr | SymbolRefAttr)
+
+    type = prop_def(PtrType | FunctionType)
+
+    def get_name(self) -> str:
+        match self.var_name:
+            case StringAttr(data=data):
+                return data
+            case SymbolRefAttr():
+                return self.var_name.string_value()
+
+    def verify_(self) -> None:
+        if isinstance(self.var_name, StringAttr):
+            if self.value is None:
+                raise VerifyException(
+                    "When passing var_name as a string, operand also has to be supplied"
+                )
+            if not isinstance(self.type, PtrType):
+                raise VerifyException(
+                    "When passing operand and name as string, type has to be a pointer type"
+                )
+            if self.value.type != self.type:
+                raise VerifyException(
+                    "Type of the operand has to match the type property"
+                )
+        else:  # self.var_name is SymbolRefAttr
+            if self.value is not None:
+                raise VerifyException(
+                    "When passing var_name as a symbol, operand cannot be supplied"
+                )
+            if not isinstance(self.type, FunctionType):
+                raise VerifyException(
+                    "When passing a symbol, type has to be a function type"
+                )
+
+        return super().verify_()
+
+
+@irdl_op_definition
+class AddressOfOp(IRDLOperation):
+    """
+    Take the address of a scalar or an array (memref)
+
+    When taking the address of an array, the type of the returned pointer can
+    be either a single pointer to the array or a many pointer to its contained type.
+    """
+
+    name = "csl.addressof"
+
+    value = operand_def()
+    res = result_def(PtrType)
+
+    def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
+        """
+        Verify that if the address of a memref is taken, the resulting pointer is either:
+            A single pointer to the array type or
+            A many pointer to the array element type
+        E.g.
+            const x: [10]f32;
+            const arr_ptr: *[10]f32 = &x;
+            const elem_ptr: [*]f32 = &x;
+            // const invalid: [*]i32 = &x;
+            // const invalid: *f32 = &x;
+            // const invalid: [*][10]f32 = &x;
+        """
+
+        # GetDsdOp(DsdType(DsdKind("mem4d_dsd")), self.prev_op.prev_op.results[0],
+        #          list((self.prev_op.prev_op.results[1], self.prev_op.prev_op.results[1])))
+        res_elem_ty = res_ty.get_element_type()
+        if res_elem_ty == val_ty.get_element_type():
+            if res_ty.kind.data != PtrKind.MANY:
+                raise VerifyException(
+                    f"The kind of scalar pointer to array has to be {PtrKind.MANY.value}"
+                )
+        elif res_elem_ty == val_ty:
+            if res_ty.kind.data != PtrKind.SINGLE:
+                raise VerifyException(
+                    f"The kind of array pointer to array has to be {PtrKind.SINGLE.value}"
+                )
+        else:
+            raise VerifyException(
+                "Contained type of the result pointer must match the contained type of the operand memref or the memref itself"
+            )
+
+    def verify_(self) -> None:
+        if not isinstance(self.res.type, PtrType):
+            raise VerifyException("Result type must be a pointer")
+
+        val_ty = self.value.type
+        res_ty = self.res.type
+        if isa(val_ty, MemRefType[Attribute]):
+            self._verify_memref_addr(val_ty, res_ty)
+        else:
+            if res_ty.get_element_type() != val_ty:
+                raise VerifyException(
+                    "Contained type of the result pointer must match the operand type"
+                )
+        return super().verify_()
+
+
+@irdl_op_definition
+class RpcOp(IRDLOperation):
+    """
+    represents a call to `@rpc`
+
+    When printing should wrap id in `@get_data_task_id`
+    """
+
+    name = "csl.rpc"
+
+    traits = frozenset([InModuleKind(ModuleKind.PROGRAM)])
+
+    id = operand_def(ColorType)
+
+
+@irdl_op_definition
+class ParamOp(IRDLOperation):
+    """
+    Represents `param` declarations in CSL
+
+    Whilst we can inline most things, the result of memcpy `get_params`
+    function still has to be passed as `param`.
+
+    It can also be useful to change some configuration parameters from the
+    command line by passing params to the compiler.
+    """
+
+    T = Annotated[
+        Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike,
+        ConstraintVar("T"),
+    ]
+
+    name = "csl.param"
+
+    traits = frozenset([HasParent(CslModuleOp)])  # has to be at top level
+
+    param_name = prop_def(StringAttr)
+    init_value = opt_operand_def(T)
+
+    res = result_def(T)
+
+
+@irdl_op_definition
+class SignednessCastOp(IRDLOperation):
+    """
+    Cast that throws away signedness attributes
+    """
+
+    name = "csl.mlir.signedness_cast"
+
+    inp = operand_def(IntegerType)
+
+    result = result_def(IntegerType)
+
+    assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
+
+    def verify_(self) -> None:
+        assert isinstance(self.inp.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
+        if self.inp.type.width != self.result.type.width:
+            raise VerifyException("Input and output type must be of same bitwidth")
+        if self.inp.type.signedness == self.result.type.signedness:
+            raise VerifyException(
+                "Input and output type must be of different signedness"
+            )
+
+
+@irdl_op_definition
+class ConcatStructOp(IRDLOperation):
+    """
+    Concatenate two compile-time known structs
+
+    @concat_structs(this_struct, another_struct);
+
+    this_struct and another_struct are comptime expressions of anonymous struct type.
+
+    Attempting to concatenate a struct with named fields and a struct with nameless fields (e.g. .{1, 2}) results in an error.
+
+    Attempting to concatenate two structs with overlapping named fields also results in an error.
+    """
+
+    name = "csl.concat_structs"
+
+    this_struct = operand_def(ComptimeStructType)
+
+    another_struct = operand_def(ComptimeStructType)
+
+    result = result_def(ComptimeStructType)
+
+
 CSL = Dialect(
     "csl",
     [
-        FuncOp,
-        ReturnOp,
-        ImportModuleConstOp,
-        MemberCallOp,
-        MemberAccessOp,
-        CslModuleOp,
-        LayoutOp,
+        Add16Op,
+        Add16cOp,
+        AddressOfOp,
+        And16Op,
         CallOp,
-        TaskOp,
+        ClzOp,
+        ConcatStructOp,
         ConstStructOp,
+        CslModuleOp,
+        CtzOp,
+        FabshOp,
+        FabssOp,
+        FaddhOp,
+        FaddhsOp,
+        FaddsOp,
+        Fh2sOp,
+        Fh2xp16Op,
+        FmachOp,
+        FmachsOp,
+        FmacsOp,
+        FmaxhOp,
+        FmaxsOp,
+        FmovhOp,
+        FmovsOp,
+        FmulhOp,
+        FmulsOp,
+        FneghOp,
+        FnegsOp,
+        FnormhOp,
+        FnormsOp,
+        Fs2hOp,
+        Fs2xp16Op,
+        FscalehOp,
+        FscalesOp,
+        FsubhOp,
+        FsubsOp,
+        FuncOp,
         GetColorOp,
+        GetFabDsdOp,
+        GetMemDsdOp,
+        ImportModuleConstOp,
+        IncrementDsdOffsetOp,
+        LayoutOp,
+        MemberAccessOp,
+        MemberCallOp,
+        Mov16Op,
+        Mov32Op,
+        Or16Op,
+        ParamOp,
+        PopcntOp,
+        ReturnOp,
+        RpcOp,
+        Sar16Op,
+        SetDsdBaseAddrOp,
+        SetDsdLengthOp,
+        SetDsdStrideOp,
         SetRectangleOp,
         SetTileCodeOp,
+        SignednessCastOp,
+        Sll16Op,
+        Slr16Op,
+        Sub16Op,
+        SymbolExportOp,
+        TaskOp,
+        Xor16Op,
+        Xp162fhOp,
+        Xp162fsOp,
     ],
     [
-        ComptimeStructType,
-        ImportedModuleType,
-        PtrKindAttr,
-        PtrConstAttr,
-        PtrType,
         ColorType,
+        ComptimeStructType,
+        DsdType,
+        ImportedModuleType,
+        PtrType,
         ModuleKindAttr,
+        PtrConstAttr,
+        PtrKindAttr,
         TaskKindAttr,
     ],
 )

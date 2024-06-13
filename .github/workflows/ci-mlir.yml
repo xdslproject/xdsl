@@ -25,6 +25,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         path: xdsl
+        fetch-depth: 2
 
     - name: Install native dependencies
       uses: awalsh128/cache-apt-pkgs-action@latest
@@ -128,5 +129,6 @@ jobs:
         with: |
           fail_ci_if_error: true
           verbose: true
+          root_dir: xdsl
           files: coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}

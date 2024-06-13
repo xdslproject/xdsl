@@ -8,6 +8,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 class SimplifyTrivialLoops(RewritePattern):
@@ -73,7 +74,7 @@ def replace_op_with_region(
     block = region.block
     terminator = block.last_op
     assert terminator is not None
-    rewriter.inline_block_before(block, op, args)
+    rewriter.inline_block(block, InsertPoint.before(op), args)
     rewriter.replace_op(op, (), terminator.operands)
     rewriter.erase_op(terminator)
 

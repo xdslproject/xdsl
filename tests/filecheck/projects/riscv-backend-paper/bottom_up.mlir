@@ -1,14 +1,14 @@
-// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,riscv-scf-loop-flatten,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
     %Y: memref<1x1x3x3xf64>,
     %Z: memref<1x1x6x6xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c6 = arith.constant 6 : i32
-    %c9 = arith.constant 9 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c3 = arith.constant 3 : index
+    %c6 = arith.constant 6 : index
 
     %zero_float = arith.constant 0.0 : f64
 
@@ -25,12 +25,15 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         scf.for %i1 = %c0 to %c1 step %c1 {
           scf.for %i2 = %c0 to %c6 step %c1 {
             scf.for %i3 = %c0 to %c6 step %c1 {
-              %z = scf.for %i = %c0 to %c9 step %c1 iter_args(%acc = %zero_float) -> (f64) {
-                %x = memref_stream.read from %x_stream : f64
-                %y = memref_stream.read from %y_stream : f64
-                %prod = arith.mulf %x, %y fastmath<fast> : f64
-                %res = arith.addf %prod, %acc fastmath<fast> : f64
-                scf.yield %res : f64
+              %z = scf.for %i = %c0 to %c3 step %c1 iter_args(%acc0 = %zero_float) -> (f64) {
+                %z3 = scf.for %j = %c0 to %c3 step %c1 iter_args(%acc1 = %acc0) -> (f64) {
+                  %x = memref_stream.read from %x_stream : f64
+                  %y = memref_stream.read from %y_stream : f64
+                  %prod = arith.mulf %x, %y fastmath<fast> : f64
+                  %res = arith.addf %prod, %acc1 fastmath<fast> : f64
+                  scf.yield %res : f64
+                }
+                scf.yield %z3 : f64
               }
 
               memref_stream.write %z to %z_stream : f64
@@ -250,12 +253,12 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<8x8xf64>,
     %G : memref<8x8xf64>
   ) {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c2 = arith.constant 2 : i32
-    %c4 = arith.constant 4 : i32
-    %c8 = arith.constant 8 : i32
-    %frep_count = arith.constant 6 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c2 = arith.constant 2 : index
+    %c4 = arith.constant 4 : index
+    %c8 = arith.constant 8 : index
+    %frep_count = arith.constant 6 : index
 
     memref_stream.streaming_region {
       patterns = [
@@ -404,11 +407,11 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c7 = arith.constant 7 : i32
-    %c9 = arith.constant 9 : i32
-    %c512 = arith.constant 512 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c3 = arith.constant 3 : index
+    %c7 = arith.constant 7 : index
+    %c512 = arith.constant 512 : index
 
     %min_val = arith.constant -10000.0 : f64
 
@@ -423,10 +426,13 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
         scf.for %i1 = %c0 to %c1 step %c1 {
           scf.for %i2 = %c0 to %c7 step %c1 {
             scf.for %i3 = %c0 to %c7 step %c1 {
-              %y = scf.for %i = %c0 to %c9 step %c1 iter_args(%acc = %min_val) -> (f64) {
-                %x = memref_stream.read from %x_stream : f64
-                %res = arith.maximumf %x, %acc : f64
-                scf.yield %res : f64
+              %y = scf.for %i = %c0 to %c3 step %c1 iter_args(%acc0 = %min_val) -> (f64) {
+                %y3 = scf.for %j = %c0 to %c3 step %c1 iter_args(%acc1 = %acc0) -> (f64) {
+                  %x = memref_stream.read from %x_stream : f64
+                  %res = arith.maximumf %x, %acc1 : f64
+                  scf.yield %res : f64
+                }
+                scf.yield %y3 : f64
               }
 
               memref_stream.write %y to %y_stream : f64
@@ -534,11 +540,11 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    %c0 = arith.constant 0 : i32
-    %c1 = arith.constant 1 : i32
-    %c7 = arith.constant 7 : i32
-    %c9 = arith.constant 9 : i32
-    %c512 = arith.constant 512 : i32
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c3 = arith.constant 3 : index
+    %c7 = arith.constant 7 : index
+    %c512 = arith.constant 512 : index
 
     %zero_float = arith.constant 0.0 : f64
 
@@ -553,10 +559,13 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
         scf.for %i1 = %c0 to %c1 step %c1 {
           scf.for %i2 = %c0 to %c7 step %c1 {
             scf.for %i3 = %c0 to %c7 step %c1 {
-              %y = scf.for %i = %c0 to %c9 step %c1 iter_args(%acc = %zero_float) -> (f64) {
-                %x = memref_stream.read from %x_stream : f64
-                %res = arith.addf %x, %acc : f64
-                scf.yield %res : f64
+              %y = scf.for %i = %c0 to %c3 step %c1 iter_args(%acc0 = %zero_float) -> (f64) {
+                %y3 = scf.for %j = %c0 to %c3 step %c1 iter_args(%acc1 = %acc0) -> (f64) {
+                  %x = memref_stream.read from %x_stream : f64
+                  %res = arith.addf %x, %acc1 : f64
+                  scf.yield %res : f64
+                }
+                scf.yield %y3 : f64
               }
 
               memref_stream.write %y to %y_stream : f64

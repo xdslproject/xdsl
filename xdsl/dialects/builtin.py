@@ -39,6 +39,7 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     AttrConstraint,
+    ConstraintContext,
     GenericData,
     IRDLOperation,
     MessageConstraint,
@@ -82,7 +83,9 @@ class ShapedType(ABC):
 
 
 class AnyShapedType(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, ShapedType):
             raise Exception(f"expected type ShapedType but got {attr}")
 
@@ -105,7 +108,7 @@ class NoneAttr(ParametrizedAttribute):
     name = "none"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ArrayOfConstraint(AttrConstraint):
     """
     A constraint that enforces an ArrayData whose elements all satisfy
@@ -115,13 +118,13 @@ class ArrayOfConstraint(AttrConstraint):
     elem_constr: AttrConstraint
 
     def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
-        self.elem_constr = attr_constr_coercion(constr)
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(constr))
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         for e in cast(ArrayAttr[Attribute], attr).data:
-            self.elem_constr.verify(e, constraint_vars)
+            self.elem_constr.verify(e, constraint_context)
 
 
 @irdl_attr_definition
@@ -243,7 +246,9 @@ class EmptyArrayAttrConstraint(AttrConstraint):
     Constrain attribute to be empty ArrayData
     """
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         attr = cast(ArrayAttr[Attribute], attr)
@@ -359,6 +364,9 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
 i64 = IntegerType(64)
 i32 = IntegerType(32)
 i1 = IntegerType(1)
+I64 = Annotated[IntegerType, i64]
+I32 = Annotated[IntegerType, i32]
+I1 = Annotated[IntegerType, i1]
 
 
 SignlessIntegerConstraint = ParamAttrConstraint(
@@ -792,7 +800,7 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class ContainerOf(AttrConstraint):
     """A type constraint that can be nested once in a vector or a tensor."""
 
@@ -801,14 +809,14 @@ class ContainerOf(AttrConstraint):
     def __init__(
         self, elem_constr: Attribute | type[Attribute] | AttrConstraint
     ) -> None:
-        self.elem_constr = attr_constr_coercion(elem_constr)
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
             attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
-            self.elem_constr.verify(attr.element_type, constraint_vars)
+            self.elem_constr.verify(attr.element_type, constraint_context)
         else:
-            self.elem_constr.verify(attr, constraint_vars)
+            self.elem_constr.verify(attr, constraint_context)
 
 
 VectorOrTensorOf: TypeAlias = (
@@ -822,7 +830,7 @@ RankedVectorOrTensorOf: TypeAlias = (
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank.
@@ -831,7 +839,9 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
@@ -840,7 +850,7 @@ class VectorRankConstraint(AttrConstraint):
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorBaseTypeConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given base type.
@@ -849,7 +859,9 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         attr = cast(VectorType[Attribute], attr)
@@ -859,7 +871,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorBaseTypeAndRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank and base type.
@@ -871,14 +883,14 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         constraint = AllOf(
-            [
+            (
                 VectorBaseTypeConstraint(self.expected_type),
                 VectorRankConstraint(self.expected_rank),
-            ]
+            )
         )
-        constraint.verify(attr, constraint_vars)
+        constraint.verify(attr, constraint_context)
 
 
 @irdl_attr_definition
@@ -1046,15 +1058,15 @@ class DenseResourceAttr(ParametrizedAttribute):
 class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | AnyFloat]
+    elt_type: ParameterDef[IntegerType | IndexType | AnyFloat]
     data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
 
     def verify(self):
-        if isinstance(self.elt_type, IntegerType):
+        if isinstance(self.elt_type, IntegerType | IndexType):
             for d in self.data.data:
                 if isinstance(d, FloatData):
                     raise VerifyException(
-                        "dense array of integer element type "
+                        "dense array of integer or index element type "
                         "should only contain integers"
                     )
         else:
@@ -1163,8 +1175,18 @@ class OpaqueAttr(ParametrizedAttribute):
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 
+class MemrefLayoutAttr(Attribute, ABC):
+    """
+    Interface for any attribute acceptable as a memref layout.
+    """
+
+    name = "abstract.memref_layout_att"
+
+    pass
+
+
 @irdl_attr_definition
-class StridedLayoutAttr(ParametrizedAttribute):
+class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
     See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
@@ -1206,7 +1228,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class AffineMapAttr(Data[AffineMap]):
+class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
     """An Attribute containing an AffineMap object."""
 
     name = "affine_map"
@@ -1513,14 +1535,14 @@ class MemRefType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[Attribute]
+    layout: ParameterDef[MemrefLayoutAttr | NoneAttr]
     memory_space: ParameterDef[Attribute]
 
     def __init__(
         self: MemRefType[_MemRefTypeElement],
         element_type: _MemRefTypeElement,
         shape: Iterable[int | IntAttr],
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
         shape = ArrayAttr(
@@ -1549,7 +1571,7 @@ class MemRefType(
     def from_element_type_and_shape(
         referenced_type: _MemRefTypeElement,
         shape: Iterable[int | AnyIntegerAttr],
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
         shape_int = [i if isinstance(i, int) else i.value.data for i in shape]
@@ -1562,7 +1584,7 @@ class MemRefType(
         shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)]
         ),
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
         shape_int = [i.value.data for i in shape.data]

@@ -14,6 +14,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 @dataclass
@@ -80,7 +81,7 @@ class StreamifyGenericOpPattern(RewritePattern):
         for stream_index, (index, _) in enumerate(streamed_operand_indices):
             new_operands[index] = new_body.args[stream_index]
 
-        rewriter.insert_op_at_end(
+        rewriter.insert_op(
             memref_stream.GenericOp(
                 new_operands[:input_count],
                 new_operands[input_count:],
@@ -89,7 +90,7 @@ class StreamifyGenericOpPattern(RewritePattern):
                 op.iterator_types,
                 op.bounds,
             ),
-            new_body,
+            InsertPoint.at_end(new_body),
         )
         rewriter.erase_matched_op()
 

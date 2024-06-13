@@ -305,6 +305,9 @@ class InputApp(App[None]):
         if len(self.pass_pipeline) >= 1:
             self.selected_passes_list_view.append(ListItem(Label("."), name="."))
 
+        if not self.pass_pipeline:
+            return
+
         # last element is the node of the tree
         pass_pipeline = self.pass_pipeline[:-1]
         for pass_value, value_spec in pass_pipeline:
@@ -641,7 +644,7 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#clear_passes_button")
     def clear_passes(self, event: Button.Pressed) -> None:
         """Selected passes cleared when "Clear Passes" button is pressed."""
-        self.pass_pipeline = ()
+        self.pass_pipeline = tuple[tuple[type[ModulePass], PipelinePassSpec], ...]()
 
     @on(Button.Pressed, "#condense_button")
     def condense(self, event: Button.Pressed) -> None:

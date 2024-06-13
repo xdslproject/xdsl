@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -506,7 +506,7 @@ class SpacedOpaqueSyntaxAttribute(OpaqueSyntaxAttribute):
     pass
 
 
-DataElement = TypeVar("DataElement", covariant=True)
+DataElement = TypeVar("DataElement", covariant=True, bound=Hashable)
 
 AttributeCovT = TypeVar("AttributeCovT", bound=Attribute, covariant=True)
 AttributeInvT = TypeVar("AttributeInvT", bound=Attribute)
@@ -608,17 +608,7 @@ class EnumAttribute(Data[EnumType]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
-        enum_type = cls.enum_type
-
-        val = parser.parse_identifier()
-        if val not in enum_type.__members__.values():
-            enum_values = list(enum_type)
-            if len(enum_values) == 1:
-                parser.raise_error(f"Expected `{enum_values[0]}`.")
-            parser.raise_error(
-                f"Expected `{'`, `'.join(enum_values[:-1])}` or `{enum_values[-1]}`."
-            )
-        return cast(EnumType, enum_type(val))
+        return cast(EnumType, parser.parse_str_enum(cls.enum_type))
 
 
 @dataclass(frozen=True, init=False)
@@ -760,6 +750,17 @@ class OpOperands(Sequence[SSAValue]):
 
     def __len__(self) -> int:
         return len(self._op._operands)  # pyright: ignore[reportPrivateUsage]
+
+    def __eq__(self, other: object):
+        if not isinstance(other, OpOperands):
+            return False
+        return (
+            self._op._operands  # pyright: ignore[reportPrivateUsage]
+            == other._op._operands  # pyright: ignore[reportPrivateUsage]
+        )
+
+    def __hash__(self):
+        return hash(self._op._operands)  # pyright: ignore[reportPrivateUsage]
 
 
 @dataclass

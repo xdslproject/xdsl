@@ -12,5 +12,4 @@
   }) {"operandSegmentSizes" = array<i32: 1, 1, 1, 0>} : (index, index, index) -> ()
 }) : () -> ()
 
-// CHECK:      Operation does not verify: region at position 0 does not verify:
-// CHECK-NEXT: expected a single block, but got 2 blocks
+// CHECK:      Operation does not verify: Region 'body' at position 0 expected a single block, but got 2 blocks

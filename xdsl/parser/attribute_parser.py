@@ -38,6 +38,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
+    MemrefLayoutAttr,
     MemRefType,
     NoneAttr,
     NoneType,
@@ -520,26 +521,17 @@ class AttrParser(BaseParser):
         # layout is the second one
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
+            if not isinstance(memory_or_layout, MemrefLayoutAttr):
+                self.raise_error("Expected a MemRef layout attribute")
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # Otherwise, there is a single argument, so we check based on the
-        # attribute type. If we don't know, we return an error.
-        # MLIR base itself on the `MemRefLayoutAttrInterface`, which we do not
-        # support.
-
-        # If the argument is an integer, it is a memory space
-        if isa(memory_or_layout, AnyIntegerAttr):
-            return MemRefType(type, shape, memory_space=memory_or_layout)
-
-        # We only accept strided layouts and affine_maps
-        if isa(memory_or_layout, StridedLayoutAttr) or (
-            isinstance(memory_or_layout, UnregisteredAttr)
-            and memory_or_layout.attr_name.data == "affine_map"
-        ):
+        # If the argument is a MemrefLayoutAttr, use it as layout
+        if isinstance(memory_or_layout, MemrefLayoutAttr):
             return MemRefType(type, shape, layout=memory_or_layout)
-        self.raise_error(
-            "Cannot decide if the given attribute " "is a layout or a memory space!"
-        )
+
+        # Otherwise, consider it as the memory space.
+        else:
+            return MemRefType(type, shape, memory_space=memory_or_layout)
 
     def _parse_vector_attrs(self) -> AnyVectorType:
         dims: list[int] = []
