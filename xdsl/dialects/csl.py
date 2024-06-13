@@ -376,6 +376,14 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
+    @staticmethod
+    def get(name: str, *params: SSAValue | Operation) -> ImportModuleConstOp:
+        return ImportModuleConstOp(
+            operands=[[]] if len(params) == 0 else params,
+            result_types=[ImportedModuleType()],
+            properties={"module": StringAttr(name)},
+        )
+
 
 @irdl_op_definition
 class ConstStructOp(IRDLOperation):
@@ -398,6 +406,19 @@ class ConstStructOp(IRDLOperation):
             "Number of ssa_fields has to match the number of arguments"
         )
 
+    @staticmethod
+    def get(*args: tuple[str, Operation]) -> ConstStructOp:
+        operands: list[Operation] = []
+        fields: list[StringAttr] = []
+        for fname, op in args:
+            fields.append(StringAttr(fname))
+            operands.append(op)
+        return ConstStructOp(
+            operands=[operands],
+            result_types=[ComptimeStructType()],
+            properties={"ssa_fields": ArrayAttr(fields)},
+        )
+
 
 @irdl_op_definition
 class GetColorOp(IRDLOperation):
@@ -405,6 +426,10 @@ class GetColorOp(IRDLOperation):
 
     id = operand_def(IntegerType)
     res = result_def(ColorType)
+
+    @staticmethod
+    def get(op: Operation) -> GetColorOp:
+        return GetColorOp(operands=[op], result_types=[ColorType()])
 
 
 @irdl_op_definition
@@ -437,6 +462,21 @@ class MemberCallOp(IRDLOperation):
     args = var_operand_def(Attribute)
 
     result = opt_result_def(Attribute)
+
+    @staticmethod
+    def get(
+        fname: str,
+        result_type: Attribute,
+        struct: Operation,
+        *params: SSAValue | Operation,
+    ) -> MemberCallOp:
+        return MemberCallOp(
+            operands=[struct, params],
+            result_types=[result_type],
+            properties={
+                "field": StringAttr(fname),
+            },
+        )
 
 
 @irdl_op_definition
@@ -702,6 +742,18 @@ class SetTileCodeOp(IRDLOperation):
     x_coord = operand_def(IntegerType)
     y_coord = operand_def(IntegerType)
     params = opt_operand_def(ComptimeStructType)
+
+    @staticmethod
+    def get(
+        fname: str | StringAttr,
+        x_coord: SSAValue | Operation,
+        y_coord: SSAValue | Operation,
+        params: SSAValue | Operation,
+    ) -> SetTileCodeOp:
+        name = StringAttr(fname) if isinstance(fname, str) else fname
+        return SetTileCodeOp(
+            operands=[x_coord, y_coord, params], properties={"file": name}
+        )
 
 
 class _GetDsdOp(IRDLOperation, ABC):
@@ -1486,6 +1538,14 @@ class ParamOp(IRDLOperation):
 
     res = result_def(T)
 
+    @staticmethod
+    def get(name: str, result_type: T) -> ParamOp:
+        return ParamOp(
+            operands=[[]],
+            result_types=[result_type],
+            properties={"param_name": StringAttr(name)},
+        )
+
 
 @irdl_op_definition
 class SignednessCastOp(IRDLOperation):
@@ -1533,6 +1593,13 @@ class ConcatStructOp(IRDLOperation):
     another_struct = operand_def(ComptimeStructType)
 
     result = result_def(ComptimeStructType)
+
+    @staticmethod
+    def get(op1: Operation, op2: Operation) -> ConcatStructOp:
+        return ConcatStructOp(
+            operands=[op1, op2],
+            result_types=[ComptimeStructType()],
+        )
 
 
 CSL = Dialect(
