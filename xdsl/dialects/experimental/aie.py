@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemrefLayoutAttr,
     MemRefType,
     ModuleOp,
     NoneAttr,
@@ -163,7 +164,7 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute):
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
         shape: Iterable[int | IntAttr],
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> ObjectFIFO[AttributeInvT]:
         return ObjectFIFO(
