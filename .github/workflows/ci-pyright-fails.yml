@@ -31,11 +31,11 @@ jobs:
         run: |
           pip install --upgrade pip
       - name: Install the package locally
-        run: 
+        run:
           pip install -r requirements.txt
       - name: retrieve pyright version
         run: | # get pyright version from dev dependencies:
-          VER=$(sed -n 's/"pyright==\(\S*\)"/\1/p' pyproject.toml)
+          VER=$(sed -n 's/"pyright==\(\S*\)",/\1/p' pyproject.toml)
           echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
       - name: Pyright
         uses: jakebailey/pyright-action@v1
