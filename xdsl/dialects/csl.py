@@ -1487,32 +1487,66 @@ class ParamOp(IRDLOperation):
     res = result_def(T)
 
 
+@irdl_op_definition
+class SignednessCastOp(IRDLOperation):
+    """
+    Cast that throws away signedness attributes
+    """
+
+    name = "csl.mlir.signedness_cast"
+
+    inp = operand_def(IntegerType)
+
+    result = result_def(IntegerType)
+
+    assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
+
+    def verify_(self) -> None:
+        assert isinstance(self.inp.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
+        if self.inp.type.width != self.result.type.width:
+            raise VerifyException("Input and output type must be of same bitwidth")
+        if self.inp.type.signedness == self.result.type.signedness:
+            raise VerifyException(
+                "Input and output type must be of different signedness"
+            )
+
+
+@irdl_op_definition
+class ConcatStructOp(IRDLOperation):
+    """
+    Concatenate two compile-time known structs
+
+    @concat_structs(this_struct, another_struct);
+
+    this_struct and another_struct are comptime expressions of anonymous struct type.
+
+    Attempting to concatenate a struct with named fields and a struct with nameless fields (e.g. .{1, 2}) results in an error.
+
+    Attempting to concatenate two structs with overlapping named fields also results in an error.
+    """
+
+    name = "csl.concat_structs"
+
+    this_struct = operand_def(ComptimeStructType)
+
+    another_struct = operand_def(ComptimeStructType)
+
+    result = result_def(ComptimeStructType)
+
+
 CSL = Dialect(
     "csl",
     [
-        FuncOp,
-        ReturnOp,
-        ImportModuleConstOp,
-        MemberCallOp,
-        MemberAccessOp,
-        CslModuleOp,
-        LayoutOp,
-        CallOp,
-        TaskOp,
-        ConstStructOp,
-        GetColorOp,
-        SetRectangleOp,
-        SetTileCodeOp,
-        GetMemDsdOp,
-        GetFabDsdOp,
-        SetDsdBaseAddrOp,
-        IncrementDsdOffsetOp,
-        SetDsdLengthOp,
-        SetDsdStrideOp,
         Add16Op,
         Add16cOp,
+        AddressOfOp,
         And16Op,
+        CallOp,
         ClzOp,
+        ConcatStructOp,
+        ConstStructOp,
+        CslModuleOp,
         CtzOp,
         FabshOp,
         FabssOp,
@@ -1540,31 +1574,47 @@ CSL = Dialect(
         FscalesOp,
         FsubhOp,
         FsubsOp,
+        FuncOp,
+        GetColorOp,
+        GetFabDsdOp,
+        GetMemDsdOp,
+        ImportModuleConstOp,
+        IncrementDsdOffsetOp,
+        LayoutOp,
+        MemberAccessOp,
+        MemberCallOp,
         Mov16Op,
         Mov32Op,
         Or16Op,
+        ParamOp,
         PopcntOp,
+        ReturnOp,
+        RpcOp,
         Sar16Op,
+        SetDsdBaseAddrOp,
+        SetDsdLengthOp,
+        SetDsdStrideOp,
+        SetRectangleOp,
+        SetTileCodeOp,
+        SignednessCastOp,
         Sll16Op,
         Slr16Op,
         Sub16Op,
+        SymbolExportOp,
+        TaskOp,
         Xor16Op,
         Xp162fhOp,
         Xp162fsOp,
-        AddressOfOp,
-        SymbolExportOp,
-        RpcOp,
-        ParamOp,
     ],
     [
-        ComptimeStructType,
-        ImportedModuleType,
-        PtrKindAttr,
-        PtrConstAttr,
-        PtrType,
-        DsdType,
         ColorType,
+        ComptimeStructType,
+        DsdType,
+        ImportedModuleType,
+        PtrType,
         ModuleKindAttr,
+        PtrConstAttr,
+        PtrKindAttr,
         TaskKindAttr,
     ],
 )
