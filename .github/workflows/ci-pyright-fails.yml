@@ -33,10 +33,9 @@ jobs:
       - name: Install the package locally
         run: 
           pip install -r requirements.txt
-          pip install -e ".[onnx]"
       - name: retrieve pyright version
-        run: | # get pyright version from requirements optional file:
-          VER=$(sed -n 's/^.*pyright==\s*\(\S*\).*$/\1/p' requirements.txt)
+        run: | # get pyright version from dev dependencies:
+          VER=$(sed -n 's/"pyright==\(\S*\)"/\1/p' pyproject.toml)
           echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
       - name: Pyright
         uses: jakebailey/pyright-action@v1
