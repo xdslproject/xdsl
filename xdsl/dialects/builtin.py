@@ -1175,8 +1175,18 @@ class OpaqueAttr(ParametrizedAttribute):
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 
+class MemrefLayoutAttr(Attribute, ABC):
+    """
+    Interface for any attribute acceptable as a memref layout.
+    """
+
+    name = "abstract.memref_layout_att"
+
+    pass
+
+
 @irdl_attr_definition
-class StridedLayoutAttr(ParametrizedAttribute):
+class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
     See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
@@ -1218,7 +1228,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class AffineMapAttr(Data[AffineMap]):
+class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
     """An Attribute containing an AffineMap object."""
 
     name = "affine_map"
@@ -1525,14 +1535,14 @@ class MemRefType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[Attribute]
+    layout: ParameterDef[MemrefLayoutAttr | NoneAttr]
     memory_space: ParameterDef[Attribute]
 
     def __init__(
         self: MemRefType[_MemRefTypeElement],
         element_type: _MemRefTypeElement,
         shape: Iterable[int | IntAttr],
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
         shape = ArrayAttr(
@@ -1561,7 +1571,7 @@ class MemRefType(
     def from_element_type_and_shape(
         referenced_type: _MemRefTypeElement,
         shape: Iterable[int | AnyIntegerAttr],
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
         shape_int = [i if isinstance(i, int) else i.value.data for i in shape]
@@ -1574,7 +1584,7 @@ class MemRefType(
         shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
             [IntegerAttr.from_int_and_width(1, 64)]
         ),
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> MemRefType[_MemRefTypeElement]:
         shape_int = [i.value.data for i in shape.data]
