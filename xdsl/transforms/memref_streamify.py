@@ -3,10 +3,7 @@ from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref, memref_stream, stream
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    ModuleOp,
-)
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp, UnitAttr
 from xdsl.ir import Attribute, Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -26,6 +23,15 @@ class StreamifyGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
+        if any(isinstance(operand.type, stream.StreamType) for operand in op.operands):
+            # Already streamified
+            return
+
+        if any(not isinstance(init, UnitAttr) for init in op.inits):
+            raise NotImplementedError(
+                "Cannot streamify operation that has inits that are not UnitAttr"
+            )
+
         # Currently can only stream memrefs that are not inout
         streamable_input_indices = tuple(
             (index, cast(memref.MemRefType[Attribute], value_type).element_type)
@@ -87,6 +93,7 @@ class StreamifyGenericOpPattern(RewritePattern):
                 new_operands[:input_count],
                 new_operands[input_count:],
                 rewriter.move_region_contents_to_new_regions(op.body),
+                op.inits,
                 op.indexing_maps,
                 op.iterator_types,
                 op.bounds,

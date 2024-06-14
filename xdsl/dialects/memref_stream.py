@@ -15,7 +15,15 @@ from typing import Any, cast
 from typing_extensions import Self
 
 from xdsl.dialects import memref, stream
-from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, IntAttr, StringAttr
+from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    AnyFloatAttr,
+    AnyIntegerAttr,
+    ArrayAttr,
+    IntAttr,
+    StringAttr,
+    UnitAttr,
+)
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
@@ -39,6 +47,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -310,6 +319,12 @@ class GenericOp(IRDLOperation):
     pattern defines the order in which the elements of the input buffers will be written
     to.
     """
+    inits = prop_def(ArrayAttr[AnyFloatAttr | AnyIntegerAttr | UnitAttr])
+    """
+    Initial values for outputs. If `NoneAttr`, then the value is read from the output
+    buffer. Otherwise, the value is created at runtime with an `arith.constant` operation
+    during lowering. The inits may be set only for the imperfectly nested form.
+    """
     indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
     """
     Stride patterns that define the order of the input and output streams.
@@ -332,6 +347,7 @@ class GenericOp(IRDLOperation):
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
         body: Region,
+        inits: ArrayAttr[AnyFloatAttr | AnyIntegerAttr | UnitAttr],
         indexing_maps: ArrayAttr[AffineMapAttr],
         iterator_types: ArrayAttr[Attribute],
         bounds: ArrayAttr[IntAttr],
@@ -345,6 +361,7 @@ class GenericOp(IRDLOperation):
             operands=[inputs, outputs],
             properties={
                 "bounds": bounds,
+                "inits": inits,
                 "indexing_maps": ArrayAttr(indexing_maps),
                 "iterator_types": ArrayAttr(iterator_types),
             },
@@ -380,6 +397,12 @@ class GenericOp(IRDLOperation):
             lambda iterator_type: printer.print_string_literal(iterator_type.data),
         )
         printer.print_string("]")
+        printer.print_string(", inits = [")
+        printer.print_list(
+            self.inits,
+            lambda val: printer.print_attribute(val),
+        )
+        printer.print_string("]")
         printer.print_string("}")
 
         if self.inputs:
@@ -405,6 +428,8 @@ class GenericOp(IRDLOperation):
             del extra_attrs["doc"]
         if "library_call" in extra_attrs:
             del extra_attrs["library_call"]
+        if "inits" in extra_attrs:
+            del extra_attrs["inits"]
 
         if extra_attrs:
             printer.print(" attrs = ")
@@ -438,7 +463,7 @@ class GenericOp(IRDLOperation):
             del attrs["indexing_maps"]
         else:
             parser.raise_error(
-                "Expected indexing_maps for linalg.generic",
+                "Expected indexing_maps for memref_stream.generic",
                 attrs_start_pos,
                 attrs_end_pos,
             )
@@ -469,7 +494,19 @@ class GenericOp(IRDLOperation):
                         )
         else:
             parser.raise_error(
-                "Expected iterator_types for linalg.generic",
+                "Expected iterator_types for memref_stream.generic",
+                attrs_start_pos,
+                attrs_end_pos,
+            )
+
+        if "inits" in attrs:
+            inits = attrs["inits"]
+            if not isa(inits, ArrayAttr[AnyFloatAttr | AnyIntegerAttr | UnitAttr]):
+                parser.raise_error("Expected inits for memref_stream.generic")
+            del attrs["inits"]
+        else:
+            parser.raise_error(
+                "Expected inits for memref_stream.generic",
                 attrs_start_pos,
                 attrs_end_pos,
             )
@@ -532,6 +569,7 @@ class GenericOp(IRDLOperation):
             ins,
             outs,
             body,
+            inits,
             indexing_maps,
             ArrayAttr(iterator_types),
             bounds,
@@ -542,6 +580,13 @@ class GenericOp(IRDLOperation):
         return generic
 
     def verify_(self) -> None:
+        # Verify that the number of initial values for outputs is the same as the number
+        # of outputs
+        if len(self.inits) != len(self.outputs):
+            raise VerifyException(
+                f"Mismatching number of outputs and initial values: {len(self.outputs)} != {self.inits}"
+            )
+
         # Parallel iterator types must preceed reduction iterators
         iterator_types = self.iterator_types.data
         num_parallel = iterator_types.count(IteratorTypeAttr.parallel())
@@ -585,6 +630,17 @@ class GenericOp(IRDLOperation):
                 "The number of dims in output indexing maps must be "
                 f"{len(iterator_types)} or {num_parallel}"
             )
+
+        # The non-None values of the inits must correspond to inputs where the domain
+        # of the affine map has the same number of dimensions as the number of parallel
+        # iterators
+        for i, (m, init) in enumerate(zip(output_maps, self.inits, strict=True)):
+            if init != UnitAttr():
+                if m.data.num_dims != num_parallel:
+                    raise VerifyException(
+                        "Incompatible affine map and initial value for output at index "
+                        f"{i}"
+                    )
 
 
 @irdl_op_definition

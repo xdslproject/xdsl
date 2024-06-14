@@ -50,18 +50,19 @@ memref_stream.generic {
         affine_map<(d0, d1) -> (d1)>,
         affine_map<(d0, d1) -> (d0, d1)>
     ],
-    iterator_types = ["parallel", "parallel"]
+    iterator_types = ["parallel", "parallel"],
+    inits = [unit]
 } ins(%A, %B : memref<2xf32>, memref<3xf32>) outs(%C : memref<3x2xf64>) attrs = {hello = "world"} {
 ^bb0(%arg3: f32, %arg4: f32):
     memref_stream.yield %arg3 : f32
 }
 
-// CHECK-NEXT:          memref_stream.generic {bounds = [#builtin.int<3>, #builtin.int<2>], indexing_maps = [affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%A, %B : memref<2xf32>, memref<3xf32>) outs(%C : memref<3x2xf64>) attrs =  {"hello" = "world"} {
+// CHECK-NEXT:          memref_stream.generic {bounds = [#builtin.int<3>, #builtin.int<2>], indexing_maps = [affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"], inits = [unit]} ins(%A, %B : memref<2xf32>, memref<3xf32>) outs(%C : memref<3x2xf64>) attrs =  {"hello" = "world"} {
 // CHECK-NEXT:          ^1(%arg3 : f32, %arg4 : f32):
 // CHECK-NEXT:            memref_stream.yield %arg3 : f32
 // CHECK-NEXT:          }
 
-// CHECK-GENERIC-NEXT:    "memref_stream.generic"(%A, %B, %C) <{"bounds" = [#builtin.int<3>, #builtin.int<2>], "indexing_maps" = [affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
+// CHECK-GENERIC-NEXT:    "memref_stream.generic"(%A, %B, %C) <{"bounds" = [#builtin.int<3>, #builtin.int<2>], "inits" = [unit], "indexing_maps" = [affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^1(%arg3 : f32, %arg4 : f32):
 // CHECK-GENERIC-NEXT:      "memref_stream.yield"(%arg3) : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) {"hello" = "world"} : (memref<2xf32>, memref<3xf32>, memref<3x2xf64>) -> ()
@@ -72,21 +73,56 @@ memref_stream.generic {
         affine_map<(d0, d1) -> ()>,
         affine_map<(d0, d1) -> (d0, d1)>
     ],
-    iterator_types = ["parallel", "parallel"]
+    iterator_types = ["parallel", "parallel"],
+    inits = [unit]
 } ins(%D : f64) outs(%C : memref<3x2xf64>) {
 ^bb0(%d : f64, %c : f64):
     memref_stream.yield %d : f64
 }
 
-// CHECK-NEXT:    memref_stream.generic {bounds = [#builtin.int<3>, #builtin.int<2>], indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%D : f64) outs(%C : memref<3x2xf64>) {
+// CHECK-NEXT:    memref_stream.generic {bounds = [#builtin.int<3>, #builtin.int<2>], indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"], inits = [unit]} ins(%D : f64) outs(%C : memref<3x2xf64>) {
 // CHECK-NEXT:    ^2(%d : f64, %c_1 : f64):
 // CHECK-NEXT:      memref_stream.yield %d : f64
 // CHECK-NEXT:    }
 
-// CHECK-GENERIC-NEXT:    "memref_stream.generic"(%D, %C) <{"bounds" = [#builtin.int<3>, #builtin.int<2>], "indexing_maps" = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    "memref_stream.generic"(%D, %C) <{"bounds" = [#builtin.int<3>, #builtin.int<2>], "inits" = [unit], "indexing_maps" = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 1, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^2(%d : f64, %c_1 : f64):
 // CHECK-GENERIC-NEXT:      "memref_stream.yield"(%d) : (f64) -> ()
 // CHECK-GENERIC-NEXT:    }) : (f64, memref<3x2xf64>) -> ()
+
+%E, %F, %G = "test.op"() : () -> (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>)
+// CHECK-NEXT:            %E, %F, %G = "test.op"() : () -> (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>)
+// CHECK-GENERIC-NEXT:    %E, %F, %G = "test.op"() : () -> (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>)
+
+memref_stream.generic {
+    bounds = [#builtin.int<4>, #builtin.int<2>, #builtin.int<3>],
+    indexing_maps = [
+        affine_map<(d0, d1, d2) -> (d0, d2)>,
+        affine_map<(d0, d1, d2) -> (d2, d1)>,
+        affine_map<(d0, d1) -> (d0, d1)>
+    ],
+    iterator_types = ["parallel", "parallel", "reduction"],
+    inits = [0.000000e+00 : f64]
+} ins(%E, %F : memref<4x2xf64>, memref<2x3xf64>) outs(%G : memref<4x3xf64>) {
+^0(%e : f64, %f : f64, %acc_old : f64):
+    %prod = arith.mulf %e, %f : f64
+    %acc_new = arith.addf %acc_old, %prod : f64
+    linalg.yield %acc_new : f64
+}
+
+// CHECK-NEXT:    memref_stream.generic {bounds = [#builtin.int<4>, #builtin.int<2>, #builtin.int<3>], indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"], inits = [0.000000e+00 : f64]} ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) outs(%{{.*}} : memref<4x3xf64>) {
+// CHECK-NEXT:    ^{{.*}}(%{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64):
+// CHECK-NEXT:      %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:      linalg.yield %{{.*}} : f64
+// CHECK-NEXT:    }
+
+// CHECK-GENERIC-NEXT:    "memref_stream.generic"(%{{.*}}, %{{.*}}, %{{.*}}) <{"bounds" = [#builtin.int<4>, #builtin.int<2>, #builtin.int<3>], "inits" = [0.000000e+00 : f64], "indexing_maps" = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<reduction>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
+// CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64):
+// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.mulf"(%{{.*}}, %{{.*}}) <{"fastmath" = #arith.fastmath<none>}> : (f64, f64) -> f64
+// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addf"(%{{.*}}, %{{.*}}) <{"fastmath" = #arith.fastmath<none>}> : (f64, f64) -> f64
+// CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f64) -> ()
+// CHECK-GENERIC-NEXT:    }) : (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>) -> ()
 
 // CHECK-NEXT:          }
 // CHECK-GENERIC-NEXT:  }) : () -> ()

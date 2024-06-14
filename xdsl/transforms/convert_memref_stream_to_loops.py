@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref, memref_stream, stream
-from xdsl.dialects.builtin import AffineMapAttr, ModuleOp
+from xdsl.dialects.builtin import AffineMapAttr, ModuleOp, UnitAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -64,6 +64,9 @@ class LowerGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
+        if any(not isinstance(init, UnitAttr) for init in op.inits):
+            raise NotImplementedError("Operation has inits that are not UnitAttr")
+
         outer_ubs, inner_ubs = op.get_static_loop_ranges()
         if inner_ubs:
             # Imperfectly nested

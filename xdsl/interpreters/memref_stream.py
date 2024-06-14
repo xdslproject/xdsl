@@ -2,6 +2,7 @@ from itertools import product
 from typing import Any, cast
 
 from xdsl.dialects import memref_stream
+from xdsl.dialects.builtin import UnitAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -33,18 +34,22 @@ class MemrefStreamFunctions(InterpreterFunctions):
 
         outer_ubs, inner_ubs = op.get_static_loop_ranges()
 
+        inits = op.inits.data
+
         if inner_ubs:
             inputs: tuple[ShapedArray[float] | float, ...] = args[:inputs_count]
             input_indexing_maps = indexing_maps[:inputs_count]
             for outer_indices in product(*(range(outer_ub) for outer_ub in outer_ubs)):
                 output_loop_args = tuple(
                     (
-                        (cast(ShapedArray[Any], o)).load(
+                        (cast(ShapedArray[int | float], o)).load(
                             indexing_map.eval(outer_indices, ())
                         )
+                        if isinstance(init, UnitAttr)
+                        else init.value.data
                     )
-                    for o, indexing_map in zip(
-                        outputs, output_indexing_maps, strict=True
+                    for o, indexing_map, init in zip(
+                        outputs, output_indexing_maps, inits, strict=True
                     )
                 )
                 for inner_indices in product(

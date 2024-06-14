@@ -4,9 +4,11 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
     Float32Type,
+    FloatAttr,
     IntAttr,
     MemRefType,
     ModuleOp,
+    UnitAttr,
     i32,
 )
 from xdsl.interpreter import Interpreter
@@ -31,6 +33,7 @@ def test_memref_stream_generic():
         ),
         (TestSSAValue(MemRefType(i32, [1, 6])),),
         Region(Block(arg_types=(i32, i32))),
+        ArrayAttr((UnitAttr(),)),
         ArrayAttr(
             (
                 AffineMapAttr(AffineMap.identity(2)),
@@ -83,6 +86,7 @@ def test_memref_stream_generic_scalar():
         ),
         (TestSSAValue(MemRefType(i32, [1, 6])),),
         Region(Block(arg_types=(i32, i32))),
+        ArrayAttr((UnitAttr(),)),
         ArrayAttr(
             (
                 AffineMapAttr(AffineMap.identity(2)),
@@ -135,6 +139,7 @@ def test_memref_stream_generic_reduction():
         ),
         (TestSSAValue(MemRefType(i32, [])),),
         Region(Block(arg_types=(i32, i32, i32))),
+        ArrayAttr((UnitAttr(),)),
         ArrayAttr(
             (
                 AffineMapAttr(AffineMap.identity(1)),
@@ -176,6 +181,7 @@ def test_memref_stream_generic_imperfect_nesting():
         ),
         (TestSSAValue(MemRefType(f32, [3, 3])),),
         Region(Block(arg_types=(f32, f32, f32))),
+        ArrayAttr((UnitAttr(),)),
         ArrayAttr(
             (
                 AffineMapAttr(AffineMap.from_callable(lambda n, m, k: (n, k))),
@@ -207,5 +213,55 @@ def test_memref_stream_generic_imperfect_nesting():
     interpreter.run_op(op, (a, b, c))
     assert c == ShapedArray(
         TypedPtr.new_float32([6.0, 7.0, 21.0, 16.0, 17.0, 47.0, 26.0, 27.0, 73.0]),
+        [3, 3],
+    )
+
+
+def test_memref_stream_generic_reduction_with_initial_value():
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(MemrefStreamFunctions())
+    interpreter.register_implementations(ArithFunctions())
+
+    f32 = Float32Type()
+
+    op = memref_stream.GenericOp(
+        (
+            TestSSAValue(MemRefType(f32, [3, 2])),
+            TestSSAValue(MemRefType(f32, [2, 3])),
+        ),
+        (TestSSAValue(MemRefType(f32, [3, 3])),),
+        Region(Block(arg_types=(f32, f32, f32))),
+        ArrayAttr((FloatAttr(0.5, f32),)),
+        ArrayAttr(
+            (
+                AffineMapAttr(AffineMap.from_callable(lambda n, m, k: (n, k))),
+                AffineMapAttr(AffineMap.from_callable(lambda n, m, k: (k, m))),
+                AffineMapAttr(AffineMap.from_callable(lambda n, m: (n, m))),
+            )
+        ),
+        ArrayAttr(
+            (
+                memref_stream.IteratorTypeAttr.parallel(),
+                memref_stream.IteratorTypeAttr.parallel(),
+                memref_stream.IteratorTypeAttr.reduction(),
+            )
+        ),
+        ArrayAttr((IntAttr(3), IntAttr(3), IntAttr(2))),
+    )
+
+    with ImplicitBuilder(op.body) as (lhs, rhs, acc):
+        sum = arith.Mulf(lhs, rhs).result
+        new_acc = arith.Addf(sum, acc).result
+        memref_stream.YieldOp(new_acc)
+
+    op.verify()
+
+    a = ShapedArray(TypedPtr.new_float32([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]), [3, 2])
+    b = ShapedArray(TypedPtr.new_float32([4.0, 3.0, 5.0, 1.0, 2.0, 8.0]), [2, 3])
+    c = ShapedArray(TypedPtr.new_float32([0.0] * 9), [3, 3])
+
+    interpreter.run_op(op, (a, b, c))
+    assert c == ShapedArray(
+        TypedPtr.new_float32([6.5, 7.5, 21.5, 16.5, 17.5, 47.5, 26.5, 27.5, 73.5]),
         [3, 3],
     )
