@@ -52,7 +52,7 @@ class ConvertGlobalLoadConst(RewritePattern):
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace_matched_op(
             (
-                mem := memref.GetGlobal.get(op.global_attr, new_type),
+                mem := memref.GetGlobal(op.global_attr, new_type),
                 bufferization.ToTensorOp(mem.memref),
             )
         )

@@ -334,7 +334,7 @@ def generate_mpi_calls_for(
         )
 
     # wait for all calls to complete
-    yield mpi.Waitall.get(reqs.result, req_cnt.result)
+    yield mpi.Waitall(reqs.result, req_cnt.result)
 
     # start shuffling data into the main memref again
     for ex, buffer, cond_val in recv_buffers:
