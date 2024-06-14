@@ -376,9 +376,8 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
-    @staticmethod
-    def get(name: str, *params: SSAValue | Operation) -> ImportModuleConstOp:
-        return ImportModuleConstOp(
+    def __init__(self, name: str, *params: SSAValue | Operation):
+        super().__init__(
             operands=[[]] if len(params) == 0 else params,
             result_types=[ImportedModuleType()],
             properties={"module": StringAttr(name)},
@@ -406,14 +405,13 @@ class ConstStructOp(IRDLOperation):
             "Number of ssa_fields has to match the number of arguments"
         )
 
-    @staticmethod
-    def get(*args: tuple[str, Operation]) -> ConstStructOp:
+    def __init__(self, *args: tuple[str, Operation]):
         operands: list[Operation] = []
         fields: list[StringAttr] = []
         for fname, op in args:
             fields.append(StringAttr(fname))
             operands.append(op)
-        return ConstStructOp(
+        super().__init__(
             operands=[operands],
             result_types=[ComptimeStructType()],
             properties={"ssa_fields": ArrayAttr(fields)},
@@ -427,9 +425,8 @@ class GetColorOp(IRDLOperation):
     id = operand_def(IntegerType)
     res = result_def(ColorType)
 
-    @staticmethod
-    def get(op: Operation) -> GetColorOp:
-        return GetColorOp(operands=[op], result_types=[ColorType()])
+    def __init__(self, op: Operation):
+        super().__init__(operands=[op], result_types=[ColorType()])
 
 
 @irdl_op_definition
@@ -463,14 +460,14 @@ class MemberCallOp(IRDLOperation):
 
     result = opt_result_def(Attribute)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         fname: str,
         result_type: Attribute,
         struct: Operation,
         *params: SSAValue | Operation,
-    ) -> MemberCallOp:
-        return MemberCallOp(
+    ):
+        super().__init__(
             operands=[struct, params],
             result_types=[result_type],
             properties={
@@ -743,17 +740,15 @@ class SetTileCodeOp(IRDLOperation):
     y_coord = operand_def(IntegerType)
     params = opt_operand_def(ComptimeStructType)
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         fname: str | StringAttr,
         x_coord: SSAValue | Operation,
         y_coord: SSAValue | Operation,
         params: SSAValue | Operation,
-    ) -> SetTileCodeOp:
+    ):
         name = StringAttr(fname) if isinstance(fname, str) else fname
-        return SetTileCodeOp(
-            operands=[x_coord, y_coord, params], properties={"file": name}
-        )
+        super().__init__(operands=[x_coord, y_coord, params], properties={"file": name})
 
 
 class _GetDsdOp(IRDLOperation, ABC):
@@ -1538,9 +1533,8 @@ class ParamOp(IRDLOperation):
 
     res = result_def(T)
 
-    @staticmethod
-    def get(name: str, result_type: T) -> ParamOp:
-        return ParamOp(
+    def __init__(self, name: str, result_type: T):
+        super().__init__(
             operands=[[]],
             result_types=[result_type],
             properties={"param_name": StringAttr(name)},
@@ -1571,18 +1565,16 @@ class SignednessCastOp(IRDLOperation):
                 "Input and output type must be of different signedness"
             )
 
-    @staticmethod
-    def get(op: SSAValue | Operation) -> SignednessCastOp:
+    def __init__(self, op: SSAValue | Operation):
         typ = op.results[0].type if isinstance(op, Operation) else op.type
         assert isinstance(typ, IntegerType)
-        return SignednessCastOp(operands=[op], result_types=[IntegerType(typ.width)])
-
-    @staticmethod
-    def get_u(op: SSAValue | Operation) -> SignednessCastOp:
-        typ = op.results[0].type if isinstance(op, Operation) else op.type
-        assert isinstance(typ, IntegerType)
-        return SignednessCastOp(
-            operands=[op], result_types=[IntegerType(typ.width, Signedness.UNSIGNED)]
+        res_signedness = (
+            Signedness.SIGNLESS
+            if typ.signedness.data == Signedness.UNSIGNED
+            else Signedness.UNSIGNED
+        )
+        super().__init__(
+            operands=[op], result_types=[IntegerType(typ.width, res_signedness)]
         )
 
 
@@ -1608,9 +1600,8 @@ class ConcatStructOp(IRDLOperation):
 
     result = result_def(ComptimeStructType)
 
-    @staticmethod
-    def get(op1: Operation, op2: Operation) -> ConcatStructOp:
-        return ConcatStructOp(
+    def __init__(self, op1: Operation, op2: Operation):
+        super().__init__(
             operands=[op1, op2],
             result_types=[ComptimeStructType()],
         )
