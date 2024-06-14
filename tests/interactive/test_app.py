@@ -18,7 +18,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
-from xdsl.interactive.passes import AvailablePass
+from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
     canonicalize,
@@ -264,25 +264,10 @@ async def test_buttons():
         # press "Condense" button
         await pilot.click("#condense_button")
 
-        condensed_list = tuple(
-            (
-                AvailablePass(
-                    display_name="convert-arith-to-riscv",
-                    module_pass=convert_arith_to_riscv.ConvertArithToRiscvPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="convert-func-to-riscv-func",
-                    module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                    pass_spec=None,
-                ),
-            )
-        )
-
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        assert app.available_pass_list == condensed_list
+        assert app.available_pass_list == get_condensed_pass_list(expected_module)
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
