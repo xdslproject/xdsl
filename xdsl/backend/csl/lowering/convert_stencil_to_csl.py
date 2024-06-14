@@ -394,3 +394,6 @@ class ConvertStencilToCsl(ModulePass):
         generate_layout_module(t_ctx)
 
         # todo translate stencil computation
+
+        # cleanup stencil func after translation is done
+        op.body.block.erase_op(stencil_func)
