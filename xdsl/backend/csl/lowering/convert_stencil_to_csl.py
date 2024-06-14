@@ -31,8 +31,6 @@ from xdsl.dialects.scf import For, Yield
 from xdsl.dialects.stencil import ApplyOp
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriteWalker
-from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.utils.hints import isa
 
 
@@ -304,35 +302,3 @@ class ConvertStencilToCsl(ModulePass):
 
         setup_program_module(t_ctx)
         setup_layout_module(t_ctx)
-
-        # const util = @import_module("util.csl");
-
-        # const memcpy = @import_module( "<memcpy/get_params>", .{
-        #     .width = width,
-        #     .height = height,
-        #     .LAUNCH=LAUNCH,
-        #     });
-        #
-        # const routes = @import_module("routes.csl", .{
-        #   .pattern = pattern,
-        #   .peWidth = width,
-        #   .peHeight = height,
-        # });
-
-        # assert op.body.block.first_op is not None
-        # op.body.block.insert_op_before(stencil_comms, op.body.block.first_op)
-        module_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    # ModuleOpImportStencilComms(),
-                    # AccessOpToDsd(),
-                    # ArithAddfOpToBuiltin(),
-                    # ArithMulfOpToBuiltin(),
-                    # RemoveUnusedOperations(),
-                ]
-            ),
-            walk_reverse=False,
-            apply_recursively=False,
-        )
-        module_pass.rewrite_module(op)
-        DeadCodeElimination().apply(ctx, op)
