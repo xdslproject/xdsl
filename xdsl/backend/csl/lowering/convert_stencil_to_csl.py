@@ -107,7 +107,7 @@ def setup_program_module(ctx: TranslationContext) -> None:
         "computeChunks",
         num_chunks := MemberCallOp.get(
             "computeChunks",
-            IntegerType(16, Signedness.SIGNED),
+            IntegerType(16, Signedness.UNSIGNED),
             util,
             ctx.program_params["z_dim"],
         ),
