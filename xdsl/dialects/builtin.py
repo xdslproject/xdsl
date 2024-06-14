@@ -1486,13 +1486,14 @@ class MemRefType(
     def __init__(
         self: MemRefType[_MemRefTypeElement],
         element_type: _MemRefTypeElement,
-        shape: Iterable[int | IntAttr],
+        shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
         layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        shape = ArrayAttr(
-            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
-        )
+        if not isinstance(shape, ArrayAttr):
+            shape = ArrayAttr(
+                [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+            )
         super().__init__(
             [
                 shape,
