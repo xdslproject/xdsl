@@ -25,6 +25,7 @@ from xdsl.dialects.csl import (
     ParamOp,
     SetRectangleOp,
     SetTileCodeOp,
+    SignednessCastOp,
 )
 from xdsl.dialects.scf import For, Yield
 from xdsl.dialects.stencil import ApplyOp
@@ -200,27 +201,31 @@ def setup_layout_module(ctx: TranslationContext) -> None:
     ctx.add_var_to_layout("layout", layout_op := LayoutOp(Region(Block())))
     layout = layout_op.body.block
     layout.add_op(SetRectangleOp(operands=[width, height]))
+    layout.add_op(zero := Constant(IntegerAttr(0, IntegerType(16))))
+    layout.add_op(one := Constant(IntegerAttr(1, IntegerType(16))))
     layout.add_op(
-        zero := Constant(IntegerAttr(0, IntegerType(16, Signedness.UNSIGNED)))
+        one_u := Constant(IntegerAttr(1, IntegerType(16, Signedness.UNSIGNED)))
     )
-    layout.add_op(one := Constant(IntegerAttr(0, IntegerType(16, Signedness.UNSIGNED))))
-    outer_loop_body = Block(arg_types=[IntegerType(16, Signedness.UNSIGNED)])
-    inner_loop_body = Block(arg_types=[IntegerType(16, Signedness.UNSIGNED)])
+    layout.add_op(width_sl := SignednessCastOp.get(width))
+    layout.add_op(height_sl := SignednessCastOp.get(height))
+    outer_loop_body = Block(arg_types=[IntegerType(16)])
+    inner_loop_body = Block(arg_types=[IntegerType(16)])
     layout.add_op(
-        For(lb=zero, ub=width, step=one, iter_args=[], body=outer_loop_body),
+        For(lb=zero, ub=width_sl, step=one, iter_args=[], body=outer_loop_body)
     )
+    outer_loop_body.add_op(x_id := SignednessCastOp.get_u(outer_loop_body.args[0]))
     outer_loop_body.add_op(
-        For(lb=zero, ub=height, step=one, iter_args=[], body=inner_loop_body),
+        For(lb=zero, ub=height_sl, step=one, iter_args=[], body=inner_loop_body)
     )
 
-    # inner_loop_body.add_op(pattern_minus_one := MinUI(pattern_op, one))
     inner_loop_body.add_ops(
         [
-            pattern_minus_one := MinUI(pattern_op, one),
-            width_minus_xid := MinUI(width, outer_loop_body.args[0]),
-            height_minus_yid := MinUI(height, inner_loop_body.args[0]),
-            first := Cmpi(outer_loop_body.args[0], pattern_minus_one, "ult"),
-            second := Cmpi(inner_loop_body.args[0], pattern_minus_one, "ult"),
+            y_id := SignednessCastOp.get_u(inner_loop_body.args[0]),
+            pattern_minus_one := MinUI(pattern_op, one_u),
+            width_minus_xid := MinUI(width, x_id),
+            height_minus_yid := MinUI(height, y_id),
+            first := Cmpi(x_id, pattern_minus_one, "ult"),
+            second := Cmpi(y_id, pattern_minus_one, "ult"),
             third := Cmpi(width_minus_xid, pattern_op, "ult"),
             fourth := Cmpi(height_minus_yid, pattern_op, "ult"),
             or_one := OrI(first, second),
@@ -228,14 +233,14 @@ def setup_layout_module(ctx: TranslationContext) -> None:
             is_border_pe := OrI(or_two, fourth),
             params_task := ConstStructOp.get(("isBorderRegionPE", is_border_pe)),
             memcpy_params := MemberCallOp.get(
-                "get_params", ComptimeStructType(), memcpy, outer_loop_body.args[0]
+                "get_params", ComptimeStructType(), memcpy, x_id
             ),
             route_params := MemberCallOp.get(
                 "computeAllRoutes",
                 ComptimeStructType(),
                 routes,
-                outer_loop_body.args[0],
-                inner_loop_body.args[0],
+                x_id,
+                y_id,
                 width,
                 height,
                 pattern_op,
@@ -246,8 +251,8 @@ def setup_layout_module(ctx: TranslationContext) -> None:
             set_tile_params_ext := ConcatStructOp.get(params_task, set_tile_params),
             SetTileCodeOp.get(
                 ctx.program_module.sym_name,
-                outer_loop_body.args[0],
-                inner_loop_body.args[0],
+                x_id,
+                y_id,
                 set_tile_params_ext,
             ),
             Yield(),

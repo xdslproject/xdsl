@@ -1571,6 +1571,20 @@ class SignednessCastOp(IRDLOperation):
                 "Input and output type must be of different signedness"
             )
 
+    @staticmethod
+    def get(op: SSAValue | Operation) -> SignednessCastOp:
+        typ = op.results[0].type if isinstance(op, Operation) else op.type
+        assert isinstance(typ, IntegerType)
+        return SignednessCastOp(operands=[op], result_types=[IntegerType(typ.width)])
+
+    @staticmethod
+    def get_u(op: SSAValue | Operation) -> SignednessCastOp:
+        typ = op.results[0].type if isinstance(op, Operation) else op.type
+        assert isinstance(typ, IntegerType)
+        return SignednessCastOp(
+            operands=[op], result_types=[IntegerType(typ.width, Signedness.UNSIGNED)]
+        )
+
 
 @irdl_op_definition
 class ConcatStructOp(IRDLOperation):
