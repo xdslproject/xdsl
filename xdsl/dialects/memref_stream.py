@@ -563,6 +563,9 @@ class GenericOp(IRDLOperation):
             )
 
         if min_dims not in (len(iterator_types), num_parallel):
+            # To signify that the output is imperfectly nested, the output affine map has
+            # as many dims as parallel iterators. Otherwise, it has as many dims as
+            # the total number of iterators.
             raise VerifyException(
                 "The number of dims in output indexing maps must be "
                 f"{len(iterator_types)} or {num_parallel}"
