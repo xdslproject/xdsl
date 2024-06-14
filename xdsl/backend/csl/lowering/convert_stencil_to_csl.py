@@ -35,6 +35,14 @@ from xdsl.utils.hints import isa
 
 
 class TranslationContext:
+    """
+    Helper class for translating to CSL.
+    Keeps track of stencil parameters such as stencil size, grid dimension.
+    Provides several methods to register any top-level params, imports, and consts/vars
+    both for program and layout modules. Params and imports are intrinsically names, consts/vars
+    should be given a name (which is only used for this translation)
+    """
+
     grid_dim: tuple[int, ...] = (0, 0, 0)
     pattern: int
     program_module: CslModuleOp
@@ -89,7 +97,15 @@ class TranslationContext:
         self.layout_vars[name] = op
 
 
-def setup_program_module(ctx: TranslationContext) -> None:
+def generate_program_module(ctx: TranslationContext) -> None:
+    """
+    Generates the basic structure of a program module needed for stencil computations.
+    This function should *not* translate the actual stencil computation, but set up everything
+    needed for these, including imports, params, and top-level constants.
+    Params are generated to match `@set_tile_code` invocation of the
+    layout module. Also imports memcpy, utils, and stencil_comms modules. Vars/consts
+    are set up as required to perform these imports.
+    """
     ctx.add_params_to_program(
         ParamOp.get("stencil_comms_params", ComptimeStructType()),
         ParamOp.get("memcpy_params", ComptimeStructType()),
@@ -147,7 +163,15 @@ def setup_program_module(ctx: TranslationContext) -> None:
     )
 
 
-def setup_layout_module(ctx: TranslationContext) -> None:
+def generate_layout_module(ctx: TranslationContext) -> None:
+    """
+    Generates a layout module for the stencil parameters given in the translation context.
+    For each PE, the layout module determines program parameters (incl.memcpy and route params)
+    before invoking `@set_tile_code` to assign a csl program to each PE.
+    This is done in a two-dimensional loop over the compute grid size. Otherwise, the structure
+    of the layout module is static and varies only in terms of
+    exported symbol names (not implemented yet).
+    """
     ctx.add_var_to_layout(
         "LAUNCH_ID",
         launch_id := Constant(IntegerAttr(0, IntegerType(16, Signedness.SIGNED))),
@@ -262,6 +286,7 @@ class ConvertStencilToCsl(ModulePass):
     name = "convert-stencil-to-csl"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
+        # initialise both CSL modules
         t_ctx = TranslationContext()
         t_ctx.program_module = CslModuleOp(
             regions=[Region(Block())],
@@ -273,15 +298,18 @@ class ConvertStencilToCsl(ModulePass):
             properties={"kind": ModuleKindAttr(ModuleKind.LAYOUT)},
             attributes={"sym_name": StringAttr("layout.csl")},
         )
+        # iterate over stencil.apply ops to find the maximum stencil width ('arm length')
         assert len(op.body.block.ops) == 1
         assert isinstance(stencil_func := op.body.block.first_op, func.FuncOp)
         t_ctx.program_sym_name = stencil_func.sym_name
-        t_ctx.pattern = 0
+        neighbours = 0
         for o in stencil_func.body.block.ops:
             if isinstance(o, ApplyOp):
                 for access in o.get_accesses():
                     for l, r in access.halos():
-                        t_ctx.pattern = max(t_ctx.pattern, abs(l), abs(r))
+                        neighbours = max(neighbours, abs(l), abs(r))
+        # the CSL `pattern` variable corresponds to the neighbours in each direction plus 1
+        t_ctx.pattern = neighbours + 1
 
         # determine the grid dimensions by looking at the function args
         for arg in stencil_func.args:
@@ -297,8 +325,12 @@ class ConvertStencilToCsl(ModulePass):
                     )
                 )
 
+        # add modules to the builtin module
         op.body.block.add_op(t_ctx.program_module)
         op.body.block.add_op(t_ctx.layout_module)
 
-        setup_program_module(t_ctx)
-        setup_layout_module(t_ctx)
+        # set up basic module structure
+        generate_program_module(t_ctx)
+        generate_layout_module(t_ctx)
+
+        # todo translate stencil computation
