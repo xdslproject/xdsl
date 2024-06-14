@@ -46,6 +46,24 @@ pip install xdsl
 interoperability with other versions may result in problems. The supported
 MLIR version is commit `98e674c9f16d677d95c67bc130e267fae331e43c`.
 
+### Subprojects With Extra Dependencies
+
+xDSL has a number of subprojects, some of which require extra dependencies.
+In order to keep the set of dependencies ot a minimum, these extra dependencies have to be
+specified explicitly. To install these, use:
+
+``` bash
+pip install xdsl[extras,onnx]
+```
+
+To install the testing/development dependencies, use:
+
+``` bash
+pip install xdsl[dev]
+```
+
+These may be useful for projects wanting to replicate the xDSL testing setup.
+
 ## Getting Started
 
 Check out the dedicated [Getting Started guide](GETTING_STARTED.md) for a comprehensive tutorial.
