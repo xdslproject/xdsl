@@ -79,7 +79,7 @@ builtin.module {
 // CHECK-NEXT:     %7 = "csl.member_call"(%6, %2) <{"field" = "computeChunks"}> : (!csl.imported_module, si16) -> ui16
 // CHECK-NEXT:     %8 = "csl.member_call"(%6, %2, %7) <{"field" = "computeChunkSize"}> : (!csl.imported_module, si16, ui16) -> ui16
 // CHECK-NEXT:     %9 = arith.muli %7, %8 : ui16
-// CHECK-NEXT:     %10 = arith.constant 1 : ui16
+// CHECK-NEXT:     %10 = arith.constant 2 : ui16
 // CHECK-NEXT:     %11 = "csl.const_struct"(%10, %8) <{"ssa_fields" = ["pattern", "chunkSize"]}> : (ui16, ui16) -> !csl.comptime_struct
 // CHECK-NEXT:     %12 = "csl.concat_structs"(%11, %0) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
 // CHECK-NEXT:     %13 = "csl.import_module"(%12) <{"module" = "stencil_comms.csl"}> : (!csl.comptime_struct) -> !csl.imported_module
@@ -90,7 +90,7 @@ builtin.module {
 // CHECK-NEXT:     %2 = arith.constant 1024 : ui16
 // CHECK-NEXT:     %3 = arith.constant 512 : ui16
 // CHECK-NEXT:     %4 = arith.constant 512 : ui16
-// CHECK-NEXT:     %5 = arith.constant 1 : ui16
+// CHECK-NEXT:     %5 = arith.constant 2 : ui16
 // CHECK-NEXT:     %6 = "csl.const_struct"(%2, %3, %1) <{"ssa_fields" = ["width", "height", "LAUNCH"]}> : (ui16, ui16, !csl.color) -> !csl.comptime_struct
 // CHECK-NEXT:     %7 = "csl.const_struct"(%5, %2, %3) <{"ssa_fields" = ["pattern", "peWidth", "peHeight"]}> : (ui16, ui16, ui16) -> !csl.comptime_struct
 // CHECK-NEXT:     %8 = "csl.import_module"(%6) <{"module" = "<memcpy/get_params>"}> : (!csl.comptime_struct) -> !csl.imported_module
