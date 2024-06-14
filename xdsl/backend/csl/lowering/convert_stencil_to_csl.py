@@ -41,13 +41,15 @@ class Named(StrEnum):
     names of parameters passed from the layout to the program module.
     """
 
-    pattern = ("pattern",)
-    stencil_comms_params = ("stencil_comms_params",)
-    memcpy_params = ("memcpy_params",)
-    z_dim = ("z_dim",)
-    is_border_region_pe = ("is_border_region_pe",)
+    pattern = "pattern"
+    stencil_comms_params = "stencil_comms_params"
+    memcpy_params = "memcpy_params"
+    z_dim = "z_dim"
+    is_border_region_pe = "is_border_region_pe"
+    layout_block = "layout_block"
 
 
+@dataclass(frozen=True)
 class TranslationContext:
     """
     Helper class for translating to CSL.
@@ -57,7 +59,7 @@ class TranslationContext:
     should be given a name (which is only used for this translation)
     """
 
-    grid_dim: tuple[int, ...] = (0, 0, 0)
+    grid_dim: tuple[int, int, int]
     pattern: int
     program_module: CslModuleOp
     layout_module: CslModuleOp
@@ -261,7 +263,7 @@ def generate_layout_module(ctx: TranslationContext) -> None:
     )
 
     # add layout block and set grid dimensions
-    ctx.add_var_to_layout("layout", layout_op := LayoutOp(Region(Block())))
+    ctx.add_var_to_layout("layout_block", layout_op := LayoutOp(Region(Block())))
     layout = layout_op.body.block
     layout.add_op(SetRectangleOp(operands=[width, height]))
 
@@ -347,43 +349,53 @@ class ConvertStencilToCsl(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         # initialise both CSL modules
-        t_ctx = TranslationContext()
-        t_ctx.program_module = CslModuleOp(
+        program_module = CslModuleOp(
             regions=[Region(Block())],
             properties={"kind": ModuleKindAttr(ModuleKind.PROGRAM)},
             attributes={"sym_name": StringAttr("pe.csl")},
         )
-        t_ctx.layout_module = CslModuleOp(
+        layout_module = CslModuleOp(
             regions=[Region(Block())],
             properties={"kind": ModuleKindAttr(ModuleKind.LAYOUT)},
             attributes={"sym_name": StringAttr("layout.csl")},
         )
-        # iterate over stencil.apply ops to find the maximum stencil width ('arm length')
+
         assert len(op.body.block.ops) == 1
         assert isinstance(stencil_func := op.body.block.first_op, func.FuncOp)
-        t_ctx.program_sym_name = stencil_func.sym_name
+
+        # iterate over stencil.apply ops to find the maximum stencil width ('arm length')
         neighbours = 0
         for o in stencil_func.body.block.ops:
             if isinstance(o, ApplyOp):
                 for access in o.get_accesses():
                     for l, r in access.halos():
                         neighbours = max(neighbours, abs(l), abs(r))
-        # the CSL `pattern` variable corresponds to the neighbours in each direction plus 1
-        t_ctx.pattern = neighbours + 1
 
         # determine the grid dimensions by looking at the function args
+        grid_dim: tuple[int, int, int] = (0, 0, 0)
         for arg in stencil_func.args:
             if isa(arg.type, MemRefType[Attribute]) and isa(
                 arg.type.element_type, TensorType[Attribute]
             ):
                 shape = arg.type.get_shape()
-                t_ctx.grid_dim = tuple(
+                new_maxs = tuple(
                     max(a, b)
                     for a, b in zip(
-                        t_ctx.grid_dim,
+                        grid_dim,
                         (shape[0], shape[1], arg.type.element_type.get_shape()[0]),
                     )
                 )
+                assert len(new_maxs) == 3
+                grid_dim = new_maxs
+
+        # the CSL `pattern` variable corresponds to the neighbours in each direction plus 1
+        t_ctx = TranslationContext(
+            grid_dim=grid_dim,
+            pattern=neighbours + 1,
+            program_sym_name=stencil_func.sym_name,
+            program_module=program_module,
+            layout_module=layout_module,
+        )
 
         # add modules to the builtin module
         op.body.block.add_op(t_ctx.program_module)
