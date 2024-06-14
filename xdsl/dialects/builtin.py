@@ -418,7 +418,7 @@ class IntegerAttr(
 
     @overload
     def __init__(
-        self: IntegerAttr[_IntegerAttrType],
+        self,
         value: int | IntAttr,
         value_type: _IntegerAttrType,
     ) -> None: ...
@@ -654,7 +654,7 @@ class VectorType(
     num_scalable_dims: ParameterDef[IntAttr]
 
     def __init__(
-        self: VectorType[AttributeCovT],
+        self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
         num_scalable_dims: int | IntAttr = 0,
@@ -736,7 +736,7 @@ class TensorType(
     encoding: ParameterDef[Attribute]
 
     def __init__(
-        self: TensorType[AttributeCovT],
+        self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
         encoding: Attribute = NoneAttr(),
@@ -791,9 +791,7 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
 
     element_type: ParameterDef[AttributeCovT]
 
-    def __init__(
-        self: UnrankedTensorType[AttributeCovT], element_type: AttributeCovT
-    ) -> None:
+    def __init__(self, element_type: AttributeCovT) -> None:
         super().__init__([element_type])
 
 
@@ -1539,7 +1537,7 @@ class MemRefType(
     memory_space: ParameterDef[Attribute]
 
     def __init__(
-        self: MemRefType[_MemRefTypeElement],
+        self,
         element_type: _MemRefTypeElement,
         shape: Iterable[int | IntAttr],
         layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
