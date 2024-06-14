@@ -336,6 +336,11 @@ class GenericOp(IRDLOperation):
         iterator_types: ArrayAttr[Attribute],
         bounds: ArrayAttr[IntAttr],
     ) -> None:
+        for m in indexing_maps:
+            if m.data.num_symbols:
+                raise NotImplementedError(
+                    f"Symbols currently not implemented in {self.name} indexing maps"
+                )
         super().__init__(
             operands=[inputs, outputs],
             properties={
@@ -541,10 +546,6 @@ class GenericOp(IRDLOperation):
         input_maps = self.indexing_maps.data[:input_count]
 
         for i, m in enumerate(input_maps):
-            if m.data.num_symbols:
-                raise NotImplementedError(
-                    f"Symbols currently not implemented in {self.name} indexing maps"
-                )
             if len(iterator_types) != m.data.num_dims:
                 raise VerifyException(f"Invalid number of dims in indexing map {i}")
 
