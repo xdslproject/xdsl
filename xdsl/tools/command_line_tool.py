@@ -382,6 +382,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_snrt_to_riscv.ConvertSnrtToRISCV
 
+    def get_convert_stencil_to_csl():
+        from xdsl.backend.csl.lowering import convert_stencil_to_csl
+
+        return convert_stencil_to_csl.ConvertStencilToCsl
+
     def get_convert_stencil_to_ll_mlir():
         from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
 
@@ -594,11 +599,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_tensorize_z_dimension.StencilTensorizeZDimension
 
-    def get_convert_stencil_to_csl():
-        from xdsl.backend.csl.lowering import convert_stencil_to_csl
-
-        return convert_stencil_to_csl.ConvertStencilToCsl
-
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
 
@@ -631,8 +631,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
-        "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "convert-stencil-to-csl": get_convert_stencil_to_csl,
+        "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
