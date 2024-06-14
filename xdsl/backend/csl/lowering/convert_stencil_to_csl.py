@@ -203,9 +203,7 @@ def setup_layout_module(ctx: TranslationContext) -> None:
     layout.add_op(SetRectangleOp(operands=[width, height]))
     layout.add_op(zero := Constant(IntegerAttr(0, IntegerType(16))))
     layout.add_op(one := Constant(IntegerAttr(1, IntegerType(16))))
-    layout.add_op(
-        one_u := Constant(IntegerAttr(1, IntegerType(16, Signedness.UNSIGNED)))
-    )
+    layout.add_op(one_u := SignednessCastOp.get_u(one))
     layout.add_op(width_sl := SignednessCastOp.get(width))
     layout.add_op(height_sl := SignednessCastOp.get(height))
     outer_loop_body = Block(arg_types=[IntegerType(16)])

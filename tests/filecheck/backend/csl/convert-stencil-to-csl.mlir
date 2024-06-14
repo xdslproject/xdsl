@@ -77,7 +77,7 @@ builtin.module {
 // CHECK-NEXT:     %5 = "csl.import_module"() <{"module" = "<time>"}> : () -> !csl.imported_module
 // CHECK-NEXT:     %6 = "csl.import_module"() <{"module" = "util.csl"}> : () -> !csl.imported_module
 // CHECK-NEXT:     %7 = "csl.member_call"(%6, %2) <{"field" = "computeChunks"}> : (!csl.imported_module, si16) -> si16
-// CHECK-NEXT:     %8 = "csl.member_call"(%2, %6, %7) <{"field" = "computeChunkSize"}> : (si16, !csl.imported_module, si16) -> ui16
+// CHECK-NEXT:     %8 = "csl.member_call"(%6, %2, %7) <{"field" = "computeChunkSize"}> : (!csl.imported_module, si16, si16) -> ui16
 // CHECK-NEXT:     %9 = arith.constant 1 : ui16
 // CHECK-NEXT:     %10 = "csl.const_struct"(%9, %8) <{"ssa_fields" = ["pattern", "chunkSize"]}> : (ui16, ui16) -> !csl.comptime_struct
 // CHECK-NEXT:     %11 = "csl.concat_structs"(%10, %0) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
@@ -95,26 +95,31 @@ builtin.module {
 // CHECK-NEXT:     %8 = "csl.import_module"(%6) <{"module" = "routes.csl"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     csl.layout {
 // CHECK-NEXT:       "csl.set_rectangle"(%2, %3) : (ui16, ui16) -> ()
-// CHECK-NEXT:       %9 = arith.constant 0 : ui16
-// CHECK-NEXT:       %10 = arith.constant 0 : ui16
-// CHECK-NEXT:       scf.for %11 = %9 to %2 step %10 : ui16 {
-// CHECK-NEXT:         scf.for %12 = %9 to %3 step %10 : ui16 {
-// CHECK-NEXT:           %13 = arith.minui %4, %10 : ui16
-// CHECK-NEXT:           %14 = arith.minui %2, %11 : ui16
-// CHECK-NEXT:           %15 = arith.minui %3, %12 : ui16
-// CHECK-NEXT:           %16 = arith.cmpi ult, %11, %13 : ui16
-// CHECK-NEXT:           %17 = arith.cmpi ult, %12, %13 : ui16
-// CHECK-NEXT:           %18 = arith.cmpi ult, %14, %4 : ui16
-// CHECK-NEXT:           %19 = arith.cmpi ult, %15, %4 : ui16
-// CHECK-NEXT:           %20 = arith.ori %16, %17 : i1
-// CHECK-NEXT:           %21 = arith.ori %20, %18 : i1
-// CHECK-NEXT:           %22 = arith.ori %21, %19 : i1
-// CHECK-NEXT:           %23 = "csl.const_struct"(%22) <{"ssa_fields" = ["isBorderRegionPE"]}> : (i1) -> !csl.comptime_struct
-// CHECK-NEXT:           %24 = "csl.member_call"(%7, %11) <{"field" = "get_params"}> : (!csl.imported_module, ui16) -> !csl.comptime_struct
-// CHECK-NEXT:           %25 = "csl.member_call"(%8, %11, %12, %2, %3, %4) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, ui16, ui16, ui16, ui16, ui16) -> !csl.comptime_struct
-// CHECK-NEXT:           %26 = "csl.const_struct"(%24, %25) <{"ssa_fields" = ["memcpyParams", "stencilCommsParams"]}> : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
-// CHECK-NEXT:           %27 = "csl.concat_structs"(%23, %26) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
-// CHECK-NEXT:           "csl.set_tile_code"(%11, %12, %27) <{"file" = "pe.csl"}> : (ui16, ui16, !csl.comptime_struct) -> ()
+// CHECK-NEXT:       %9 = arith.constant 0 : i16
+// CHECK-NEXT:       %10 = arith.constant 1 : i16
+// CHECK-NEXT:       %11 = csl.mlir.signedness_cast %10 : i16 to ui16
+// CHECK-NEXT:       %12 = csl.mlir.signedness_cast %2 : ui16 to i16
+// CHECK-NEXT:       %13 = csl.mlir.signedness_cast %3 : ui16 to i16
+// CHECK-NEXT:       scf.for %14 = %9 to %12 step %10 : i16 {
+// CHECK-NEXT:         %15 = csl.mlir.signedness_cast %14 : i16 to ui16
+// CHECK-NEXT:         scf.for %16 = %9 to %13 step %10 : i16 {
+// CHECK-NEXT:           %17 = csl.mlir.signedness_cast %16 : i16 to ui16
+// CHECK-NEXT:           %18 = arith.minui %4, %11 : ui16
+// CHECK-NEXT:           %19 = arith.minui %2, %15 : ui16
+// CHECK-NEXT:           %20 = arith.minui %3, %17 : ui16
+// CHECK-NEXT:           %21 = arith.cmpi ult, %15, %18 : ui16
+// CHECK-NEXT:           %22 = arith.cmpi ult, %17, %18 : ui16
+// CHECK-NEXT:           %23 = arith.cmpi ult, %19, %4 : ui16
+// CHECK-NEXT:           %24 = arith.cmpi ult, %20, %4 : ui16
+// CHECK-NEXT:           %25 = arith.ori %21, %22 : i1
+// CHECK-NEXT:           %26 = arith.ori %25, %23 : i1
+// CHECK-NEXT:           %27 = arith.ori %26, %24 : i1
+// CHECK-NEXT:           %28 = "csl.const_struct"(%27) <{"ssa_fields" = ["isBorderRegionPE"]}> : (i1) -> !csl.comptime_struct
+// CHECK-NEXT:           %29 = "csl.member_call"(%7, %15) <{"field" = "get_params"}> : (!csl.imported_module, ui16) -> !csl.comptime_struct
+// CHECK-NEXT:           %30 = "csl.member_call"(%8, %15, %17, %2, %3, %4) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, ui16, ui16, ui16, ui16, ui16) -> !csl.comptime_struct
+// CHECK-NEXT:           %31 = "csl.const_struct"(%29, %30) <{"ssa_fields" = ["memcpyParams", "stencilCommsParams"]}> : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:           %32 = "csl.concat_structs"(%28, %31) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+// CHECK-NEXT:           "csl.set_tile_code"(%15, %17, %32) <{"file" = "pe.csl"}> : (ui16, ui16, !csl.comptime_struct) -> ()
 // CHECK-NEXT:         }
 // CHECK-NEXT:       }
 // CHECK-NEXT:     }
