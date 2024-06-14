@@ -32,6 +32,20 @@ from xdsl.dialects.stencil import ApplyOp
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.utils.hints import isa
+from xdsl.utils.str_enum import StrEnum
+
+
+class Named(StrEnum):
+    """
+    Enum type to store names used across the program, for instance
+    names of parameters passed from the layout to the program module.
+    """
+
+    pattern = ("pattern",)
+    stencil_comms_params = ("stencil_comms_params",)
+    memcpy_params = ("memcpy_params",)
+    z_dim = ("z_dim",)
+    is_border_region_pe = ("is_border_region_pe",)
 
 
 class TranslationContext:
@@ -106,58 +120,78 @@ def generate_program_module(ctx: TranslationContext) -> None:
     layout module. Also imports memcpy, utils, and stencil_comms modules. Vars/consts
     are set up as required to perform these imports.
     """
+
+    # program params to be supplied by layout module
     ctx.add_params_to_program(
-        ParamOp.get("stencil_comms_params", ComptimeStructType()),
-        ParamOp.get("memcpy_params", ComptimeStructType()),
-        ParamOp.get("z_dim", IntegerType(16, Signedness.SIGNED)),
-        ParamOp.get("is_border_region_pe", IntegerType(1)),
+        s_params := ParamOp.get(Named.stencil_comms_params, ComptimeStructType()),
+        m_params := ParamOp.get(Named.memcpy_params, ComptimeStructType()),
+        ParamOp.get(Named.is_border_region_pe, IntegerType(1)),
     )
 
+    # size of the z dimension
+    ctx.add_var_to_program(
+        Named.z_dim,
+        z_dim := Constant(
+            IntegerAttr(ctx.grid_dim[2], IntegerType(16, Signedness.UNSIGNED))
+        ),
+    )
+
+    # module imports
     ctx.add_import_modules_to_program(
-        ImportModuleConstOp.get("<memcpy/memcpy>", ctx.program_params["memcpy_params"]),
+        ImportModuleConstOp.get("<memcpy/memcpy>", m_params),
         ImportModuleConstOp.get("<time>"),
         util := ImportModuleConstOp.get("util.csl"),
     )
 
+    # generates: num_chunks = util.computeChunks(z_dim)
     ctx.add_var_to_program(
-        "computeChunks",
+        "num_chunks",
         num_chunks := MemberCallOp.get(
             "computeChunks",
             IntegerType(16, Signedness.UNSIGNED),
             util,
-            ctx.program_params["z_dim"],
+            z_dim,
         ),
     )
+
+    # generates: chunk_size = util.computeChunks(z_dim, num_chunks)
     ctx.add_var_to_program(
-        "computeChunkSize",
+        "chunk_size",
         chunk_size := MemberCallOp.get(
             "computeChunkSize",
             IntegerType(16, Signedness.UNSIGNED),
             util,
-            ctx.program_params["z_dim"],
+            z_dim,
             num_chunks,
         ),
     )
+
+    # when sending / receiving buffers with stencil_comms, use padded_z_dim rather than z_dim as buffer size
     ctx.add_var_to_program("padded_z_dim", Muli(num_chunks, chunk_size))
+
+    # stencil pattern, i.e. neighbours in any direction + 1
     ctx.add_var_to_program(
-        "pattern",
+        Named.pattern,
         pattern_op := Constant(
             IntegerAttr(ctx.pattern, IntegerType(16, Signedness.UNSIGNED))
         ),
     )
+
+    # setting up structs to import stencil_comms.csl
     ctx.add_var_to_program(
         "stencil_comms_params_ext",
         stencil_comms_params_ext := ConstStructOp.get(
-            ("pattern", pattern_op), ("chunkSize", chunk_size)
+            (Named.pattern, pattern_op), ("chunkSize", chunk_size)
         ),
     )
     ctx.add_var_to_program(
         "stencil_comms_params_combined",
         stencil_comms_params_combined := ConcatStructOp.get(
-            stencil_comms_params_ext, ctx.program_params["stencil_comms_params"]
+            stencil_comms_params_ext, s_params
         ),
     )
 
+    # importing stencil_comms.csl
     ctx.add_import_module_to_program(
         ImportModuleConstOp.get("stencil_comms.csl", stencil_comms_params_combined),
     )
@@ -178,69 +212,90 @@ def generate_layout_module(ctx: TranslationContext) -> None:
     )
 
     ctx.add_var_to_layout("LAUNCH", launch := GetColorOp.get(launch_id))
+
+    # width is the number of PEs in the x dimension
     ctx.add_var_to_layout(
         "width",
         width := Constant(
             IntegerAttr(ctx.grid_dim[0], IntegerType(16, Signedness.UNSIGNED))
         ),
     )
+
+    # height is the number of PEs in the x dimension
     ctx.add_var_to_layout(
         "height",
         height := Constant(
             IntegerAttr(ctx.grid_dim[1], IntegerType(16, Signedness.UNSIGNED))
         ),
     )
+
+    # stencil pattern, i.e. neighbours in any direction + 1
     ctx.add_var_to_layout(
-        "z_dim",
-        Constant(IntegerAttr(ctx.grid_dim[2], IntegerType(16, Signedness.UNSIGNED))),
-    )
-    ctx.add_var_to_layout(
-        "pattern",
+        Named.pattern,
         pattern_op := Constant(
             IntegerAttr(ctx.pattern, IntegerType(16, Signedness.UNSIGNED))
         ),
     )
     # ("iteration_task_id", iterationTaskId: local_task_id = @get_local_task_id(3); #todo)
 
+    # setting up struct to import memcpy module
     ctx.add_var_to_layout(
         "memcpy_call_params",
         memcpy_call_params := ConstStructOp.get(
             ("width", width), ("height", height), ("LAUNCH", launch)
         ),
     )
+
+    # setting up struct to import routes module
     ctx.add_var_to_layout(
         "routes_params",
         routes_params := ConstStructOp.get(
-            ("pattern", pattern_op), ("peWidth", width), ("peHeight", height)
+            (Named.pattern, pattern_op), ("peWidth", width), ("peHeight", height)
         ),
     )
 
+    # import memcpy and routes module
     ctx.add_import_modules_to_layout(
         memcpy := ImportModuleConstOp.get("<memcpy/get_params>", memcpy_call_params),
         routes := ImportModuleConstOp.get("routes.csl", routes_params),
     )
 
+    # add layout block and set grid dimensions
     ctx.add_var_to_layout("layout", layout_op := LayoutOp(Region(Block())))
     layout = layout_op.body.block
     layout.add_op(SetRectangleOp(operands=[width, height]))
+
+    # setting up constants and signedness casts
     layout.add_op(zero := Constant(IntegerAttr(0, IntegerType(16))))
     layout.add_op(one := Constant(IntegerAttr(1, IntegerType(16))))
     layout.add_op(one_u := SignednessCastOp.get_u(one))
     layout.add_op(width_sl := SignednessCastOp.get(width))
     layout.add_op(height_sl := SignednessCastOp.get(height))
+
+    # setting up two-dimensional loop nest over physical x-y PEs
     outer_loop_body = Block(arg_types=[IntegerType(16)])
     inner_loop_body = Block(arg_types=[IntegerType(16)])
+
+    # adding outer loop to layout block
     layout.add_op(
         For(lb=zero, ub=width_sl, step=one, iter_args=[], body=outer_loop_body)
     )
+
+    # signedness cast for outer loop variable
+    # outer loop is x_id
     outer_loop_body.add_op(x_id := SignednessCastOp.get_u(outer_loop_body.args[0]))
+
+    # adding inner loop inside outer loop
     outer_loop_body.add_op(
         For(lb=zero, ub=height_sl, step=one, iter_args=[], body=inner_loop_body)
     )
 
+    # preparing calls to route module, memcpy module, and `@set_tile_code`
     inner_loop_body.add_ops(
         [
+            # inner loop is y_id
             y_id := SignednessCastOp.get_u(inner_loop_body.args[0]),
+            # compute boolean expression is_border_region_pe
             pattern_minus_one := MinUI(pattern_op, one_u),
             width_minus_xid := MinUI(width, x_id),
             height_minus_yid := MinUI(height, y_id),
@@ -251,10 +306,11 @@ def generate_layout_module(ctx: TranslationContext) -> None:
             or_one := OrI(first, second),
             or_two := OrI(or_one, third),
             is_border_pe := OrI(or_two, fourth),
-            params_task := ConstStructOp.get(("isBorderRegionPE", is_border_pe)),
+            # generates: memcpy.get_params(xId)
             memcpy_params := MemberCallOp.get(
                 "get_params", ComptimeStructType(), memcpy, x_id
             ),
+            # generates: routes.computeAllRoutes(x_id, y_id, width, height, pattern)
             route_params := MemberCallOp.get(
                 "computeAllRoutes",
                 ComptimeStructType(),
@@ -265,10 +321,14 @@ def generate_layout_module(ctx: TranslationContext) -> None:
                 height,
                 pattern_op,
             ),
+            # setting up param structs for `@set_tile_code`
             set_tile_params := ConstStructOp.get(
-                ("memcpyParams", memcpy_params), ("stencilCommsParams", route_params)
+                (Named.memcpy_params, memcpy_params),
+                (Named.stencil_comms_params, route_params),
             ),
+            params_task := ConstStructOp.get((Named.is_border_region_pe, is_border_pe)),
             set_tile_params_ext := ConcatStructOp.get(params_task, set_tile_params),
+            # generates: @set_tile_code(xId, yId, "pe.csl", .. param structs ..)
             SetTileCodeOp.get(
                 ctx.program_module.sym_name,
                 x_id,
