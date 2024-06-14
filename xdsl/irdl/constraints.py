@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from inspect import isclass
+from typing import Generic, TypeAlias
 
-from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
@@ -20,12 +23,12 @@ class ConstraintContext:
     def copy(self):
         return ConstraintContext(self.variables.copy())
 
-    def update(self, other: "ConstraintContext"):
+    def update(self, other: ConstraintContext):
         self.variables.update(other.variables)
 
 
 @dataclass(frozen=True)
-class AttrConstraint(ABC):
+class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     """Constrain an attribute to a certain value."""
 
     @abstractmethod
@@ -68,6 +71,9 @@ class AttrConstraint(ABC):
     def get_unique_base(self) -> type[Attribute] | None:
         """Get the unique base type that can satisfy the constraint, if any."""
         return None
+
+
+AttrConstraint: TypeAlias = GenericAttrConstraint[Attribute]
 
 
 @dataclass(frozen=True)
@@ -132,10 +138,10 @@ class ConstraintVar:
 
 
 @dataclass(frozen=True)
-class EqAttrConstraint(AttrConstraint):
+class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     """Constrain an attribute to be equal to another attribute."""
 
-    attr: Attribute
+    attr: AttributeCovT
     """The attribute we want to check equality with."""
 
     def verify(
@@ -157,10 +163,10 @@ class EqAttrConstraint(AttrConstraint):
 
 
 @dataclass(frozen=True)
-class BaseAttr(AttrConstraint):
+class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     """Constrain an attribute to be of a given base type."""
 
-    attr: type[Attribute]
+    attr: type[AttributeCovT]
     """The expected attribute base type."""
 
     def verify(
@@ -186,7 +192,7 @@ def attr_constr_coercion(
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
     """
-    if isinstance(attr, AttrConstraint):
+    if isinstance(attr, GenericAttrConstraint):
         return attr
     if isinstance(attr, Attribute):
         return EqAttrConstraint(attr)
@@ -442,7 +448,7 @@ class RangeConstraint(ABC):
 
     def infer(
         self, length: int, constraint_context: ConstraintContext
-    ) -> Sequence[Attribute]:
+    ) -> list[Attribute]:
         """
         Infer the range given the constraint variables that are already set.
 
