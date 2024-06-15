@@ -36,6 +36,7 @@ if __name__ == "__main__":
     f = open("tests/filecheck/dialects/cmath/cmath_ops.mlir")
     parser = Parser(ctx, f.read())
     module = parser.parse_module()
+    module.verify()
     print(module)
 
 # CHECK:       builtin.module {

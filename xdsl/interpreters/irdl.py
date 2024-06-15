@@ -17,8 +17,10 @@ from xdsl.irdl import (
     EqAttrConstraint,
     IRDLOperation,
     OpDef,
+    OperandDef,
     ParamAttrConstraint,
     ParamAttrDef,
+    ResultDef,
     VarConstraint,
     get_accessors_from_op_def,
     get_accessors_from_param_attr_def,
@@ -168,7 +170,7 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).operands = list(
-            (f"o{i}", a) for i, a in enumerate(args)
+            (f"o{i}", OperandDef(a)) for i, a in enumerate(args)
         )
         return ()
 
@@ -179,7 +181,7 @@ class IRDLFunctions(InterpreterFunctions):
         op_op = cast(irdl.OperationOp, op.parent_op())
         op_name = op_op.qualified_name
         self._get_op_def(interpreter, op_name).results = list(
-            (f"r{i}", a) for i, a in enumerate(args)
+            (f"r{i}", ResultDef(a)) for i, a in enumerate(args)
         )
         return ()
 
@@ -192,6 +194,7 @@ class IRDLFunctions(InterpreterFunctions):
         interpreter.run_ssacfg_region(op.body, ())
         op_def = self._get_op_def(interpreter, name)
         op_type = self.get_op(interpreter, name)
+
         to_inject = get_accessors_from_op_def(op_def, None)
         for k, v in to_inject.items():
             setattr(op_type, k, v)
