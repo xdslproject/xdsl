@@ -30,19 +30,36 @@ if __name__ == "__main__":
     assert isinstance(dialect_op, DialectOp)
     dialect = make_dialect(dialect_op)
 
+    # Generate and print type stubs!
     stub = DialectStub(dialect)
     print(stub.dialect_stubs())
 
-# CHECK:       builtin.module {
-# CHECK-NEXT:    func.func @conorm(%p : #cmath.complex<f32>, %q : #cmath.complex<f32>) -> f32 {
-# CHECK-NEXT:      %norm_p = "cmath.norm"(%p) : (#cmath.complex<f32>) -> f32
-# CHECK-NEXT:      %norm_q = "cmath.norm"(%q) : (#cmath.complex<f32>) -> f32
-# CHECK-NEXT:      %pq = arith.mulf %norm_p, %norm_q : f32
-# CHECK-NEXT:      func.return %pq : f32
-# CHECK-NEXT:    }
-# CHECK-NEXT:    func.func @conorm2(%a : #cmath.complex<f32>, %b : #cmath.complex<f32>) -> f32 {
-# CHECK-NEXT:      %ab = "cmath.mul"(%a, %b) : (#cmath.complex<f32>, #cmath.complex<f32>) -> #cmath.complex<f32>
-# CHECK-NEXT:      %conorm = "cmath.norm"(%ab) : (#cmath.complex<f32>) -> f32
-# CHECK-NEXT:      func.return %conorm : f32
-# CHECK-NEXT:    }
-# CHECK-NEXT:  }
+# CHECK:       from xdsl.dialects.builtin import (
+# CHECK-NEXT:      Float32Type,
+# CHECK-NEXT:      Float64Type,
+# CHECK-NEXT:  )
+# CHECK-NEXT:  from xdsl.ir import (
+# CHECK-NEXT:      Dialect,
+# CHECK-NEXT:      OpResult,
+# CHECK-NEXT:      ParametrizedAttribute,
+# CHECK-NEXT:      SSAValue,
+# CHECK-NEXT:  )
+# CHECK-NEXT:  from xdsl.irdl import IRDLOperation
+# CHECK-EMPTY:
+# CHECK-NEXT:  class complex(ParametrizedAttribute):
+# CHECK-NEXT:      p0 : "Float32Type | Float64Type"
+# CHECK-EMPTY:
+# CHECK-EMPTY:
+# CHECK-NEXT:  class norm(IRDLOperation):
+# CHECK-NEXT:      o0 : Operand
+# CHECK-NEXT:      r0 : Result
+# CHECK-EMPTY:
+# CHECK-EMPTY:
+# CHECK-NEXT:  class mul(IRDLOperation):
+# CHECK-NEXT:      o0 : Operand
+# CHECK-NEXT:      o1 : Operand
+# CHECK-NEXT:      r0 : Result
+# CHECK-EMPTY:
+# CHECK-EMPTY:
+# CHECK-NEXT:  Cmath : Dialect
+# CHECK-EMPTY:

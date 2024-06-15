@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Annotated, Any
 
-from xdsl.dialects import stencil
 from xdsl.dialects.builtin import ArrayAttr, ArrayOfConstraint
 from xdsl.interpreter import Successor
 from xdsl.ir import Attribute, Dialect, OpResult, ParametrizedAttribute, Region
@@ -227,11 +226,10 @@ class DialectStub:
         dialect_body = "\n".join(self._dialect_stubs())
         imports = "\n".join(self._imports())
         if imports:
-            imports += "\n\n"
+            imports += "\n"
 
-        return f"{imports}{dialect_body}\n\n{self.dialect.name.capitalize()} : Dialect"
-
-
-if __name__ == "__main__":
-    stub = DialectStub(stencil.Stencil)
-    print(stub.dialect_stubs())
+        return f"""\
+{imports}
+{dialect_body}
+{self.dialect.name.capitalize()} : Dialect
+"""
