@@ -43,6 +43,7 @@ if __name__ == "__main__":
 # CHECK-NEXT:      OpResult,
 # CHECK-NEXT:      Operand,
 # CHECK-NEXT:      ParametrizedAttribute,
+# CHECK-NEXT:      TypeAttribute,
 # CHECK-NEXT:  )
 # CHECK-NEXT:  from xdsl.irdl import IRDLOperation
 # CHECK-EMPTY:

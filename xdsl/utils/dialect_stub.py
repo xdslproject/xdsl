@@ -110,7 +110,9 @@ class DialectStub:
 
     def _attribute_stub(self, attr: type[ParametrizedAttribute]):
         self._import(ParametrizedAttribute)
-        bases = (b for b in set(attr.__mro__[1:]) - set(ParametrizedAttribute.__mro__))
+        bases = set(attr.__mro__[1:]) - set(ParametrizedAttribute.__mro__)
+        for base in bases:
+            self._import(base)
         bases = ", ".join(b.__name__ for b in bases)
         if bases:
             bases += ", "
