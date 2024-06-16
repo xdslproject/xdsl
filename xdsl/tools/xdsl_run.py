@@ -25,7 +25,7 @@ class xDSLRunMain(CommandLineTool):
         self.available_frontends = {}
 
         self.ctx = MLContext()
-        self.register_all_dialects()
+        self.ctx.register_all_dialects()
         self.register_all_frontends()
         # arg handling
         arg_parser = argparse.ArgumentParser(description=description)
