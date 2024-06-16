@@ -61,7 +61,7 @@ class DialectStub:
         else:
             self.dependencies[module] = {object}
 
-    def _constraint_type(self, constraint: AttrConstraint):
+    def _constraint_type(self, constraint: AttrConstraint) -> str:
         match constraint:
             case BaseAttr(attr_type):
                 if attr_type not in self.dialect.attributes:
@@ -130,11 +130,6 @@ class DialectStub:
                 case OperandDef(_):
                     self._import(Operand)
                     yield f"    {name} : Operand"
-                case _:
-                    import pdb
-
-                    pdb.set_trace()
-                    raise TypeError(f"Unsupported operand definition: {type(o)}")
         for name, o in op_def.results:
             had_body = True
             match o:
@@ -147,8 +142,6 @@ class DialectStub:
                 case ResultDef():
                     self._import(OpResult)
                     yield f"    {name} : OpResult"
-                case _:
-                    raise TypeError(f"Unsupported result definition: {type(o)}")
         for name, o in op_def.attributes.items():
             had_body = True
             match o:
@@ -156,8 +149,6 @@ class DialectStub:
                     yield f"    {name} : {self._constraint_type(o.constr)} | None"
                 case AttributeDef():
                     yield f"    {name} : {self._constraint_type(o.constr)}"
-                case _:
-                    raise TypeError(f"Unsupported attribute definition: {type(o)}")
         for name, o in op_def.properties.items():
             had_body = True
             match o:
@@ -165,8 +156,6 @@ class DialectStub:
                     yield f"    {name} : {self._constraint_type(o.constr)} | None"
                 case PropertyDef():
                     yield f"    {name} : {self._constraint_type(o.constr)}"
-                case _:
-                    raise TypeError(f"Unsupported property definition: {type(o)}")
 
         for name, r in op_def.regions:
             had_body = True
@@ -180,8 +169,6 @@ class DialectStub:
                 case RegionDef():
                     self._import(Region)
                     yield f"    {name} : Region"
-                case _:
-                    raise TypeError(f"Unsupported region definition: {type(r)}")
 
         for name, r in op_def.successors:
             had_body = True
@@ -195,8 +182,6 @@ class DialectStub:
                 case SuccessorDef():
                     self._import(Successor)
                     yield f"    {name} : Successor"
-                case _:
-                    raise TypeError(f"Unsupported successor definition: {type(r)}")
 
         if not had_body:
             yield "    pass"
@@ -206,10 +191,13 @@ class DialectStub:
     def _dialect_stubs(self):
         for attr in self.dialect.attributes:
             if issubclass(attr, ParametrizedAttribute):
-                yield from self._attribute_stub(attr)
+                for l in self._attribute_stub(attr):
+                    yield l
+
         for op in self.dialect.operations:
             if issubclass(op, IRDLOperation):
-                yield from self._operation_stub(op)
+                for l in self._operation_stub(op):
+                    yield l
 
     def _imports(self):
         items = list(self.dependencies.items())
