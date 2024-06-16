@@ -46,7 +46,7 @@ if __name__ == "__main__":
 # CHECK-NEXT:  )
 # CHECK-NEXT:  from xdsl.irdl import IRDLOperation
 # CHECK-EMPTY:
-# CHECK-NEXT:  class complex(ParametrizedAttribute):
+# CHECK-NEXT:  class complex(TypeAttribute, ParametrizedAttribute):
 # CHECK-NEXT:      p0 : "Float32Type | Float64Type"
 # CHECK-EMPTY:
 # CHECK-EMPTY:

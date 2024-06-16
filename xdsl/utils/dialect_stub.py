@@ -102,7 +102,11 @@ class DialectStub:
 
     def _attribute_stub(self, attr: type[ParametrizedAttribute]):
         self._import(ParametrizedAttribute)
-        yield f"class {attr.__name__}(ParametrizedAttribute):"
+        bases = (b for b in set(attr.__mro__[1:]) - set(ParametrizedAttribute.__mro__))
+        bases = ", ".join(b.__name__ for b in bases)
+        if bases:
+            bases += ", "
+        yield f"class {attr.__name__}({bases}ParametrizedAttribute):"
         attr_def = attr.get_irdl_definition()
         for name, param in attr_def.parameters:
             yield f'    {name} : "{self._constraint_type(param)}"'
