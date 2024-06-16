@@ -9,7 +9,7 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
-from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute
+from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -236,7 +236,7 @@ class IRDLFunctions(InterpreterFunctions):
                         type.__new__(
                             type(ParametrizedAttribute),
                             entry.sym_name.data,
-                            ParametrizedAttribute.__mro__,
+                            (TypeAttribute, *ParametrizedAttribute.__mro__),
                             dict(ParametrizedAttribute.__dict__)
                             | {"name": entry.qualified_name},
                         )
