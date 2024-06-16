@@ -4,6 +4,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Dialect,
+    Operand,
     OpResult,
     ParametrizedAttribute,
 )

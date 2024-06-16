@@ -52,7 +52,12 @@ class CustomFileLoader(importlib.abc.Loader):
 
 
 class CustomFileFinder(importlib.abc.MetaPathFinder):
+
     def find_spec(self, fullname: str, path: Sequence[str] | None, target: Any = None):
+        # Check if module is already loaded
+        if fullname in sys.modules:
+            return sys.modules[fullname].__spec__
+
         filename = fullname.split(".")[-1] + ".irdl"
         if path is None:
             path = [os.getcwd()]
