@@ -3,12 +3,9 @@ from dataclasses import dataclass, field
 from types import ModuleType
 from typing import Any
 
-<<<<<<< HEAD
 import xdsl.dialects.builtin
 import xdsl.ir
 import xdsl.irdl
-=======
->>>>>>> 8ee538ff (Implement and test Dialect stub generation.)
 from xdsl.dialects.builtin import ArrayAttr, ArrayOfConstraint
 from xdsl.ir import Attribute, Dialect, OpResult, ParametrizedAttribute, Region
 from xdsl.irdl import (

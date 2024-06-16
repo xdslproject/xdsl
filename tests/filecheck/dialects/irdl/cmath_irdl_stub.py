@@ -31,13 +31,8 @@ if __name__ == "__main__":
     dialect = make_dialect(dialect_op)
 
     # Generate and print type stubs!
-<<<<<<< HEAD
     stub = DialectStubGenerator(dialect)
     print(stub.generate_dialect_stubs())
-=======
-    stub = DialectStub(dialect)
-    print(stub.dialect_stubs())
->>>>>>> 8ee538ff (Implement and test Dialect stub generation.)
 
 # CHECK:       from xdsl.dialects.builtin import (
 # CHECK-NEXT:      Float32Type,
@@ -47,7 +42,6 @@ if __name__ == "__main__":
 # CHECK-NEXT:      Dialect,
 # CHECK-NEXT:      OpResult,
 # CHECK-NEXT:      ParametrizedAttribute,
-<<<<<<< HEAD
 # CHECK-NEXT:      TypeAttribute,
 # CHECK-NEXT:  )
 # CHECK-NEXT:  from xdsl.irdl import (
@@ -56,33 +50,34 @@ if __name__ == "__main__":
 # CHECK-NEXT:  )
 # CHECK-EMPTY:
 # CHECK-NEXT:  class complex(TypeAttribute, ParametrizedAttribute):
-=======
-# CHECK-NEXT:      SSAValue,
-# CHECK-NEXT:  )
-# CHECK-NEXT:  from xdsl.irdl import IRDLOperation
-# CHECK-EMPTY:
-# CHECK-NEXT:  class complex(ParametrizedAttribute):
->>>>>>> 8ee538ff (Implement and test Dialect stub generation.)
 # CHECK-NEXT:      p0 : "Float32Type | Float64Type"
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  class norm(IRDLOperation):
 # CHECK-NEXT:      o0 : Operand
 <<<<<<< HEAD
+<<<<<<< HEAD
 # CHECK-NEXT:      r0 : OpResult
 =======
 # CHECK-NEXT:      r0 : Result
 >>>>>>> 8ee538ff (Implement and test Dialect stub generation.)
+=======
+# CHECK-NEXT:      r0 : OpResult
+>>>>>>> b43f159d (type name fixes.)
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  class mul(IRDLOperation):
 # CHECK-NEXT:      o0 : Operand
 # CHECK-NEXT:      o1 : Operand
 <<<<<<< HEAD
+<<<<<<< HEAD
 # CHECK-NEXT:      r0 : OpResult
 =======
 # CHECK-NEXT:      r0 : Result
 >>>>>>> 8ee538ff (Implement and test Dialect stub generation.)
+=======
+# CHECK-NEXT:      r0 : OpResult
+>>>>>>> b43f159d (type name fixes.)
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  Cmath : Dialect
