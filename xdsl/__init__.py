@@ -23,7 +23,7 @@ class CustomFileLoader(importlib.abc.Loader):
     def create_module(self, spec: Any):
         return None
 
-    def exec_module(self, module):
+    def exec_module(self, module: Any):
         from xdsl.dialects.irdl import DialectOp
         from xdsl.interpreters.irdl import make_dialect
         from xdsl.ir.context import MLContext
