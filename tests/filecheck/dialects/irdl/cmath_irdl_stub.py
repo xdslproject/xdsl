@@ -41,8 +41,8 @@ if __name__ == "__main__":
 # CHECK-NEXT:  from xdsl.ir import (
 # CHECK-NEXT:      Dialect,
 # CHECK-NEXT:      OpResult,
+# CHECK-NEXT:      Operand,
 # CHECK-NEXT:      ParametrizedAttribute,
-# CHECK-NEXT:      SSAValue,
 # CHECK-NEXT:  )
 # CHECK-NEXT:  from xdsl.irdl import IRDLOperation
 # CHECK-EMPTY:

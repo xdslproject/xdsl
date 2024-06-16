@@ -46,9 +46,11 @@ from xdsl.irdl import (
 @dataclass
 class DialectStub:
     dialect: Dialect
-    dependencies: dict[Any, set[Any]] = field(init=False, default_factory=dict)
+    dependencies: dict[Any, set[tuple[Any, str]]] = field(
+        init=False, default_factory=dict
+    )
 
-    def _import(self, object: Any):
+    def _import(self, object: Any, alias: str = ""):
         module = object.__module__
         if module == "builtins":
             return
@@ -57,9 +59,9 @@ class DialectStub:
         if module.startswith("xdsl.irdl."):
             module = "xdsl.irdl"
         if module in self.dependencies:
-            self.dependencies[module].add(object)
+            self.dependencies[module].add((object, alias))
         else:
-            self.dependencies[module] = {object}
+            self.dependencies[module] = {(object, alias)}
 
     def _constraint_type(self, constraint: AttrConstraint) -> str:
         match constraint:
@@ -122,13 +124,13 @@ class DialectStub:
             had_body = True
             match o:
                 case VarOperandDef(_):
-                    self._import(VarOperand)
+                    self._import(VarOperand, "VarOperand")
                     yield f"    {name} : VarOperand"
                 case OptOperandDef(_):
-                    self._import(OptOperand)
+                    self._import(OptOperand, "OptOperand")
                     yield f"    {name} : OptOperand"
                 case OperandDef(_):
-                    self._import(Operand)
+                    self._import(Operand, "Operand")
                     yield f"    {name} : Operand"
         for name, o in op_def.results:
             had_body = True
@@ -137,7 +139,7 @@ class DialectStub:
                     self._import(VarOpResult)
                     yield f"    {name} : VarOpResult"
                 case OptResultDef():
-                    self._import(OptOpResult)
+                    self._import(OptOpResult, "OptOpResult")
                     yield f"    {name} : OptOpResult"
                 case ResultDef():
                     self._import(OpResult)
@@ -161,10 +163,10 @@ class DialectStub:
             had_body = True
             match r:
                 case OptRegionDef():
-                    self._import(OptRegion)
+                    self._import(OptRegion, "OptRegion")
                     yield f"    {name} : OptRegion"
                 case VarRegionDef():
-                    self._import(VarRegion)
+                    self._import(VarRegion, "VarRegion")
                     yield f"    {name} : VarRegion"
                 case RegionDef():
                     self._import(Region)
@@ -174,10 +176,10 @@ class DialectStub:
             had_body = True
             match r:
                 case OptSuccessorDef():
-                    self._import(OptSuccessor)
+                    self._import(OptSuccessor, "OptSuccessor")
                     yield f"    {name} : OptSuccessor"
                 case VarSuccessorDef():
-                    self._import(VarSuccessor)
+                    self._import(VarSuccessor, "VarSuccessor")
                     yield f"    {name} : VarSuccessor"
                 case SuccessorDef():
                     self._import(Successor)
@@ -204,9 +206,10 @@ class DialectStub:
         items.sort()
         for module, objects in items:
             if len(objects) == 1:
-                yield f"from {module} import {objects.pop().__name__}"
+                object = objects.pop()
+                yield f"from {module} import {object[1] or object[0].__name__}"
             else:
-                names = list(o.__name__ for o in objects)
+                names = list(o[1] or o[0].__name__ for o in objects)
                 names.sort()
                 yield f"from {module} import ("
                 for o in names:
