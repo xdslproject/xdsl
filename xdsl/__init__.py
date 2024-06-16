@@ -3,6 +3,7 @@ from itertools import chain
 from typing import Any
 
 from xdsl.traits import SymbolTable
+from xdsl.utils.dialect_stub import DialectStub
 
 from . import _version
 
@@ -36,10 +37,14 @@ class CustomFileLoader(importlib.abc.Loader):
             irdl_module = Parser(ctx, file.read(), self.path).parse_module()
 
             # Make it a PyRDL Dialect
-            dialect_name = os.path.basename(self.path)[-5]
+            dialect_name = os.path.basename(self.path)[:-5]
             dialect_op = SymbolTable.lookup_symbol(irdl_module, dialect_name)
             assert isinstance(dialect_op, DialectOp)
             dialect = make_dialect(dialect_op)
+            print(
+                DialectStub(dialect).dialect_stubs(),
+                file=open(f"{self.path[:-5]}.pyi", "w"),
+            )
 
             for obj in chain(dialect.attributes, dialect.operations):
                 setattr(module, obj.__name__, obj)
