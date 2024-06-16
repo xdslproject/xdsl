@@ -136,13 +136,13 @@ class DialectStub:
             match o:
                 case VarResultDef():
                     self._import(VarOpResult)
-                    yield f"    {name} : VarResult"
+                    yield f"    {name} : VarOpResult"
                 case OptResultDef():
                     self._import(OptOpResult)
-                    yield f"    {name} : OptResult"
+                    yield f"    {name} : OptOpResult"
                 case ResultDef():
                     self._import(OpResult)
-                    yield f"    {name} : Result"
+                    yield f"    {name} : OpResult"
                 case _:
                     raise TypeError(f"Unsupported result definition: {type(o)}")
         for name, o in op_def.attributes.items():
