@@ -1,7 +1,8 @@
 from collections.abc import Sequence
+from itertools import chain
 from typing import Any
 
-from xdsl.parser import Parser
+from xdsl.traits import SymbolTable
 
 from . import _version
 
@@ -22,13 +23,27 @@ class CustomFileLoader(importlib.abc.Loader):
         return None
 
     def exec_module(self, module):
-        with open(self.path) as file:
-            Parser()
+        from xdsl.dialects.irdl import DialectOp
+        from xdsl.interpreters.irdl import make_dialect
+        from xdsl.ir.context import MLContext
+        from xdsl.parser import Parser
 
-            content = file.read()
-            objects = parse_custom_file(content)
-            for name, obj in objects.items():
-                setattr(module, name, obj)
+        # Open the irdl file
+        with open(self.path) as file:
+            # Parse it
+            ctx = MLContext()
+            ctx.register_all_dialects()
+            irdl_module = Parser(ctx, file.read(), self.path).parse_module()
+
+            # Make it a PyRDL Dialect
+            dialect_name = os.path.basename(self.path)[-5]
+            dialect_op = SymbolTable.lookup_symbol(irdl_module, dialect_name)
+            assert isinstance(dialect_op, DialectOp)
+            dialect = make_dialect(dialect_op)
+
+            for obj in chain(dialect.attributes, dialect.operations):
+                setattr(module, obj.__name__, obj)
+            setattr(module, dialect.name.capitalize(), dialect)
 
 
 class CustomFileFinder(importlib.abc.MetaPathFinder):

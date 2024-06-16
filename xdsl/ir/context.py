@@ -1,10 +1,12 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-from xdsl.ir import Attribute, Dialect, Operation
+if TYPE_CHECKING:
+    from xdsl.ir import Attribute, Dialect, Operation
 
 
-def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
+def get_all_dialects() -> "dict[str, Callable[[], Dialect]]":
     """Returns all available dialects."""
 
     def get_accfg():
@@ -317,10 +319,12 @@ class MLContext:
 
     allow_unregistered: bool = field(default=False)
 
-    _loaded_dialects: dict[str, Dialect] = field(default_factory=dict)
-    _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict)
-    _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict)
-    _registered_dialects: dict[str, Callable[[], Dialect]] = field(default_factory=dict)
+    _loaded_dialects: "dict[str, Dialect]" = field(default_factory=dict)
+    _loaded_ops: "dict[str, type[Operation]]" = field(default_factory=dict)
+    _loaded_attrs: "dict[str, type[Attribute]]" = field(default_factory=dict)
+    _registered_dialects: "dict[str, Callable[[], Dialect]]" = field(
+        default_factory=dict
+    )
     """
     A dictionary of all registered dialects that are not yet loaded. This is used to
     only load the respective Python files when the dialect is actually used.
@@ -345,21 +349,21 @@ class MLContext:
         )
 
     @property
-    def loaded_ops(self) -> Iterable[type[Operation]]:
+    def loaded_ops(self) -> "Iterable[type[Operation]]":
         """
         Returns all the loaded operations. Not valid across mutations of this object.
         """
         return self._loaded_ops.values()
 
     @property
-    def loaded_attrs(self) -> Iterable[type[Attribute]]:
+    def loaded_attrs(self) -> "Iterable[type[Attribute]]":
         """
         Returns all the loaded attributes. Not valid across mutations of this object.
         """
         return self._loaded_attrs.values()
 
     @property
-    def loaded_dialects(self) -> Iterable[Dialect]:
+    def loaded_dialects(self) -> "Iterable[Dialect]":
         """
         Returns all the loaded attributes. Not valid across mutations of this object.
         """
@@ -373,7 +377,7 @@ class MLContext:
         return self._registered_dialects.keys()
 
     def register_dialect(
-        self, name: str, dialect_factory: Callable[[], Dialect]
+        self, name: str, dialect_factory: "Callable[[], Dialect]"
     ) -> None:
         """
         Register a dialect without loading it. The dialect is only loaded in the context
@@ -397,7 +401,7 @@ class MLContext:
         for attr in dialect.attributes:
             self.load_attr(attr)
 
-    def load_dialect(self, dialect: Dialect):
+    def load_dialect(self, dialect: "Dialect"):
         """
         Load a dialect. Operation and Attribute names should be unique.
         If the dialect is already registered in the context, use
@@ -410,19 +414,19 @@ class MLContext:
         self.register_dialect(dialect.name, lambda: dialect)
         self.load_registered_dialect(dialect.name)
 
-    def load_op(self, op: type[Operation]) -> None:
+    def load_op(self, op: "type[Operation]") -> None:
         """Load an operation definition. Operation names should be unique."""
         if op.name in self._loaded_ops:
             raise Exception(f"Operation {op.name} has already been loaded")
         self._loaded_ops[op.name] = op
 
-    def load_attr(self, attr: type[Attribute]) -> None:
+    def load_attr(self, attr: "type[Attribute]") -> None:
         """Load an attribute definition. Attribute names should be unique."""
         if attr.name in self._loaded_attrs:
             raise Exception(f"Attribute {attr.name} has already been loaded")
         self._loaded_attrs[attr.name] = attr
 
-    def get_optional_op(self, name: str) -> type[Operation] | None:
+    def get_optional_op(self, name: str) -> "type[Operation] | None":
         """
         Get an operation class from its name if it exists.
         If the operation is not registered, return None unless unregistered operations
@@ -452,7 +456,7 @@ class MLContext:
             return op_type
         return None
 
-    def get_op(self, name: str) -> type[Operation]:
+    def get_op(self, name: str) -> "type[Operation]":
         """
         Get an operation class from its name.
         If the operation is not registered, raise an exception unless unregistered
@@ -466,7 +470,7 @@ class MLContext:
         self,
         name: str,
         create_unregistered_as_type: bool = False,
-    ) -> type[Attribute] | None:
+    ) -> "type[Attribute] | None":
         """
         Get an attribute class from its name if it exists.
         If the attribute is not registered, return None unless unregistered attributes
@@ -505,7 +509,7 @@ class MLContext:
         self,
         name: str,
         create_unregistered_as_type: bool = False,
-    ) -> type[Attribute]:
+    ) -> "type[Attribute]":
         """
         Get an attribute class from its name.
         If the attribute is not registered, raise an exception unless unregistered
@@ -518,12 +522,12 @@ class MLContext:
             return attr_type
         raise Exception(f"Attribute {name} is not registered")
 
-    def get_dialect(self, name: str) -> Dialect:
+    def get_dialect(self, name: str) -> "Dialect":
         if (dialect := self.get_optional_dialect(name)) is None:
             raise Exception(f"Dialect {name} is not registered")
         return dialect
 
-    def get_optional_dialect(self, name: str) -> Dialect | None:
+    def get_optional_dialect(self, name: str) -> "Dialect | None":
         if name in self._loaded_dialects:
             return self._loaded_dialects[name]
         return None
