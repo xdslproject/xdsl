@@ -222,10 +222,9 @@ class IRDLFunctions(InterpreterFunctions):
             match entry:
                 case irdl.OperationOp():
                     operations.append(
-                        type.__new__(
-                            type(IRDLOperation),
+                        type(IRDLOperation)(
                             entry.sym_name.data,
-                            IRDLOperation.__mro__,
+                            (IRDLOperation,),
                             dict(IRDLOperation.__dict__)
                             | {"name": entry.qualified_name},
                         )
@@ -233,10 +232,9 @@ class IRDLFunctions(InterpreterFunctions):
 
                 case irdl.TypeOp():
                     attributes.append(
-                        type.__new__(
-                            type(ParametrizedAttribute),
+                        type(ParametrizedAttribute)(
                             entry.sym_name.data,
-                            (TypeAttribute, *ParametrizedAttribute.__mro__),
+                            (TypeAttribute, ParametrizedAttribute),
                             dict(ParametrizedAttribute.__dict__)
                             | {"name": entry.qualified_name},
                         )
