@@ -8,7 +8,7 @@ from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.traits import SymbolTable
 from xdsl.utils.dialect_stub import DialectStub
 
-# Test dynamically registering a dialect from an IRDL file
+# Test dynamically generating Python type stubs for an irdl dialect.
 
 if __name__ == "__main__":
 
