@@ -13,6 +13,7 @@ from typing import (
     Generic,
     NoReturn,
     Protocol,
+    TypeAlias,
     TypeVar,
     cast,
     get_args,
@@ -178,6 +179,11 @@ class SSAValue(ABC):
         return self is other
 
 
+Operand: TypeAlias = SSAValue
+VarOperand: TypeAlias = list[Operand]
+OptOperand: TypeAlias = Operand | None
+
+
 @dataclass(eq=False)
 class OpResult(SSAValue):
     """A reference to an SSA variable defined by an operation result."""
@@ -194,6 +200,10 @@ class OpResult(SSAValue):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
+
+
+OptOpResult: TypeAlias = OpResult | None
+VarOpResult: TypeAlias = list[OpResult]
 
 
 @dataclass(eq=False)
@@ -560,13 +570,13 @@ class Operation(IRNode):
     name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...] = field(default=())
+    _operands: tuple[Operand, ...] = field(default=())
     """The operation operands."""
 
     results: list[OpResult] = field(default_factory=list)
     """The results created by the operation."""
 
-    successors: list[Block] = field(default_factory=list)
+    successors: list[Successor] = field(default_factory=list)
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
@@ -1563,6 +1573,11 @@ class Block(IRNode):
         return id(self)
 
 
+Successor: TypeAlias = Block
+OptSuccessor: TypeAlias = Successor | None
+VarSuccessor: TypeAlias = list[Successor]
+
+
 @dataclass(init=False)
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
@@ -1831,3 +1846,7 @@ class Region(IRNode):
         ):
             return False
         return True
+
+
+VarRegion: TypeAlias = list[Region]
+OptRegion: TypeAlias = Region | None
