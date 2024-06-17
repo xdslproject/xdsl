@@ -1,4 +1,4 @@
-from attr import dataclass
+from dataclasses import dataclass, field
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, csl, func, scf, stencil
@@ -47,12 +47,12 @@ class TranslationContext:
     layout_module: csl.CslModuleOp
     program_sym_name: StringAttr
 
-    program_params: dict[str, csl.ParamOp] = {}
-    layout_params: dict[str, csl.ParamOp] = {}
-    program_imports: dict[str, csl.ImportModuleConstOp] = {}
-    layout_imports: dict[str, csl.ImportModuleConstOp] = {}
-    program_vars: dict[str, Operation] = {}
-    layout_vars: dict[str, Operation] = {}
+    program_params: dict[str, csl.ParamOp] = field(default_factory=dict)
+    layout_params: dict[str, csl.ParamOp] = field(default_factory=dict)
+    program_imports: dict[str, csl.ImportModuleConstOp] = field(default_factory=dict)
+    layout_imports: dict[str, csl.ImportModuleConstOp] = field(default_factory=dict)
+    program_vars: dict[str, Operation] = field(default_factory=dict)
+    layout_vars: dict[str, Operation] = field(default_factory=dict)
 
     def add_param_to_program(self, param: csl.ParamOp):
         self.program_module.body.block.add_op(param)
