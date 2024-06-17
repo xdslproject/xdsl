@@ -42,7 +42,6 @@ from xdsl.traits import (
     NoMemoryEffect,
     Pure,
 )
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -128,11 +127,6 @@ class Constant(IRDLOperation):
         )
 
     @staticmethod
-    @deprecated("Please use Constant(attr, value_type)")
-    def from_attr(attr: Attribute, value_type: Attribute) -> Constant:
-        return Constant.create(result_types=[value_type], properties={"value": attr})
-
-    @staticmethod
     def from_int_and_width(
         value: int | IntAttr, value_type: int | IntegerType | IndexType
     ) -> Constant:
@@ -141,19 +135,6 @@ class Constant(IRDLOperation):
         return Constant.create(
             result_types=[value_type],
             properties={"value": IntegerAttr(value, value_type)},
-        )
-
-    @staticmethod
-    @deprecated("Please use Constant(attr) or Constant(FloatAttr(value, value_type))")
-    def from_float_and_width(
-        value: float | FloatAttr[_FloatTypeT], value_type: _FloatTypeT
-    ) -> Constant:
-        if isinstance(value, FloatAttr):
-            value_attr = value
-        else:
-            value_attr = FloatAttr(value, value_type)
-        return Constant.create(
-            result_types=[value_type], properties={"value": value_attr}
         )
 
     def print(self, printer: Printer):

@@ -18,12 +18,10 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
-from xdsl.interactive.passes import AvailablePass
+from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
-    canonicalize,
     individual_rewrite,
-    test_lower_snitch_stream_to_asm,
 )
 from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
@@ -264,25 +262,10 @@ async def test_buttons():
         # press "Condense" button
         await pilot.click("#condense_button")
 
-        condensed_list = tuple(
-            (
-                AvailablePass(
-                    display_name="convert-arith-to-riscv",
-                    module_pass=convert_arith_to_riscv.ConvertArithToRiscvPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="convert-func-to-riscv-func",
-                    module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                    pass_spec=None,
-                ),
-            )
-        )
-
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        assert app.available_pass_list == condensed_list
+        assert app.available_pass_list == get_condensed_pass_list(expected_module)
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
@@ -315,43 +298,21 @@ async def test_rewrites():
         # press "Condense" button
         await pilot.click("#condense_button")
 
-        condensed_list = tuple(
-            (
-                AvailablePass(
-                    display_name="canonicalize",
-                    module_pass=canonicalize.CanonicalizePass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="convert-arith-to-riscv",
-                    module_pass=convert_arith_to_riscv.ConvertArithToRiscvPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="convert-func-to-riscv-func",
-                    module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="test-lower-snitch-stream-to-asm",
-                    module_pass=test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
-                    module_pass=individual_rewrite.IndividualRewrite,
-                    pass_spec=list(
-                        parse_pipeline(
-                            'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
-                        )
-                    )[0],
-                ),
-            )
+        addi_pass = AvailablePass(
+            display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
+            module_pass=individual_rewrite.IndividualRewrite,
+            pass_spec=list(
+                parse_pipeline(
+                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                )
+            )[0],
         )
 
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
+        assert isinstance(app.current_module, ModuleOp)
+        condensed_list = get_condensed_pass_list(app.current_module) + (addi_pass,)
         assert app.available_pass_list == condensed_list
 
         # Select a rewrite
