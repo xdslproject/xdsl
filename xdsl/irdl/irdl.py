@@ -30,23 +30,13 @@ from xdsl.ir import (
     AttributeInvT,
     Block,
     Data,
-    Operand,
     Operation,
     OpResult,
-    OptOperand,
-    OptOpResult,
     OpTrait,
-    OptRegion,
-    OptSuccessor,
     ParametrizedAttribute,
     Region,
     SSAValue,
-    Successor,
     TypedAttribute,
-    VarOperand,
-    VarOpResult,
-    VarRegion,
-    VarSuccessor,
 )
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import (
@@ -804,7 +794,7 @@ class IRDLOperation(Operation):
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
-        successors: Sequence[Successor | Sequence[Successor] | None] | None = None,
+        successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: (
             Sequence[
                 Region
@@ -850,7 +840,7 @@ class IRDLOperation(Operation):
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
         properties: Mapping[str, Attribute | None] | None = None,
-        successors: Sequence[Successor | Sequence[Successor] | None] | None = None,
+        successors: Sequence[Block | Sequence[Block] | None] | None = None,
         regions: (
             Sequence[
                 Region
@@ -1001,6 +991,9 @@ class OperandDef(OperandOrResultDef):
         self.constr = single_range_constr_coercion(attr)
 
 
+Operand: TypeAlias = SSAValue
+
+
 @dataclass(init=False)
 class VarOperandDef(OperandDef, VariadicDef):
     """An IRDL variadic operand definition."""
@@ -1011,9 +1004,15 @@ class VarOperandDef(OperandDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
+VarOperand: TypeAlias = list[SSAValue]
+
+
 @dataclass(init=False)
 class OptOperandDef(VarOperandDef, OptionalDef):
     """An IRDL optional operand definition."""
+
+
+OptOperand: TypeAlias = SSAValue | None
 
 
 @dataclass(init=False)
@@ -1039,9 +1038,15 @@ class VarResultDef(ResultDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
+VarOpResult: TypeAlias = list[OpResult]
+
+
 @dataclass(init=False)
 class OptResultDef(VarResultDef, OptionalDef):
     """An IRDL optional result definition."""
+
+
+OptOpResult: TypeAlias = OpResult | None
 
 
 @dataclass(init=True)
@@ -1061,6 +1066,10 @@ class VarRegionDef(RegionDef, VariadicDef):
 @dataclass
 class OptRegionDef(RegionDef, OptionalDef):
     """An IRDL optional region definition."""
+
+
+VarRegion: TypeAlias = list[Region]
+OptRegion: TypeAlias = Region | None
 
 
 @dataclass
@@ -1130,6 +1139,10 @@ class VarSuccessorDef(SuccessorDef, VariadicDef):
 class OptSuccessorDef(SuccessorDef, OptionalDef):
     """An IRDL optional successor definition."""
 
+
+Successor: TypeAlias = Block
+OptSuccessor: TypeAlias = Block | None
+VarSuccessor: TypeAlias = list[Block]
 
 _ClsT = TypeVar("_ClsT")
 
