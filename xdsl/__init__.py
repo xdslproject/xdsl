@@ -3,7 +3,7 @@ from itertools import chain
 from typing import Any
 
 from xdsl.traits import SymbolTable
-from xdsl.utils.dialect_stub import DialectStub
+from xdsl.utils.dialect_stub import DialectStubGenerator
 
 from . import _version
 
@@ -48,14 +48,11 @@ class IRDLDialectLoader(importlib.abc.Loader):
             dialect_op = SymbolTable.lookup_symbol(irdl_module, dialect_name)
             assert isinstance(dialect_op, DialectOp)
             dialect = make_dialect(dialect_op)
-
-            # Generate and write type stubs
             print(
-                DialectStub(dialect).dialect_stubs(),
+                DialectStubGenerator(dialect).generate_dialect_stubs(),
                 file=open(f"{self.path[:-5]}.pyi", "w"),
             )
 
-            # Populate the module
             for obj in chain(dialect.attributes, dialect.operations):
                 setattr(module, obj.__name__, obj)
             setattr(module, dialect.name.capitalize(), dialect)
