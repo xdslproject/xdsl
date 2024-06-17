@@ -24,9 +24,9 @@ class CustomFileLoader(importlib.abc.Loader):
         return None
 
     def exec_module(self, module: Any):
+        from xdsl.context import MLContext
         from xdsl.dialects.irdl import DialectOp
         from xdsl.interpreters.irdl import make_dialect
-        from xdsl.ir.context import MLContext
         from xdsl.parser import Parser
 
         # Open the irdl file
