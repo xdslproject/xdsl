@@ -26,10 +26,8 @@ from xdsl.irdl import (
     OptSuccessorDef,
     ParamAttrConstraint,
     PropertyDef,
-    RangeConstraint,
     RegionDef,
     ResultDef,
-    SingleOf,
     SuccessorDef,
     VarOperandDef,
     VarRegionDef,
@@ -44,22 +42,36 @@ class DialectStub:
     dependencies: dict[str, set[str]] = field(init=False, default_factory=dict)
 
     def _import(self, module: ModuleType | str, name: str | type[Any]):
+        """
+        Internal helper to keep track of dependencies, to later generate clean import
+        statements.
+        """
+        # If passed a type, use its name.
         if isinstance(name, type):
             name = name.__name__
+        # If passed a module, use its name.
         if isinstance(module, ModuleType):
             module = module.__name__
+        # Do not import from builtins, those are the implicitely available ones.
         if module == "builtins":
             return
+        # Do no import from banned nested modules
         if module.startswith("xdsl.ir."):
             module = "xdsl.ir"
         if module.startswith("xdsl.irdl."):
             module = "xdsl.irdl"
+        # Create a module dependency or add a new name to the ones from an existing
+        # dependency
         if module in self.dependencies:
             self.dependencies[module].add(name)
         else:
             self.dependencies[module] = {name}
 
     def _constraint_type(self, constraint: AttrConstraint) -> str:
+        """
+        Return a type hint for the member constrained by a constraint, by it an attribute
+        parameter, or an operation attribute/property.
+        """
         match constraint:
             case BaseAttr(attr_type):
                 if attr_type not in self.dialect.attributes:
@@ -89,34 +101,49 @@ class DialectStub:
                     f"Unsupported constraint type: {type(constraint)}"
                 )
 
-    def _range_constraint_stub(self, constraint: RangeConstraint):
-        match constraint:
-            case SingleOf(constr):
-                return f"SingleOf({self._constraint_type(constr)})"
-            case _:
-                raise NotImplementedError(
-                    f"Unsupported constraint type: {type(constraint)}"
-                )
-
     def _attribute_stub(self, attr: type[ParametrizedAttribute]):
+        """
+        Generate type stub for an irdl attribute.
+        """
+        # They all are ParametrizedAttributes.
         self._import(xdsl.ir, ParametrizedAttribute)
+        # Get the bases that are not already bases of ParametrizedAttribute.
         bases = set(attr.__mro__[1:]) - set(ParametrizedAttribute.__mro__)
+        # Add them as stub dependencies
         for base in bases:
             self._import(base.__module__, base)
+
+        # Also add them to the Attribute class' bases.
         bases = ", ".join(b.__name__ for b in bases)
         if bases:
             bases += ", "
         yield f"class {attr.__name__}({bases}ParametrizedAttribute):"
+
+        # Generate the parameters' stubs, if any
         attr_def = attr.get_irdl_definition()
         for name, param in attr_def.parameters:
             yield f'    {name} : "{self._constraint_type(param)}"'
+        # Otherwise, generate a pass for Python's indentation
+        if not attr_def.parameters:
+            yield "    pass"
         yield ""
         yield ""
 
     def _operation_stub(self, op: type[IRDLOperation]):
+        """
+        Generate type stub for an irdl operation.
+        """
+        # Keep track of whether the operation has any body, to generate a pass if it does not.
         had_body = False
+
+        # They all are IRDLOperations.
         self._import(xdsl.irdl, IRDLOperation)
+
+        # Currently there's nothing that should be a base class or the IRDLOperations.
+        # Traits are not supported, and implemented as fields in PyRDL.
         yield f"class {op.__name__}(IRDLOperation):"
+
+        # Generate the constructs' stubs, if any
         op_def = op.get_irdl_definition()
         for name, o in op_def.operands:
             had_body = True
@@ -182,13 +209,18 @@ class DialectStub:
                 case SuccessorDef():
                     self._import(xdsl.irdl, "Successor")
                     yield f"    {name} : Successor"
-
+        # Generate a pass if the operation had no body.
         if not had_body:
             yield "    pass"
         yield ""
         yield ""
 
     def _dialect_stubs(self):
+        """
+        Generate a dialect's stubs.
+
+        Just generate stubs for all attributes and operations in the dialect.
+        """
         for attr in self.dialect.attributes:
             if issubclass(attr, ParametrizedAttribute):
                 for l in self._attribute_stub(attr):
@@ -200,12 +232,20 @@ class DialectStub:
                     yield l
 
     def _imports(self):
+        """
+        Generate import statements for all the dependencies of the stub.
+        """
+        # sort modules alphabetically for deterministic and clean output.
         items = list(self.dependencies.items())
         items.sort()
+
         for module, names in items:
+            # If only one name is imported from a module, make a one-liner import.
             if len(names) == 1:
                 name = names.pop()
                 yield f"from {module} import {name}"
+            # Otherwise, import all names in a multi-line import, sorted again for
+            # a deterministic and clean output.
             else:
                 names = list(names)
                 names.sort()
@@ -215,6 +255,11 @@ class DialectStub:
                 yield ")"
 
     def dialect_stubs(self):
+        """
+        The main function, generate stubs for the passed dialect and return as a string.
+
+        NB: probably not optimal perf-wise, but I don't foresee this as a bottleneck.
+        """
         self._import(xdsl.ir, Dialect)
         dialect_body = "\n".join(self._dialect_stubs())
         imports = "\n".join(self._imports())
