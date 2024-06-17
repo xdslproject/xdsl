@@ -1,5 +1,6 @@
 from attr import dataclass
 
+from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, csl, func, scf, stencil
 from xdsl.dialects.builtin import (
     IntegerAttr,
@@ -245,83 +246,97 @@ def generate_layout_module(ctx: TranslationContext) -> None:
 
     # add layout block and set grid dimensions
     ctx.add_var_to_layout("layout_block", layout_op := csl.LayoutOp(Region(Block())))
-    layout = layout_op.body.block
-    layout.add_op(csl.SetRectangleOp(operands=[width, height]))
+    with ImplicitBuilder(layout_op.body.block):
+        # calling @set_rectangle(width, height)
+        csl.SetRectangleOp(operands=[width, height])
 
-    # setting up constants and signedness casts
-    layout.add_op(zero := arith.Constant(IntegerAttr(0, IntegerType(16))))
-    layout.add_op(one := arith.Constant(IntegerAttr(1, IntegerType(16))))
-    layout.add_op(one_u := csl.SignednessCastOp(one))
-    layout.add_op(width_sl := csl.SignednessCastOp(width))
-    layout.add_op(height_sl := csl.SignednessCastOp(height))
+        # setting up constants and signedness casts
+        zero = arith.Constant(IntegerAttr(0, IntegerType(16)))
+        one = arith.Constant(IntegerAttr(1, IntegerType(16)))
+        one_u = csl.SignednessCastOp(one)
+        width_sl = csl.SignednessCastOp(width)
+        height_sl = csl.SignednessCastOp(height)
 
-    # setting up two-dimensional loop nest over physical x-y PEs
-    outer_loop_body = Block(arg_types=[IntegerType(16)])
-    inner_loop_body = Block(arg_types=[IntegerType(16)])
+        # setting up two-dimensional loop nest over physical x-y PEs
+        with ImplicitBuilder(
+            outer_loop := scf.For(
+                lb=zero,
+                ub=width_sl,
+                step=one,
+                iter_args=[],
+                body=Block(arg_types=[IntegerType(16)]),
+            ).body
+        ):
 
-    # adding outer loop to layout block
-    layout.add_op(
-        scf.For(lb=zero, ub=width_sl, step=one, iter_args=[], body=outer_loop_body)
-    )
+            # signedness cast for outer loop variable
+            # outer loop is x_id
+            x_id = csl.SignednessCastOp(outer_loop.block.args[0])
 
-    # signedness cast for outer loop variable
-    # outer loop is x_id
-    outer_loop_body.add_op(x_id := csl.SignednessCastOp(outer_loop_body.args[0]))
+            with ImplicitBuilder(
+                inner_loop := scf.For(
+                    lb=zero,
+                    ub=height_sl,
+                    step=one,
+                    iter_args=[],
+                    body=Block(arg_types=[IntegerType(16)]),
+                ).body
+            ):
 
-    # adding inner loop inside outer loop
-    outer_loop_body.add_op(
-        scf.For(lb=zero, ub=height_sl, step=one, iter_args=[], body=inner_loop_body)
-    )
+                # inner loop is y_id
+                y_id = csl.SignednessCastOp(inner_loop.block.args[0])
 
-    # preparing calls to route module, memcpy module, and `@set_tile_code`
-    inner_loop_body.add_ops(
-        [
-            # inner loop is y_id
-            y_id := csl.SignednessCastOp(inner_loop_body.args[0]),
-            # compute boolean expression is_border_region_pe
-            pattern_minus_one := arith.MinUI(pattern_op, one_u),
-            width_minus_xid := arith.MinUI(width, x_id),
-            height_minus_yid := arith.MinUI(height, y_id),
-            first := arith.Cmpi(x_id, pattern_minus_one, "ult"),
-            second := arith.Cmpi(y_id, pattern_minus_one, "ult"),
-            third := arith.Cmpi(width_minus_xid, pattern_op, "ult"),
-            fourth := arith.Cmpi(height_minus_yid, pattern_op, "ult"),
-            or_one := arith.OrI(first, second),
-            or_two := arith.OrI(or_one, third),
-            is_border_pe := arith.OrI(or_two, fourth),
-            # generates: memcpy.get_params(xId)
-            memcpy_params := csl.MemberCallOp(
-                "get_params", csl.ComptimeStructType(), memcpy, x_id
-            ),
-            # generates: routes.computeAllRoutes(x_id, y_id, width, height, pattern)
-            route_params := csl.MemberCallOp(
-                "computeAllRoutes",
-                csl.ComptimeStructType(),
-                routes,
-                x_id,
-                y_id,
-                width,
-                height,
-                pattern_op,
-            ),
-            # setting up param structs for `@set_tile_code`
-            set_tile_params := csl.ConstStructOp(
-                (Named.memcpy_params, memcpy_params),
-                (Named.stencil_comms_params, route_params),
-            ),
-            params_task := csl.ConstStructOp((Named.is_border_region_pe, is_border_pe)),
-            set_tile_params_ext := csl.ConcatStructOp(params_task, set_tile_params),
-            # generates: @set_tile_code(xId, yId, "pe.csl", .. param structs ..)
-            csl.SetTileCodeOp(
-                ctx.program_module.sym_name,
-                x_id,
-                y_id,
-                set_tile_params_ext,
-            ),
-            scf.Yield(),
-        ]
-    )
-    outer_loop_body.add_op(scf.Yield())
+                # compute boolean expression is_border_region_pe
+                pattern_minus_one = arith.MinUI(pattern_op, one_u)
+                width_minus_xid = arith.MinUI(width, x_id)
+                height_minus_yid = arith.MinUI(height, y_id)
+                first = arith.Cmpi(x_id, pattern_minus_one, "ult")
+                second = arith.Cmpi(y_id, pattern_minus_one, "ult")
+                third = arith.Cmpi(width_minus_xid, pattern_op, "ult")
+                fourth = arith.Cmpi(height_minus_yid, pattern_op, "ult")
+                or_one = arith.OrI(first, second)
+                or_two = arith.OrI(or_one, third)
+                is_border_pe = arith.OrI(or_two, fourth)
+
+                # generates: memcpy.get_params(xId)
+                memcpy_params = csl.MemberCallOp(
+                    "get_params", csl.ComptimeStructType(), memcpy, x_id
+                )
+
+                # generates: routes.computeAllRoutes(x_id, y_id, width, height, pattern)
+                route_params = csl.MemberCallOp(
+                    "computeAllRoutes",
+                    csl.ComptimeStructType(),
+                    routes,
+                    x_id,
+                    y_id,
+                    width,
+                    height,
+                    pattern_op,
+                )
+
+                # setting up param structs for `@set_tile_code`
+                set_tile_params = csl.ConstStructOp(
+                    (Named.memcpy_params, memcpy_params),
+                    (Named.stencil_comms_params, route_params),
+                )
+                params_task = csl.ConstStructOp(
+                    (Named.is_border_region_pe, is_border_pe)
+                )
+                set_tile_params_ext = csl.ConcatStructOp(params_task, set_tile_params)
+
+                # generates: @set_tile_code(xId, yId, "pe.csl", .. param structs ..)
+                csl.SetTileCodeOp(
+                    ctx.program_module.sym_name,
+                    x_id,
+                    y_id,
+                    set_tile_params_ext,
+                )
+
+                # inner loop yield
+                scf.Yield()
+
+            # outer loop yield
+            scf.Yield()
 
 
 @dataclass(frozen=True)
