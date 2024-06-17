@@ -38,7 +38,6 @@ from xdsl.irdl import (
     opt_result_def,
     result_def,
 )
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.hints import isa
 
 t_bool: IntegerType = IntegerType(1, Signedness.SIGNLESS)
@@ -196,22 +195,6 @@ class Reduce(MPIBaseOp):
             result_types=[],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        send_buffer: SSAValue | Operation,
-        recv_buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        operationtype: OperationType,
-        root: SSAValue | Operation,
-    ):
-        return Reduce.build(
-            operands=[send_buffer, recv_buffer, count, datatype, root],
-            attributes={"operationtype": operationtype},
-            result_types=[],
-        )
-
 
 @irdl_op_definition
 class Allreduce(MPIBaseOp):
@@ -268,29 +251,6 @@ class Allreduce(MPIBaseOp):
             result_types=[],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        send_buffer: SSAValue | Operation | None,
-        recv_buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        operationtype: OperationType,
-    ):
-        operands_to_add: Sequence[
-            SSAValue | Operation | Sequence[SSAValue | Operation]
-        ] = []
-        if send_buffer is None:
-            operands_to_add = [[], recv_buffer, count, datatype]
-        else:
-            operands_to_add = [[send_buffer], recv_buffer, count, datatype]
-
-        return Allreduce.build(
-            operands=operands_to_add,
-            attributes={"operationtype": operationtype},
-            result_types=[],
-        )
-
 
 @irdl_op_definition
 class Bcast(MPIBaseOp):
@@ -330,19 +290,6 @@ class Bcast(MPIBaseOp):
         root: SSAValue | Operation,
     ):
         return super().__init__(
-            operands=[buffer, count, datatype, root],
-            result_types=[],
-        )
-
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        root: SSAValue | Operation,
-    ):
-        return Bcast.build(
             operands=[buffer, count, datatype, root],
             result_types=[],
         )
@@ -395,21 +342,6 @@ class Isend(MPIBaseOp):
             result_types=[],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        dest: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        request: SSAValue | Operation,
-    ):
-        return Isend.build(
-            operands=[buffer, count, datatype, dest, tag, request],
-            result_types=[],
-        )
-
 
 @irdl_op_definition
 class Send(MPIBaseOp):
@@ -452,19 +384,6 @@ class Send(MPIBaseOp):
         tag: SSAValue | Operation,
     ):
         return super().__init__(
-            operands=[buffer, count, datatype, dest, tag], result_types=[]
-        )
-
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        dest: SSAValue | Operation,
-        tag: SSAValue | Operation,
-    ) -> Send:
-        return Send.build(
             operands=[buffer, count, datatype, dest, tag], result_types=[]
         )
 
@@ -513,21 +432,6 @@ class Irecv(MPIBaseOp):
         request: SSAValue | Operation,
     ):
         return super().__init__(
-            operands=[buffer, count, datatype, source, tag, request],
-            result_types=[],
-        )
-
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        source: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        request: SSAValue | Operation,
-    ):
-        return Irecv.build(
             operands=[buffer, count, datatype, source, tag, request],
             result_types=[],
         )
@@ -582,21 +486,6 @@ class Recv(MPIBaseOp):
             result_types=[[]] if ignore_status else [[StatusType()]],
         )
 
-    @deprecated("Use Init instead.")
-    @staticmethod
-    def get(
-        buffer: SSAValue | Operation,
-        count: SSAValue | Operation,
-        datatype: SSAValue | Operation,
-        source: SSAValue | Operation,
-        tag: SSAValue | Operation,
-        ignore_status: bool = True,
-    ):
-        return Recv.build(
-            operands=[buffer, count, datatype, source, tag],
-            result_types=[[]] if ignore_status else [[StatusType()]],
-        )
-
 
 @irdl_op_definition
 class Test(MPIBaseOp):
@@ -622,11 +511,6 @@ class Test(MPIBaseOp):
 
     def __init__(self, request: Operand):
         return super().__init__(operands=[request], result_types=[t_bool, StatusType()])
-
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(request: Operand):
-        return Test.build(operands=[request], result_types=[t_bool, StatusType()])
 
 
 @irdl_op_definition
@@ -654,15 +538,6 @@ class Wait(MPIBaseOp):
             result_types = [[]]
 
         return super().__init__(operands=[request], result_types=result_types)
-
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(request: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[StatusType()]]
-        if ignore_status:
-            result_types = [[]]
-
-        return Wait.build(operands=[request], result_types=result_types)
 
 
 @irdl_op_definition
@@ -694,15 +569,6 @@ class Waitall(MPIBaseOp):
 
         return super().__init__(operands=[requests, count], result_types=result_types)
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(requests: Operand, count: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType.of(StatusType)]]
-        if ignore_status:
-            result_types = [[]]
-
-        return Waitall.build(operands=[requests, count], result_types=result_types)
-
 
 @irdl_op_definition
 class GetStatusField(MPIBaseOp):
@@ -732,15 +598,6 @@ class GetStatusField(MPIBaseOp):
             result_types=[i32],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(status_obj: Operand, field: StatusTypeField):
-        return GetStatusField.build(
-            operands=[status_obj],
-            attributes={"field": StringAttr(field.value)},
-            result_types=[i32],
-        )
-
 
 @irdl_op_definition
 class CommRank(MPIBaseOp):
@@ -758,11 +615,6 @@ class CommRank(MPIBaseOp):
     def __init__(self):
         return super().__init__(result_types=[i32])
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get():
-        return CommRank.build(result_types=[i32])
-
 
 @irdl_op_definition
 class CommSize(MPIBaseOp):
@@ -779,11 +631,6 @@ class CommSize(MPIBaseOp):
 
     def __init__(self):
         return super().__init__(result_types=[i32])
-
-    @deprecated("Use init instead")
-    @staticmethod
-    def get():
-        return CommSize.build(result_types=[i32])
 
 
 @irdl_op_definition
@@ -826,14 +673,6 @@ class UnwrapMemrefOp(MPIBaseOp):
             result_types=[llvm.LLVMPointerType.opaque(), i32, DataType()],
         )
 
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(ref: SSAValue | Operation) -> UnwrapMemrefOp:
-        return UnwrapMemrefOp.build(
-            operands=[ref],
-            result_types=[llvm.LLVMPointerType.opaque(), i32, DataType()],
-        )
-
 
 @irdl_op_definition
 class GetDtypeOp(MPIBaseOp):
@@ -856,11 +695,6 @@ class GetDtypeOp(MPIBaseOp):
 
     def __init__(self, dtype: Attribute):
         return super().__init__(result_types=[DataType()], attributes={"dtype": dtype})
-
-    @deprecated("Use init instead")
-    @staticmethod
-    def get(dtype: Attribute):
-        return GetDtypeOp.build(result_types=[DataType()], attributes={"dtype": dtype})
 
 
 @irdl_op_definition
@@ -898,22 +732,6 @@ class AllocateTypeOp(MPIBaseOp):
             operands=[count],
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(
-        dtype: type[VectorWrappable],
-        count: SSAValue | Operation,
-        bindc_name: StringAttr | None = None,
-    ) -> AllocateTypeOp:
-        return AllocateTypeOp.build(
-            result_types=[VectorType.of(dtype)],
-            attributes={
-                "dtype": dtype(),
-                "bindc_name": bindc_name,
-            },
-            operands=[count],
-        )
-
 
 @irdl_op_definition
 class VectorGetOp(MPIBaseOp):
@@ -937,16 +755,6 @@ class VectorGetOp(MPIBaseOp):
             result_types=[ssa_val.type.wrapped_type], operands=[vect, element]
         )
 
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(vect: SSAValue | Operation, element: SSAValue | Operation) -> VectorGetOp:
-        ssa_val = SSAValue.get(vect)
-        assert isa(ssa_val.type, VectorType[VectorWrappable])
-
-        return VectorGetOp.build(
-            result_types=[ssa_val.type.wrapped_type], operands=[vect, element]
-        )
-
 
 @irdl_op_definition
 class NullRequestOp(MPIBaseOp):
@@ -964,11 +772,6 @@ class NullRequestOp(MPIBaseOp):
 
     def __init__(self, req: SSAValue | Operation):
         return super().__init__(operands=[req])
-
-    @deprecated("Use init instead.")
-    @staticmethod
-    def get(req: SSAValue | Operation):
-        return NullRequestOp.build(operands=[req])
 
 
 @irdl_op_definition
