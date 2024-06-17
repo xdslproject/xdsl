@@ -41,11 +41,13 @@ if __name__ == "__main__":
 # CHECK-NEXT:  from xdsl.ir import (
 # CHECK-NEXT:      Dialect,
 # CHECK-NEXT:      OpResult,
-# CHECK-NEXT:      Operand,
 # CHECK-NEXT:      ParametrizedAttribute,
 # CHECK-NEXT:      TypeAttribute,
 # CHECK-NEXT:  )
-# CHECK-NEXT:  from xdsl.irdl import IRDLOperation
+# CHECK-NEXT:  from xdsl.irdl import (
+# CHECK-NEXT:      IRDLOperation,
+# CHECK-NEXT:      Operand,
+# CHECK-NEXT:  )
 # CHECK-EMPTY:
 # CHECK-NEXT:  class complex(TypeAttribute, ParametrizedAttribute):
 # CHECK-NEXT:      p0 : "Float32Type | Float64Type"

@@ -1,8 +1,12 @@
+import typing
 from dataclasses import dataclass, field
-from typing import Annotated, Any
+from types import ModuleType
+from typing import Any
 
+import xdsl.dialects.builtin
+import xdsl.ir
+import xdsl.irdl
 from xdsl.dialects.builtin import ArrayAttr, ArrayOfConstraint
-from xdsl.interpreter import Successor
 from xdsl.ir import Attribute, Dialect, OpResult, ParametrizedAttribute, Region
 from xdsl.irdl import (
     AllOf,
@@ -13,17 +17,12 @@ from xdsl.irdl import (
     BaseAttr,
     EqAttrConstraint,
     IRDLOperation,
-    Operand,
     OperandDef,
     OptAttributeDef,
-    OptOperand,
     OptOperandDef,
-    OptOpResult,
     OptPropertyDef,
-    OptRegion,
     OptRegionDef,
     OptResultDef,
-    OptSuccessor,
     OptSuccessorDef,
     ParamAttrConstraint,
     PropertyDef,
@@ -32,13 +31,9 @@ from xdsl.irdl import (
     ResultDef,
     SingleOf,
     SuccessorDef,
-    VarOperand,
     VarOperandDef,
-    VarOpResult,
-    VarRegion,
     VarRegionDef,
     VarResultDef,
-    VarSuccessor,
     VarSuccessorDef,
 )
 
@@ -46,12 +41,13 @@ from xdsl.irdl import (
 @dataclass
 class DialectStub:
     dialect: Dialect
-    dependencies: dict[Any, set[tuple[Any, str]]] = field(
-        init=False, default_factory=dict
-    )
+    dependencies: dict[str, set[str]] = field(init=False, default_factory=dict)
 
-    def _import(self, object: Any, alias: str = ""):
-        module = object.__module__
+    def _import(self, module: ModuleType | str, name: str | type[Any]):
+        if isinstance(name, type):
+            name = name.__name__
+        if isinstance(module, ModuleType):
+            module = module.__name__
         if module == "builtins":
             return
         if module.startswith("xdsl.ir."):
@@ -59,31 +55,31 @@ class DialectStub:
         if module.startswith("xdsl.irdl."):
             module = "xdsl.irdl"
         if module in self.dependencies:
-            self.dependencies[module].add((object, alias))
+            self.dependencies[module].add(name)
         else:
-            self.dependencies[module] = {(object, alias)}
+            self.dependencies[module] = {name}
 
     def _constraint_type(self, constraint: AttrConstraint) -> str:
         match constraint:
             case BaseAttr(attr_type):
                 if attr_type not in self.dialect.attributes:
-                    self._import(attr_type)
+                    self._import(attr_type.__module__, attr_type.__name__)
                 return attr_type.__name__
             case EqAttrConstraint(attr):
                 if type(attr) not in self.dialect.attributes:
-                    self._import(type(attr))
+                    self._import(type(attr).__module__, type(attr).__name__)
                 return type(attr).__name__
 
             case AnyOf(constraints):
                 return " | ".join(self._constraint_type(c) for c in constraints)
             case AllOf(constraints):
-                self._import(Annotated)
+                self._import(typing, "Annotated")
                 return f"Annotated[{', '.join(self._constraint_type(c) for c in reversed(constraints))}]"
             case ArrayOfConstraint(constraint):
-                self._import(ArrayAttr)
+                self._import(xdsl.dialects.builtin, ArrayAttr)
                 return f"ArrayAttr[{self._constraint_type(constraint)}]"
             case AnyAttr():
-                self._import(Attribute)
+                self._import(xdsl.ir, Attribute)
                 return "Attribute"
             case ParamAttrConstraint(base_type):
                 return base_type.__name__
@@ -103,10 +99,10 @@ class DialectStub:
                 )
 
     def _attribute_stub(self, attr: type[ParametrizedAttribute]):
-        self._import(ParametrizedAttribute)
+        self._import(xdsl.ir, ParametrizedAttribute)
         bases = set(attr.__mro__[1:]) - set(ParametrizedAttribute.__mro__)
         for base in bases:
-            self._import(base)
+            self._import(base.__module__, base)
         bases = ", ".join(b.__name__ for b in bases)
         if bases:
             bases += ", "
@@ -119,32 +115,32 @@ class DialectStub:
 
     def _operation_stub(self, op: type[IRDLOperation]):
         had_body = False
-        self._import(IRDLOperation)
+        self._import(xdsl.irdl, IRDLOperation)
         yield f"class {op.__name__}(IRDLOperation):"
         op_def = op.get_irdl_definition()
         for name, o in op_def.operands:
             had_body = True
             match o:
                 case VarOperandDef(_):
-                    self._import(VarOperand, "VarOperand")
+                    self._import(xdsl.irdl, "VarOperand")
                     yield f"    {name} : VarOperand"
                 case OptOperandDef(_):
-                    self._import(OptOperand, "OptOperand")
+                    self._import(xdsl.irdl, "OptOperand")
                     yield f"    {name} : OptOperand"
                 case OperandDef(_):
-                    self._import(Operand, "Operand")
+                    self._import(xdsl.irdl, "Operand")
                     yield f"    {name} : Operand"
         for name, o in op_def.results:
             had_body = True
             match o:
                 case VarResultDef():
-                    self._import(VarOpResult)
+                    self._import(xdsl.irdl, "VarOpResult")
                     yield f"    {name} : VarOpResult"
                 case OptResultDef():
-                    self._import(OptOpResult, "OptOpResult")
+                    self._import(xdsl.irdl, "OptOpResult")
                     yield f"    {name} : OptOpResult"
                 case ResultDef():
-                    self._import(OpResult)
+                    self._import(xdsl.ir, OpResult)
                     yield f"    {name} : OpResult"
         for name, o in op_def.attributes.items():
             had_body = True
@@ -165,26 +161,26 @@ class DialectStub:
             had_body = True
             match r:
                 case OptRegionDef():
-                    self._import(OptRegion, "OptRegion")
+                    self._import(xdsl.irdl, "OptRegion")
                     yield f"    {name} : OptRegion"
                 case VarRegionDef():
-                    self._import(VarRegion, "VarRegion")
+                    self._import(xdsl.irdl, "VarRegion")
                     yield f"    {name} : VarRegion"
                 case RegionDef():
-                    self._import(Region)
+                    self._import(xdsl.ir, Region)
                     yield f"    {name} : Region"
 
         for name, r in op_def.successors:
             had_body = True
             match r:
                 case OptSuccessorDef():
-                    self._import(OptSuccessor, "OptSuccessor")
+                    self._import(xdsl.irdl, "OptSuccessor")
                     yield f"    {name} : OptSuccessor"
                 case VarSuccessorDef():
-                    self._import(VarSuccessor, "VarSuccessor")
+                    self._import(xdsl.irdl, "VarSuccessor")
                     yield f"    {name} : VarSuccessor"
                 case SuccessorDef():
-                    self._import(Successor)
+                    self._import(xdsl.irdl, "Successor")
                     yield f"    {name} : Successor"
 
         if not had_body:
@@ -206,12 +202,12 @@ class DialectStub:
     def _imports(self):
         items = list(self.dependencies.items())
         items.sort()
-        for module, objects in items:
-            if len(objects) == 1:
-                object = objects.pop()
-                yield f"from {module} import {object[1] or object[0].__name__}"
+        for module, names in items:
+            if len(names) == 1:
+                name = names.pop()
+                yield f"from {module} import {name}"
             else:
-                names = list(o[1] or o[0].__name__ for o in objects)
+                names = list(names)
                 names.sort()
                 yield f"from {module} import ("
                 for o in names:
@@ -219,7 +215,7 @@ class DialectStub:
                 yield ")"
 
     def dialect_stubs(self):
-        self._import(Dialect)
+        self._import(xdsl.ir, Dialect)
         dialect_body = "\n".join(self._dialect_stubs())
         imports = "\n".join(self._imports())
         if imports:
