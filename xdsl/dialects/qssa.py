@@ -1,4 +1,4 @@
-from xdsl.dialects.builtin import IntegerType
+from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
@@ -7,6 +7,9 @@ from xdsl.irdl import (
     operand_def,
     result_def,
 )
+from xdsl.irdl.irdl import VarOpResult, prop_def, var_result_def
+from xdsl.parser.core import Parser
+from xdsl.printer import Printer
 
 
 @irdl_attr_definition
@@ -19,6 +22,32 @@ class QubitAttr(ParametrizedAttribute, TypeAttribute):
 
 
 qubit = QubitAttr()
+
+
+@irdl_op_definition
+class QubitAllocOp(IRDLOperation):
+    name = "qssa.alloc"
+
+    qubits = prop_def(IntegerAttr)
+
+    res: VarOpResult = var_result_def(qubit)
+
+    def __init__(self, qubits: int):
+        super().__init__(
+            operands=(),
+            result_types=([qubit for _ in range(0, qubits)],),
+            properties={"qubits": IntegerAttr(qubits, 32)},
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "QubitAllocOp":
+        with parser.in_angle_brackets():
+            i = parser.parse_integer()
+        return QubitAllocOp(i)
+
+    def print(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print(self.qubits.value.data)
 
 
 @irdl_op_definition
@@ -88,6 +117,7 @@ class MeasureOp(IRDLOperation):
 QSSA = Dialect(
     "qssa",
     [
+        QubitAllocOp,
         HGateOp,
         CZGateOp,
         CNotGateOp,
