@@ -1,7 +1,6 @@
 from attr import dataclass
 
-from xdsl.dialects import func
-from xdsl.dialects.arith import Cmpi, Constant, MinUI, Muli, OrI
+from xdsl.dialects import arith, csl, func, scf, stencil
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
@@ -11,24 +10,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.dialects.csl import (
-    ComptimeStructType,
-    ConcatStructOp,
-    ConstStructOp,
-    CslModuleOp,
-    GetColorOp,
-    ImportModuleConstOp,
-    LayoutOp,
-    MemberCallOp,
-    ModuleKind,
-    ModuleKindAttr,
-    ParamOp,
-    SetRectangleOp,
-    SetTileCodeOp,
-    SignednessCastOp,
-)
-from xdsl.dialects.scf import For, Yield
-from xdsl.dialects.stencil import ApplyOp
 from xdsl.ir import Attribute, Block, MLContext, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.utils.hints import isa
@@ -61,46 +42,46 @@ class TranslationContext:
 
     grid_dim: tuple[int, int, int]
     pattern: int
-    program_module: CslModuleOp
-    layout_module: CslModuleOp
+    program_module: csl.CslModuleOp
+    layout_module: csl.CslModuleOp
     program_sym_name: StringAttr
 
-    program_params: dict[str, ParamOp] = {}
-    layout_params: dict[str, ParamOp] = {}
-    program_imports: dict[str, ImportModuleConstOp] = {}
-    layout_imports: dict[str, ImportModuleConstOp] = {}
+    program_params: dict[str, csl.ParamOp] = {}
+    layout_params: dict[str, csl.ParamOp] = {}
+    program_imports: dict[str, csl.ImportModuleConstOp] = {}
+    layout_imports: dict[str, csl.ImportModuleConstOp] = {}
     program_vars: dict[str, Operation] = {}
     layout_vars: dict[str, Operation] = {}
 
-    def add_param_to_program(self, param: ParamOp):
+    def add_param_to_program(self, param: csl.ParamOp):
         self.program_module.body.block.add_op(param)
         self.program_params[param.param_name.data] = param
 
-    def add_param_to_layout(self, param: ParamOp):
+    def add_param_to_layout(self, param: csl.ParamOp):
         self.layout_module.body.block.add_op(param)
         self.layout_params[param.param_name.data] = param
 
-    def add_import_module_to_program(self, lib: ImportModuleConstOp):
+    def add_import_module_to_program(self, lib: csl.ImportModuleConstOp):
         self.program_module.body.block.add_op(lib)
         self.program_imports[lib.module.data] = lib
 
-    def add_import_module_to_layout(self, lib: ImportModuleConstOp):
+    def add_import_module_to_layout(self, lib: csl.ImportModuleConstOp):
         self.layout_module.body.block.add_op(lib)
         self.layout_imports[lib.module.data] = lib
 
-    def add_params_to_program(self, *params: ParamOp):
+    def add_params_to_program(self, *params: csl.ParamOp):
         for param in params:
             self.add_param_to_program(param)
 
-    def add_params_to_layout(self, *params: ParamOp):
+    def add_params_to_layout(self, *params: csl.ParamOp):
         for param in params:
             self.add_param_to_layout(param)
 
-    def add_import_modules_to_program(self, *lib: ImportModuleConstOp):
+    def add_import_modules_to_program(self, *lib: csl.ImportModuleConstOp):
         for l in lib:
             self.add_import_module_to_program(l)
 
-    def add_import_modules_to_layout(self, *lib: ImportModuleConstOp):
+    def add_import_modules_to_layout(self, *lib: csl.ImportModuleConstOp):
         for l in lib:
             self.add_import_module_to_layout(l)
 
@@ -125,30 +106,30 @@ def generate_program_module(ctx: TranslationContext) -> None:
 
     # program params to be supplied by layout module
     ctx.add_params_to_program(
-        s_params := ParamOp(Named.stencil_comms_params, ComptimeStructType()),
-        m_params := ParamOp(Named.memcpy_params, ComptimeStructType()),
-        ParamOp(Named.is_border_region_pe, IntegerType(1)),
+        s_params := csl.ParamOp(Named.stencil_comms_params, csl.ComptimeStructType()),
+        m_params := csl.ParamOp(Named.memcpy_params, csl.ComptimeStructType()),
+        csl.ParamOp(Named.is_border_region_pe, IntegerType(1)),
     )
 
     # size of the z dimension
     ctx.add_var_to_program(
         Named.z_dim,
-        z_dim := Constant(
+        z_dim := arith.Constant(
             IntegerAttr(ctx.grid_dim[2], IntegerType(16, Signedness.UNSIGNED))
         ),
     )
 
     # module imports
     ctx.add_import_modules_to_program(
-        ImportModuleConstOp("<memcpy/memcpy>", m_params),
-        ImportModuleConstOp("<time>"),
-        util := ImportModuleConstOp("util.csl"),
+        csl.ImportModuleConstOp("<memcpy/memcpy>", m_params),
+        csl.ImportModuleConstOp("<time>"),
+        util := csl.ImportModuleConstOp("util.csl"),
     )
 
     # generates: num_chunks = util.computeChunks(z_dim)
     ctx.add_var_to_program(
         "num_chunks",
-        num_chunks := MemberCallOp(
+        num_chunks := csl.MemberCallOp(
             "computeChunks",
             IntegerType(16, Signedness.UNSIGNED),
             util,
@@ -159,7 +140,7 @@ def generate_program_module(ctx: TranslationContext) -> None:
     # generates: chunk_size = util.computeChunks(z_dim, num_chunks)
     ctx.add_var_to_program(
         "chunk_size",
-        chunk_size := MemberCallOp(
+        chunk_size := csl.MemberCallOp(
             "computeChunkSize",
             IntegerType(16, Signedness.UNSIGNED),
             util,
@@ -169,12 +150,12 @@ def generate_program_module(ctx: TranslationContext) -> None:
     )
 
     # when sending / receiving buffers with stencil_comms, use padded_z_dim rather than z_dim as buffer size
-    ctx.add_var_to_program("padded_z_dim", Muli(num_chunks, chunk_size))
+    ctx.add_var_to_program("padded_z_dim", arith.Muli(num_chunks, chunk_size))
 
     # stencil pattern, i.e. neighbours in any direction + 1
     ctx.add_var_to_program(
         Named.pattern,
-        pattern_op := Constant(
+        pattern_op := arith.Constant(
             IntegerAttr(ctx.pattern, IntegerType(16, Signedness.UNSIGNED))
         ),
     )
@@ -182,20 +163,20 @@ def generate_program_module(ctx: TranslationContext) -> None:
     # setting up structs to import stencil_comms.csl
     ctx.add_var_to_program(
         "stencil_comms_params_ext",
-        stencil_comms_params_ext := ConstStructOp(
+        stencil_comms_params_ext := csl.ConstStructOp(
             (Named.pattern, pattern_op), ("chunkSize", chunk_size)
         ),
     )
     ctx.add_var_to_program(
         "stencil_comms_params_combined",
-        stencil_comms_params_combined := ConcatStructOp(
+        stencil_comms_params_combined := csl.ConcatStructOp(
             stencil_comms_params_ext, s_params
         ),
     )
 
     # importing stencil_comms.csl
     ctx.add_import_module_to_program(
-        ImportModuleConstOp("stencil_comms.csl", stencil_comms_params_combined),
+        csl.ImportModuleConstOp("stencil_comms.csl", stencil_comms_params_combined),
     )
 
 
@@ -210,15 +191,15 @@ def generate_layout_module(ctx: TranslationContext) -> None:
     """
     ctx.add_var_to_layout(
         "LAUNCH_ID",
-        launch_id := Constant(IntegerAttr(0, IntegerType(16, Signedness.SIGNED))),
+        launch_id := arith.Constant(IntegerAttr(0, IntegerType(16, Signedness.SIGNED))),
     )
 
-    ctx.add_var_to_layout("LAUNCH", launch := GetColorOp(launch_id))
+    ctx.add_var_to_layout("LAUNCH", launch := csl.GetColorOp(launch_id))
 
     # width is the number of PEs in the x dimension
     ctx.add_var_to_layout(
         "width",
-        width := Constant(
+        width := arith.Constant(
             IntegerAttr(ctx.grid_dim[0], IntegerType(16, Signedness.UNSIGNED))
         ),
     )
@@ -226,7 +207,7 @@ def generate_layout_module(ctx: TranslationContext) -> None:
     # height is the number of PEs in the x dimension
     ctx.add_var_to_layout(
         "height",
-        height := Constant(
+        height := arith.Constant(
             IntegerAttr(ctx.grid_dim[1], IntegerType(16, Signedness.UNSIGNED))
         ),
     )
@@ -234,7 +215,7 @@ def generate_layout_module(ctx: TranslationContext) -> None:
     # stencil pattern, i.e. neighbours in any direction + 1
     ctx.add_var_to_layout(
         Named.pattern,
-        pattern_op := Constant(
+        pattern_op := arith.Constant(
             IntegerAttr(ctx.pattern, IntegerType(16, Signedness.UNSIGNED))
         ),
     )
@@ -243,7 +224,7 @@ def generate_layout_module(ctx: TranslationContext) -> None:
     # setting up struct to import memcpy module
     ctx.add_var_to_layout(
         "memcpy_call_params",
-        memcpy_call_params := ConstStructOp(
+        memcpy_call_params := csl.ConstStructOp(
             ("width", width), ("height", height), ("LAUNCH", launch)
         ),
     )
@@ -251,28 +232,28 @@ def generate_layout_module(ctx: TranslationContext) -> None:
     # setting up struct to import routes module
     ctx.add_var_to_layout(
         "routes_params",
-        routes_params := ConstStructOp(
+        routes_params := csl.ConstStructOp(
             (Named.pattern, pattern_op), ("peWidth", width), ("peHeight", height)
         ),
     )
 
     # import memcpy and routes module
     ctx.add_import_modules_to_layout(
-        memcpy := ImportModuleConstOp("<memcpy/get_params>", memcpy_call_params),
-        routes := ImportModuleConstOp("routes.csl", routes_params),
+        memcpy := csl.ImportModuleConstOp("<memcpy/get_params>", memcpy_call_params),
+        routes := csl.ImportModuleConstOp("routes.csl", routes_params),
     )
 
     # add layout block and set grid dimensions
-    ctx.add_var_to_layout("layout_block", layout_op := LayoutOp(Region(Block())))
+    ctx.add_var_to_layout("layout_block", layout_op := csl.LayoutOp(Region(Block())))
     layout = layout_op.body.block
-    layout.add_op(SetRectangleOp(operands=[width, height]))
+    layout.add_op(csl.SetRectangleOp(operands=[width, height]))
 
     # setting up constants and signedness casts
-    layout.add_op(zero := Constant(IntegerAttr(0, IntegerType(16))))
-    layout.add_op(one := Constant(IntegerAttr(1, IntegerType(16))))
-    layout.add_op(one_u := SignednessCastOp(one))
-    layout.add_op(width_sl := SignednessCastOp(width))
-    layout.add_op(height_sl := SignednessCastOp(height))
+    layout.add_op(zero := arith.Constant(IntegerAttr(0, IntegerType(16))))
+    layout.add_op(one := arith.Constant(IntegerAttr(1, IntegerType(16))))
+    layout.add_op(one_u := csl.SignednessCastOp(one))
+    layout.add_op(width_sl := csl.SignednessCastOp(width))
+    layout.add_op(height_sl := csl.SignednessCastOp(height))
 
     # setting up two-dimensional loop nest over physical x-y PEs
     outer_loop_body = Block(arg_types=[IntegerType(16)])
@@ -280,42 +261,42 @@ def generate_layout_module(ctx: TranslationContext) -> None:
 
     # adding outer loop to layout block
     layout.add_op(
-        For(lb=zero, ub=width_sl, step=one, iter_args=[], body=outer_loop_body)
+        scf.For(lb=zero, ub=width_sl, step=one, iter_args=[], body=outer_loop_body)
     )
 
     # signedness cast for outer loop variable
     # outer loop is x_id
-    outer_loop_body.add_op(x_id := SignednessCastOp(outer_loop_body.args[0]))
+    outer_loop_body.add_op(x_id := csl.SignednessCastOp(outer_loop_body.args[0]))
 
     # adding inner loop inside outer loop
     outer_loop_body.add_op(
-        For(lb=zero, ub=height_sl, step=one, iter_args=[], body=inner_loop_body)
+        scf.For(lb=zero, ub=height_sl, step=one, iter_args=[], body=inner_loop_body)
     )
 
     # preparing calls to route module, memcpy module, and `@set_tile_code`
     inner_loop_body.add_ops(
         [
             # inner loop is y_id
-            y_id := SignednessCastOp(inner_loop_body.args[0]),
+            y_id := csl.SignednessCastOp(inner_loop_body.args[0]),
             # compute boolean expression is_border_region_pe
-            pattern_minus_one := MinUI(pattern_op, one_u),
-            width_minus_xid := MinUI(width, x_id),
-            height_minus_yid := MinUI(height, y_id),
-            first := Cmpi(x_id, pattern_minus_one, "ult"),
-            second := Cmpi(y_id, pattern_minus_one, "ult"),
-            third := Cmpi(width_minus_xid, pattern_op, "ult"),
-            fourth := Cmpi(height_minus_yid, pattern_op, "ult"),
-            or_one := OrI(first, second),
-            or_two := OrI(or_one, third),
-            is_border_pe := OrI(or_two, fourth),
+            pattern_minus_one := arith.MinUI(pattern_op, one_u),
+            width_minus_xid := arith.MinUI(width, x_id),
+            height_minus_yid := arith.MinUI(height, y_id),
+            first := arith.Cmpi(x_id, pattern_minus_one, "ult"),
+            second := arith.Cmpi(y_id, pattern_minus_one, "ult"),
+            third := arith.Cmpi(width_minus_xid, pattern_op, "ult"),
+            fourth := arith.Cmpi(height_minus_yid, pattern_op, "ult"),
+            or_one := arith.OrI(first, second),
+            or_two := arith.OrI(or_one, third),
+            is_border_pe := arith.OrI(or_two, fourth),
             # generates: memcpy.get_params(xId)
-            memcpy_params := MemberCallOp(
-                "get_params", ComptimeStructType(), memcpy, x_id
+            memcpy_params := csl.MemberCallOp(
+                "get_params", csl.ComptimeStructType(), memcpy, x_id
             ),
             # generates: routes.computeAllRoutes(x_id, y_id, width, height, pattern)
-            route_params := MemberCallOp(
+            route_params := csl.MemberCallOp(
                 "computeAllRoutes",
-                ComptimeStructType(),
+                csl.ComptimeStructType(),
                 routes,
                 x_id,
                 y_id,
@@ -324,23 +305,23 @@ def generate_layout_module(ctx: TranslationContext) -> None:
                 pattern_op,
             ),
             # setting up param structs for `@set_tile_code`
-            set_tile_params := ConstStructOp(
+            set_tile_params := csl.ConstStructOp(
                 (Named.memcpy_params, memcpy_params),
                 (Named.stencil_comms_params, route_params),
             ),
-            params_task := ConstStructOp((Named.is_border_region_pe, is_border_pe)),
-            set_tile_params_ext := ConcatStructOp(params_task, set_tile_params),
+            params_task := csl.ConstStructOp((Named.is_border_region_pe, is_border_pe)),
+            set_tile_params_ext := csl.ConcatStructOp(params_task, set_tile_params),
             # generates: @set_tile_code(xId, yId, "pe.csl", .. param structs ..)
-            SetTileCodeOp(
+            csl.SetTileCodeOp(
                 ctx.program_module.sym_name,
                 x_id,
                 y_id,
                 set_tile_params_ext,
             ),
-            Yield(),
+            scf.Yield(),
         ]
     )
-    outer_loop_body.add_op(Yield())
+    outer_loop_body.add_op(scf.Yield())
 
 
 @dataclass(frozen=True)
@@ -349,14 +330,14 @@ class ConvertStencilToCsl(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         # initialise both CSL modules
-        program_module = CslModuleOp(
+        program_module = csl.CslModuleOp(
             regions=[Region(Block())],
-            properties={"kind": ModuleKindAttr(ModuleKind.PROGRAM)},
+            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.PROGRAM)},
             attributes={"sym_name": StringAttr("pe.csl")},
         )
-        layout_module = CslModuleOp(
+        layout_module = csl.CslModuleOp(
             regions=[Region(Block())],
-            properties={"kind": ModuleKindAttr(ModuleKind.LAYOUT)},
+            properties={"kind": csl.ModuleKindAttr(csl.ModuleKind.LAYOUT)},
             attributes={"sym_name": StringAttr("layout.csl")},
         )
 
@@ -366,7 +347,7 @@ class ConvertStencilToCsl(ModulePass):
         # iterate over stencil.apply ops to find the maximum stencil width ('arm length')
         neighbours = 0
         for o in stencil_func.body.block.ops:
-            if isinstance(o, ApplyOp):
+            if isinstance(o, stencil.ApplyOp):
                 for access in o.get_accesses():
                     for l, r in access.halos():
                         neighbours = max(neighbours, abs(l), abs(r))
