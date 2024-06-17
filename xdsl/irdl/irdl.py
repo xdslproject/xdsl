@@ -2505,7 +2505,11 @@ def get_accessors_from_op_def(
 
         new_attrs["verify_"] = verify_
     else:
-        new_attrs["verify_"] = op_def.verify
+
+        def verify_(self: IRDLOperation):
+            op_def.verify(self)
+
+        new_attrs["verify_"] = verify_
 
     return new_attrs
 
