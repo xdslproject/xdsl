@@ -103,6 +103,8 @@ def generate_program_module(ctx: TranslationContext) -> None:
     Params are generated to match `@set_tile_code` invocation of the
     layout module. Also imports memcpy, utils, and stencil_comms modules. Vars/consts
     are set up as required to perform these imports.
+
+    Note: expects 3-dimensional stencil computation.
     """
 
     # program params to be supplied by layout module
