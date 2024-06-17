@@ -21,7 +21,6 @@ from typing_extensions import Self
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
-    AttributeInvT,
     Block,
     BlockOps,
     Data,
@@ -60,9 +59,7 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
-from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -416,7 +413,7 @@ class IntegerAttr(
 
     @overload
     def __init__(
-        self: IntegerAttr[_IntegerAttrType],
+        self,
         value: int | IntAttr,
         value_type: _IntegerAttrType,
     ) -> None: ...
@@ -652,7 +649,7 @@ class VectorType(
     num_scalable_dims: ParameterDef[IntAttr]
 
     def __init__(
-        self: VectorType[AttributeCovT],
+        self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
         num_scalable_dims: int | IntAttr = 0,
@@ -689,32 +686,6 @@ class VectorType(
                 f" {self.get_num_dims()}"
             )
 
-    @deprecated_constructor
-    @staticmethod
-    def from_element_type_and_shape(
-        referenced_type: AttributeInvT,
-        shape: Iterable[int | IntegerAttr[IndexType]],
-        num_scalable_dims: int | IntAttr = 0,
-    ) -> VectorType[AttributeInvT]:
-        if isinstance(num_scalable_dims, int):
-            num_scalable_dims = IntAttr(num_scalable_dims)
-        shape_int = [
-            IntAttr(dim) if isinstance(dim, int) else dim.value.data for dim in shape
-        ]
-        return VectorType(referenced_type, shape_int, num_scalable_dims)
-
-    @deprecated_constructor
-    @staticmethod
-    def from_params(
-        referenced_type: AttributeInvT,
-        shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)]
-        ),
-        num_scalable_dims: IntAttr = IntAttr(0),
-    ) -> VectorType[AttributeInvT]:
-        shape_int = [dim.value.data for dim in shape.data]
-        return VectorType(referenced_type, shape_int, num_scalable_dims)
-
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
@@ -734,7 +705,7 @@ class TensorType(
     encoding: ParameterDef[Attribute]
 
     def __init__(
-        self: TensorType[AttributeCovT],
+        self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
         encoding: Attribute = NoneAttr(),
@@ -753,32 +724,6 @@ class TensorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
-    @deprecated_constructor
-    @staticmethod
-    def from_type_and_list(
-        referenced_type: AttributeInvT,
-        shape: Iterable[int | IntegerAttr[IndexType]] | None = None,
-        encoding: Attribute = NoneAttr(),
-    ) -> TensorType[AttributeInvT]:
-        if shape is None:
-            shape = [1]
-        shape_int = [
-            IntAttr(dim) if isinstance(dim, int) else dim.value.data for dim in shape
-        ]
-        return TensorType(referenced_type, shape_int, encoding)
-
-    @deprecated_constructor
-    @staticmethod
-    def from_params(
-        referenced_type: AttributeInvT,
-        shape: AnyArrayAttr = AnyArrayAttr([IntegerAttr.from_int_and_width(1, 64)]),
-        encoding: Attribute = NoneAttr(),
-    ) -> TensorType[AttributeInvT]:
-        if not isa(shape, ArrayAttr[AnyIntegerAttr]):
-            raise TypeError(f"Unsupported shape type {type(shape)}")
-        shape_int = [dim.value.data for dim in shape.data]
-        return TensorType(referenced_type, shape_int, encoding)
-
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
 
@@ -789,9 +734,7 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
 
     element_type: ParameterDef[AttributeCovT]
 
-    def __init__(
-        self: UnrankedTensorType[AttributeCovT], element_type: AttributeCovT
-    ) -> None:
+    def __init__(self, element_type: AttributeCovT) -> None:
         super().__init__([element_type])
 
 
@@ -1537,15 +1480,16 @@ class MemRefType(
     memory_space: ParameterDef[Attribute]
 
     def __init__(
-        self: MemRefType[_MemRefTypeElement],
+        self,
         element_type: _MemRefTypeElement,
-        shape: Iterable[int | IntAttr],
+        shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
         layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        shape = ArrayAttr(
-            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
-        )
+        if not isinstance(shape, ArrayAttr):
+            shape = ArrayAttr(
+                [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+            )
         super().__init__(
             [
                 shape,
@@ -1563,30 +1507,6 @@ class MemRefType(
 
     def get_element_type(self) -> _MemRefTypeElement:
         return self.element_type
-
-    @deprecated_constructor
-    @staticmethod
-    def from_element_type_and_shape(
-        referenced_type: _MemRefTypeElement,
-        shape: Iterable[int | AnyIntegerAttr],
-        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
-        memory_space: Attribute = NoneAttr(),
-    ) -> MemRefType[_MemRefTypeElement]:
-        shape_int = [i if isinstance(i, int) else i.value.data for i in shape]
-        return MemRefType(referenced_type, shape_int, layout, memory_space)
-
-    @deprecated_constructor
-    @staticmethod
-    def from_params(
-        referenced_type: _MemRefTypeElement,
-        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)]
-        ),
-        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
-        memory_space: Attribute = NoneAttr(),
-    ) -> MemRefType[_MemRefTypeElement]:
-        shape_int = [i.value.data for i in shape.data]
-        return MemRefType(referenced_type, shape_int, layout, memory_space)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

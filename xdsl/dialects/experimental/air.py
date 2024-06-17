@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
     IndexType,
+    IntAttr,
     MemRefType,
     StringAttr,
     SymbolRefAttr,
@@ -75,9 +76,9 @@ class AllocOp(IRDLOperation):
         self,
         async_dependencies: Operation,
         element_type: Attribute,
-        shape: ArrayAttr[AnyIntegerAttr],
+        shape: ArrayAttr[IntAttr],
     ):
-        memref_type = MemRefType.from_element_type_and_shape(element_type, shape)
+        memref_type = MemRefType(element_type, shape)
         super().__init__(
             operands=[async_dependencies], result_types=[AsyncTokenAttr(), memref_type]
         )

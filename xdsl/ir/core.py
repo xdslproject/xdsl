@@ -25,7 +25,6 @@ from typing_extensions import Self
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -1013,15 +1012,6 @@ class Operation(IRNode):
         if region_first:
             yield self
 
-    @deprecated("Use walk(reverse=True, region_first=True) instead")
-    def walk_reverse(self) -> Iterator[Operation]:
-        """
-        Iterate all operations contained in the operation (including this one) in reverse order.
-        """
-        for region in reversed(self.regions):
-            yield from region.walk_reverse()
-        yield self
-
     def get_attr_or_prop(self, name: str) -> Attribute | None:
         """
         Get a named attribute or property.
@@ -1712,12 +1702,6 @@ class Block(IRNode):
         for op in self.ops_reverse if reverse else self.ops:
             yield from op.walk(reverse=reverse, region_first=region_first)
 
-    @deprecated("Use walk(reverse=True) instead")
-    def walk_reverse(self) -> Iterable[Operation]:
-        """Call a function on all operations contained in the block in reverse order."""
-        for op in self.ops_reverse:
-            yield from op.walk_reverse()
-
     def verify(self) -> None:
         for operation in self.ops:
             if operation.parent != self:
@@ -2008,12 +1992,6 @@ class Region(IRNode):
         """
         for block in reversed(self.blocks) if reverse else self.blocks:
             yield from block.walk(reverse=reverse, region_first=region_first)
-
-    @deprecated("Use walk(reverse=True) instead")
-    def walk_reverse(self) -> Iterator[Operation]:
-        """Call a function on all operations contained in the region in reverse order."""
-        for block in reversed(self.blocks):
-            yield from block.walk_reverse()
 
     def verify(self) -> None:
         for block in self.blocks:
