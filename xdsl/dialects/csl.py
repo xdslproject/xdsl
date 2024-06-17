@@ -376,9 +376,9 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
-    def __init__(self, name: str, *params: SSAValue | Operation):
+    def __init__(self, name: str, params: SSAValue | Operation | None = None):
         super().__init__(
-            operands=[[]] if len(params) == 0 else params,
+            operands=[params],
             result_types=[ImportedModuleType()],
             properties={"module": StringAttr(name)},
         )
@@ -745,7 +745,7 @@ class SetTileCodeOp(IRDLOperation):
         fname: str | StringAttr,
         x_coord: SSAValue | Operation,
         y_coord: SSAValue | Operation,
-        params: SSAValue | Operation,
+        params: SSAValue | Operation | None = None,
     ):
         name = StringAttr(fname) if isinstance(fname, str) else fname
         super().__init__(operands=[x_coord, y_coord, params], properties={"file": name})
