@@ -15,7 +15,7 @@ import os
 import sys
 
 
-class CustomFileLoader(importlib.abc.Loader):
+class IRDLDialectLoader(importlib.abc.Loader):
     def __init__(self, module_name: str, path: str):
         self.module_name = module_name
         self.path = path
@@ -51,7 +51,7 @@ class CustomFileLoader(importlib.abc.Loader):
             setattr(module, dialect.name.capitalize(), dialect)
 
 
-class CustomFileFinder(importlib.abc.MetaPathFinder):
+class IRDLDialectFinder(importlib.abc.MetaPathFinder):
 
     def find_spec(self, fullname: str, path: Sequence[str] | None, target: Any = None):
         # Check if module is already loaded
@@ -65,7 +65,7 @@ class CustomFileFinder(importlib.abc.MetaPathFinder):
         for entry in path:
             potential_path = os.path.join(entry, filename)
             if os.path.isfile(potential_path):
-                loader = CustomFileLoader(fullname, potential_path)
+                loader = IRDLDialectLoader(fullname, potential_path)
                 return importlib.util.spec_from_file_location(
                     fullname, potential_path, loader=loader
                 )
@@ -76,4 +76,4 @@ def parse_custom_file(content: str):
     pass
 
 
-sys.meta_path.insert(0, CustomFileFinder())
+sys.meta_path.append(IRDLDialectFinder())
