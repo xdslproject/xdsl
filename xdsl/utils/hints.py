@@ -82,9 +82,9 @@ def isa(arg: Any, hint: type[_T]) -> TypeGuard[_T]:
     if (origin is not None) and issubclass(origin, Sequence):
         if not isinstance(arg, Sequence):
             return False
-        arg_list: list[Any] = cast(list[Any], arg)
+        arg_seq = cast(Sequence[Any], arg)
         (elem_hint,) = get_args(hint)
-        return all(isa(elem, elem_hint) for elem in arg_list)
+        return all(isa(elem, elem_hint) for elem in arg_seq)
 
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 

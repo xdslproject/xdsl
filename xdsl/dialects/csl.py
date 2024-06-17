@@ -376,6 +376,13 @@ class ImportModuleConstOp(IRDLOperation):
 
     result = result_def(ImportedModuleType)
 
+    def __init__(self, name: str, params: SSAValue | Operation | None = None):
+        super().__init__(
+            operands=[params],
+            result_types=[ImportedModuleType()],
+            properties={"module": StringAttr(name)},
+        )
+
 
 @irdl_op_definition
 class ConstStructOp(IRDLOperation):
@@ -398,6 +405,18 @@ class ConstStructOp(IRDLOperation):
             "Number of ssa_fields has to match the number of arguments"
         )
 
+    def __init__(self, *args: tuple[str, Operation]):
+        operands: list[Operation] = []
+        fields: list[StringAttr] = []
+        for fname, op in args:
+            fields.append(StringAttr(fname))
+            operands.append(op)
+        super().__init__(
+            operands=[operands],
+            result_types=[ComptimeStructType()],
+            properties={"ssa_fields": ArrayAttr(fields)},
+        )
+
 
 @irdl_op_definition
 class GetColorOp(IRDLOperation):
@@ -405,6 +424,9 @@ class GetColorOp(IRDLOperation):
 
     id = operand_def(IntegerType)
     res = result_def(ColorType)
+
+    def __init__(self, op: Operation):
+        super().__init__(operands=[op], result_types=[ColorType()])
 
 
 @irdl_op_definition
@@ -437,6 +459,21 @@ class MemberCallOp(IRDLOperation):
     args = var_operand_def(Attribute)
 
     result = opt_result_def(Attribute)
+
+    def __init__(
+        self,
+        fname: str,
+        result_type: Attribute,
+        struct: Operation,
+        *params: SSAValue | Operation,
+    ):
+        super().__init__(
+            operands=[struct, params],
+            result_types=[result_type],
+            properties={
+                "field": StringAttr(fname),
+            },
+        )
 
 
 @irdl_op_definition
@@ -702,6 +739,16 @@ class SetTileCodeOp(IRDLOperation):
     x_coord = operand_def(IntegerType)
     y_coord = operand_def(IntegerType)
     params = opt_operand_def(ComptimeStructType)
+
+    def __init__(
+        self,
+        fname: str | StringAttr,
+        x_coord: SSAValue | Operation,
+        y_coord: SSAValue | Operation,
+        params: SSAValue | Operation | None = None,
+    ):
+        name = StringAttr(fname) if isinstance(fname, str) else fname
+        super().__init__(operands=[x_coord, y_coord, params], properties={"file": name})
 
 
 class _GetDsdOp(IRDLOperation, ABC):
@@ -1486,6 +1533,13 @@ class ParamOp(IRDLOperation):
 
     res = result_def(T)
 
+    def __init__(self, name: str, result_type: T):
+        super().__init__(
+            operands=[[]],
+            result_types=[result_type],
+            properties={"param_name": StringAttr(name)},
+        )
+
 
 @irdl_op_definition
 class SignednessCastOp(IRDLOperation):
@@ -1511,6 +1565,22 @@ class SignednessCastOp(IRDLOperation):
                 "Input and output type must be of different signedness"
             )
 
+    def __init__(
+        self, op: SSAValue | Operation, result_type: IntegerType | None = None
+    ):
+        if result_type is None:
+            typ = op.results[0].type if isinstance(op, Operation) else op.type
+            assert isinstance(typ, IntegerType)
+            result_type = IntegerType(
+                typ.width,
+                (
+                    Signedness.SIGNLESS
+                    if typ.signedness.data == Signedness.UNSIGNED
+                    else Signedness.UNSIGNED
+                ),
+            )
+        super().__init__(operands=[op], result_types=[result_type])
+
 
 @irdl_op_definition
 class ConcatStructOp(IRDLOperation):
@@ -1533,6 +1603,12 @@ class ConcatStructOp(IRDLOperation):
     another_struct = operand_def(ComptimeStructType)
 
     result = result_def(ComptimeStructType)
+
+    def __init__(self, op1: Operation, op2: Operation):
+        super().__init__(
+            operands=[op1, op2],
+            result_types=[ComptimeStructType()],
+        )
 
 
 CSL = Dialect(
