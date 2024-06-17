@@ -3,10 +3,11 @@ from collections.abc import Callable
 import pytest
 from conftest import assert_print_op
 
+from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
-from xdsl.ir import Block, MLContext, Region
+from xdsl.ir import Block, Region
 from xdsl.parser import Parser
 from xdsl.rewriter import InsertPoint, Rewriter
 

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
@@ -56,7 +57,7 @@ from xdsl.dialects.builtin import (
     VectorType,
     i64,
 )
-from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
+from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.exceptions import ParseError

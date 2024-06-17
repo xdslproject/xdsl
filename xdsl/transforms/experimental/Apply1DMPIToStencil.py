@@ -1,5 +1,6 @@
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, llvm, memref, mpi, scf, stencil
-from xdsl.ir import MLContext, Operation, TypeAttribute
+from xdsl.ir import Operation, TypeAttribute
 from xdsl.irdl import Operand
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

@@ -3,6 +3,7 @@ from typing import cast
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
@@ -16,7 +17,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, MLContext, ParametrizedAttribute, Region
+from xdsl.ir import Attribute, ParametrizedAttribute, Region
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
