@@ -1565,17 +1565,21 @@ class SignednessCastOp(IRDLOperation):
                 "Input and output type must be of different signedness"
             )
 
-    def __init__(self, op: SSAValue | Operation):
-        typ = op.results[0].type if isinstance(op, Operation) else op.type
-        assert isinstance(typ, IntegerType)
-        res_signedness = (
-            Signedness.SIGNLESS
-            if typ.signedness.data == Signedness.UNSIGNED
-            else Signedness.UNSIGNED
-        )
-        super().__init__(
-            operands=[op], result_types=[IntegerType(typ.width, res_signedness)]
-        )
+    def __init__(
+        self, op: SSAValue | Operation, result_type: IntegerType | None = None
+    ):
+        if result_type is None:
+            typ = op.results[0].type if isinstance(op, Operation) else op.type
+            assert isinstance(typ, IntegerType)
+            result_type = IntegerType(
+                typ.width,
+                (
+                    Signedness.SIGNLESS
+                    if typ.signedness.data == Signedness.UNSIGNED
+                    else Signedness.UNSIGNED
+                ),
+            )
+        super().__init__(operands=[op], result_types=[result_type])
 
 
 @irdl_op_definition
