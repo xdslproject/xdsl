@@ -398,6 +398,7 @@ class Printer:
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
+            self.print("unit")
             return
 
         if isinstance(attribute, LocationAttr):
