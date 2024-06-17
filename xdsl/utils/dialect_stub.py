@@ -3,15 +3,7 @@ from typing import Annotated, Any
 
 from xdsl.dialects.builtin import ArrayAttr, ArrayOfConstraint
 from xdsl.interpreter import Successor
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    OpResult,
-    OptSuccessor,
-    ParametrizedAttribute,
-    Region,
-    VarSuccessor,
-)
+from xdsl.ir import Attribute, Dialect, OpResult, ParametrizedAttribute, Region
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
@@ -31,6 +23,7 @@ from xdsl.irdl import (
     OptRegion,
     OptRegionDef,
     OptResultDef,
+    OptSuccessor,
     OptSuccessorDef,
     ParamAttrConstraint,
     PropertyDef,
@@ -45,6 +38,7 @@ from xdsl.irdl import (
     VarRegion,
     VarRegionDef,
     VarResultDef,
+    VarSuccessor,
     VarSuccessorDef,
 )
 
