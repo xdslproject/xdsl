@@ -69,6 +69,7 @@ precommit:
 
 # run pyright on all files in the current git commit
 pyright:
+	xdsl-stub
 	pyright $(shell git diff --staged --name-only  -- '*.py')
 
 # run black on all files currently staged
