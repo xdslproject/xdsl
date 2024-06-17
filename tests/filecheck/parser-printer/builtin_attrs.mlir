@@ -8,12 +8,9 @@
 
   // CHECK: (index)
 
-  "func.func"() ({
-    ^bb0(%arg0: unit):
-    "func.return"() : () -> ()
-  }) {function_type = (unit) -> (), sym_name = "unit_type_func"} : () -> ()
+  "func.func"() ({}) {function_type = () -> (), sym_name = "unit_attr_func", unitarray = [unit]} : () -> ()
 
-  // CHECK: (unit)
+  // CHECK: "unitarray" = [unit]
 
   "func.func"() ({
     ^bb0(%arg0: i32, %arg1: i64, %arg2: i1):
