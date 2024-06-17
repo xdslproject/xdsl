@@ -595,7 +595,6 @@ class AttrParser(BaseParser):
             return BytesAttr(bytes_lit)
 
         attrs = (
-            self.parse_optional_unit_attr,
             self.parse_optional_builtin_int_or_float_attr,
             self._parse_optional_array_attr,
             self._parse_optional_symref_attr,
@@ -651,22 +650,6 @@ class AttrParser(BaseParser):
         offset = self._parse_int_or_question(" in stride offset")
         self._parse_token(Token.Kind.GREATER, "Expected '>' in end of stride attribute")
         return StridedLayoutAttr(strides, None if offset == "?" else offset)
-
-    def parse_optional_unit_attr(self) -> Attribute | None:
-        """
-        Parse a value of `unit` type.
-        unit-attribute ::= `unit`
-        """
-        if self._current_token.kind != Token.Kind.BARE_IDENT:
-            return None
-        name = self._current_token.span.text
-
-        # Unit type
-        if name == "unit":
-            self._consume_token()
-            return UnitAttr()
-
-        return None
 
     def _parse_optional_builtin_parametrized_attr(self) -> Attribute | None:
         if self._current_token.kind != Token.Kind.BARE_IDENT:
@@ -1267,6 +1250,7 @@ class AttrParser(BaseParser):
         Parse as integer or float type, if present.
           integer-or-float-type ::= index-type | integer-type | float-type
           index-type            ::= `index`
+          unit-attribute        ::= `unit`
           integer-type          ::= (`i` | `si` | `ui`) decimal-literal
           float-type            ::= `f16` | `f32` | `f64` | `f80` | `f128` | `bf16`
         """
@@ -1278,6 +1262,11 @@ class AttrParser(BaseParser):
         if name == "index":
             self._consume_token()
             return IndexType()
+
+        # Unit type
+        if name == "unit":
+            self._consume_token()
+            return UnitAttr()
 
         # Integer type
         if (match := self._builtin_integer_type_regex.match(name)) is not None:
