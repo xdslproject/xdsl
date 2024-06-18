@@ -69,6 +69,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    NoMemoryEffect,
     NoTerminator,
     OpTrait,
     SymbolOpInterface,
@@ -388,22 +389,12 @@ class ImportModuleConstOp(IRDLOperation):
 class ConstStructOp(IRDLOperation):
     name = "csl.const_struct"
 
+    traits = frozenset([NoMemoryEffect()])
+
     items = opt_prop_def(DictionaryAttr)
     ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
     ssa_values = var_operand_def()
     res = result_def(ComptimeStructType)
-
-    def verify_(self) -> None:
-        if self.ssa_fields is None:
-            if len(self.ssa_values) == 0:
-                return super().verify_()
-        else:
-            if len(self.ssa_values) == len(self.ssa_fields):
-                return super().verify_()
-
-        raise VerifyException(
-            "Number of ssa_fields has to match the number of arguments"
-        )
 
     def __init__(self, *args: tuple[str, Operation]):
         operands: list[Operation] = []
@@ -417,10 +408,24 @@ class ConstStructOp(IRDLOperation):
             properties={"ssa_fields": ArrayAttr(fields)},
         )
 
+    def verify_(self) -> None:
+        if self.ssa_fields is None:
+            if len(self.ssa_values) == 0:
+                return super().verify_()
+        else:
+            if len(self.ssa_values) == len(self.ssa_fields):
+                return super().verify_()
+
+        raise VerifyException(
+            "Number of ssa_fields has to match the number of arguments"
+        )
+
 
 @irdl_op_definition
 class GetColorOp(IRDLOperation):
     name = "csl.get_color"
+
+    traits = frozenset([NoMemoryEffect()])
 
     id = operand_def(IntegerType)
     res = result_def(ColorType)
@@ -436,6 +441,8 @@ class MemberAccessOp(IRDLOperation):
     """
 
     name = "csl.member_access"
+
+    traits = frozenset([NoMemoryEffect()])
 
     struct = operand_def(StructLike)
 
@@ -465,7 +472,7 @@ class MemberCallOp(IRDLOperation):
         fname: str,
         result_type: Attribute,
         struct: Operation,
-        *params: SSAValue | Operation,
+        params: Sequence[SSAValue | Operation],
     ):
         super().__init__(
             operands=[struct, params],
@@ -1444,6 +1451,8 @@ class AddressOfOp(IRDLOperation):
     value = operand_def()
     res = result_def(PtrType)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
         """
         Verify that if the address of a memref is taken, the resulting pointer is either:
@@ -1547,6 +1556,8 @@ class SignednessCastOp(IRDLOperation):
     Cast that throws away signedness attributes
     """
 
+    traits = frozenset([NoMemoryEffect()])
+
     name = "csl.mlir.signedness_cast"
 
     inp = operand_def(IntegerType)
@@ -1555,19 +1566,17 @@ class SignednessCastOp(IRDLOperation):
 
     assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
 
-    def verify_(self) -> None:
-        assert isinstance(self.inp.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
-        if self.inp.type.width != self.result.type.width:
-            raise VerifyException("Input and output type must be of same bitwidth")
-        if self.inp.type.signedness == self.result.type.signedness:
-            raise VerifyException(
-                "Input and output type must be of different signedness"
-            )
-
     def __init__(
         self, op: SSAValue | Operation, result_type: IntegerType | None = None
     ):
+        """
+        Create a signedness cast op.
+
+        If result_type is not provided, the signedness of the input type will be reversed in the following way:
+        - Unsigned => Signless
+        - Signed => Unsigned
+        - Signless => Unsigned
+        """
         if result_type is None:
             typ = op.results[0].type if isinstance(op, Operation) else op.type
             assert isinstance(typ, IntegerType)
@@ -1580,6 +1589,16 @@ class SignednessCastOp(IRDLOperation):
                 ),
             )
         super().__init__(operands=[op], result_types=[result_type])
+
+    def verify_(self) -> None:
+        assert isinstance(self.inp.type, IntegerType)
+        assert isinstance(self.result.type, IntegerType)
+        if self.inp.type.width != self.result.type.width:
+            raise VerifyException("Input and output type must be of same bitwidth")
+        if self.inp.type.signedness == self.result.type.signedness:
+            raise VerifyException(
+                "Input and output type must be of different signedness"
+            )
 
 
 @irdl_op_definition
@@ -1604,9 +1623,9 @@ class ConcatStructOp(IRDLOperation):
 
     result = result_def(ComptimeStructType)
 
-    def __init__(self, op1: Operation, op2: Operation):
+    def __init__(self, struct_a: Operation, struct_b: Operation):
         super().__init__(
-            operands=[op1, op2],
+            operands=[struct_a, struct_b],
             result_types=[ComptimeStructType()],
         )
 
