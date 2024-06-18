@@ -350,9 +350,9 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
             for_region.block.erase_arg(for_region.block.args[i])
 
         if res != []:
-            for_op = For.get(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
+            for_op = For(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
         else:
-            for_op = For.get(lb[-1], ub[-1], step[-1], [], for_region)
+            for_op = For(lb[-1], ub[-1], step[-1], [], for_region)
 
         for i in range(len(lb) - 2, -1, -1):
             for_region = Region(Block([for_op]))
@@ -370,7 +370,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
             )
             yieldop = Yield()
             for_region.block.add_op(yieldop)
-            for_op = For.get(lb[i], ub[i], step[i], [], for_region)
+            for_op = For(lb[i], ub[i], step[i], [], for_region)
 
         for_region.block.insert_op_before(
             hls_pipeline_op, cast(Operation, for_region.block.first_op)

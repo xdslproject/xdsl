@@ -212,7 +212,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         mpi_operations += [bottom_halo_exhange]
         req_ops: Operand = alloc_request_op.results[0]
 
-        wait_op = mpi.Waitall.get(req_ops, four.results[0])
+        wait_op = mpi.Waitall(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
         rewriter.insert_op_after_matched_op(mpi_operations)
