@@ -4,13 +4,15 @@ from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
+    VarOpResult,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
+    var_result_def,
 )
-from xdsl.irdl.irdl import VarOpResult, prop_def, var_result_def
-from xdsl.parser.core import Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 
 
