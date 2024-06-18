@@ -297,7 +297,7 @@ def test_memref_extract_strided_metadata():
     )
     assert isa(alloc.memref.type, MemRefType[Attribute])
 
-    extract_op = ExtractStridedMetaDataOp.from_source_memref(alloc, alloc.memref.type)
+    extract_op = ExtractStridedMetaDataOp(alloc)
     # output type is expected to have no layout information, and no shape
     expected_type = MemRefType(el_type, [], NoneAttr(), memory_space=memory_space)
     assert extract_op.results[0].type == expected_type
