@@ -528,14 +528,13 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     irdl_options = [AttrSizedResultSegments()]
 
-    @staticmethod
-    def from_source_memref(
-        source: SSAValue | Operation, source_type: MemRefType[Attribute]
-    ):
+    def __init__(self, source: SSAValue | Operation):
         """
         Create an ExtractStridedMetaDataOp that extracts the metadata from the
         operation (source) that produces a memref.
         """
+        source_type = SSAValue.get(source).type
+        assert isa(source_type, MemRefType[Attribute])
         source_shape = source_type.get_shape()
         # Return a rank zero memref with the memref type
         base_buffer_type = MemRefType(
@@ -549,9 +548,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
         strides_type = [IndexType()] * len(source_shape)
         sizes_type = [IndexType()] * len(source_shape)
         return_type = [base_buffer_type, offset_type, strides_type, sizes_type]
-        return ExtractStridedMetaDataOp.build(
-            operands=[source], result_types=return_type
-        )
+        super().__init__(operands=[source], result_types=return_type)
 
 
 @irdl_op_definition
