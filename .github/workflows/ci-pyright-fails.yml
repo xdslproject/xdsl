@@ -37,6 +37,8 @@ jobs:
         run: | # get pyright version from dev dependencies:
           VER=$(sed -n 's/"pyright==\(\S*\)",/\1/p' pyproject.toml)
           echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
+      - name: Generate IRDL stubs
+        run: xdsl-stubgen
       - name: Pyright
         uses: jakebailey/pyright-action@v1
         with:
