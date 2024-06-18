@@ -69,7 +69,7 @@ class DialectStubGenerator:
         else:
             self.dependencies[module] = {name}
 
-    def _constraint_type(self, constraint: AttrConstraint) -> str:
+    def _generate_constraint_type(self, constraint: AttrConstraint) -> str:
         """
         Return a type hint for the member constrained by a constraint, by it an attribute
         parameter, or an operation attribute/property.
@@ -85,13 +85,15 @@ class DialectStubGenerator:
                 return type(attr).__name__
 
             case AnyOf(constraints):
-                return " | ".join(self._constraint_type(c) for c in constraints)
+                return " | ".join(
+                    self._generate_constraint_type(c) for c in constraints
+                )
             case AllOf(constraints):
                 self._import(typing, "Annotated")
-                return f"Annotated[{', '.join(self._constraint_type(c) for c in reversed(constraints))}]"
+                return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"
             case ArrayOfConstraint(constraint):
                 self._import(xdsl.dialects.builtin, ArrayAttr)
-                return f"ArrayAttr[{self._constraint_type(constraint)}]"
+                return f"ArrayAttr[{self._generate_constraint_type(constraint)}]"
             case AnyAttr():
                 self._import(xdsl.ir, Attribute)
                 return "Attribute"
@@ -103,7 +105,7 @@ class DialectStubGenerator:
                     f"Unsupported constraint type: {type(constraint)}"
                 )
 
-    def _attribute_stub(self, attr: type[ParametrizedAttribute]):
+    def _generate_attribute_stub(self, attr: type[ParametrizedAttribute]):
         """
         Generate type stub for an irdl attribute.
         """
@@ -124,14 +126,14 @@ class DialectStubGenerator:
         # Generate the parameters' stubs, if any
         attr_def = attr.get_irdl_definition()
         for name, param in attr_def.parameters:
-            yield f'    {name} : "{self._constraint_type(param)}"'
+            yield f'    {name} : "{self._generate_constraint_type(param)}"'
         # Otherwise, generate a pass for Python's indentation
         if not attr_def.parameters:
             yield "    pass"
         yield ""
         yield ""
 
-    def _operation_stub(self, op: type[IRDLOperation]):
+    def _generate_operation_stub(self, op: type[IRDLOperation]):
         """
         Generate type stub for an irdl operation.
         """
@@ -175,16 +177,16 @@ class DialectStubGenerator:
             had_body = True
             match o:
                 case OptAttributeDef():
-                    yield f"    {name} : {self._constraint_type(o.constr)} | None"
+                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"
                 case AttributeDef():
-                    yield f"    {name} : {self._constraint_type(o.constr)}"
+                    yield f"    {name} : {self._generate_constraint_type(o.constr)}"
         for name, o in op_def.properties.items():
             had_body = True
             match o:
                 case OptPropertyDef():
-                    yield f"    {name} : {self._constraint_type(o.constr)} | None"
+                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"
                 case PropertyDef():
-                    yield f"    {name} : {self._constraint_type(o.constr)}"
+                    yield f"    {name} : {self._generate_constraint_type(o.constr)}"
 
         for name, r in op_def.regions:
             had_body = True
@@ -217,7 +219,7 @@ class DialectStubGenerator:
         yield ""
         yield ""
 
-    def _dialect_stubs(self):
+    def _generate_dialect_stubs(self):
         """
         Generate a dialect's stubs.
 
@@ -225,15 +227,15 @@ class DialectStubGenerator:
         """
         for attr in self.dialect.attributes:
             if issubclass(attr, ParametrizedAttribute):
-                for l in self._attribute_stub(attr):
+                for l in self._generate_attribute_stub(attr):
                     yield l
 
         for op in self.dialect.operations:
             if issubclass(op, IRDLOperation):
-                for l in self._operation_stub(op):
+                for l in self._generate_operation_stub(op):
                     yield l
 
-    def _imports(self):
+    def _generate_imports(self):
         """
         Generate import statements for all the dependencies of the stub.
         """
@@ -256,15 +258,15 @@ class DialectStubGenerator:
                     yield f"    {o},"
                 yield ")"
 
-    def dialect_stubs(self):
+    def generate_dialect_stubs(self):
         """
         The main function, generate stubs for the passed dialect and return as a string.
 
         NB: probably not optimal perf-wise, but I don't foresee this as a bottleneck.
         """
         self._import(xdsl.ir, Dialect)
-        dialect_body = "\n".join(self._dialect_stubs())
-        imports = "\n".join(self._imports())
+        dialect_body = "\n".join(self._generate_dialect_stubs())
+        imports = "\n".join(self._generate_imports())
         if imports:
             imports += "\n"
 
