@@ -513,6 +513,10 @@ class ExpandShapeOp(AlterShapeOp):
 
 @irdl_op_definition
 class ExtractStridedMetaDataOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefextract_strided_metadata-memrefextractstridedmetadataop
+    """
+
     name = "memref.extract_strided_metadata"
 
     source: Operand = operand_def(MemRefType)
@@ -528,6 +532,10 @@ class ExtractStridedMetaDataOp(IRDLOperation):
     def from_source_memref(
         source: SSAValue | Operation, source_type: MemRefType[Attribute]
     ):
+        """
+        Create an ExtractStridedMetaDataOp that extracts the metadata from the
+        operation (source) that produces a memref.
+        """
         source_shape = source_type.get_shape()
         # Return a rank zero memref with the memref type
         base_buffer_type = MemRefType(
@@ -537,11 +545,12 @@ class ExtractStridedMetaDataOp(IRDLOperation):
             source_type.memory_space,
         )
         offset_type = IndexType()
-        strides_type = [IndexType() for _ in source_shape]
-        sizes_type = [IndexType() for _ in source_shape]
+        # There are as many strides/sizes as there are shape dimensions
+        strides_type = [IndexType()] * len(source_shape)
+        sizes_type = [IndexType()] * len(source_shape)
         return_type = [base_buffer_type, offset_type, strides_type, sizes_type]
         return ExtractStridedMetaDataOp.build(
-            operands=[source], result_types=[*return_type]
+            operands=[source], result_types=return_type
         )
 
 
