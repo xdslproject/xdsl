@@ -31,11 +31,13 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    AttrSizedResultSegments,
     ConstraintVar,
     IRDLOperation,
     Operand,
     ParsePropInAttrDict,
     VarOperand,
+    VarOpResult,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -510,6 +512,40 @@ class ExpandShapeOp(AlterShapeOp):
 
 
 @irdl_op_definition
+class ExtractStridedMetaDataOp(IRDLOperation):
+    name = "memref.extract_strided_metadata"
+
+    source: Operand = operand_def(MemRefType)
+
+    base_buffer: OpResult = result_def(MemRefType)
+    offset: OpResult = result_def(IndexType)
+    sizes: VarOpResult = var_result_def(IndexType)
+    strides: VarOpResult = var_result_def(IndexType)
+
+    irdl_options = [AttrSizedResultSegments()]
+
+    @staticmethod
+    def from_source_memref(
+        source: SSAValue | Operation, source_type: MemRefType[Attribute]
+    ):
+        source_shape = source_type.get_shape()
+        # Return a rank zero memref with the memref type
+        base_buffer_type = MemRefType(
+            source_type.element_type,
+            [],
+            NoneAttr(),
+            source_type.memory_space,
+        )
+        offset_type = IndexType()
+        strides_type = [IndexType() for _ in source_shape]
+        sizes_type = [IndexType() for _ in source_shape]
+        return_type = [base_buffer_type, offset_type, strides_type, sizes_type]
+        return ExtractStridedMetaDataOp.build(
+            operands=[source], result_types=[*return_type]
+        )
+
+
+@irdl_op_definition
 class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     name = "memref.extract_aligned_pointer_as_index"
 
@@ -816,6 +852,7 @@ MemRef = Dialect(
         GetGlobal,
         Global,
         Dim,
+        ExtractStridedMetaDataOp,
         ExtractAlignedPointerAsIndexOp,
         Subview,
         Cast,
