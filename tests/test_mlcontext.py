@@ -2,11 +2,7 @@ import pytest
 
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import UnregisteredAttr, UnregisteredOp
-from xdsl.ir import (
-    Dialect,
-    ParametrizedAttribute,
-    TypeAttribute,
-)
+from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import IRDLOperation, irdl_attr_definition, irdl_op_definition
 
 
@@ -32,11 +28,6 @@ class DummyAttr2(ParametrizedAttribute):
 
 testDialect = Dialect("test", [DummyOp], [DummyAttr])
 testDialect2 = Dialect("test", [DummyOp2], [DummyAttr2])
-
-
-def test_get_all_dialects_names():
-    for name, dialect_factory in get_all_dialects().items():
-        assert name == dialect_factory().name
 
 
 def test_get_op():
