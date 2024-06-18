@@ -5,24 +5,24 @@
 
 // CHECK: %q0, %q1 = qssa.alloc<2>
 
-%0 = qssa.h %q0
+%q2 = qssa.h %q0
 
-// CHECK-NEXT: %0 = qssa.h %q0
+// CHECK-NEXT: %q2 = qssa.h %q0
 
-%q2:2 = qssa.cz %q1 %0
+%q3, %q4 = qssa.cz %q1, %q2
 
-// CHECK-NEXT: %q2, %q2_1 = qssa.cz %q1 %0
+// CHECK-NEXT: %q3, %q4 = qssa.cz %q1, %q2
 
-%q3, %q4 = qssa.cnot %q2#0 %q2#1
+%q5, %q6 = qssa.cnot %q3, %q4
 
-// CHECK-NEXT: %q3, %q4 = qssa.cnot %q2 %q2_1
+// CHECK-NEXT: %q5, %q6 = qssa.cnot %q3, %q4
 
-%1 = qssa.measure %q3
+%0 = qssa.measure %q6
 
-// CHECK-NEXT: %1 = qssa.measure %q3
+// CHECK-NEXT: %0 = qssa.measure %q6
 
-// CHECK-GENERIC: %q0, %q1 = "qssa.alloc"() <{"qubits" = 2 : i64}> : () -> (!qssa.qubit, !qssa.qubit)
-// CHECK-GENERIC-NEXT: %0 = "qssa.h"(%q0) : (!qssa.qubit) -> !qssa.qubit
-// CHECK-GENERIC-NEXT: %q2, %q2_1 = "qssa.cz"(%q1, %0) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
-// CHECK-GENERIC-NEXT: %q3, %q4 = "qssa.cnot"(%q2, %q2_1) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
-// CHECK-GENERIC-NEXT: %1 = "qssa.measure"(%q3) : (!qssa.qubit) -> i1
+// CHECK-GENERIC: %q0, %q1 = "qssa.alloc"() <{"num_qubits" = 2 : i64}> : () -> (!qssa.qubit, !qssa.qubit)
+// CHECK-GENERIC-NEXT: %q2 = "qssa.h"(%q0) : (!qssa.qubit) -> !qssa.qubit
+// CHECK-GENERIC-NEXT: %q3, %q4 = "qssa.cz"(%q1, %q2) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
+// CHECK-GENERIC-NEXT: %q5, %q6 = "qssa.cnot"(%q3, %q4) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
+// CHECK-GENERIC-NEXT: %0 = "qssa.measure"(%q6) : (!qssa.qubit) -> i1

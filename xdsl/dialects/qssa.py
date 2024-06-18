@@ -36,32 +36,32 @@ class QubitBase(IRDLOperation, ABC):
 class QubitAllocOp(QubitBase):
     name = "qssa.alloc"
 
-    qubits = prop_def(IntegerAttr)
+    num_qubits = prop_def(IntegerAttr)
 
     res: VarOpResult = var_result_def(qubit)
 
-    def __init__(self, qubits: int):
+    def __init__(self, num_qubits: int):
         super().__init__(
             operands=(),
-            result_types=([qubit for _ in range(0, qubits)],),
-            properties={"qubits": IntegerAttr(qubits, 64)},
+            result_types=([qubit for _ in range(0, num_qubits)],),
+            properties={"num_qubits": IntegerAttr(num_qubits, 64)},
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> "QubitAllocOp":
         with parser.in_angle_brackets():
-            qubits = parser.parse_integer()
+            num_qubits = parser.parse_integer()
         attr_dict = parser.parse_optional_attr_dict()
         return QubitAllocOp.create(
             operands=(),
-            result_types=tuple(qubit for _ in range(0, qubits)),
-            properties={"qubits": IntegerAttr(qubits, 64)},
+            result_types=tuple(qubit for _ in range(0, num_qubits)),
+            properties={"num_qubits": IntegerAttr(num_qubits, 64)},
             attributes=attr_dict or {},
         )
 
     def print(self, printer: Printer):
         with printer.in_angle_brackets():
-            printer.print(self.qubits.value.data)
+            printer.print(self.num_qubits.value.data)
         printer.print_op_attributes(self.attributes)
 
 
@@ -91,7 +91,7 @@ class CNotGateOp(QubitBase):
 
     out2 = result_def(qubit)
 
-    assembly_format = "$in1 $in2 attr-dict"
+    assembly_format = "$in1 `,` $in2 attr-dict"
 
     def __init__(self, in1: SSAValue, in2: SSAValue):
         super().__init__(operands=(in1, in2), result_types=(qubit, qubit))
@@ -109,7 +109,7 @@ class CZGateOp(QubitBase):
 
     out2 = result_def(qubit)
 
-    assembly_format = "$in1 $in2 attr-dict"
+    assembly_format = "$in1 `,` $in2 attr-dict"
 
     def __init__(self, in1: SSAValue, in2: SSAValue):
         super().__init__(operands=(in1, in2), result_types=(qubit, qubit))
