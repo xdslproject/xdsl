@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from xdsl.context import MLContext
-from xdsl.dialects import memref, memref_stream, stream
+from xdsl.dialects import arith, memref, memref_stream, stream
 from xdsl.dialects.builtin import AffineMapAttr, ModuleOp, UnitAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -20,7 +20,8 @@ from xdsl.transforms.loop_nest_lowering_utils import (
 )
 
 
-def insert_load(
+def _insert_load(
+    source_index: int,
     source: SSAValue,
     affine_map_attr: AffineMapAttr,
     ind_vars: Sequence[SSAValue],
@@ -64,13 +65,49 @@ class LowerGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
+        ins_count = len(op.inputs)
         if any(not isinstance(init, UnitAttr) for init in op.inits):
-            raise NotImplementedError("Operation has inits that are not UnitAttr")
+            insertion_point = InsertPoint.before(op)
+            constant_ops = tuple(
+                None if isinstance(attr, UnitAttr) else arith.Constant(attr)
+                for attr in op.inits
+            )
+            for constant_op in constant_ops:
+                if constant_op is not None:
+                    rewriter.insert_op(constant_op, insertion_point)
+            constant_vals = tuple(
+                None if constant_op is None else constant_op.result
+                for constant_op in constant_ops
+            )
+
+            def insert_load(
+                source_index: int,
+                source: SSAValue,
+                affine_map_attr: AffineMapAttr,
+                ind_vars: Sequence[SSAValue],
+                rewriter: PatternRewriter,
+                insertion_point: InsertPoint,
+            ) -> SSAValue:
+                if source_index >= ins_count:
+                    constant_val = constant_vals[source_index - ins_count]
+                    if constant_val is not None:
+                        return constant_val
+
+                return _insert_load(
+                    source_index,
+                    source,
+                    affine_map_attr,
+                    ind_vars,
+                    rewriter,
+                    insertion_point,
+                )
+
+        else:
+            insert_load = _insert_load
 
         outer_ubs, inner_ubs = op.get_static_loop_ranges()
         if inner_ubs:
             # Imperfectly nested
-            ins_count = len(op.inputs)
             rewrite_generic_to_imperfect_loops(
                 rewriter,
                 InsertPoint.before(op),
