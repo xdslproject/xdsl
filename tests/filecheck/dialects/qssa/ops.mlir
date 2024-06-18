@@ -21,7 +21,7 @@
 
 // CHECK-NEXT: %1 = qssa.measure %q3
 
-// CHECK-GENERIC: %q0, %q1 = "qssa.alloc"() <{"qubits" = 2 : i32}> : () -> (!qssa.qubit, !qssa.qubit)
+// CHECK-GENERIC: %q0, %q1 = "qssa.alloc"() <{"qubits" = 2 : i64}> : () -> (!qssa.qubit, !qssa.qubit)
 // CHECK-GENERIC-NEXT: %0 = "qssa.h"(%q0) : (!qssa.qubit) -> !qssa.qubit
 // CHECK-GENERIC-NEXT: %q2, %q2_1 = "qssa.cz"(%q1, %0) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
 // CHECK-GENERIC-NEXT: %q3, %q4 = "qssa.cnot"(%q2, %q2_1) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)

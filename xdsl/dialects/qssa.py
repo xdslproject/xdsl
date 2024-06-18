@@ -1,3 +1,5 @@
+from abc import ABC
+
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -24,8 +26,12 @@ class QubitAttr(ParametrizedAttribute, TypeAttribute):
 qubit = QubitAttr()
 
 
+class QubitBase(IRDLOperation, ABC):
+    pass
+
+
 @irdl_op_definition
-class QubitAllocOp(IRDLOperation):
+class QubitAllocOp(QubitBase):
     name = "qssa.alloc"
 
     qubits = prop_def(IntegerAttr)
@@ -36,22 +42,29 @@ class QubitAllocOp(IRDLOperation):
         super().__init__(
             operands=(),
             result_types=([qubit for _ in range(0, qubits)],),
-            properties={"qubits": IntegerAttr(qubits, 32)},
+            properties={"qubits": IntegerAttr(qubits, 64)},
         )
 
     @classmethod
     def parse(cls, parser: Parser) -> "QubitAllocOp":
         with parser.in_angle_brackets():
-            i = parser.parse_integer()
-        return QubitAllocOp(i)
+            qubits = parser.parse_integer()
+        attr_dict = parser.parse_optional_attr_dict()
+        return QubitAllocOp.create(
+            operands=(),
+            result_types=tuple(qubit for _ in range(0, qubits)),
+            properties={"qubits": IntegerAttr(qubits, 64)},
+            attributes=attr_dict or {},
+        )
 
     def print(self, printer: Printer):
         with printer.in_angle_brackets():
             printer.print(self.qubits.value.data)
+        printer.print_op_attributes(self.attributes)
 
 
 @irdl_op_definition
-class HGateOp(IRDLOperation):
+class HGateOp(QubitBase):
     name = "qssa.h"
 
     input = operand_def(qubit)
@@ -65,7 +78,7 @@ class HGateOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CNotGateOp(IRDLOperation):
+class CNotGateOp(QubitBase):
     name = "qssa.cnot"
 
     in1 = operand_def(qubit)
@@ -83,7 +96,7 @@ class CNotGateOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CZGateOp(IRDLOperation):
+class CZGateOp(QubitBase):
     name = "qssa.cz"
 
     in1 = operand_def(qubit)
@@ -101,7 +114,7 @@ class CZGateOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MeasureOp(IRDLOperation):
+class MeasureOp(QubitBase):
     name = "qssa.measure"
 
     input = operand_def(qubit)
