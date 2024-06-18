@@ -31,7 +31,7 @@ if __name__ == "__main__":
     dialect = make_dialect(dialect_op)
 
     # Generate and print type stubs!
-    stub = DialectStub(dialect)
+    stub = DialectStubGenerator(dialect)
     print(stub.dialect_stubs())
 
 # CHECK:       from xdsl.dialects.builtin import (
