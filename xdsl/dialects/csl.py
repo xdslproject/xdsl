@@ -69,6 +69,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    NoMemoryEffect,
     NoTerminator,
     OpTrait,
     SymbolOpInterface,
@@ -388,6 +389,8 @@ class ImportModuleConstOp(IRDLOperation):
 class ConstStructOp(IRDLOperation):
     name = "csl.const_struct"
 
+    traits = frozenset([NoMemoryEffect()])
+
     items = opt_prop_def(DictionaryAttr)
     ssa_fields = opt_prop_def(ArrayAttr[StringAttr])
     ssa_values = var_operand_def()
@@ -422,6 +425,8 @@ class ConstStructOp(IRDLOperation):
 class GetColorOp(IRDLOperation):
     name = "csl.get_color"
 
+    traits = frozenset([NoMemoryEffect()])
+
     id = operand_def(IntegerType)
     res = result_def(ColorType)
 
@@ -436,6 +441,8 @@ class MemberAccessOp(IRDLOperation):
     """
 
     name = "csl.member_access"
+
+    traits = frozenset([NoMemoryEffect()])
 
     struct = operand_def(StructLike)
 
@@ -1444,6 +1451,8 @@ class AddressOfOp(IRDLOperation):
     value = operand_def()
     res = result_def(PtrType)
 
+    traits = frozenset([NoMemoryEffect()])
+
     def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
         """
         Verify that if the address of a memref is taken, the resulting pointer is either:
@@ -1546,6 +1555,8 @@ class SignednessCastOp(IRDLOperation):
     """
     Cast that throws away signedness attributes
     """
+
+    traits = frozenset([NoMemoryEffect()])
 
     name = "csl.mlir.signedness_cast"
 
