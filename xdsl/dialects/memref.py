@@ -534,6 +534,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
         operation (source) that produces a memref.
         """
         source_type = SSAValue.get(source).type
+        assert isa(source_type, MemRefType[Attribute])
         source_shape = source_type.get_shape()
         # Return a rank zero memref with the memref type
         base_buffer_type = MemRefType(
