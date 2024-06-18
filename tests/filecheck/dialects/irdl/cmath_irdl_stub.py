@@ -6,7 +6,7 @@ from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.traits import SymbolTable
-from xdsl.utils.dialect_stub import DialectStub
+from xdsl.utils.dialect_stub import DialectStubGenerator
 
 # Test dynamically generating Python type stubs for an irdl dialect.
 

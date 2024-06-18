@@ -38,7 +38,8 @@ from xdsl.irdl import (
 
 @dataclass
 class DialectStubGenerator:
-  """Generate a typing stub file (.pyi) for a dialect."""
+    """Generate a typing stub file (.pyi) for a dialect."""
+
     dialect: Dialect
     dependencies: dict[str, set[str]] = field(init=False, default_factory=dict)
 
