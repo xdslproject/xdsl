@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     # Generate and print type stubs!
     stub = DialectStubGenerator(dialect)
-    print(stub.dialect_stubs())
+    print(stub.generate_dialect_stubs())
 
 # CHECK:       from xdsl.dialects.builtin import (
 # CHECK-NEXT:      Float32Type,
