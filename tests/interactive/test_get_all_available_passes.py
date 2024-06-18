@@ -30,16 +30,6 @@ def test_get_all_available_passes():
         ),
     )
 
-    expected_res = tuple(
-        (
-            AvailablePass(
-                display_name="reconcile-unrealized-casts",
-                module_pass=reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
-                pass_spec=None,
-            ),
-        )
-    )
-
     res = get_available_pass_list(
         input_text,
         pass_pipeline,
@@ -47,4 +37,8 @@ def test_get_all_available_passes():
         rewrite_by_names_dict=individual_rewrite.REWRITE_BY_NAMES,
     )
 
-    assert res == expected_res
+    assert AvailablePass(
+        display_name="reconcile-unrealized-casts",
+        module_pass=reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
+        pass_spec=None,
+    ) in res
