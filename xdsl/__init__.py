@@ -1,10 +1,3 @@
-from collections.abc import Sequence
-from itertools import chain
-from typing import Any
-
-from xdsl.traits import SymbolTable
-from xdsl.utils.dialect_stub import DialectStubGenerator
-
 from . import _version
 
 __version__ = _version.get_versions()["version"]
