@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     MemRefType,
+    NoneAttr,
     StridedLayoutAttr,
     UnrankedMemrefType,
     i32,
@@ -23,6 +24,7 @@ from xdsl.dialects.memref import (
     DmaStartOp,
     DmaWaitOp,
     ExtractAlignedPointerAsIndexOp,
+    ExtractStridedMetaDataOp,
     Load,
     MemorySpaceCast,
     Store,
@@ -279,6 +281,26 @@ def test_memref_matmul_verify():
 
     # check that it verifies correctly
     module.verify()
+
+
+def test_memref_extract_strided_metadata():
+    # input type
+    el_type = i32
+    alignment = 8
+    shape = [10, 10, 10]
+    strides = [1, 2, 2]
+    offset = None  # Dynamic offset
+    layout = StridedLayoutAttr(strides, offset)
+    memory_space = IntAttr(1)
+    alloc = Alloc.get(
+        el_type, alignment, shape, layout=layout, memory_space=memory_space
+    )
+    assert isa(alloc.memref.type, MemRefType[Attribute])
+
+    extract_op = ExtractStridedMetaDataOp(alloc)
+    # output type is expected to have no layout information, and no shape
+    expected_type = MemRefType(el_type, [], NoneAttr(), memory_space=memory_space)
+    assert extract_op.results[0].type == expected_type
 
 
 def test_memref_subview_constant_parameters():
