@@ -1,3 +1,4 @@
+from xdsl.backend.riscv import prologue_epilogue_insertion
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
@@ -30,6 +31,21 @@ def test_get_all_available_passes():
         ),
     )
 
+    expected_res = tuple(
+        (
+            AvailablePass(
+                display_name="reconcile-unrealized-casts",
+                module_pass=reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
+                pass_spec=None,
+            ),
+            AvailablePass(
+                display_name="riscv-prologue-epilogue-insertion",
+                module_pass=prologue_epilogue_insertion.PrologueEpilogueInsertion,
+                pass_spec=None,
+            ),
+        )
+    )
+
     res = get_available_pass_list(
         input_text,
         pass_pipeline,
@@ -37,11 +53,4 @@ def test_get_all_available_passes():
         rewrite_by_names_dict=individual_rewrite.REWRITE_BY_NAMES,
     )
 
-    assert (
-        AvailablePass(
-            display_name="reconcile-unrealized-casts",
-            module_pass=reconcile_unrealized_casts.ReconcileUnrealizedCastsPass,
-            pass_spec=None,
-        )
-        in res
-    )
+    assert res == expected_res
