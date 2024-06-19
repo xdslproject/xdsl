@@ -661,7 +661,7 @@ class AttrParser(BaseParser):
             return None
         name = self._current_token.span.text
 
-        # Unit type
+        # Unit attribute
         if name == "unit":
             self._consume_token()
             return UnitAttr()
