@@ -2,6 +2,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from xdsl.dialects import get_all_dialects
+
 if TYPE_CHECKING:
     from xdsl.ir import Attribute, Dialect, Operation
 
@@ -59,6 +61,13 @@ class MLContext:
         Returns the names of all registered dialects. Not valid across mutations of this object.
         """
         return self._registered_dialects.keys()
+
+    def register_all_dialects(self):
+        """
+        Register all listed dialects.
+        """
+        for dialect_name, dialect_factory in get_all_dialects().items():
+            self.register_dialect(dialect_name, dialect_factory)
 
     def register_dialect(
         self, name: str, dialect_factory: "Callable[[], Dialect]"
