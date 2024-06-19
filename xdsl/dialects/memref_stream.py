@@ -351,8 +351,23 @@ class GenericOp(IRDLOperation):
             regions=[body],
         )
 
-    def get_static_loop_ranges(self) -> tuple[int, ...]:
-        return tuple(bound.data for bound in self.bounds)
+    def get_static_loop_ranges(
+        self,
+    ) -> tuple[tuple[int, ...], tuple[int, ...]]:
+        """
+        This operation can represent two sets of perfectly nested loops, or one.
+        If it is one, then the first element of the returned tuple has all the loop
+        bounds, and the second is empty.
+        If there are two, then the first element of the returned tuple has the outer
+        bounds, and the second the inner.
+        """
+        output_maps = self.indexing_maps.data[len(self.inputs) :]
+        # min_dims will equal len(self.iterator_types) in the perfect nest case
+        min_dims = min(m.data.num_dims for m in output_maps)
+        return (
+            tuple(bound.data for bound in self.bounds.data[:min_dims]),
+            tuple(bound.data for bound in self.bounds.data[min_dims:]),
+        )
 
     def print(self, printer: Printer):
         printer.print_string(" {bounds = ")
