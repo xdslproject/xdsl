@@ -51,16 +51,15 @@ class LowerGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
-        ubs = op.get_static_loop_ranges()
-        outer_bound_count = min(len(ubs), *(m.data.num_dims for m in op.indexing_maps))
-        if outer_bound_count != len(ubs):
+        outer_ubs, inner_ubs = op.get_static_loop_ranges()
+        if inner_ubs:
             # Imperfectly nested
             ins_count = len(op.inputs)
             rewrite_generic_to_imperfect_loops(
                 rewriter,
                 InsertPoint.before(op),
-                ubs[:outer_bound_count],
-                ubs[outer_bound_count:],
+                outer_ubs,
+                inner_ubs,
                 op.indexing_maps.data[ins_count:],
                 op.indexing_maps.data[:ins_count],
                 op.indexing_maps.data[ins_count:],
@@ -77,7 +76,7 @@ class LowerGenericOpPattern(RewritePattern):
             rewrite_generic_to_loops(
                 rewriter,
                 InsertPoint.before(op),
-                ubs,
+                outer_ubs,
                 op.indexing_maps.data,
                 op.indexing_maps.data[-len(op.outputs) :],
                 op.operands,
