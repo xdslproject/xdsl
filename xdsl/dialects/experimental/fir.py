@@ -24,6 +24,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    BytesAttr,
     StringAttr,
     SymbolRefAttr,
     TupleType,
@@ -2106,7 +2107,7 @@ class StringLit(IRDLOperation):
 
     name = "fir.string_lit"
     size: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    value: StringAttr = attr_def(StringAttr)
+    value: StringAttr = attr_def(StringAttr | BytesAttr)
     result_0: OpResult = result_def()
 
 
