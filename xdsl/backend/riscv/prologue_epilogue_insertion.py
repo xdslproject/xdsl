@@ -1,7 +1,8 @@
+from dataclasses import dataclass, field
+
 from xdsl.builder import Builder
 from xdsl.dialects import builtin, riscv, riscv_func
 from xdsl.dialects.riscv import (
-    FloatRegisterType,
     IntRegisterType,
     Registers,
     RISCVRegisterType,
@@ -10,6 +11,7 @@ from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 
 
+@dataclass(frozen=True)
 class PrologueEpilogueInsertion(ModulePass):
     """
     Pass inserting a prologue and epilogue according to the RISC-V ABI.
@@ -24,27 +26,25 @@ class PrologueEpilogueInsertion(ModulePass):
     """
 
     name = "riscv-prologue-epilogue-insertion"
+    xlen: int = field(default=4)
+    flen: int = field(default=8)
 
     def _process_function(self, func: riscv_func.FuncOp) -> None:
         # Find all callee-preserved registers that are clobbered. We define clobbered
         # as it being the result of some operation and therefore written to.
-        used_callee_preserved_registers = dict[
-            IntRegisterType | FloatRegisterType, None
-        ]()
-        for op in func.walk():
-            # Special cases ops that do not actually write to the register.
-            if isinstance(op, riscv.GetRegisterOp | riscv.GetFloatRegisterOp):
-                continue
-
-            for res in op.results:
-                if res.type in Registers.S or res.type in Registers.FS:
-                    used_callee_preserved_registers[res.type] = None
+        used_callee_preserved_registers = {
+            res.type: None
+            for op in func.walk()
+            if not isinstance(op, riscv.GetRegisterOp | riscv.GetFloatRegisterOp)
+            for res in op.results
+            if res.type in Registers.S or res.type in Registers.FS
+        }
 
         # Note: This assumes RV32D aka 4 byte integer registers, 8 byte FP registers.
         def get_register_size(r: RISCVRegisterType):
             if isinstance(r, IntRegisterType):
-                return 4
-            return 8
+                return self.xlen
+            return self.flen
 
         # Build the prologue at the beginning of the function.
         builder = Builder.at_start(func.body.blocks[0])
