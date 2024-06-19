@@ -1,3 +1,12 @@
+from collections.abc import Sequence
+from itertools import chain
+from types import ModuleType
+from typing import Any
+
+from xdsl.dialects import get_all_dialects
+from xdsl.traits import SymbolTable
+from xdsl.utils.dialect_stub import DialectStubGenerator
+
 from . import _version
 
 __version__ = _version.get_versions()["version"]
@@ -23,7 +32,7 @@ class IRDLDialectLoader(importlib.abc.Loader):
         self.module_name = module_name
         self.path = path
 
-    def exec_module(self, module: Any):
+    def exec_module(self, module: ModuleType):
         from xdsl.context import MLContext
         from xdsl.dialects.irdl import DialectOp
         from xdsl.interpreters.irdl import make_dialect
@@ -33,7 +42,8 @@ class IRDLDialectLoader(importlib.abc.Loader):
         with open(self.path) as file:
             # Parse it
             ctx = MLContext()
-            ctx.register_all_dialects()
+            for dialect_name, dialect_factory in get_all_dialects().items():
+                ctx.register_dialect(dialect_name, dialect_factory)
             irdl_module = Parser(ctx, file.read(), self.path).parse_module()
 
             # Make it a PyRDL Dialect

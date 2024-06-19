@@ -55,29 +55,13 @@ if __name__ == "__main__":
 # CHECK-EMPTY:
 # CHECK-NEXT:  class norm(IRDLOperation):
 # CHECK-NEXT:      o0 : Operand
-<<<<<<< HEAD
-<<<<<<< HEAD
 # CHECK-NEXT:      r0 : OpResult
-=======
-# CHECK-NEXT:      r0 : Result
->>>>>>> 8ee538ff (Implement and test Dialect stub generation.)
-=======
-# CHECK-NEXT:      r0 : OpResult
->>>>>>> b43f159d (type name fixes.)
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  class mul(IRDLOperation):
 # CHECK-NEXT:      o0 : Operand
 # CHECK-NEXT:      o1 : Operand
-<<<<<<< HEAD
-<<<<<<< HEAD
 # CHECK-NEXT:      r0 : OpResult
-=======
-# CHECK-NEXT:      r0 : Result
->>>>>>> 8ee538ff (Implement and test Dialect stub generation.)
-=======
-# CHECK-NEXT:      r0 : OpResult
->>>>>>> b43f159d (type name fixes.)
 # CHECK-EMPTY:
 # CHECK-EMPTY:
 # CHECK-NEXT:  Cmath : Dialect

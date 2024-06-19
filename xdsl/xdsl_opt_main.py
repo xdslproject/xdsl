@@ -43,7 +43,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets = {}
 
         self.ctx = MLContext()
-        self.ctx.register_all_dialects()
+        self.register_all_dialects()
         self.register_all_frontends()
         self.register_all_passes()
         self.register_all_targets()
