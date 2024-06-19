@@ -69,6 +69,7 @@ precommit:
 
 # run pyright on all files in the current git commit
 pyright:
+    # We make sure to generate the python typing stubs before running pyright
 	xdsl-stubgen
 	pyright $(shell git diff --staged --name-only  -- '*.py')
 
