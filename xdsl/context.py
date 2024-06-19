@@ -2,8 +2,6 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from xdsl.dialects import get_all_dialects
-
 if TYPE_CHECKING:
     from xdsl.ir import Attribute, Dialect, Operation
 
@@ -24,15 +22,6 @@ class MLContext:
     A dictionary of all registered dialects that are not yet loaded. This is used to
     only load the respective Python files when the dialect is actually used.
     """
-
-    def register_all_dialects(self):
-        """
-        Register all dialects that can be used.
-
-        Add other/additional dialects by overloading this function.
-        """
-        for dialect_name, dialect_factory in get_all_dialects().items():
-            self.register_dialect(dialect_name, dialect_factory)
 
     def clone(self) -> "MLContext":
         return MLContext(
