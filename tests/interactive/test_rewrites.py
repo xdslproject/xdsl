@@ -1,3 +1,5 @@
+from xdsl.context import MLContext
+from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import (
     StringAttr,
 )
@@ -9,14 +11,12 @@ from xdsl.interactive.rewrites import (
     convert_indexed_individual_rewrites_to_available_pass,
     get_all_possible_rewrites,
 )
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.transforms import individual_rewrite
 from xdsl.utils.parse_pipeline import parse_pipeline
 

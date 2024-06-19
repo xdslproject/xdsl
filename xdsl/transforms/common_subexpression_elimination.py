@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 from typing import TypeVar
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
-from xdsl.ir import Block, MLContext, Operation, Region, Use
+from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 from xdsl.traits import IsolatedFromAbove, IsTerminator, is_side_effect_free

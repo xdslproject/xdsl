@@ -1,5 +1,6 @@
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import IsTerminator, SymbolOpInterface, is_side_effect_free

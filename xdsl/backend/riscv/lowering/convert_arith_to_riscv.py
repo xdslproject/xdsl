@@ -5,6 +5,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_matched_op_results,
     cast_operands_to_regs,
 )
+from xdsl.context import MLContext
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
     Float32Type,
@@ -16,7 +17,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

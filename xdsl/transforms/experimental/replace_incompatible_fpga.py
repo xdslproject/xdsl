@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import Maximumf
 from xdsl.dialects.builtin import f64
 from xdsl.dialects.experimental.math import AbsFOp, CopySignOp
 from xdsl.dialects.func import Call, FuncOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

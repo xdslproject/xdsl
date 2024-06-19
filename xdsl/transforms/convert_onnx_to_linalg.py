@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.builder import ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import arith, linalg, ml_program, onnx, tensor
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -18,7 +19,7 @@ from xdsl.dialects.builtin import (
     f64,
     i64,
 )
-from xdsl.ir import Attribute, Block, MLContext, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

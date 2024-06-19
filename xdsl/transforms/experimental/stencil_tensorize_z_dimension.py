@@ -3,6 +3,7 @@ from typing import TypeGuard, cast
 
 from attr import dataclass
 
+from xdsl.context import MLContext
 from xdsl.dialects.arith import (
     Addf,
     BinaryOperation,
@@ -37,7 +38,6 @@ from xdsl.dialects.stencil import (
 from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp
 from xdsl.ir import (
     Attribute,
-    MLContext,
     Operation,
 )
 from xdsl.passes import ModulePass

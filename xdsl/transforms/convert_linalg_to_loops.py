@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 
+from xdsl.context import MLContext
 from xdsl.dialects import linalg, memref
 from xdsl.dialects.builtin import MemRefType, ModuleOp
-from xdsl.ir import MLContext, SSAValue
+from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

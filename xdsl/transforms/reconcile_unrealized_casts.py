@@ -4,9 +4,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from warnings import warn
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext, Use
+from xdsl.ir import Use
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

@@ -1,10 +1,11 @@
 from collections.abc import Sequence
 
+from xdsl.context import MLContext
 from xdsl.dialects import memref, memref_stream, stream
 from xdsl.dialects.builtin import (
     ModuleOp,
 )
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

@@ -4,9 +4,10 @@ from io import StringIO
 import pytest
 
 from xdsl.builder import Builder
+from xdsl.context import MLContext
 from xdsl.dialects import riscv, riscv_debug, riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import BlockArgument, MLContext
+from xdsl.ir import BlockArgument
 from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")

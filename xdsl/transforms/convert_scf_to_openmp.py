@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from typing import Literal
 
 from xdsl.builder import ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import arith, memref, omp, scf
 from xdsl.dialects.builtin import IndexType, ModuleOp
-from xdsl.ir import Block, MLContext, Region
+from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
