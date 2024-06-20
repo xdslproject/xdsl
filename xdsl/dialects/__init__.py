@@ -3,7 +3,7 @@ from collections.abc import Callable
 from xdsl.ir import Dialect
 
 
-def get_all_dialects() -> "dict[str, Callable[[], Dialect]]":
+def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
     def get_accfg():
@@ -47,9 +47,9 @@ def get_all_dialects() -> "dict[str, Callable[[], Dialect]]":
         return Cf
 
     def get_cmath():
-        from xdsl.dialects.cmath import CMath
+        from xdsl.dialects.cmath import Cmath
 
-        return CMath
+        return Cmath
 
     def get_comb():
         from xdsl.dialects.comb import Comb
