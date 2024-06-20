@@ -27,19 +27,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Upgrade pip
-        run: |
-          pip install --upgrade pip
       - name: Install the package locally
         run:
+          python -m venv venv
+          source venv/bin/activate
           pip install -r requirements.txt
-      - name: retrieve pyright version
-        run: | # get pyright version from dev dependencies:
-          VER=$(sed -n 's/"pyright==\(\S*\)",/\1/p' pyproject.toml)
-          echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
+      - name: Add bin to GitHub PATH
+        run: echo "$PWD/venv/bin" >> $GITHUB_PATH
       - name: Generate IRDL stubs
         run: xdsl-stubgen
       - name: Pyright
-        uses: jakebailey/pyright-action@v1
+        uses: jakebailey/pyright-action@v2
         with:
-          version: ${{env.PYRIGHT_VERSION}}
+          version: PATH
