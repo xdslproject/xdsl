@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 
+from xdsl.context import MLContext
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Attribute, Block, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 from xdsl.traits import Pure

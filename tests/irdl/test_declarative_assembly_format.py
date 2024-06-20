@@ -7,11 +7,11 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
-    MLContext,
     Operation,
     ParametrizedAttribute,
     TypeAttribute,

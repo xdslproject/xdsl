@@ -1,15 +1,15 @@
 from dataclasses import dataclass
 
-from xdsl.dialects import arith
+from xdsl.context import MLContext
+from xdsl.dialects import arith, get_all_dialects
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, ModuleOp
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.traits import HasCanonicalisationPatternsTrait
 
 

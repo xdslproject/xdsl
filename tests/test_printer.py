@@ -6,6 +6,7 @@ import pytest
 from conftest import assert_print_op
 
 from xdsl.builder import ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import (
@@ -22,7 +23,6 @@ from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
     Block,
-    MLContext,
     OpResult,
     ParametrizedAttribute,
     Region,

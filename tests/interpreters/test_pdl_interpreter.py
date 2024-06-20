@@ -1,6 +1,7 @@
 from io import StringIO
 
 from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import arith, func, pdl, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -17,7 +18,7 @@ from xdsl.interpreters.experimental.pdl import (
     PDLRewriteFunctions,
     PDLRewritePattern,
 )
-from xdsl.ir import Attribute, MLContext, OpResult
+from xdsl.ir import Attribute, OpResult
 from xdsl.irdl import IRDLOperation, irdl_op_definition, prop_def
 from xdsl.pattern_rewriter import (
     PatternRewriter,

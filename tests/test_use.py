@@ -1,6 +1,7 @@
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.test import Test
-from xdsl.ir import MLContext, Use
+from xdsl.ir import Use
 from xdsl.parser import Parser
 
 test_prog = """

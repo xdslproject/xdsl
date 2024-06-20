@@ -1,5 +1,7 @@
+import os
 import typing
 from dataclasses import dataclass, field
+from importlib import import_module
 from types import ModuleType
 from typing import Any
 
@@ -275,3 +277,16 @@ class DialectStubGenerator:
 {dialect_body}
 {self.dialect.name.capitalize()} : Dialect
 """
+
+
+def make_all_stubs():
+    dialects = xdsl.dialects
+    directory = "/".join(dialects.__path__)
+    for file in os.listdir(directory):
+        name, ext = os.path.splitext(file)
+        if ext == ".irdl":
+            import_module(f"{directory}/{name}")
+
+
+if __name__ == "__main__":
+    make_all_stubs()

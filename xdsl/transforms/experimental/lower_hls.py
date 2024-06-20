@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.builder import Builder
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import IndexType, f64, i32
@@ -26,7 +27,7 @@ from xdsl.dialects.llvm import (
     StoreOp,
 )
 from xdsl.dialects.scf import For, ParallelOp, Yield
-from xdsl.ir import Block, MLContext, Operation, OpResult, Region, Use
+from xdsl.ir import Block, Operation, OpResult, Region, Use
 from xdsl.irdl import VarOperand, VarOpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

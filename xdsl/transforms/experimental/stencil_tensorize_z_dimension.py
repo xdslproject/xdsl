@@ -3,6 +3,7 @@ from typing import TypeGuard, cast
 
 from attr import dataclass
 
+from xdsl.context import MLContext
 from xdsl.dialects.arith import (
     Addf,
     BinaryOperation,
@@ -37,7 +38,6 @@ from xdsl.dialects.stencil import (
 from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp
 from xdsl.ir import (
     Attribute,
-    MLContext,
     Operation,
 )
 from xdsl.passes import ModulePass
@@ -220,8 +220,10 @@ class FuncOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         for arg in op.args:
-            assert isa(arg.type, MemRefType[Attribute])
-            op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
+            if isa(arg.type, MemRefType[Attribute]):
+                op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
+            elif isa(arg.type, FieldType[Attribute]):
+                op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
 
 
 def is_tensorized(

@@ -1,6 +1,6 @@
+from xdsl.context import MLContext
 from xdsl.dialects import gpu, memref
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

@@ -13,6 +13,7 @@ from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
     ConvertRiscvScfToRiscvCfPass,
 )
 from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRiscvPass
+from xdsl.context import MLContext
 from xdsl.dialects import (
     affine,
     arith,
@@ -24,7 +25,6 @@ from xdsl.dialects import (
     scf,
 )
 from xdsl.dialects.builtin import Builtin, ModuleOp
-from xdsl.ir import MLContext
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.dead_code_elimination import DeadCodeElimination
 from xdsl.transforms.lower_affine import LowerAffinePass

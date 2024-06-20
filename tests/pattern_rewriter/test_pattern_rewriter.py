@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import pytest
 from conftest import assert_print_op
 
+from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Muli
 from xdsl.dialects.builtin import (
@@ -16,7 +17,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Block, MLContext, Operation, SSAValue
+from xdsl.ir import Block, Operation, SSAValue
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

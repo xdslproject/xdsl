@@ -1,7 +1,8 @@
 from collections.abc import Iterator, Sequence
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, riscv, riscv_scf
-from xdsl.ir import MLContext, SSAValue
+from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

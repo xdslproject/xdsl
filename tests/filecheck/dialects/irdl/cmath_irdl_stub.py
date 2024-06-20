@@ -1,10 +1,10 @@
 # RUN: python %s | filecheck %s
 
+from xdsl.context import MLContext
+from xdsl.dialects import get_all_dialects
 from xdsl.dialects.irdl.irdl import DialectOp
 from xdsl.interpreters.irdl import make_dialect
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
-from xdsl.tools.command_line_tool import get_all_dialects
 from xdsl.traits import SymbolTable
 from xdsl.utils.dialect_stub import DialectStubGenerator
 

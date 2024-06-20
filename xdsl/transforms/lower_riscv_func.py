@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
