@@ -129,7 +129,9 @@ def _insert_loop_nest(
         iter_args = loop.body.block.args[1:]
         loops.append(loop)
         rewriter.insert_op(loop, insertion_point)
-        results = loop.results
+        if i:
+            # Do not insert yield outside of outermost loop
+            rewriter.insert_op(scf.Yield(*loop.results), InsertPoint.after(loop))
 
         if i + 1 == len(bounds):
             # Innermost loop iteration
@@ -144,7 +146,8 @@ def _insert_loop_nest(
                     "Unexpected number of results from `make_body` helper "
                     f"({len(results)}), expected {len(iter_args)}"
                 )
-        rewriter.insert_op(scf.Yield(*results), InsertPoint.at_end(loop.body.block))
+            rewriter.insert_op(scf.Yield(*results), InsertPoint.at_end(loop.body.block))
+
         insertion_point = InsertPoint.at_start(loop.body.block)
 
     return loops[0].results
