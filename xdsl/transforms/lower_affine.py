@@ -1,5 +1,6 @@
+from xdsl.context import MLContext
 from xdsl.dialects import affine, arith, builtin, memref, scf
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,
     AffineBinaryOpKind,

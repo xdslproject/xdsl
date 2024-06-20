@@ -8,9 +8,9 @@ from itertools import accumulate
 from typing import IO
 
 from xdsl.backend.csl.print_csl import print_to_csl
+from xdsl.context import MLContext
 from xdsl.dialects import riscv, x86
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool, get_all_passes

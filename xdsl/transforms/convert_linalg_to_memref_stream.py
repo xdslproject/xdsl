@@ -1,10 +1,10 @@
+from xdsl.context import MLContext
 from xdsl.dialects import linalg, memref_stream
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
     ModuleOp,
 )
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

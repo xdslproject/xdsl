@@ -6,6 +6,7 @@ from unittest.mock import ANY, patch
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32, i64
 from xdsl.dialects.hw import (
     HW,
@@ -26,7 +27,7 @@ from xdsl.dialects.hw import (
     ModuleType,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Block, MLContext
+from xdsl.ir import Block
 from xdsl.irdl import (
     IRDLOperation,
     Region,

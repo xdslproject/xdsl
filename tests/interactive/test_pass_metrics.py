@@ -1,5 +1,6 @@
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import arith, func
+from xdsl.context import MLContext
+from xdsl.dialects import arith, func, get_all_dialects
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
@@ -9,9 +10,8 @@ from xdsl.interactive.pass_metrics import (
     count_number_of_operations,
     get_diff_operation_count,
 )
-from xdsl.ir import Block, MLContext, Region
+from xdsl.ir import Block, Region
 from xdsl.parser import Parser
-from xdsl.tools.command_line_tool import get_all_dialects
 
 
 def test_operation_counter():

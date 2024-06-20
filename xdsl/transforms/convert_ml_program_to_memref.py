@@ -1,12 +1,12 @@
 from typing import Any, cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import bufferization, memref, ml_program
 from xdsl.dialects.builtin import (
     ModuleOp,
     TensorType,
     UnitAttr,
 )
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

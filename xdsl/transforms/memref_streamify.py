@@ -1,12 +1,13 @@
 from dataclasses import dataclass, field
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import memref, memref_stream, stream
 from xdsl.dialects.builtin import (
     ArrayAttr,
     ModuleOp,
 )
-from xdsl.ir import Attribute, Block, MLContext, Region
+from xdsl.ir import Attribute, Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

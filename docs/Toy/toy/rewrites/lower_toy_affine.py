@@ -9,6 +9,7 @@ from itertools import product
 from typing import TypeAlias, TypeVar, cast
 
 from xdsl.builder import Builder
+from xdsl.context import MLContext
 from xdsl.dialects import affine, arith, func, memref, printf
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -20,7 +21,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     f64,
 )
-from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

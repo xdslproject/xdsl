@@ -6,9 +6,10 @@ from xdsl.backend.riscv.lowering.utils import (
     move_to_a_regs,
     move_to_unallocated_regs,
 )
+from xdsl.context import MLContext
 from xdsl.dialects import func, riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir import Block, MLContext, Operation, Region
+from xdsl.ir import Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

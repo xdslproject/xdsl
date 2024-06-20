@@ -1,5 +1,6 @@
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -9,7 +10,6 @@ from xdsl.dialects.builtin import (
     Signedness,
     i32,
 )
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import ParseError, VerifyException
