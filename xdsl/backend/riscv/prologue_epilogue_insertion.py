@@ -42,7 +42,6 @@ class PrologueEpilogueInsertion(ModulePass):
             if res.type in Registers.S or res.type in Registers.FS
         )
 
-        # Note: This assumes RV32D aka 4 byte integer registers, 8 byte FP registers.
         def get_register_size(r: RISCVRegisterType):
             if isinstance(r, IntRegisterType):
                 return self.xlen

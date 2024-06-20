@@ -1,5 +1,5 @@
 // RUN: xdsl-opt --split-input-file -p "riscv-prologue-epilogue-insertion" %s | filecheck %s
-// RUN: xdsl-opt --split-input-file -p "riscv-prologue-epilogue-insertion{flen=4}" %s | filecheck %s --check-prefix=SMALL_FLEN
+// RUN: xdsl-opt --split-input-file -p "riscv-prologue-epilogue-insertion{flen=4}" %s | filecheck %s --check-prefix=CHECK-SMALL-FLEN
 
 // CHECK: func @main
 riscv_func.func @main() {
@@ -47,6 +47,6 @@ riscv_func.func @main() {
   riscv_func.return
 }
 
-// SMALL_FLEN: func @main
-// SMALL_FLEN: addi %{{.*}}, -8
-// SMALL_FLEN-SAME: (!riscv.reg<sp>) -> !riscv.reg<sp>
+// CHECK-SMALL-FLEN: func @main
+// CHECK-SMALL-FLEN: addi %{{.*}}, -8
+// CHECK-SMALL-FLEN-SAME: (!riscv.reg<sp>) -> !riscv.reg<sp>
