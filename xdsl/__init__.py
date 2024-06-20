@@ -47,13 +47,14 @@ class IRDLDialectLoader(importlib.abc.Loader):
             irdl_module = Parser(ctx, file.read(), self.path).parse_module()
 
             # Make it a PyRDL Dialect
-            dialect_name = os.path.basename(self.path)[:-5]
+            filename = os.path.basename(self.path)
+            dialect_name, _ = os.path.splitext(filename)
             dialect_op = SymbolTable.lookup_symbol(irdl_module, dialect_name)
             assert isinstance(dialect_op, DialectOp)
             dialect = make_dialect(dialect_op)
             print(
                 DialectStubGenerator(dialect).generate_dialect_stubs(),
-                file=open(f"{self.path[:-5]}.pyi", "w"),
+                file=open(f"{os.path.dirname(self.path)}/{dialect_name}.pyi", "w"),
             )
 
             for obj in chain(dialect.attributes, dialect.operations):

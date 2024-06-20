@@ -283,8 +283,9 @@ def make_all_stubs():
     dialects = xdsl.dialects
     directory = "/".join(dialects.__path__)
     for file in os.listdir(directory):
-        if file.endswith(".irdl"):
-            import_module(f"{directory}/{file[:-5]}")
+        name, ext = os.path.splitext(file)
+        if ext == ".irdl":
+            import_module(f"{directory}/{name}")
 
 
 if __name__ == "__main__":
