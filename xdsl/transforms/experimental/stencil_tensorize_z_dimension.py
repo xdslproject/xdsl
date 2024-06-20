@@ -220,8 +220,10 @@ class FuncOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         for arg in op.args:
-            assert isa(arg.type, MemRefType[Attribute])
-            op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
+            if isa(arg.type, MemRefType[Attribute]):
+                op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
+            elif isa(arg.type, FieldType[Attribute]):
+                op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
 
 
 def is_tensorized(
