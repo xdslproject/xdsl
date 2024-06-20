@@ -1,15 +1,16 @@
 from dataclasses import dataclass, field
 
+from ordered_set import OrderedSet
+
 from xdsl.builder import Builder
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, riscv, riscv_func
 from xdsl.dialects.riscv import (
     IntRegisterType,
     Registers,
     RISCVRegisterType,
 )
-from xdsl.context import MLContext
 from xdsl.passes import ModulePass
-from ordered_set import OrderedSet
 
 
 @dataclass(frozen=True)
