@@ -196,6 +196,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return snitch_register_allocation.SnitchRegisterAllocation
 
+    def get_riscv_prologue_epilogue_insertion():
+        from xdsl.backend.riscv import prologue_epilogue_insertion
+
+        return prologue_epilogue_insertion.PrologueEpilogueInsertion
+
     def get_convert_arith_to_riscv():
         from xdsl.backend.riscv.lowering import convert_arith_to_riscv
 
@@ -350,6 +355,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
+        "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
