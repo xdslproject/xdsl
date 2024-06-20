@@ -1,58 +1,115 @@
 # Stencil to CSL lowering
 
-Proposal: A `csl_stencil` dialect that manages communicating data across
+Proposal: An intermediate `csl_stencil` dialect that manages communicating data across
 the stencil pattern, sending to plus receiving from all neighbours.
 
-Starting point: Output of the `stencil-tensorize-z-dim` transform. This representation
-expresses that each PE holds one vector of z-values, while accesses to differing x/y coordinates
-require communicating with neighbouring PEs.
+Point in the pipeline: After applying `distribute-stencil`, `canonicalize`, and `stencil-tensorize-z-dim` transforms.
+These passes transform the code into a representation that expresses that each PE holds one
+vector of z-values, while accesses to  differing x/y coordinates require communicating with
+neighbouring PEs.
 
-The goal is to more closely express on a high level what our low-level stencil (communications)
+The goal of `csl_stencil` is to more closely express on a high level what our low-level stencil (communications)
 library does.
 
-## Starting point 
-Recall the following starting representation of tensorized z-dim values - please note, the
-`tensor.extract_slice` ops manage the halo and have been slightly re-ordered for improved readability: 
+## Existing Lowering Pipeline
 
-``` mlir
+Our starting point may be a raw, untransformed stencil representation (before shape inference) such as follows: 
+
+```
 builtin.module {
-  func.func @gauss_seidel(%a : memref<1024x512xtensor<512xf32>>, %b : memref<1024x512xtensor<512xf32>>) {
-    %0 = stencil.external_load %a : memref<1024x512xtensor<512xf32>> -> !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
-    %1 = stencil.load %0 : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>
-    %2 = stencil.external_load %b : memref<1024x512xtensor<512xf32>> -> !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
-    %3 = stencil.apply(%4 = %1 : !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>) -> (!stencil.temp<[0,1022]x[0,510]xtensor<510xf32>>) {
-      %5 = arith.constant 1.666600e-01 : f32
-      %6 = stencil.access %4[1, 0] : !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>
-      %8 = stencil.access %4[-1, 0] : !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>
-      %10 = stencil.access %4[0, 0] : !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>
-      %12 = stencil.access %4[0, 0] : !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>
-      %14 = stencil.access %4[0, 1] : !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>
-      %16 = stencil.access %4[0, -1] : !stencil.temp<[-1,1023]x[-1,511]xtensor<512xf32>>
-      %7 = "tensor.extract_slice"(%6) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %9 = "tensor.extract_slice"(%8) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %11 = "tensor.extract_slice"(%10) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %13 = "tensor.extract_slice"(%12) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %15 = "tensor.extract_slice"(%14) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %17 = "tensor.extract_slice"(%16) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %18 = arith.addf %17, %15 : tensor<510xf32>
-      %19 = arith.addf %18, %13 : tensor<510xf32>
-      %20 = arith.addf %19, %11 : tensor<510xf32>
-      %21 = arith.addf %20, %9 : tensor<510xf32>
-      %22 = arith.addf %21, %7 : tensor<510xf32>
-      %23 = tensor.empty() : tensor<510xf32>
-      %24 = linalg.fill ins(%5 : f32) outs(%23 : tensor<510xf32>) -> tensor<510xf32>
-      %25 = arith.mulf %22, %24 : tensor<510xf32>
-      stencil.return %25 : tensor<510xf32>
-    }
-    stencil.store %3 to %2 ([0, 0] : [1022, 510]) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+  func.func @gauss_seidel_func(%a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, %b : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
+    %0 = "stencil.load"(%a) : (!stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> !stencil.temp<?x?x?xf32>
+    %1 = "stencil.apply"(%0) ({
+    ^0(%2 : !stencil.temp<?x?x?xf32>):
+      %3 = arith.constant 1.666600e-01 : f32
+      %4 = "stencil.access"(%2) {"offset" = #stencil.index[1, 0, 0]} : (!stencil.temp<?x?x?xf32>) -> f32
+      %5 = "stencil.access"(%2) {"offset" = #stencil.index[-1, 0, 0]} : (!stencil.temp<?x?x?xf32>) -> f32
+      %6 = "stencil.access"(%2) {"offset" = #stencil.index[0, 0, 1]} : (!stencil.temp<?x?x?xf32>) -> f32
+      %7 = "stencil.access"(%2) {"offset" = #stencil.index[0, 0, -1]} : (!stencil.temp<?x?x?xf32>) -> f32
+      %8 = "stencil.access"(%2) {"offset" = #stencil.index[0, 1, 0]} : (!stencil.temp<?x?x?xf32>) -> f32
+      %9 = "stencil.access"(%2) {"offset" = #stencil.index[0, -1, 0]} : (!stencil.temp<?x?x?xf32>) -> f32
+      %10 = arith.addf %9, %8 : f32
+      %11 = arith.addf %10, %7 : f32
+      %12 = arith.addf %11, %6 : f32
+      %13 = arith.addf %12, %5 : f32
+      %14 = arith.addf %13, %4 : f32
+      %15 = arith.mulf %14, %3 : f32
+      "stencil.return"(%15) : (f32) -> ()
+    }) : (!stencil.temp<?x?x?xf32>) -> !stencil.temp<?x?x?xf32>
+    "stencil.store"(%1, %b) {"bounds" = #stencil.bounds[0, 0, 0] : [1022, 510, 510]} : (!stencil.temp<?x?x?xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> ()
     func.return
   }
 }
 ```
 
+To begin lowering, we can apply the following passes:
+* `distribute-stencil{strategy=2d-grid slices=1022,510 restrict_domain=true}`
+  * Distributes the stencil compute grid across the physical grid of compute nodes (or PEs).
+    Assuming the default x-y split across x-y PEs, we can
+    decompose the compute grid from (x,y,z) into (1,1,z) slices, each PE handling one batch
+    of z-values. The return type of `stencil.apply` is changed to `!stencil.temp<[0,1]x[0,1]x[0,510]xf32>`
+    (similarly for other ops).
+  * Runs the `stencil-shape-inference` pass as a dependency.
+  * As a distributed computation needs to exchange data, the pass inserts `dmp.swap` ops
+    to indicate where this needs to happen. The semantics is to indicate that a bi-directional
+    data exchange is needed between this node and a list of neighbouring nodes.
+* `canonicalize`
+  * (unverified) Removes redundant data transfers (`dmp.swap`) where the data has
+    previously been exchanged and has not been invalidated by a `stencil.store`. 
+* `stencil-tensorize-z-dimension`
+  * Expresses the stencil computation as operating on tensors of z-values rather than scalar
+    z-values.
+
+The following result is slightly reformatted for readability:
+
+```
+builtin.module {
+  func.func @gauss_seidel_func(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
+    %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+    "dmp.swap"(%0) {"topo" = #dmp.topo<1022x510>, "swaps" = [
+            #dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>,
+            #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>,
+            #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>,
+            #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>
+        ]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> ()
+    %1 = stencil.apply(%2 = %0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) {
+      %3 = arith.constant 1.666600e-01 : f32
+      %4 = stencil.access %2[1, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+      %6 = stencil.access %2[-1, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+      %8 = stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+      %10 = stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+      %12 = stencil.access %2[0, 1] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+      %14 = stencil.access %2[0, -1] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+      %5 = "tensor.extract_slice"(%4) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+      %7 = "tensor.extract_slice"(%6) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+      %9 = "tensor.extract_slice"(%8) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+      %11 = "tensor.extract_slice"(%10) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+      %13 = "tensor.extract_slice"(%12) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+      %15 = "tensor.extract_slice"(%14) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+      %16 = arith.addf %15, %13 : tensor<510xf32>
+      %17 = arith.addf %16, %11 : tensor<510xf32>
+      %18 = arith.addf %17, %9 : tensor<510xf32>
+      %19 = arith.addf %18, %7 : tensor<510xf32>
+      %20 = arith.addf %19, %5 : tensor<510xf32>
+      %21 = tensor.empty() : tensor<510xf32>
+      %22 = linalg.fill ins(%3 : f32) outs(%21 : tensor<510xf32>) -> tensor<510xf32>
+      %23 = arith.mulf %20, %22 : tensor<510xf32>
+      stencil.return %23 : tensor<510xf32>
+    }
+    stencil.store %1 to %b ([0, 0] : [1, 1]) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+    func.return
+  }
+}
+```
+
+Note: `dmp.swap` has not been touched by `stencil-tensorize-z-dim` and remains 3-dimensional, while
+the remainder of the stencil code 2-dimensional after the transformation (requesting feedback).
+
+# #work in progress, read only up to here#
+
 ## Step 1: A simple, synchronous csl-stencil library
 
-This document shows a series of small transformations, here applied manually. These may be combined
+The remaining parts of this document show a series of small transformations, here applied manually. These may be combined
 into one larger transformation when implemented, but are shown as a sequence of small transforms
 for the purposes of illustration.
 
