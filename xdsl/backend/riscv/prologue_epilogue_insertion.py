@@ -7,8 +7,9 @@ from xdsl.dialects.riscv import (
     Registers,
     RISCVRegisterType,
 )
-from xdsl.ir import MLContext
+from xdsl.context import MLContext
 from xdsl.passes import ModulePass
+from ordered_set import OrderedSet
 
 
 @dataclass(frozen=True)
@@ -32,13 +33,13 @@ class PrologueEpilogueInsertion(ModulePass):
     def _process_function(self, func: riscv_func.FuncOp) -> None:
         # Find all callee-preserved registers that are clobbered. We define clobbered
         # as it being the result of some operation and therefore written to.
-        used_callee_preserved_registers = {
-            res.type: None
+        used_callee_preserved_registers = OrderedSet(
+            res.type
             for op in func.walk()
             if not isinstance(op, riscv.GetRegisterOp | riscv.GetFloatRegisterOp)
             for res in op.results
             if res.type in Registers.S or res.type in Registers.FS
-        }
+        )
 
         # Note: This assumes RV32D aka 4 byte integer registers, 8 byte FP registers.
         def get_register_size(r: RISCVRegisterType):
@@ -52,7 +53,7 @@ class PrologueEpilogueInsertion(ModulePass):
         stack_size = sum(get_register_size(r) for r in used_callee_preserved_registers)
         builder.insert(riscv.AddiOp(sp_register, -stack_size, rd=Registers.SP))
         offset = 0
-        for reg in used_callee_preserved_registers.keys():
+        for reg in used_callee_preserved_registers:
             if isinstance(reg, IntRegisterType):
                 reg_op = builder.insert(riscv.GetRegisterOp(reg))
                 op = riscv.SwOp(rs1=sp_register, rs2=reg_op, immediate=offset)
@@ -71,7 +72,7 @@ class PrologueEpilogueInsertion(ModulePass):
 
             builder = Builder.before(ret_op)
             offset = 0
-            for reg in used_callee_preserved_registers.keys():
+            for reg in used_callee_preserved_registers:
                 if isinstance(reg, IntRegisterType):
                     op = riscv.LwOp(rs1=sp_register, rd=reg, immediate=offset)
                 else:
