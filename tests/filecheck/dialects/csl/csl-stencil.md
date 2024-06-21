@@ -298,3 +298,6 @@ The first code block acts effectively like a loop body over the communicated chu
 executed once for each communicated chunk. It is initialised
 with an empty tensor (`%1`) which it builds up in `%iter_args`, inspired by the argument
 to `scf.for` of the same name.
+
+Please note: Some of the `arith` ops have been manually re-ordered before being moved
+into the two callback blocks.
