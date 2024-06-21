@@ -563,7 +563,7 @@ class Operation(IRNode):
     _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
-    results: list[OpResult] = field(default_factory=list)
+    results: tuple[OpResult, ...] = field(default=())
     """The results created by the operation."""
 
     successors: list[Block] = field(default_factory=list)
@@ -582,7 +582,7 @@ class Operation(IRNode):
     attributes: dict[str, Attribute] = field(default_factory=dict)
     """The attributes attached to the operation."""
 
-    regions: list[Region] = field(default_factory=list)
+    regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
 
     parent: Block | None = field(default=None, repr=False)
@@ -696,14 +696,14 @@ class Operation(IRNode):
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
 
-        self.results = [
+        self.results = tuple(
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
-        ]
+        )
         self.properties = dict(properties)
         self.attributes = dict(attributes)
         self.successors = list(successors)
-        self.regions = []
+        self.regions = ()
         for region in regions:
             self.add_region(region)
 
@@ -738,7 +738,7 @@ class Operation(IRNode):
             raise Exception(
                 "Cannot add region that is already attached on an operation."
             )
-        self.regions.append(region)
+        self.regions += (region,)
         region.parent = self
 
     def get_region_index(self, region: Region) -> int:

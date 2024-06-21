@@ -51,7 +51,7 @@ def test_for_with_loop_carried_verify():
         step.result,
         carried.result,
     )
-    assert for_op.regions == [body]
+    assert for_op.regions == (body,)
     assert for_op.attributes == {}
 
     for_op.verify()
@@ -82,7 +82,7 @@ def test_for_without_loop_carried_verify():
         upper.result,
         step.result,
     )
-    assert for_op.regions == [body]
+    assert for_op.regions == (body,)
     assert for_op.attributes == {}
 
     for_op.verify()

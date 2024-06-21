@@ -213,7 +213,7 @@ class IsolatedFromAbove(OpTrait):
 
     def verify(self, op: Operation) -> None:
         # Start by checking all the passed operation's regions
-        regions: list[Region] = op.regions.copy()
+        regions: list[Region] = list(op.regions)
 
         # While regions are left to check
         while regions:

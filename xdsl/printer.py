@@ -349,7 +349,7 @@ class Printer:
         self._print_new_line()
         self.print("}")
 
-    def print_regions(self, regions: list[Region]) -> None:
+    def print_regions(self, regions: Sequence[Region]) -> None:
         if len(regions) == 0:
             return
 
