@@ -65,6 +65,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.pyright]
 reportImportCycles = false
+reportMissingModuleSource = false
 enableTypeIgnoreComments = false
 typeCheckingMode = "strict"
 "include" = ["docs", "xdsl", "tests", "bench"]
