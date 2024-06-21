@@ -35,16 +35,20 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     name = "csl_stencil.exchange"
 
-    neighbor_: ParameterDef[builtin.DenseArrayBase]
+    neighbor_param: ParameterDef[builtin.DenseArrayBase]
 
     def __init__(
         self,
-        neighbor: Sequence[int],
+        neighbor: Sequence[int] | builtin.DenseArrayBase,
     ):
         data_type = builtin.i64
         super().__init__(
             [
-                builtin.DenseArrayBase.from_list(data_type, neighbor),
+                (
+                    neighbor
+                    if isinstance(neighbor, builtin.DenseArrayBase)
+                    else builtin.DenseArrayBase.from_list(data_type, neighbor)
+                ),
             ]
         )
 
@@ -54,7 +58,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 
     @property
     def neighbor(self) -> tuple[int, ...]:
-        data = self.neighbor_.as_tuple()
+        data = self.neighbor_param.as_tuple()
         assert isa(data, tuple[int, ...])
         return data
 
