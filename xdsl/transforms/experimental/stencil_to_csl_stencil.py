@@ -134,7 +134,7 @@ class SwapToPrefetch(RewritePattern):
                     ]
                 ),
                 walk_reverse=False,
-                apply_recursively=True,
+                apply_recursively=False,
             )
 
             nested_rewriter.rewrite_op(new_apply_op)
