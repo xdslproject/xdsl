@@ -5,29 +5,20 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y: memref<1x1x3x3xf64>,
     %Z: memref<1x1x6x6xf64>
 ) -> () {
-    memref_stream.streaming_region {
-      patterns = [
-          #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
-          #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>,
-          #memref_stream.stride_pattern<ub = [1, 1, 6, 6], index_map = (d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-      ]
+    memref_stream.generic {
+      bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<6>, #builtin.int<6>, #builtin.int<1>, #builtin.int<3>, #builtin.int<3>],
+      indexing_maps = [
+        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
+        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>,
+        affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+      ],
+      iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"],
+      inits = [0.0 : f64]
     } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x6x6xf64>) {
-    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %z_stream : !stream.writable<f64>):
-      memref_stream.generic {
-        bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<6>, #builtin.int<6>, #builtin.int<1>, #builtin.int<3>, #builtin.int<3>],
-        indexing_maps = [
-          affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
-          affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>,
-          affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-        ],
-        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"],
-        inits = [0.0 : f64]
-      } ins(%x_stream, %y_stream : !stream.readable<f64>, !stream.readable<f64>) outs(%z_stream : !stream.writable<f64>) {
-      ^0(%x : f64, %y : f64, %acc : f64):
-        %prod = arith.mulf %x, %y fastmath<fast> : f64
-        %res = arith.addf %prod, %acc fastmath<fast> : f64
-        memref_stream.yield %res : f64
-      }
+    ^0(%x : f64, %y : f64, %acc : f64):
+      %prod = arith.mulf %x, %y fastmath<fast> : f64
+      %res = arith.addf %prod, %acc fastmath<fast> : f64
+      memref_stream.yield %res : f64
     }
 
     func.return
@@ -394,26 +385,18 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    memref_stream.streaming_region {
-      patterns = [
-        #memref_stream.stride_pattern<ub = [1, 1, 7, 7, 3, 3], index_map = (d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
-        #memref_stream.stride_pattern<ub = [1, 1, 7, 7], index_map = (d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-      ]
+    memref_stream.generic {
+      bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
+      indexing_maps = [
+        affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
+        affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+      ],
+      iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"],
+      inits = [-10000.0 : f64]
     } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) {
-    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
-      memref_stream.generic {
-        bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
-        indexing_maps = [
-          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
-          affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-        ],
-        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"],
-        inits = [-10000.0 : f64]
-      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) {
-      ^0(%x : f64, %acc : f64):
-        %res = arith.maximumf %x, %acc : f64
-        memref_stream.yield %res : f64
-      }
+    ^0(%x : f64, %acc : f64):
+      %res = arith.maximumf %x, %acc : f64
+      memref_stream.yield %res : f64
     }
 
     func.return
@@ -514,26 +497,18 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
-    memref_stream.streaming_region {
-      patterns = [
-        #memref_stream.stride_pattern<ub = [1, 1, 7, 7, 3, 3], index_map = (d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
-        #memref_stream.stride_pattern<ub = [1, 1, 7, 7], index_map = (d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-      ]
+    memref_stream.generic {
+      bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
+      indexing_maps = [
+        affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
+        affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+      ],
+      iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"],
+      inits = [0.0 : f64]
     } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) {
-    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
-      memref_stream.generic {
-        bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
-        indexing_maps = [
-          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
-          affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
-        ],
-        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"],
-        inits = [0.0 : f64]
-      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) {
-      ^0(%x : f64, %acc : f64):
-        %res = arith.addf %x, %acc : f64
-        memref_stream.yield %res : f64
-      }
+    ^0(%x : f64, %acc : f64):
+      %res = arith.addf %x, %acc : f64
+      memref_stream.yield %res : f64
     }
 
     func.return

@@ -27,10 +27,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             # Already streamified
             return
 
-        if any(not isinstance(init, UnitAttr) for init in op.inits):
-            raise NotImplementedError(
-                "Cannot streamify operation that has inits that are not UnitAttr"
-            )
+        init_values = tuple(not isinstance(init, UnitAttr) for init in op.inits)
 
         # Currently can only stream memrefs that are not inout
         streamable_input_indices = tuple(
@@ -43,7 +40,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             (index, cast(memref.MemRefType[Attribute], value_type).element_type)
             for index, value in enumerate(op.outputs)
             if isinstance(value_type := value.type, memref.MemRefType)
-            if not op.body.block.args[index + input_count].uses
+            if init_values[index] or not op.body.block.args[index + input_count].uses
         )
         if not streamable_input_indices and not streamable_output_indices:
             # No memrefs to convert to streams
