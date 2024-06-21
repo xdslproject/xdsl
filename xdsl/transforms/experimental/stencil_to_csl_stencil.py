@@ -108,8 +108,11 @@ class SwapToPrefetch(RewritePattern):
         # a dirty hack to get around a check that prevents me from replacing a no-results op with an n-results op
         rewriter.replace_matched_op(prefetch_op, new_results=[])
 
+        # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
+        uses = list(op.input_stencil.uses)
+
         # rewrite stencil.apply
-        for use in op.input_stencil.uses:
+        for use in uses:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
             apply_op = use.operation

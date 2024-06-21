@@ -103,9 +103,6 @@ class PrefetchOp(IRDLOperation):
         swaps: Sequence[ExchangeDeclarationAttr] = [],
         result_type: memref.MemRefType[Attribute] | None = None,
     ):
-        # if result_type is None:
-        #
-        #     result_type = builtin.TensorType()
         super().__init__(
             operands=[input_stencil],
             properties={"size": size, "topo": topo, "swaps": builtin.ArrayAttr(swaps)},
