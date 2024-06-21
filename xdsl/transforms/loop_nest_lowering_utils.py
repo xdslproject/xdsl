@@ -1,5 +1,6 @@
 from collections.abc import Callable, Sequence
 from itertools import compress
+from typing import TypeAlias
 
 from xdsl.dialects import affine, arith, scf
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
@@ -62,6 +63,31 @@ def indices_for_map(
     return output_indices
 
 
+INSERT_LOAD: TypeAlias = Callable[
+    [
+        SSAValue,
+        AffineMapAttr,
+        Sequence[SSAValue],
+        PatternRewriter,
+        InsertPoint,
+    ],
+    SSAValue,
+]
+
+
+INSERT_STORE: TypeAlias = Callable[
+    [
+        SSAValue,
+        SSAValue,
+        AffineMapAttr,
+        Sequence[SSAValue],
+        PatternRewriter,
+        InsertPoint,
+    ],
+    Operation,
+]
+
+
 def _insert_loop_nest(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
@@ -103,7 +129,9 @@ def _insert_loop_nest(
         iter_args = loop.body.block.args[1:]
         loops.append(loop)
         rewriter.insert_op(loop, insertion_point)
-        results = loop.results
+        if i:
+            # Do not insert yield outside of outermost loop
+            rewriter.insert_op(scf.Yield(*loop.results), InsertPoint.after(loop))
 
         if i + 1 == len(bounds):
             # Innermost loop iteration
@@ -118,7 +146,8 @@ def _insert_loop_nest(
                     "Unexpected number of results from `make_body` helper "
                     f"({len(results)}), expected {len(iter_args)}"
                 )
-        rewriter.insert_op(scf.Yield(*results), InsertPoint.at_end(loop.body.block))
+            rewriter.insert_op(scf.Yield(*results), InsertPoint.at_end(loop.body.block))
+
         insertion_point = InsertPoint.at_start(loop.body.block)
 
     return loops[0].results
@@ -131,9 +160,7 @@ def _insert_load_ops(
     affine_map_attrs: Sequence[AffineMapAttr],
     operands: Sequence[SSAValue],
     args: Sequence[BlockArgument],
-    load: Callable[
-        [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
-    ],
+    insert_load: INSERT_LOAD,
 ) -> Sequence[tuple[int, SSAValue]]:
     """
     Inserts the load operations at the specified insertion point.
@@ -143,6 +170,8 @@ def _insert_load_ops(
     The `args` are the block arguments corresponding to the use of the load; if there are
     no uses, the loads are not inserted.
     The `affine_map_attrs`, `operands`, and `args` must have the same length.
+    Returns a tuple of integers indicating the locations of the returned values, and
+    the values themselves.
     """
     res: list[tuple[int, SSAValue]] = []
     for i, (affine_map_attr, operand, arg) in enumerate(
@@ -150,9 +179,13 @@ def _insert_load_ops(
     ):
         if not arg.uses:
             continue
-        affine_map = affine_map_attr.data
-        indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
-        res_val = load(operand, indices, rewriter, insertion_point)
+        res_val = insert_load(
+            operand,
+            affine_map_attr,
+            ind_vars,
+            rewriter,
+            insertion_point,
+        )
         res.append((i, res_val))
     return res
 
@@ -164,7 +197,7 @@ def _insert_store_ops(
     output_indexing_maps: Sequence[AffineMapAttr],
     yield_operands: Sequence[SSAValue],
     output_operands: Sequence[SSAValue],
-    store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
+    insert_store: INSERT_STORE,
 ):
     """
     Inserts the store operations at the specified insertion point.
@@ -178,10 +211,9 @@ def _insert_store_ops(
     for affine_map_attr, yield_value, ref in zip(
         output_indexing_maps, yield_operands, output_operands, strict=True
     ):
-        affine_map = affine_map_attr.data
-        indices = indices_for_map(rewriter, insertion_point, affine_map, ind_vars)
-        store_op = store(yield_value, ref, indices)
-        rewriter.insert_op(store_op, insertion_point)
+        insert_store(
+            yield_value, ref, affine_map_attr, ind_vars, rewriter, insertion_point
+        )
 
 
 def rewrite_generic_to_loops(
@@ -193,10 +225,8 @@ def rewrite_generic_to_loops(
     load_operands: Sequence[SSAValue],
     store_operands: Sequence[SSAValue],
     block: Block,
-    load: Callable[
-        [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
-    ],
-    store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
+    insert_load: INSERT_LOAD,
+    insert_store: INSERT_STORE,
 ) -> None:
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
@@ -227,7 +257,7 @@ def rewrite_generic_to_loops(
             load_indexing_maps,
             load_operands,
             block.args,
-            load,
+            insert_load,
         )
 
         for i, val in loaded_values:
@@ -251,7 +281,7 @@ def rewrite_generic_to_loops(
             store_indexing_maps,
             yield_op.operands,
             store_operands,
-            store,
+            insert_store,
         )
 
         return ()
@@ -283,10 +313,8 @@ def rewrite_generic_to_imperfect_loops(
     outer_load_block_args: Sequence[BlockArgument],
     inner_load_block_args: Sequence[BlockArgument],
     block: Block,
-    load: Callable[
-        [SSAValue, Sequence[SSAValue], PatternRewriter, InsertPoint], SSAValue
-    ],
-    store: Callable[[SSAValue, SSAValue, Sequence[SSAValue]], Operation],
+    insert_load: INSERT_LOAD,
+    insert_store: INSERT_STORE,
 ) -> None:
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
@@ -323,7 +351,7 @@ def rewrite_generic_to_imperfect_loops(
             outer_load_indexing_maps,
             outer_load_operands,
             outer_load_block_args,
-            load,
+            insert_load,
         )
 
         def inner_make_body(
@@ -340,7 +368,7 @@ def rewrite_generic_to_imperfect_loops(
                 inner_load_indexing_maps,
                 inner_load_operands,
                 inner_load_block_args,
-                load,
+                insert_load,
             )
 
             # Replace block argument use with iter args
@@ -390,7 +418,7 @@ def rewrite_generic_to_imperfect_loops(
             store_indexing_maps,
             inner_loop_nest_results,
             store_operands,
-            store,
+            insert_store,
         )
 
         return ()
