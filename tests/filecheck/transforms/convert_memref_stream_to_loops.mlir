@@ -166,4 +166,45 @@ func.func @main(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x3xf64>
 // CHECK-NEXT:      func.return %{{.*}} : memref<4x3xf64>
 // CHECK-NEXT:    }
 
+func.func @elide_affine(%A : memref<6xf64>, %B : memref<f64>) -> memref<f64> {
+    memref_stream.streaming_region {
+      patterns = [
+        #memref_stream.stride_pattern<ub = [2, 3], index_map = (d0, d1) -> (d0 * 3 + d1)>
+      ]
+    } ins(%A : memref<6xf64>) {
+    ^0(%0 : !stream.readable<f64>):
+      memref_stream.generic {
+        bounds = [#builtin.int<2>, #builtin.int<3>],
+        indexing_maps = [
+          affine_map<(d0, d1) -> (d0 * 3 + d1)>,
+          affine_map<(d0, d1) -> ()>
+        ],
+        iterator_types = ["parallel", "reduction"]
+      } ins(%0 : !stream.readable<f64>) outs(%B : memref<f64>) {
+      ^1(%a : f64, %acc_old : f64):
+        %acc_new = arith.addf %acc_old, %a : f64
+        memref_stream.yield %acc_new : f64
+      }
+    }
+    func.return %B : memref<f64>
+}
+// CHECK-NEXT:    func.func @elide_affine(%{{.*}} : memref<6xf64>, %{{.*}} : memref<f64>) -> memref<f64> {
+// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [2, 3], index_map = (d0, d1) -> (((d0 * 3) + d1))>]} ins(%{{.*}} : memref<6xf64>) {
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>):
+// CHECK-NEXT:        %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:        %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:        %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:        scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:          scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:            %{{.*}} = memref_stream.read from %{{.*}} : f64
+// CHECK-NEXT:            %{{.*}} = memref.load %{{.*}}[] : memref<f64>
+// CHECK-NEXT:            %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:            memref.store %{{.*}}, %{{.*}}[] : memref<f64>
+// CHECK-NEXT:          }
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return %{{.*}} : memref<f64>
+// CHECK-NEXT:    }
+
 // CHECK-NEXT:  }
