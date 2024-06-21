@@ -207,4 +207,52 @@ func.func @elide_affine(%A : memref<6xf64>, %B : memref<f64>) -> memref<f64> {
 // CHECK-NEXT:      func.return %{{.*}} : memref<f64>
 // CHECK-NEXT:    }
 
+func.func @nested_imperfect(%A : memref<2x3x4xf64>, %B : memref<f64>) -> memref<f64> {
+    memref_stream.streaming_region {
+      patterns = [
+        #memref_stream.stride_pattern<ub = [2, 3, 4], index_map = (d0, d1, d2) -> (d0, d1, d2)>
+      ]
+    } ins(%A : memref<2x3x4xf64>) {
+    ^0(%0 : !stream.readable<f64>):
+      memref_stream.generic {
+        bounds = [#builtin.int<2>, #builtin.int<3>, #builtin.int<4>],
+        indexing_maps = [
+          affine_map<(d0, d1, d2) -> (d0, d1, d2)>,
+          affine_map<() -> ()>
+        ],
+        iterator_types = ["reduction", "reduction", "reduction"]
+      } ins(%0 : !stream.readable<f64>) outs(%B : memref<f64>) {
+      ^1(%a : f64, %acc_old : f64):
+        %acc_new = arith.addf %acc_old, %a : f64
+        memref_stream.yield %acc_new : f64
+      }
+    }
+    func.return %B : memref<f64>
+}
+
+// CHECK-NEXT:    func.func @nested_imperfect(%{{.*}} : memref<2x3x4xf64>, %{{.*}} : memref<f64>) -> memref<f64> {
+// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [2, 3, 4], index_map = (d0, d1, d2) -> (d0, d1, d2)>]} ins(%{{.*}} : memref<2x3x4xf64>) {
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>):
+// CHECK-NEXT:        %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:        %{{.*}} = arith.constant 4 : index
+// CHECK-NEXT:        %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:        %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:        %{{.*}} = memref.load %{{.*}}[] : memref<f64>
+// CHECK-NEXT:        %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (f64) {
+// CHECK-NEXT:          %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (f64) {
+// CHECK-NEXT:            %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (f64) {
+// CHECK-NEXT:              %{{.*}} = memref_stream.read from %{{.*}} : f64
+// CHECK-NEXT:              %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:              scf.yield %{{.*}} : f64
+// CHECK-NEXT:            }
+// CHECK-NEXT:            scf.yield %{{.*}} : f64
+// CHECK-NEXT:          }
+// CHECK-NEXT:          scf.yield %{{.*}} : f64
+// CHECK-NEXT:        }
+// CHECK-NEXT:        memref.store %{{.*}}, %{{.*}}[] : memref<f64>
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return %{{.*}} : memref<f64>
+// CHECK-NEXT:    }
+
 // CHECK-NEXT:  }
