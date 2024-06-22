@@ -339,7 +339,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         # wrapping in for loops until we have exhausted the induction variables
         parallel_block = op.body.detach_block(0)
 
-        if res != []:
+        if res:
             parallel_block.insert_arg(res[0].type, 1)
             cast(Operation, parallel_block.last_op).detach()
             yieldop = Yield(res[0].op)
@@ -350,7 +350,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         for i in range(len(lb) - 1):
             for_region.block.erase_arg(for_region.block.args[i])
 
-        if res != []:
+        if res:
             for_op = For(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
         else:
             for_op = For(lb[-1], ub[-1], step[-1], [], for_region)
