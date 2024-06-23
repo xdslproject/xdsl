@@ -523,7 +523,7 @@ def test_two_var_region_builder():
     region4 = Region()
     op2 = TwoVarRegionOp.build(regions=[[region1, region2], [region3, region4]])
     op2.verify()
-    assert op2.regions == [region1, region2, region3, region4]
+    assert op2.regions == (region1, region2, region3, region4)
     assert op2.attributes[
         AttrSizedRegionSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [2, 2])
@@ -536,7 +536,7 @@ def test_two_var_operand_builder3():
     region4 = Region()
     op2 = TwoVarRegionOp.build(regions=[[region1], [region2, region3, region4]])
     op2.verify()
-    assert op2.regions == [region1, region2, region3, region4]
+    assert op2.regions == (region1, region2, region3, region4)
     assert op2.attributes[
         AttrSizedRegionSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
