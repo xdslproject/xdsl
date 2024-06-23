@@ -46,7 +46,7 @@ class LowerSyscallOp(RewritePattern):
 
         if op.result is None:
             ops.append(riscv.EcallOp())
-            new_results = []
+            new_results = ()
         else:
             # The result will be stored to a0, move to register that will be used
             ecall = riscv.EcallOp()
