@@ -294,7 +294,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return stencil_tensorize_z_dimension.StencilTensorizeZDimension
 
     def get_stencil_to_csl_stencil():
-        from xdsl.transforms.experimental import stencil_to_csl_stencil
+        from xdsl.transforms import stencil_to_csl_stencil
 
         return stencil_to_csl_stencil.StencilToCslStencilPass
 
