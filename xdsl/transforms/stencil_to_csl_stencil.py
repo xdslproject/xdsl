@@ -20,7 +20,7 @@ from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
-class AccessOpFromPrefetch(RewritePattern):
+class AccessOpFromPrefetchPattern(RewritePattern):
     """
     Rebuilds stencil.access by csl_stencil.access which operates on prefetched accesses.
 
@@ -59,7 +59,7 @@ class AccessOpFromPrefetch(RewritePattern):
 
 
 @dataclass(frozen=True)
-class SwapToPrefetch(RewritePattern):
+class SwapToPrefetchPattern(RewritePattern):
     """
     Translates dmp.swap to csl_stencil.prefetch
     """
@@ -142,7 +142,7 @@ class SwapToPrefetch(RewritePattern):
             nested_rewriter = PatternRewriteWalker(
                 GreedyRewritePatternApplier(
                     [
-                        AccessOpFromPrefetch(arg_idx),
+                        AccessOpFromPrefetchPattern(arg_idx),
                     ]
                 ),
                 walk_reverse=False,
@@ -158,7 +158,7 @@ class StencilToCslStencilPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([SwapToPrefetch()]),
+            GreedyRewritePatternApplier([SwapToPrefetchPattern()]),
             walk_reverse=False,
             apply_recursively=False,
         )
