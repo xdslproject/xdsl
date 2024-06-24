@@ -79,7 +79,7 @@ class PrefetchOp(IRDLOperation):
     """
     An op to indicate a symmetric (send and receive) buffer prefetch across the stencil shape.
 
-    Returns memref<${len(self.swaps}xtensor<${self.size}x??>>
+    Returns memref<${len(self.swaps}xtensor<{buffer size}x{data type}>>
     """
 
     name = "csl_stencil.prefetch"
