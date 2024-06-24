@@ -61,6 +61,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return CSL
 
+    def get_csl_stencil():
+        from xdsl.dialects.csl.csl_stencil import CSL_STENCIL
+
+        return CSL_STENCIL
+
     def get_dmp():
         from xdsl.dialects.experimental.dmp import DMP
 
@@ -273,6 +278,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "cmath": get_cmath,
         "comb": get_comb,
         "csl": get_csl,
+        "csl_stencil": get_csl_stencil,
         "dmp": get_dmp,
         "fir": get_fir,
         "fsm": get_fsm,

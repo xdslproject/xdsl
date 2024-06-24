@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from xdsl.context import MLContext
 from xdsl.dialects import linalg, memref
-from xdsl.dialects.builtin import MemRefType, ModuleOp
+from xdsl.dialects.builtin import AffineMapAttr, MemRefType, ModuleOp
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -13,21 +13,44 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.transforms.loop_nest_lowering_utils import rewrite_generic_to_loops
+from xdsl.transforms.loop_nest_lowering_utils import (
+    indices_for_map,
+    rewrite_generic_to_loops,
+)
 
 
-def load(
+def insert_load(
     value: SSAValue,
-    indices: Sequence[SSAValue],
+    affine_map_attr: AffineMapAttr,
+    ind_vars: Sequence[SSAValue],
     rewriter: PatternRewriter,
     insertion_target: InsertPoint,
 ) -> SSAValue:
     if isinstance(value.type, MemRefType):
+        indices = indices_for_map(
+            rewriter, insertion_target, affine_map_attr.data, ind_vars
+        )
         op = memref.Load.get(value, indices)
         rewriter.insert_op(op, insertion_target)
         return op.res
     else:
         return value
+
+
+def insert_store(
+    value: SSAValue,
+    destination: SSAValue,
+    affine_map_attr: AffineMapAttr,
+    ind_vars: Sequence[SSAValue],
+    rewriter: PatternRewriter,
+    insertion_target: InsertPoint,
+):
+    indices = indices_for_map(
+        rewriter, insertion_target, affine_map_attr.data, ind_vars
+    )
+    op = memref.Store.get(value, destination, indices)
+    rewriter.insert_op(op, insertion_target)
+    return op
 
 
 class LowerGenericOpPattern(RewritePattern):
@@ -47,8 +70,8 @@ class LowerGenericOpPattern(RewritePattern):
             op.operands,
             op.outputs,
             op.body.block,
-            load,
-            memref.Store.get,
+            insert_load,
+            insert_store,
         )
 
 
