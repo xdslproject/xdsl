@@ -283,6 +283,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return lower_hls.LowerHLSPass
 
+    def get_qref_to_qssa():
+        from xdsl.transforms import qref_to_qssa
+
+        return qref_to_qssa.QRefToQssa
+
+    def get_qssa_to_qref():
+        from xdsl.transforms import qssa_to_qref
+
+        return qssa_to_qref.QssaToQRef
+
     def get_replace_incompatible_fpga():
         from xdsl.transforms.experimental import replace_incompatible_fpga
 
@@ -347,6 +357,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,
+        "qref-to-qssa": get_qref_to_qssa,
+        "qssa-to-qref": get_qssa_to_qref,
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,

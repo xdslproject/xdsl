@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from xdsl.dialects import qref
+from xdsl.dialects import qssa
 from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -21,20 +21,20 @@ from xdsl.printer import Printer
 @irdl_attr_definition
 class QubitAttr(ParametrizedAttribute, TypeAttribute):
     """
-    Type for a single qubit
+    Reference to a qubit
     """
 
-    name = "qssa.qubit"
+    name = "qref.qubit"
 
 
 qubit = QubitAttr()
 
 
-class QssaBase(IRDLOperation, ABC):
+class QRefBase(IRDLOperation, ABC):
     @abstractmethod
-    def ref_op(self) -> qref.QRefBase:
+    def ssa_op(self) -> qssa.QssaBase:
         """
-        Build corresponding qref operation
+        Get corresponding qssa operation
         """
         raise NotImplementedError()
 
@@ -46,16 +46,14 @@ class QssaBase(IRDLOperation, ABC):
         """
         raise NotImplementedError()
 
-    pass
-
 
 @irdl_op_definition
-class QubitAllocOp(QssaBase):
-    name = "qssa.alloc"
+class QRefAllocOp(QRefBase):
+    name = "qref.alloc"
 
-    def ref_op(self) -> qref.QRefAllocOp:
-        return qref.QRefAllocOp.create(
-            result_types=[qref.qubit] * self.num_qubits,
+    def ssa_op(self) -> qssa.QubitAllocOp:
+        return qssa.QubitAllocOp.create(
+            result_types=[qssa.qubit] * self.num_qubits,
             attributes=self.attributes,
         )
 
@@ -76,11 +74,11 @@ class QubitAllocOp(QssaBase):
         return len(self.res)
 
     @classmethod
-    def parse(cls, parser: Parser) -> QubitAllocOp:
+    def parse(cls, parser: Parser) -> QRefAllocOp:
         with parser.in_angle_brackets():
             num_qubits = parser.parse_integer()
         attr_dict = parser.parse_optional_attr_dict()
-        return QubitAllocOp.create(
+        return QRefAllocOp.create(
             result_types=[qubit] * num_qubits,
             attributes=attr_dict,
         )
@@ -93,13 +91,13 @@ class QubitAllocOp(QssaBase):
 
 
 @irdl_op_definition
-class HGateOp(QssaBase):
-    name = "qssa.h"
+class HGateOp(QRefBase):
+    name = "qref.h"
 
-    def ref_op(self) -> qref.HGateOp:
-        return qref.HGateOp.create(
+    def ssa_op(self) -> qssa.HGateOp:
+        return qssa.HGateOp.create(
             operands=self.operands,
-            result_types=(),
+            result_types=(qssa.qubit,),
             attributes=self.attributes,
         )
 
@@ -109,25 +107,23 @@ class HGateOp(QssaBase):
 
     input = operand_def(qubit)
 
-    output = result_def(qubit)
-
     assembly_format = "$input attr-dict"
 
     def __init__(self, input: SSAValue):
         super().__init__(
             operands=(input,),
-            result_types=(qubit,),
+            result_types=(),
         )
 
 
 @irdl_op_definition
-class CNotGateOp(QssaBase):
-    name = "qssa.cnot"
+class CNotGateOp(QRefBase):
+    name = "qref.cnot"
 
-    def ref_op(self) -> qref.CNotGateOp:
-        return qref.CNotGateOp.create(
+    def ssa_op(self) -> qssa.CNotGateOp:
+        return qssa.CNotGateOp.create(
             operands=self.operands,
-            result_types=(),
+            result_types=(qssa.qubit, qssa.qubit),
             attributes=self.attributes,
         )
 
@@ -139,10 +135,6 @@ class CNotGateOp(QssaBase):
 
     in2 = operand_def(qubit)
 
-    out1 = result_def(qubit)
-
-    out2 = result_def(qubit)
-
     assembly_format = "$in1 `,` $in2 attr-dict"
 
     def __init__(self, in1: SSAValue, in2: SSAValue):
@@ -153,13 +145,13 @@ class CNotGateOp(QssaBase):
 
 
 @irdl_op_definition
-class CZGateOp(QssaBase):
-    name = "qssa.cz"
+class CZGateOp(QRefBase):
+    name = "qref.cz"
 
-    def ref_op(self) -> qref.CZGateOp:
-        return qref.CZGateOp.create(
+    def ssa_op(self) -> qssa.CZGateOp:
+        return qssa.CZGateOp.create(
             operands=self.operands,
-            result_types=(),
+            result_types=(qssa.qubit, qssa.qubit),
             attributes=self.attributes,
         )
 
@@ -171,25 +163,21 @@ class CZGateOp(QssaBase):
 
     in2 = operand_def(qubit)
 
-    out1 = result_def(qubit)
-
-    out2 = result_def(qubit)
-
     assembly_format = "$in1 `,` $in2 attr-dict"
 
     def __init__(self, in1: SSAValue, in2: SSAValue):
         super().__init__(
             operands=(in1, in2),
-            result_types=(qubit, qubit),
+            result_types=(),
         )
 
 
 @irdl_op_definition
-class MeasureOp(QssaBase):
-    name = "qssa.measure"
+class MeasureOp(QRefBase):
+    name = "qref.measure"
 
-    def ref_op(self) -> qref.MeasureOp:
-        return qref.MeasureOp.create(
+    def ssa_op(self) -> qssa.MeasureOp:
+        return qssa.MeasureOp.create(
             operands=self.operands,
             result_types=(IntegerType(1),),
             attributes=self.attributes,
@@ -212,14 +200,14 @@ class MeasureOp(QssaBase):
         )
 
 
-QSSA = Dialect(
-    "qssa",
+QREF = Dialect(
+    "qref",
     [
         CNotGateOp,
         CZGateOp,
         HGateOp,
         MeasureOp,
-        QubitAllocOp,
+        QRefAllocOp,
     ],
     [
         QubitAttr,
