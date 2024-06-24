@@ -1,13 +1,12 @@
 from collections.abc import Sequence
 from itertools import pairwise
-from typing import Annotated, cast
+from typing import cast
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, TensorType
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (
-    ConstraintVar,
     IRDLOperation,
     Operand,
     ParameterDef,
@@ -119,8 +118,6 @@ class AccessOp(IRDLOperation):
     """
     A CSL stencil access that operates on data prefetched by `csl_stencil.prefetch`
     """
-
-    T = Annotated[Attribute, ConstraintVar("T")]
 
     name = "csl_stencil.access"
     op: Operand = operand_def(memref.MemRefType)
