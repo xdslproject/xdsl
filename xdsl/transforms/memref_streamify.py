@@ -3,7 +3,7 @@ from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref, memref_stream, stream
-from xdsl.dialects.builtin import ArrayAttr, ModuleOp, UnitAttr
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import Attribute, Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -27,7 +27,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             # Already streamified
             return
 
-        if any(not isinstance(init, UnitAttr) for init in op.inits):
+        if op.inits:
             raise NotImplementedError(
                 "Cannot streamify operation that has inits that are not UnitAttr"
             )
@@ -84,7 +84,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             )
         )
         new_body = streaming_region_op.body.block
-        new_operands = list(op.operands)
+        new_operands = list(op.operands[: len(op.inputs) + len(op.outputs)])
         for stream_index, (index, _) in enumerate(streamed_operand_indices):
             new_operands[index] = new_body.args[stream_index]
 
@@ -92,11 +92,12 @@ class StreamifyGenericOpPattern(RewritePattern):
             memref_stream.GenericOp(
                 new_operands[:input_count],
                 new_operands[input_count:],
-                rewriter.move_region_contents_to_new_regions(op.body),
                 op.inits,
+                rewriter.move_region_contents_to_new_regions(op.body),
                 op.indexing_maps,
                 op.iterator_types,
                 op.bounds,
+                op.init_indices,
             ),
             InsertPoint.at_end(new_body),
         )

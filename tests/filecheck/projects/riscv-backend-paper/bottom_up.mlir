@@ -5,6 +5,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y: memref<1x1x3x3xf64>,
     %Z: memref<1x1x6x6xf64>
 ) -> () {
+    %zero_float = arith.constant 0.0 : f64
     memref_stream.streaming_region {
       patterns = [
           #memref_stream.stride_pattern<ub = [1, 1, 6, 6, 1, 3, 3], index_map = (d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
@@ -20,9 +21,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
           affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>,
           affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
         ],
-        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"],
-        inits = [0.0 : f64]
-      } ins(%x_stream, %y_stream : !stream.readable<f64>, !stream.readable<f64>) outs(%z_stream : !stream.writable<f64>) {
+        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"]
+      } ins(%x_stream, %y_stream : !stream.readable<f64>, !stream.readable<f64>) outs(%z_stream : !stream.writable<f64>) inits(%zero_float : f64) {
       ^0(%x : f64, %y : f64, %acc : f64):
         %prod = arith.mulf %x, %y fastmath<fast> : f64
         %res = arith.addf %prod, %acc fastmath<fast> : f64
@@ -41,6 +41,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t0, a0
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t2, a2
+// CHECK-NEXT:      fcvt.d.w ft3, zero
 // CHECK-NEXT:      li t3, 2
 // CHECK-NEXT:      scfgwi t3, 64
 // CHECK-NEXT:      li t3, 2
@@ -77,7 +78,6 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      scfgwi t1, 833
 // CHECK-NEXT:      scfgwi t2, 898
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      fcvt.d.w ft3, zero
 // CHECK-NEXT:      li t1, 36
 // CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
@@ -394,6 +394,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
+    %min_val = arith.constant -10000.0 : f64
     memref_stream.streaming_region {
       patterns = [
         #memref_stream.stride_pattern<ub = [1, 1, 7, 7, 3, 3], index_map = (d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
@@ -407,9 +408,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
           affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
           affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
         ],
-        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"],
-        inits = [-10000.0 : f64]
-      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) {
+        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
+      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) inits(%min_val : f64) {
       ^0(%x : f64, %acc : f64):
         %res = arith.maximumf %x, %acc : f64
         memref_stream.yield %res : f64
@@ -426,6 +426,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:  pooling_nchw_max_d1_s2_3x3:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t2, a1
+// CHECK-NEXT:      li t0, -10000
+// CHECK-NEXT:      fcvt.d.w ft3, t0
 // CHECK-NEXT:      li t0, 2
 // CHECK-NEXT:      scfgwi t0, 64
 // CHECK-NEXT:      li t0, 2
@@ -449,8 +451,6 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      scfgwi t1, 864
 // CHECK-NEXT:      scfgwi t2, 897
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      li t2, -10000
-// CHECK-NEXT:      fcvt.d.w ft3, t2
 // CHECK-NEXT:      li t1, 49
 // CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
@@ -514,6 +514,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %X: memref<1x1x16x16xf64>,
     %Y: memref<1x1x7x7xf64>
 ) -> () {
+    %zero_float = arith.constant 0.0 : f64
     memref_stream.streaming_region {
       patterns = [
         #memref_stream.stride_pattern<ub = [1, 1, 7, 7, 3, 3], index_map = (d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
@@ -527,9 +528,8 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
           affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
           affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
         ],
-        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"],
-        inits = [0.0 : f64]
-      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) {
+        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
+      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) inits(%zero_float : f64) {
       ^0(%x : f64, %acc : f64):
         %res = arith.addf %x, %acc : f64
         memref_stream.yield %res : f64
@@ -546,6 +546,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:  pooling_nchw_sum_d1_s2_3x3:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t2, a1
+// CHECK-NEXT:      fcvt.d.w ft3, zero
 // CHECK-NEXT:      li t0, 2
 // CHECK-NEXT:      scfgwi t0, 64
 // CHECK-NEXT:      li t0, 2
@@ -569,7 +570,6 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:      scfgwi t1, 864
 // CHECK-NEXT:      scfgwi t2, 897
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      fcvt.d.w ft3, zero
 // CHECK-NEXT:      li t1, 49
 // CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
