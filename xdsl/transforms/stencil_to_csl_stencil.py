@@ -4,7 +4,7 @@ from attr import dataclass
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref, stencil, tensor
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, TensorType
+from xdsl.dialects.builtin import ModuleOp, TensorType
 from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, OpResult
@@ -102,7 +102,6 @@ class SwapToPrefetchPattern(RewritePattern):
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
             input_stencil=op.input_stencil.op,
-            size=IntegerAttr(uniform_size, IntegerType(64)),
             topo=op.topo,
             swaps=[
                 csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])

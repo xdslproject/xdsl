@@ -3,7 +3,7 @@ from itertools import pairwise
 from typing import cast
 
 from xdsl.dialects import builtin, memref, stencil
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, TensorType
+from xdsl.dialects.builtin import TensorType
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (
@@ -16,7 +16,6 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_prop_def,
-    prop_def,
     result_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -80,6 +79,8 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 class PrefetchOp(IRDLOperation):
     """
     An op to indicate a symmetric (send and receive) buffer prefetch across the stencil shape.
+
+    Returns memref<${len(self.swaps}xtensor<${self.size}x??>>
     """
 
     name = "csl_stencil.prefetch"
@@ -92,8 +93,6 @@ class PrefetchOp(IRDLOperation):
         builtin.ArrayAttr[ExchangeDeclarationAttr]
     )
 
-    size = prop_def(IntegerAttr[IntegerType])
-
     topo: dmp.RankTopoAttr | None = opt_prop_def(dmp.RankTopoAttr)
 
     result = result_def(memref.MemRefType)
@@ -101,14 +100,13 @@ class PrefetchOp(IRDLOperation):
     def __init__(
         self,
         input_stencil: SSAValue | Operation,
-        size: IntegerAttr[IntegerType],
         topo: dmp.RankTopoAttr | None = None,
         swaps: Sequence[ExchangeDeclarationAttr] = [],
         result_type: memref.MemRefType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
-            properties={"size": size, "topo": topo, "swaps": builtin.ArrayAttr(swaps)},
+            properties={"topo": topo, "swaps": builtin.ArrayAttr(swaps)},
             result_types=[result_type],
         )
 
