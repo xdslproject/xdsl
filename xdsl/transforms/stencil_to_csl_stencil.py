@@ -5,7 +5,7 @@ from attr import dataclass
 from xdsl.context import MLContext
 from xdsl.dialects import memref, stencil, tensor
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, TensorType
-from xdsl.dialects.csl_ import csl_stencil
+from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, OpResult
 from xdsl.passes import ModulePass
