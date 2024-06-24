@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-stream-fold-fill,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p memref-stream-infer-fill,memref-stream-unnest-out-parameters,memref-stream-fold-fill,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
@@ -6,20 +6,28 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Z: memref<1x1x6x6xf64>
 ) -> () {
     %zero_float = arith.constant 0.0 : f64
-    memref_stream.fill %Z with %zero_float : memref<1x1x6x6xf64>
-    memref_stream.generic {
-      bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<6>, #builtin.int<6>, #builtin.int<1>, #builtin.int<3>, #builtin.int<3>],
+    linalg.generic {
+        indexing_maps = [
+            affine_map<(d0, d1, d2, d3) -> ()>,
+            affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        ],
+        iterator_types = ["parallel", "parallel", "parallel", "parallel"]
+    } ins(%zero_float : f64) outs(%Z : memref<1x1x6x6xf64>) {
+    ^bb0(%in: f64, %out: f64):
+        linalg.yield %in : f64
+    }
+    linalg.generic {
       indexing_maps = [
         affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
         affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>,
-        affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"]
     } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x6x6xf64>) {
     ^0(%x : f64, %y : f64, %acc : f64):
       %prod = arith.mulf %x, %y fastmath<fast> : f64
       %res = arith.addf %prod, %acc fastmath<fast> : f64
-      memref_stream.yield %res : f64
+      linalg.yield %res : f64
     }
 
     func.return
