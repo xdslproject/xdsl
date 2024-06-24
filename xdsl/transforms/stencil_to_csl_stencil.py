@@ -146,7 +146,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             assert isa(r_types, Sequence[stencil.TempType[Attribute]])
             new_apply_op = stencil.ApplyOp.get(
                 [*apply_op.args, prefetch_op.result],
-                apply_op.region.clone(),
+                apply_op.detach_region(apply_op.region),
                 r_types,
             )
             rewriter.replace_op(apply_op, new_apply_op)
