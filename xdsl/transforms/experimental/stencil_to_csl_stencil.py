@@ -20,17 +20,6 @@ from xdsl.utils.hints import isa
 
 
 @dataclass(frozen=True)
-class ApplyOpAddPrefetch(RewritePattern):
-
-    prefetch_op: csl_stencil.PrefetchOp
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
-
-        pass
-
-
-@dataclass(frozen=True)
 class AccessOpFromPrefetch(RewritePattern):
 
     # index of the stencil access to be replaced by the prefetched buffer in the last arg
@@ -102,10 +91,7 @@ class SwapToPrefetch(RewritePattern):
             ),
         )
 
-        # replace dmp.swap (`replace_matched_op` does not work because `prefetch` produces a result)
-        # rewriter.insert_op(prefetch_op, InsertPoint.before(op))
-
-        # a dirty hack to get around a check that prevents me from replacing a no-results op with an n-results op
+        # a little hack to get around a check that prevents replacing a no-results op with an n-results op
         rewriter.replace_matched_op(prefetch_op, new_results=[])
 
         # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
@@ -142,9 +128,6 @@ class SwapToPrefetch(RewritePattern):
 
             nested_rewriter.rewrite_op(new_apply_op)
 
-        # erase dmp.swap
-        # rewriter.erase_matched_op(False)
-
 
 @dataclass(frozen=True)
 class StencilToCslStencilPass(ModulePass):
@@ -152,11 +135,7 @@ class StencilToCslStencilPass(ModulePass):
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    SwapToPrefetch(),
-                ]
-            ),
+            GreedyRewritePatternApplier([SwapToPrefetch()]),
             walk_reverse=False,
             apply_recursively=False,
         )
