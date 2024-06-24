@@ -293,6 +293,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_tensorize_z_dimension.StencilTensorizeZDimension
 
+    def get_stencil_to_csl_stencil():
+        from xdsl.transforms import stencil_to_csl_stencil
+
+        return stencil_to_csl_stencil.StencilToCslStencilPass
+
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
 
@@ -359,6 +364,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
+        "stencil-to-csl-stencil": get_stencil_to_csl_stencil,
         "stencil-unroll": get_stencil_unroll,
         "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
     }
