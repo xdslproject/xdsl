@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, memref, memref_stream, stream
+from xdsl.dialects import memref, memref_stream, stream
 from xdsl.dialects.builtin import AffineMapAttr, ModuleOp, UnitAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -67,18 +67,9 @@ class LowerGenericOpPattern(RewritePattern):
     ) -> None:
         ins_count = len(op.inputs)
         if any(not isinstance(init, UnitAttr) for init in op.inits):
-            insertion_point = InsertPoint.before(op)
-            constant_ops = tuple(
-                None if isinstance(attr, UnitAttr) else arith.Constant(attr)
-                for attr in op.inits
-            )
-            for constant_op in constant_ops:
-                if constant_op is not None:
-                    rewriter.insert_op(constant_op, insertion_point)
-            constant_vals = tuple(
-                None if constant_op is None else constant_op.result
-                for constant_op in constant_ops
-            )
+            constant_vals: list[SSAValue | None] = [None] * len(op.outputs)
+            for index, val in zip(op.init_indices, op.inits, strict=True):
+                constant_vals[index.data] = val
 
             def insert_load(
                 source_index: int,
