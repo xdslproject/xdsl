@@ -111,7 +111,9 @@ class SwapToPrefetch(RewritePattern):
         # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
         uses = list(op.input_stencil.uses)
 
-        # rewrite stencil.apply
+        # csl_stencil.prefetch, unlike dmp.swap, has a return value. This is added as the last arg
+        # to stencil.apply, before rebuilding the op and replacing stencil.access ops by csl_stencil.access ops
+        # that reference the prefetched buffers (note, this is only done for neighbor accesses)
         for use in uses:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
