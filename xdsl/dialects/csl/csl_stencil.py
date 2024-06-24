@@ -108,12 +108,15 @@ class PrefetchOp(IRDLOperation):
         self,
         input_stencil: SSAValue | Operation,
         topo: dmp.RankTopoAttr | None = None,
-        swaps: Sequence[ExchangeDeclarationAttr] = [],
+        swaps: Sequence[ExchangeDeclarationAttr] | None = None,
         result_type: memref.MemRefType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
-            properties={"topo": topo, "swaps": builtin.ArrayAttr(swaps)},
+            properties={
+                "topo": topo,
+                "swaps": builtin.ArrayAttr(swaps if swaps else []),
+            },
             result_types=[result_type],
         )
 
