@@ -17,12 +17,9 @@ from typing_extensions import Self
 from xdsl.dialects import memref, stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
-    AnyFloatAttr,
-    AnyIntegerAttr,
     ArrayAttr,
     IntAttr,
     StringAttr,
-    UnitAttr,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
@@ -47,7 +44,6 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -319,11 +315,10 @@ class GenericOp(IRDLOperation):
     pattern defines the order in which the elements of the input buffers will be written
     to.
     """
-    inits = prop_def(ArrayAttr[AnyFloatAttr | AnyIntegerAttr | UnitAttr])
+    inits = var_operand_def()
     """
-    Initial values for outputs. If `NoneAttr`, then the value is read from the output
-    buffer. Otherwise, the value is created at runtime with an `arith.constant` operation
-    during lowering. The inits may be set only for the imperfectly nested form.
+    Initial values for outputs. The outputs are at corresponding `init_indices`. The inits
+    may be set only for the imperfectly nested form.
     """
     indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
     """
@@ -337,6 +332,10 @@ class GenericOp(IRDLOperation):
     """
 
     iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
+    init_indices = prop_def(ArrayAttr[IntAttr])
+    """
+    Indices into the `outputs` that correspond to the initial values in `inits`.
+    """
 
     body: Region = region_def("single_block")
 
@@ -346,11 +345,12 @@ class GenericOp(IRDLOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
+        inits: Sequence[SSAValue],
         body: Region,
-        inits: ArrayAttr[AnyFloatAttr | AnyIntegerAttr | UnitAttr],
         indexing_maps: ArrayAttr[AffineMapAttr],
         iterator_types: ArrayAttr[Attribute],
         bounds: ArrayAttr[IntAttr],
+        init_indices: ArrayAttr[IntAttr],
     ) -> None:
         for m in indexing_maps:
             if m.data.num_symbols:
@@ -358,12 +358,12 @@ class GenericOp(IRDLOperation):
                     f"Symbols currently not implemented in {self.name} indexing maps"
                 )
         super().__init__(
-            operands=[inputs, outputs],
+            operands=[inputs, outputs, inits],
             properties={
                 "bounds": bounds,
-                "inits": inits,
-                "indexing_maps": ArrayAttr(indexing_maps),
-                "iterator_types": ArrayAttr(iterator_types),
+                "init_indices": init_indices,
+                "indexing_maps": indexing_maps,
+                "iterator_types": iterator_types,
             },
             regions=[body],
         )
@@ -386,6 +386,14 @@ class GenericOp(IRDLOperation):
             tuple(bound.data for bound in self.bounds.data[min_dims:]),
         )
 
+    def _print_init(self, printer: Printer, init: SSAValue | None):
+        if init is None:
+            printer.print_string("None")
+        else:
+            printer.print_ssa_value(init)
+            printer.print_string(" : ")
+            printer.print_attribute(init.type)
+
     def print(self, printer: Printer):
         printer.print_string(" {bounds = ")
         printer.print_attribute(self.bounds)
@@ -395,12 +403,6 @@ class GenericOp(IRDLOperation):
         printer.print_list(
             self.iterator_types,
             lambda iterator_type: printer.print_string_literal(iterator_type.data),
-        )
-        printer.print_string("]")
-        printer.print_string(", inits = [")
-        printer.print_list(
-            self.inits,
-            lambda val: printer.print_attribute(val),
         )
         printer.print_string("]")
         printer.print_string("}")
@@ -417,6 +419,18 @@ class GenericOp(IRDLOperation):
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
             printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_string(")")
+
+        if self.inits:
+            printer.print_string(" inits(")
+            init_indices = set(attr.data for attr in self.init_indices)
+            inits = [
+                val if i in init_indices else None for i, val in enumerate(self.inits)
+            ]
+            printer.print_list(
+                inits,
+                lambda val: self._print_init(printer, val),
+            )
             printer.print_string(")")
 
         extra_attrs = self.attributes.copy()
@@ -437,6 +451,35 @@ class GenericOp(IRDLOperation):
 
         printer.print_string(" ")
         printer.print_region(self.body)
+
+    @classmethod
+    def _parse_init(cls, parser: Parser) -> SSAValue | None:
+        if parser.parse_optional_characters("None"):
+            return None
+        unresolved = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        type = parser.parse_type()
+        return parser.resolve_operand(unresolved, type)
+
+    @classmethod
+    def _parse_inits(
+        cls, parser: Parser
+    ) -> tuple[tuple[SSAValue, ...], tuple[int, ...]]:
+        if not parser.parse_optional_characters("inits"):
+            return ((), ())
+
+        parser.parse_punctuation("(")
+        optional_inits = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, lambda: cls._parse_init(parser)
+        )
+        parser.parse_punctuation(")")
+        enumerated_inits = tuple(
+            (i, val) for i, val in enumerate(optional_inits) if val is not None
+        )
+        inits = tuple(init for _, init in enumerated_inits)
+        init_indices = tuple(i for i, _ in enumerated_inits)
+
+        return (tuple(inits), init_indices)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -499,18 +542,6 @@ class GenericOp(IRDLOperation):
                 attrs_end_pos,
             )
 
-        if "inits" in attrs:
-            inits = attrs["inits"]
-            if not isa(inits, ArrayAttr[AnyFloatAttr | AnyIntegerAttr | UnitAttr]):
-                parser.raise_error("Expected inits for memref_stream.generic")
-            del attrs["inits"]
-        else:
-            parser.raise_error(
-                "Expected inits for memref_stream.generic",
-                attrs_start_pos,
-                attrs_end_pos,
-            )
-
         if "doc" in attrs:
             doc = attrs["doc"]
             assert isinstance(doc, StringAttr)
@@ -553,7 +584,10 @@ class GenericOp(IRDLOperation):
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
         else:
+            outs_types = ()
             outs = ()
+
+        inits, init_indices = cls._parse_inits(parser)
 
         if parser.parse_optional_keyword("attrs"):
             parser.parse_punctuation("=")
@@ -568,11 +602,12 @@ class GenericOp(IRDLOperation):
         generic = cls(
             ins,
             outs,
-            body,
             inits,
+            body,
             indexing_maps,
             ArrayAttr(iterator_types),
             bounds,
+            ArrayAttr(IntAttr(index) for index in init_indices),
         )
         generic.attributes |= attrs
         generic.attributes |= extra_attrs
@@ -580,11 +615,9 @@ class GenericOp(IRDLOperation):
         return generic
 
     def verify_(self) -> None:
-        # Verify that the number of initial values for outputs is the same as the number
-        # of outputs
-        if len(self.inits) != len(self.outputs):
+        if len(self.inits) != len(self.init_indices):
             raise VerifyException(
-                f"Mismatching number of outputs and initial values: {len(self.outputs)} != {self.inits}"
+                f"Mismatching number of inits and init indices: {len(self.inits)} != {self.init_indices}"
             )
 
         # Parallel iterator types must preceed reduction iterators
@@ -595,9 +628,9 @@ class GenericOp(IRDLOperation):
                 f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
             )
 
-        if len(self.operands) != len(self.indexing_maps):
+        if len(self.inputs) + len(self.outputs) != len(self.indexing_maps):
             raise VerifyException(
-                "The number of affine maps must match the number of operands"
+                "The number of affine maps must match the number of inputs and outputs"
             )
 
         # Whether or not the operation represents an imperfect loop nest, verify that the
@@ -631,16 +664,25 @@ class GenericOp(IRDLOperation):
                 f"{len(iterator_types)} or {num_parallel}"
             )
 
-        # The non-None values of the inits must correspond to inputs where the domain
-        # of the affine map has the same number of dimensions as the number of parallel
-        # iterators
-        for i, (m, init) in enumerate(zip(output_maps, self.inits, strict=True)):
-            if init != UnitAttr():
-                if m.data.num_dims != num_parallel:
-                    raise VerifyException(
-                        "Incompatible affine map and initial value for output at index "
-                        f"{i}"
-                    )
+        if len(self.init_indices) != len(self.inits):
+            raise VerifyException(
+                "The number of inits and init_indices must be the same"
+            )
+
+        # The values of the inits must correspond to outputs where the domain of the
+        # affine map has the same number of dimensions as the number of parallel
+        # iterators.
+        num_outputs = len(self.outputs)
+        output_maps = self.indexing_maps.data[-num_outputs:]
+        for index in self.init_indices:
+            if not (0 <= index.data <= num_outputs):
+                raise VerifyException(f"Init index out of bounds: {index.data}")
+            m = output_maps[index.data]
+            if m.data.num_dims != num_parallel:
+                raise VerifyException(
+                    "Incompatible affine map and initial value for output at index "
+                    f"{index}"
+                )
 
 
 @irdl_op_definition
