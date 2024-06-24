@@ -79,7 +79,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 @irdl_op_definition
 class PrefetchOp(IRDLOperation):
     """
-    An op to indicate buffer prefetches.
+    An op to indicate a symmetric (send and receive) buffer prefetch across the stencil shape.
     """
 
     name = "csl_stencil.prefetch"
