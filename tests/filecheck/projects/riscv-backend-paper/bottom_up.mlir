@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-stream-fold-fill,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
@@ -6,6 +6,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Z: memref<1x1x6x6xf64>
 ) -> () {
     %zero_float = arith.constant 0.0 : f64
+    memref_stream.fill %Z with %zero_float : memref<1x1x6x6xf64>
     memref_stream.generic {
       bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<6>, #builtin.int<6>, #builtin.int<1>, #builtin.int<3>, #builtin.int<3>],
       indexing_maps = [
@@ -14,7 +15,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"]
-    } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x6x6xf64>) inits(%zero_float : f64) {
+    } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x6x6xf64>) {
     ^0(%x : f64, %y : f64, %acc : f64):
       %prod = arith.mulf %x, %y fastmath<fast> : f64
       %res = arith.addf %prod, %acc fastmath<fast> : f64
@@ -386,6 +387,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %Y: memref<1x1x7x7xf64>
 ) -> () {
     %min_val = arith.constant -10000 : f64
+    memref_stream.fill %Y with %min_val : memref<1x1x7x7xf64>
     memref_stream.generic {
       bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
       indexing_maps = [
@@ -393,7 +395,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
         affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
-    } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) inits(%min_val : f64) {
+    } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) {
     ^0(%x : f64, %acc : f64):
       %res = arith.maximumf %x, %acc : f64
       memref_stream.yield %res : f64
@@ -498,6 +500,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %Y: memref<1x1x7x7xf64>
 ) -> () {
     %zero_float = arith.constant 0.0 : f64
+    memref_stream.fill %Y with %zero_float : memref<1x1x7x7xf64>
     memref_stream.generic {
       bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
       indexing_maps = [
@@ -505,7 +508,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
         affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
-    } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) inits(%zero_float : f64) {
+    } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) {
     ^0(%x : f64, %acc : f64):
       %res = arith.addf %x, %acc : f64
       memref_stream.yield %res : f64
