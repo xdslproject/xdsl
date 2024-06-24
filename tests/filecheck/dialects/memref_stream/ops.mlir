@@ -158,12 +158,5 @@ memref_stream.generic {
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}, %{{.*}}) : (f64, f64) -> ()
 // CHECK-GENERIC-NEXT:    }) : (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>, memref<4x3xf64>, f64) -> ()
 
-
-memref_stream.fill %C with %D : memref<3x2xf64>
-
-// CHECK-NEXT: memref_stream.fill %C with %D : memref<3x2xf64>
-// CHECK-GENERIC-NEXT: "memref_stream.fill"(%C, %D) : (memref<3x2xf64>, f64) -> ()
-
-
 // CHECK-NEXT:          }
 // CHECK-GENERIC-NEXT:  }) : () -> ()
