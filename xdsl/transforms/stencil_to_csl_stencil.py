@@ -21,8 +21,15 @@ from xdsl.utils.hints import isa
 
 @dataclass(frozen=True)
 class AccessOpFromPrefetch(RewritePattern):
+    """
+    Rebuilds stencil.access by csl_stencil.access which operates on prefetched accesses.
 
-    # index of the stencil access to be replaced by the prefetched buffer in the last arg
+    stencil.access operates on stencil.temp types found at arg_index
+    csl_stencil.access operates on memref< num_neighbors x tensor< buf_size x data_type >> found at last arg index
+
+    Note: This is intended to be called in a nested pattern rewriter, such that the above precondition is met.
+    """
+
     arg_index: int
 
     @op_type_rewrite_pattern
@@ -53,17 +60,24 @@ class AccessOpFromPrefetch(RewritePattern):
 
 @dataclass(frozen=True)
 class SwapToPrefetch(RewritePattern):
+    """
+    Translates dmp.swap to csl_stencil.prefetch
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
+        # remove op if it contains no swaps
         if op.swaps is None or len(op.swaps) == 0:
             rewriter.erase_matched_op(False)
             return
         assert isinstance(op.input_stencil, OpResult)
+
         # currently only works for 3-dimensional stencils
         assert all(len(swap.size) == 3 for swap in op.swaps)
+
         # dmp should decompose from (x,y,z) to (1,1,z)
         assert all(swap.size[:2] == (1, 1) for swap in op.swaps)
+
         # check that size is uniform
         uniform_size = op.swaps.data[0].size[2]
         assert all(swap.size[2] == uniform_size for swap in op.swaps)
@@ -102,11 +116,16 @@ class SwapToPrefetch(RewritePattern):
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
             apply_op = use.operation
+
+            # arg_idx points to the stencil.temp type whose data is prefetched in a separate buffer
             arg_idx = apply_op.args.index(op.input_stencil)
 
+            # add the prefetched buffer as the last arg to stencil.access
             apply_op.region.block.insert_arg(
                 prefetch_op.result.type, len(apply_op.args)
             )
+
+            # rebuild stencil.apply op
             r_types = [r.type for r in apply_op.results]
             assert isa(r_types, Sequence[stencil.TempType[Attribute]])
             new_apply_op = stencil.ApplyOp.get(
@@ -116,6 +135,8 @@ class SwapToPrefetch(RewritePattern):
             )
             rewriter.replace_op(apply_op, new_apply_op)
 
+            # replace stencil.access (operating on stencil.temp at arg_index)
+            # with csl_stencil.access (operating on memref at last arg index)
             nested_rewriter = PatternRewriteWalker(
                 GreedyRewritePatternApplier(
                     [
