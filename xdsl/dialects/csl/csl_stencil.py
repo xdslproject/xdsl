@@ -94,15 +94,13 @@ class PrefetchOp(IRDLOperation):
 
     name = "csl_stencil.prefetch"
 
-    input_stencil: Operand = operand_def(
+    input_stencil = operand_def(
         stencil.TempType[Attribute] | memref.MemRefType[Attribute]
     )
 
-    swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] | None = opt_prop_def(
-        builtin.ArrayAttr[ExchangeDeclarationAttr]
-    )
+    swaps = opt_prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
-    topo: dmp.RankTopoAttr | None = opt_prop_def(dmp.RankTopoAttr)
+    topo = opt_prop_def(dmp.RankTopoAttr)
 
     result = result_def(memref.MemRefType)
 
@@ -127,8 +125,8 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op: Operand = operand_def(memref.MemRefType)
-    offset: stencil.IndexAttr = prop_def(stencil.IndexAttr)
+    op = operand_def(memref.MemRefType)
+    offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType)
 

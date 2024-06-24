@@ -85,9 +85,11 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         assert all(
             len(swap.size) == 3 for swap in op.swaps
         ), "currently only 3-dimensional stencils are supported"
+
         assert all(
             swap.size[:2] == (1, 1) for swap in op.swaps
         ), "invoke dmp to decompose from (x,y,z) to (1,1,z)"
+
         # check that size is uniform
         uniform_size = op.swaps.data[0].size[2]
         assert all(
