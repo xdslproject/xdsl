@@ -423,10 +423,9 @@ class GenericOp(IRDLOperation):
 
         if self.inits:
             printer.print_string(" inits(")
-            init_indices = set(attr.data for attr in self.init_indices)
-            inits = [
-                val if i in init_indices else None for i, val in enumerate(self.inits)
-            ]
+            inits: list[SSAValue | None] = [None] * len(self.outputs)
+            for i, val in zip(self.init_indices, self.inits):
+                inits[i.data] = val
             printer.print_list(
                 inits,
                 lambda val: self._print_init(printer, val),
@@ -442,8 +441,6 @@ class GenericOp(IRDLOperation):
             del extra_attrs["doc"]
         if "library_call" in extra_attrs:
             del extra_attrs["library_call"]
-        if "inits" in extra_attrs:
-            del extra_attrs["inits"]
 
         if extra_attrs:
             printer.print(" attrs = ")
