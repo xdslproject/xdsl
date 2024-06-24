@@ -27,7 +27,15 @@ from xdsl.utils.hints import isa
 @irdl_attr_definition
 class ExchangeDeclarationAttr(ParametrizedAttribute):
     """
-    A simplified version of dmp.exchange, from which it should be lowered
+    A simplified version of dmp.exchange, from which it should be lowered.
+
+    `neighbor` is a list (e.g. [x, y]) where
+      - the index encodes dimension,
+      - the sign encodes direction,
+      - the magnitude encodes distance
+    As such, the values correspond to those used by both stencil.access and dmp.exchange
+
+    This works irrespective of whether the accesses are diagonal or not.
     """
 
     name = "csl_stencil.exchange"
@@ -78,6 +86,8 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
 class PrefetchOp(IRDLOperation):
     """
     An op to indicate a symmetric (send and receive) buffer prefetch across the stencil shape.
+
+    This should be irrespective of the stencil shape (and whether it does or does not include diagonals).
 
     Returns memref<${len(self.swaps}xtensor<{buffer size}x{data type}>>
     """

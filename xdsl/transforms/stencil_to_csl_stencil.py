@@ -10,7 +10,6 @@ from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, OpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -35,7 +34,10 @@ class AccessOpFromPrefetchPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.AccessOp, rewriter: PatternRewriter, /):
         assert len(op.offset) == 2
-        if tuple(op.offset) == (0, 0):
+        if (
+            tuple(op.offset) == (0, 0)
+            or op.temp != op.get_apply().region.block.args[self.arg_index]
+        ):
             return
         prefetched_arg = op.get_apply().region.block.args[-1]
         assert isa(m_type := prefetched_arg.type, memref.MemRefType[Attribute])
@@ -139,7 +141,7 @@ class SwapToPrefetchPattern(RewritePattern):
             r_types = [r.type for r in apply_op.results]
             assert isa(r_types, Sequence[stencil.TempType[Attribute]])
             new_apply_op = stencil.ApplyOp.get(
-                list(apply_op.args) + [prefetch_op.result],
+                [*apply_op.args, prefetch_op.result],
                 apply_op.region.clone(),
                 r_types,
             )
@@ -147,15 +149,7 @@ class SwapToPrefetchPattern(RewritePattern):
 
             # replace stencil.access (operating on stencil.temp at arg_index)
             # with csl_stencil.access (operating on memref at last arg index)
-            nested_rewriter = PatternRewriteWalker(
-                GreedyRewritePatternApplier(
-                    [
-                        AccessOpFromPrefetchPattern(arg_idx),
-                    ]
-                ),
-                walk_reverse=False,
-                apply_recursively=False,
-            )
+            nested_rewriter = PatternRewriteWalker(AccessOpFromPrefetchPattern(arg_idx))
 
             nested_rewriter.rewrite_op(new_apply_op)
 
@@ -165,9 +159,5 @@ class StencilToCslStencilPass(ModulePass):
     name = "stencil-to-csl-stencil"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        module_pass = PatternRewriteWalker(
-            GreedyRewritePatternApplier([SwapToPrefetchPattern()]),
-            walk_reverse=False,
-            apply_recursively=False,
-        )
+        module_pass = PatternRewriteWalker(SwapToPrefetchPattern())
         module_pass.rewrite_module(op)
