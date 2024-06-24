@@ -10,12 +10,11 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     ParameterDef,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
     opt_prop_def,
+    prop_def,
     result_def,
 )
 from xdsl.parser import AttrParser, Parser
@@ -119,8 +118,8 @@ class AccessOp(IRDLOperation):
 
     name = "csl_stencil.access"
     op: Operand = operand_def(memref.MemRefType)
-    offset: stencil.IndexAttr = attr_def(stencil.IndexAttr)
-    offset_mapping = opt_attr_def(stencil.IndexAttr)
+    offset: stencil.IndexAttr = prop_def(stencil.IndexAttr)
+    offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType)
 
     traits = frozenset([HasAncestor(stencil.ApplyOp), Pure()])
@@ -134,7 +133,7 @@ class AccessOp(IRDLOperation):
     ):
         super().__init__(
             operands=[op],
-            attributes={"offset": offset, "offset_mapping": offset_mapping},
+            properties={"offset": offset, "offset_mapping": offset_mapping},
             result_types=[result_type],
         )
 
@@ -187,19 +186,19 @@ class AccessOp(IRDLOperation):
             parser.parse_punctuation(",")
             index += 1
 
-        attrs = parser.parse_optional_attr_dict_with_keyword(
+        props = parser.parse_optional_attr_dict_with_keyword(
             {"offset", "offset_mapping"}
         )
-        attrs = attrs.data if attrs else dict[str, Attribute]()
-        attrs["offset"] = stencil.IndexAttr.get(*offset)
+        props = props.data if props else dict[str, Attribute]()
+        props["offset"] = stencil.IndexAttr.get(*offset)
         if offset_mapping:
-            attrs["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
+            props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
         if not isa(res_type, memref.MemRefType[Attribute]):
             parser.raise_error("Expected return type to be a memref")
         return cls.build(
-            operands=[temp], result_types=[res_type.element_type], attributes=attrs
+            operands=[temp], result_types=[res_type.element_type], properties=props
         )
 
     def verify_(self) -> None:
