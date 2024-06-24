@@ -48,9 +48,18 @@ class AccessOpFromPrefetchPattern(RewritePattern):
             result_type=t_type,
         )
 
-        # if the matched op is immediately followed by tensor.ExtractSliceOps to remove ghost cells, replace both
-        if len(op.res.uses) == 1 and isinstance(
-            use := list(op.res.uses)[0].operation, tensor.ExtractSliceOp
+        # The stencil-tensorize-z-dimension pass inserts tensor.ExtractSliceOps after stencil.access to remove ghost cells.
+        # Since ghost cells are not prefetched, these ops can be removed again. Check if the ExtractSliceOp
+        # has no other effect and if so, remove both.
+        if (
+            len(op.res.uses) == 1
+            and isinstance(use := list(op.res.uses)[0].operation, tensor.ExtractSliceOp)
+            and tuple(d.data for d in use.static_sizes.data) == t_type.get_shape()
+            and tuple(d.data for d in use.static_offsets.data) == (0,)
+            and tuple(d.data for d in use.static_strides.data) == (1,)
+            and len(use.offsets) == 0
+            and len(use.sizes) == 0
+            and len(use.strides) == 0
         ):
             rewriter.replace_op(use, csl_access_op)
             rewriter.erase_op(op)
