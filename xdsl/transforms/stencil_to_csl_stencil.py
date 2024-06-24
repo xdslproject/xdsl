@@ -81,18 +81,20 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         if op.swaps is None or len(op.swaps) == 0:
             rewriter.erase_matched_op(False)
             return
-        assert isinstance(op.input_stencil, OpResult)
 
-        # currently only works for 3-dimensional stencils
-        assert all(len(swap.size) == 3 for swap in op.swaps)
-
-        # dmp should decompose from (x,y,z) to (1,1,z)
-        assert all(swap.size[:2] == (1, 1) for swap in op.swaps)
-
+        assert all(
+            len(swap.size) == 3 for swap in op.swaps
+        ), "currently only 3-dimensional stencils are supported"
+        assert all(
+            swap.size[:2] == (1, 1) for swap in op.swaps
+        ), "invoke dmp to decompose from (x,y,z) to (1,1,z)"
         # check that size is uniform
         uniform_size = op.swaps.data[0].size[2]
-        assert all(swap.size[2] == uniform_size for swap in op.swaps)
+        assert all(
+            swap.size[2] == uniform_size for swap in op.swaps
+        ), "all swaps need to be of uniform size"
 
+        assert isinstance(op.input_stencil, OpResult)
         assert isa(
             op.input_stencil.type,
             memref.MemRefType[Attribute] | stencil.TempType[Attribute],
