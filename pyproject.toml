@@ -14,8 +14,31 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.6", "wgpu==0.15.2", "textual==0.63.2", "pyclip==0.7"]
+dev = [
+    "pip<25.0",
+    # Update precommit version when black updates
+    "black[jupyter]==24.4.2",
+    "toml<0.11",
+    "pytest-cov",
+    "coverage<8.0.0",
+    "ipykernel",
+    "pytest<8.3",
+    "nbval<0.12",
+    "filecheck<0.0.25",
+    "lit<19.0.0",
+    "pre-commit==3.7.1",
+    "ruff==0.4.10",
+    "asv<0.7",
+    "isort==5.13.2",
+    "nbconvert>=7.7.2,<8.0.0",
+    "textual-dev==1.5.1",
+    "pytest-asyncio==0.23.7",
+    "pyright==1.1.345",
+]
+gui = ["textual==0.63.2", "pyclip==0.7"]
 onnx = ["onnx==1.16.1"]
+riscv = ["riscemu==2.2.6"]
+wgpu = ["wgpu==0.16.0"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -27,6 +50,7 @@ xdsl-opt = "xdsl.tools.xdsl_opt:main"
 irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
 xdsl-run = "xdsl.tools.xdsl_run:main"
 xdsl-gui = "xdsl.interactive.app:main"
+xdsl-stubgen = "xdsl.utils.dialect_stub:make_all_stubs"
 
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
@@ -41,6 +65,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.pyright]
 reportImportCycles = false
+reportMissingModuleSource = false
 enableTypeIgnoreComments = false
 typeCheckingMode = "strict"
 "include" = ["docs", "xdsl", "tests", "bench"]

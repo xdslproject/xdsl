@@ -4,8 +4,8 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
 )
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, riscv_scf, scf
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

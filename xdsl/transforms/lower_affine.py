@@ -1,5 +1,8 @@
+from collections.abc import Sequence
+
+from xdsl.context import MLContext
 from xdsl.dialects import affine, arith, builtin, memref, scf
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.ir.affine import (
     AffineBinaryOpExpr,
     AffineBinaryOpKind,
@@ -19,8 +22,8 @@ from xdsl.pattern_rewriter import (
 
 def affine_expr_ops(
     expr: affine.AffineExpr,
-    dims: list[SSAValue],
-    symbols: list[SSAValue],
+    dims: Sequence[SSAValue],
+    symbols: Sequence[SSAValue],
 ) -> tuple[list[Operation], SSAValue]:
     """
     Returns the operations that evaluate the affine expression when given input SSA
@@ -58,7 +61,7 @@ def affine_expr_ops(
 
 def insert_affine_map_ops(
     map: affine.AffineMapAttr | None,
-    dims: list[SSAValue],
+    dims: Sequence[SSAValue],
     symbols: list[SSAValue],
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
@@ -67,7 +70,7 @@ def insert_affine_map_ops(
     """
     ops: list[Operation] = []
     if map is None:
-        indices = dims
+        indices = list(dims)
     else:
         indices: list[SSAValue] = []
         for expr in map.data.results:

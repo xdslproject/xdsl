@@ -2,9 +2,10 @@ from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, riscv, riscv_snitch, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

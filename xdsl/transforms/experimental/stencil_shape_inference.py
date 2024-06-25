@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from functools import reduce
 from typing import TypeVar, cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -16,7 +17,7 @@ from xdsl.dialects.stencil import (
     StoreOp,
     TempType,
 )
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

@@ -212,7 +212,7 @@ class PatternRewriter(PatternRewriterListener):
         # Then, replace the results with new ones
         self.handle_operation_replacement(op, new_results)
         for old_result, new_result in zip(op.results, new_results):
-            self._replace_all_uses_with(old_result, new_result)
+            self._replace_all_uses_with(old_result, new_result, safe_erase=safe_erase)
 
             # Preserve name hints for ops with multiple results
             if new_result is not None and not new_result.name_hint:

@@ -1,5 +1,6 @@
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Subi
 from xdsl.dialects.builtin import Builtin, IntegerAttr, ModuleOp, StringAttr, i32, i64
@@ -9,7 +10,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     ErasedSSAValue,
-    MLContext,
     Operation,
     Region,
     SSAValue,

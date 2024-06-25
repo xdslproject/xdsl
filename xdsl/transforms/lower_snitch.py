@@ -5,9 +5,10 @@ Rewrite patterns for lowering snitch → riscv.
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, riscv, riscv_snitch, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

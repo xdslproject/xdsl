@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 
+from xdsl.context import MLContext
 from xdsl.dialects import affine, arith
 from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
 from xdsl.dialects.scf import ParallelOp, Yield
-from xdsl.ir import Block, MLContext, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
