@@ -36,7 +36,10 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
         assert len(op.offset) == 2
         if op.temp != op.get_apply().region.block.args[self.arg_index]:
             return
+
+        # translate access to own data, which operates on stencil.TempType
         if tuple(op.offset) == (0, 0):
+            assert isa(op.res.type, stencil.TempType)
             rewriter.replace_matched_op(
                 csl_stencil.AccessOp(
                     op=op.temp,
@@ -46,6 +49,7 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
                 )
             )
             return
+
         prefetched_arg = op.get_apply().region.block.args[-1]
         assert isa(m_type := prefetched_arg.type, memref.MemRefType[Attribute])
         assert isa(t_type := m_type.get_element_type(), TensorType[Attribute])
