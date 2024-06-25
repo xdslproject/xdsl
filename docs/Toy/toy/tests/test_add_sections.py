@@ -1,8 +1,9 @@
 from xdsl.builder import ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.riscv import AssemblySectionOp, DirectiveOp, LabelOp
-from xdsl.ir import Block, MLContext, Region
+from xdsl.ir import Block, Region
 
 from ..rewrites.setup_riscv_pass import SetupRiscvPass
 

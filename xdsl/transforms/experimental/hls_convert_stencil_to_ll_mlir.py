@@ -2,6 +2,7 @@ import typing
 from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, llvm, memref, scf, stencil
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
@@ -47,7 +48,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    MLContext,
     Operation,
     OpResult,
     Region,

@@ -1,12 +1,12 @@
 from typing import Any, cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import bufferization, memref, ml_program
 from xdsl.dialects.builtin import (
     ModuleOp,
     TensorType,
     UnitAttr,
 )
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -52,7 +52,7 @@ class ConvertGlobalLoadConst(RewritePattern):
         new_type = memref.MemRefType(op_type.element_type, op_type.shape)
         rewriter.replace_matched_op(
             (
-                mem := memref.GetGlobal.get(op.global_attr, new_type),
+                mem := memref.GetGlobal(op.global_attr, new_type),
                 bufferization.ToTensorOp(mem.memref),
             )
         )

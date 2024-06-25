@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import riscv, riscv_snitch, snitch_stream, stream
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

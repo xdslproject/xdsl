@@ -349,7 +349,7 @@ class Printer:
         self._print_new_line()
         self.print("}")
 
-    def print_regions(self, regions: list[Region]) -> None:
+    def print_regions(self, regions: Sequence[Region]) -> None:
         if len(regions) == 0:
             return
 
@@ -398,6 +398,7 @@ class Printer:
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
+            self.print("unit")
             return
 
         if isinstance(attribute, LocationAttr):

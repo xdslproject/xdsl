@@ -5,8 +5,8 @@ from dataclasses import Field, dataclass, field
 from types import NoneType, UnionType
 from typing import Any, ClassVar, TypeVar, Union, get_args, get_origin
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.ir import MLContext
 from xdsl.utils.hints import isa, type_repr
 from xdsl.utils.parse_pipeline import (
     PassArgElementType,

@@ -303,7 +303,7 @@ class VarOperandDef(OperandDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-VarOperand: TypeAlias = list[SSAValue]
+VarOperand: TypeAlias = tuple[SSAValue, ...]
 
 
 @dataclass(init=False)
@@ -337,7 +337,7 @@ class VarResultDef(ResultDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-VarOpResult: TypeAlias = list[OpResult]
+VarOpResult: TypeAlias = tuple[OpResult, ...]
 
 
 @dataclass(init=False)
@@ -367,7 +367,7 @@ class OptRegionDef(RegionDef, OptionalDef):
     """An IRDL optional region definition."""
 
 
-VarRegion: TypeAlias = list[Region]
+VarRegion: TypeAlias = tuple[Region, ...]
 OptRegion: TypeAlias = Region | None
 
 
@@ -1192,7 +1192,7 @@ def get_construct_defs(
 
 def get_op_constructs(
     op: Operation, construct: VarIRConstruct
-) -> Sequence[SSAValue] | list[OpResult] | list[Region] | list[Successor]:
+) -> Sequence[SSAValue] | Sequence[OpResult] | Sequence[Region] | Sequence[Successor]:
     """
     Get the list of arguments of the type in an operation.
     For example, if the argument type is an operand, get the list of
@@ -1354,11 +1354,11 @@ def get_operand_result_or_region(
     None
     | SSAValue
     | Sequence[SSAValue]
-    | list[OpResult]
+    | Sequence[OpResult]
     | Region
-    | list[Region]
+    | Sequence[Region]
     | Successor
-    | list[Successor]
+    | Sequence[Successor]
 ):
     """
     Get an operand, result, or region.
@@ -1858,7 +1858,11 @@ def get_accessors_from_op_def(
 
         new_attrs["verify_"] = verify_
     else:
-        new_attrs["verify_"] = op_def.verify
+
+        def verify_(self: IRDLOperation):
+            op_def.verify(self)
+
+        new_attrs["verify_"] = verify_
 
     return new_attrs
 

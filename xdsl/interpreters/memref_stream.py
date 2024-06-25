@@ -31,23 +31,66 @@ class MemrefStreamFunctions(InterpreterFunctions):
         indexing_maps = tuple(attr.data for attr in op.indexing_maps)
         output_indexing_maps = indexing_maps[inputs_count:]
 
-        loop_ranges = op.get_static_loop_ranges()
+        outer_ubs, inner_ubs = op.get_static_loop_ranges()
 
-        for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
-            loop_args = tuple(
-                (
-                    (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
-                    if isinstance(i, ShapedArray)
-                    else i
+        if inner_ubs:
+            inputs: tuple[ShapedArray[float] | float, ...] = args[:inputs_count]
+            input_indexing_maps = indexing_maps[:inputs_count]
+            for outer_indices in product(*(range(outer_ub) for outer_ub in outer_ubs)):
+                output_loop_args = tuple(
+                    (
+                        (cast(ShapedArray[Any], o)).load(
+                            indexing_map.eval(outer_indices, ())
+                        )
+                    )
+                    for o, indexing_map in zip(
+                        outputs, output_indexing_maps, strict=True
+                    )
                 )
-                for i, indexing_map in zip(args, indexing_maps, strict=True)
-            )
-            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
-            for res, indexing_map in zip(
-                loop_results, output_indexing_maps, strict=True
-            ):
-                result_indices = indexing_map.eval(indices, ())
-                outputs[0].store(result_indices, res)
+                for inner_indices in product(
+                    *(range(inner_ub) for inner_ub in inner_ubs)
+                ):
+                    input_loop_args = tuple(
+                        (
+                            (cast(ShapedArray[Any], i)).load(
+                                indexing_map.eval(outer_indices + inner_indices, ())
+                            )
+                            if isinstance(i, ShapedArray)
+                            else i
+                        )
+                        for i, indexing_map in zip(
+                            inputs, input_indexing_maps, strict=True
+                        )
+                    )
+
+                    loop_results = interpreter.run_ssacfg_region(
+                        op.body, input_loop_args + output_loop_args, "for_loop"
+                    )
+                    output_loop_args = loop_results
+                print(output_loop_args, output_indexing_maps, outputs)
+                for res, indexing_map, output in zip(
+                    output_loop_args, output_indexing_maps, outputs, strict=True
+                ):
+                    result_indices = indexing_map.eval(outer_indices, ())
+                    output.store(result_indices, res)
+        else:
+            for indices in product(*(range(outer_ub) for outer_ub in outer_ubs)):
+                loop_args = tuple(
+                    (
+                        (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
+                        if isinstance(i, ShapedArray)
+                        else i
+                    )
+                    for i, indexing_map in zip(args, indexing_maps, strict=True)
+                )
+                loop_results = interpreter.run_ssacfg_region(
+                    op.body, loop_args, "for_loop"
+                )
+                for res, indexing_map, output in zip(
+                    loop_results, output_indexing_maps, outputs, strict=True
+                ):
+                    result_indices = indexing_map.eval(indices, ())
+                    output.store(result_indices, res)
 
         return ()
 

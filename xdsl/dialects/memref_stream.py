@@ -336,6 +336,11 @@ class GenericOp(IRDLOperation):
         iterator_types: ArrayAttr[Attribute],
         bounds: ArrayAttr[IntAttr],
     ) -> None:
+        for m in indexing_maps:
+            if m.data.num_symbols:
+                raise NotImplementedError(
+                    f"Symbols currently not implemented in {self.name} indexing maps"
+                )
         super().__init__(
             operands=[inputs, outputs],
             properties={
@@ -346,8 +351,23 @@ class GenericOp(IRDLOperation):
             regions=[body],
         )
 
-    def get_static_loop_ranges(self) -> tuple[int, ...]:
-        return tuple(bound.data for bound in self.bounds)
+    def get_static_loop_ranges(
+        self,
+    ) -> tuple[tuple[int, ...], tuple[int, ...]]:
+        """
+        This operation can represent two sets of perfectly nested loops, or one.
+        If it is one, then the first element of the returned tuple has all the loop
+        bounds, and the second is empty.
+        If there are two, then the first element of the returned tuple has the outer
+        bounds, and the second the inner.
+        """
+        output_maps = self.indexing_maps.data[len(self.inputs) :]
+        # min_dims will equal len(self.iterator_types) in the perfect nest case
+        min_dims = min(m.data.num_dims for m in output_maps)
+        return (
+            tuple(bound.data for bound in self.bounds.data[:min_dims]),
+            tuple(bound.data for bound in self.bounds.data[min_dims:]),
+        )
 
     def print(self, printer: Printer):
         printer.print_string(" {bounds = ")
@@ -528,6 +548,42 @@ class GenericOp(IRDLOperation):
         if IteratorTypeAttr.parallel() in iterator_types[num_parallel:]:
             raise VerifyException(
                 f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
+            )
+
+        if len(self.operands) != len(self.indexing_maps):
+            raise VerifyException(
+                "The number of affine maps must match the number of operands"
+            )
+
+        # Whether or not the operation represents an imperfect loop nest, verify that the
+        # bounds of the outer + inner nests match the domain of the input affine maps
+        input_count = len(self.inputs)
+        input_maps = self.indexing_maps.data[:input_count]
+
+        for i, m in enumerate(input_maps):
+            if len(iterator_types) != m.data.num_dims:
+                raise VerifyException(f"Invalid number of dims in indexing map {i}")
+
+        # If the operation represents an imperfect loop nest, the bounds must match the
+        # number of parallel iterators; otherwise they must match the total number of
+        # iterators. In either case, they must all be the same.
+        output_maps = self.indexing_maps.data[input_count:]
+
+        min_dims = min(m.data.num_dims for m in output_maps)
+        max_dims = max(m.data.num_dims for m in output_maps)
+
+        if min_dims != max_dims:
+            raise VerifyException(
+                "The number of dims in output indexing maps must all be the same"
+            )
+
+        if min_dims not in (len(iterator_types), num_parallel):
+            # To signify that the output is imperfectly nested, the output affine map has
+            # as many dims as parallel iterators. Otherwise, it has as many dims as
+            # the total number of iterators.
+            raise VerifyException(
+                "The number of dims in output indexing maps must be "
+                f"{len(iterator_types)} or {num_parallel}"
             )
 
 

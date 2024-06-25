@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Literal, cast
@@ -26,15 +28,15 @@ from xdsl.dialects.builtin import (
     TypeAttribute,
     UnitAttr,
 )
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import Operand
+from xdsl.traits import is_side_effect_free
 
 
 @dataclass
 class CslPrintContext:
     _INDEX = "i32"
     _INDENT = "  "
-    DIVIDER = "// >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //"
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -45,6 +47,36 @@ class CslPrintContext:
     _symbols_to_export: dict[str, tuple[TypeAttribute, bool | None]] = field(
         default_factory=dict
     )
+
+    _binops: dict[str, str] = field(default_factory=dict)
+    """
+    Maps operation name => operand for binary operands
+    """
+
+    def register_binops(self):
+        self._binops.update(
+            {
+                arith.Addf.name: "+",
+                arith.Addi.name: "+",
+                arith.Mulf.name: "*",
+                arith.Muli.name: "*",
+                arith.Divf.name: "/",
+                arith.DivSI.name: "/",
+                arith.DivUI.name: "/",
+                arith.Subf.name: "-",
+                arith.Subi.name: "-",
+                arith.RemSI.name: "%",
+                arith.RemUI.name: "%",
+                arith.ShLI.name: "<<",
+            }
+        )
+
+    def _binop_value_expr(self, op: Operation):
+        assert len(op.operands) == 2, "binops must have exactly two operands"
+        assert op.name in self._binops, "unknown binop"
+        a, b = map(self._get_variable_name_for, op.operands)
+
+        return f"{a} {self._binops[op.name]} {b}"
 
     def print(self, text: str, prefix: str = "", end: str = "\n"):
         """
@@ -278,20 +310,62 @@ class CslPrintContext:
             case _:
                 return f"<!unknown value {attr}>"
 
+    def _can_promote_result_to_inline_expr(self, var: OpResult):
+        """
+        Check if a result can be promoted to an immediate. This is only the case if:
+
+        - The variable is not already assigned to a variable name (then we expect that results be assigned there)
+          This happens for example for loop carried variables.
+        - The operation itself is side effect free (e.g. not a load/store)
+        - At least one result is used somewhere (if there are no uses of it, promoting to immediate would erase it)
+        - The variable that would be created isn't used by an AddressOf operation.
+        """
+        return (
+            var not in self.variables
+            and is_side_effect_free(var.owner)
+            and any(res.uses for res in var.owner.results)
+            and not any(
+                isinstance(use.operation, csl.AddressOfOp)
+                for res in var.owner.results
+                for use in res.uses
+            )
+        )
+
+    def _print_or_promote_to_inline_expr(
+        self, var: OpResult, value_expr: str, brackets: bool = False
+    ):
+        """
+        Given an SSA value (op result) and a string representing its value.
+
+        Check that the result can be promoted to an expression, or if not
+        assign it to a new variable.
+
+        Optionally adds brackets around the value when promoting to expression.
+        """
+        # prevent exploding expression sizes
+        # also check that the expression is safe to promote
+        if len(value_expr) < 50 and self._can_promote_result_to_inline_expr(var):
+            if brackets:
+                value_expr = f"({value_expr})"
+            self.variables[var] = value_expr
+        else:
+            self.print(f"{self._var_use(var)} = {value_expr};")
+
     def print_block(self, body: Block):
         """
         Walks over a block and prints every operation in the block.
         """
         for op in body.ops:
             match op:
+                # handle all binary ops at once:
+                case Operation() if op.name in self._binops:
+                    self._print_or_promote_to_inline_expr(
+                        op.results[0], self._binop_value_expr(op), brackets=True
+                    )
                 case arith.Constant(value=v, result=r):
-                    # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
-
-                    # convert the carried value to a csl value
-                    value_str = self.attribute_value_to_str(v)
-
-                    # emit a constant instantiation:
-                    self.print(f"{self._var_use(r)} = {value_str};")
+                    self._print_or_promote_to_inline_expr(
+                        r, self.attribute_value_to_str(v)
+                    )
                 case csl.ImportModuleConstOp(module=module, params=params, result=res):
                     name = self._get_variable_name_for(res)
 
@@ -318,7 +392,9 @@ class CslPrintContext:
                     self.print(f"{var}{callee.string_value()}({args});")
                 case csl.MemberAccessOp(struct=struct, field=field, result=res):
                     struct_var = self._get_variable_name_for(struct)
-                    self.print(f"{self._var_use(res)} = {struct_var}.{field.data};")
+                    self._print_or_promote_to_inline_expr(
+                        res, f"{struct_var}.{field.data}"
+                    )
                 case csl.TaskOp(
                     sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id
                 ):
@@ -388,18 +464,18 @@ class CslPrintContext:
                     | arith.TruncIOp(input=inp, result=res)
                     | arith.ExtSIOp(input=inp, result=res)
                     | arith.ExtUIOp(input=inp, result=res)
+                    | csl.SignednessCastOp(inp=inp, result=res)
                 ):
                     name_in = self._get_variable_name_for(inp)
                     type_out = self.mlir_type_to_csl_type(res.type)
-                    self.print(f"{self._var_use(res)} = @as({type_out}, {name_in});")
-                case arith.Muli(lhs=lhs, rhs=rhs, result=res) | arith.Mulf(
-                    lhs=lhs, rhs=rhs, result=res
-                ):
-                    self._print_binop(lhs, rhs, res, "*")
-                case arith.Addi(lhs=lhs, rhs=rhs, result=res) | arith.Addf(
-                    lhs=lhs, rhs=rhs, result=res
-                ):
-                    self._print_binop(lhs, rhs, res, "+")
+                    value_str = f"@as({type_out}, {name_in})"
+                    self._print_or_promote_to_inline_expr(res, value_str)
+                case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
+                    a_var = self._get_variable_name_for(a)
+                    b_var = self._get_variable_name_for(b)
+                    self._print_or_promote_to_inline_expr(
+                        res, f"@concat_structs({a_var}, {b_var})"
+                    )
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
@@ -450,7 +526,7 @@ class CslPrintContext:
                     if init is None:
                         init = ""
                     else:
-                        init = f" = { self.attribute_value_to_str(init)}"
+                        init = f" = { self._get_variable_name_for(init)}"
                     ty = self.mlir_type_to_csl_type(res.type)
                     self.print(f"param {name.data} : {ty}{init};")
                 case csl.ConstStructOp(
@@ -481,8 +557,8 @@ class CslPrintContext:
                     y = self._get_variable_name_for(y_dim)
                     self.print(f"@set_rectangle({x}, {y});")
                 case csl.GetColorOp(id=id, res=res):
-                    id = self.attribute_value_to_str(id)
-                    self.print(f"{self._var_use(res)} = @get_color({id});")
+                    id = self._get_variable_name_for(id)
+                    self._print_or_promote_to_inline_expr(res, f"@get_color({id})")
                 case csl.RpcOp(id=id):
                     id = self._get_variable_name_for(id)
                     with self.descend("comptime") as inner:
@@ -596,37 +672,24 @@ class CslPrintContext:
             output=self.output,
             variables=self.variables.copy(),
             _symbols_to_export=self._symbols_to_export,
+            _binops=self._binops,
             _counter=self._counter,
             _prefix=self._prefix + self._INDENT,
         )
         self.print("}")
 
 
-def _get_layout_program(module: ModuleOp) -> tuple[csl.CslModuleOp, csl.CslModuleOp]:
-    """
-    Get the layout and program `csl.module`s from the top level `builtin.module`.
-
-    Makes sure there is exactly 1 layout and 1 program `csl.module`.
-
-    Returns layout first, then program.
-    """
-    ops_list = list(module.body.block.ops)
-    assert all(
-        isinstance(mod, csl.CslModuleOp) for mod in ops_list
-    ), "Expected all top level ops to be csl.module"
-    # We have asserted that this is true above
-    ops_list = cast(list[csl.CslModuleOp], ops_list)
-    assert len(ops_list) == 2, "Expected exactly two top level modules"
-    # This allows program and layout to be scpecified in any order
-    prog = next(
-        filter(lambda mod: mod.kind.data == csl.ModuleKind.PROGRAM, ops_list), None
-    )
-    layout = next(
-        filter(lambda mod: mod.kind.data == csl.ModuleKind.LAYOUT, ops_list), None
-    )
-    assert prog is not None, "Expected exactly 1 program module"
-    assert layout is not None, "Expected exactly 1 layout module"
-    return layout, prog
+def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
+    layouts: list[csl.CslModuleOp] = []
+    for op in module.body.ops:
+        if isinstance(op, csl.CslModuleOp):
+            if op.kind == csl.ModuleKind.LAYOUT:
+                layouts.append(op)
+                continue
+            yield op
+        else:
+            warnings.warn("Expected all top-level operations to be `csl.module` ops!")
+    yield from layouts
 
 
 def print_to_csl(prog: ModuleOp, output: IO[str]):
@@ -634,7 +697,12 @@ def print_to_csl(prog: ModuleOp, output: IO[str]):
     Takes a module op and prints it to the given output stream.
     """
     ctx = CslPrintContext(output)
-    layout, program = _get_layout_program(prog)
-    ctx.print_block(program.body.block)
-    ctx.print(ctx.DIVIDER)
-    ctx.print_block(layout.body.block)
+    ctx.register_binops()
+
+    divider = False
+    for module in get_csl_modules_in_module_op(prog):
+        if divider:
+            ctx.print("// -----")
+        divider = True
+        ctx.print("// FILE: " + module.sym_name.data)
+        ctx.print_block(module.body.block)

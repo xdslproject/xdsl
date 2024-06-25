@@ -4,10 +4,11 @@ from dataclasses import dataclass, field
 from math import prod
 from typing import ClassVar, TypeVar, cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.builtin import ContainerType
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import Attribute, Block, MLContext, Operation, OpResult, Region, SSAValue
+from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -334,7 +335,7 @@ def generate_mpi_calls_for(
         )
 
     # wait for all calls to complete
-    yield mpi.Waitall.get(reqs.result, req_cnt.result)
+    yield mpi.Waitall(reqs.result, req_cnt.result)
 
     # start shuffling data into the main memref again
     for ex, buffer, cond_val in recv_buffers:

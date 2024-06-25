@@ -21,6 +21,8 @@
   %const27 = arith.constant 27 : i16
   %ssa_struct = "csl.const_struct"(%const27) <{ssa_fields = ["val"]}> : (i16) -> !csl.comptime_struct
 
+  %concat = "csl.concat_structs"(%empty_struct, %attribute_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+
   %no_param_import = "csl.import_module"() <{module = "<mod>"}> : () -> !csl.imported_module
   %param_import = "csl.import_module"(%ssa_struct) <{module = "<mod>"}> : (!csl.comptime_struct) -> !csl.imported_module
 
@@ -111,7 +113,8 @@
 
   "csl.export"() <{type = (i32, i32) -> (), var_name = @args_no_return}> : () -> ()
 
-    %col  = "csl.get_color"() <{id = 15 : i5}> : () -> !csl.color
+    %cst15 = arith.constant 15 : i32
+    %col  = "csl.get_color"(%cst15) : (i32) -> !csl.color
 
     "csl.rpc"(%col) : (!csl.color) -> ()
 
@@ -249,7 +252,8 @@ csl.func @builtins() {
   %u32_value = arith.constant 120 : ui32
   %f16_value = arith.constant 7.0 : f16
   %f32_value = arith.constant 8.0 : f32
-  %col_1 = "csl.get_color"() <{id = 3 : i5}> : () -> !csl.color
+  %three = arith.constant 3 : i16
+  %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
   %f16_pointer = "csl.addressof"(%f16_value) : (f16) -> !csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>
   %f32_pointer = "csl.addressof"(%f32_value) : (f32) -> !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>
   %i16_pointer = "csl.addressof"(%i16_value) : (si16) -> !csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>
@@ -315,12 +319,13 @@ csl.func @builtins() {
   csl.return
 }
 
-}) {sym_name = "program"} : () -> ()
+}) {sym_name = "program.csl"} : () -> ()
 
 
 "csl.module"() <{kind=#csl<module_kind layout>}> ({
   %p1 = "csl.param"() <{param_name = "param_1"}> : () -> i32
-  %p2 = "csl.param"() <{param_name = "param_2", init_value = 1.3 : f16}> : () -> f16
+  %init = arith.constant 3.14 : f16
+  %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
 
   csl.layout {
     %x_dim = arith.constant 4 : i32
@@ -333,19 +338,19 @@ csl.func @builtins() {
 
     %params = "csl.const_struct"(){items = {hello = 123 : i32}} : () -> !csl.comptime_struct
     %x_coord1 = arith.constant 1 : i32
-    "csl.set_tile_code"(%x_coord1, %y_coord, %params) <{file = "file.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
+    "csl.set_tile_code"(%x_coord1, %y_coord, %params) <{file = "program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
 
   }
-}) {sym_name = "layout"} : () -> ()
+}) {sym_name = "layout.csl"} : () -> ()
 
+// CHECK-NEXT: // FILE: program.csl
 // CHECK-NEXT:
 // CHECK-NEXT: fn no_args_no_return() void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn no_args_return() f32 {
-// CHECK-NEXT:   const c : f32 = 5.0;
-// CHECK-NEXT:   return c;
+// CHECK-NEXT:   return 5.0;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn args_no_return(a : i32, b : i32) void {
@@ -360,32 +365,27 @@ csl.func @builtins() {
 // CHECK-NEXT: const ssa_struct : comptime_struct = .{
 // CHECK-NEXT:   .val = const27,
 // CHECK-NEXT: };
+// CHECK-NEXT: const concat : comptime_struct = @concat_structs(empty_struct, attribute_struct);
 // CHECK-NEXT: const no_param_import : imported_module = @import_module("<mod>");
 // CHECK-NEXT: const param_import : imported_module = @import_module("<mod>", ssa_struct);
 // CHECK-NEXT: param_import.foo();
 // CHECK-NEXT: param_import.bar(const27);
 // CHECK-NEXT: const val2 : f32 = param_import.baz();
-// CHECK-NEXT: const val3 : i32 = param_import.f;
 // CHECK-NEXT:
 // CHECK-NEXT: fn main() void {
 // CHECK-NEXT:   no_args_no_return();
-// CHECK-NEXT:   args_no_return(val3, val3);
+// CHECK-NEXT:   args_no_return(param_import.f, param_import.f);
 // CHECK-NEXT:   const ret : f32 = no_args_return();
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn casts() void {
-// CHECK-NEXT:   const constI32 : i32 = 0;
-// CHECK-NEXT:   const constU16 : u16 = 0;
-// CHECK-NEXT:   const constF32 : f32 = 0.0;
-// CHECK-NEXT:   const castIndex : i32 = @as(i32, constU16);
-// CHECK-NEXT:   const castF16 : f16 = @as(f16, constI32);
-// CHECK-NEXT:   const castI16 : i16 = @as(i16, constF32);
-// CHECK-NEXT:   const castF32 : f32 = @as(f32, castF16);
-// CHECK-NEXT:   const castF16again : f16 = @as(f16, constF32);
-// CHECK-NEXT:   const castI16again : i16 = @as(i16, constI32);
-// CHECK-NEXT:   const castI32again : i32 = @as(i32, castI16);
-// CHECK-NEXT:   const castU32 : u32 = @as(u32, constU16);
+// CHECK-NEXT:   const castIndex : i32 = @as(i32, 0);
+// CHECK-NEXT:   const castF32 : f32 = @as(f32, @as(f16, 0));
+// CHECK-NEXT:   const castF16again : f16 = @as(f16, 0.0);
+// CHECK-NEXT:   const castI16again : i16 = @as(i16, 0);
+// CHECK-NEXT:   const castI32again : i32 = @as(i32, @as(i16, 0.0));
+// CHECK-NEXT:   const castU32 : u32 = @as(u32, 0);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
@@ -424,7 +424,6 @@ csl.func @builtins() {
 // CHECK-NEXT: var uninit_array : [10]f32;
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
-
 // CHECK-NEXT: var uninit_ptr : [*]f32 = &uninit_array;
 // CHECK-NEXT: var global_ptr : [*]f32 = &global_array;
 // CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
@@ -442,9 +441,8 @@ csl.func @builtins() {
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(args_no_return, "args_no_return");
 // CHECK-NEXT: }
-// CHECK-NEXT: const col : color = @get_color(15);
 // CHECK-NEXT: comptime {
-// CHECK-NEXT:   @rpc(@get_data_task_id(col));
+// CHECK-NEXT:   @rpc(@get_data_task_id(@get_color(15)));
 // CHECK-NEXT: }
 // CHECK-NEXT: var A : [24]f32 = @constants([24]f32, 0);
 // CHECK-NEXT: var x : [6]f32 = @constants([6]f32, 0);
@@ -453,77 +451,54 @@ csl.func @builtins() {
 // CHECK-NEXT: const thing : imported_module = @import_module("<thing>");
 // CHECK-NEXT:
 // CHECK-NEXT: fn initialize() void {
-// CHECK-NEXT:   const lb : i16 = 0;
-// CHECK-NEXT:   const ub : i16 = 24;
-// CHECK-NEXT:   const step : i16 = 1;
-// CHECK-NEXT:   thing.some_func(lb, ub);
-// CHECK-NEXT:   const res : i32 = thing.some_func(lb, ub);
+// CHECK-NEXT:   thing.some_func(0, 24);
+// CHECK-NEXT:   const res : i32 = thing.some_func(0, 24);
 // CHECK-NEXT:   const v1 : comptime_struct = thing.some_field;
 // CHECK-NEXT:   const v2 : f32 = 3.14;
 // CHECK-NEXT:   const v0 : f16 = 2.718;
 // CHECK-NEXT:   const u32cst : u32 = 44;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
-// CHECK-NEXT:     const idx_f32 : f32 = @as(f32, idx);
-// CHECK-NEXT:     const idx_index : i32 = @as(i32, idx);
-// CHECK-NEXT:     A[idx_index] = idx_f32;
+// CHECK-NEXT:   for(@range(i16, 0, 24, 1)) |idx| {
+// CHECK-NEXT:     A[@as(i32, idx)] = @as(f32, idx);
 // CHECK-NEXT:   }
-// CHECK-NEXT:   const ub3 : i16 = 6;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i16, lb, ub3, step)) |j| {
-// CHECK-NEXT:     const val : f32 = 1.0;
-// CHECK-NEXT:     const j_idx : i32 = @as(i32, j);
-// CHECK-NEXT:     x[j_idx] = val;
+// CHECK-NEXT:   for(@range(i16, 0, 6, 1)) |j| {
+// CHECK-NEXT:     x[@as(i32, j)] = 1.0;
 // CHECK-NEXT:   }
-// CHECK-NEXT:   const ub4 : i16 = 6;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i16, lb, ub4, step)) |i| {
-// CHECK-NEXT:     const c2 : f32 = 2.0;
-// CHECK-NEXT:     const c0 : f32 = 0.0;
-// CHECK-NEXT:     const i_idx : i32 = @as(i32, i);
-// CHECK-NEXT:     b[i_idx] = c2;
-// CHECK-NEXT:     y[i_idx] = c0;
+// CHECK-NEXT:   for(@range(i16, 0, 6, 1)) |i| {
+// CHECK-NEXT:     b[@as(i32, i)] = 2.0;
+// CHECK-NEXT:     y[@as(i32, i)] = 0.0;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn gemv() void {
-// CHECK-NEXT:   const lb : i32 = 0;
-// CHECK-NEXT:   const step : i32 = 1;
-// CHECK-NEXT:   const ub : i32 = 6;
-// CHECK-NEXT:   const ub1 : i32 = 4;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i32, lb, ub1, step)) |i| {
-// CHECK-NEXT:     const tmp : f32 = 0.0;
-// CHECK-NEXT:     var tmp2 : f32 = tmp;
+// CHECK-NEXT:   for(@range(i32, 0, 4, 1)) |i| {
+// CHECK-NEXT:     var tmp : f32 = 0.0;
 // CHECK-NEXT:
-// CHECK-NEXT:     for(@range(i32, lb, ub, step)) |j| {
-// CHECK-NEXT:       const ix6 : i32 = i * ub;
-// CHECK-NEXT:       const ix6pj : i32 = ix6 +  j;
-// CHECK-NEXT:       const Axx : f32 = (A[ix6pj]) * (x[j]);
-// CHECK-NEXT:       tmp2 = tmp2 + Axx;
+// CHECK-NEXT:     for(@range(i32, 0, 6, 1)) |j| {
+// CHECK-NEXT:       tmp = tmp + ((A[((i * 6) + j)]) * (x[j]));
 // CHECK-NEXT:     }
-// CHECK-NEXT:     const tmp_plus_bi : f32 =  tmp2 + (b[i]);
-// CHECK-NEXT:     y[i] = tmp_plus_bi;
+// CHECK-NEXT:     y[i] = (tmp + (b[i]));
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn ctrlflow() void {
-// CHECK-NEXT:   const v1 : bool = false;
-// CHECK-NEXT:   const v2 : bool = true;
 // CHECK-NEXT:   const i32_value : i32 = 100;
-// CHECK-NEXT:   if (v1) {
-// CHECK-NEXT:     const v3 : i32 = 2;
+// CHECK-NEXT:   if (false) {
+// CHECK-NEXT:     const v1 : i32 = 2;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   else {
-// CHECK-NEXT:     const v3 : i32 = 3;
+// CHECK-NEXT:     const v1 : i32 = 3;
 // CHECK-NEXT:   }
-// CHECK-NEXT:   if (v2) {
-// CHECK-NEXT:     const v3 : i32 = 4;
+// CHECK-NEXT:   if (true) {
+// CHECK-NEXT:     const v1 : i32 = 4;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   var i32ret : i32;
-// CHECK-NEXT:   if (v1) {
+// CHECK-NEXT:   if (false) {
 // CHECK-NEXT:     i32ret = 111;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   else {
@@ -533,14 +508,13 @@ csl.func @builtins() {
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn builtins() void {
-// CHECK-NEXT:   const i8_value : i8 = 10;
 // CHECK-NEXT:   const i16_value : i16 = 10;
 // CHECK-NEXT:   const u16_value : u16 = 12;
 // CHECK-NEXT:   const i32_value : i32 = 100;
 // CHECK-NEXT:   const u32_value : u32 = 120;
 // CHECK-NEXT:   const f16_value : f16 = 7.0;
 // CHECK-NEXT:   const f32_value : f32 = 8.0;
-// CHECK-NEXT:   const col1 : color = @get_color(3);
+// CHECK-NEXT:   const col : color = @get_color(3);
 // CHECK-NEXT:   var f16_pointer : *f16 = &f16_value;
 // CHECK-NEXT:   var f32_pointer : *f32 = &f32_value;
 // CHECK-NEXT:   var i16_pointer : *i16 = &i16_value;
@@ -562,7 +536,7 @@ csl.func @builtins() {
 // CHECK-NEXT:   const dsd_1d2 : mem1d_dsd = @set_dsd_base_addr(dest_dsd, A);
 // CHECK-NEXT:   const dsd_1d3 : mem1d_dsd = @increment_dsd_offset(dsd_1d2, i16_value, f32);
 // CHECK-NEXT:   const dsd_1d4 : mem1d_dsd = @set_dsd_length(dsd_1d3, u16_value);
-// CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, i8_value);
+// CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, 10);
 // CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
 // CHECK-NEXT:     .extent = i32_value,
 // CHECK-NEXT:     .input_queue = @get_input_queue(0),
@@ -617,25 +591,19 @@ csl.func @builtins() {
 // CHECK-NEXT:   @xp162fs(dest_dsd, src_dsd1);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
-// CHECK-NEXT: // >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //
+// CHECK-NEXT: // -----
+// CHECK-NEXT: // FILE: layout.csl
 // CHECK-NEXT: param param_1 : i32;
-// CHECK-NEXT: param param_2 : f16 = 1.3;
+// CHECK-NEXT: param param_2 : f16 = 3.14;
 // CHECK-NEXT: layout {
-// CHECK-NEXT:   const x_dim : i32 = 4;
-// CHECK-NEXT:   const y_dim : i32 = 6;
-// CHECK-NEXT:   @set_rectangle(x_dim, y_dim);
-// CHECK-NEXT:   const x_coord0 : i32 = 0;
-// CHECK-NEXT:   const y_coord : i32 = 0;
-// CHECK-NEXT:   @set_tile_code(x_coord0, y_coord, "file.csl", )
+// CHECK-NEXT:   @set_rectangle(4, 6);
+// CHECK-NEXT:   @set_tile_code(0, 0, "file.csl", );
 // CHECK-NEXT:   const params : comptime_struct = .{
-// CHECK-NEXT:     .hello = 123
+// CHECK-NEXT:     .hello = 123,
 // CHECK-NEXT:   };
-// CHECK-NEXT:   const x_coord1 : i32 = 1;
-// CHECK-NEXT:   @set_tile_code(x_coord1, y_coord, "file.csl", params);
+// CHECK-NEXT:   @set_tile_code(1, 0, "program.csl", params);
 // CHECK-NEXT:   @export_name("ptr_name", [*]f32, true);
 // CHECK-NEXT:   @export_name("another_ptr", [*]const i32, false);
 // CHECK-NEXT:   @export_name("no_args_no_return", fn() void, );
 // CHECK-NEXT:   @export_name("args_no_return", fn(i32, i32) void, );
 // CHECK-NEXT: }
-
-// CHECK-EMPTY:

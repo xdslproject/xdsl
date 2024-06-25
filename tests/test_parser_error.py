@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.ir import MLContext
+from xdsl.context import MLContext
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,

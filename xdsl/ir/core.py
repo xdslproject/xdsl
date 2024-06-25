@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Hashable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -24,7 +24,6 @@ from typing_extensions import Self
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
@@ -61,215 +60,6 @@ class Dialect:
     @property
     def name(self) -> str:
         return self._name
-
-
-@dataclass
-class MLContext:
-    """Contains structures for operations/attributes registration."""
-
-    allow_unregistered: bool = field(default=False)
-
-    _loaded_dialects: dict[str, Dialect] = field(default_factory=dict)
-    _loaded_ops: dict[str, type[Operation]] = field(default_factory=dict)
-    _loaded_attrs: dict[str, type[Attribute]] = field(default_factory=dict)
-    _registered_dialects: dict[str, Callable[[], Dialect]] = field(default_factory=dict)
-    """
-    A dictionary of all registered dialects that are not yet loaded. This is used to
-    only load the respective Python files when the dialect is actually used.
-    """
-
-    def clone(self) -> MLContext:
-        return MLContext(
-            self.allow_unregistered,
-            self._loaded_dialects.copy(),
-            self._loaded_ops.copy(),
-            self._loaded_attrs.copy(),
-            self._registered_dialects.copy(),
-        )
-
-    @property
-    def loaded_ops(self) -> Iterable[type[Operation]]:
-        """
-        Returns all the loaded operations. Not valid across mutations of this object.
-        """
-        return self._loaded_ops.values()
-
-    @property
-    def loaded_attrs(self) -> Iterable[type[Attribute]]:
-        """
-        Returns all the loaded attributes. Not valid across mutations of this object.
-        """
-        return self._loaded_attrs.values()
-
-    @property
-    def loaded_dialects(self) -> Iterable[Dialect]:
-        """
-        Returns all the loaded attributes. Not valid across mutations of this object.
-        """
-        return self._loaded_dialects.values()
-
-    @property
-    def registered_dialect_names(self) -> Iterable[str]:
-        """
-        Returns the names of all registered dialects. Not valid across mutations of this object.
-        """
-        return self._registered_dialects.keys()
-
-    def register_dialect(
-        self, name: str, dialect_factory: Callable[[], Dialect]
-    ) -> None:
-        """
-        Register a dialect without loading it. The dialect is only loaded in the context
-        when an operation or attribute of that dialect is parsed, or when explicitely
-        requested with `load_registered_dialect`.
-        """
-        if name in self._registered_dialects:
-            raise ValueError(f"'{name}' dialect is already registered")
-        self._registered_dialects[name] = dialect_factory
-
-    def load_registered_dialect(self, name: str) -> None:
-        """Load a dialect that is already registered in the context."""
-        if name not in self._registered_dialects:
-            raise ValueError(f"'{name}' dialect is not registered")
-        dialect = self._registered_dialects[name]()
-        self._loaded_dialects[dialect.name] = dialect
-
-        for op in dialect.operations:
-            self.load_op(op)
-
-        for attr in dialect.attributes:
-            self.load_attr(attr)
-
-    def load_dialect(self, dialect: Dialect):
-        """
-        Load a dialect. Operation and Attribute names should be unique.
-        If the dialect is already registered in the context, use
-        `load_registered_dialect` instead.
-        """
-        if dialect.name in self._registered_dialects:
-            raise ValueError(
-                f"'{dialect.name}' dialect is already registered, use 'load_registered_dialect' instead"
-            )
-        self.register_dialect(dialect.name, lambda: dialect)
-        self.load_registered_dialect(dialect.name)
-
-    def load_op(self, op: type[Operation]) -> None:
-        """Load an operation definition. Operation names should be unique."""
-        if op.name in self._loaded_ops:
-            raise Exception(f"Operation {op.name} has already been loaded")
-        self._loaded_ops[op.name] = op
-
-    def load_attr(self, attr: type[Attribute]) -> None:
-        """Load an attribute definition. Attribute names should be unique."""
-        if attr.name in self._loaded_attrs:
-            raise Exception(f"Attribute {attr.name} has already been loaded")
-        self._loaded_attrs[attr.name] = attr
-
-    def get_optional_op(self, name: str) -> type[Operation] | None:
-        """
-        Get an operation class from its name if it exists.
-        If the operation is not registered, return None unless unregistered operations
-        are allowed in the context, in which case return an UnregisteredOp.
-        """
-        # If the operation is already loaded, returns it.
-        if name in self._loaded_ops:
-            return self._loaded_ops[name]
-
-        # Otherwise, check if the operation dialect is registered.
-        if "." in name:
-            dialect_name, _ = name.split(".", 1)
-            if (
-                dialect_name in self._registered_dialects
-                and dialect_name not in self._loaded_dialects
-            ):
-                self.load_registered_dialect(dialect_name)
-                return self.get_optional_op(name)
-
-        # If the dialect is unregistered, but the context allows unregistered
-        # operations, return an UnregisteredOp.
-        if self.allow_unregistered:
-            from xdsl.dialects.builtin import UnregisteredOp
-
-            op_type = UnregisteredOp.with_name(name)
-            self._loaded_ops[name] = op_type
-            return op_type
-        return None
-
-    def get_op(self, name: str) -> type[Operation]:
-        """
-        Get an operation class from its name.
-        If the operation is not registered, raise an exception unless unregistered
-        operations are allowed in the context, in which case return an UnregisteredOp.
-        """
-        if op_type := self.get_optional_op(name):
-            return op_type
-        raise Exception(f"Operation {name} is not registered")
-
-    def get_optional_attr(
-        self,
-        name: str,
-        create_unregistered_as_type: bool = False,
-    ) -> type[Attribute] | None:
-        """
-        Get an attribute class from its name if it exists.
-        If the attribute is not registered, return None unless unregistered attributes
-        are allowed in the context, in which case return an UnregisteredAttr.
-        Since UnregisteredAttr may be a type (for MLIR compatibility), an
-        additional flag is required to create an UnregisterAttr that is
-        also a type.
-        """
-        # If the attribute is already loaded, returns it.
-        if name in self._loaded_attrs:
-            return self._loaded_attrs[name]
-
-        # Otherwise, check if the attribute dialect is registered.
-        dialect_name, _ = name.split(".", 1)
-        if (
-            dialect_name in self._registered_dialects
-            and dialect_name not in self._loaded_dialects
-        ):
-            self.load_registered_dialect(dialect_name)
-            return self.get_optional_attr(name)
-
-        # If the dialect is unregistered, but the context allows unregistered
-        # attributes, return an UnregisteredOp.
-        if self.allow_unregistered:
-            from xdsl.dialects.builtin import UnregisteredAttr
-
-            attr_type = UnregisteredAttr.with_name_and_type(
-                name, create_unregistered_as_type
-            )
-            self._loaded_attrs[name] = attr_type
-            return attr_type
-
-        return None
-
-    def get_attr(
-        self,
-        name: str,
-        create_unregistered_as_type: bool = False,
-    ) -> type[Attribute]:
-        """
-        Get an attribute class from its name.
-        If the attribute is not registered, raise an exception unless unregistered
-        attributes are allowed in the context, in which case return an UnregisteredAttr.
-        Since UnregisteredAttr may be a type (for MLIR compatibility), an
-        additional flag is required to create an UnregisterAttr that is
-        also a type.
-        """
-        if attr_type := self.get_optional_attr(name, create_unregistered_as_type):
-            return attr_type
-        raise Exception(f"Attribute {name} is not registered")
-
-    def get_dialect(self, name: str) -> Dialect:
-        if (dialect := self.get_optional_dialect(name)) is None:
-            raise Exception(f"Dialect {name} is not registered")
-        return dialect
-
-    def get_optional_dialect(self, name: str) -> Dialect | None:
-        if name in self._loaded_dialects:
-            return self._loaded_dialects[name]
-        return None
 
 
 @dataclass(frozen=True)
@@ -608,17 +398,7 @@ class EnumAttribute(Data[EnumType]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
-        enum_type = cls.enum_type
-
-        val = parser.parse_identifier()
-        if val not in enum_type.__members__.values():
-            enum_values = list(enum_type)
-            if len(enum_values) == 1:
-                parser.raise_error(f"Expected `{enum_values[0]}`.")
-            parser.raise_error(
-                f"Expected `{'`, `'.join(enum_values[:-1])}` or `{enum_values[-1]}`."
-            )
-        return cast(EnumType, enum_type(val))
+        return cast(EnumType, parser.parse_str_enum(cls.enum_type))
 
 
 @dataclass(frozen=True, init=False)
@@ -783,7 +563,7 @@ class Operation(IRNode):
     _operands: tuple[SSAValue, ...] = field(default=())
     """The operation operands."""
 
-    results: list[OpResult] = field(default_factory=list)
+    results: tuple[OpResult, ...] = field(default=())
     """The results created by the operation."""
 
     successors: list[Block] = field(default_factory=list)
@@ -802,7 +582,7 @@ class Operation(IRNode):
     attributes: dict[str, Attribute] = field(default_factory=dict)
     """The attributes attached to the operation."""
 
-    regions: list[Region] = field(default_factory=list)
+    regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
 
     parent: Block | None = field(default=None, repr=False)
@@ -916,14 +696,14 @@ class Operation(IRNode):
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
 
-        self.results = [
+        self.results = tuple(
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
-        ]
+        )
         self.properties = dict(properties)
         self.attributes = dict(attributes)
         self.successors = list(successors)
-        self.regions = []
+        self.regions = ()
         for region in regions:
             self.add_region(region)
 
@@ -958,7 +738,7 @@ class Operation(IRNode):
             raise Exception(
                 "Cannot add region that is already attached on an operation."
             )
-        self.regions.append(region)
+        self.regions += (region,)
         region.parent = self
 
     def get_region_index(self, region: Region) -> int:
@@ -1012,15 +792,6 @@ class Operation(IRNode):
             yield from region.walk(reverse=reverse, region_first=region_first)
         if region_first:
             yield self
-
-    @deprecated("Use walk(reverse=True, region_first=True) instead")
-    def walk_reverse(self) -> Iterator[Operation]:
-        """
-        Iterate all operations contained in the operation (including this one) in reverse order.
-        """
-        for region in reversed(self.regions):
-            yield from region.walk_reverse()
-        yield self
 
     def get_attr_or_prop(self, name: str) -> Attribute | None:
         """
@@ -1712,12 +1483,6 @@ class Block(IRNode):
         for op in self.ops_reverse if reverse else self.ops:
             yield from op.walk(reverse=reverse, region_first=region_first)
 
-    @deprecated("Use walk(reverse=True) instead")
-    def walk_reverse(self) -> Iterable[Operation]:
-        """Call a function on all operations contained in the block in reverse order."""
-        for op in self.ops_reverse:
-            yield from op.walk_reverse()
-
     def verify(self) -> None:
         for operation in self.ops:
             if operation.parent != self:
@@ -2003,12 +1768,6 @@ class Region(IRNode):
         """
         for block in reversed(self.blocks) if reverse else self.blocks:
             yield from block.walk(reverse=reverse, region_first=region_first)
-
-    @deprecated("Use walk(reverse=True) instead")
-    def walk_reverse(self) -> Iterator[Operation]:
-        """Call a function on all operations contained in the region in reverse order."""
-        for block in reversed(self.blocks):
-            yield from block.walk_reverse()
 
     def verify(self) -> None:
         for block in self.blocks:

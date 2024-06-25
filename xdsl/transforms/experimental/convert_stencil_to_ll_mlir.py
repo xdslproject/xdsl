@@ -3,6 +3,7 @@ from itertools import product
 from typing import TypeVar
 from warnings import warn
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
@@ -32,7 +33,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    MLContext,
     Operation,
     OpResult,
     Region,
