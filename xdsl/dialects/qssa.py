@@ -31,6 +31,13 @@ qubit = QubitAttr()
 
 
 class QssaBase(IRDLOperation, ABC):
+    """
+    Base class for qssa operations, with methods to help convert to the qref dialect.
+
+    Invariant:
+    self.is_gate == self.ref_op().is_gate
+    """
+
     @abstractmethod
     def ref_op(self) -> qref.QRefBase:
         """
@@ -42,11 +49,12 @@ class QssaBase(IRDLOperation, ABC):
     @abstractmethod
     def is_gate(self) -> bool:
         """
-        Is this operation a gate
+        Is this operation a gate?
+        Qssa gates represent standard quantum logic gates
+        They should have an equal number of qubit-typed operands and results
+        Their results must be rewired when converting to the qref dialect
         """
         raise NotImplementedError()
-
-    pass
 
 
 @irdl_op_definition
