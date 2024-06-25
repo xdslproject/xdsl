@@ -124,11 +124,17 @@ class PrefetchOp(IRDLOperation):
 @irdl_op_definition
 class AccessOp(IRDLOperation):
     """
-    A CSL stencil access that operates on data prefetched by `csl_stencil.prefetch`
+    A CSL stencil access that operates on own data or data prefetched from neighbors via `csl_stencil.prefetch`
+
+    The source of data determines the type `op` is required to have:
+
+      ${type(op) == memref.MemRefType}  -  for accesses to data prefetched from neighbors
+      ${type(op) == stencil.Temp}       -  for accesses to own data
+
     """
 
     name = "csl_stencil.access"
-    op = operand_def(memref.MemRefType)
+    op = operand_def(memref.MemRefType | stencil.TempType)
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType)
@@ -139,7 +145,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute],
+        result_type: TensorType[Attribute] | stencil.TempType[Attribute],
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
@@ -206,15 +212,26 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isa(res_type, memref.MemRefType[Attribute]):
-            parser.raise_error("Expected return type to be a memref")
+        if not isa(
+            res_type, memref.MemRefType[Attribute] | stencil.TempType[Attribute]
+        ):
+            parser.raise_error("Expected return type to be a memref or stencil.temp")
         return cls.build(
             operands=[temp], result_types=[res_type.element_type], properties=props
         )
 
     def verify_(self) -> None:
-        assert isa(self.op.type, memref.MemRefType[Attribute])
-        assert self.result.type == self.op.type.get_element_type()
+        if tuple(self.offset) == (0, 0):
+            if not isa(self.op.type, stencil.TempType[Attribute]):
+                raise VerifyException(
+                    f"{type(self)} access to own data requires type stencil.TempType but found {self.op.type}"
+                )
+            assert self.result.type == self.op.type.get_element_type()
+        else:
+            if not isa(self.op.type, memref.MemRefType[Attribute]):
+                raise VerifyException(
+                    f"{type(self)} access to neighbor data requires type memref.MemRefType but found {self.op.type}"
+                )
 
         # As promised by HasAncestor(ApplyOp)
         trait = cast(HasAncestor, AccessOp.get_trait(HasAncestor, (stencil.ApplyOp,)))
