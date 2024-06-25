@@ -2776,7 +2776,7 @@ class WfiOp(NullaryOperation):
 # region RISC-V SSA Helpers
 
 
-class AllocatedMemoryEffect(MemoryEffect):
+class RegisterAllocatedMemoryEffect(MemoryEffect):
     """
     An assembly operation that only has side-effect if some registers are allocated to
     it.
