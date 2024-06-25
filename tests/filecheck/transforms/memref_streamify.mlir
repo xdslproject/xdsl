@@ -126,5 +126,36 @@ func.func public @relu(%arg0 : memref<16x16xf64>, %arg1 : memref<16x16xf64>) -> 
 // CHECK-NEXT:        func.return
 // CHECK-NEXT:    }
 
+    func.func public @used_only(
+        %X : memref<2xf64>,
+        %Y : memref<2xf64>,
+        %Z : memref<2xf64>
+    ) {
+    memref_stream.generic {
+      bounds = [#builtin.int<2>],
+      indexing_maps = [
+        affine_map<(d0) -> (d0)>,
+        affine_map<(d0) -> (d0)>,
+        affine_map<(d0) -> (d0)>
+      ],
+      iterator_types = ["parallel"]
+    } ins(%X, %Y : memref<2xf64>, memref<2xf64>) outs(%Z : memref<2xf64>) {
+    ^0(%x : f64, %y : f64, %z : f64):
+      memref_stream.yield %x : f64
+    }
+
+    func.return
+  }
+
+// CHECK-NEXT:    func.func public @used_only(%{{.*}} : memref<2xf64>, %{{.*}} : memref<2xf64>, %{{.*}} : memref<2xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [2], index_map = (d0) -> (d0)>, #memref_stream.stride_pattern<ub = [2], index_map = (d0) -> (d0)>]} ins(%{{.*}} : memref<2xf64>) outs(%{{.*}} : memref<2xf64>) {
+// CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.writable<f64>):
+// CHECK-NEXT:        memref_stream.generic {bounds = [#builtin.int<2>], indexing_maps = [affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>, affine_map<(d0) -> (d0)>], iterator_types = ["parallel"]} ins(%{{.*}}, %{{.*}} : !stream.readable<f64>, memref<2xf64>) outs(%{{.*}} : !stream.writable<f64>) {
+// CHECK-NEXT:        ^{{.*}}(%{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64):
+// CHECK-NEXT:          memref_stream.yield %{{.*}} : f64
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
 
 // CHECK-NEXT:  }
