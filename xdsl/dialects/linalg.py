@@ -169,7 +169,6 @@ class Generic(IRDLOperation):
         to allow each op to define its own AffineMap.
         """
         loops_to_shapes = self.get_loops_to_shapes_map()
-        print(loops_to_shapes)
         inverse = loops_to_shapes.inverse_permutation()
         if not inverse:
             raise NotImplementedError(
