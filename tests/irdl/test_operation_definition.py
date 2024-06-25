@@ -17,7 +17,6 @@ from xdsl.dialects.test import TestType
 from xdsl.ir import Attribute, Block, OpResult, Region
 from xdsl.irdl import (
     AnyAttr,
-    AnyOf,
     AttributeDef,
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
@@ -34,7 +33,6 @@ from xdsl.irdl import (
     OptRegion,
     PropertyDef,
     RangeOf,
-    RangeVarConstraint,
     RegionDef,
     ResultDef,
     VarOperand,
@@ -231,73 +229,6 @@ def test_constraint_var_fail_not_satisfy_constraint():
         operands=[test_operand],
         result_types=[TestType("foo")],
         attributes={"attribute": TestType("foo")},
-    )
-    with pytest.raises(DiagnosticException):
-        op.verify()
-
-
-@irdl_op_definition
-class ConstraintRangeVarOp(IRDLOperation):
-    name = "test.constraint_range_var"
-
-    operand = var_operand_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
-    result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
-
-
-def test_range_var():
-    i32_operand = TestSSAValue(i32)
-    index_operand = TestSSAValue(IndexType())
-    op = ConstraintRangeVarOp.create(operands=[], result_types=[])
-    op.verify()
-    op = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[i32])
-    op.verify()
-    op = ConstraintRangeVarOp.create(
-        operands=[i32_operand, i32_operand], result_types=[i32, i32]
-    )
-    op.verify()
-
-    op2 = ConstraintRangeVarOp.create(
-        operands=[index_operand], result_types=[IndexType()]
-    )
-    op2.verify()
-
-
-def test_range_var_fail_non_equal():
-    """Check that all uses of a range variable are of the same attribute."""
-    i32_operand = TestSSAValue(i32)
-    index_operand = TestSSAValue(IndexType())
-
-    op = ConstraintRangeVarOp.create(operands=[index_operand], result_types=[i32])
-    with pytest.raises(DiagnosticException):
-        op.verify()
-
-    op2 = ConstraintRangeVarOp.create(
-        operands=[i32_operand], result_types=[IndexType()]
-    )
-    with pytest.raises(DiagnosticException):
-        op2.verify()
-
-    op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[i32, i32])
-    with pytest.raises(DiagnosticException):
-        op2.verify()
-
-    op2 = ConstraintRangeVarOp.create(operands=[i32_operand], result_types=[])
-    with pytest.raises(DiagnosticException):
-        op2.verify()
-
-
-def test_range_var_fail_not_satisfy_constraint():
-    """Check that all uses of a range variable are satisfying the constraint."""
-    test_operand = TestSSAValue(TestType("foo"))
-    op = ConstraintRangeVarOp.create(
-        operands=[test_operand], result_types=[TestType("foo")]
-    )
-    with pytest.raises(DiagnosticException):
-        op.verify()
-
-    op = ConstraintRangeVarOp.create(
-        operands=[test_operand, test_operand],
-        result_types=[TestType("foo"), TestType("foo")],
     )
     with pytest.raises(DiagnosticException):
         op.verify()

@@ -17,9 +17,6 @@ class ConstraintContext:
     variables: dict[str, Attribute] = field(default_factory=dict)
     """The assignment of constraint variables."""
 
-    ranges: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
-    """The constraint range variables."""
-
     def copy(self):
         return ConstraintContext(self.variables.copy())
 
@@ -454,52 +451,6 @@ class RangeConstraint(ABC):
         not raise an exception.
         """
         raise ValueError("Cannot infer range from constraint")
-
-
-@dataclass(frozen=True)
-class RangeVarConstraint(RangeConstraint):
-    """
-    Constraint variable. If the variable is already set, this will constrain
-    the attribute to be equal to the variable. Otherwise, it will first check that the
-    variable satisfies the variable constraint, then set the variable with the
-    attribute.
-    """
-
-    name: str
-    """The variable name. All uses of that name refer to the same variable."""
-
-    constraint: RangeConstraint
-    """The constraint that the variable must satisfy."""
-
-    def verify(
-        self,
-        attrs: Sequence[Attribute],
-        constraint_context: ConstraintContext | None = None,
-    ) -> None:
-        constraint_context = constraint_context or ConstraintContext()
-        if self.name in constraint_context.ranges:
-            if tuple(attrs) != constraint_context.ranges[self.name]:
-                raise VerifyException(
-                    f"attributes {map(str, constraint_context.ranges[self.name])} expected from variable "
-                    f"'{self.name}', but got {tuple(attrs)}"
-                )
-        else:
-            self.constraint.verify(attrs, constraint_context)
-            constraint_context.ranges[self.name] = tuple(attrs)
-
-    def get_resolved_variables(self) -> set[str]:
-        return {self.name, *self.constraint.get_resolved_variables()}
-
-    def can_infer(self, constraint_names: set[str]) -> bool:
-        return self.name in constraint_names
-
-    def infer(
-        self, length: int, constraint_context: ConstraintContext
-    ) -> Sequence[Attribute]:
-        constraint_context = constraint_context or ConstraintContext()
-        if self.name not in constraint_context.ranges:
-            raise ValueError(f"Cannot infer attribute from constraint {self}")
-        return constraint_context.ranges[self.name]
 
 
 @dataclass

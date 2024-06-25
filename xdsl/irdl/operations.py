@@ -458,18 +458,6 @@ class _OpDefField(Generic[_ClsT]):
         self.cls = cls
 
 
-class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-
-    def __init__(
-        self,
-        cls: type[_ClsT],
-        param: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar,
-    ):
-        super().__init__(cls)
-        self.param = param
-
-
 class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
     param: AttrConstraint | Attribute | type[Attribute] | TypeVar
 
@@ -482,11 +470,11 @@ class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
         self.param = param
 
 
-class _OperandFieldDef(_RangeConstrainedOpDefField[OperandDef,]):
+class _OperandFieldDef(_ConstrainedOpDefField[OperandDef,]):
     pass
 
 
-class _ResultFieldDef(_RangeConstrainedOpDefField[ResultDef]):
+class _ResultFieldDef(_ConstrainedOpDefField[ResultDef]):
     pass
 
 
@@ -559,9 +547,7 @@ def result_def(
 
 
 def var_result_def(
-    constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ) = Attribute,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -574,9 +560,7 @@ def var_result_def(
 
 
 def opt_result_def(
-    constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ) = Attribute,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -656,9 +640,7 @@ def operand_def(
 
 
 def var_operand_def(
-    constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ) = Attribute,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -671,9 +653,7 @@ def var_operand_def(
 
 
 def opt_operand_def(
-    constraint: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
-    ) = Attribute,
+    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -1002,41 +982,16 @@ class OpDef:
 
                 match value:
                     case _ResultFieldDef():
-                        if not issubclass(value.cls, VariadicDef):
-                            if isinstance(value.param, RangeConstraint):
-                                raise TypeError(
-                                    "Cannot use a RangeConstraint in result_def, use an "
-                                    "AttrConstraint or var_result_def or "
-                                    "opt_result_def instead."
-                                )
-                            constraint = get_constraint(value.param)
-                            result_def = value.cls(constraint)
-                        else:
-                            constraint = get_range_constraint(value.param)
-                            result_def = value.cls(constraint)
+                        constraint = get_constraint(value.param)
+                        result_def = value.cls(constraint)
                         op_def.results.append((field_name, result_def))
                         continue
                     case _OperandFieldDef():
-                        if not issubclass(value.cls, VariadicDef):
-                            if isinstance(value.param, RangeConstraint):
-                                raise TypeError(
-                                    "Cannot use a RangeConstraint in operand_def, use an "
-                                    "AttrConstraint or var_operand_def or "
-                                    "opt_operand_def instead."
-                                )
-                            constraint = get_constraint(value.param)
-                            operand_def = cast(type[OperandDef], value.cls)(constraint)
-                        else:
-                            constraint = get_range_constraint(value.param)
-                            operand_def = cast(type[VarOperandDef], value.cls)(
-                                constraint
-                            )
-                        op_def.operands.append((field_name, operand_def))
+                        constraint = get_constraint(value.param)
+                        attribute_def = value.cls(constraint)
+                        op_def.operands.append((field_name, attribute_def))
                         continue
                     case _AttributeFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert not isinstance(value.param, RangeConstraint)
-                        assert issubclass(value.cls, AttributeDef)
                         constraint = get_constraint(value.param)
                         attribute_def = value.cls(constraint)
                         ir_name = field_name if value.ir_name is None else value.ir_name
@@ -1044,9 +999,6 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "attribute")
                         continue
                     case _PropertyFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert not isinstance(value.param, RangeConstraint)
-                        assert issubclass(value.cls, PropertyDef)
                         constraint = get_constraint(value.param)
                         property_def = value.cls(constraint)
                         ir_name = field_name if value.ir_name is None else value.ir_name
@@ -1054,18 +1006,12 @@ class OpDef:
                         op_def.accessor_names[field_name] = (ir_name, "property")
                         continue
                     case _RegionFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert issubclass(value.cls, RegionDef)
                         constraint = get_range_constraint(value.entry_args)
                         region_def = value.cls(constraint)
                         op_def.regions.append((field_name, region_def))
                         continue
                     case _SuccessorFieldDef():
-                        # These asserts are needed as our pyright version currently has a bug
-                        assert issubclass(value.cls, SuccessorDef)
-                        successor_def = (
-                            value.cls()
-                        )  # pyright: ignore[reportGeneralTypeIssues]
+                        successor_def = value.cls()
                         op_def.successors.append((field_name, successor_def))
                         continue
                     case _:
