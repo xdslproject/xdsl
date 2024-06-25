@@ -37,7 +37,6 @@ from xdsl.utils.hints import (
 )
 from xdsl.utils.runtime_final import runtime_final
 
-from .common import IRDLAnnotations  # noqa: TID251
 from .constraints import (  # noqa: TID251
     AllOf,
     AnyAttr,
@@ -50,6 +49,7 @@ from .constraints import (  # noqa: TID251
     ParamAttrConstraint,
     VarConstraint,
 )
+from .error import IRDLAnnotations  # noqa: TID251
 
 _DataElement = TypeVar("_DataElement", covariant=True)
 

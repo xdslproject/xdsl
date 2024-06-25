@@ -45,7 +45,6 @@ from .attributes import (  # noqa: TID251
     irdl_list_to_attr_constraint,
     irdl_to_attr_constraint,
 )
-from .common import IRDLAnnotations, error  # noqa: TID251
 from .constraints import (  # noqa: TID251
     AnyAttr,
     AttrConstraint,
@@ -57,6 +56,7 @@ from .constraints import (  # noqa: TID251
     range_constr_coercion,
     single_range_constr_coercion,
 )
+from .error import IRDLAnnotations, error  # noqa: TID251
 
 if TYPE_CHECKING:
     from xdsl.parser import Parser
