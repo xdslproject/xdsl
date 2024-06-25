@@ -11,7 +11,7 @@ from xdsl.pattern_rewriter import (
 )
 
 
-class QRefToQssaRewritePattern(RewritePattern):
+class ConvertQRefToQssaPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: QRefBase, rewriter: PatternRewriter):
         # Create replacement operation
@@ -42,5 +42,5 @@ class ConvertQRefToQssa(ModulePass):
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            QRefToQssaRewritePattern(), apply_recursively=False
+            ConvertQRefToQssaPattern(), apply_recursively=False
         ).rewrite_op(op)

@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import (
 )
 
 
-class QssaToQRefRewritePattern(RewritePattern):
+class ConvertQssaToQRefPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: QssaBase, rewriter: PatternRewriter):
         # For gates the results of the original operation should be replaced by its operands
@@ -23,4 +23,4 @@ class ConvertQssaToQRef(ModulePass):
     name = "convert-qssa-to-qref"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(QssaToQRefRewritePattern()).rewrite_op(op)
+        PatternRewriteWalker(ConvertQssaToQRefPattern()).rewrite_op(op)
