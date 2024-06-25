@@ -135,6 +135,15 @@ class Store(IRDLOperation):
         return cls(operands=[value, ref, indices])
 
 
+class AllocOpHasCanonicalizationPatterns(HasCanonicalisationPatternsTrait):
+
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.memref import ElideUnusedAlloc
+
+        return (ElideUnusedAlloc(),)
+
+
 @irdl_op_definition
 class Alloc(IRDLOperation):
     name = "memref.alloc"
@@ -148,6 +157,8 @@ class Alloc(IRDLOperation):
     alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    traits = frozenset((AllocOpHasCanonicalizationPatterns(),))
 
     def __init__(
         self,
