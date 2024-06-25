@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p memref-stream-infer-fill,memref-stream-unnest-out-parameters,memref-stream-fold-fill,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-stream-infer-fill,memref-stream-unnest-out-parameters,memref-stream-fold-fill,memref-stream-generalize-fill,memref-streamify,convert-memref-stream-to-loops,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
