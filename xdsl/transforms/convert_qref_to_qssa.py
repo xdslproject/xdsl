@@ -13,9 +13,9 @@ from xdsl.pattern_rewriter import (
 
 class ConvertQRefToQssaPattern(RewritePattern):
     """
-    Replaces a qref operation by its qssa counterpart
+    Replaces a qref operation by its qssa counterpart.
     If the operation is a gate, then subsequent uses of its operands should instead be given
-    the results of the new operation
+    the results of the new operation.
     """
 
     @op_type_rewrite_pattern
@@ -45,8 +45,8 @@ class ConvertQRefToQssaPattern(RewritePattern):
 
 class ConvertQRefToQssa(ModulePass):
     """
-    Converts uses of the qref dialect to the qssa dialect in a module
-    Inverse to the "convert-qssa-to-qref" pass
+    Converts uses of the qref dialect to the qssa dialect in a module.
+    Inverse to the "convert-qssa-to-qref" pass.
     """
 
     name = "convert-qref-to-qssa"

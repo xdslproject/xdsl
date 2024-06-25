@@ -21,7 +21,7 @@ from xdsl.printer import Printer
 @irdl_attr_definition
 class QubitAttr(ParametrizedAttribute, TypeAttribute):
     """
-    Type for a single qubit
+    Type for a single qubit.
     """
 
     name = "qssa.qubit"
@@ -41,7 +41,7 @@ class QssaBase(IRDLOperation, ABC):
     @abstractmethod
     def ref_op(self) -> qref.QRefBase:
         """
-        Build corresponding qref operation
+        Build corresponding qref operation.
         """
         raise NotImplementedError()
 

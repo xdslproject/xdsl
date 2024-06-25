@@ -21,7 +21,7 @@ from xdsl.printer import Printer
 @irdl_attr_definition
 class QubitAttr(ParametrizedAttribute, TypeAttribute):
     """
-    Reference to a qubit
+    Reference to a qubit.
     """
 
     name = "qref.qubit"
@@ -41,7 +41,7 @@ class QRefBase(IRDLOperation, ABC):
     @abstractmethod
     def ssa_op(self) -> qssa.QssaBase:
         """
-        Build corresponding qssa operation
+        Build corresponding qssa operation.
         """
         raise NotImplementedError()
 
@@ -50,9 +50,9 @@ class QRefBase(IRDLOperation, ABC):
     def is_gate(self) -> bool:
         """
         Is this operation a gate?
-        Qref gates represent standard quantum logic gates
-        They should have no results
-        The results of the generated gate must be rewired when converting to the qssa dialect
+        Qref gates represent standard quantum logic gates.
+        They should have no results.
+        The results of the generated gate must be rewired when converting to the qssa dialect.
         """
         raise NotImplementedError()
 
