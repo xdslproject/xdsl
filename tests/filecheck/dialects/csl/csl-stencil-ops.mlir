@@ -70,8 +70,8 @@ builtin.module {
 // CHECK-GENERIC-NEXT:       %4 = "arith.constant"() <{"value" = 1.666600e-01 : f32}> : () -> f32
 // CHECK-GENERIC-NEXT:       %5 = "csl_stencil.access"(%3) <{"offset" = #stencil.index[1, 0], "offset_mapping" = #stencil.index[0, 1]}> : (memref<4xtensor<510xf32>>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %6 = "csl_stencil.access"(%3) <{"offset" = #stencil.index[-1, 0], "offset_mapping" = #stencil.index[0, 1]}> : (memref<4xtensor<510xf32>>) -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       %7 = "csl_stencil.access"(%2) {"offset" = #stencil.index[0, 0], "offset_mapping" = #stencil.index[0, 1]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> tensor<512xf32>
-// CHECK-GENERIC-NEXT:       %8 = "csl_stencil.access"(%2) {"offset" = #stencil.index[0, 0], "offset_mapping" = #stencil.index[0, 1]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> tensor<512xf32>
+// CHECK-GENERIC-NEXT:       %7 = "csl_stencil.access"(%2) <{"offset" = #stencil.index[0, 0], "offset_mapping" = #stencil.index[0, 1]}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> tensor<512xf32>
+// CHECK-GENERIC-NEXT:       %8 = "csl_stencil.access"(%2) <{"offset" = #stencil.index[0, 0], "offset_mapping" = #stencil.index[0, 1]}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> tensor<512xf32>
 // CHECK-GENERIC-NEXT:       %9 = "tensor.extract_slice"(%7) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %10 = "tensor.extract_slice"(%8) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %11 = "csl_stencil.access"(%3) <{"offset" = #stencil.index[0, 1], "offset_mapping" = #stencil.index[0, 1]}> : (memref<4xtensor<510xf32>>) -> tensor<510xf32>
