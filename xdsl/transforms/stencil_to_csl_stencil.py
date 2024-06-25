@@ -39,7 +39,7 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
 
         # translate access to own data, which operates on stencil.TempType
         if tuple(op.offset) == (0, 0):
-            assert isa(op.res.type, stencil.TempType)
+            assert isa(op.res.type, stencil.TensorType)
             rewriter.replace_matched_op(
                 csl_stencil.AccessOp(
                     op=op.temp,

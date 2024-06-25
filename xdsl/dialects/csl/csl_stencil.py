@@ -145,7 +145,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute] | stencil.TempType[Attribute],
+        result_type: TensorType[Attribute],
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
