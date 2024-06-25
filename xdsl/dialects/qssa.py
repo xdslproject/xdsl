@@ -50,9 +50,9 @@ class QssaBase(IRDLOperation, ABC):
     def is_gate(self) -> bool:
         """
         Is this operation a gate?
-        Qssa gates represent standard quantum logic gates
-        They should have an equal number of qubit-typed operands and results
-        Their results must be rewired when converting to the qref dialect
+        Qssa gates represent standard quantum logic gates.
+        They should have an equal number of qubit-typed operands and results.
+        Their results must be rewired when converting to the qref dialect.
         """
         raise NotImplementedError()
 
