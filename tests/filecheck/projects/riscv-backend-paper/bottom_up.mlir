@@ -395,7 +395,16 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     %Y: memref<1x1x7x7xf64>
 ) -> () {
     %min_val = arith.constant -10000 : f64
-    memref_stream.fill %Y with %min_val : memref<1x1x7x7xf64>
+    linalg.generic {
+        indexing_maps = [
+            affine_map<(d0, d1, d2, d3) -> ()>,
+            affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        ],
+        iterator_types = ["parallel", "parallel", "parallel", "parallel"]
+    } ins(%min_val : f64) outs(%Y : memref<1x1x7x7xf64>) {
+    ^bb0(%in: f64, %out: f64):
+        linalg.yield %in : f64
+    }
     memref_stream.generic {
       bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
       indexing_maps = [
@@ -508,18 +517,26 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
     %Y: memref<1x1x7x7xf64>
 ) -> () {
     %zero_float = arith.constant 0.0 : f64
-    memref_stream.fill %Y with %zero_float : memref<1x1x7x7xf64>
-    memref_stream.generic {
-      bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
+    linalg.generic {
+        indexing_maps = [
+            affine_map<(d0, d1, d2, d3) -> ()>,
+            affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        ],
+        iterator_types = ["parallel", "parallel", "parallel", "parallel"]
+    } ins(%zero_float : f64) outs(%Y : memref<1x1x7x7xf64>) {
+    ^bb0(%in: f64, %out: f64):
+        linalg.yield %in : f64
+    }
+    linalg.generic {
       indexing_maps = [
         affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
-        affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
     } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) {
     ^0(%x : f64, %acc : f64):
       %res = arith.addf %x, %acc : f64
-      memref_stream.yield %res : f64
+      linalg.yield %res : f64
     }
 
     func.return
