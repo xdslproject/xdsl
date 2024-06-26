@@ -34,11 +34,22 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.AccessOp, rewriter: PatternRewriter, /):
         assert len(op.offset) == 2
-        if (
-            tuple(op.offset) == (0, 0)
-            or op.temp != op.get_apply().region.block.args[self.arg_index]
-        ):
+        if op.temp != op.get_apply().region.block.args[self.arg_index]:
             return
+
+        # translate access to own data, which operates on stencil.TempType
+        if tuple(op.offset) == (0, 0):
+            assert isa(op.res.type, stencil.TensorType)
+            rewriter.replace_matched_op(
+                csl_stencil.AccessOp(
+                    op=op.temp,
+                    offset=op.offset,
+                    offset_mapping=op.offset_mapping,
+                    result_type=op.res.type,
+                )
+            )
+            return
+
         prefetched_arg = op.get_apply().region.block.args[-1]
         assert isa(m_type := prefetched_arg.type, memref.MemRefType[Attribute])
         assert isa(t_type := m_type.get_element_type(), TensorType[Attribute])
