@@ -61,6 +61,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return CSL
 
+    def get_csl_stencil():
+        from xdsl.dialects.csl.csl_stencil import CSL_STENCIL
+
+        return CSL_STENCIL
+
     def get_dmp():
         from xdsl.dialects.experimental.dmp import DMP
 
@@ -165,6 +170,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.printf import Printf
 
         return Printf
+
+    def get_qref():
+        from xdsl.dialects.qref import QREF
+
+        return QREF
 
     def get_qssa():
         from xdsl.dialects.qssa import QSSA
@@ -273,6 +283,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "cmath": get_cmath,
         "comb": get_comb,
         "csl": get_csl,
+        "csl_stencil": get_csl_stencil,
         "dmp": get_dmp,
         "fir": get_fir,
         "fsm": get_fsm,
@@ -294,6 +305,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "onnx": get_onnx,
         "pdl": get_pdl,
         "printf": get_printf,
+        "qref": get_qref,
         "qssa": get_qssa,
         "riscv": get_riscv,
         "riscv_debug": get_riscv_debug,
