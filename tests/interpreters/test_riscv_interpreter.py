@@ -284,7 +284,7 @@ def test_riscv_interpreter():
     get_non_zero = riscv.GetRegisterOp(riscv.IntRegisterType.unallocated())
     with pytest.raises(
         InterpretationError,
-        match="Cannot get value for unallocated register !riscv.reg<>",
+        match="Cannot get value for unallocated register !riscv.reg",
     ):
         interpreter.run_op(get_non_zero, ())
 
