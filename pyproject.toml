@@ -37,6 +37,7 @@ gui = ["textual==0.85.1", "pyclip==0.7"]
 jax = ["jax==0.4.35", "numpy==2.1.2"]
 onnx = ["onnx==1.17.0", "numpy==2.1.2"]
 riscv = ["riscemu==2.2.7"]
+wasm = ["wasmtime==22.0.0"]
 wgpu = ["wgpu==0.18.1"]
 
 [project.urls]

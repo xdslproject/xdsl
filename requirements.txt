@@ -1,1 +1,1 @@
--e .[gui,jax,riscv,wgpu,onnx,dev]
+-e .[gui,jax,riscv,wgpu,onnx,dev,wasm]
