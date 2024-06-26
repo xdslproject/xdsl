@@ -34,6 +34,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             (index, cast(memref.MemRefType[Attribute], value_type).element_type)
             for index, value in enumerate(op.inputs)
             if isinstance(value_type := value.type, memref.MemRefType)
+            and op.body.block.args[index].uses
         )
         input_count = len(op.inputs)
         streamable_output_indices = tuple(
