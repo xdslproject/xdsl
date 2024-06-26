@@ -209,6 +209,19 @@ class xDSLOptMain(CommandLineTool):
         def _output_x86_asm(prog: ModuleOp, output: IO[str]):
             x86.ops.print_assembly(prog, output)
 
+        def _output_wat(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.wasm import WasmModule
+            from xdsl.dialects.wasm.wat import WatPrinter
+
+            wasm_modules = tuple(op for op in prog.walk() if isinstance(op, WasmModule))
+            if len(wasm_modules) != 1:
+                print(f"invalid number of wasm modules ({len(wasm_modules)})")
+                return
+
+            printer = WatPrinter(output)
+            wasm_module = wasm_modules[0]
+            wasm_module.print_wat(printer)
+
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
             try:
@@ -225,6 +238,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
+        self.available_targets["wat"] = _output_wat
         self.available_targets["csl"] = print_to_csl
 
     def setup_pipeline(self):
