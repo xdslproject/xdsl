@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from enum import auto
 from itertools import product
-from typing import Any, cast
+from typing import Annotated, Any, cast
 
 from typing_extensions import Self
 
@@ -32,10 +32,12 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     prop_def,
     region_def,
     var_operand_def,
@@ -693,6 +695,21 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = frozenset([IsTerminator()])
 
 
+@irdl_op_definition
+class FillOp(IRDLOperation):
+    name = "memref_stream.fill"
+
+    T = Annotated[Attribute, ConstraintVar("T")]
+
+    memref = operand_def(memref.MemRefType[T])
+    value = operand_def(T)
+
+    assembly_format = "$memref `with` $value attr-dict `:` type($memref)"
+
+    def __init__(self, memref: SSAValue, value: SSAValue):
+        super().__init__(operands=(memref, value))
+
+
 MemrefStream = Dialect(
     "memref_stream",
     [
@@ -701,6 +718,7 @@ MemrefStream = Dialect(
         StreamingRegionOp,
         GenericOp,
         YieldOp,
+        FillOp,
     ],
     [
         IteratorTypeAttr,
