@@ -66,6 +66,10 @@ LabelIdx = I32Attr
 
 # TODO: group operations via big comment separators
 
+##==------------------------------------------------------------------------==##
+# WebAssembly value types
+##==------------------------------------------------------------------------==##
+
 
 class WasmRefTypeEnum(StrEnum):
     FuncRef = auto()
@@ -103,6 +107,11 @@ class WasmFuncType(ParametrizedAttribute):
 
     args: ParameterDef[ArrayAttr[WasmValueType]]
     res: ParameterDef[ArrayAttr[WasmValueType]]
+
+
+##==------------------------------------------------------------------------==##
+# WebAssembly tables and memories
+##==------------------------------------------------------------------------==##
 
 
 @irdl_attr_definition
@@ -169,6 +178,11 @@ class WasmGlobalType(ParametrizedAttribute):
     type: ParameterDef[WasmValueType]
 
 
+##==------------------------------------------------------------------------==##
+# WebAssembly exports
+##==------------------------------------------------------------------------==##
+
+
 @irdl_attr_definition
 class WasmExportDescFunc(ParametrizedAttribute):
     name = "wasm.export_desc_func"
@@ -212,6 +226,11 @@ class WasmExport(ParametrizedAttribute):
 
     export_name: ParameterDef[StringAttr]
     desc: ParameterDef[WasmExportDesc]
+
+
+##==------------------------------------------------------------------------==##
+# WebAssembly imports
+##==------------------------------------------------------------------------==##
 
 
 @irdl_attr_definition
@@ -269,6 +288,11 @@ class WasmImport(ParametrizedAttribute):
 
     import_name: ParameterDef[StringAttr]
     desc: ParameterDef[WasmImportDesc]
+
+
+##==------------------------------------------------------------------------==##
+# WebAssembly sections
+##==------------------------------------------------------------------------==##
 
 
 @irdl_op_definition
@@ -353,6 +377,11 @@ class WasmDataSec(IRDLOperation):
     name = "wasm.data_sec"
 
     body: Region = region_def("single_block")  # TODO
+
+
+##==------------------------------------------------------------------------==##
+# WebAssembly module
+##==------------------------------------------------------------------------==##
 
 
 @irdl_op_definition
