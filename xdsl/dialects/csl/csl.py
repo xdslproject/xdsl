@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Annotated, ClassVar, TypeAlias
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
@@ -438,6 +439,8 @@ class ConstantsOp(IRDLOperation):
     value = operand_def(T)
 
     result = result_def(MemRefType[T])
+
+    is_const = opt_prop_def(builtin.UnitAttr)
 
     def __init__(self, size: SSAValue | Operation, value: SSAValue | Operation):
         super().__init__(

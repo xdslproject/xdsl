@@ -15,6 +15,7 @@ csl.func @func_with_args(%arg1: i32, %arg2: i16) -> i32 {
 %c100 = arith.constant 100 : i32
 
 %zeros = "csl.constants"(%zero, %c100) : (i32, i32) -> memref<?xi32>
+%zeros2 = "csl.constants"(%zero, %c100) <{is_const}> : (i32, i32) -> memref<?xi32>
 
 csl.task @local_task() attributes {kind = #csl<task_kind local>, id = 0 : i5} {
   csl.return
@@ -329,6 +330,7 @@ csl.func @builtins() {
 // CHECK-NEXT:     %zero = arith.constant 0 : i32
 // CHECK-NEXT:     %c100 = arith.constant 100 : i32
 // CHECK-NEXT:     %zeros = "csl.constants"(%zero, %c100) : (i32, i32) -> memref<?xi32>
+// CHECK-NEXT:     %zeros2 = "csl.constants"(%zero, %c100) <{"is_const"}> : (i32, i32) -> memref<?xi32>
 // CHECK-NEXT:     csl.task @local_task()  attributes {"kind" = #csl<task_kind local>, "id" = 0 : i5}{
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
@@ -561,6 +563,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:     %zero = "arith.constant"() <{"value" = 0 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     %c100 = "arith.constant"() <{"value" = 100 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     %zeros = "csl.constants"(%zero, %c100) : (i32, i32) -> memref<?xi32>
+// CHECK-GENERIC-NEXT:     %zeros2 = "csl.constants"(%zero, %c100) <{"is_const"}> : (i32, i32) -> memref<?xi32>
 // CHECK-GENERIC-NEXT:     "csl.task"() <{"sym_name" = "local_task", "function_type" = () -> (), "kind" = #csl<task_kind local>, "id" = 0 : i5}> ({
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
