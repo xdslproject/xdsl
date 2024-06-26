@@ -142,7 +142,7 @@ stencil.store %vout to %vb ([0] : [32]) : !stencil.temp<?xf64> to  !stencil.fiel
 ```
 
 Oh nope, the `stencil.combine`-based everygrowing guard is not split. Worst than this, we just don't know how to split it locally, as its just stitching two temps on one fixed coordinate.
-A solution would be to use the mentionned `stencil.halo`, having a clearer definition of what's "core" and what's "halo" instead:
+A solution would be to use the mentionned `stencil.extend`, having a clearer definition of what's "core" and what's "halo" instead:
 
 ```mlir
 // Load (core) inputs
@@ -160,7 +160,7 @@ scf.for %time = %0 to %T step %1 iter_args(%ul = %ul_init, %u = %u_init, %uu = %
 
     // Value-semantics ghost cells reading
 
-    %uh = stencil.halo 0 [%ul|0|%u|64|%ul] : !stencil.temp<?xf64> -> !stencil.temp<?xf64>
+    %uh = stencil.extend 0 [%ul|0|%u|64|%ul] : !stencil.temp<?xf64> -> !stencil.temp<?xf64>
 
     // Value-semantics compute
     %vt = stencil.apply(%uarg = %uh : !stencil.field<?xf64>) -> (!stencil.temp<?xf64>) {
@@ -196,7 +196,7 @@ scf.for %time = %0 to %T step %1 iter_args(%ul = %ul_init, %u = %u_init, %uu = %
 
     // Value-semantics ghost cells reading
 
-    %uh = stencil.halo 0 [%ul|0|%u|32|%ul] : !stencil.temp<?xf64> -> !stencil.temp<?xf64>
+    %uh = stencil.extend 0 [%ul|0|%u|32|%ul] : !stencil.temp<?xf64> -> !stencil.temp<?xf64>
 
     // Value-semantics compute
     %vt = stencil.apply(%uarg = %uh : !stencil.field<?xf64>) -> (!stencil.temp<?xf64>) {
@@ -232,7 +232,7 @@ scf.for %time = %0 to %T step %1 iter_args(%ul = %ul_init, %u = %u_init, %uu = %
 
     // Value-semantics ghost cells reading
 
-    %uh = stencil.halo 0 [%ul|0|%u|32|%ul] : !stencil.temp<[0,32]xf64> -> !stencil.temp<[-1,33]xf64>
+    %uh = stencil.extend 0 [%ul|0|%u|32|%ul] : !stencil.temp<[0,32]xf64> -> !stencil.temp<[-1,33]xf64>
 
     // Value-semantics compute
     %vt = stencil.apply(%uarg = %uh : !stencil.temp<[-1,33]xf64>) -> (!stencil.tem[0,32]<?xf64>) {
@@ -267,7 +267,7 @@ Now, we can independently just insert swaps on applys' inputs, according to a sa
 scf.for %time = %0 to %T step %1 iter_args(%ul = %ul_init, %u = %u_init, %uu = %uu_init, %vl = %vl_init, %v = %v_init, %vu = %vu_init) -> (!stencil.temp<[-1,0]xf64>, !stencil.field<[0,32]xf64>, !stencil.temp<[32,33]xf64>, !stencil.field<[-1,0]xf64>, !stencil.temp<[0,32]xf64>, !stencil.field<[32,33]xf64>) {
 
     // Value-semantics ghost cells reading
-    %uh = stencil.halo 0 [%ul|0|%u|32|%ul] : !stencil.temp<[0,32]xf64> -> !stencil.temp<[-1,33]xf64>
+    %uh = stencil.extend 0 [%ul|0|%u|32|%ul] : !stencil.temp<[0,32]xf64> -> !stencil.temp<[-1,33]xf64>
 
     // Value-semantics halo swap
     %uh_1 = "dmp.swap"(%uh) {"topo" = #dmp.topo<2x1>, "swaps" = [#dmp.exchange<at [32, 0] size [1, 64] source offset [-1, 0] to [1, 0]>, #dmp.exchange<at [-1, 0] size [1, 64] source offset [1, 0] to [-1, 0]>]} : (!stencil.temp<[-1,33]x[0,64]xf64>) -> ()
