@@ -23,11 +23,5 @@ def __(mo):
     return IntAttr,
 
 
-@app.cell
-def __():
-    raise Exception("a")
-    return
-
-
 if __name__ == "__main__":
     app.run()
