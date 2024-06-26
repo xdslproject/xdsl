@@ -386,6 +386,10 @@ class GenericOp(IRDLOperation):
             tuple(bound.data for bound in self.bounds.data[min_dims:]),
         )
 
+    @property
+    def is_imperfectly_nested(self) -> bool:
+        return bool(self.get_static_loop_ranges()[1])
+
     def _print_init(self, printer: Printer, init: SSAValue | None):
         if init is None:
             printer.print_string("None")
