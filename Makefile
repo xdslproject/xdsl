@@ -51,8 +51,15 @@ pytest-toy:
 
 tests-toy: filecheck-toy pytest-toy
 
+tests-marimo:
+	@for file in docs/marimo/*.py; do \
+		echo "Running $$file"; \
+		python3 "$$file" || exit 1; \
+	done
+	@echo "All marimo tests passed successfully."
+
 # run all tests
-tests: pytest tests-toy filecheck pytest-nb pyright
+tests: pytest tests-toy filecheck pytest-nb tests-marimo pyright
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory
