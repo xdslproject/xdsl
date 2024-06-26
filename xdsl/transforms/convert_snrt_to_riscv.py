@@ -433,10 +433,7 @@ class LowerGlobalCoreBaseHartid(RewritePattern):
         self, op: snitch_runtime.GlobalCoreBaseHartidOp, rewriter: PatternRewriter, /
     ):
         rewriter.replace_matched_op(
-            [
-                nfo := riscv.LiOp(self.constants.base_hartid),
-                builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
-            ]
+            [arith.Constant.from_int_and_width(self.constants.base_hartid, builtin.i32)]
         )
 
 
@@ -450,10 +447,10 @@ class LowerGlobalCoreNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                nfo := riscv.LiOp(
-                    self.constants.cluster_num * self.constants.cluster_core_num
-                ),
-                builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
+                arith.Constant.from_int_and_width(
+                    self.constants.cluster_num * self.constants.cluster_core_num,
+                    builtin.i32,
+                )
             ]
         )
 
@@ -468,8 +465,9 @@ class LowerClusterCoreNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                nfo := riscv.LiOp(self.constants.cluster_core_num),
-                builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
+                arith.Constant.from_int_and_width(
+                    self.constants.cluster_core_num, builtin.i32
+                )
             ]
         )
 
@@ -483,10 +481,7 @@ class LowerClusterNum(RewritePattern):
         self, op: snitch_runtime.ClusterNumOp, rewriter: PatternRewriter, /
     ):
         rewriter.replace_matched_op(
-            [
-                nfo := riscv.LiOp(self.constants.cluster_num),
-                builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
-            ]
+            [arith.Constant.from_int_and_width(self.constants.cluster_num, builtin.i32)]
         )
 
 
@@ -500,8 +495,9 @@ class LowerClusterDmCoreNum(RewritePattern):
     ):
         rewriter.replace_matched_op(
             [
-                nfo := riscv.LiOp(self.constants.cluster_dm_core_num),
-                builtin.UnrealizedConversionCastOp.get([nfo], [builtin.i32]),
+                arith.Constant.from_int_and_width(
+                    self.constants.cluster_dm_core_num, builtin.i32
+                )
             ]
         )
 
@@ -592,12 +588,11 @@ class LowerClusterComputeCoreNum(RewritePattern):
         """
         rewriter.replace_matched_op(
             [
-                compute_core_num := riscv.LiOp(
-                    self.constants.cluster_core_num - self.constants.cluster_dm_core_num
-                ),
-                builtin.UnrealizedConversionCastOp.get(
-                    [compute_core_num], [builtin.i32]
-                ),
+                arith.Constant.from_int_and_width(
+                    self.constants.cluster_core_num
+                    - self.constants.cluster_dm_core_num,
+                    builtin.i32,
+                )
             ]
         )
 
@@ -652,18 +647,10 @@ class LowerClusterIdx(RewritePattern):
             [
                 cluster_core_num := snitch_runtime.ClusterCoreNumOp(),
                 core_idx := snitch_runtime.GlobalCoreIdxOp(),
-                cluster_core_num_reg := builtin.UnrealizedConversionCastOp.get(
-                    [cluster_core_num], [riscv.IntRegisterType.unallocated()]
+                arith.DivSI(
+                    core_idx,
+                    cluster_core_num,
                 ),
-                core_idx_reg := builtin.UnrealizedConversionCastOp.get(
-                    [core_idx], [riscv.IntRegisterType.unallocated()]
-                ),
-                res := riscv.DivOp(
-                    core_idx_reg,
-                    cluster_core_num_reg,
-                    rd=riscv.IntRegisterType.unallocated(),
-                ),
-                builtin.UnrealizedConversionCastOp.get([res], [builtin.i32]),
             ]
         )
 
