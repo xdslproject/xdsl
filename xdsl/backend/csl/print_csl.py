@@ -506,9 +506,7 @@ class CslPrintContext:
                     self._print_or_promote_to_inline_expr(
                         res, f"@concat_structs({a_var}, {b_var})"
                     )
-                case csl.ConstantsOp(
-                    size=size, value=val, result=res, is_const=constness
-                ):
+                case csl.ConstantsOp(value=val, result=res, is_const=constness):
                     type = self._memref_type_to_string(res)
                     res_name = self._get_variable_name_for(res)
                     kind = "const" if constness else "var"
