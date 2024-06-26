@@ -72,9 +72,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return constant_fold_interp.ConstantFoldInterpPass
 
     def get_convert_snrt_to_riscv():
-        from xdsl.transforms import convert_snrt_to_riscv
+        from xdsl.transforms import inline_snrt
 
-        return convert_snrt_to_riscv.ConvertSnrtToRISCV
+        return inline_snrt.ConvertSnrtToRISCV
 
     def get_convert_stencil_to_ll_mlir():
         from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
@@ -236,6 +236,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
 
+    def get_convert_qref_to_qssa():
+        from xdsl.transforms import convert_qref_to_qssa
+
+        return convert_qref_to_qssa.ConvertQRefToQssa
+
+    def get_convert_qssa_to_qref():
+        from xdsl.transforms import convert_qssa_to_qref
+
+        return convert_qssa_to_qref.ConvertQssaToQRef
+
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
 
@@ -293,6 +303,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_tensorize_z_dimension.StencilTensorizeZDimension
 
+    def get_stencil_to_csl_stencil():
+        from xdsl.transforms import stencil_to_csl_stencil
+
+        return stencil_to_csl_stencil.StencilToCslStencilPass
+
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
 
@@ -319,12 +334,14 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
+        "convert-qref-to-qssa": get_convert_qref_to_qssa,
+        "convert-qssa-to-qref": get_convert_qssa_to_qref,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
-        "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
+        "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
         "dce": get_dce,
@@ -359,6 +376,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
+        "stencil-to-csl-stencil": get_stencil_to_csl_stencil,
         "stencil-unroll": get_stencil_unroll,
         "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
     }

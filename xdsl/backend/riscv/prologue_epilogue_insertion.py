@@ -42,6 +42,9 @@ class PrologueEpilogueInsertion(ModulePass):
             if res.type in Registers.S or res.type in Registers.FS
         )
 
+        if not used_callee_preserved_registers:
+            return
+
         def get_register_size(r: RISCVRegisterType):
             if isinstance(r, IntRegisterType):
                 return self.xlen
