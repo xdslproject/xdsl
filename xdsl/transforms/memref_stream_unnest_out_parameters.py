@@ -22,9 +22,15 @@ class UnnestOutParametersPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
+        if op.is_imperfectly_nested:
+            # Already unnested
+            return
+
         num_outputs = len(op.outputs)
         if not num_outputs:
             return
+
+        num_inputs = len(op.inputs)
 
         num_parallel = sum(
             i == memref_stream.IteratorTypeAttr.parallel() for i in op.iterator_types
@@ -37,10 +43,10 @@ class UnnestOutParametersPattern(RewritePattern):
 
         parallel_dims = (True,) * num_parallel + (False,) * num_reduction
 
-        maps = op.indexing_maps.data[num_parallel:]
+        maps = op.indexing_maps.data[num_inputs:]
         new_maps = ArrayAttr(
             (
-                *op.indexing_maps.data[:num_parallel],
+                *op.indexing_maps.data[:num_inputs],
                 *(AffineMapAttr(m.data.compress_dims(parallel_dims)) for m in maps),
             )
         )

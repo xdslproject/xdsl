@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
+from xdsl.dialects import qref
 from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -20,7 +21,7 @@ from xdsl.printer import Printer
 @irdl_attr_definition
 class QubitAttr(ParametrizedAttribute, TypeAttribute):
     """
-    Type for a single qubit
+    Type for a single qubit.
     """
 
     name = "qssa.qubit"
@@ -29,12 +30,35 @@ class QubitAttr(ParametrizedAttribute, TypeAttribute):
 qubit = QubitAttr()
 
 
-class QubitBase(IRDLOperation, ABC):
-    pass
+class QssaBase(IRDLOperation, ABC):
+    """
+    Base class for qssa operations, with methods to help convert to the qref dialect.
+
+    Invariant:
+    self.is_gate == self.ref_op().is_gate
+    """
+
+    @abstractmethod
+    def ref_op(self) -> qref.QRefBase:
+        """
+        Build corresponding qref operation.
+        """
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def is_gate(self) -> bool:
+        """
+        Is this operation a gate?
+        Qssa gates represent standard quantum logic gates.
+        They should have an equal number of qubit-typed operands and results.
+        Their results must be rewired when converting to the qref dialect.
+        """
+        raise NotImplementedError()
 
 
 @irdl_op_definition
-class QubitAllocOp(QubitBase):
+class QubitAllocOp(QssaBase):
     name = "qssa.alloc"
 
     res: VarOpResult = var_result_def(qubit)
@@ -65,9 +89,19 @@ class QubitAllocOp(QubitBase):
 
         printer.print_op_attributes(self.attributes)
 
+    def ref_op(self) -> qref.QRefAllocOp:
+        return qref.QRefAllocOp.create(
+            result_types=[qref.qubit] * self.num_qubits,
+            attributes=self.attributes,
+        )
+
+    @property
+    def is_gate(self) -> bool:
+        return False
+
 
 @irdl_op_definition
-class HGateOp(QubitBase):
+class HGateOp(QssaBase):
     name = "qssa.h"
 
     input = operand_def(qubit)
@@ -82,9 +116,20 @@ class HGateOp(QubitBase):
             result_types=(qubit,),
         )
 
+    def ref_op(self) -> qref.HGateOp:
+        return qref.HGateOp.create(
+            operands=self.operands,
+            result_types=(),
+            attributes=self.attributes,
+        )
+
+    @property
+    def is_gate(self) -> bool:
+        return True
+
 
 @irdl_op_definition
-class CNotGateOp(QubitBase):
+class CNotGateOp(QssaBase):
     name = "qssa.cnot"
 
     in1 = operand_def(qubit)
@@ -103,9 +148,20 @@ class CNotGateOp(QubitBase):
             result_types=(qubit, qubit),
         )
 
+    def ref_op(self) -> qref.CNotGateOp:
+        return qref.CNotGateOp.create(
+            operands=self.operands,
+            result_types=(),
+            attributes=self.attributes,
+        )
+
+    @property
+    def is_gate(self) -> bool:
+        return True
+
 
 @irdl_op_definition
-class CZGateOp(QubitBase):
+class CZGateOp(QssaBase):
     name = "qssa.cz"
 
     in1 = operand_def(qubit)
@@ -124,9 +180,20 @@ class CZGateOp(QubitBase):
             result_types=(qubit, qubit),
         )
 
+    def ref_op(self) -> qref.CZGateOp:
+        return qref.CZGateOp.create(
+            operands=self.operands,
+            result_types=(),
+            attributes=self.attributes,
+        )
+
+    @property
+    def is_gate(self) -> bool:
+        return True
+
 
 @irdl_op_definition
-class MeasureOp(QubitBase):
+class MeasureOp(QssaBase):
     name = "qssa.measure"
 
     input = operand_def(qubit)
@@ -140,6 +207,17 @@ class MeasureOp(QubitBase):
             operands=[input],
             result_types=[IntegerType(1)],
         )
+
+    def ref_op(self) -> qref.MeasureOp:
+        return qref.MeasureOp.create(
+            operands=self.operands,
+            result_types=(IntegerType(1),),
+            attributes=self.attributes,
+        )
+
+    @property
+    def is_gate(self) -> bool:
+        return False
 
 
 QSSA = Dialect(

@@ -65,6 +65,7 @@ def indices_for_map(
 
 INSERT_LOAD: TypeAlias = Callable[
     [
+        int,
         SSAValue,
         AffineMapAttr,
         Sequence[SSAValue],
@@ -161,6 +162,7 @@ def _insert_load_ops(
     operands: Sequence[SSAValue],
     args: Sequence[BlockArgument],
     insert_load: INSERT_LOAD,
+    index_increment: int = 0,
 ) -> Sequence[tuple[int, SSAValue]]:
     """
     Inserts the load operations at the specified insertion point.
@@ -172,6 +174,7 @@ def _insert_load_ops(
     The `affine_map_attrs`, `operands`, and `args` must have the same length.
     Returns a tuple of integers indicating the locations of the returned values, and
     the values themselves.
+    The integer values are incremented by `index_increment`.
     """
     res: list[tuple[int, SSAValue]] = []
     for i, (affine_map_attr, operand, arg) in enumerate(
@@ -180,13 +183,14 @@ def _insert_load_ops(
         if not arg.uses:
             continue
         res_val = insert_load(
+            i + index_increment,
             operand,
             affine_map_attr,
             ind_vars,
             rewriter,
             insertion_point,
         )
-        res.append((i, res_val))
+        res.append((i + index_increment, res_val))
     return res
 
 
@@ -352,6 +356,7 @@ def rewrite_generic_to_imperfect_loops(
             outer_load_operands,
             outer_load_block_args,
             insert_load,
+            index_increment=len(inner_load_block_args),
         )
 
         def inner_make_body(
@@ -377,7 +382,7 @@ def rewrite_generic_to_imperfect_loops(
                 inner_iter_args,
                 strict=True,
             ):
-                block.args[i + len(inner_loaded_values)].replace_by(arg)
+                block.args[i].replace_by(arg)
 
             # Replace block argument use with load op results
             for i, val in inner_loaded_values:
