@@ -1,11 +1,8 @@
 """
 This file contains the definition of the WebAssembly (wasm) dialect.
 
-The purpose of this dialect is to model WebAssembly modules at the lowest
-possible level, as per the WebAssembly Specification 2.0.
-
-In particular, importing and exporting a WebAssembly binary module through this
-dialect should yield bit-wise identical results. TODO: say it's the encoding
+The purpose of this dialect is to model WebAssembly modules, as per the
+WebAssembly Specification 2.0.
 
 The paragraphs prefixed by `wasm>` in the documentation of this dialect are
 excerpts from the WebAssembly Specification, which is licensed under the terms
@@ -29,7 +26,6 @@ from xdsl.ir import (
     Dialect,
     EnumAttribute,
     ParametrizedAttribute,
-    Region,
     SpacedOpaqueSyntaxAttribute,
 )
 from xdsl.irdl import (
@@ -39,7 +35,6 @@ from xdsl.irdl import (
     irdl_op_definition,
     opt_prop_def,
     prop_def,
-    region_def,
 )
 from xdsl.utils.str_enum import StrEnum
 
@@ -62,7 +57,6 @@ ElemIdx = I32Attr
 DataIdx = I32Attr
 LocalIdx = I32Attr
 LabelIdx = I32Attr
-
 
 ##==------------------------------------------------------------------------==##
 # WebAssembly value types
@@ -289,95 +283,6 @@ class WasmImport(ParametrizedAttribute):
 
 
 ##==------------------------------------------------------------------------==##
-# WebAssembly sections
-##==------------------------------------------------------------------------==##
-
-
-@irdl_op_definition
-class WasmTypeSec(IRDLOperation):
-    name = "wasm.type_sec"
-
-    func_types: ArrayAttr[WasmFuncType] = prop_def(ArrayAttr[WasmFuncType])
-
-
-@irdl_op_definition
-class WasmImportSec(IRDLOperation):
-    name = "wasm.import_sec"
-
-    imports: ArrayAttr[WasmImport] = prop_def(ArrayAttr[WasmImport])
-
-
-@irdl_op_definition
-class WasmFuncSec(IRDLOperation):
-    name = "wasm.func_sec"
-
-    types: ArrayAttr[TypeIdx] = prop_def(ArrayAttr[TypeIdx])
-
-
-@irdl_op_definition
-class WasmTableSec(IRDLOperation):
-    name = "wasm.table_sec"
-
-    tables: ArrayAttr[WasmTableType] = prop_def(ArrayAttr[WasmTableType])
-
-
-@irdl_op_definition
-class WasmMemSec(IRDLOperation):
-    name = "wasm.mem_sec"
-
-    tables: ArrayAttr[WasmMemoryType] = prop_def(ArrayAttr[WasmMemoryType])
-
-
-@irdl_op_definition
-class WasmGlobalSec(IRDLOperation):
-    name = "wasm.global_sec"
-
-    body: Region = region_def("single_block")  # TODO
-
-
-@irdl_op_definition
-class WasmExportSec(IRDLOperation):
-    name = "wasm.export_sec"
-
-    exports: ArrayAttr[WasmExport] = prop_def(ArrayAttr[WasmExport])
-
-
-@irdl_op_definition
-class WasmStartSec(IRDLOperation):
-    name = "wasm.start_sec"
-
-    start: FuncIdx | None = opt_prop_def(FuncIdx)
-
-
-@irdl_op_definition
-class WasmElemSec(IRDLOperation):
-    name = "wasm.elem_sec"
-
-    body: Region = region_def("single_block")  # TODO
-
-
-@irdl_op_definition
-class WasmDataCountSec(IRDLOperation):
-    name = "wasm.datacount_sec"
-
-    count: I32Attr | None = opt_prop_def(I32Attr)
-
-
-@irdl_op_definition
-class WasmCodeSec(IRDLOperation):
-    name = "wasm.code_sec"
-
-    body: Region = region_def("single_block")  # TODO
-
-
-@irdl_op_definition
-class WasmDataSec(IRDLOperation):
-    name = "wasm.data_sec"
-
-    body: Region = region_def("single_block")  # TODO
-
-
-##==------------------------------------------------------------------------==##
 # WebAssembly module
 ##==------------------------------------------------------------------------==##
 
@@ -404,16 +309,11 @@ class WasmModule(IRDLOperation):
 
     # TODO: verifier
 
-    """
-    types: ArrayAttr[WasmFuncType] = prop_def(ArrayAttr[WasmFuncType])
     tables: ArrayAttr[WasmTableType] = prop_def(ArrayAttr[WasmTableType])
     mems: ArrayAttr[WasmLimits] = prop_def(ArrayAttr[WasmLimits])
     start: FuncIdx | None = opt_prop_def(FuncIdx)
     exports: ArrayAttr[WasmExport] = prop_def(ArrayAttr[WasmExport])
     imports: ArrayAttr[WasmImport] = prop_def(ArrayAttr[WasmImport])
-    """
-
-    body: Region = region_def("single_block")
 
 
 Wasm = Dialect("wasm", [], [])  # TODO
