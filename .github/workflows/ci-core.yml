@@ -49,3 +49,8 @@ jobs:
         export PYTHONPATH=$(pwd)
         lit -v tests/filecheck/
         lit -v docs/Toy/examples/
+
+    - name: Test marimo notebooks
+      run: |
+        cd xdsl
+        make tests-marimo
