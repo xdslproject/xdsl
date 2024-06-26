@@ -9,7 +9,7 @@ excerpts from the WebAssembly Specification, which is licensed under the terms
 at the bottom of this file.
 """
 
-from io import BytesIO
+from io import BytesIO, StringIO
 from typing import BinaryIO
 
 from typing_extensions import Self
@@ -22,6 +22,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 
 from .encoding import WasmBinaryEncodable, WasmBinaryEncodingContext
+from .wat import WatPrintable, WatPrinter
 
 ##==------------------------------------------------------------------------==##
 # WebAssembly module
@@ -29,7 +30,7 @@ from .encoding import WasmBinaryEncodable, WasmBinaryEncodingContext
 
 
 @irdl_op_definition
-class WasmModule(IRDLOperation, WasmBinaryEncodable):
+class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
     """
     wasm> WebAssembly programs are organized into modules, which are the unit of
     deployment, loading, and compilation. A module collects definitions for
@@ -72,10 +73,21 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable):
         io.write(magic)
         io.write(version)
 
+    def print_wat(self, printer: WatPrinter) -> None:
+        with printer.in_parens():
+            printer.print_string("module")
+
     def wasm(self) -> bytes:
         ctx = WasmBinaryEncodingContext()
         io = BytesIO()
         self.encode(ctx, io)
+        res = io.getvalue()
+        return res
+
+    def wat(self) -> str:
+        io = StringIO()
+        printer = WatPrinter(io)
+        self.print_wat(printer)
         res = io.getvalue()
         return res
 
