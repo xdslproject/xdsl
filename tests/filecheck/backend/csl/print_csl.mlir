@@ -56,6 +56,20 @@
     csl.return
   }
 
+  csl.func @constants() {
+    %inline_const = arith.constant 100 : i32
+
+    %1 = "csl.constants"(%const27, %const27) : (i16, i16) -> memref<?xi16>
+
+    %2 = "csl.constants"(%const27, %const27) <{is_const}> : (i16, i16) -> memref<?xi16>
+
+    %3 = "csl.constants"(%const27, %inline_const) <{is_const}> : (i16, i32) -> memref<?xi32>
+
+    %4 = "csl.constants"(%inline_const, %inline_const) <{is_const}> : (i32, i32) -> memref<?xi32>
+
+    csl.return
+  }
+
 
   csl.task @data_task(%arg: f32) attributes {kind = #csl<task_kind data>, id = 0 : i5} {
     csl.return
@@ -386,6 +400,14 @@ csl.func @builtins() {
 // CHECK-NEXT:   const castI16again : i16 = @as(i16, 0);
 // CHECK-NEXT:   const castI32again : i32 = @as(i32, @as(i16, 0.0));
 // CHECK-NEXT:   const castU32 : u32 = @as(u32, 0);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: fn constants() void {
+// CHECK-NEXT:   var v0 : [const27]i16 = @constants([const27]i16, const27);
+// CHECK-NEXT:   const v1 : [const27]i16 = @constants([const27]i16, const27);
+// CHECK-NEXT:   const v2 : [const27]i32 = @constants([const27]i32, 100);
+// CHECK-NEXT:   const v3 : [100]i32 = @constants([100]i32, 100);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
