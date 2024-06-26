@@ -14,30 +14,19 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x6x6xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %z_stream : !stream.writable<f64>):
-      %c0 = arith.constant 0 : index
-      %c1 = arith.constant 1 : index
-      %c3 = arith.constant 3 : index
-      %c6 = arith.constant 6 : index
-
-      scf.for %i0 = %c0 to %c1 step %c1 {
-        scf.for %i1 = %c0 to %c1 step %c1 {
-          scf.for %i2 = %c0 to %c6 step %c1 {
-            scf.for %i3 = %c0 to %c6 step %c1 {
-              %z = scf.for %i = %c0 to %c3 step %c1 iter_args(%acc0 = %zero_float) -> (f64) {
-                %z3 = scf.for %j = %c0 to %c3 step %c1 iter_args(%acc1 = %acc0) -> (f64) {
-                  %x = memref_stream.read from %x_stream : f64
-                  %y = memref_stream.read from %y_stream : f64
-                  %prod = arith.mulf %x, %y fastmath<fast> : f64
-                  %res = arith.addf %prod, %acc1 fastmath<fast> : f64
-                  scf.yield %res : f64
-                }
-                scf.yield %z3 : f64
-              }
-
-              memref_stream.write %z to %z_stream : f64
-            }
-          }
-        }
+      memref_stream.generic {
+        bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<6>, #builtin.int<6>, #builtin.int<1>, #builtin.int<3>, #builtin.int<3>],
+        indexing_maps = [
+          affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d4, d2 + d5, d3 + d6)>,
+          affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1, d4, d5, d6)>,
+          affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        ],
+        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"]
+      } ins(%x_stream, %y_stream : !stream.readable<f64>, !stream.readable<f64>) outs(%z_stream : !stream.writable<f64>) inits(%zero_float : f64) {
+      ^0(%x : f64, %y : f64, %acc : f64):
+        %prod = arith.mulf %x, %y fastmath<fast> : f64
+        %res = arith.addf %prod, %acc fastmath<fast> : f64
+        memref_stream.yield %res : f64
       }
     }
 
@@ -413,29 +402,17 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       ]
     } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
-      %c0 = arith.constant 0 : index
-      %c1 = arith.constant 1 : index
-      %c3 = arith.constant 3 : index
-      %c7 = arith.constant 7 : index
-      %c512 = arith.constant 512 : index
-
-      scf.for %i0 = %c0 to %c1 step %c1 {
-        scf.for %i1 = %c0 to %c1 step %c1 {
-          scf.for %i2 = %c0 to %c7 step %c1 {
-            scf.for %i3 = %c0 to %c7 step %c1 {
-              %y = scf.for %i = %c0 to %c3 step %c1 iter_args(%acc0 = %min_val) -> (f64) {
-                %y3 = scf.for %j = %c0 to %c3 step %c1 iter_args(%acc1 = %acc0) -> (f64) {
-                  %x = memref_stream.read from %x_stream : f64
-                  %res = arith.maximumf %x, %acc1 : f64
-                  scf.yield %res : f64
-                }
-                scf.yield %y3 : f64
-              }
-
-              memref_stream.write %y to %y_stream : f64
-            }
-          }
-        }
+      memref_stream.generic {
+        bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
+        indexing_maps = [
+          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
+          affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        ],
+        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
+      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) inits(%min_val : f64) {
+      ^0(%x : f64, %acc : f64):
+        %res = arith.maximumf %x, %acc : f64
+        memref_stream.yield %res : f64
       }
     }
 
@@ -545,29 +522,17 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
       ]
     } ins(%X : memref<1x1x16x16xf64>) outs(%Y : memref<1x1x7x7xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.writable<f64>):
-      %c0 = arith.constant 0 : index
-      %c1 = arith.constant 1 : index
-      %c3 = arith.constant 3 : index
-      %c7 = arith.constant 7 : index
-      %c512 = arith.constant 512 : index
-
-      scf.for %i0 = %c0 to %c1 step %c1 {
-        scf.for %i1 = %c0 to %c1 step %c1 {
-          scf.for %i2 = %c0 to %c7 step %c1 {
-            scf.for %i3 = %c0 to %c7 step %c1 {
-              %y = scf.for %i = %c0 to %c3 step %c1 iter_args(%acc0 = %zero_float) -> (f64) {
-                %y3 = scf.for %j = %c0 to %c3 step %c1 iter_args(%acc1 = %acc0) -> (f64) {
-                  %x = memref_stream.read from %x_stream : f64
-                  %res = arith.addf %x, %acc1 : f64
-                  scf.yield %res : f64
-                }
-                scf.yield %y3 : f64
-              }
-
-              memref_stream.write %y to %y_stream : f64
-            }
-          }
-        }
+      memref_stream.generic {
+        bounds = [#builtin.int<1>, #builtin.int<1>, #builtin.int<7>, #builtin.int<7>, #builtin.int<3>, #builtin.int<3>],
+        indexing_maps = [
+          affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2 * 2 + d4, d3 * 2 + d5)>,
+          affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
+        ],
+        iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
+      } ins(%x_stream : !stream.readable<f64>) outs(%y_stream : !stream.writable<f64>) inits(%zero_float : f64) {
+      ^0(%x : f64, %acc : f64):
+        %res = arith.addf %x, %acc : f64
+        memref_stream.yield %res : f64
       }
     }
 
