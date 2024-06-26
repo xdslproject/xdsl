@@ -3,7 +3,44 @@
 builtin.module {
   // program:
   "csl.module"() <{kind=#csl<module_kind program>}> ({
-    %math = "csl.import_module"() <{module = "<math>"}> : () -> !csl.imported_module
+    %memcpyParams = "csl.param"() <{param_name = "memcpyParams"}> : () -> !csl.comptime_struct
+    %stencilCommsParams = "csl.param"() <{param_name = "stencilCommsParams"}> : () -> !csl.comptime_struct
+    %iterationTaskId = "csl.param"() <{param_name = "iterationTaskId"}> : () -> i32  // is supposed to be task_id
+
+    %zDim = "csl.param"() <{param_name = "zDim"}> : () ->  i16
+    %pattern = "csl.param"() <{param_name = "pattern"}> : () ->  ui16
+    %isBorderRegionPE = "csl.param"() <{param_name = "isBorderRegionPE"}> : () ->  i1
+
+    %memcpy = "csl.import_module"() <{module = "<memcpy/memcpy>"}> : () -> !csl.imported_module
+    %time = "csl.import_module"() <{module = "<time>"}> : () -> !csl.imported_module
+    %util = "csl.import_module"() <{module = "util.csl"}> : () -> !csl.imported_module
+
+    %directionCount = arith.constant 4 : i16
+
+    %numChunks = "csl.member_call"(%util, %zDim) <{field = "computeChunks"}> : (!csl.imported_module, i16) -> i32
+    %chunkSize = "csl.member_call"(%util, %zDim, %numChunks) <{field = "computeChunkSize"}> : (!csl.imported_module, i16, i32) -> i32
+    %paddedZDim = arith.muli %chunkSize, %numChunks : i32
+
+    %zero_u16 = arith.constant 0 : ui16
+    %zero_f32 = arith.constant 0 : f32
+    %one_f32 = arith.constant 1 : f32
+
+    %tsc_size_words = "csl.member_access"(%time) <{field_name = "tsc_size_words"}> : (!csl.imported_module) -> i32
+
+    %tscEndBuffer = "csl.constants"(%tsc_size_words, %zero_u16) : (i32, ui16) -> memref<?xui16>
+    %tscStartBuffer = "csl.constants"(%tsc_size_words, %zero_u16) : (i32, ui16) -> memref<?xui16>
+    %0 = arith.constant 2 : ui16
+    %1 = arith.muli %two, %pattern : ui16
+    %2 = arith.constant 1 : ui16
+    %3 = arith.subi %1, %2 : ui16
+
+    %zCoeffs = "csl.constants"(%3, %one_f32) <{is_const}> : (ui16, f32) -> memref<?xf32>
+
+    %zValuesA = "csl.constants"(%paddedZDim, %zero_f32) -> memref<?xf32>
+    %zValuesB = "csl.constants"(%paddedZDim, %zero_f32) -> memref<?xf32>
+    %accumulator = "csl.constants"(%paddedZDim, %zero_f32) -> memref<?xf32>
+
+
   }) {sym_name = "pe.csl"} : () -> ()
 
   // layout
