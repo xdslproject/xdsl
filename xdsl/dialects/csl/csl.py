@@ -427,7 +427,9 @@ class ConstantsOp(IRDLOperation):
     """
     Represents the @constants operation in CSL.
 
-    This can also be used to represent @zeros by passing a zero constant as the second argument.
+    This can also be used as a stand-in for @zeros by passing a zero constant as the second argument.
+
+    If is_const is present, it is printed with the `const` prefix, otherwise it's assumed `var` by the csl printer.
     """
 
     name = "csl.constants"
