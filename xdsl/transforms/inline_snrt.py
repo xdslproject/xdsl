@@ -658,10 +658,12 @@ class LowerClusterIdx(RewritePattern):
 @dataclass(frozen=True)
 class ConvertSnrtToRISCV(SnrtConstants, ModulePass):
     """
-    Convert snitch runtime operations to their definitions as per the snitch runtime spec.
+    Inline operations of the snrt dialect to their definitions.
+
+    Uses arith operations where possible,
     """
 
-    name = "convert-snrt-to-riscv"
+    name = "inline-snrt"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(

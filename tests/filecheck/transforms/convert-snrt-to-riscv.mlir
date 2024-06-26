@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-snrt-to-riscv{cluster-num=2} | filecheck %s
+// RUN: xdsl-opt %s -p inline-snrt{cluster-num=2} | filecheck %s
 
 
 %global_core_base_hartid = "snrt.global_core_base_hartid"() : () -> i32
