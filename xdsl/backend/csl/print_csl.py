@@ -513,7 +513,7 @@ class CslPrintContext:
                     res_name = self._get_variable_name_for(res)
                     kind = "const" if constness else "var"
                     self.print(
-                        f"{kind} {res_name} : {type} = @constants({self._var_use(size)}, {self._var_use(val)});"
+                        f"{kind} {res_name} : {type} = @constants({type}, {self._var_use(val)});"
                     )
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const

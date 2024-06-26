@@ -404,10 +404,10 @@ csl.func @builtins() {
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn constants() void {
-// CHECK-NEXT:   var v0 : [const27]i16 = @constants(const27, const27);
-// CHECK-NEXT:   const v1 : [const27]i16 = @constants(const27, const27);
-// CHECK-NEXT:   const v2 : [const27]i32 = @constants(const27, 100);
-// CHECK-NEXT:   const v3 : [100]i32 = @constants(100, 100);
+// CHECK-NEXT:   var v0 : [const27]i16 = @constants([const27]i16, const27);
+// CHECK-NEXT:   const v1 : [const27]i16 = @constants([const27]i16, const27);
+// CHECK-NEXT:   const v2 : [const27]i32 = @constants([const27]i32, 100);
+// CHECK-NEXT:   const v3 : [100]i32 = @constants([100]i32, 100);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
