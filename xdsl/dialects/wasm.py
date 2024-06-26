@@ -64,8 +64,6 @@ LocalIdx = I32Attr
 LabelIdx = I32Attr
 
 
-# TODO: group operations via big comment separators
-
 ##==------------------------------------------------------------------------==##
 # WebAssembly value types
 ##==------------------------------------------------------------------------==##
