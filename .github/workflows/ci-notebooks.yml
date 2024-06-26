@@ -36,5 +36,4 @@ jobs:
         pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
     - name: Test marimo notebooks
       run: |
-        cd xdsl
         make tests-marimo
