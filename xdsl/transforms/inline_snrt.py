@@ -622,11 +622,13 @@ class LowerGlobalCoreIdx(RewritePattern):
             [
                 zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
                 hartid := riscv.CsrrsOp(zero, IntegerAttr(0xF14, 12), readonly=True),
-                hartid_i32 := builtin.UnrealizedConversionCastOp.get([hartid], [builtin.i32]),
-                base_hartid := arith.Constant.from_int_and_width(self.constants.base_hartid, builtin.i32),
-                arith.Subi(
-                    hartid_i32, base_hartid
+                hartid_i32 := builtin.UnrealizedConversionCastOp.get(
+                    [hartid], [builtin.i32]
                 ),
+                base_hartid := arith.Constant.from_int_and_width(
+                    self.constants.base_hartid, builtin.i32
+                ),
+                arith.Subi(hartid_i32, base_hartid),
             ]
         )
 
