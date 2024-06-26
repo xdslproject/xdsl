@@ -622,11 +622,11 @@ class LowerGlobalCoreIdx(RewritePattern):
             [
                 zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
                 hartid := riscv.CsrrsOp(zero, IntegerAttr(0xF14, 12), readonly=True),
-                base_hartid := riscv.LiOp(self.constants.base_hartid),
-                core_idx := riscv.SubOp(
-                    hartid, base_hartid, rd=riscv.IntRegisterType.unallocated()
+                hartid_i32 := builtin.UnrealizedConversionCastOp.get([hartid], [builtin.i32]),
+                base_hartid := arith.Constant.from_int_and_width(self.constants.base_hartid, builtin.i32),
+                arith.Subi(
+                    hartid_i32, base_hartid
                 ),
-                builtin.UnrealizedConversionCastOp.get([core_idx], [builtin.i32]),
             ]
         )
 
@@ -660,7 +660,7 @@ class ConvertSnrtToRISCV(SnrtConstants, ModulePass):
     """
     Inline operations of the snrt dialect to their definitions.
 
-    Uses arith operations where possible,
+    Uses arith operations where possible, and emit `riscv.csr*` and `riscv_snitch` ops where required.
     """
 
     name = "inline-snrt"
