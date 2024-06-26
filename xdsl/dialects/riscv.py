@@ -762,8 +762,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    # https://github.com/xdslproject/xdsl/issues/2056
-    immediate = attr_def(IntegerAttr[IntegerType] | LabelAttr)
+    immediate: SImm12Attr | LabelAttr = attr_def(SImm12Attr | LabelAttr)
 
     def __init__(
         self,
@@ -774,7 +773,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i12)
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -799,7 +798,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, i12)
+        attributes["immediate"] = _parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -808,7 +807,7 @@ class RdRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         return {"immediate"}
 
 
-class RdRsImmShiftOperation(RdRsImmIntegerOperation):
+class RdRsImmShiftOperation(IRDLOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -822,6 +821,10 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
     imm[5] 6 != 0 but the shift amount is encoded in the lower 6 bits of the I-immediate field for RV64I.
     """
 
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    immediate: UImm5Attr | LabelAttr = attr_def(UImm5Attr | LabelAttr)
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -832,14 +835,37 @@ class RdRsImmShiftOperation(RdRsImmIntegerOperation):
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, ui5)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
 
-        super().__init__(rs1, immediate, rd=rd, comment=comment)
+        if rd is None:
+            rd = IntRegisterType.unallocated()
+        elif isinstance(rd, str):
+            rd = IntRegisterType(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[rs1],
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
         attributes["immediate"] = _parse_immediate_value(parser, ui5)
         return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> Set[str]:
+        printer.print(", ")
+        _print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 class RdRsImmJumpOperation(IRDLOperation, RISCVInstruction, ABC):
@@ -999,7 +1025,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
-    immediate = attr_def(Imm12Attr)
+    immediate = attr_def(SImm12Attr)
 
     def __init__(
         self,
@@ -1010,7 +1036,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i12)
+            immediate = IntegerAttr(immediate, si12)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -1030,7 +1056,7 @@ class RsRsImmIntegerOperation(IRDLOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, i12)
+        attributes["immediate"] = _parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
@@ -2814,7 +2840,7 @@ class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
 
     res: OpResult = result_def(RDInvT)
 
-    traits = frozenset((AllocatedMemoryEffect(),))
+    traits = frozenset((RegisterAllocatedMemoryEffect(),))
 
     def __init__(
         self,
@@ -2854,7 +2880,7 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     rs2: Operand = operand_def(FloatRegisterType)
     rs3: Operand = operand_def(FloatRegisterType)
 
-    traits = frozenset((AllocatedMemoryEffect(),))
+    traits = frozenset((RegisterAllocatedMemoryEffect(),))
 
     def __init__(
         self,
@@ -3744,8 +3770,12 @@ def _parse_optional_immediate_value(
     """
     Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
     """
+    pos = parser.pos
     if (immediate := parser.parse_optional_integer()) is not None:
-        return IntegerAttr(immediate, integer_type)
+        try:
+            return IntegerAttr(immediate, integer_type)
+        except VerifyException as e:
+            parser.raise_error(e.args[0], pos)
     if (immediate := parser.parse_optional_str_literal()) is not None:
         return LabelAttr(immediate)
 

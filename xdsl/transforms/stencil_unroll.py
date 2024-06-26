@@ -4,6 +4,7 @@ from itertools import product
 from math import prod
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -14,10 +15,7 @@ from xdsl.dialects.stencil import (
     ReturnOp,
     TempType,
 )
-from xdsl.ir import (
-    Attribute,
-    MLContext,
-)
+from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,

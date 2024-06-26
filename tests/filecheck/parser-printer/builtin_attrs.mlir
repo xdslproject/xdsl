@@ -8,6 +8,9 @@
 
   // CHECK: (index)
 
+  "func.func"() ({}) {function_type = () -> (), sym_name = "unit_attr_func", unitarray = [unit]} : () -> ()
+
+  // CHECK: "unitarray" = [unit]
 
   "func.func"() ({
     ^bb0(%arg0: i32, %arg1: i64, %arg2: i1):

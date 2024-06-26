@@ -4,10 +4,11 @@ from dataclasses import dataclass, field
 from math import prod
 from typing import ClassVar, TypeVar, cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, memref, mpi, printf, scf, stencil
 from xdsl.dialects.builtin import ContainerType
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import Attribute, Block, MLContext, Operation, OpResult, Region, SSAValue
+from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -16,7 +17,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.experimental.dmp.decompositions import (
     DomainDecompositionStrategy,
     GridSlice2d,
@@ -334,7 +335,7 @@ def generate_mpi_calls_for(
         )
 
     # wait for all calls to complete
-    yield mpi.Waitall.get(reqs.result, req_cnt.result)
+    yield mpi.Waitall(reqs.result, req_cnt.result)
 
     # start shuffling data into the main memref again
     for ex, buffer, cond_val in recv_buffers:
@@ -440,7 +441,7 @@ class MpiLoopInvariantCodeMotion:
             op.ref.owner, memref.Alloc
         ):
             op.detach()
-            rewriter.insert_op_after(op.ref.owner, op)
+            rewriter.insert_op(op, InsertPoint.after(op.ref.owner))
             return
 
         base = op
@@ -472,12 +473,12 @@ class MpiLoopInvariantCodeMotion:
             block = parent.regions[0].blocks[-1]
             return_op = block.last_op
             assert return_op is not None
-            rewriter.insert_op_before(return_op, mpi.Finalize())
+            rewriter.insert_op(mpi.Finalize(), InsertPoint.before(return_op))
 
         ops = list(collect_args_recursive(op))
         for found_op in ops:
             found_op.detach()
-            rewriter.insert_op_before(base, found_op)
+            rewriter.insert_op(found_op, InsertPoint.before(base))
 
     def get_matcher(
         self,

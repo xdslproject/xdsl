@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import pytest
 from conftest import assert_print_op
 
+from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Muli
 from xdsl.dialects.builtin import (
@@ -16,7 +17,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Block, MLContext, Operation, SSAValue
+from xdsl.ir import Block, Operation, SSAValue
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -28,6 +29,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -386,7 +388,7 @@ def test_insert_op_at_start():
         def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
             new_cst = Constant.from_int_and_width(42, i32)
 
-            rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
+            rewriter.insert_op(new_cst, InsertPoint.at_start(mod.regions[0].blocks[0]))
 
     rewrite_and_compare(
         prog,
@@ -415,7 +417,7 @@ def test_insert_op_before():
 
             first_op = mod.ops.first
             assert first_op is not None
-            rewriter.insert_op_before(new_cst, first_op)
+            rewriter.insert_op(new_cst, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -444,7 +446,7 @@ def test_insert_op_after():
 
             first_op = mod.ops.first
             assert first_op is not None
-            rewriter.insert_op_after(new_cst, first_op)
+            rewriter.insert_op(new_cst, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -830,7 +832,7 @@ def test_inline_block_before():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block_before(inner_block, first_op)
+                    rewriter.inline_block(inner_block, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -869,7 +871,9 @@ def test_inline_block_at_before_when_op_is_matched_op():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.inline_block_before(matched_op.regs[0].blocks[0], matched_op)
+                rewriter.inline_block(
+                    matched_op.regs[0].blocks[0], InsertPoint.before(matched_op)
+                )
 
     rewrite_and_compare(
         prog,
@@ -923,8 +927,8 @@ def test_inline_block_before_with_args():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block_before(
-                        inner_block, first_op, outer_block.args
+                    rewriter.inline_block(
+                        inner_block, InsertPoint.before(first_op), outer_block.args
                     )
 
     rewrite_and_compare(
@@ -976,7 +980,7 @@ def test_inline_block_after():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_block, first_op)
+                        rewriter.inline_block(inner_block, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -1027,7 +1031,9 @@ def test_inline_block_after_matched():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_block, matched_op)
+                        rewriter.inline_block(
+                            inner_block, InsertPoint.after(matched_op)
+                        )
 
     rewrite_and_compare(
         prog,
@@ -1071,7 +1077,7 @@ def test_move_region_contents_to_new_regions():
             new_region = rewriter.move_region_contents_to_new_regions(old_op.regions[0])
             res_types = [r.type for r in old_op.results]
             new_op = test.TestOp.create(result_types=res_types, regions=[new_region])
-            rewriter.insert_op_after(new_op, old_op)
+            rewriter.insert_op(new_op, InsertPoint.after(old_op))
 
     rewrite_and_compare(
         prog,
@@ -1137,9 +1143,9 @@ def test_insert_same_block():
             )
 
             # Allocate before first use
-            rewriter.insert_op_at_start(alloc, block)
+            rewriter.insert_op(alloc, InsertPoint.at_start(block))
             # Deallocate after last use
-            rewriter.insert_op_before(dealloc, last_op)
+            rewriter.insert_op(dealloc, InsertPoint.before(last_op))
             # Init instead of creating, and replace result with allocated value
             rewriter.replace_matched_op(init, alloc.res)
 

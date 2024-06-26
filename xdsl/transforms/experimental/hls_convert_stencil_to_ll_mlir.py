@@ -2,6 +2,7 @@ import typing
 from dataclasses import dataclass, field
 
 from xdsl.builder import Builder
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, llvm, memref, scf, stencil
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import (
@@ -47,7 +48,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    MLContext,
     Operation,
     OpResult,
     Region,
@@ -61,6 +61,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import (
     AccessOpToMemref,
     CastOpToMemref,
@@ -354,7 +355,7 @@ def add_read_write_ops(
         stream_to_write: BlockArgument = op.region.block.args[arg_index_write]
         write_op = HLSStreamWrite(stencil_return_vals[stencil_idx], stream_to_write)
 
-        rewriter.insert_op_at_end(write_op, op.region.block)
+        rewriter.insert_op(write_op, InsertPoint.at_end(op.region.block))
 
     for arg_index_read in indices_stream_to_read:
         stream_to_read = op.region.block.args[arg_index_read]
@@ -362,7 +363,7 @@ def add_read_write_ops(
         read_op = HLSStreamRead(stream_to_read)
         read_op.attributes["write_data"] = IntAttr(1)
 
-        rewriter.insert_op_at_start(read_op, op.region.block)
+        rewriter.insert_op(read_op, InsertPoint.at_start(op.region.block))
 
 
 def transform_apply_into_loop(
@@ -871,9 +872,9 @@ class StencilStoreToSubview(RewritePattern):
                 name = subview.source.name_hint + "_storeview"
             subview.result.name_hint = name
             if isinstance(field.owner, Operation):
-                rewriter.insert_op_after(subview, field.owner)
+                rewriter.insert_op(subview, InsertPoint.after(field.owner))
             else:
-                rewriter.insert_op_at_start(subview, field.owner)
+                rewriter.insert_op(subview, InsertPoint.at_start(field.owner))
 
             rewriter.erase_op(store)
 
@@ -1014,7 +1015,9 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
 
                 for data_stream in self.data_streams:
                     data_stream.op.detach()
-                    rewriter.insert_op_before(data_stream.op, parent_dataflow)
+                    rewriter.insert_op(
+                        data_stream.op, InsertPoint.before(parent_dataflow)
+                    )
 
 
 @dataclass
@@ -1231,14 +1234,18 @@ class QualifyInterfacesPass(RewritePattern):
                     call_interface_func = func.Call(
                         interface_func_name, [op.body.blocks[0].args[arg_idx]], []
                     )
-                    rewriter.insert_op_at_start(call_interface_func, op.body.blocks[0])
+                    rewriter.insert_op(
+                        call_interface_func, InsertPoint.at_start(op.body.blocks[0])
+                    )
 
                     bundle_idx += 1
                 else:
                     call_interface_func = llvm.CallOp(
                         self.interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
                     )
-                    rewriter.insert_op_at_start(call_interface_func, op.body.blocks[0])
+                    rewriter.insert_op(
+                        call_interface_func, InsertPoint.at_start(op.body.blocks[0])
+                    )
                     self.called_coeff_func = True
 
                 arg_idx += 1

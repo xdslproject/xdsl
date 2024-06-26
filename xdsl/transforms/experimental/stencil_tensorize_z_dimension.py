@@ -1,9 +1,17 @@
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import TypeGuard, cast
 
 from attr import dataclass
 
-from xdsl.dialects.arith import Addf, Divf, FloatingPointLikeBinaryOp, Mulf, Subf
+from xdsl.context import MLContext
+from xdsl.dialects.arith import (
+    Addf,
+    BinaryOperation,
+    Divf,
+    FloatingPointLikeBinaryOp,
+    Mulf,
+    Subf,
+)
 from xdsl.dialects.builtin import (
     AnyFloat,
     ContainerType,
@@ -30,7 +38,6 @@ from xdsl.dialects.stencil import (
 from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp
 from xdsl.ir import (
     Attribute,
-    MLContext,
     Operation,
 )
 from xdsl.passes import ModulePass
@@ -43,6 +50,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -140,16 +148,16 @@ class AccessOpTensorize(RewritePattern):
         extract = ExtractSliceOp.from_static_parameters(
             a, [z_offset], element_t.get_shape()
         )
-        rewriter.insert_op_before(a, op)
+        rewriter.insert_op(a, InsertPoint.before(op))
         rewriter.replace_matched_op(extract)
 
 
 def arithBinaryOpTensorize(
-    type_constructor: Callable[..., FloatingPointLikeBinaryOp],
     op: FloatingPointLikeBinaryOp,
     rewriter: PatternRewriter,
     /,
 ):
+    type_constructor = type(op)
     if is_tensor(op.result.type):
         return
     if is_tensor(op.lhs.type) and is_tensor(op.rhs.type):
@@ -159,43 +167,27 @@ def arithBinaryOpTensorize(
     elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
         emptyop = EmptyOp((), op.lhs.type)
         fillop = FillOp((op.rhs,), (emptyop,), (op.lhs.type,))
-        rewriter.insert_op_before(emptyop, op)
-        rewriter.insert_op_before(fillop, op)
+        rewriter.insert_op(emptyop, InsertPoint.before(op))
+        rewriter.insert_op(fillop, InsertPoint.before(op))
         rewriter.replace_matched_op(
             type_constructor(op.lhs, fillop, flags=None, result_type=op.lhs.type)
         )
     elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
         emptyop = EmptyOp((), op.rhs.type)
         fillop = FillOp((op.lhs,), (emptyop,), (op.rhs.type,))
-        rewriter.insert_op_before(emptyop, op)
-        rewriter.insert_op_before(fillop, op)
+        rewriter.insert_op(emptyop, InsertPoint.before(op))
+        rewriter.insert_op(fillop, InsertPoint.before(op))
         rewriter.replace_matched_op(
             type_constructor(fillop, op.rhs, flags=None, result_type=op.rhs.type)
         )
 
 
-class ArithAddfOpTensorize(RewritePattern):
+class ArithOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Addf, rewriter: PatternRewriter, /):
-        arithBinaryOpTensorize(Addf, op, rewriter)
-
-
-class ArithSubfOpTensorize(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Subf, rewriter: PatternRewriter, /):
-        arithBinaryOpTensorize(Subf, op, rewriter)
-
-
-class ArithMulfOpTensorize(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Mulf, rewriter: PatternRewriter, /):
-        arithBinaryOpTensorize(Mulf, op, rewriter)
-
-
-class ArithDivfOpTensorize(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Divf, rewriter: PatternRewriter, /):
-        arithBinaryOpTensorize(Divf, op, rewriter)
+    def match_and_rewrite(
+        self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
+    ):
+        arithBinaryOpTensorize(op, rewriter)
 
 
 @dataclass(frozen=True)
@@ -228,8 +220,10 @@ class FuncOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         for arg in op.args:
-            assert isa(arg.type, MemRefType[Attribute])
-            op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
+            if isa(arg.type, MemRefType[Attribute]):
+                op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
+            elif isa(arg.type, FieldType[Attribute]):
+                op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
 
 
 def is_tensorized(
@@ -323,40 +317,24 @@ class ExtractSliceOpUpdateShape(RewritePattern):
 
 
 def arithBinaryOpUpdateShape(
-    type_constructor: Callable[..., FloatingPointLikeBinaryOp],
-    op: FloatingPointLikeBinaryOp,
+    op: BinaryOperation[Attribute],
     rewriter: PatternRewriter,
     /,
 ):
+    type_constructor = type(op)
     if typ := get_required_result_type(op):
         if needs_update_shape(op.result.type, typ):
             rewriter.replace_matched_op(
-                type_constructor(op.lhs, op.rhs, flags=None, result_type=typ)
+                type_constructor(op.lhs, op.rhs, result_type=typ)
             )
 
 
-class ArithAddfOpUpdateShape(RewritePattern):
+class ArithOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Addf, rewriter: PatternRewriter, /):
-        arithBinaryOpUpdateShape(Addf, op, rewriter)
-
-
-class ArithSubfOpUpdateShape(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Subf, rewriter: PatternRewriter, /):
-        arithBinaryOpUpdateShape(Subf, op, rewriter)
-
-
-class ArithMulfOpUpdateShape(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Mulf, rewriter: PatternRewriter, /):
-        arithBinaryOpUpdateShape(Mulf, op, rewriter)
-
-
-class ArithDivfOpUpdateShape(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: Divf, rewriter: PatternRewriter, /):
-        arithBinaryOpUpdateShape(Divf, op, rewriter)
+    def match_and_rewrite(
+        self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
+    ):
+        arithBinaryOpUpdateShape(op, rewriter)
 
 
 class EmptyOpUpdateShape(RewritePattern):
@@ -401,10 +379,7 @@ class StencilTensorizeZDimension(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     AccessOpTensorize(),
-                    ArithAddfOpTensorize(),
-                    ArithMulfOpTensorize(),
-                    ArithSubfOpTensorize(),
-                    ArithDivfOpTensorize(),
+                    ArithOpTensorize(),
                 ]
             ),
             walk_reverse=False,
@@ -418,10 +393,7 @@ class StencilTensorizeZDimension(ModulePass):
                     ExtractSliceOpUpdateShape(),
                     EmptyOpUpdateShape(),
                     FillOpUpdateShape(),
-                    ArithAddfOpUpdateShape(),
-                    ArithSubfOpUpdateShape(),
-                    ArithMulfOpUpdateShape(),
-                    ArithDivfOpUpdateShape(),
+                    ArithOpUpdateShape(),
                 ]
             ),
             walk_reverse=True,

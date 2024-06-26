@@ -3,6 +3,7 @@ from itertools import product
 from typing import TypeVar
 from warnings import warn
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
@@ -32,7 +33,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    MLContext,
     Operation,
     OpResult,
     Region,
@@ -49,6 +49,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -298,19 +299,19 @@ class BufferOpToMemref(RewritePattern):
             [1] * temp_t.get_num_dims(),
         )
 
-        rewriter.insert_op_before(alloc, first_op)
-        rewriter.insert_op_before(view, first_op)
+        rewriter.insert_op(alloc, InsertPoint.before(first_op))
+        rewriter.insert_op(view, InsertPoint.before(first_op))
 
         update_return_target(self.return_targets, op.temp, view.result)
 
         dealloc = memref.Dealloc.get(alloc.memref)
 
         if not op.res.uses:
-            rewriter.insert_op_after(dealloc, op)
+            rewriter.insert_op_after_matched_op(dealloc)
             rewriter.erase_matched_op()
             return
 
-        rewriter.insert_op_before(dealloc, last_op)
+        rewriter.insert_op(dealloc, InsertPoint.before(last_op))
         rewriter.replace_matched_op([], [view.result])
 
 
@@ -464,9 +465,9 @@ class StencilStoreToSubview(RewritePattern):
             name = subview.source.name_hint + "_storeview"
         subview.result.name_hint = name
         if isinstance(field.owner, Operation):
-            rewriter.insert_op_after(subview, field.owner)
+            rewriter.insert_op(subview, InsertPoint.after(field.owner))
         else:
-            rewriter.insert_op_at_start(subview, field.owner)
+            rewriter.insert_op(subview, InsertPoint.at_start(field.owner))
 
         rewriter.erase_matched_op()
 

@@ -4,10 +4,10 @@ from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
     ConvertFuncToRiscvFuncPass,
 )
 from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import TestType
-from xdsl.ir import MLContext
 from xdsl.utils.test_value import TestSSAValue
 
 NINE_TYPES = [TestType("misc")] * 9

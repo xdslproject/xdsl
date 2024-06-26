@@ -27,6 +27,7 @@ builtin.module {
     %9 = "memref.memory_space_cast"(%5) : (memref<10x2xindex>) -> memref<10x2xindex, 1: i32>
     %10 = memref.alloc() : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
     %11 = "memref.alloca"() {"operandSegmentSizes" = array<i32: 0, 0>} : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+    %base_buffer, %offset, %sizes:2, %strides:2 = "memref.extract_strided_metadata"(%11) {"resultSegmentSizes" = array<i32: 1, 1, 2, 2>}: (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> (memref<index>, index, index, index, index, index)
     %12, %13, %14 = "test.op"() : () -> (index, index, index)
     %15 = memref.alloc(%12) {"alignment" = 0} : memref<?xindex>
     %16 = memref.alloc(%12, %13, %14) {"alignment" = 0} : memref<?x?x?xindex>
@@ -39,12 +40,15 @@ builtin.module {
     memref.dealloc %8 : memref<1xindex>
     memref.dealloc %10 : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
     memref.dealloc %11 : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+    %fmemref = "test.op"() : () -> memref<32x32xf32>
+    %e = "test.op"() : () -> f32
+    %207 = "memref.atomic_rmw"(%e, %fmemref, %1, %1) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
 
     func.return
   }
 }
 
-// CHECK-NEXT: builtin.module {
+// CHECK-NEXT:  builtin.module {
 // CHECK-NEXT:    func.func @memref_alloca_scope() {
 // CHECK-NEXT:      "memref.alloca_scope"() ({
 // CHECK-NEXT:        "memref.alloca_scope.return"() : () -> ()
@@ -71,6 +75,7 @@ builtin.module {
 // CHECK-NEXT:     %{{.*}} = "memref.memory_space_cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<10x2xindex, 1 : i32>
 // CHECK-NEXT:     %{{.*}} = memref.alloc() : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{"operandSegmentSizes" = array<i32: 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+// CHECK-NEXT:     %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} = "memref.extract_strided_metadata"(%{{.*}}) {"resultSegmentSizes" = array<i32: 1, 1, 2, 2>} : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> (memref<index>, index, index, index, index, index)
 // CHECK-NEXT:     %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (index, index, index)
 // CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}) {"alignment" = 0 : i64} : memref<?xindex>
 // CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}, %{{.*}}, %{{.*}}) {"alignment" = 0 : i64} : memref<?x?x?xindex>
@@ -83,6 +88,9 @@ builtin.module {
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<1xindex>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
 // CHECK-NEXT:     memref.dealloc %{{.*}} : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> memref<32x32xf32>
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> f32
+// CHECK-NEXT:      %{{.*}} = "memref.atomic_rmw"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"kind" = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

@@ -4,319 +4,13 @@ import sys
 from collections.abc import Callable
 from typing import IO
 
+from xdsl.context import MLContext
+from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Dialect, MLContext
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Span
-
-
-def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
-    """Returns all available dialects."""
-
-    def get_accfg():
-        from xdsl.dialects.accfg import ACCFG
-
-        return ACCFG
-
-    def get_affine():
-        from xdsl.dialects.affine import Affine
-
-        return Affine
-
-    def get_aie():
-        from xdsl.dialects.experimental.aie import AIE
-
-        return AIE
-
-    def get_air():
-        from xdsl.dialects.experimental.air import AIR
-
-        return AIR
-
-    def get_arith():
-        from xdsl.dialects.arith import Arith
-
-        return Arith
-
-    def get_bufferization():
-        from xdsl.dialects.bufferization import Bufferization
-
-        return Bufferization
-
-    def get_builtin():
-        from xdsl.dialects.builtin import Builtin
-
-        return Builtin
-
-    def get_cf():
-        from xdsl.dialects.cf import Cf
-
-        return Cf
-
-    def get_cmath():
-        from xdsl.dialects.cmath import CMath
-
-        return CMath
-
-    def get_comb():
-        from xdsl.dialects.comb import Comb
-
-        return Comb
-
-    def get_csl():
-        from xdsl.dialects.csl import CSL
-
-        return CSL
-
-    def get_dmp():
-        from xdsl.dialects.experimental.dmp import DMP
-
-        return DMP
-
-    def get_fir():
-        from xdsl.dialects.experimental.fir import FIR
-
-        return FIR
-
-    def get_fsm():
-        from xdsl.dialects.fsm import FSM
-
-        return FSM
-
-    def get_func():
-        from xdsl.dialects.func import Func
-
-        return Func
-
-    def get_gpu():
-        from xdsl.dialects.gpu import GPU
-
-        return GPU
-
-    def get_hlfir():
-        from xdsl.dialects.experimental.hlfir import HLFIR
-
-        return HLFIR
-
-    def get_hls():
-        from xdsl.dialects.experimental.hls import HLS
-
-        return HLS
-
-    def get_hw():
-        from xdsl.dialects.hw import HW
-
-        return HW
-
-    def get_linalg():
-        from xdsl.dialects.linalg import Linalg
-
-        return Linalg
-
-    def get_irdl():
-        from xdsl.dialects.irdl.irdl import IRDL
-
-        return IRDL
-
-    def get_llvm():
-        from xdsl.dialects.llvm import LLVM
-
-        return LLVM
-
-    def get_ltl():
-        from xdsl.dialects.ltl import LTL
-
-        return LTL
-
-    def get_math():
-        from xdsl.dialects.experimental.math import Math
-
-        return Math
-
-    def get_memref():
-        from xdsl.dialects.memref import MemRef
-
-        return MemRef
-
-    def get_memref_stream():
-        from xdsl.dialects.memref_stream import MemrefStream
-
-        return MemrefStream
-
-    def get_ml_program():
-        from xdsl.dialects.ml_program import MLProgram
-
-        return MLProgram
-
-    def get_mpi():
-        from xdsl.dialects.mpi import MPI
-
-        return MPI
-
-    def get_omp():
-        from xdsl.dialects.omp import OMP
-
-        return OMP
-
-    def get_onnx():
-        from xdsl.dialects.onnx import ONNX
-
-        return ONNX
-
-    def get_pdl():
-        from xdsl.dialects.pdl import PDL
-
-        return PDL
-
-    def get_printf():
-        from xdsl.dialects.printf import Printf
-
-        return Printf
-
-    def get_riscv_debug():
-        from xdsl.dialects.riscv_debug import RISCV_Debug
-
-        return RISCV_Debug
-
-    def get_riscv():
-        from xdsl.dialects.riscv import RISCV
-
-        return RISCV
-
-    def get_riscv_func():
-        from xdsl.dialects.riscv_func import RISCV_Func
-
-        return RISCV_Func
-
-    def get_riscv_scf():
-        from xdsl.dialects.riscv_scf import RISCV_Scf
-
-        return RISCV_Scf
-
-    def get_riscv_cf():
-        from xdsl.dialects.riscv_cf import RISCV_Cf
-
-        return RISCV_Cf
-
-    def get_riscv_snitch():
-        from xdsl.dialects.riscv_snitch import RISCV_Snitch
-
-        return RISCV_Snitch
-
-    def get_scf():
-        from xdsl.dialects.scf import Scf
-
-        return Scf
-
-    def get_seq():
-        from xdsl.dialects.seq import Seq
-
-        return Seq
-
-    def get_snitch():
-        from xdsl.dialects.snitch import Snitch
-
-        return Snitch
-
-    def get_snitch_runtime():
-        from xdsl.dialects.snitch_runtime import SnitchRuntime
-
-        return SnitchRuntime
-
-    def get_snitch_stream():
-        from xdsl.dialects.snitch_stream import SnitchStream
-
-        return SnitchStream
-
-    def get_stencil():
-        from xdsl.dialects.stencil import Stencil
-
-        return Stencil
-
-    def get_stream():
-        from xdsl.dialects.stream import Stream
-
-        return Stream
-
-    def get_symref():
-        from xdsl.frontend.symref import Symref
-
-        return Symref
-
-    def get_tensor():
-        from xdsl.dialects.tensor import Tensor
-
-        return Tensor
-
-    def get_test():
-        from xdsl.dialects.test import Test
-
-        return Test
-
-    def get_vector():
-        from xdsl.dialects.vector import Vector
-
-        return Vector
-
-    def get_x86():
-        from xdsl.dialects.x86 import X86
-
-        return X86
-
-    return {
-        "accfg": get_accfg,
-        "affine": get_affine,
-        "aie": get_aie,
-        "air": get_air,
-        "arith": get_arith,
-        "bufferization": get_bufferization,
-        "builtin": get_builtin,
-        "cf": get_cf,
-        "cmath": get_cmath,
-        "comb": get_comb,
-        "csl": get_csl,
-        "dmp": get_dmp,
-        "fir": get_fir,
-        "fsm": get_fsm,
-        "func": get_func,
-        "gpu": get_gpu,
-        "hlfir": get_hlfir,
-        "hls": get_hls,
-        "hw": get_hw,
-        "linalg": get_linalg,
-        "irdl": get_irdl,
-        "llvm": get_llvm,
-        "ltl": get_ltl,
-        "math": get_math,
-        "memref": get_memref,
-        "memref_stream": get_memref_stream,
-        "ml_program": get_ml_program,
-        "mpi": get_mpi,
-        "omp": get_omp,
-        "onnx": get_onnx,
-        "pdl": get_pdl,
-        "printf": get_printf,
-        "riscv": get_riscv,
-        "riscv_debug": get_riscv_debug,
-        "riscv_func": get_riscv_func,
-        "riscv_scf": get_riscv_scf,
-        "riscv_cf": get_riscv_cf,
-        "riscv_snitch": get_riscv_snitch,
-        "scf": get_scf,
-        "seq": get_seq,
-        "snitch": get_snitch,
-        "snrt": get_snitch_runtime,
-        "snitch_stream": get_snitch_stream,
-        "stencil": get_stencil,
-        "stream": get_stream,
-        "symref": get_symref,
-        "tensor": get_tensor,
-        "test": get_test,
-        "vector": get_vector,
-        "x86": get_x86,
-    }
 
 
 def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
@@ -378,9 +72,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return constant_fold_interp.ConstantFoldInterpPass
 
     def get_convert_snrt_to_riscv():
-        from xdsl.transforms import convert_snrt_to_riscv
+        from xdsl.transforms import inline_snrt
 
-        return convert_snrt_to_riscv.ConvertSnrtToRISCV
+        return inline_snrt.ConvertSnrtToRISCV
 
     def get_convert_stencil_to_ll_mlir():
         from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
@@ -457,6 +151,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return memref_streamify.MemrefStreamifyPass
 
+    def get_memref_stream_unnest_out_parameters():
+        from xdsl.transforms import memref_stream_unnest_out_parameters
+
+        return memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass
+
+    def get_memref_stream_fold_fill():
+        from xdsl.transforms import memref_stream_fold_fill
+
+        return memref_stream_fold_fill.MemrefStreamFoldFillPass
+
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
 
@@ -492,6 +196,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return snitch_register_allocation.SnitchRegisterAllocation
 
+    def get_riscv_prologue_epilogue_insertion():
+        from xdsl.backend.riscv import prologue_epilogue_insertion
+
+        return prologue_epilogue_insertion.PrologueEpilogueInsertion
+
     def get_convert_arith_to_riscv():
         from xdsl.backend.riscv.lowering import convert_arith_to_riscv
 
@@ -526,6 +235,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
         return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
+
+    def get_convert_qref_to_qssa():
+        from xdsl.transforms import convert_qref_to_qssa
+
+        return convert_qref_to_qssa.ConvertQRefToQssa
+
+    def get_convert_qssa_to_qref():
+        from xdsl.transforms import convert_qssa_to_qref
+
+        return convert_qssa_to_qref.ConvertQssaToQRef
 
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
@@ -584,6 +303,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_tensorize_z_dimension.StencilTensorizeZDimension
 
+    def get_stencil_to_csl_stencil():
+        from xdsl.transforms import stencil_to_csl_stencil
+
+        return stencil_to_csl_stencil.StencilToCslStencilPass
+
     def get_stencil_unroll():
         from xdsl.transforms import stencil_unroll
 
@@ -610,12 +334,14 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
+        "convert-qref-to-qssa": get_convert_qref_to_qssa,
+        "convert-qssa-to-qref": get_convert_qssa_to_qref,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
-        "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
+        "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
         "dce": get_dce,
@@ -634,6 +360,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
         "lower-snitch": get_lower_snitch,
         "memref-streamify": get_memref_streamify,
+        "memref-stream-unnest-out-parameters": get_memref_stream_unnest_out_parameters,
+        "memref-stream-fold-fill": get_memref_stream_fold_fill,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,
@@ -644,9 +372,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
+        "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
         "stencil-shape-inference": get_stencil_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
+        "stencil-to-csl-stencil": get_stencil_to_csl_stencil,
         "stencil-unroll": get_stencil_unroll,
         "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
     }

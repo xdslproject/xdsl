@@ -3,8 +3,8 @@ from typing import Literal
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass, get_pass_argument_names_and_types
 
 

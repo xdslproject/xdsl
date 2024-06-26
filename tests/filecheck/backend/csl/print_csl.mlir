@@ -21,6 +21,8 @@
   %const27 = arith.constant 27 : i16
   %ssa_struct = "csl.const_struct"(%const27) <{ssa_fields = ["val"]}> : (i16) -> !csl.comptime_struct
 
+  %concat = "csl.concat_structs"(%empty_struct, %attribute_struct) : (!csl.comptime_struct, !csl.comptime_struct) -> !csl.comptime_struct
+
   %no_param_import = "csl.import_module"() <{module = "<mod>"}> : () -> !csl.imported_module
   %param_import = "csl.import_module"(%ssa_struct) <{module = "<mod>"}> : (!csl.comptime_struct) -> !csl.imported_module
 
@@ -51,6 +53,20 @@
     %castI16again = "arith.trunci"(%constI32) : (i32) -> i16
     %castI32again = "arith.extsi"(%castI16) : (i16) -> i32
     %castU32 = "arith.extui"(%constU16)  : (ui16) -> ui32
+    csl.return
+  }
+
+  csl.func @constants() {
+    %inline_const = arith.constant 100 : i32
+
+    %1 = "csl.constants"(%const27, %const27) : (i16, i16) -> memref<?xi16>
+
+    %2 = "csl.constants"(%const27, %const27) <{is_const}> : (i16, i16) -> memref<?xi16>
+
+    %3 = "csl.constants"(%const27, %inline_const) <{is_const}> : (i16, i32) -> memref<?xi32>
+
+    %4 = "csl.constants"(%inline_const, %inline_const) <{is_const}> : (i32, i32) -> memref<?xi32>
+
     csl.return
   }
 
@@ -111,7 +127,8 @@
 
   "csl.export"() <{type = (i32, i32) -> (), var_name = @args_no_return}> : () -> ()
 
-    %col  = "csl.get_color"() <{id = 15 : i5}> : () -> !csl.color
+    %cst15 = arith.constant 15 : i32
+    %col  = "csl.get_color"(%cst15) : (i32) -> !csl.color
 
     "csl.rpc"(%col) : (!csl.color) -> ()
 
@@ -210,12 +227,119 @@ csl.func @gemv() {
   csl.return
 }
 
-}) {sym_name = "program"} : () -> ()
+csl.func @ctrlflow() {
+  %0 = arith.constant 0 : i1
+  %1 = arith.constant 1 : i1
+  %i32_value = arith.constant 100 : si32
+  "scf.if"(%0) ({
+    %2 = arith.constant 2 : si32
+    scf.yield
+  }, {
+    %3 = arith.constant 3 : si32
+    scf.yield
+  }) : (i1) -> ()
+
+  "scf.if"(%1) ({
+    %4 = arith.constant 4 : si32
+    scf.yield
+  }, {
+    scf.yield
+  }) : (i1) -> ()
+
+  %i32ret = "scf.if"(%0) ({
+    %5 = arith.constant 111 : i32
+    scf.yield %5 : i32
+  }, {
+    %6 = arith.constant 222 : i32
+    scf.yield %6 : i32
+  }) : (i1) -> (i32)
+
+
+  csl.return
+}
+
+csl.func @builtins() {
+  %i8_value = arith.constant 10 : si8
+  %i16_value = arith.constant 10 : si16
+  %u16_value = arith.constant 12 : ui16
+  %i32_value = arith.constant 100 : si32
+  %u32_value = arith.constant 120 : ui32
+  %f16_value = arith.constant 7.0 : f16
+  %f32_value = arith.constant 8.0 : f32
+  %three = arith.constant 3 : i16
+  %col_1 = "csl.get_color"(%three) : (i16) -> !csl.color
+  %f16_pointer = "csl.addressof"(%f16_value) : (f16) -> !csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %f32_pointer = "csl.addressof"(%f32_value) : (f32) -> !csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %i16_pointer = "csl.addressof"(%i16_value) : (si16) -> !csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %i32_pointer = "csl.addressof"(%i32_value) : (si32) -> !csl.ptr<si32, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %u16_pointer = "csl.addressof"(%u16_value) : (ui16) -> !csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>
+  %u32_pointer = "csl.addressof"(%u32_value) : (ui32) -> !csl.ptr<ui32, #csl<ptr_kind single>, #csl<ptr_const var>>
+
+  %A = memref.get_global @A : memref<24xf32>
+  %dsd_2d = "csl.get_mem_dsd"(%A, %i32_value, %i32_value) <{"strides" = [3, 4], "offsets" = [1, 2]}> : (memref<24xf32>, si32, si32) -> !csl<dsd mem4d_dsd>
+  %dest_dsd = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+  %src_dsd1 = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+  %src_dsd2 = "csl.get_mem_dsd"(%A, %i32_value) : (memref<24xf32>, si32) -> !csl<dsd mem1d_dsd>
+
+  %dsd_1d2 = "csl.set_dsd_base_addr"(%dest_dsd, %A) : (!csl<dsd mem1d_dsd>, memref<24xf32>) -> !csl<dsd mem1d_dsd>
+  %dsd_1d3 = "csl.increment_dsd_offset"(%dsd_1d2, %i16_value) <{"elem_type" = f32}> : (!csl<dsd mem1d_dsd>, si16) -> !csl<dsd mem1d_dsd>
+  %dsd_1d4 = "csl.set_dsd_length"(%dsd_1d3, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> !csl<dsd mem1d_dsd>
+  %dsd_1d5 = "csl.set_dsd_stride"(%dsd_1d4, %i8_value) : (!csl<dsd mem1d_dsd>, si8) -> !csl<dsd mem1d_dsd>
+
+  %fabin_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 2 : i5 , "queue_id" = 0 : i3}> : (si32) -> !csl<dsd fabin_dsd>
+  %fabout_dsd = "csl.get_fab_dsd"(%i32_value) <{"fabric_color" = 3 : i5 , "queue_id" = 1 : i3, "control"= true, "wavelet_index_offset" = false}>: (si32) -> !csl<dsd fabout_dsd>
+
+  "csl.add16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.addc16"(%dest_dsd, %i16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, si16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.and16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.clz"(%dest_dsd, %i16_value) : (!csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.ctz"(%dest_dsd, %u16_value) : (!csl<dsd mem1d_dsd>, ui16) -> ()
+  "csl.fabsh"(%dest_dsd, %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.fabss"(%dest_dsd, %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.faddh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.faddhs"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fadds"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fh2s"(%dest_dsd, %f16_value) : (!csl<dsd mem1d_dsd>, f16) -> ()
+  "csl.fh2xp16"(%i16_pointer, %f16_value) : (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16) -> ()
+  "csl.fmacs" (%dest_dsd, %src_dsd1, %src_dsd2, %f32_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.fmaxh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmaxs"(%dest_dsd,    %f32_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmovh"(%f16_pointer, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmovs"(%dest_dsd,    %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.fmulh"(%dest_dsd,    %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fmuls"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fnegh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fnegs"(%dest_dsd, %f32_value) : (!csl<dsd mem1d_dsd>, f32) -> ()
+  "csl.fnormh"(%f16_pointer, %f16_value) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16) -> ()
+  "csl.fnorms"(%f32_pointer, %f32_value) : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32) -> ()
+  "csl.fs2h"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fs2xp16"(%i16_pointer, %f32_value) : (!csl.ptr<si16, #csl<ptr_kind single>, #csl<ptr_const var>>, f32) -> ()
+  "csl.fscaleh"(%f16_pointer, %f16_value, %i16_value) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, si16) -> ()
+  "csl.fscales"(%f32_pointer, %f32_value, %i16_value) : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, si16) -> ()
+  "csl.fsubh"(%f16_pointer, %f16_value, %src_dsd1)  : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.fsubs"(%f32_pointer, %f32_value, %src_dsd1)  : (!csl.ptr<f32, #csl<ptr_kind single>, #csl<ptr_const var>>, f32, !csl<dsd mem1d_dsd>) -> ()
+  "csl.mov16"(%u16_pointer, %src_dsd1)  : (!csl.ptr<ui16, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.mov32"(%i32_pointer, %src_dsd1)  : (!csl.ptr<si32, #csl<ptr_kind single>, #csl<ptr_const var>>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.or16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+  "csl.popcnt"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sar16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.sll16"(%dest_dsd, %u16_value, %src_dsd1)  : (!csl<dsd mem1d_dsd>, ui16, !csl<dsd mem1d_dsd>) -> ()
+  "csl.slr16"(%dest_dsd, %src_dsd1,  %i16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, si16) -> ()
+  "csl.sub16"(%dest_dsd, %src_dsd1,  %u16_value) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, ui16) -> ()
+  "csl.xor16"(%dest_dsd, %src_dsd1,  %src_dsd2)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.xp162fh"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+  "csl.xp162fs"(%dest_dsd, %src_dsd1)  : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
+
+  csl.return
+}
+
+}) {sym_name = "program.csl"} : () -> ()
 
 
 "csl.module"() <{kind=#csl<module_kind layout>}> ({
   %p1 = "csl.param"() <{param_name = "param_1"}> : () -> i32
-  %p2 = "csl.param"() <{param_name = "param_2", init_value = 1.3 : f16}> : () -> f16
+  %init = arith.constant 3.14 : f16
+  %p2 = "csl.param"(%init) <{param_name = "param_2"}> : (f16) -> f16
 
   csl.layout {
     %x_dim = arith.constant 4 : i32
@@ -228,54 +352,62 @@ csl.func @gemv() {
 
     %params = "csl.const_struct"(){items = {hello = 123 : i32}} : () -> !csl.comptime_struct
     %x_coord1 = arith.constant 1 : i32
-    "csl.set_tile_code"(%x_coord1, %y_coord, %params) <{file = "file.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
+    "csl.set_tile_code"(%x_coord1, %y_coord, %params) <{file = "program.csl"}> : (i32, i32, !csl.comptime_struct) -> ()
 
   }
-}) {sym_name = "layout"} : () -> ()
+}) {sym_name = "layout.csl"} : () -> ()
 
+// CHECK-NEXT: // FILE: program.csl
 // CHECK-NEXT:
 // CHECK-NEXT: fn no_args_no_return() void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn no_args_return() f32 {
-// CHECK-NEXT:   const c : f32 = 5.0;
-// CHECK-NEXT:   return c;
+// CHECK-NEXT:   return 5.0;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn args_no_return(a : i32, b : i32) void {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
-// CHECK-NEXT: //unknown op ConstStructOp(%empty_struct = "csl.const_struct"() : () -> !csl.comptime_struct)
-// CHECK-NEXT: //unknown op ConstStructOp(%attribute_struct = "csl.const_struct"() <{"items" = {"hello" = 1.230000e+02 : f32}}> : () -> !csl.comptime_struct)
+// CHECK-NEXT: const empty_struct : comptime_struct = .{
+// CHECK-NEXT: };
+// CHECK-NEXT: const attribute_struct : comptime_struct = .{
+// CHECK-NEXT:   .hello = 123.0,
+// CHECK-NEXT: };
 // CHECK-NEXT: const const27 : i16 = 27;
-// CHECK-NEXT: //unknown op ConstStructOp(%ssa_struct = "csl.const_struct"(%const27) <{"ssa_fields" = ["val"]}> : (i16) -> !csl.comptime_struct)
+// CHECK-NEXT: const ssa_struct : comptime_struct = .{
+// CHECK-NEXT:   .val = const27,
+// CHECK-NEXT: };
+// CHECK-NEXT: const concat : comptime_struct = @concat_structs(empty_struct, attribute_struct);
 // CHECK-NEXT: const no_param_import : imported_module = @import_module("<mod>");
 // CHECK-NEXT: const param_import : imported_module = @import_module("<mod>", ssa_struct);
 // CHECK-NEXT: param_import.foo();
 // CHECK-NEXT: param_import.bar(const27);
 // CHECK-NEXT: const val2 : f32 = param_import.baz();
-// CHECK-NEXT: const val3 : i32 = param_import.f;
 // CHECK-NEXT:
 // CHECK-NEXT: fn main() void {
 // CHECK-NEXT:   no_args_no_return();
-// CHECK-NEXT:   args_no_return(val3, val3);
+// CHECK-NEXT:   args_no_return(param_import.f, param_import.f);
 // CHECK-NEXT:   const ret : f32 = no_args_return();
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn casts() void {
-// CHECK-NEXT:   const constI32 : i32 = 0;
-// CHECK-NEXT:   const constU16 : u16 = 0;
-// CHECK-NEXT:   const constF32 : f32 = 0.0;
-// CHECK-NEXT:   const castIndex : i32 = @as(i32, constU16);
-// CHECK-NEXT:   const castF16 : f16 = @as(f16, constI32);
-// CHECK-NEXT:   const castI16 : i16 = @as(i16, constF32);
-// CHECK-NEXT:   const castF32 : f32 = @as(f32, castF16);
-// CHECK-NEXT:   const castF16again : f16 = @as(f16, constF32);
-// CHECK-NEXT:   const castI16again : i16 = @as(i16, constI32);
-// CHECK-NEXT:   const castI32again : i32 = @as(i32, castI16);
-// CHECK-NEXT:   const castU32 : u32 = @as(u32, constU16);
+// CHECK-NEXT:   const castIndex : i32 = @as(i32, 0);
+// CHECK-NEXT:   const castF32 : f32 = @as(f32, @as(f16, 0));
+// CHECK-NEXT:   const castF16again : f16 = @as(f16, 0.0);
+// CHECK-NEXT:   const castI16again : i16 = @as(i16, 0);
+// CHECK-NEXT:   const castI32again : i32 = @as(i32, @as(i16, 0.0));
+// CHECK-NEXT:   const castU32 : u32 = @as(u32, 0);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: fn constants() void {
+// CHECK-NEXT:   var v0 : [const27]i16 = @constants([const27]i16, const27);
+// CHECK-NEXT:   const v1 : [const27]i16 = @constants([const27]i16, const27);
+// CHECK-NEXT:   const v2 : [const27]i32 = @constants([const27]i32, 100);
+// CHECK-NEXT:   const v3 : [100]i32 = @constants([100]i32, 100);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
@@ -314,7 +446,6 @@ csl.func @gemv() {
 // CHECK-NEXT: var uninit_array : [10]f32;
 // CHECK-NEXT: var global_array : [10]f32 = @constants([10]f32, 4.2);
 // CHECK-NEXT: const const_array : [10]i32 = @constants([10]i32, 10);
-
 // CHECK-NEXT: var uninit_ptr : [*]f32 = &uninit_array;
 // CHECK-NEXT: var global_ptr : [*]f32 = &global_array;
 // CHECK-NEXT: const const_ptr : [*]const i32 = &const_array;
@@ -332,9 +463,9 @@ csl.func @gemv() {
 // CHECK-NEXT: comptime {
 // CHECK-NEXT:   @export_symbol(args_no_return, "args_no_return");
 // CHECK-NEXT: }
-// CHECK-NEXT: //unknown op GetColorOp(%col = "csl.get_color"() <{"id" = 15 : i5}> : () -> !csl.color)
-// CHECK-NEXT: //unknown op RpcOp("csl.rpc"(%col) : (!csl.color) -> ())
-
+// CHECK-NEXT: comptime {
+// CHECK-NEXT:   @rpc(@get_data_task_id(@get_color(15)));
+// CHECK-NEXT: }
 // CHECK-NEXT: var A : [24]f32 = @constants([24]f32, 0);
 // CHECK-NEXT: var x : [6]f32 = @constants([6]f32, 0);
 // CHECK-NEXT: var b : [4]f32 = @constants([4]f32, 0);
@@ -342,78 +473,159 @@ csl.func @gemv() {
 // CHECK-NEXT: const thing : imported_module = @import_module("<thing>");
 // CHECK-NEXT:
 // CHECK-NEXT: fn initialize() void {
-// CHECK-NEXT:   const lb : i16 = 0;
-// CHECK-NEXT:   const ub : i16 = 24;
-// CHECK-NEXT:   const step : i16 = 1;
-// CHECK-NEXT:   thing.some_func(lb, ub);
-// CHECK-NEXT:   const res : i32 = thing.some_func(lb, ub);
+// CHECK-NEXT:   thing.some_func(0, 24);
+// CHECK-NEXT:   const res : i32 = thing.some_func(0, 24);
 // CHECK-NEXT:   const v1 : comptime_struct = thing.some_field;
 // CHECK-NEXT:   const v2 : f32 = 3.14;
 // CHECK-NEXT:   const v0 : f16 = 2.718;
 // CHECK-NEXT:   const u32cst : u32 = 44;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i16, lb, ub, step)) |idx| {
-// CHECK-NEXT:     const idx_f32 : f32 = @as(f32, idx);
-// CHECK-NEXT:     const idx_index : i32 = @as(i32, idx);
-// CHECK-NEXT:     A[idx_index] = idx_f32;
+// CHECK-NEXT:   for(@range(i16, 0, 24, 1)) |idx| {
+// CHECK-NEXT:     A[@as(i32, idx)] = @as(f32, idx);
 // CHECK-NEXT:   }
-// CHECK-NEXT:   const ub3 : i16 = 6;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i16, lb, ub3, step)) |j| {
-// CHECK-NEXT:     const val : f32 = 1.0;
-// CHECK-NEXT:     const j_idx : i32 = @as(i32, j);
-// CHECK-NEXT:     x[j_idx] = val;
+// CHECK-NEXT:   for(@range(i16, 0, 6, 1)) |j| {
+// CHECK-NEXT:     x[@as(i32, j)] = 1.0;
 // CHECK-NEXT:   }
-// CHECK-NEXT:   const ub4 : i16 = 6;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i16, lb, ub4, step)) |i| {
-// CHECK-NEXT:     const c2 : f32 = 2.0;
-// CHECK-NEXT:     const c0 : f32 = 0.0;
-// CHECK-NEXT:     const i_idx : i32 = @as(i32, i);
-// CHECK-NEXT:     b[i_idx] = c2;
-// CHECK-NEXT:     y[i_idx] = c0;
+// CHECK-NEXT:   for(@range(i16, 0, 6, 1)) |i| {
+// CHECK-NEXT:     b[@as(i32, i)] = 2.0;
+// CHECK-NEXT:     y[@as(i32, i)] = 0.0;
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 // CHECK-NEXT:
 // CHECK-NEXT: fn gemv() void {
-// CHECK-NEXT:   const lb : i32 = 0;
-// CHECK-NEXT:   const step : i32 = 1;
-// CHECK-NEXT:   const ub : i32 = 6;
-// CHECK-NEXT:   const ub1 : i32 = 4;
 // CHECK-NEXT:
-// CHECK-NEXT:   for(@range(i32, lb, ub1, step)) |i| {
-// CHECK-NEXT:     const tmp : f32 = 0.0;
-// CHECK-NEXT:     var tmp2 : f32 = tmp;
+// CHECK-NEXT:   for(@range(i32, 0, 4, 1)) |i| {
+// CHECK-NEXT:     var tmp : f32 = 0.0;
 // CHECK-NEXT:
-// CHECK-NEXT:     for(@range(i32, lb, ub, step)) |j| {
-// CHECK-NEXT:       const ix6 : i32 = i * ub;
-// CHECK-NEXT:       const ix6pj : i32 = ix6 +  j;
-// CHECK-NEXT:       const Axx : f32 = (A[ix6pj]) * (x[j]);
-// CHECK-NEXT:       tmp2 = tmp2 + Axx;
+// CHECK-NEXT:     for(@range(i32, 0, 6, 1)) |j| {
+// CHECK-NEXT:       tmp = tmp + ((A[((i * 6) + j)]) * (x[j]));
 // CHECK-NEXT:     }
-// CHECK-NEXT:     const tmp_plus_bi : f32 =  tmp2 + (b[i]);
-// CHECK-NEXT:     y[i] = tmp_plus_bi;
+// CHECK-NEXT:     y[i] = (tmp + (b[i]));
 // CHECK-NEXT:   }
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
-// CHECK-NEXT: // >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //
-// CHECK-NEXT: //unknown op ParamOp(%p1 = "csl.param"() <{"param_name" = "param_1"}> : () -> i32)
-// CHECK-NEXT: //unknown op ParamOp(%p2 = "csl.param"() <{"param_name" = "param_2", "init_value" = 1.300000e+00 : f16}> : () -> f16)
+// CHECK-NEXT:
+// CHECK-NEXT: fn ctrlflow() void {
+// CHECK-NEXT:   const i32_value : i32 = 100;
+// CHECK-NEXT:   if (false) {
+// CHECK-NEXT:     const v1 : i32 = 2;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   else {
+// CHECK-NEXT:     const v1 : i32 = 3;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   if (true) {
+// CHECK-NEXT:     const v1 : i32 = 4;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   var i32ret : i32;
+// CHECK-NEXT:   if (false) {
+// CHECK-NEXT:     i32ret = 111;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   else {
+// CHECK-NEXT:     i32ret = 222;
+// CHECK-NEXT:   }
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT:
+// CHECK-NEXT: fn builtins() void {
+// CHECK-NEXT:   const i16_value : i16 = 10;
+// CHECK-NEXT:   const u16_value : u16 = 12;
+// CHECK-NEXT:   const i32_value : i32 = 100;
+// CHECK-NEXT:   const u32_value : u32 = 120;
+// CHECK-NEXT:   const f16_value : f16 = 7.0;
+// CHECK-NEXT:   const f32_value : f32 = 8.0;
+// CHECK-NEXT:   const col : color = @get_color(3);
+// CHECK-NEXT:   var f16_pointer : *f16 = &f16_value;
+// CHECK-NEXT:   var f32_pointer : *f32 = &f32_value;
+// CHECK-NEXT:   var i16_pointer : *i16 = &i16_value;
+// CHECK-NEXT:   var i32_pointer : *i32 = &i32_value;
+// CHECK-NEXT:   var u16_pointer : *u16 = &u16_value;
+// CHECK-NEXT:   var u32_pointer : *u32 = &u32_value;
+// CHECK-NEXT:   const dsd_2d : mem4d_dsd = @get_dsd( mem4d_dsd .{
+// CHECK-NEXT:     .tensor_access = | d0, d1 | { i32_value, i32_value } -> A[ 3 * d0 + 1, 4 * d1 + 2 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const dest_dsd : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const src_dsd1 : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const src_dsd2 : mem1d_dsd = @get_dsd( mem1d_dsd .{
+// CHECK-NEXT:     .tensor_access = | d0 | { i32_value } -> A[ d0 ]
+// CHECK-NEXT:   });
+// CHECK-NEXT:   const dsd_1d2 : mem1d_dsd = @set_dsd_base_addr(dest_dsd, A);
+// CHECK-NEXT:   const dsd_1d3 : mem1d_dsd = @increment_dsd_offset(dsd_1d2, i16_value, f32);
+// CHECK-NEXT:   const dsd_1d4 : mem1d_dsd = @set_dsd_length(dsd_1d3, u16_value);
+// CHECK-NEXT:   const dsd_1d5 : mem1d_dsd = @set_dsd_stride(dsd_1d4, 10);
+// CHECK-NEXT:   const fabin_dsd : fabin_dsd = @get_dsd(fabin_dsd, .{
+// CHECK-NEXT:     .extent = i32_value,
+// CHECK-NEXT:     .input_queue = @get_input_queue(0),
+// CHECK-NEXT:     .fabric_color = 2 : i5,
+// CHECK-NEXT:   }});
+// CHECK-NEXT:   const fabout_dsd : fabout_dsd = @get_dsd(fabout_dsd, .{
+// CHECK-NEXT:     .extent = i32_value,
+// CHECK-NEXT:     .output_queue = @get_output_queue(1),
+// CHECK-NEXT:     .fabric_color = 3 : i5,
+// CHECK-NEXT:     .wavelet_index_offset = false,
+// CHECK-NEXT:     .control = true,
+// CHECK-NEXT:   }});
+// CHECK-NEXT:   @add16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @addc16(dest_dsd, i16_value, src_dsd1);
+// CHECK-NEXT:   @and16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @clz(dest_dsd, i16_value);
+// CHECK-NEXT:   @ctz(dest_dsd, u16_value);
+// CHECK-NEXT:   @fabsh(dest_dsd, f16_value);
+// CHECK-NEXT:   @fabss(dest_dsd, f32_value);
+// CHECK-NEXT:   @faddh(f16_pointer, f16_value, src_dsd1);
+// CHECK-NEXT:   @faddhs(f32_pointer, f32_value, src_dsd1);
+// CHECK-NEXT:   @fadds(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fh2s(dest_dsd, f16_value);
+// CHECK-NEXT:   @fh2xp16(i16_pointer, f16_value);
+// CHECK-NEXT:   @fmacs(dest_dsd, src_dsd1, src_dsd2, f32_value);
+// CHECK-NEXT:   @fmaxh(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fmaxs(dest_dsd, f32_value, src_dsd1);
+// CHECK-NEXT:   @fmovh(f16_pointer, src_dsd1);
+// CHECK-NEXT:   @fmovs(dest_dsd, f32_value);
+// CHECK-NEXT:   @fmulh(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @fmuls(f32_pointer, f32_value, src_dsd1);
+// CHECK-NEXT:   @fnegh(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fnegs(dest_dsd, f32_value);
+// CHECK-NEXT:   @fnormh(f16_pointer, f16_value);
+// CHECK-NEXT:   @fnorms(f32_pointer, f32_value);
+// CHECK-NEXT:   @fs2h(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @fs2xp16(i16_pointer, f32_value);
+// CHECK-NEXT:   @fscaleh(f16_pointer, f16_value, i16_value);
+// CHECK-NEXT:   @fscales(f32_pointer, f32_value, i16_value);
+// CHECK-NEXT:   @fsubh(f16_pointer, f16_value, src_dsd1);
+// CHECK-NEXT:   @fsubs(f32_pointer, f32_value, src_dsd1);
+// CHECK-NEXT:   @mov16(u16_pointer, src_dsd1);
+// CHECK-NEXT:   @mov32(i32_pointer, src_dsd1);
+// CHECK-NEXT:   @or16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @popcnt(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @sar16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @sll16(dest_dsd, u16_value, src_dsd1);
+// CHECK-NEXT:   @slr16(dest_dsd, src_dsd1, i16_value);
+// CHECK-NEXT:   @sub16(dest_dsd, src_dsd1, u16_value);
+// CHECK-NEXT:   @xor16(dest_dsd, src_dsd1, src_dsd2);
+// CHECK-NEXT:   @xp162fh(dest_dsd, src_dsd1);
+// CHECK-NEXT:   @xp162fs(dest_dsd, src_dsd1);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+// CHECK-NEXT: // -----
+// CHECK-NEXT: // FILE: layout.csl
+// CHECK-NEXT: param param_1 : i32;
+// CHECK-NEXT: param param_2 : f16 = 3.14;
 // CHECK-NEXT: layout {
-// CHECK-NEXT:   const x_dim : i32 = 4;
-// CHECK-NEXT:   const y_dim : i32 = 6;
-// CHECK-NEXT:   //unknown op SetRectangleOp("csl.set_rectangle"(%x_dim, %y_dim) : (i32, i32) -> ())
-// CHECK-NEXT:   const x_coord0 : i32 = 0;
-// CHECK-NEXT:   const y_coord : i32 = 0;
-// CHECK-NEXT:   //unknown op SetTileCodeOp("csl.set_tile_code"(%x_coord0, %y_coord) <{"file" = "file.csl"}> : (i32, i32) -> ())
-// CHECK-NEXT:   //unknown op ConstStructOp(%params = "csl.const_struct"() <{"items" = {"hello" = 123 : i32}}> : () -> !csl.comptime_struct)
-// CHECK-NEXT:   const x_coord1 : i32 = 1;
-// CHECK-NEXT:   //unknown op SetTileCodeOp("csl.set_tile_code"(%x_coord1, %y_coord, %params) <{"file" = "file.csl"}> : (i32, i32, !csl.comptime_struct) -> ())
+// CHECK-NEXT:   @set_rectangle(4, 6);
+// CHECK-NEXT:   @set_tile_code(0, 0, "file.csl", );
+// CHECK-NEXT:   const params : comptime_struct = .{
+// CHECK-NEXT:     .hello = 123,
+// CHECK-NEXT:   };
+// CHECK-NEXT:   @set_tile_code(1, 0, "program.csl", params);
 // CHECK-NEXT:   @export_name("ptr_name", [*]f32, true);
 // CHECK-NEXT:   @export_name("another_ptr", [*]const i32, false);
 // CHECK-NEXT:   @export_name("no_args_no_return", fn() void, );
 // CHECK-NEXT:   @export_name("args_no_return", fn(i32, i32) void, );
 // CHECK-NEXT: }
-
-// CHECK-EMPTY:

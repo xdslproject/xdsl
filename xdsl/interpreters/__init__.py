@@ -1,3 +1,4 @@
+from xdsl.context import MLContext
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import (
     affine,
@@ -21,7 +22,6 @@ from xdsl.interpreters import (
     tensor,
 )
 from xdsl.interpreters.experimental import pdl
-from xdsl.ir import MLContext
 
 
 def register_implementations(

@@ -11,9 +11,10 @@ from xdsl.dialects.builtin import (
     IntegerType,
     StringAttr,
     i32,
+    i64,
 )
 from xdsl.dialects.test import TestType
-from xdsl.ir import Attribute, OpResult, Region
+from xdsl.ir import Attribute, Block, OpResult, Region
 from xdsl.irdl import (
     AnyAttr,
     AttributeDef,
@@ -22,6 +23,7 @@ from xdsl.irdl import (
     AttrSizedResultSegments,
     BaseAttr,
     ConstraintVar,
+    EqAttrConstraint,
     IRDLOperation,
     OpDef,
     Operand,
@@ -30,6 +32,7 @@ from xdsl.irdl import (
     OptOpResult,
     OptRegion,
     PropertyDef,
+    RangeOf,
     RegionDef,
     ResultDef,
     VarOperand,
@@ -50,6 +53,7 @@ from xdsl.irdl import (
     var_region_def,
     var_result_def,
 )
+from xdsl.traits import NoTerminator
 from xdsl.utils.exceptions import (
     DiagnosticException,
     PyRDLOpDefinitionError,
@@ -627,3 +631,41 @@ def test_multiple_inheritance_op():
     )
     with pytest.raises(DiagnosticException):
         op_attr_fail.verify()
+
+
+@irdl_op_definition
+class EntryArgsOp(IRDLOperation):
+    name = "test.entry_args"
+    body = opt_region_def(entry_args=RangeOf(EqAttrConstraint(i32)))
+
+    traits = frozenset((NoTerminator(),))
+
+
+def test_entry_args_op():
+    op = EntryArgsOp.create()
+    op.verify()
+
+    op = EntryArgsOp.create(regions=[Region(Block(arg_types=[]))])
+    op.verify()
+    op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i32]))])
+    op.verify()
+    op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i32, i32]))])
+    op.verify()
+
+    op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i64]))])
+    with pytest.raises(
+        DiagnosticException,
+        match="""\
+Operation does not verify: region #0 entry arguments do not verify:
+Expected attribute i32 but got i64""",
+    ):
+        op.verify()
+
+    op = EntryArgsOp.create(regions=[Region(Block(arg_types=[i64, i32]))])
+    with pytest.raises(
+        DiagnosticException,
+        match="""\
+Operation does not verify: region #0 entry arguments do not verify:
+Expected attribute i32 but got i64""",
+    ):
+        op.verify()

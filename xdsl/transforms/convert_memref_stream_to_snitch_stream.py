@@ -9,6 +9,7 @@ from xdsl.backend.riscv.lowering.utils import (
     move_to_unallocated_regs,
     register_type_for_type,
 )
+from xdsl.context import MLContext
 from xdsl.dialects import (
     builtin,
     memref,
@@ -24,7 +25,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import Attribute, MLContext, Operation
+from xdsl.ir import Attribute, Operation
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -34,6 +35,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 class ReadOpLowering(RewritePattern):
@@ -155,9 +157,9 @@ class StreamOpLowering(RewritePattern):
         for i in reversed(range(len(stream_types))):
             arg = new_body.args[i]
             stream_type = stream_types[i]
-            rewriter.insert_op_at_start(
+            rewriter.insert_op(
                 cast_op := builtin.UnrealizedConversionCastOp.get((arg,), (arg.type,)),
-                new_body,
+                InsertPoint.at_start(new_body),
             )
             arg.replace_by(cast_op.results[0])
             cast_op.operands = (arg,)

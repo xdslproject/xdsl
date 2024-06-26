@@ -6,7 +6,9 @@ from typing import Annotated, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyIntegerAttr,
+    AnySignlessIntegerType,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
@@ -15,6 +17,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemrefLayoutAttr,
     MemRefType,
     NoneAttr,
     StridedLayoutAttr,
@@ -25,20 +28,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import (
-    Attribute,
-    Dialect,
-    Operation,
-    OpResult,
-    SSAValue,
-)
+from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    AttrSizedResultSegments,
     ConstraintVar,
     IRDLOperation,
     Operand,
     ParsePropInAttrDict,
     VarOperand,
+    VarOpResult,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -55,10 +54,10 @@ from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
     HasParent,
     IsTerminator,
+    NoMemoryEffect,
     SymbolOpInterface,
 )
 from xdsl.utils.bitwise_casts import is_power_of_two
-from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -136,6 +135,15 @@ class Store(IRDLOperation):
         return cls(operands=[value, ref, indices])
 
 
+class AllocOpHasCanonicalizationPatterns(HasCanonicalisationPatternsTrait):
+
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.memref import ElideUnusedAlloc
+
+        return (ElideUnusedAlloc(),)
+
+
 @irdl_op_definition
 class Alloc(IRDLOperation):
     name = "memref.alloc"
@@ -149,6 +157,8 @@ class Alloc(IRDLOperation):
     alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    traits = frozenset((AllocOpHasCanonicalizationPatterns(),))
 
     def __init__(
         self,
@@ -170,7 +180,7 @@ class Alloc(IRDLOperation):
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> Self:
         if shape is None:
@@ -308,7 +318,7 @@ class Alloca(IRDLOperation):
         alignment: int | AnyIntegerAttr | None = None,
         shape: Iterable[int | IntAttr] | None = None,
         dynamic_sizes: Sequence[SSAValue | Operation] | None = None,
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> Alloca:
         if shape is None:
@@ -342,6 +352,24 @@ class Alloca(IRDLOperation):
 
 
 @irdl_op_definition
+class AtomicRMWOp(IRDLOperation):
+    name = "memref.atomic_rmw"
+
+    T = Annotated[
+        AnyFloat | AnySignlessIntegerType,
+        ConstraintVar("T"),
+    ]
+
+    value = operand_def(T)
+    memref = operand_def(MemRefType[T])
+    indices = var_operand_def(IndexType)
+
+    kind = prop_def(IntegerAttr[Annotated[IntegerType, i64]])
+
+    result = result_def(T)
+
+
+@irdl_op_definition
 class Dealloc(IRDLOperation):
     name = "memref.dealloc"
     memref: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
@@ -359,17 +387,14 @@ class GetGlobal(IRDLOperation):
     memref: OpResult = result_def(MemRefType[Attribute])
     name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
 
+    traits = frozenset([NoMemoryEffect()])
+
+    assembly_format = "$name `:` type($memref) attr-dict"
+
     def __init__(self, name: str | SymbolRefAttr, return_type: Attribute):
         if isinstance(name, str):
             name = SymbolRefAttr(name)
         super().__init__(result_types=[return_type], properties={"name": name})
-
-    @deprecated_constructor
-    @staticmethod
-    def get(name: str | SymbolRefAttr, return_type: Attribute) -> GetGlobal:
-        return GetGlobal(name, return_type)
-
-    assembly_format = "$name `:` type($memref) attr-dict"
 
     # TODO how to verify the types, as the global might be defined in another
     # compilation unit
@@ -439,6 +464,8 @@ class Dim(IRDLOperation):
 
     result: OpResult = result_def(IndexType)
 
+    traits = frozenset([NoMemoryEffect()])
+
     @staticmethod
     def from_source_and_index(
         source: SSAValue | Operation, index: SSAValue | Operation
@@ -453,6 +480,8 @@ class Rank(IRDLOperation):
     source: Operand = operand_def(MemRefType[Attribute])
 
     rank: OpResult = result_def(IndexType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
@@ -471,6 +500,8 @@ class AlterShapeOp(IRDLOperation):
     assembly_format = (
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
+
+    traits = frozenset([NoMemoryEffect()])
 
 
 @irdl_op_definition
@@ -492,12 +523,54 @@ class ExpandShapeOp(AlterShapeOp):
 
 
 @irdl_op_definition
+class ExtractStridedMetaDataOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/MemRef/#memrefextract_strided_metadata-memrefextractstridedmetadataop
+    """
+
+    name = "memref.extract_strided_metadata"
+
+    source: Operand = operand_def(MemRefType)
+
+    base_buffer: OpResult = result_def(MemRefType)
+    offset: OpResult = result_def(IndexType)
+    sizes: VarOpResult = var_result_def(IndexType)
+    strides: VarOpResult = var_result_def(IndexType)
+
+    irdl_options = [AttrSizedResultSegments()]
+
+    def __init__(self, source: SSAValue | Operation):
+        """
+        Create an ExtractStridedMetaDataOp that extracts the metadata from the
+        operation (source) that produces a memref.
+        """
+        source_type = SSAValue.get(source).type
+        assert isa(source_type, MemRefType[Attribute])
+        source_shape = source_type.get_shape()
+        # Return a rank zero memref with the memref type
+        base_buffer_type = MemRefType(
+            source_type.element_type,
+            [],
+            NoneAttr(),
+            source_type.memory_space,
+        )
+        offset_type = IndexType()
+        # There are as many strides/sizes as there are shape dimensions
+        strides_type = [IndexType()] * len(source_shape)
+        sizes_type = [IndexType()] * len(source_shape)
+        return_type = [base_buffer_type, offset_type, strides_type, sizes_type]
+        super().__init__(operands=[source], result_types=return_type)
+
+
+@irdl_op_definition
 class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     name = "memref.extract_aligned_pointer_as_index"
 
     source: Operand = operand_def(MemRefType)
 
     aligned_pointer: OpResult = result_def(IndexType)
+
+    traits = frozenset([NoMemoryEffect()])
 
     @staticmethod
     def get(source: SSAValue | Operation):
@@ -531,7 +604,7 @@ class Subview(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((MemrefHasCanonicalizationPatternsTrait(),))
+    traits = frozenset((MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect()))
 
     @staticmethod
     def from_static_parameters(
@@ -603,6 +676,8 @@ class Cast(IRDLOperation):
     source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
     dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
 
+    traits = frozenset([NoMemoryEffect()])
+
     @staticmethod
     def get(
         source: SSAValue | Operation,
@@ -617,6 +692,8 @@ class MemorySpaceCast(IRDLOperation):
 
     source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
     dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+
+    traits = frozenset([NoMemoryEffect()])
 
     def __init__(
         self,
@@ -784,6 +861,7 @@ MemRef = Dialect(
         Alloca,
         AllocaScopeOp,
         AllocaScopeReturnOp,
+        AtomicRMWOp,
         CopyOp,
         CollapseShapeOp,
         ExpandShapeOp,
@@ -791,6 +869,7 @@ MemRef = Dialect(
         GetGlobal,
         Global,
         Dim,
+        ExtractStridedMetaDataOp,
         ExtractAlignedPointerAsIndexOp,
         Subview,
         Cast,

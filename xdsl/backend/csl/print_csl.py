@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import warnings
+from collections.abc import Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Literal, cast
 
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
-    ContainerType,
+    ArrayAttr,
     DenseIntOrFPElementsAttr,
+    DictionaryAttr,
     Float16Type,
     Float32Type,
     FloatAttr,
@@ -24,15 +27,16 @@ from xdsl.dialects.builtin import (
     TypeAttribute,
     UnitAttr,
 )
-from xdsl.ir import Attribute, Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import Operand
+from xdsl.traits import is_side_effect_free
+from xdsl.utils.hints import isa
 
 
 @dataclass
 class CslPrintContext:
     _INDEX = "i32"
     _INDENT = "  "
-    DIVIDER = "// >>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<< //"
     output: IO[str]
 
     variables: dict[SSAValue, str] = field(default_factory=dict)
@@ -43,6 +47,36 @@ class CslPrintContext:
     _symbols_to_export: dict[str, tuple[TypeAttribute, bool | None]] = field(
         default_factory=dict
     )
+
+    _binops: dict[str, str] = field(default_factory=dict)
+    """
+    Maps operation name => operand for binary operands
+    """
+
+    def register_binops(self):
+        self._binops.update(
+            {
+                arith.Addf.name: "+",
+                arith.Addi.name: "+",
+                arith.Mulf.name: "*",
+                arith.Muli.name: "*",
+                arith.Divf.name: "/",
+                arith.DivSI.name: "/",
+                arith.DivUI.name: "/",
+                arith.Subf.name: "-",
+                arith.Subi.name: "-",
+                arith.RemSI.name: "%",
+                arith.RemUI.name: "%",
+                arith.ShLI.name: "<<",
+            }
+        )
+
+    def _binop_value_expr(self, op: Operation):
+        assert len(op.operands) == 2, "binops must have exactly two operands"
+        assert op.name in self._binops, "unknown binop"
+        a, b = map(self._get_variable_name_for, op.operands)
+
+        return f"{a} {self._binops[op.name]} {b}"
 
     def print(self, text: str, prefix: str = "", end: str = "\n"):
         """
@@ -189,6 +223,32 @@ class CslPrintContext:
         self.variables[val] = name
         return name
 
+    def _memref_type_to_string(self, val: SSAValue):
+        """
+        Generate the string representing the type of a memref.
+
+        We need to get the SSAValue passed here, as for unknown sizes, we need to put the
+        variable name in the type.
+
+        For every unknown size (-1) in the shape, we look up the corresponding operand to the value
+        that created the memref (e.g. memref.alloc, csl.constants, ...)
+        """
+        type = val.type
+        assert isa(type, MemRefType[Attribute])
+        assert isinstance(
+            val, OpResult
+        ), "The value provided to _memref_type_to_string must be an op result"
+        dims: list[str] = []
+        idx = 0
+        for dim in type.get_shape():
+            if dim == -1:
+                dims.append(self.variables[val.owner.operands[idx]])
+                idx += 1
+            else:
+                dims.append(str(dim))
+        dims_str = ",".join(dims)
+        return f"[{dims_str}]{self.mlir_type_to_csl_type(type.element_type)}"
+
     def mlir_type_to_csl_type(self, type_attr: Attribute) -> str:
         """
         Convert an MLR type to a csl type. CSL supports a very limited set of types:
@@ -197,8 +257,14 @@ class CslPrintContext:
         - float types: f16, f32
         - pointers: [*]f32
         - arrays: [64]f32
+        - function: fn(i32) f16
+        - color
+        - comptime_struct
+        - imported_module
+        - type
+        - comptime_string
 
-        This method does not yet support all the types and will be expanded as needed later.
+        This method supports all of these except type and comptime_string
         """
         match type_attr:
             case csl.ComptimeStructType():
@@ -211,6 +277,8 @@ class CslPrintContext:
                 return "f32"
             case IndexType():
                 return self._INDEX
+            case IntegerType(width=IntAttr(1)):
+                return "bool"
             case IntegerType(
                 width=IntAttr(data=width),
                 signedness=SignednessAttr(data=Signedness.UNSIGNED),
@@ -218,10 +286,14 @@ class CslPrintContext:
                 return f"u{width}"
             case IntegerType(width=IntAttr(data=width)):
                 return f"i{width}"
-            case MemRefType():
-                t: ContainerType[TypeAttribute] = type_attr
-                shape = ", ".join(str(s) for s in t.get_shape())
-                type = self.mlir_type_to_csl_type(t.get_element_type())
+            case MemRefType(element_type=Attribute() as elem_t, shape=shape):
+                if any(dim.data == -1 for dim in shape):
+                    raise ValueError(
+                        "Can't print memrefs using mlir_type_to_csl_type if they have dynamic sizes. "
+                        "Use _memref_type_to_string instead"
+                    )
+                shape = ", ".join(str(s.data) for s in shape)
+                type = self.mlir_type_to_csl_type(elem_t)
                 return f"[{shape}]{type}"
             case csl.PtrType(type=ty, kind=kind, constness=const):
                 match kind.data:
@@ -240,6 +312,10 @@ class CslPrintContext:
                 args = map(self.mlir_type_to_csl_type, inp)
                 ret = self.mlir_type_to_csl_type(out.data[0]) if len(out) else "void"
                 return f"fn({', '.join(args)}) {ret}"
+            case csl.ColorType():
+                return "color"
+            case csl.DsdType() as dsd:
+                return dsd.data
             case _:
                 return f"<!unknown type {type_attr}>"
 
@@ -251,27 +327,59 @@ class CslPrintContext:
         match attr:
             case IntAttr(data=val):
                 return str(val)
+            case IntegerAttr(
+                value=val, type=IntegerType(width=IntAttr(data=width))
+            ) if width == 1:
+                return str(bool(val.data)).lower()
             case IntegerAttr(value=val):
                 return str(val.data)
             case FloatAttr(value=val):
                 return str(val.data)
+            case StringAttr() as s:
+                return f'"{s.data}"'
             case _:
                 return f"<!unknown value {attr}>"
 
-    def attribute_type_to_str(self, attr: Attribute) -> str:
+    def _can_promote_result_to_inline_expr(self, var: OpResult):
         """
-        Takes a value-carrying attribute and (IntegerAttr, FloatAttr, etc.)
-        and converts it to a csl expression representing the value's type (f32, u16, ...)
+        Check if a result can be promoted to an immediate. This is only the case if:
+
+        - The variable is not already assigned to a variable name (then we expect that results be assigned there)
+          This happens for example for loop carried variables.
+        - The operation itself is side effect free (e.g. not a load/store)
+        - At least one result is used somewhere (if there are no uses of it, promoting to immediate would erase it)
+        - The variable that would be created isn't used by an AddressOf operation.
         """
-        match attr:
-            case IntAttr():
-                return "<!indeterminate IntAttr type>"
-            case IntegerAttr(type=(IntegerType() | IndexType()) as int_t):
-                return self.mlir_type_to_csl_type(int_t)
-            case FloatAttr(type=(Float16Type() | Float32Type()) as float_t):
-                return self.mlir_type_to_csl_type(float_t)
-            case _:
-                return f"<!unknown type of {attr}>"
+        return (
+            var not in self.variables
+            and is_side_effect_free(var.owner)
+            and any(res.uses for res in var.owner.results)
+            and not any(
+                isinstance(use.operation, csl.AddressOfOp)
+                for res in var.owner.results
+                for use in res.uses
+            )
+        )
+
+    def _print_or_promote_to_inline_expr(
+        self, var: OpResult, value_expr: str, brackets: bool = False
+    ):
+        """
+        Given an SSA value (op result) and a string representing its value.
+
+        Check that the result can be promoted to an expression, or if not
+        assign it to a new variable.
+
+        Optionally adds brackets around the value when promoting to expression.
+        """
+        # prevent exploding expression sizes
+        # also check that the expression is safe to promote
+        if len(value_expr) < 50 and self._can_promote_result_to_inline_expr(var):
+            if brackets:
+                value_expr = f"({value_expr})"
+            self.variables[var] = value_expr
+        else:
+            self.print(f"{self._var_use(var)} = {value_expr};")
 
     def print_block(self, body: Block):
         """
@@ -279,14 +387,15 @@ class CslPrintContext:
         """
         for op in body.ops:
             match op:
+                # handle all binary ops at once:
+                case Operation() if op.name in self._binops:
+                    self._print_or_promote_to_inline_expr(
+                        op.results[0], self._binop_value_expr(op), brackets=True
+                    )
                 case arith.Constant(value=v, result=r):
-                    # v is an attribute that "carries a value", e.g. an IntegerAttr or FloatAttr
-
-                    # convert the carried value to a csl value
-                    value_str = self.attribute_value_to_str(v)
-
-                    # emit a constant instantiation:
-                    self.print(f"{self._var_use(r)} = {value_str};")
+                    self._print_or_promote_to_inline_expr(
+                        r, self.attribute_value_to_str(v)
+                    )
                 case csl.ImportModuleConstOp(module=module, params=params, result=res):
                     name = self._get_variable_name_for(res)
 
@@ -313,7 +422,9 @@ class CslPrintContext:
                     self.print(f"{var}{callee.string_value()}({args});")
                 case csl.MemberAccessOp(struct=struct, field=field, result=res):
                     struct_var = self._get_variable_name_for(struct)
-                    self.print(f"{self._var_use(res)} = {struct_var}.{field.data};")
+                    self._print_or_promote_to_inline_expr(
+                        res, f"{struct_var}.{field.data}"
+                    )
                 case csl.TaskOp(
                     sym_name=name, body=bdy, function_type=ftyp, kind=kind, id=id
                 ):
@@ -325,6 +436,32 @@ class CslPrintContext:
                     self.print("return;")
                 case csl.ReturnOp(ret_val=val) if val is not None:
                     self.print(f"return {self._get_variable_name_for(val)};")
+                case scf.If(
+                    cond=cond,
+                    output=outputs,
+                    true_region=true_region,
+                    false_region=false_region,
+                ):
+                    for o in outputs:
+                        self.print(f"{self._var_use(o, 'var')};")
+                    # Search for all yield operations and match yield argument names to for argument names
+                    for blk in [true_region, false_region]:
+                        if isinstance(blk.block.last_op, scf.Yield):
+                            for yield_arg, o in zip(
+                                blk.block.last_op.arguments, outputs
+                            ):
+                                self.variables[yield_arg] = self.variables[o]
+                    with self.descend(
+                        f"if ({self._get_variable_name_for(cond)})"
+                    ) as inner:
+                        inner.print_block(true_region.block)
+                    if false_region:
+                        if len(outputs) > 0 or not (
+                            len(false_region.block.ops) == 1
+                            and isinstance(false_region.block.first_op, scf.Yield)
+                        ):
+                            with self.descend("else") as inner:
+                                inner.print_block(false_region.block)
                 case scf.For(
                     lb=lower, ub=upper, step=stp, body=bdy, res=results, iter_args=iters
                 ):
@@ -335,10 +472,8 @@ class CslPrintContext:
                         self.print(f"{self._var_use(result, 'var')} = {iter_name};")
                         self.variables[arg] = self.variables[result]
                     # Search for all yield operations and match yield argument names to for argument names
-                    for op in bdy.block.ops:
-                        if not isinstance(op, scf.Yield):
-                            continue
-                        for yield_arg, arg in zip(op.arguments, args):
+                    if isinstance(bdy.block.last_op, scf.Yield):
+                        for yield_arg, arg in zip(bdy.block.last_op.arguments, args):
                             self.variables[yield_arg] = self.variables[arg]
 
                     idx_type = self.mlir_type_to_csl_type(idx.type)
@@ -359,18 +494,25 @@ class CslPrintContext:
                     | arith.TruncIOp(input=inp, result=res)
                     | arith.ExtSIOp(input=inp, result=res)
                     | arith.ExtUIOp(input=inp, result=res)
+                    | csl.SignednessCastOp(inp=inp, result=res)
                 ):
                     name_in = self._get_variable_name_for(inp)
                     type_out = self.mlir_type_to_csl_type(res.type)
-                    self.print(f"{self._var_use(res)} = @as({type_out}, {name_in});")
-                case arith.Muli(lhs=lhs, rhs=rhs, result=res) | arith.Mulf(
-                    lhs=lhs, rhs=rhs, result=res
-                ):
-                    self._print_binop(lhs, rhs, res, "*")
-                case arith.Addi(lhs=lhs, rhs=rhs, result=res) | arith.Addf(
-                    lhs=lhs, rhs=rhs, result=res
-                ):
-                    self._print_binop(lhs, rhs, res, "+")
+                    value_str = f"@as({type_out}, {name_in})"
+                    self._print_or_promote_to_inline_expr(res, value_str)
+                case csl.ConcatStructOp(this_struct=a, another_struct=b, result=res):
+                    a_var = self._get_variable_name_for(a)
+                    b_var = self._get_variable_name_for(b)
+                    self._print_or_promote_to_inline_expr(
+                        res, f"@concat_structs({a_var}, {b_var})"
+                    )
+                case csl.ConstantsOp(value=val, result=res, is_const=constness):
+                    type = self._memref_type_to_string(res)
+                    res_name = self._get_variable_name_for(res)
+                    kind = "const" if constness else "var"
+                    self.print(
+                        f"{kind} {res_name} : {type} = @constants({type}, {self._var_use(val)});"
+                    )
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const
                 ):
@@ -417,6 +559,123 @@ class CslPrintContext:
                             # If specified, get mutability as true/false from python bool
                             mut = str(val[1]).lower() if val[1] is not None else ""
                             inner.print(f'@export_name("{name}", {ty}, {mut});')
+                case csl.ParamOp(init_value=init, param_name=name, res=res):
+                    if init is None:
+                        init = ""
+                    else:
+                        init = f" = { self._get_variable_name_for(init)}"
+                    ty = self.mlir_type_to_csl_type(res.type)
+                    self.print(f"param {name.data} : {ty}{init};")
+                case csl.ConstStructOp(
+                    items=items, ssa_fields=fields, ssa_values=values, res=res
+                ):
+                    items = items or DictionaryAttr({})
+                    fields = fields or ArrayAttr([])
+                    # First print the fields defined by attributes
+                    self.print(f"{self._var_use(res)} = .{{")
+                    for k, v in items.data.items():
+                        v = self.attribute_value_to_str(v)
+                        self.print(f".{k} = {v},", prefix=self._INDENT)
+                    # Then the fields defined by operands, with their corresponding names
+                    for k, v in zip(fields.data, values):
+                        v = self._get_variable_name_for(v)
+                        self.print(f".{k.data} = {v},", prefix=self._INDENT)
+                    self.print("};")
+                case csl.SetTileCodeOp(
+                    file=file, x_coord=x_coord, y_coord=y_coord, params=params
+                ):
+                    file = self.attribute_value_to_str(file)
+                    x = self._get_variable_name_for(x_coord)
+                    y = self._get_variable_name_for(y_coord)
+                    params = self._get_variable_name_for(params) if params else ""
+                    self.print(f"@set_tile_code({x}, {y}, {file}, {params});")
+                case csl.SetRectangleOp(x_dim=x_dim, y_dim=y_dim):
+                    x = self._get_variable_name_for(x_dim)
+                    y = self._get_variable_name_for(y_dim)
+                    self.print(f"@set_rectangle({x}, {y});")
+                case csl.GetColorOp(id=id, res=res):
+                    id = self._get_variable_name_for(id)
+                    self._print_or_promote_to_inline_expr(res, f"@get_color({id})")
+                case csl.RpcOp(id=id):
+                    id = self._get_variable_name_for(id)
+                    with self.descend("comptime") as inner:
+                        inner.print(f"@rpc(@get_data_task_id({id}));")
+                case csl.GetMemDsdOp(
+                    base_addr=base_addr,
+                    offsets=offsets,
+                    strides=strides,
+                    sizes=sizes,
+                    result=result,
+                ):
+                    sizes_str = ", ".join(
+                        self._get_variable_name_for(size) for size in sizes
+                    )
+                    ind_vars = ["d" + str(i) for i in range(len(sizes))]
+                    ind_vars_str = ", ".join(ind_vars)
+                    accesses = [
+                        (f"{str(strides.data[i].value.data)} * " if strides else "")
+                        + ind_vars[i]
+                        + (f" + {str(offsets.data[i].value.data)}" if offsets else "")
+                        for i in range(len(ind_vars))
+                    ]
+                    accesses_str = ", ".join(accesses)
+                    self.print(
+                        f"{self._var_use(result)} = @get_dsd( {self.mlir_type_to_csl_type(result.type)} .{{"
+                    )
+                    self.print(
+                        f"  .tensor_access = | {ind_vars_str} | {{ {sizes_str} }} -> {base_addr.name_hint}[ {accesses_str} ]"
+                    )
+                    self.print("});")
+                case csl.GetFabDsdOp(
+                    sizes=extent,
+                    fabric_color=fabric_color,
+                    queue_id=queue_id,
+                    control=control,
+                    wavelet_index_offset=wavelet_index_offset,
+                    result=result,
+                ):
+                    self.print(
+                        f"{self._var_use(result)} = @get_dsd({self.mlir_type_to_csl_type(result.type)}, .{{ "
+                    )
+                    self.print(f"  .extent = {self._get_variable_name_for(extent[0])},")
+                    q_type = (
+                        "input"
+                        if result.type == csl.DsdType(csl.DsdKind.fabin_dsd)
+                        else "output"
+                    )
+                    self.print(
+                        f"  .{q_type}_queue = @get_{q_type}_queue({queue_id.value.data}),"
+                    )
+                    self.print(f"  .fabric_color = {fabric_color},")
+                    if wavelet_index_offset:
+                        self.print(f"  .wavelet_index_offset = {wavelet_index_offset},")
+                    if control:
+                        self.print(f"  .control = {control},")
+                    self.print("}});")
+                case csl.SetDsdBaseAddrOp(
+                    op=input_dsd, base_addr=base_addr, result=result
+                ):
+                    self.print(
+                        f"{self._var_use(result)} = @set_dsd_base_addr({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(base_addr)});"
+                    )
+                case csl.IncrementDsdOffsetOp(
+                    op=input_dsd, offset=offset, elem_type=elem_type, result=result
+                ):
+                    self.print(
+                        f"{self._var_use(result)} = @increment_dsd_offset({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(offset)}, {self.mlir_type_to_csl_type(elem_type)});"
+                    )
+                case csl.SetDsdLengthOp(op=input_dsd, length=length, result=result):
+                    self.print(
+                        f"{self._var_use(result)} = @set_dsd_length({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(length)});"
+                    )
+                case csl.SetDsdStrideOp(op=input_dsd, stride=stride, result=result):
+                    self.print(
+                        f"{self._var_use(result)} = @set_dsd_stride({self._get_variable_name_for(input_dsd)}, {self._get_variable_name_for(stride)});"
+                    )
+                case csl.BuiltinDsdOp(ops=ops):
+                    self.print(
+                        f"@{op.name.removeprefix('csl.')}({', '.join(map(self._get_variable_name_for, ops))});"
+                    )
                 case anyop:
                     self.print(f"unknown op {anyop}", prefix="//")
 
@@ -450,37 +709,24 @@ class CslPrintContext:
             output=self.output,
             variables=self.variables.copy(),
             _symbols_to_export=self._symbols_to_export,
+            _binops=self._binops,
             _counter=self._counter,
             _prefix=self._prefix + self._INDENT,
         )
         self.print("}")
 
 
-def _get_layout_program(module: ModuleOp) -> tuple[csl.CslModuleOp, csl.CslModuleOp]:
-    """
-    Get the layout and program `csl.module`s from the top level `builtin.module`.
-
-    Makes sure there is exactly 1 layout and 1 program `csl.module`.
-
-    Returns layout first, then program.
-    """
-    ops_list = list(module.body.block.ops)
-    assert all(
-        isinstance(mod, csl.CslModuleOp) for mod in ops_list
-    ), "Expected all top level ops to be csl.module"
-    # We have asserted that this is true above
-    ops_list = cast(list[csl.CslModuleOp], ops_list)
-    assert len(ops_list) == 2, "Expected exactly two top level modules"
-    # This allows program and layout to be scpecified in any order
-    prog = next(
-        filter(lambda mod: mod.kind.data == csl.ModuleKind.PROGRAM, ops_list), None
-    )
-    layout = next(
-        filter(lambda mod: mod.kind.data == csl.ModuleKind.LAYOUT, ops_list), None
-    )
-    assert prog is not None, "Expected exactly 1 program module"
-    assert layout is not None, "Expected exactly 1 layout module"
-    return layout, prog
+def get_csl_modules_in_module_op(module: ModuleOp) -> Iterable[csl.CslModuleOp]:
+    layouts: list[csl.CslModuleOp] = []
+    for op in module.body.ops:
+        if isinstance(op, csl.CslModuleOp):
+            if op.kind == csl.ModuleKind.LAYOUT:
+                layouts.append(op)
+                continue
+            yield op
+        else:
+            warnings.warn("Expected all top-level operations to be `csl.module` ops!")
+    yield from layouts
 
 
 def print_to_csl(prog: ModuleOp, output: IO[str]):
@@ -488,7 +734,12 @@ def print_to_csl(prog: ModuleOp, output: IO[str]):
     Takes a module op and prints it to the given output stream.
     """
     ctx = CslPrintContext(output)
-    layout, program = _get_layout_program(prog)
-    ctx.print_block(program.body.block)
-    ctx.print(ctx.DIVIDER)
-    ctx.print_block(layout.body.block)
+    ctx.register_binops()
+
+    divider = False
+    for module in get_csl_modules_in_module_op(prog):
+        if divider:
+            ctx.print("// -----")
+        divider = True
+        ctx.print("// FILE: " + module.sym_name.data)
+        ctx.print_block(module.body.block)

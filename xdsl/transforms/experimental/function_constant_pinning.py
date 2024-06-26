@@ -1,9 +1,10 @@
 from collections.abc import Iterable
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, scf
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
-from xdsl.ir import Attribute, Block, MLContext, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -11,6 +12,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 
 PIN_CONSTANT_VALS = "pin_to_constants"
@@ -52,7 +54,7 @@ class FunctionConstantPinning(RewritePattern):
         # insert the specialized function after the generic function (the one we matched on)
         rewriter.insert_op_after_matched_op(new_func)
         # insert a compare to the value we specialize and, and branch on if we are equal
-        rewriter.insert_op_after(
+        rewriter.insert_op(
             [
                 cst := arith.Constant(val, split_op.results[0].type),
                 is_eq := arith.Cmpi(split_op.results[0], cst, "eq"),
@@ -74,7 +76,7 @@ class FunctionConstantPinning(RewritePattern):
                     Region(dest_block := Block()),
                 ),
             ],
-            split_op,
+            InsertPoint.after(split_op),
         )
 
         # iterate over the remainder of the function:
@@ -88,13 +90,15 @@ class FunctionConstantPinning(RewritePattern):
                 # detatch the function
                 function_remainder.detach()
                 # re-insert it inside the else block of the if statement
-                rewriter.insert_op_at_end(function_remainder, dest_block)
+                rewriter.insert_op(function_remainder, InsertPoint.at_end(dest_block))
                 # go to next op
                 function_remainder = next_op
                 next_op = function_remainder.next_op
 
         # insert a yield that yields the return values
-        rewriter.insert_op_at_end(scf.Yield(*function_remainder.operands), dest_block)
+        rewriter.insert_op(
+            scf.Yield(*function_remainder.operands), InsertPoint.at_end(dest_block)
+        )
         # return the results of the scf.if
         rewriter.replace_op(function_remainder, func.Return(*scf_if.results))
 
