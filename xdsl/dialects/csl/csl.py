@@ -422,6 +422,31 @@ class ConstStructOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ConstantsOp(IRDLOperation):
+    """
+    Represents the @constants operation in CSL.
+
+    This can also be used to represent @zeros by passing a zero constant as the second argument.
+    """
+
+    name = "csl.constants"
+
+    T = Annotated[IntegerType | Float32Type | Float16Type, ConstraintVar("T")]
+
+    size = operand_def(IntegerType)
+
+    value = operand_def(T)
+
+    result = result_def(MemRefType[T])
+
+    def __init__(self, size: SSAValue | Operation, value: SSAValue | Operation):
+        super().__init__(
+            operands=[size, value],
+            result_types=[MemRefType(SSAValue.get(value).type, [-1])],
+        )
+
+
+@irdl_op_definition
 class GetColorOp(IRDLOperation):
     name = "csl.get_color"
 
@@ -1641,6 +1666,7 @@ CSL = Dialect(
         ClzOp,
         ConcatStructOp,
         ConstStructOp,
+        ConstantsOp,
         CslModuleOp,
         CtzOp,
         FabshOp,
