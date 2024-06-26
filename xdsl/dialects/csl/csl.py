@@ -1630,54 +1630,6 @@ class ConcatStructOp(IRDLOperation):
         )
 
 
-@irdl_op_definition
-class SignednessCastOp(IRDLOperation):
-    """
-    Cast that throws away signedness attributes
-    """
-
-    name = "csl.mlir.signedness_cast"
-
-    inp = operand_def(IntegerType)
-
-    result = result_def(IntegerType)
-
-    assembly_format = "$inp attr-dict `:` type($inp) `to` type($result)"
-
-    def verify_(self) -> None:
-        assert isinstance(self.inp.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
-        if self.inp.type.width != self.result.type.width:
-            raise VerifyException("Input and output type must be of same bitwidth")
-        if self.inp.type.signedness == self.result.type.signedness:
-            raise VerifyException(
-                "Input and output type must be of different signedness"
-            )
-
-
-@irdl_op_definition
-class ConcatStructOp(IRDLOperation):
-    """
-    Concatenate two compile-time known structs
-
-    @concat_structs(this_struct, another_struct);
-
-    this_struct and another_struct are comptime expressions of anonymous struct type.
-
-    Attempting to concatenate a struct with named fields and a struct with nameless fields (e.g. .{1, 2}) results in an error.
-
-    Attempting to concatenate two structs with overlapping named fields also results in an error.
-    """
-
-    name = "csl.concat_structs"
-
-    this_struct = operand_def(ComptimeStructType)
-
-    another_struct = operand_def(ComptimeStructType)
-
-    result = result_def(ComptimeStructType)
-
-
 CSL = Dialect(
     "csl",
     [

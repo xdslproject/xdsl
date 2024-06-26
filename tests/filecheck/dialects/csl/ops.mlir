@@ -49,15 +49,15 @@ csl.func @initialize() {
     %call_res = "csl.call"(%arg1, %arg2) <{callee = @func_with_args}> : (i32, i16) -> i32
 
 
-    %attr_struct = "csl.concat_structs"() <{
+    %attr_struct = "csl.const_struct"() <{
       items = {i = 42 : i32, f = 3.7 : f32 }
     }> : () -> !csl.comptime_struct
 
-    %ssa_struct = "csl.concat_structs"(%arg1, %arg2, %col) <{
+    %ssa_struct = "csl.const_struct"(%arg1, %arg2, %col) <{
       ssa_fields = ["i32_", "i16_", "col"]
     }> : (i32, i16, !csl.color) -> !csl.comptime_struct
 
-    %mixed_struct = "csl.concat_structs"(%arg1, %arg2, %col) <{
+    %mixed_struct = "csl.const_struct"(%arg1, %arg2, %col) <{
       ssa_fields = ["i32_", "i16_", "col"],
       items = {i = 42 : i32, f = 3.7 : f32 }
     }> : (i32, i16, !csl.color) -> !csl.comptime_struct
