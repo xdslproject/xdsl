@@ -1,7 +1,7 @@
 from xdsl.backend.riscv.lowering.utils import cast_operands_to_regs
+from xdsl.context import MLContext
 from xdsl.dialects import printf, riscv_debug
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

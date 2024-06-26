@@ -9,6 +9,7 @@ from xdsl.backend.riscv.lowering.utils import (
     move_to_unallocated_regs,
     register_type_for_type,
 )
+from xdsl.context import MLContext
 from xdsl.dialects import (
     builtin,
     memref,
@@ -24,7 +25,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import Attribute, MLContext, Operation
+from xdsl.ir import Attribute, Operation
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

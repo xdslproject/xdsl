@@ -1,9 +1,9 @@
 # RUN: coverage run %s | filecheck %s
 
-from xdsl.dialects.cmath import CMath
+from xdsl.dialects.cmath import Cmath
 from xdsl.dialects.irdl.pyrdl_to_irdl import dialect_to_irdl
 
-print(dialect_to_irdl(CMath, "cmath"))
+print(dialect_to_irdl(Cmath, "cmath"))
 
 # CHECK:      irdl.dialect @cmath {
 

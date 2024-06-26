@@ -1,9 +1,10 @@
 from collections.abc import Iterable
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, scf
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
-from xdsl.ir import Attribute, Block, MLContext, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

@@ -3,11 +3,11 @@
 import argparse
 import sys
 
+from xdsl.context import MLContext
+from xdsl.dialects import get_all_dialects
 from xdsl.dialects.irdl import DialectOp
 from xdsl.dialects.irdl.irdl_to_pyrdl import convert_dialect
-from xdsl.ir import MLContext
 from xdsl.parser import Parser
-from xdsl.tools.command_line_tool import get_all_dialects
 
 
 def main():

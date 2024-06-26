@@ -43,7 +43,6 @@ from xdsl.traits import (
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
-from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -192,16 +191,6 @@ class If(IRDLOperation):
             regions=[true_region, false_region],
         )
 
-    @staticmethod
-    @deprecated("use If() instead!")
-    def get(
-        cond: SSAValue | Operation,
-        return_types: Sequence[Attribute],
-        true_region: Region | Sequence[Block] | Sequence[Operation],
-        false_region: Region | Sequence[Block] | Sequence[Operation] | None = None,
-    ) -> If:
-        return If(cond, return_types, true_region, false_region)
-
 
 class ForOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
@@ -251,17 +240,6 @@ class For(IRDLOperation):
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
-
-    @staticmethod
-    @deprecated("Use init constructor instead")
-    def get(
-        lb: SSAValue | Operation,
-        ub: SSAValue | Operation,
-        step: SSAValue | Operation,
-        iter_args: Sequence[SSAValue | Operation],
-        body: Region | Sequence[Operation] | Sequence[Block] | Block,
-    ) -> For:
-        return For(lb, ub, step, iter_args, body)
 
     def verify_(self):
         # body block verification
@@ -421,17 +399,6 @@ class ParallelOp(IRDLOperation):
             result_types=[[SSAValue.get(a).type for a in init_vals]],
         )
 
-    @staticmethod
-    @deprecated("use ParallelOp() instead!")
-    def get(
-        lowerBounds: Sequence[SSAValue | Operation],
-        upperBounds: Sequence[SSAValue | Operation],
-        steps: Sequence[SSAValue | Operation],
-        body: Region | Sequence[Block] | Sequence[Operation],
-        initVals: Sequence[SSAValue | Operation] = [],
-    ) -> ParallelOp:
-        return ParallelOp(lowerBounds, upperBounds, steps, body, initVals)
-
     def verify_(self) -> None:
         # This verifies the scf.parallel operation, as can be seen it's fairly complex
         # due to the restrictions on the operation and ability to mix in reduction operations
@@ -546,14 +513,6 @@ class ReduceOp(IRDLOperation):
     ):
         super().__init__(operands=[argument], regions=[Region(block)])
 
-    @staticmethod
-    @deprecated("use ReduceOp() instead!")
-    def get(
-        argument: SSAValue | Operation,
-        block: Block,
-    ) -> ReduceOp:
-        return ReduceOp(argument, block)
-
     def verify_(self) -> None:
         if len(self.body.block.args) != 2:
             raise VerifyException(
@@ -598,13 +557,6 @@ class ReduceReturnOp(IRDLOperation):
     def __init__(self, result: SSAValue | Operation):
         super().__init__(operands=[result])
 
-    @staticmethod
-    @deprecated("use ReduceReturnOp() instead!")
-    def get(
-        result: SSAValue | Operation,
-    ) -> ReduceReturnOp:
-        return ReduceReturnOp(result)
-
 
 @irdl_op_definition
 class Condition(IRDLOperation):
@@ -620,11 +572,6 @@ class Condition(IRDLOperation):
         *output_ops: SSAValue | Operation,
     ):
         super().__init__(operands=[cond, [output for output in output_ops]])
-
-    @staticmethod
-    @deprecated("use __init__ constructor instead!")
-    def get(cond: SSAValue | Operation, *output_ops: SSAValue | Operation) -> Condition:
-        return Condition(cond, *output_ops)
 
     def print(self, printer: Printer):
         printer.print("(", self.cond, ")")

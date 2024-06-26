@@ -22,6 +22,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    MemrefLayoutAttr,
     MemRefType,
     ModuleOp,
     NoneAttr,
@@ -163,7 +164,7 @@ class ObjectFIFO(Generic[AttributeInvT], ParametrizedAttribute):
     def from_element_type_and_shape(
         referenced_type: AttributeInvT,
         shape: Iterable[int | IntAttr],
-        layout: Attribute = NoneAttr(),
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ) -> ObjectFIFO[AttributeInvT]:
         return ObjectFIFO(
@@ -251,10 +252,10 @@ class BufferOp(IRDLOperation):
         self,
         tile: Operation | SSAValue,
         element_type: Attribute,
-        shape: ArrayAttr[AnyIntegerAttr],
+        shape: ArrayAttr[IntAttr],
         sym_name: StringAttr,
     ):
-        buffer_type = memref.MemRefType.from_element_type_and_shape(element_type, shape)
+        buffer_type = memref.MemRefType(element_type, shape)
         super().__init__(
             operands=[tile],
             attributes={"sym_name": sym_name},
@@ -656,14 +657,12 @@ class ExternalBufferOp(IRDLOperation):
     def __init__(
         self,
         sym_name: str,
-        shape: ArrayAttr[AnyIntegerAttr],
+        shape: ArrayAttr[IntAttr],
         element_type: Attribute,
     ):
         super().__init__(
             attributes={"sym_name": StringAttr(sym_name)},
-            result_types=[
-                memref.MemRefType.from_element_type_and_shape(element_type, shape)
-            ],
+            result_types=[memref.MemRefType(element_type, shape)],
         )
 
     assembly_format = "attr-dict `:` type($buffer)"
