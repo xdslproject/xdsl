@@ -219,3 +219,16 @@ builtin.module {
 // CHECK-NEXT:      stencil.store %5 to %3 (<[0, 0], [64, 64]>) : !stencil.temp<[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
+
+// -----
+
+builtin.module {
+  func.func @stencil_copy_bufferized(%0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+    stencil.apply(%6 = %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> (%1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+      %7 = stencil.access %6[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+      %8 = stencil.store_result %7 : !stencil.result<f64>
+      stencil.return %8 : !stencil.result<f64>
+    } to [0, 0, 0] : [64, 64, 64]
+    func.return
+  }
+}

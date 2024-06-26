@@ -63,9 +63,15 @@ builtin.module {
 // CHECK-GENERIC-NEXT:   "func.func"() <{"sym_name" = "gauss_seidel_func", "function_type" = (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()}> ({
 // CHECK-GENERIC-NEXT:   ^0(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>):
 // CHECK-GENERIC-NEXT:     %0 = "stencil.load"(%a) : (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+<<<<<<< HEAD
 // CHECK-GENERIC-NEXT:     %pref = "csl_stencil.prefetch"(%0) <{"topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>]}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> tensor<4x510xf32>
 // CHECK-GENERIC-NEXT:     %1 = "stencil.apply"(%0, %pref) ({
 // CHECK-GENERIC-NEXT:     ^1(%2 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %3 : tensor<4x510xf32>):
+=======
+// CHECK-GENERIC-NEXT:     %pref = "csl_stencil.prefetch"(%0) <{"topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>]}> : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> memref<4xtensor<510xf32>>
+// CHECK-GENERIC-NEXT:     %1 = "stencil.apply"(%0, %pref) <{"operandSegmentSizes" = array<i32: 2, 0>}> ({
+// CHECK-GENERIC-NEXT:     ^1(%2 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %3 : memref<4xtensor<510xf32>>):
+>>>>>>> f34b76c92 (Allow expression of bufferized stencil computations.)
 // CHECK-GENERIC-NEXT:       %4 = "arith.constant"() <{"value" = 1.666600e-01 : f32}> : () -> f32
 // CHECK-GENERIC-NEXT:       %5 = "csl_stencil.access"(%3) <{"offset" = #stencil.index<[1, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (tensor<4x510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %6 = "csl_stencil.access"(%3) <{"offset" = #stencil.index<[-1, 0]>, "offset_mapping" = #stencil.index<[0, 1]>}> : (tensor<4x510xf32>) -> tensor<510xf32>
