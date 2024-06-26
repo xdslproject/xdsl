@@ -9,7 +9,6 @@ from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Block,
-    BlockArgument,
     Dialect,
     Operation,
     ParametrizedAttribute,
@@ -203,24 +202,19 @@ class ApplyOp(IRDLOperation):
     traits = frozenset([IsolatedFromAbove(), RecursiveMemoryEffect()])
 
     def print(self, printer: Printer):
-        def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
-            printer.print(args[0])
-            printer.print(" = ")
-            printer.print(args[1])
+        def print_arg(arg: tuple[SSAValue, Attribute]):
+            printer.print(arg[0])
             printer.print(" : ")
-            printer.print(args[2])
+            printer.print(arg[1])
 
         printer.print("(")
+
+        # args required by function signature, plus optional args for regions
         args = [self.communicated_stencil, self.iter_arg, *self.args]
-        block_args = (
-            self.post_process.block.args[0],
-            self.chunk_reduce.block.args[2],
-            *self.chunk_reduce.block.args[3:],
-            *self.post_process.block.args[2:],
-        )
+
         printer.print_list(
-            zip(block_args, args, (a.type for a in args)),
-            print_assign_argument,
+            zip(args, (a.type for a in args)),
+            print_arg,
         )
         printer.print(") -> (")
         printer.print_list((r.type for r in self.res), printer.print_attribute)
@@ -234,20 +228,14 @@ class ApplyOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser):
-        def parse_assign_args():
-            arg = parser.parse_argument(expect_type=False)
-            parser.parse_punctuation("=")
-            value = parser.parse_operand()
+        def parse_args():
+            value = parser.parse_unresolved_operand()
             parser.parse_punctuation(":")
             type = parser.parse_attribute()
-            arg = arg.resolve(type)
-            return arg, value
+            value = parser.resolve_operand(value, type)
+            return value
 
-        assign_args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parse_assign_args
-        )
-        operands: list[SSAValue]
-        operands = [o for _, o in assign_args]  # should we discard args here?
+        operands = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
 
         props = parser.parse_optional_properties_dict()
         topo = props["topo"] if "topo" in props else None
