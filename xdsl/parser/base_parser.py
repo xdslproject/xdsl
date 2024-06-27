@@ -11,6 +11,7 @@ from typing import NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, StringLiteral, Token
+from xdsl.utils.str_enum import StrEnum
 
 
 @dataclass(init=False)
@@ -34,6 +35,7 @@ class ParserState:
 
 
 _AnyInvT = TypeVar("_AnyInvT")
+_EnumType = TypeVar("_EnumType", bound=StrEnum)
 
 
 @dataclass
@@ -350,8 +352,13 @@ class BaseParser:
             "Expected integer literal" + context_msg,
         )
 
-    def parse_optional_number(self) -> int | float | None:
-        """Parse a (possibly negative) integer or float literal, if present."""
+    def parse_optional_number(
+        self, *, allow_boolean: bool = False
+    ) -> int | float | None:
+        """
+        Parse a (possibly negative) integer or float literal, if present.
+        Can optionally parse 'true' or 'false' into 1 and 0.
+        """
 
         is_negative = self._parse_optional_token(Token.Kind.MINUS) is not None
 
@@ -368,13 +375,23 @@ class BaseParser:
 
         if is_negative:
             self.raise_error("Expected integer or float literal after '-'")
+
+        if allow_boolean and (value := self.parse_optional_boolean()) is not None:
+            return 1 if value else 0
+
         return None
 
-    def parse_number(self, context_msg: str = "") -> int | float:
-        """Parse a (possibly negative) integer or float literal."""
+    def parse_number(
+        self, allow_boolean: bool = False, context_msg: str = ""
+    ) -> int | float:
+        """
+        Parse a (possibly negative) integer or float literal.
+        Can optionally parse 'true' or 'false' into 1 and 0.
+        """
         return self.expect(
-            lambda: self.parse_optional_number(),
-            "integer or float literal expected" + context_msg,
+            lambda: self.parse_optional_number(allow_boolean=allow_boolean),
+            f"integer{', boolean,' if allow_boolean else ''} or float literal expected"
+            + context_msg,
         )
 
     def parse_optional_str_literal(self) -> str | None:
@@ -519,3 +536,28 @@ class BaseParser:
         kind = Token.Kind.get_punctuation_kind_from_spelling(punctuation)
         self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
         return punctuation
+
+    def parse_str_enum(self, enum_type: type[_EnumType]) -> _EnumType:
+        """Parse a string enum value."""
+        result = self.parse_optional_str_enum(enum_type)
+        if result is not None:
+            return result
+        enum_values = tuple(enum_type)
+        if len(enum_values) == 1:
+            self.raise_error(f"Expected `{enum_values[0]}`.")
+        self.raise_error(
+            f"Expected `{'`, `'.join(enum_values[:-1])}`, or `{enum_values[-1]}`."
+        )
+
+    def parse_optional_str_enum(self, enum_type: type[_EnumType]) -> _EnumType | None:
+        """Parse a string enum value, if present."""
+
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+
+        val = self._current_token.text
+        if val not in enum_type.__members__.values():
+            return None
+
+        self._consume_token(Token.Kind.BARE_IDENT)
+        return enum_type(val)

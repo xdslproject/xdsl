@@ -37,6 +37,7 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.traits import (
+    HasAncestor,
     HasParent,
     OptionalSymbolOpInterface,
     SymbolOpInterface,
@@ -447,6 +448,25 @@ def test_lazy_parent():
     assert op.get_traits_of_type(HasParent)[0].parameters == (TestOp,)
     assert op.has_trait(HasParent, (TestOp,))
     assert op.traits == frozenset([HasParent(TestOp)])
+
+
+@irdl_op_definition
+class AncestorOp(IRDLOperation):
+    name = "test.ancestor"
+
+    traits = frozenset((HasAncestor(TestOp),))
+
+
+def test_has_ancestor():
+    op = AncestorOp()
+
+    assert op.get_traits_of_type(HasAncestor) == [HasAncestor(TestOp)]
+    assert op.has_trait(HasAncestor, (TestOp,))
+
+    with pytest.raises(
+        VerifyException, match="'test.ancestor' expects ancestor op 'test.test'"
+    ):
+        op.verify()
 
 
 def test_insert_or_update():

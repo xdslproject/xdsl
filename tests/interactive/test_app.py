@@ -1,6 +1,8 @@
-from typing import cast
+from typing import Any, cast
 
 import pytest
+from textual.screen import Screen
+from textual.widgets import Tree
 
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
@@ -14,14 +16,14 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
+from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
-from xdsl.interactive.passes import AvailablePass
+from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
-    canonicalize,
     individual_rewrite,
-    test_lower_linalg_to_snitch,
 )
+from xdsl.transforms.experimental.dmp import stencil_global_to_local
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -260,25 +262,10 @@ async def test_buttons():
         # press "Condense" button
         await pilot.click("#condense_button")
 
-        condensed_list = tuple(
-            (
-                AvailablePass(
-                    display_name="convert-arith-to-riscv",
-                    module_pass=convert_arith_to_riscv.ConvertArithToRiscvPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="convert-func-to-riscv-func",
-                    module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                    pass_spec=None,
-                ),
-            )
-        )
-
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        assert app.available_pass_list == condensed_list
+        assert app.available_pass_list == get_condensed_pass_list(expected_module)
 
         # press "Uncondense" button
         await pilot.click("#uncondense_button")
@@ -311,43 +298,21 @@ async def test_rewrites():
         # press "Condense" button
         await pilot.click("#condense_button")
 
-        condensed_list = tuple(
-            (
-                AvailablePass(
-                    display_name="canonicalize",
-                    module_pass=canonicalize.CanonicalizePass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="convert-arith-to-riscv",
-                    module_pass=convert_arith_to_riscv.ConvertArithToRiscvPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="convert-func-to-riscv-func",
-                    module_pass=convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="test-lower-snitch-stream-to-asm",
-                    module_pass=test_lower_linalg_to_snitch.TestLowerSnitchStreamToAsm,
-                    pass_spec=None,
-                ),
-                AvailablePass(
-                    display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
-                    module_pass=individual_rewrite.IndividualRewrite,
-                    pass_spec=list(
-                        parse_pipeline(
-                            'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
-                        )
-                    )[0],
-                ),
-            )
+        addi_pass = AvailablePass(
+            display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
+            module_pass=individual_rewrite.IndividualRewrite,
+            pass_spec=list(
+                parse_pipeline(
+                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                )
+            )[0],
         )
 
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
+        assert isinstance(app.current_module, ModuleOp)
+        condensed_list = get_condensed_pass_list(app.current_module) + (addi_pass,)
         assert app.available_pass_list == condensed_list
 
         # Select a rewrite
@@ -467,3 +432,47 @@ async def test_passes():
         assert isinstance(app.current_module, ModuleOp)
         # Assert that the current module has been changed accordingly
         assert app.current_module.is_structurally_equivalent(expected_module)
+
+
+@pytest.mark.asyncio()
+async def test_argument_pass_screen():
+    """Test that clicking on a pass that requires passes opens a screen to specify them."""
+    async with InputApp().run_test() as pilot:
+        app = cast(InputApp, pilot.app)
+        # clear preloaded code and unselect preselected pass
+        app.input_text_area.clear()
+
+        await pilot.pause()
+        # Testing a pass
+        app.input_text_area.insert(
+            """
+        func.func @hello(%n : i32) -> i32 {
+  %two = arith.constant 0 : i32
+  %res = arith.addi %two, %n : i32
+  func.return %res : i32
+}
+        """
+        )
+        app.passes_tree.root.expand
+        await pilot.pause()
+
+        root_children = app.passes_tree.root.children
+        distribute_stencil_node = None
+
+        for node in root_children:
+            assert node.data is not None
+            pass_val, _ = node.data
+            if pass_val.name == stencil_global_to_local.DistributeStencilPass.name:
+                distribute_stencil_node = node
+
+        assert distribute_stencil_node is not None
+
+        # Ideally, we would like to trigger the event like this:
+        # `app.passes_tree.select_node(distribute_stencil_node)`
+        # When running in a test, node selection does not send the expected event
+        # For now, trigger the expected method directly
+        app.update_pass_pipeline(Tree.NodeSelected(distribute_stencil_node))
+        await pilot.pause()
+
+        arg_screen_str: type[Screen[Any]] = AddArguments
+        assert isinstance(app.screen, arg_screen_str)

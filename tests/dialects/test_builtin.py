@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 import pytest
 
@@ -9,7 +8,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BFloat16Type,
     ComplexType,
-    CustomErrorMessageAttrConstraint,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     Float16Type,
@@ -19,6 +17,7 @@ from xdsl.dialects.builtin import (
     Float128Type,
     FloatAttr,
     FloatData,
+    IndexType,
     IntAttr,
     MemRefType,
     NoneAttr,
@@ -34,7 +33,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
-from xdsl.irdl import AttrConstraint
+from xdsl.irdl import ConstraintContext
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -91,9 +90,15 @@ def test_DenseArrayBase_verifier_failure():
     )
 
     with pytest.raises(VerifyException) as err:
+        DenseArrayBase([IndexType(), ArrayAttr([FloatData(0.0)])])
+    assert err.value.args[0] == (
+        "dense array of integer or index element type " "should only contain integers"
+    )
+
+    with pytest.raises(VerifyException) as err:
         DenseArrayBase([i32, ArrayAttr([FloatData(0.0)])])
     assert err.value.args[0] == (
-        "dense array of integer element type " "should only contain integers"
+        "dense array of integer or index element type " "should only contain integers"
     )
 
 
@@ -157,7 +162,7 @@ def test_vector_rank_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorRankConstraint(2)
 
-    constraint.verify(vector_type, {})
+    constraint.verify(vector_type)
 
 
 def test_vector_rank_constraint_rank_mismatch():
@@ -165,7 +170,7 @@ def test_vector_rank_constraint_rank_mismatch():
     constraint = VectorRankConstraint(3)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(vector_type, {})
+        constraint.verify(vector_type)
     assert e.value.args[0] == "Expected vector rank to be 3, got 2."
 
 
@@ -174,7 +179,7 @@ def test_vector_rank_constraint_attr_mismatch():
     constraint = VectorRankConstraint(3)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(memref_type, {})
+        constraint.verify(memref_type)
     assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
@@ -182,7 +187,7 @@ def test_vector_base_type_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeConstraint(i32)
 
-    constraint.verify(vector_type, {})
+    constraint.verify(vector_type)
 
 
 def test_vector_base_type_constraint_type_mismatch():
@@ -190,7 +195,7 @@ def test_vector_base_type_constraint_type_mismatch():
     constraint = VectorBaseTypeConstraint(i64)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(vector_type, {})
+        constraint.verify(vector_type)
     assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
@@ -199,7 +204,7 @@ def test_vector_base_type_constraint_attr_mismatch():
     constraint = VectorBaseTypeConstraint(i32)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(memref_type, {})
+        constraint.verify(memref_type)
     assert e.value.args[0] == "memref<1x2xi32> should be of type VectorType."
 
 
@@ -207,7 +212,7 @@ def test_vector_base_type_and_rank_constraint_verify():
     vector_type = VectorType(i32, [1, 2])
     constraint = VectorBaseTypeAndRankConstraint(i32, 2)
 
-    constraint.verify(vector_type, {})
+    constraint.verify(vector_type, ConstraintContext())
 
 
 def test_vector_base_type_and_rank_constraint_base_type_mismatch():
@@ -215,7 +220,7 @@ def test_vector_base_type_and_rank_constraint_base_type_mismatch():
     constraint = VectorBaseTypeAndRankConstraint(i64, 2)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(vector_type, {})
+        constraint.verify(vector_type, ConstraintContext())
     assert e.value.args[0] == "Expected vector type to be i64, got i32."
 
 
@@ -224,7 +229,7 @@ def test_vector_base_type_and_rank_constraint_rank_mismatch():
     constraint = VectorBaseTypeAndRankConstraint(i32, 3)
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(vector_type, {})
+        constraint.verify(vector_type, ConstraintContext())
     assert e.value.args[0] == "Expected vector rank to be 3, got 2."
 
 
@@ -237,7 +242,7 @@ memref<1x2xi32> should be of type VectorType.
 memref<1x2xi32> should be of type VectorType."""
 
     with pytest.raises(VerifyException) as e:
-        constraint.verify(memref_type, {})
+        constraint.verify(memref_type, ConstraintContext())
     assert e.value.args[0] == error_msg
 
 
@@ -287,31 +292,5 @@ def test_dense_as_tuple():
     ints = DenseArrayBase.from_list(i32, [1, 1, 2, 3, 5, 8])
     assert ints.as_tuple() == (1, 1, 2, 3, 5, 8)
 
-
-def test_custom_error_message_constraint():
-    @dataclass
-    class AlwaysFails(AttrConstraint):
-        message: str
-
-        def verify(
-            self, attr: Attribute, constraint_vars: dict[str, Attribute]
-        ) -> None:
-            raise VerifyException(self.message)
-
-    inner = AlwaysFails("fail")
-
-    one = IntAttr(1)
-
-    with pytest.raises(VerifyException, match="wrapped") as e:
-        outer = CustomErrorMessageAttrConstraint(inner, "wrapped")
-        outer.verify(one, {})
-        assert hasattr(e, "__context__")
-        context = getattr(e, "__context__")
-        assert "fail" in context
-
-    with pytest.raises(VerifyException, match="wrapped #builtin.int<1>") as e:
-        outer = CustomErrorMessageAttrConstraint(inner, lambda k: f"wrapped {k}")
-        outer.verify(one, {})
-        assert hasattr(e, "__context__")
-        context = getattr(e, "__context__")
-        assert "fail" in context
+    indices = DenseArrayBase.from_list(IndexType(), [1, 1, 2, 3, 5, 8])
+    assert indices.as_tuple() == (1, 1, 2, 3, 5, 8)

@@ -4,18 +4,18 @@ from itertools import product
 from math import prod
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
+    DynAccessOp,
     IndexAttr,
+    IndexOp,
     ReturnOp,
     TempType,
 )
-from xdsl.ir import (
-    Attribute,
-    MLContext,
-)
+from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -36,18 +36,25 @@ def offseted_block_clone(apply: ApplyOp, unroll_offset: Sequence[int]):
     offseted = region.clone().detach_block(0)
 
     for op in offseted.ops:
-        if not isinstance(op, AccessOp):
-            continue
-        if op.offset_mapping is None:
-            offset_mapping = list(range(0, len(op.offset)))
-        else:
-            offset_mapping = [o.data for o in op.offset_mapping]
+        match op:
+            case AccessOp():
+                if op.offset_mapping is None:
+                    offset_mapping = list(range(0, len(op.offset)))
+                else:
+                    offset_mapping = op.offset_mapping
 
-        new_offset = [o for o in op.offset]
-        for i in offset_mapping:
-            new_offset[i] += unroll_offset[i]
+                new_offset = [o for o in op.offset]
+                for i in offset_mapping:
+                    new_offset[i] += unroll_offset[i]
 
-        op.offset = IndexAttr.get(*new_offset)
+                op.offset = IndexAttr.get(*new_offset)
+            case DynAccessOp():
+                op.lb += IndexAttr.get(*unroll_offset)
+                op.ub += IndexAttr.get(*unroll_offset)
+            case IndexOp():
+                op.offset += IndexAttr.get(*unroll_offset)
+            case _:
+                continue
 
     return offseted
 

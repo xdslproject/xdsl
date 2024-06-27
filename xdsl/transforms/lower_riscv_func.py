@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
 from typing import cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -45,7 +46,7 @@ class LowerSyscallOp(RewritePattern):
 
         if op.result is None:
             ops.append(riscv.EcallOp())
-            new_results = []
+            new_results = ()
         else:
             # The result will be stored to a0, move to register that will be used
             ecall = riscv.EcallOp()
@@ -72,7 +73,7 @@ class InsertExitSyscallOp(RewritePattern):
             return
 
         EXIT = 93
-        rewriter.insert_op_before(riscv_func.SyscallOp(EXIT), op)
+        rewriter.insert_op_before_matched_op(riscv_func.SyscallOp(EXIT))
 
 
 @dataclass(frozen=True)

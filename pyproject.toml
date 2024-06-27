@@ -8,14 +8,37 @@ authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
     "immutabledict<4.2.1",
-    "typing-extensions>=4.7,<5",
+    "typing-extensions>=4.7,<4.13",
     "ordered-set==4.1.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-extras = ["riscemu==2.2.5", "wgpu==0.15.0", "textual==0.53.1", "pyclip==0.7"]
-onnx = ["onnx-weekly"]
+dev = [
+    "pip<25.0",
+    # Update precommit version when black updates
+    "black[jupyter]==24.4.2",
+    "toml<0.11",
+    "pytest-cov",
+    "coverage<8.0.0",
+    "ipykernel",
+    "pytest<8.3",
+    "nbval<0.12",
+    "filecheck<0.0.25",
+    "lit<19.0.0",
+    "pre-commit==3.7.1",
+    "ruff==0.4.10",
+    "asv<0.7",
+    "isort==5.13.2",
+    "nbconvert>=7.7.2,<8.0.0",
+    "textual-dev==1.5.1",
+    "pytest-asyncio==0.23.7",
+    "pyright==1.1.345",
+]
+gui = ["textual==0.63.2", "pyclip==0.7"]
+onnx = ["onnx==1.16.1"]
+riscv = ["riscemu==2.2.6"]
+wgpu = ["wgpu==0.16.0"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -27,6 +50,7 @@ xdsl-opt = "xdsl.tools.xdsl_opt:main"
 irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
 xdsl-run = "xdsl.tools.xdsl_run:main"
 xdsl-gui = "xdsl.interactive.app:main"
+xdsl-stubgen = "xdsl.utils.dialect_stub:make_all_stubs"
 
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
@@ -41,16 +65,19 @@ build-backend = "setuptools.build_meta"
 
 [tool.pyright]
 reportImportCycles = false
+reportMissingModuleSource = false
 enableTypeIgnoreComments = false
 typeCheckingMode = "strict"
 "include" = ["docs", "xdsl", "tests", "bench"]
 "exclude" = [
+    "tests/dialects/test_memref.py",
+    "tests/frontend/onnx/test_build_ir.py",
+    "tests/frontend/onnx/test_type.py",
     "tests/test_frontend_op_resolver.py",
     "tests/test_frontend_python_code_check.py",
-    "tests/frontend/onnx/test_tensor_type.py",
-    "tests/dialects/test_memref.py",
+    "xdsl/frontend/onnx/ir_builder.py",
+    "xdsl/frontend/onnx/type.py",
     "xdsl/interpreters/experimental/wgpu.py",
-    "xdsl/frontend/onnx/shape_type.py",
     "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
@@ -83,7 +110,10 @@ target-version = "py310"
 "xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
 "xdsl.ir.core".msg = "Use xdsl.ir instead."
-"xdsl.irdl.irdl".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.common".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.constraints".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.attributes".msg = "Use xdsl.irdl instead"
+"xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
 "xdsl.ir.affine.affine_expr".msg = "Use xdsl.ir.affine instead"
 "xdsl.ir.affine.affine_map".msg = "Use xdsl.ir.affine instead"
 "xdsl.ir.affine.affine_set".msg = "Use xdsl.ir.affine instead"

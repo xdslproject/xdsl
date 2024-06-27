@@ -36,7 +36,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -47,6 +47,8 @@ class ApplyOp(IRDLOperation):
     mapOperands = var_operand_def(IndexType)
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
+
+    traits = frozenset([Pure()])
 
     def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
         super().__init__(
@@ -197,9 +199,14 @@ class ParallelOp(IRDLOperation):
             raise VerifyException(
                 "Expected as many operands as results, lower bound args and upper bound args."
             )
-        if len(self.lowerBoundsGroups.data) != len(self.lowerBoundsMap.data.results):
+
+        if sum(g.value.data for g in self.lowerBoundsGroups.data) != len(
+            self.lowerBoundsMap.data.results
+        ):
             raise VerifyException("Expected a lower bound group for each lower bound")
-        if len(self.upperBoundsGroups.data) != len(self.upperBoundsMap.data.results):
+        if sum(g.value.data for g in self.upperBoundsGroups.data) != len(
+            self.upperBoundsMap.data.results
+        ):
             raise VerifyException("Expected an upper bound group for each upper bound")
 
 

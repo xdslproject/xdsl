@@ -1,10 +1,6 @@
+from xdsl.context import MLContext
 from xdsl.dialects import linalg, memref_stream
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    IntAttr,
-    ModuleOp,
-)
-from xdsl.ir import MLContext
+from xdsl.dialects.builtin import ArrayAttr, IntAttr, ModuleOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -13,6 +9,16 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+
+
+def iterator_type_attr(t: linalg.IteratorTypeAttr) -> memref_stream.IteratorTypeAttr:
+    match t.data:
+        case linalg.IteratorType.PARALLEL:
+            return memref_stream.IteratorTypeAttr.parallel()
+        case linalg.IteratorType.REDUCTION:
+            return memref_stream.IteratorTypeAttr.reduction()
+        case linalg.IteratorType.WINDOW:
+            raise NotImplementedError("Cannot convert window iterator type")
 
 
 class ConvertGenericOpPattern(RewritePattern):
@@ -30,14 +36,18 @@ class ConvertGenericOpPattern(RewritePattern):
         ubs = op.get_static_loop_ranges()
         bounds = ArrayAttr(IntAttr(ub) for ub in ubs)
 
+        iterator_types = ArrayAttr(iterator_type_attr(t) for t in op.iterator_types)
+
         rewriter.replace_matched_op(
             memref_stream.GenericOp(
                 op.inputs,
                 op.outputs,
+                (),
                 rewriter.move_region_contents_to_new_regions(op.body),
                 op.indexing_maps,
-                op.iterator_types,
+                iterator_types,
                 bounds,
+                ArrayAttr(()),
             )
         )
 

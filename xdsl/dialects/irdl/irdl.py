@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
 from xdsl.ir import (
@@ -21,6 +21,7 @@ from xdsl.irdl import (
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    opt_attr_def,
     region_def,
     result_def,
     var_operand_def,
@@ -29,11 +30,11 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
-    IsTerminator,
     NoTerminator,
     SymbolOpInterface,
     SymbolTable,
 )
+from xdsl.utils.exceptions import VerifyException
 
 ################################################################################
 # Dialect, Operation, and Attribute definitions                                #
@@ -106,6 +107,13 @@ class TypeOp(IRDLOperation):
         if self.body.block.ops:
             printer.print_region(self.body)
 
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified TypeOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
+
 
 @irdl_op_definition
 class AttributeOp(IRDLOperation):
@@ -135,6 +143,13 @@ class AttributeOp(IRDLOperation):
         printer.print(" @", self.sym_name.data, " ")
         if self.body.block.ops:
             printer.print_region(self.body)
+
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified AttributeOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
 
 @irdl_op_definition
@@ -192,6 +207,13 @@ class OperationOp(IRDLOperation):
         if self.body.block.ops:
             printer.print_region(self.body)
 
+    @property
+    def qualified_name(self):
+        dialect_op = self.parent_op()
+        if not isinstance(dialect_op, DialectOp):
+            raise ValueError("Tried to get qualified name of an unverified OperationOp")
+        return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
+
 
 @irdl_op_definition
 class OperandsOp(IRDLOperation):
@@ -227,7 +249,7 @@ class ResultsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
-    traits = frozenset([IsTerminator(), HasParent(OperationOp)])
+    traits = frozenset([HasParent(OperationOp)])
 
     def __init__(self, args: Sequence[SSAValue]):
         super().__init__(operands=[args])
@@ -272,6 +294,57 @@ class IsOp(IRDLOperation):
     def print(self, printer: Printer) -> None:
         printer.print(" ")
         printer.print_attribute(self.expected)
+
+
+@irdl_op_definition
+class BaseOp(IRDLOperation):
+    """Constraint an attribute/type base"""
+
+    name = "irdl.base"
+
+    base_ref = opt_attr_def(SymbolRefAttr)
+    base_name = opt_attr_def(StringAttr)
+    output = result_def(AttributeType)
+
+    def __init__(
+        self,
+        base: SymbolRefAttr | str | StringAttr,
+        attr_dict: Mapping[str, Attribute] | None = None,
+    ):
+        attr_dict = attr_dict or {}
+        if isinstance(base, str):
+            base = StringAttr(base)
+        if isinstance(base, StringAttr):
+            super().__init__(
+                attributes={"base_name": base, **attr_dict},
+                result_types=[AttributeType()],
+            )
+        else:
+            super().__init__(
+                attributes={"base_ref": base, **attr_dict},
+                result_types=[AttributeType()],
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> BaseOp:
+        attr = parser.parse_attribute()
+        if not isinstance(attr, SymbolRefAttr | StringAttr):
+            parser.raise_error("expected symbol reference or string")
+        attr_dict = parser.parse_optional_attr_dict()
+        return BaseOp(attr, attr_dict)
+
+    def print(self, printer: Printer) -> None:
+        if self.base_ref is not None:
+            printer.print(" ")
+            printer.print_attribute(self.base_ref)
+        elif self.base_name is not None:
+            printer.print(" ")
+            printer.print_attribute(self.base_name)
+        printer.print_op_attributes(self.attributes)
+
+    def verify_(self) -> None:
+        if not ((self.base_ref is None) ^ (self.base_name is None)):
+            raise VerifyException("expected base as a reference or as a name")
 
 
 @irdl_op_definition
@@ -388,6 +461,7 @@ IRDL = Dialect(
         DialectOp,
         TypeOp,
         AttributeOp,
+        BaseOp,
         ParametersOp,
         OperationOp,
         OperandsOp,

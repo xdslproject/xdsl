@@ -5,6 +5,8 @@ from io import StringIO
 import pytest
 from conftest import assert_print_op
 
+from xdsl.builder import ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant
 from xdsl.dialects.builtin import (
@@ -12,6 +14,8 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IntAttr,
     IntegerType,
+    ModuleOp,
+    SymbolRefAttr,
     UnitAttr,
     i32,
 )
@@ -19,7 +23,6 @@ from xdsl.dialects.func import Func
 from xdsl.ir import (
     Attribute,
     Block,
-    MLContext,
     OpResult,
     ParametrizedAttribute,
     Region,
@@ -42,6 +45,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError
+from xdsl.utils.test_value import TestSSAValue
 
 
 def test_simple_forgotten_op():
@@ -337,6 +341,38 @@ def test_print_custom_name():
 
     parser = Parser(ctx, prog)
     module = parser.parse_op()
+
+    assert_print_op(module, expected, None)
+
+
+def test_print_clashing_names():
+    """
+    Test the printer's value name printing logic's robustness against clashing names.
+
+    This example now expects to print names i, i_1, i_2; it used to print i, i_1, i_1,
+    printing a duplicate name for two values, meaning invalid IR as input for both MLIR
+    and xDSL.
+    """
+
+    expected = """\
+"builtin.module"() ({
+  %i = "test.op"() : () -> i32
+  %i_1 = "test.op"() : () -> i32
+  %i_2 = "test.op"() : () -> i32
+}) : () -> ()
+"""
+
+    ctx = MLContext()
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(Builtin)
+
+    with ImplicitBuilder((module := ModuleOp([])).body):
+        i = test.TestOp.create(result_types=[i32])
+        i.results[0].name_hint = "i"
+        j = test.TestOp.create(result_types=[i32])
+        j.results[0].name_hint = "i"
+        k = test.TestOp.create(result_types=[i32])
+        k.results[0].name_hint = "i_1"
 
     assert_print_op(module, expected, None)
 
@@ -712,6 +748,23 @@ def test_dictionary_attr():
     assert_print_op(parsed, prog, None)
 
 
+def test_densearray_attr():
+    """Test that a DenseArrayAttr can be parsed and then printed."""
+
+    prog = """
+"func.func"() <{"sym_name" = "test", "function_type" = i64, "sym_visibility" = "private", "unit_attr"}> {"bool_attrs" = array<i1: false, true>, "int_attr" = array<i32: 19, 23, 55>, "float_attr" = array<f32: 0.34>} : () -> ()
+    """
+
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+
+    parser = Parser(ctx, prog)
+    parsed = parser.parse_op()
+
+    assert_print_op(parsed, prog, None)
+
+
 def test_print_function_type():
     io = StringIO()
     printer = Printer(stream=io)
@@ -787,3 +840,48 @@ def test_print_properties_as_attributes_safeguard():
         match="Properties sym_name would overwrite the attributes of the same names.",
     ):
         assert_print_op(parsed, retro_prog, None, print_properties_as_attributes=True)
+
+
+@pytest.mark.parametrize(
+    "attr,expected",
+    [
+        (SymbolRefAttr("foo"), "@foo"),
+        (SymbolRefAttr("weird name!!"), '@"weird name!!"'),
+        (
+            SymbolRefAttr("weird nested", ["yes", "very nested"]),
+            '@"weird nested"::@yes::@"very nested"',
+        ),
+    ],
+)
+def test_symbol_ref(attr: SymbolRefAttr, expected: str):
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+
+    printed = StringIO()
+    Printer(printed).print_attribute(attr)
+    assert printed.getvalue() == expected
+
+
+def test_get_printed_name():
+    ctx = MLContext()
+    ctx.load_dialect(Builtin)
+
+    printer = Printer()
+    val = TestSSAValue(i32)
+
+    # Test printing without constraints
+    printer.stream = StringIO()
+    picked_name = printer.print_ssa_value(val)
+    assert f"%{picked_name}" == printer.stream.getvalue()
+
+    # Test printing when name has already been picked
+    printer.stream = StringIO()
+    picked_name = printer.print_ssa_value(val)
+    assert f"%{picked_name}" == printer.stream.getvalue()
+
+    # Test printing with name hint
+    val = TestSSAValue(i32)
+    val.name_hint = "foo"
+    printed = StringIO()
+    picked_name = Printer(printed).print_ssa_value(val)
+    assert f"%{picked_name}" == printed.getvalue()

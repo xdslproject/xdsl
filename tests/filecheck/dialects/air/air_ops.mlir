@@ -121,39 +121,39 @@ module {
 // CHECK-NEXT:       %alloc = memref.alloc() {"alignment" = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : () -> (!air.async.token, memref<64x64xi32>)
-// CHECK-NEXT:     %async_token_0 = "air.execute"(%async_token) ({
+// CHECK-NEXT:     %async_token_1 = "air.execute"(%async_token) ({
 // CHECK-NEXT:       %alloc_1 = memref.alloc() {"alignment" = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_1) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : (!air.async.token) -> !air.async.token
-// CHECK-NEXT:     %async_token_1, %results_2 = "air.execute"() ({
+// CHECK-NEXT:     %async_token_2, %results_1 = "air.execute"() ({
 // CHECK-NEXT:       %alloc_2 = memref.alloc() {"alignment" = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_2) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : () -> (!air.async.token, memref<64x64xi32>)
-// CHECK-NEXT:     %async_token_3 = "air.execute"(%async_token_1, %async_token_0) ({
+// CHECK-NEXT:     %async_token_3 = "air.execute"(%async_token_2, %async_token_1) ({
 // CHECK-NEXT:       %alloc_3 = memref.alloc() {"alignment" = 64 : i64} : memref<64x64xi32>
 // CHECK-NEXT:       "air.execute_terminator"(%alloc_3) : (memref<64x64xi32>) -> ()
 // CHECK-NEXT:     }) : (!air.async.token, !air.async.token) -> !air.async.token
-// CHECK-NEXT:     %0 = air.wait_all async 
+// CHECK-NEXT:     %0 = air.wait_all async
 // CHECK-NEXT:     %1 = scf.for %arg3 = %c0 to %c128 step %c32 iter_args(%arg4 = %0) -> (!air.async.token) {
 // CHECK-NEXT:       %2 = air.channel.put async[%arg4] @channel_0[] (%arg0[%c0, %arg3] [%c32, %c32] [%c128, %c1]) {"id" = 1 : i32} : (memref<64x128xi32>)
 // CHECK-NEXT:       scf.yield %2 : !air.async.token
 // CHECK-NEXT:     }
-// CHECK-NEXT:     %3 = air.wait_all async 
+// CHECK-NEXT:     %3 = air.wait_all async
 // CHECK-NEXT:     %4 = scf.for %arg3_1 = %c0 to %c128 step %c32 iter_args(%arg4_1 = %3) -> (!air.async.token) {
 // CHECK-NEXT:       %5 = air.channel.put async[%arg4_1] @channel_1[] (%arg0[%c32, %arg3_1] [%c32, %c32] [%c128, %c1]) {"id" = 2 : i32} : (memref<64x128xi32>)
 // CHECK-NEXT:       scf.yield %5 : !air.async.token
 // CHECK-NEXT:     }
-// CHECK-NEXT:     %6 = air.wait_all async 
+// CHECK-NEXT:     %6 = air.wait_all async
 // CHECK-NEXT:     %7 = scf.for %arg3_2 = %c0 to %c128 step %c32 iter_args(%arg4_2 = %6) -> (!air.async.token) {
 // CHECK-NEXT:       %8 = air.channel.put async[%arg4_2] @channel_2[] (%arg1[%arg3_2, %c0] [%c32, %c32] [%c64, %c1]) {"id" = 3 : i32} : (memref<128x64xi32>)
 // CHECK-NEXT:       scf.yield %8 : !air.async.token
 // CHECK-NEXT:     }
-// CHECK-NEXT:     %9 = air.wait_all async 
+// CHECK-NEXT:     %9 = air.wait_all async
 // CHECK-NEXT:     %10 = scf.for %arg3_3 = %c0 to %c128 step %c32 iter_args(%arg4_3 = %9) -> (!air.async.token) {
 // CHECK-NEXT:       %11 = air.channel.put async[%arg4_3] @channel_3[] (%arg1[%arg3_3, %c32] [%c32, %c32] [%c64, %c1]) {"id" = 4 : i32} : (memref<128x64xi32>)
 // CHECK-NEXT:       scf.yield %11 : !air.async.token
 // CHECK-NEXT:     }
-// CHECK-NEXT:     %12 = air.channel.get async[%async_token_3] @channel_4[] (%results_2[] [%c32, %c32] [%c64, %c1]) {"id" = 5 : i32} : (memref<64x64xi32>)
+// CHECK-NEXT:     %12 = air.channel.get async[%async_token_3] @channel_4[] (%results_1[] [%c32, %c32] [%c64, %c1]) {"id" = 5 : i32} : (memref<64x64xi32>)
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

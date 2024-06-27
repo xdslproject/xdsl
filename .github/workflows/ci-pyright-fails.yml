@@ -27,18 +27,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Upgrade pip
-        run: |
-          pip install --upgrade pip
       - name: Install the package locally
-        run: 
+        run:
           pip install -r requirements.txt
-          pip install -e ".[onnx]"
-      - name: retrieve pyright version
-        run: | # get pyright version from requirements optional file:
-          VER=$(sed -n 's/^.*pyright==\s*\(\S*\).*$/\1/p' requirements.txt)
-          echo "PYRIGHT_VERSION=$VER" >> $GITHUB_ENV
+      - name: Generate IRDL stubs
+        run: xdsl-stubgen
       - name: Pyright
-        uses: jakebailey/pyright-action@v1
+        uses: jakebailey/pyright-action@v2
         with:
-          version: ${{env.PYRIGHT_VERSION}}
+          version: PATH

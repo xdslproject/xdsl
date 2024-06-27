@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from math import prod
 from typing import TypeVar, cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, llvm, memref, mpi
 from xdsl.dialects.builtin import (
     IndexType,
@@ -12,7 +13,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -329,7 +330,7 @@ class LowerMpiInit(_MPIToLLVMRewriteBase):
         We currently don't model any argument passing to `MPI_Init()` and pass two nullptrs.
         """
         return [
-            nullptr := llvm.NullOp(),
+            nullptr := llvm.ZeroOp(result_types=[llvm.LLVMPointerType.opaque()]),
             func.Call(self._mpi_name(op), [nullptr, nullptr], [i32]),
         ], []
 

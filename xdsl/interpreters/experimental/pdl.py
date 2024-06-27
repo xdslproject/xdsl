@@ -4,10 +4,11 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import IO, Any, ClassVar
 
+from xdsl.context import MLContext
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
-from xdsl.ir import Attribute, MLContext, Operation, OpResult, SSAValue, TypeAttribute
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter, RewritePattern
 from xdsl.utils.exceptions import InterpretationError

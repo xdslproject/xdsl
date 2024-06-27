@@ -1,8 +1,10 @@
+import re
 from collections.abc import Sequence
 
 import pytest
 from conftest import assert_print_op
 
+from xdsl.context import MLContext
 from xdsl.dialects import test
 from xdsl.dialects.arith import Addi, Arith, Constant, Muli
 from xdsl.dialects.builtin import (
@@ -15,7 +17,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Block, MLContext, Operation, SSAValue
+from xdsl.ir import Block, Operation, SSAValue
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -27,6 +29,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -385,7 +388,7 @@ def test_insert_op_at_start():
         def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
             new_cst = Constant.from_int_and_width(42, i32)
 
-            rewriter.insert_op_at_start(new_cst, mod.regions[0].blocks[0])
+            rewriter.insert_op(new_cst, InsertPoint.at_start(mod.regions[0].blocks[0]))
 
     rewrite_and_compare(
         prog,
@@ -414,7 +417,7 @@ def test_insert_op_before():
 
             first_op = mod.ops.first
             assert first_op is not None
-            rewriter.insert_op_before(new_cst, first_op)
+            rewriter.insert_op(new_cst, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -443,7 +446,7 @@ def test_insert_op_after():
 
             first_op = mod.ops.first
             assert first_op is not None
-            rewriter.insert_op_after(new_cst, first_op)
+            rewriter.insert_op(new_cst, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -829,7 +832,7 @@ def test_inline_block_before():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block_before(inner_block, first_op)
+                    rewriter.inline_block(inner_block, InsertPoint.before(first_op))
 
     rewrite_and_compare(
         prog,
@@ -868,7 +871,9 @@ def test_inline_block_at_before_when_op_is_matched_op():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.inline_block_before(matched_op.regs[0].blocks[0], matched_op)
+                rewriter.inline_block(
+                    matched_op.regs[0].blocks[0], InsertPoint.before(matched_op)
+                )
 
     rewrite_and_compare(
         prog,
@@ -922,8 +927,8 @@ def test_inline_block_before_with_args():
 
                 if isinstance(first_op, test.TestOp):
                     inner_block = first_op.regs[0].blocks[0]
-                    rewriter.inline_block_before(
-                        inner_block, first_op, outer_block.args
+                    rewriter.inline_block(
+                        inner_block, InsertPoint.before(first_op), outer_block.args
                     )
 
     rewrite_and_compare(
@@ -956,13 +961,12 @@ def test_inline_block_after():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
     %2 = "test.op"() ({
-    ^0:
     }, {
-    ^1:
+    ^0:
     }) : () -> !test.type<"int">
     %3 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^2:
+  ^1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -976,7 +980,7 @@ def test_inline_block_after():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_block, first_op)
+                        rewriter.inline_block(inner_block, InsertPoint.after(first_op))
 
     rewrite_and_compare(
         prog,
@@ -1008,12 +1012,11 @@ def test_inline_block_after_matched():
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
     %2 = "test.op"() ({
-    ^0:
     }, {
-    ^1:
+    ^0:
     }) : () -> !test.type<"int">
   }, {
-  ^2:
+  ^1:
   }) : () -> !test.type<"int">
   %3 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
@@ -1028,7 +1031,9 @@ def test_inline_block_after_matched():
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
                         inner_block = first_op.regs[0].blocks[0]
-                        rewriter.inline_block_after(inner_block, matched_op)
+                        rewriter.inline_block(
+                            inner_block, InsertPoint.after(matched_op)
+                        )
 
     rewrite_and_compare(
         prog,
@@ -1072,7 +1077,7 @@ def test_move_region_contents_to_new_regions():
             new_region = rewriter.move_region_contents_to_new_regions(old_op.regions[0])
             res_types = [r.type for r in old_op.results]
             new_op = test.TestOp.create(result_types=res_types, regions=[new_region])
-            rewriter.insert_op_after(new_op, old_op)
+            rewriter.insert_op(new_op, InsertPoint.after(old_op))
 
     rewrite_and_compare(
         prog,
@@ -1138,9 +1143,9 @@ def test_insert_same_block():
             )
 
             # Allocate before first use
-            rewriter.insert_op_at_start(alloc, block)
+            rewriter.insert_op(alloc, InsertPoint.at_start(block))
             # Deallocate after last use
-            rewriter.insert_op_before(dealloc, last_op)
+            rewriter.insert_op(dealloc, InsertPoint.before(last_op))
             # Init instead of creating, and replace result with allocated value
             rewriter.replace_matched_op(init, alloc.res)
 
@@ -1344,6 +1349,38 @@ def test_inline_region_at_end():
     )
 
 
+def test_erased_ssavalue():
+    prog = """\
+builtin.module {
+  "test.op"() ({
+    %0 = "test.op"() : () -> i32
+    "test.op"(%0) : (i32) -> ()
+  }) : () -> ()
+}
+  """
+
+    expected = """\
+"builtin.module"() ({
+  "test.op"() ({
+  ^0:
+  }) : () -> ()
+}) : () -> ()
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if op.results or op.operands:
+                rewriter.erase_matched_op(safe_erase=False)
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_removed=2,
+    )
+
+
 def test_type_conversion():
     """Test rewriter on ops without results"""
     prog = """\
@@ -1544,6 +1581,34 @@ def test_type_conversion():
         op_modified=1,
     )
 
+    prog = """\
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = i32}} : () -> ()
+}) : () -> ()
+"""
+
+    expected_recursive = """
+"builtin.module"() ({
+  "test.op"() {"dict_nest" = {"hello" = index}} : () -> ()
+}) : () -> ()
+"""
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(recursive=False)),
+        expect_rewrite=False,
+    )
+
+    rewrite_and_compare(
+        prog,
+        expected_recursive,
+        PatternRewriteWalker(Rewrite(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+    )
+
 
 def test_no_change():
     """Test that doing nothing successfully does not report doing something."""
@@ -1569,3 +1634,50 @@ def test_no_change():
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         expect_rewrite=False,
     )
+
+
+def test_error():
+
+    prog = """\
+builtin.module {
+  "test.op"() {"erroneous" = false} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {"erroneous" = true} : () -> ()
+  "test.op"() : () -> ()
+}
+"""
+    expected = """\
+Error while applying pattern: Expected operation to not be erroneous!
+
+"builtin.module"() ({
+  "test.op"() {"erroneous" = false} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {"erroneous" = true} : () -> ()
+  ^^^^^^^^^--------------------------------------------------------------
+  | Error while applying pattern: Expected operation to not be erroneous!
+  -----------------------------------------------------------------------
+  "test.op"() : () -> ()
+}) : () -> ()
+
+"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
+            if matched_op.attributes.get(
+                "erroneous", IntegerAttr.from_int_and_width(0, 1)
+            ) == IntegerAttr.from_int_and_width(1, 1):
+                raise ValueError("Expected operation to not be erroneous!")
+            return
+
+    ctx = MLContext(allow_unregistered=True)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(test.Test)
+
+    parser = Parser(ctx, prog)
+    module = parser.parse_module()
+
+    walker = PatternRewriteWalker(Rewrite())
+    with pytest.raises(ValueError, match=re.escape(expected)):
+        walker.rewrite_module(module)

@@ -3,6 +3,7 @@ from typing import cast
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
     ArrayAttr,
     Builtin,
@@ -10,12 +11,13 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    LocationAttr,
     StringAttr,
     SymbolRefAttr,
     i32,
 )
 from xdsl.dialects.test import Test
-from xdsl.ir import Attribute, MLContext, ParametrizedAttribute, Region
+from xdsl.ir import Attribute, ParametrizedAttribute, Region
 from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
@@ -27,6 +29,7 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.lexer import Token
+from xdsl.utils.str_enum import StrEnum
 
 # pyright: reportPrivateUsage=false
 
@@ -756,57 +759,65 @@ def test_parse_optional_int_error(text: str, allow_boolean: bool, allow_negative
 
 
 @pytest.mark.parametrize(
-    "text, expected_value",
+    "text, allow_boolean, expected_value",
     [
-        ("42", 42),
-        ("-1", -1),
-        ("true", None),
-        ("false", None),
-        ("0x1a", 26),
-        ("-0x1a", -26),
-        ("0.", 0.0),
-        ("1.", 1.0),
-        ("0.2", 0.2),
-        ("38.1243", 38.1243),
-        ("92.54e43", 92.54e43),
-        ("92.5E43", 92.5e43),
-        ("43.3e-54", 43.3e-54),
-        ("32.E+25", 32.0e25),
+        ("42", False, 42),
+        ("-1", False, -1),
+        ("true", False, None),
+        ("false", False, None),
+        ("0x1a", False, 26),
+        ("-0x1a", False, -26),
+        ("0.", False, 0.0),
+        ("1.", False, 1.0),
+        ("0.2", False, 0.2),
+        ("38.1243", False, 38.1243),
+        ("92.54e43", False, 92.54e43),
+        ("92.5E43", False, 92.5e43),
+        ("43.3e-54", False, 43.3e-54),
+        ("32.E+25", False, 32.0e25),
+        ("true", True, 1),
+        ("false", True, 0),
+        ("42", True, 42),
+        ("0.2", True, 0.2),
     ],
 )
-def test_parse_number(text: str, expected_value: int | float | None):
+def test_parse_number(
+    text: str, allow_boolean: bool, expected_value: int | float | None
+):
     parser = Parser(MLContext(), text)
-    assert parser.parse_optional_number() == expected_value
+    assert parser.parse_optional_number(allow_boolean=allow_boolean) == expected_value
 
     parser = Parser(MLContext(), text)
     if expected_value is None:
         with pytest.raises(ParseError):
             parser.parse_number()
     else:
-        assert parser.parse_number() == expected_value
+        assert parser.parse_number(allow_boolean=allow_boolean) == expected_value
 
 
 @pytest.mark.parametrize(
-    "text",
+    "text, allow_boolean",
     [
-        ("-false"),
-        ("-true"),
-        ("-k"),
-        ("-("),
+        ("-false", False),
+        ("-true", False),
+        ("-false", True),
+        ("-true", True),
+        ("-k", False),
+        ("-(", False),
     ],
 )
-def test_parse_number_error(text: str):
+def test_parse_number_error(text: str, allow_boolean: bool):
     """
     Test that parsing a negative without an
     integer or a float after raise an error.
     """
     parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
-        parser.parse_optional_number()
+        parser.parse_optional_number(allow_boolean=allow_boolean)
 
     parser = Parser(MLContext(), text)
     with pytest.raises(ParseError):
-        parser.parse_number()
+        parser.parse_number(allow_boolean=allow_boolean)
 
 
 @irdl_op_definition
@@ -846,3 +857,66 @@ def test_properties_retrocompatibility():
         VerifyException, match="Operation does not verify: property second expected"
     ):
         wrong_op.verify()
+
+
+def test_parse_location():
+    ctx = MLContext()
+    attr = Parser(ctx, "loc(unknown)").parse_optional_location()
+    assert attr == LocationAttr()
+
+
+@pytest.mark.parametrize(
+    "keyword,expected",
+    [
+        ("public", StringAttr("public")),
+        ("nested", StringAttr("nested")),
+        ("private", StringAttr("private")),
+        ("privateeee", None),
+        ("unknown", None),
+    ],
+)
+def test_parse_visibility(keyword: str, expected: StringAttr | None):
+    assert Parser(MLContext(), keyword).parse_optional_visibility_keyword() == expected
+
+    parser = Parser(MLContext(), keyword)
+    if expected is None:
+        with pytest.raises(ParseError, match="expect symbol visibility keyword"):
+            parser.parse_visibility_keyword()
+    else:
+        assert parser.parse_visibility_keyword() == expected
+
+
+class MyEnum(StrEnum):
+    A = "a"
+    B = "b"
+    C = "c"
+
+
+@pytest.mark.parametrize(
+    "keyword, expected",
+    [
+        ("a", MyEnum.A),
+        ("b", MyEnum.B),
+        ("c", MyEnum.C),
+        ("cc", None),
+    ],
+)
+def test_parse_str_enum(keyword: str, expected: MyEnum | None):
+    assert Parser(MLContext(), keyword).parse_optional_str_enum(MyEnum) == expected
+
+    parser = Parser(MLContext(), keyword)
+    if expected is None:
+        with pytest.raises(ParseError, match="Expected `a`, `b`, or `c`"):
+            parser.parse_str_enum(MyEnum)
+    else:
+        assert parser.parse_str_enum(MyEnum) == expected
+
+
+class MySingletonEnum(StrEnum):
+    A = "a"
+
+
+def test_parse_singleton_enum_fail():
+    parser = Parser(MLContext(), "b")
+    with pytest.raises(ParseError, match="Expected `a`"):
+        parser.parse_str_enum(MySingletonEnum)

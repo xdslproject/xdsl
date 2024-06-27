@@ -1,7 +1,8 @@
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, ModuleOp
 from xdsl.dialects.gpu import LoopDimMapAttr, ProcessorAttr, ProcessorEnum
 from xdsl.dialects.scf import ParallelOp
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

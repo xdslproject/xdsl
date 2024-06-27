@@ -5,6 +5,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_matched_op_results,
     cast_operands_to_regs,
 )
+from xdsl.context import MLContext
 from xdsl.dialects import arith, riscv
 from xdsl.dialects.builtin import (
     Float32Type,
@@ -16,7 +17,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -26,6 +27,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
+from xdsl.utils.comparisons import signed_lower_bound, signed_upper_bound
 
 _INT_REGISTER_TYPE = riscv.IntRegisterType.unallocated()
 _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
@@ -65,27 +67,49 @@ class LowerArithConstant(RewritePattern):
                 )
             elif isinstance(op_result_type, Float64Type):
                 # There is no way to load an immediate value to a float register directly.
-                # We have to load the bits into an integer register, store them on the
-                # stack, and load again.
 
-                # TODO: check the xlen in this lowering.
+                s32_min = signed_lower_bound(32)
+                s32_max = signed_upper_bound(32)
+                # If the value is an integer that fits in s32, then convert.
+                if (val_data := op_val.value.data).is_integer() and s32_min <= (
+                    int_val := int(val_data)
+                ) < s32_max:
+                    rewriter.replace_matched_op(
+                        [
+                            lui := riscv.LiOp(
+                                int_val,
+                                rd=_INT_REGISTER_TYPE,
+                            ),
+                            fcvtdw := riscv.FCvtDWOp(lui.rd, rd=_FLOAT_REGISTER_TYPE),
+                            UnrealizedConversionCastOp.get(
+                                fcvtdw.results, (op_result_type,)
+                            ),
+                        ],
+                    )
+                else:
+                    # We have to load the bits into an integer register, store them on the
+                    # stack, and load again.
 
-                # This lowering assumes that xlen is 32 and flen is 64
+                    # TODO: check the xlen in this lowering.
 
-                lower, upper = struct.unpack(
-                    "<ii", struct.pack("<d", op_val.value.data)
-                )
-                rewriter.replace_matched_op(
-                    [
-                        sp := riscv.GetRegisterOp(riscv.Registers.SP),
-                        li_upper := riscv.LiOp(upper),
-                        riscv.SwOp(sp, li_upper, -4),
-                        li_lower := riscv.LiOp(lower),
-                        riscv.SwOp(sp, li_lower, -8),
-                        fld := riscv.FLdOp(sp, -8, rd=_FLOAT_REGISTER_TYPE),
-                        UnrealizedConversionCastOp.get(fld.results, (op_result_type,)),
-                    ],
-                )
+                    # This lowering assumes that xlen is 32 and flen is 64
+
+                    lower, upper = struct.unpack(
+                        "<ii", struct.pack("<d", op_val.value.data)
+                    )
+                    rewriter.replace_matched_op(
+                        [
+                            sp := riscv.GetRegisterOp(riscv.Registers.SP),
+                            li_upper := riscv.LiOp(upper),
+                            riscv.SwOp(sp, li_upper, -4),
+                            li_lower := riscv.LiOp(lower),
+                            riscv.SwOp(sp, li_lower, -8),
+                            fld := riscv.FLdOp(sp, -8, rd=_FLOAT_REGISTER_TYPE),
+                            UnrealizedConversionCastOp.get(
+                                fld.results, (op_result_type,)
+                            ),
+                        ],
+                    )
             else:
                 raise NotImplementedError("Only 32 or 64 bit floats are supported")
         elif isinstance(op_result_type, IndexType) and isinstance(
@@ -411,12 +435,20 @@ class LowerArithCmpf(RewritePattern):
 class LowerArithSIToFPOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SIToFPOp, rewriter: PatternRewriter) -> None:
+        match op.result.type:
+            case Float32Type():
+                cls = riscv.FCvtSWOp
+            case Float64Type():
+                cls = riscv.FCvtDWOp
+            case _:
+                assert False, f"Unexpected float type {op.result.type}"
+
         rewriter.replace_matched_op(
             (
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_INT_REGISTER_TYPE,)
                 ),
-                new_op := riscv.FCvtSWOp(
+                new_op := cls(
                     cast_input.results[0], rd=riscv.FloatRegisterType.unallocated()
                 ),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),

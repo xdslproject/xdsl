@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from math import prod
@@ -21,7 +21,6 @@ from typing_extensions import Self
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
-    AttributeInvT,
     Block,
     BlockOps,
     Data,
@@ -31,6 +30,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import (
@@ -38,8 +38,10 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     AttrConstraint,
+    ConstraintContext,
     GenericData,
     IRDLOperation,
+    MessageConstraint,
     ParamAttrConstraint,
     ParameterDef,
     VarOperand,
@@ -59,9 +61,7 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
-from xdsl.utils.deprecation import deprecated_constructor
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -80,7 +80,9 @@ class ShapedType(ABC):
 
 
 class AnyShapedType(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, ShapedType):
             raise Exception(f"expected type ShapedType but got {attr}")
 
@@ -103,7 +105,7 @@ class NoneAttr(ParametrizedAttribute):
     name = "none"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ArrayOfConstraint(AttrConstraint):
     """
     A constraint that enforces an ArrayData whose elements all satisfy
@@ -113,13 +115,13 @@ class ArrayOfConstraint(AttrConstraint):
     elem_constr: AttrConstraint
 
     def __init__(self, constr: Attribute | type[Attribute] | AttrConstraint):
-        self.elem_constr = attr_constr_coercion(constr)
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(constr))
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         for e in cast(ArrayAttr[Attribute], attr).data:
-            self.elem_constr.verify(e, constraint_vars)
+            self.elem_constr.verify(e, constraint_context)
 
 
 @irdl_attr_definition
@@ -236,31 +238,14 @@ class SymbolRefAttr(ParametrizedAttribute):
         return root
 
 
-@dataclass
-class CustomErrorMessageAttrConstraint(AttrConstraint):
-    """Emit a different error message if a verification exception was caught."""
-
-    constraint: AttrConstraint
-    new_message: str | Callable[[Attribute], str]
-
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
-        try:
-            self.constraint.verify(attr, constraint_vars)
-        except VerifyException as e:
-            new_message = (
-                self.new_message
-                if isinstance(self.new_message, str)
-                else self.new_message(attr)
-            )
-            raise VerifyException(new_message) from e
-
-
 class EmptyArrayAttrConstraint(AttrConstraint):
     """
     Constrain attribute to be empty ArrayData
     """
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, ArrayAttr):
             raise VerifyException(f"expected ArrayData attribute, but got {attr}")
         attr = cast(ArrayAttr[Attribute], attr)
@@ -268,7 +253,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
             raise VerifyException(f"expected empty array, but got {attr}")
 
 
-FlatSymbolRefAttrConstraint = CustomErrorMessageAttrConstraint(
+FlatSymbolRefAttrConstraint = MessageConstraint(
     ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
     "Unexpected nested symbols in FlatSymbolRefAttr.",
 )
@@ -312,10 +297,10 @@ class Signedness(Enum):
         """
         match self:
             case Signedness.SIGNLESS:
-                min_value = -(1 << (bitwidth - 1))
+                min_value = -((1 << bitwidth) >> 1)
                 max_value = 1 << bitwidth
             case Signedness.SIGNED:
-                min_value = -(1 << (bitwidth - 1))
+                min_value = -((1 << bitwidth) >> 1)
                 max_value = 1 << (bitwidth - 1)
             case Signedness.UNSIGNED:
                 min_value = 0
@@ -376,6 +361,9 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
 i64 = IntegerType(64)
 i32 = IntegerType(32)
 i1 = IntegerType(1)
+I64 = Annotated[IntegerType, i64]
+I32 = Annotated[IntegerType, i32]
+I1 = Annotated[IntegerType, i1]
 
 
 SignlessIntegerConstraint = ParamAttrConstraint(
@@ -410,7 +398,6 @@ class IndexType(ParametrizedAttribute):
 _IntegerAttrType = TypeVar(
     "_IntegerAttrType", bound=IntegerType | IndexType, covariant=True
 )
-
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
     Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
 ]
@@ -418,14 +405,17 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 
 
 @irdl_attr_definition
-class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
+class IntegerAttr(
+    Generic[_IntegerAttrType],
+    TypedAttribute[_IntegerAttrType],
+):
     name = "integer"
     value: ParameterDef[IntAttr]
     type: ParameterDef[_IntegerAttrType]
 
     @overload
     def __init__(
-        self: IntegerAttr[_IntegerAttrType],
+        self,
         value: int | IntAttr,
         value_type: _IntegerAttrType,
     ) -> None: ...
@@ -464,6 +454,21 @@ class IntegerAttr(Generic[_IntegerAttrType], ParametrizedAttribute):
                 f"type {self.type} which supports values in the "
                 f"range [{min_value}, {max_value})"
             )
+
+    @classmethod
+    def parse_with_type(
+        cls: type[IntegerAttr[_IntegerAttrType]],
+        parser: AttrParser,
+        type: Attribute,
+    ) -> IntegerAttr[_IntegerAttrType]:
+        assert isinstance(type, IntegerType) or isinstance(type, IndexType)
+        return cast(
+            IntegerAttr[_IntegerAttrType],
+            IntegerAttr(parser.parse_integer(allow_boolean=(type == i1)), type),
+        )
+
+    def print_without_type(self, printer: Printer):
+        return printer.print(self.value.data)
 
 
 AnyIntegerAttr: TypeAlias = IntegerAttr[IntegerType | IndexType]
@@ -646,7 +651,7 @@ class VectorType(
     num_scalable_dims: ParameterDef[IntAttr]
 
     def __init__(
-        self: VectorType[AttributeCovT],
+        self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
         num_scalable_dims: int | IntAttr = 0,
@@ -683,32 +688,6 @@ class VectorType(
                 f" {self.get_num_dims()}"
             )
 
-    @deprecated_constructor
-    @staticmethod
-    def from_element_type_and_shape(
-        referenced_type: AttributeInvT,
-        shape: Iterable[int | IntegerAttr[IndexType]],
-        num_scalable_dims: int | IntAttr = 0,
-    ) -> VectorType[AttributeInvT]:
-        if isinstance(num_scalable_dims, int):
-            num_scalable_dims = IntAttr(num_scalable_dims)
-        shape_int = [
-            IntAttr(dim) if isinstance(dim, int) else dim.value.data for dim in shape
-        ]
-        return VectorType(referenced_type, shape_int, num_scalable_dims)
-
-    @deprecated_constructor
-    @staticmethod
-    def from_params(
-        referenced_type: AttributeInvT,
-        shape: ArrayAttr[IntegerAttr[IntegerType]] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)]
-        ),
-        num_scalable_dims: IntAttr = IntAttr(0),
-    ) -> VectorType[AttributeInvT]:
-        shape_int = [dim.value.data for dim in shape.data]
-        return VectorType(referenced_type, shape_int, num_scalable_dims)
-
 
 AnyVectorType: TypeAlias = VectorType[Attribute]
 
@@ -728,7 +707,7 @@ class TensorType(
     encoding: ParameterDef[Attribute]
 
     def __init__(
-        self: TensorType[AttributeCovT],
+        self,
         element_type: AttributeCovT,
         shape: Iterable[int | IntAttr],
         encoding: Attribute = NoneAttr(),
@@ -747,32 +726,6 @@ class TensorType(
     def get_element_type(self) -> AttributeCovT:
         return self.element_type
 
-    @deprecated_constructor
-    @staticmethod
-    def from_type_and_list(
-        referenced_type: AttributeInvT,
-        shape: Iterable[int | IntegerAttr[IndexType]] | None = None,
-        encoding: Attribute = NoneAttr(),
-    ) -> TensorType[AttributeInvT]:
-        if shape is None:
-            shape = [1]
-        shape_int = [
-            IntAttr(dim) if isinstance(dim, int) else dim.value.data for dim in shape
-        ]
-        return TensorType(referenced_type, shape_int, encoding)
-
-    @deprecated_constructor
-    @staticmethod
-    def from_params(
-        referenced_type: AttributeInvT,
-        shape: AnyArrayAttr = AnyArrayAttr([IntegerAttr.from_int_and_width(1, 64)]),
-        encoding: Attribute = NoneAttr(),
-    ) -> TensorType[AttributeInvT]:
-        if not isa(shape, ArrayAttr[AnyIntegerAttr]):
-            raise TypeError(f"Unsupported shape type {type(shape)}")
-        shape_int = [dim.value.data for dim in shape.data]
-        return TensorType(referenced_type, shape_int, encoding)
-
 
 AnyTensorType: TypeAlias = TensorType[Attribute]
 
@@ -783,16 +736,14 @@ class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttr
 
     element_type: ParameterDef[AttributeCovT]
 
-    def __init__(
-        self: UnrankedTensorType[AttributeCovT], element_type: AttributeCovT
-    ) -> None:
+    def __init__(self, element_type: AttributeCovT) -> None:
         super().__init__([element_type])
 
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
 
 
-@dataclass(init=False)
+@dataclass(frozen=True, init=False)
 class ContainerOf(AttrConstraint):
     """A type constraint that can be nested once in a vector or a tensor."""
 
@@ -801,14 +752,14 @@ class ContainerOf(AttrConstraint):
     def __init__(
         self, elem_constr: Attribute | type[Attribute] | AttrConstraint
     ) -> None:
-        self.elem_constr = attr_constr_coercion(elem_constr)
+        object.__setattr__(self, "elem_constr", attr_constr_coercion(elem_constr))
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if isinstance(attr, VectorType) or isinstance(attr, TensorType):
             attr = cast(VectorType[Attribute] | TensorType[Attribute], attr)
-            self.elem_constr.verify(attr.element_type, constraint_vars)
+            self.elem_constr.verify(attr.element_type, constraint_context)
         else:
-            self.elem_constr.verify(attr, constraint_vars)
+            self.elem_constr.verify(attr, constraint_context)
 
 
 VectorOrTensorOf: TypeAlias = (
@@ -822,7 +773,7 @@ RankedVectorOrTensorOf: TypeAlias = (
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank.
@@ -831,7 +782,9 @@ class VectorRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         if attr.get_num_dims() != self.expected_rank:
@@ -840,7 +793,7 @@ class VectorRankConstraint(AttrConstraint):
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorBaseTypeConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given base type.
@@ -849,7 +802,9 @@ class VectorBaseTypeConstraint(AttrConstraint):
     expected_type: Attribute
     """The expected vector base type."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self, attr: Attribute, constraint_context: ConstraintContext | None = None
+    ) -> None:
         if not isinstance(attr, VectorType):
             raise VerifyException(f"{attr} should be of type VectorType.")
         attr = cast(VectorType[Attribute], attr)
@@ -859,7 +814,7 @@ class VectorBaseTypeConstraint(AttrConstraint):
             )
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorBaseTypeAndRankConstraint(AttrConstraint):
     """
     Constrain a vector to be of a given rank and base type.
@@ -871,14 +826,14 @@ class VectorBaseTypeAndRankConstraint(AttrConstraint):
     expected_rank: int
     """The expected vector rank."""
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         constraint = AllOf(
-            [
+            (
                 VectorBaseTypeConstraint(self.expected_type),
                 VectorRankConstraint(self.expected_rank),
-            ]
+            )
         )
-        constraint.verify(attr, constraint_vars)
+        constraint.verify(attr, constraint_context)
 
 
 @irdl_attr_definition
@@ -1046,15 +1001,15 @@ class DenseResourceAttr(ParametrizedAttribute):
 class DenseArrayBase(ParametrizedAttribute):
     name = "array"
 
-    elt_type: ParameterDef[IntegerType | AnyFloat]
+    elt_type: ParameterDef[IntegerType | IndexType | AnyFloat]
     data: ParameterDef[ArrayAttr[IntAttr] | ArrayAttr[FloatData]]
 
     def verify(self):
-        if isinstance(self.elt_type, IntegerType):
+        if isinstance(self.elt_type, IntegerType | IndexType):
             for d in self.data.data:
                 if isinstance(d, FloatData):
                     raise VerifyException(
-                        "dense array of integer element type "
+                        "dense array of integer or index element type "
                         "should only contain integers"
                     )
         else:
@@ -1163,8 +1118,18 @@ class OpaqueAttr(ParametrizedAttribute):
         return OpaqueAttr([StringAttr(name), StringAttr(value), type])
 
 
+class MemrefLayoutAttr(Attribute, ABC):
+    """
+    Interface for any attribute acceptable as a memref layout.
+    """
+
+    name = "abstract.memref_layout_att"
+
+    pass
+
+
 @irdl_attr_definition
-class StridedLayoutAttr(ParametrizedAttribute):
+class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
     """
     An attribute representing a strided layout of a shaped type.
     See https://mlir.llvm.org/docs/Dialects/Builtin/#stridedlayoutattr
@@ -1206,7 +1171,7 @@ class StridedLayoutAttr(ParametrizedAttribute):
 
 
 @irdl_attr_definition
-class AffineMapAttr(Data[AffineMap]):
+class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
     """An Attribute containing an AffineMap object."""
 
     name = "affine_map"
@@ -1513,19 +1478,20 @@ class MemRefType(
 
     shape: ParameterDef[ArrayAttr[IntAttr]]
     element_type: ParameterDef[_MemRefTypeElement]
-    layout: ParameterDef[Attribute]
+    layout: ParameterDef[MemrefLayoutAttr | NoneAttr]
     memory_space: ParameterDef[Attribute]
 
     def __init__(
-        self: MemRefType[_MemRefTypeElement],
+        self,
         element_type: _MemRefTypeElement,
-        shape: Iterable[int | IntAttr],
-        layout: Attribute = NoneAttr(),
+        shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
+        layout: MemrefLayoutAttr | NoneAttr = NoneAttr(),
         memory_space: Attribute = NoneAttr(),
     ):
-        shape = ArrayAttr(
-            [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
-        )
+        if not isinstance(shape, ArrayAttr):
+            shape = ArrayAttr(
+                [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+            )
         super().__init__(
             [
                 shape,
@@ -1543,30 +1509,6 @@ class MemRefType(
 
     def get_element_type(self) -> _MemRefTypeElement:
         return self.element_type
-
-    @deprecated_constructor
-    @staticmethod
-    def from_element_type_and_shape(
-        referenced_type: _MemRefTypeElement,
-        shape: Iterable[int | AnyIntegerAttr],
-        layout: Attribute = NoneAttr(),
-        memory_space: Attribute = NoneAttr(),
-    ) -> MemRefType[_MemRefTypeElement]:
-        shape_int = [i if isinstance(i, int) else i.value.data for i in shape]
-        return MemRefType(referenced_type, shape_int, layout, memory_space)
-
-    @deprecated_constructor
-    @staticmethod
-    def from_params(
-        referenced_type: _MemRefTypeElement,
-        shape: ArrayAttr[AnyIntegerAttr] = ArrayAttr(
-            [IntegerAttr.from_int_and_width(1, 64)]
-        ),
-        layout: Attribute = NoneAttr(),
-        memory_space: Attribute = NoneAttr(),
-    ) -> MemRefType[_MemRefTypeElement]:
-        shape_int = [i.value.data for i in shape.data]
-        return MemRefType(referenced_type, shape_int, layout, memory_space)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

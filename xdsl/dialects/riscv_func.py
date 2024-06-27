@@ -36,7 +36,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import CallableOpInterface, HasParent, IsTerminator, SymbolOpInterface
+from xdsl.traits import (
+    CallableOpInterface,
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    SymbolOpInterface,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -142,6 +148,16 @@ class FuncOpCallableInterface(CallableOpInterface):
         assert isinstance(op, FuncOp)
         return op.body
 
+    @classmethod
+    def get_argument_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.inputs.data
+
+    @classmethod
+    def get_result_types(cls, op: Operation) -> tuple[Attribute, ...]:
+        assert isinstance(op, FuncOp)
+        return op.function_type.outputs.data
+
 
 @irdl_op_definition
 class FuncOp(IRDLOperation, riscv.RISCVOp):
@@ -153,7 +169,13 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
     function_type: FunctionType = attr_def(FunctionType)
     sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
 
-    traits = frozenset([SymbolOpInterface(), FuncOpCallableInterface()])
+    traits = frozenset(
+        [
+            SymbolOpInterface(),
+            FuncOpCallableInterface(),
+            IsolatedFromAbove(),
+        ]
+    )
 
     def __init__(
         self,
@@ -177,15 +199,7 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        # Parse visibility keyword if present
-        if parser.parse_optional_keyword("public"):
-            visibility = "public"
-        elif parser.parse_optional_keyword("nested"):
-            visibility = "nested"
-        elif parser.parse_optional_keyword("private"):
-            visibility = "private"
-        else:
-            visibility = None
+        visibility = parser.parse_optional_visibility_keyword()
         (
             name,
             input_types,

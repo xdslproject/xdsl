@@ -10,14 +10,19 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from itertools import pairwise
+from typing import cast
 
-from xdsl.ir import Attribute
+from xdsl.dialects.builtin import Builtin
+from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
+    AttrOrPropDef,
     AttrSizedOperandSegments,
+    ConstraintContext,
     OpDef,
     OptionalDef,
     OptOperandDef,
     OptResultDef,
+    ParamAttrConstraint,
     ParsePropInAttrDict,
     VariadicDef,
     VarOperandDef,
@@ -33,6 +38,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OperandOrResult,
     OperandTypeDirective,
     OperandVariable,
+    OptionalAttributeVariable,
     OptionalGroupDirective,
     OptionallyParsableDirective,
     OptionalOperandTypeDirective,
@@ -42,7 +48,7 @@ from xdsl.irdl.declarative_assembly_format import (
     PunctuationDirective,
     ResultTypeDirective,
     ResultVariable,
-    TypeDirective,
+    VariableDirective,
     VariadicLikeFormatDirective,
     VariadicLikeTypeDirective,
     VariadicLikeVariable,
@@ -172,7 +178,8 @@ class FormatParser(BaseParser):
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
                 case VariadicLikeVariable(), VariadicLikeVariable() if not (
-                    isinstance(a, TypeDirective) or isinstance(b, TypeDirective)
+                    isinstance(a, VariadicLikeTypeDirective)
+                    or isinstance(b, VariadicLikeTypeDirective)
                 ):
                     self.raise_error(
                         "A variadic operand variable cannot be followed by another variadic operand variable."
@@ -285,7 +292,7 @@ class FormatParser(BaseParser):
 
     def parse_optional_variable(
         self,
-    ) -> OperandVariable | ResultVariable | AttributeVariable | None:
+    ) -> VariableDirective | AttributeVariable | None:
         """
         Parse a variable, if present, with the following format:
           variable ::= `$` bare-ident
@@ -357,7 +364,46 @@ class FormatParser(BaseParser):
                         )
                     self.seen_attributes.add(attr_name)
 
-            return AttributeVariable(variable_name, attr_or_prop == "property")
+            attr_def = (
+                self.op_def.properties.get(attr_name)
+                if attr_or_prop == "property"
+                else self.op_def.attributes.get(attr_name)
+            )
+            if isinstance(attr_def, AttrOrPropDef):
+                unique_base = attr_def.constr.get_unique_base()
+                # Always qualify builtin attributes
+                # This is technically an approximation, but appears to be good enough
+                # for xDSL right now.
+                unique_type = None
+                if unique_base is not None and issubclass(unique_base, TypedAttribute):
+                    constr = attr_def.constr
+                    # TODO: generalize.
+                    # https://github.com/xdslproject/xdsl/issues/2499
+                    if isinstance(constr, ParamAttrConstraint):
+                        type_constraint = constr.param_constrs[
+                            unique_base.get_type_index()
+                        ]
+                        if type_constraint.can_infer(set()):
+                            unique_type = type_constraint.infer(ConstraintContext())
+                if (
+                    unique_base is not None
+                    and unique_base in Builtin.attributes
+                    and unique_type is None
+                ):
+                    unique_base = None
+
+                # Chill pyright with TypedAttribute without parameter
+                unique_base = cast(type[Attribute] | None, unique_base)
+
+                variable_type = (
+                    OptionalAttributeVariable
+                    if isinstance(attr_def, OptionalDef)
+                    else AttributeVariable
+                )
+                is_property = attr_or_prop == "property"
+                return variable_type(
+                    variable_name, is_property, unique_base, unique_type
+                )
 
         self.raise_error(
             "expected variable to refer to an operand, "
@@ -412,6 +458,8 @@ class FormatParser(BaseParser):
                 res = ResultTypeDirective(name, index)
             case AttributeVariable():
                 self.raise_error("can only take the type of an operand or result")
+            case _:
+                raise ValueError(f"Unexpected variable type {type(variable)}")
 
         self.parse_punctuation(")")
         self.context = previous_context
@@ -422,7 +470,7 @@ class FormatParser(BaseParser):
         Parse an optional group, with the following format:
           group ::= `(` then-elements `)` `?`
         """
-        then_elements: tuple[FormatDirective, ...] = ()
+        then_elements = tuple[FormatDirective, ...]()
         anchor: FormatDirective | None = None
 
         while not self.parse_optional_punctuation(")"):

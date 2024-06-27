@@ -8,6 +8,8 @@ from xdsl.interpreter import (
     impl,
     register_impls,
 )
+from xdsl.interpreters.builtin import xtype_for_el_type
+from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.traits import SymbolTable
 
@@ -29,6 +31,9 @@ class MLProgramFunctions(InterpreterFunctions):
         shape = global_value.get_shape()
         if shape is None:
             raise NotImplementedError()
-        data = [el.value.data for el in global_value.data]
+        xtype = xtype_for_el_type(
+            global_value.get_element_type(), interpreter.index_bitwidth
+        )
+        data = TypedPtr.new([el.value.data for el in global_value.data], xtype=xtype)
         shaped_array = ShapedArray(data, list(shape))
         return (shaped_array,)

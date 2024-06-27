@@ -51,6 +51,7 @@ from xdsl.dialects.builtin import (
     UnregisteredAttr,
     UnregisteredOp,
     VectorType,
+    i1,
 )
 from xdsl.ir import (
     Attribute,
@@ -65,8 +66,9 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.diagnostic import Diagnostic
+from xdsl.utils.lexer import Lexer
 
 indentNumSpaces = 2
 
@@ -84,15 +86,27 @@ class Printer:
     """
     maps SSA Values to their "allocated" names
     """
-    _ssa_names: dict[str, int] = field(default_factory=dict, init=False)
-    _block_names: dict[Block, int] = field(default_factory=dict, init=False)
-    _next_valid_name_id: int = field(default=0, init=False)
-    _next_valid_block_id: int = field(default=0, init=False)
+    _ssa_names: list[dict[str, int]] = field(
+        default_factory=lambda: [dict()], init=False
+    )
+    _block_names: list[dict[Block, int]] = field(
+        default_factory=lambda: [dict()], init=False
+    )
+    _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
+    _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list, init=False
     )
+
+    @property
+    def ssa_names(self):
+        return self._ssa_names[-1]
+
+    @property
+    def block_names(self):
+        return self._block_names[-1]
 
     @contextmanager
     def in_angle_brackets(self):
@@ -124,6 +138,7 @@ class Printer:
                 self.print_op(arg)
                 self._print_new_line()
                 continue
+
             text = str(arg)
             self.print_string(text)
 
@@ -176,7 +191,7 @@ class Printer:
     V = TypeVar("V")
 
     def print_list(
-        self, elems: Iterable[T], print_fn: Callable[[T], None], delimiter: str = ", "
+        self, elems: Iterable[T], print_fn: Callable[[T], Any], delimiter: str = ", "
     ) -> None:
         for i, elem in enumerate(elems):
             if i:
@@ -209,12 +224,12 @@ class Printer:
         self.print(" " * indent * indentNumSpaces)
 
     def _get_new_valid_name_id(self) -> str:
-        self._next_valid_name_id += 1
-        return str(self._next_valid_name_id - 1)
+        self._next_valid_name_id[-1] += 1
+        return str(self._next_valid_name_id[-1] - 1)
 
     def _get_new_valid_block_id(self) -> int:
-        self._next_valid_block_id += 1
-        return self._next_valid_block_id - 1
+        self._next_valid_block_id[-1] += 1
+        return self._next_valid_block_id[-1] - 1
 
     def _print_results(self, op: Operation) -> None:
         results = op.results
@@ -226,35 +241,38 @@ class Printer:
         self.print_list(op.results, self.print)
         self.print(" = ")
 
-    def print_ssa_value(self, value: SSAValue) -> None:
+    def print_ssa_value(self, value: SSAValue) -> str:
         """
         Print an SSA value in the printer. This assigns a name to the value if the value
         does not have one in the current printing context.
         If the value has a name hint, it will use it as a prefix, and otherwise assign
         a number as the name. Numbers are assigned in order.
+
+        Returns the name used for printing the value.
         """
         if value in self._ssa_values:
             name = self._ssa_values[value]
         elif value.name_hint:
-            curr_ind = self._ssa_names.get(value.name_hint, 0)
+            curr_ind = self.ssa_names.get(value.name_hint, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
             name = f"{value.name_hint}{suffix}"
             self._ssa_values[value] = name
-            self._ssa_names[value.name_hint] = curr_ind + 1
+            self.ssa_names[value.name_hint] = curr_ind + 1
         else:
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
 
         self.print(f"%{name}")
+        return name
 
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
     def print_block_name(self, block: Block) -> None:
         self.print("^")
-        if block not in self._block_names:
-            self._block_names[block] = self._get_new_valid_block_id()
-        self.print(self._block_names[block])
+        if block not in self.block_names:
+            self.block_names[block] = self._get_new_valid_block_id()
+        self.print(self._block_names[-1][block])
 
     def print_block(
         self,
@@ -310,7 +328,6 @@ class Printer:
         * If `print_empty_block` is False, empty entry blocks are not printed.
         * If `print_block_terminators` is False, the block terminators are not printed.
         """
-
         # Empty region
         self.print("{")
         if len(region.blocks) == 0:
@@ -332,7 +349,7 @@ class Printer:
         self._print_new_line()
         self.print("}")
 
-    def print_regions(self, regions: list[Region]) -> None:
+    def print_regions(self, regions: Sequence[Region]) -> None:
         if len(regions) == 0:
             return
 
@@ -357,6 +374,16 @@ class Printer:
     def print_string_literal(self, string: str):
         self.print(json.dumps(string))
 
+    def print_identifier_or_string_literal(self, string: str):
+        """
+        Prints the provided string as an identifier if it is one,
+        and as a string literal otherwise.
+        """
+        if Lexer.bare_identifier_regex.fullmatch(string) is None:
+            self.print_string_literal(string)
+            return
+        self.print(string)
+
     def print_bytes_literal(self, bytestring: bytes):
         self.print('"')
         for byte in bytestring:
@@ -371,6 +398,7 @@ class Printer:
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
+            self.print("unit")
             return
 
         if isinstance(attribute, LocationAttr):
@@ -415,9 +443,11 @@ class Printer:
             return
 
         if isinstance(attribute, SymbolRefAttr):
-            self.print(f"@{attribute.root_reference.data}")
+            self.print("@")
+            self.print_identifier_or_string_literal(attribute.root_reference.data)
             for ref in attribute.nested_references.data:
-                self.print(f"::@{ref.data}")
+                self.print("::@")
+                self.print_identifier_or_string_literal(ref.data)
             return
 
         if isinstance(attribute, IntegerAttr):
@@ -431,8 +461,8 @@ class Printer:
                 self.print("false" if attribute.value.data == 0 else "true")
                 return
 
-            width = attribute.parameters[0]
-            attr_type = attribute.parameters[1]
+            width = attribute.value
+            attr_type = attribute.type
             assert isinstance(width, IntAttr)
             self.print(width.data)
             self.print(" : ")
@@ -468,7 +498,14 @@ class Printer:
                 self.print(">")
                 return
             self.print(": ")
-            self.print_list(data.data, lambda x: self.print(x.data))
+            # There is a bug in MLIR which will segfault when parsing DenseArrayBase type i1 as 0 or 1,
+            # therefore we need to print these as false and true
+            if attribute.elt_type == i1:
+                self.print_list(
+                    data.data, lambda x: self.print("true" if x.data == 1 else "false")
+                )
+            else:
+                self.print_list(data.data, lambda x: self.print(x.data))
             self.print(">")
             return
 
@@ -823,9 +860,24 @@ class Printer:
         if self.print_debuginfo:
             self.print(" loc(unknown)")
 
+    def enter_scope(self) -> None:
+        self._next_valid_name_id.append(self._next_valid_name_id[-1])
+        self._next_valid_block_id.append(self._next_valid_block_id[-1])
+        self._ssa_names.append(self._ssa_names[-1].copy())
+        self._block_names.append(self._block_names[-1].copy())
+
+    def exit_scope(self) -> None:
+        self._next_valid_name_id.pop()
+        self._next_valid_block_id.pop()
+        self._ssa_names.pop()
+        self._block_names.pop()
+
     def print_op(self, op: Operation) -> None:
+        scope = bool(op.get_traits_of_type(IsolatedFromAbove))
         begin_op_pos = self._current_column
         self._print_results(op)
+        if scope:
+            self.enter_scope()
         use_custom_format = False
         if isinstance(op, UnregisteredOp):
             self.print(f'"{op.op_name.data}"')
@@ -849,3 +901,5 @@ class Printer:
             op.print(self)
         else:
             self.print_op_with_default_format(op)
+        if scope:
+            self.exit_scope()

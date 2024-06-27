@@ -23,7 +23,7 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (f32, tensor<2x4xf32>)
 
-  // CHECK: operand at position 0 does not verify!
+  // CHECK: operand at position 0 does not verify:
   // CHECK: f32 should be of base attribute tensor
   %res_mul =  "onnx.Mul"(%t0, %t1) {onnx_node_name = "/Mul"} : (f32, tensor<2x4xf32>) -> tensor<2x4xf32>
 }
@@ -33,7 +33,7 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<2x4xi32>)
 
-  // CHECK: operand at position 1 does not verify!
+  // CHECK: operand at position 1 does not verify:
   // CHECK: attribute f32 expected from variable 'T', but got i32
   %res_div =  "onnx.Div"(%t0, %t1) {onnx_node_name = "/Div"} : (tensor<2x4xf32>, tensor<2x4xi32>) -> tensor<2x4xf32>
 }
@@ -43,7 +43,7 @@ builtin.module {
 builtin.module {
   %t0 = "test.op"() : () -> (tensor<2x4xf32>)
 
-  // CHECK: operand at position 1 does not verify!
+  // CHECK: operand at position 1 does not verify:
   // CHECK: Operation does not verify: Mismatch between operand type and res type of onnx.Relu
   %res_relu =  "onnx.Relu"(%t0) {onnx_node_name = "/Relu"} : (tensor<2x4xf32>) -> tensor<3x4xf32>
 }
@@ -62,7 +62,7 @@ builtin.module {
 builtin.module {
   %t0, %t1, %t2 = "test.op"() : () -> (f32, tensor<2x4xf32>,tensor<2x4xf32>)
 
-  // CHECK: operand at position 0 does not verify!
+  // CHECK: operand at position 0 does not verify:
   // CHECK: f32 should be of base attribute tensor
   %res_gemm=  "onnx.Gemm"(%t0, %t1, %t2) {onnx_node_name = "/Gemm"} : (f32, tensor<2x4xf32>, tensor<2x4xf32>) -> tensor<2x4xf32>
 }
@@ -81,7 +81,7 @@ builtin.module {
 builtin.module {
   %t0, %t1, %t2 = "test.op"() : () -> (tensor<2x4xf32>, tensor<2x4xi32>, tensor<2x4xf32>)
 
-  // CHECK: operand at position 1 does not verify!
+  // CHECK: operand at position 1 does not verify:
   // CHECK: attribute f32 expected from variable 'T', but got i32
   %res_gemm =  "onnx.Gemm"(%t0, %t1, %t2) {onnx_node_name = "/Gemm"} : (tensor<2x4xf32>, tensor<2x4xi32>, tensor<2x4xf32>) -> tensor<2x4xf32>
 
@@ -116,7 +116,7 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (f32, tensor<2x4xi64>)
 
-  // CHECK: operand at position 0 does not verify!
+  // CHECK: operand at position 0 does not verify:
   // CHECK: f32 should be of base attribute tensor
   %res_reshape =  "onnx.Reshape"(%t0, %t1) {onnx_node_name = "/Reshape"} : (f32, tensor<2x4xi64>) -> tensor<2x4xi64>
 }
@@ -126,7 +126,7 @@ builtin.module {
 builtin.module {
     %t0, %t1 = "test.op"() : () -> (tensor<4x3x2xf32>, tensor<1xi64>)
 
-  // CHECK: result at position 0 does not verify!
+  // CHECK: result at position 0 does not verify:
   // CHECK: attribute f32 expected from variable 'T', but got i32
   %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<4x3x2xf32>, tensor<1xi64>) -> tensor<4x3x2xi32>
 }
@@ -136,7 +136,7 @@ builtin.module {
 builtin.module {
     %t0, %t1 = "test.op"() : () -> (tensor<6x9x5xf32>, tensor<3xi64>)
 
-  // CHECK: result at position 0 does not verify!
+  // CHECK: result at position 0 does not verify:
   // CHECK: Operation does not verify: Input tensor's shape and output tensor's shape must have the same number of elements
   %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<6x9x5xf32>, tensor<3xi64>) -> tensor<6x9xf32>
 }
@@ -155,7 +155,7 @@ builtin.module {
 builtin.module {
     %t0, %t1 = "test.op"() : () -> (tensor<6x9x5xf32>, tensor<3xi64>)
 
-  // CHECK: result at position 0 does not verify!
+  // CHECK: result at position 0 does not verify:
   // CHECK:  vector<6x9x5xf32> should be of base attribute tensor
   %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (tensor<6x9x5xf32>, tensor<3xi64>) -> vector<6x9x5xf32>
 }
@@ -165,7 +165,7 @@ builtin.module {
 builtin.module {
     %t0, %t1 = "test.op"() : () -> (vector<6x9x5xf32>, tensor<3xi64>)
 
-  // CHECK: operand at position 0 does not verify!
+  // CHECK: operand at position 0 does not verify:
   // CHECK:  vector<6x9x5xf32> should be of base attribute tensor
   %res_reshape = "onnx.Reshape"(%t0, %t1) {"onnx_node_name" = "/Reshape"} : (vector<6x9x5xf32>, tensor<3xi64>) -> tensor<6x9x5xf32>
 }
@@ -206,7 +206,7 @@ builtin.module {
 builtin.module {
   %t0,%t1,%t2 = "test.op"(): () ->  (f32, tensor<1x1x3x3xf32>, none)
 
-  // CHECK: operand at position 0 does not verify!
+  // CHECK: operand at position 0 does not verify:
   // CHECK: f32 should be of base attribute tensor
   %res_conv =  "onnx.Conv"(%t0, %t1, %t2) {onnx_node_name = "/Conv"} : (f32, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xf32>
 }
@@ -216,7 +216,7 @@ builtin.module {
 builtin.module {
     %t0,%t1,%t2 = "test.op"(): () ->  (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none)
 
-  // CHECK: result at position 0 does not verify!
+  // CHECK: result at position 0 does not verify:
   // CHECK: attribute f32 expected from variable 'T', but got i32
   %res_conv = "onnx.Conv"(%t0, %t1, %t2) {"onnx_node_name" = "/Conv"} : (tensor<1x1x5x5xf32>, tensor<1x1x3x3xf32>, none) -> tensor<1x1x3x3xi32>
 
@@ -368,7 +368,7 @@ builtin.module {
 builtin.module {
   %t0 = "test.op"(): () ->  (f32)
 
-  // CHECK: operand at position 0 does not verify!
+  // CHECK: operand at position 0 does not verify:
   // CHECK: Unexpected attribute f32
   %res_max_pool_single_out =  "onnx.MaxPoolSingleOut"(%t0) {onnx_node_name = "/MaxPoolSingleOut"} : (f32) -> tensor<5x5x32x32xf32>
 }
@@ -378,7 +378,7 @@ builtin.module {
 builtin.module {
     %t0= "test.op"(): () ->  (tensor<5x5x32x32xf32>)
 
-  // CHECK: result at position 0 does not verify!
+  // CHECK: result at position 0 does not verify:
   // CHECK: Unexpected attribute tensor<5x5x32x32xi32>
   %res_max_pool_single_out = "onnx.MaxPoolSingleOut"(%t0) {"onnx_node_name" = "/MaxPoolSingleOut"} : (tensor<5x5x32x32xf32>) -> tensor<5x5x32x32xi32>
 
@@ -484,3 +484,88 @@ builtin.module {
 
 }
 
+// -----
+
+builtin.module {
+  %t0, %t1 = "test.op"() : () -> (tensor<2x4x3xf32>, tensor<4x2xf32>)
+
+  // CHECK: Operation does not verify: input matrix A should be a 2D tensor
+  %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4x3xf32>, tensor<4x2xf32>) -> tensor<2x2xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2x3xf32>)
+
+  // CHECK: Operation does not verify: input matrix B should be a 2D tensor
+  %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2x3xf32>) -> tensor<2x2xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<5x2xf32>)
+
+  // CHECK: Operation does not verify: operands have incompatible shapes: (2, 4) and (5, 2)
+  %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<5x2xf32>) -> tensor<2x2xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0, %t1 = "test.op"() : () -> (tensor<2x4xf32>, tensor<4x2xf32>)
+
+  // CHECK: Operation does not verify: result shape [2, 2] does not match result type [2, 3]
+  %res_matmul =  "onnx.MatMul"(%t0, %t1) {onnx_node_name = "/MatMul"} : (tensor<2x4xf32>, tensor<4x2xf32>) -> tensor<2x3xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<3x4xf32>)
+  // CHECK: Operation does not verify: permutation can not contain more than one occurrence of the same dimension: dimension #1 appears 2 times.
+  %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 1 : i64]}: (tensor<3x4xf32>) -> tensor<4x3xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<3x4xf32>)
+  // CHECK: Operation does not verify: permutation can only contain values between 0 and 2-1: dimension #1 value is 2
+  %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 2 : i64]}: (tensor<3x4xf32>) -> tensor<4x3xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<1x3x4xf32>)
+  // CHECK: Operation does not verify: permutation and inputs dimensions must have the same size: #dimensions input is 3, #dimension perimutation is 2
+  %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64]}: (tensor<1x3x4xf32>) -> tensor<3x1x4xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<3x4xf32>)
+  // CHECK: Operation does not verify: incorrect output shape: output dimension #0 should be equal to 4
+  %res_transpose = "onnx.Transpose"(%t0) {onnx_node_name = "/Transpose", "perm" = [1 : i64, 0 : i64]}: (tensor<3x4xf32>) -> tensor<3x3xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<1x2x4xf32>)
+
+  // CHECK: Operation does not verify: axes to squeeze must be between 0 and 2, axes: 3
+  %res_squeeze =  "onnx.Squeeze"(%t0) {onnx_node_name = "/Squeeze", "axes" = 3 : i64} : (tensor<1x2x4xf32>) -> tensor<2x4xf32>
+}
+
+// -----
+
+builtin.module {
+  %t0 = "test.op"() : () -> (tensor<3x4xf32>)
+  
+  // CHECK: Operation does not verify: tensor input shape (3, 4) is not equal to tensor output shape (7, 3)
+  %res_sigmoid =  "onnx.Sigmoid"(%t0) {onnx_node_name = "/Sigmoid"} : (tensor<3x4xf32>) -> tensor<7x3xf32>
+}

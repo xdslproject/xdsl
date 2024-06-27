@@ -35,7 +35,7 @@ class Input:
     def get_lines_containing(self, span: Span) -> tuple[list[str], int, int] | None:
         # A pointer to the start of the first line
         start = 0
-        line_no = 0
+        line_no = span.line_offset
         source = self.content
         while True:
             next_start = source.find("\n", start)
@@ -86,6 +86,11 @@ class Span:
     input: Input
     """
     The input being operated on
+    """
+
+    line_offset: int = 0
+    """
+    A line offset, to just add to ht file number in input when printed.
     """
 
     def __len__(self):
@@ -506,7 +511,9 @@ class Lexer:
             f"Unexpected character: {current_char}",
         )
 
-    bare_identifier_suffix_regex = re.compile(r"[a-zA-Z0-9_$.]*")
+    IDENTIFIER_SUFFIX = r"[a-zA-Z0-9_$.]*"
+    bare_identifier_regex = re.compile(r"[a-zA-Z_]" + IDENTIFIER_SUFFIX)
+    bare_identifier_suffix_regex = re.compile(IDENTIFIER_SUFFIX)
 
     def _lex_bare_identifier(self, start_pos: Position) -> Token:
         """

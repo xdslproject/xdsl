@@ -7,6 +7,7 @@ from typing import Annotated, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    Any,
     AnyFloat,
     AnyIntegerAttr,
     AnyTensorType,
@@ -303,10 +304,10 @@ class Gemm(IRDLOperation):
             raise VerifyException("tensor B should be a 2D tensor")
 
         if self.trans_a is not None and self.trans_a.value.data == 1:
-            tensor_a_shape = tuple(tensor_a_shape)[::-1]
+            tensor_a_shape = tuple(reversed(tensor_a_shape))
 
         if self.trans_b is not None and self.trans_b.value.data == 1:
-            tensor_b_shape = tuple(tensor_b_shape)[::-1]
+            tensor_b_shape = tuple(reversed(tensor_b_shape))
 
         if self.beta is not None:
             c_dims = tensor_c_type.get_num_dims()
@@ -860,6 +861,263 @@ class EntryPoint(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class MatMul(IRDLOperation):
+    """
+    The operation MatMul performs matrix multiplication between two input matrices, A and B, and returns the result as matrix Y.
+    Matrix multiplication is a fundamental operation in linear algebra, where each element of the resulting matrix Y is computed by taking the
+    dot product of the corresponding row of matrix A and column of matrix B.
+    """
+
+    name = "onnx.MatMul"
+
+    # describe annotated type
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+
+    # input matrices
+    matrix_A = operand_def(TensorType[T])
+    matrix_B = operand_def(TensorType[T])
+
+    # output matrices
+    matrix_Y = result_def(TensorType[T])
+
+    assembly_format = (
+        "`(` $matrix_A `,` $matrix_B `)` attr-dict `:` `(` type($matrix_A) `,"
+        "` type($matrix_B) `)` `->` type($matrix_Y) "
+    )
+
+    def __init__(
+        self,
+        matrix_A: SSAValue,
+        matrix_B: SSAValue,
+        matrix_Y_type: Attribute,
+    ):
+        super().__init__(
+            operands=[matrix_A, matrix_B],
+            result_types=[matrix_Y_type],
+        )
+
+    def verify_(self) -> None:
+        # store dimensions of tensor A and tensor B
+        res_shape: list[int] = []
+        matrix_A_type = cast(TensorType[Any], self.matrix_A.type)
+        matrix_B_type = cast(TensorType[Any], self.matrix_B.type)
+        matrix_Y_type = cast(TensorType[Any], self.matrix_Y.type)
+
+        # check shape compatibility
+        matrix_A_shape = matrix_A_type.get_shape()
+        matrix_B_shape = matrix_B_type.get_shape()
+
+        if matrix_A_type.get_num_dims() != 2:
+            raise VerifyException("input matrix A should be a 2D tensor")
+
+        if matrix_B_type.get_num_dims() != 2:
+            raise VerifyException("input matrix B should be a 2D tensor")
+
+        if matrix_A_shape[1] != matrix_B_shape[0]:
+            raise VerifyException(
+                f"operands have incompatible shapes: {matrix_A_shape} and {matrix_B_shape}"
+            )
+        else:
+            res_shape.append(matrix_A_shape[0])
+            res_shape.append(matrix_B_shape[1])
+
+        matrix_Y_type_shape = list(matrix_Y_type.get_shape())
+        if (
+            len(res_shape) != len(matrix_Y_type_shape)
+            or res_shape != matrix_Y_type_shape
+        ):
+            raise VerifyException(
+                f"result shape {res_shape} does not match result type {matrix_Y_type_shape}"
+            )
+
+
+@irdl_op_definition
+class Transpose(IRDLOperation):
+    """
+    The transpose_tensor function takes a tensor as input and returns its transpose.
+    Transposing a tensor means flipping its dimensions, so that rows become columns and vice versa.
+    """
+
+    name = "onnx.Transpose"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    tensor_input = operand_def(TensorType[T])
+
+    perm = opt_attr_def(ArrayAttr[AnyIntegerAttr], attr_name="perm")
+
+    tensor_output = result_def(TensorType[T])
+
+    assembly_format = (
+        "`(` $tensor_input `)` attr-dict `:` `(` type($tensor_input) "
+        "`)` `->` type($tensor_output) "
+    )
+
+    def __init__(self, tensor_input: SSAValue, perm: Attribute):
+        super().__init__(
+            attributes={"perm": perm},
+            operands=[tensor_input],
+            result_types=[tensor_input.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(
+            tensor_input_type := self.tensor_input.type, TensorType
+        ) or not isinstance(tensor_output_type := self.tensor_output.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        tensor_input_shape = tensor_input_type.get_shape()
+        tensor_output_shape = tensor_output_type.get_shape()
+
+        # numbers in perm cannot be repeated
+        if self.perm is not None:
+
+            for _, int_attr in enumerate(self.perm.data):
+                attr_value = int_attr.value.data
+                count = self.perm.data.count(int_attr)
+                if count != 1:
+                    raise VerifyException(
+                        f"permutation can not contain more than one occurrence of the same dimension: dimension #{attr_value} appears {count} times."
+                    )
+
+            # numbers in perm must be between 0 and len(tensor_input_shape)-1
+            perm_size = len(self.perm.data)
+            for int_index, int_attr in enumerate(self.perm.data):
+                int_index = int_index + 0
+                int_attr_val = int_attr.value.data
+                if int_attr_val < 0 or int_attr_val >= perm_size:
+                    raise VerifyException(
+                        f"permutation can only contain values between 0 and {perm_size}-1: dimension #{int_index} value is {int_attr_val}"
+                    )
+
+            # len(tensor_input_shape) must be equal to len(perm)
+            perm_size = len(self.perm.data)
+            input_size = len(tensor_input_shape)
+            if perm_size != input_size:
+                raise VerifyException(
+                    f"permutation and inputs dimensions must have the same size: #dimensions input is {input_size}, #dimension perimutation is {perm_size}"
+                )
+
+            # check output shape
+            for index_attr, int_attr in enumerate(self.perm.data):
+                int_attr_val = int_attr.value.data
+                if tensor_output_shape[index_attr] != tensor_input_shape[int_attr_val]:
+                    raise VerifyException(
+                        f"incorrect output shape: output dimension #{index_attr} should be equal to {tensor_input_shape[int_attr_val]}"
+                    )
+
+
+@irdl_op_definition
+class Squeeze(IRDLOperation):
+    """
+    Squeeze the input tensor along the specified axes.
+
+    Squeezing a tensor removes dimensions of size 1, effectively reducing the rank of the tensor and collapsing those dimensions.
+    This operation is particularly useful for removing unnecessary singleton dimensions, which may arise from broadcasting or previous operations.
+
+    Args:
+        input_tensor: The input tensor to be squeezed. This tensor should be a multi-dimensional array-like object.
+        axes: A list of axes along which to squeeze the tensor. If provided, only the specified axes will be squeezed. If not provided, all dimensions of size 1 will be squeezed.
+
+    Returns:
+        output_tensor: The squeezed tensor.
+    """
+
+    name = "onnx.Squeeze"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    input_tensor = operand_def(TensorType[T])
+    axes = opt_attr_def(IntegerAttr, attr_name="axes")
+
+    output_tensor = result_def(TensorType[T])
+
+    assembly_format = "`(` $input_tensor `)` attr-dict `:` `(` type($input_tensor) `)` `->` type($output_tensor) "
+
+    def __init__(
+        self,
+        input_tensor: SSAValue,
+        axes: Attribute,
+    ):
+        super().__init__(
+            attributes={
+                "axes": axes,
+            },
+            operands=[input_tensor],
+            result_types=[input_tensor.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(input_tensor_type := self.input_tensor.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        input_tensor_shape = input_tensor_type.get_shape()
+
+        if self.axes is not None:
+            axes_value = self.axes.value.data
+
+            # axes out of bounds: the axes value must between 0 and len(input_tensor.shape)-1
+            if axes_value < 0 or axes_value >= len(input_tensor_shape):
+                max_axes_value = len(input_tensor_shape) - 1
+                raise VerifyException(
+                    f"axes to squeeze must be between 0 and {max_axes_value}, axes: {axes_value}"
+                )
+
+
+@irdl_op_definition
+class Sigmoid(IRDLOperation):
+    """
+    Applies the sigmoid function element-wise to all elements of the input tensor.
+    The sigmoid function, denoted by sigma(x), is a common mathematical function used in machine learning and neural networks. It is defined as:
+    sigma(x) = 1 / (1 + e^-x)
+    where e is the base of the natural logarithm. The sigmoid function maps any real-valued number to the range of [0, 1].
+    The sigmoid function is used as an activation function.
+
+    Args:
+    - input_tensor (TensorType): The input tensor to which the sigmoid function will be applied.
+
+    Returns:
+    - output_tensor (TensorType): The output tensor after applying the sigmoid function element-wise to the input tensor.
+    """
+
+    name = "onnx.Sigmoid"
+
+    T = Annotated[AnyFloat, ConstraintVar("T")]
+    input_tensor = operand_def(TensorType[T])
+    output_tensor = result_def(TensorType[T])
+
+    assembly_format = "`(` $input_tensor`)` attr-dict `:` `(` type($input_tensor) `)` `->` type($output_tensor) "
+
+    def __init__(
+        self,
+        input_tensor: SSAValue,
+    ):
+        super().__init__(
+            operands=[input_tensor],
+            result_types=[input_tensor.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(
+            input_tensor_type := self.input_tensor.type, TensorType
+        ) or not isinstance(output_tensor_type := self.output_tensor.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        input_tensor_shape = input_tensor_type.get_shape()
+        output_tensor_shape = output_tensor_type.get_shape()
+
+        # check if input tensor and output tensor have the same shape
+        if input_tensor_shape != output_tensor_shape:
+            raise VerifyException(
+                f"tensor input shape {input_tensor_shape} is not equal to tensor output shape {output_tensor_shape}"
+            )
+
+
 ONNX = Dialect(
     "onnx",
     [
@@ -870,10 +1128,14 @@ ONNX = Dialect(
         Div,
         EntryPoint,
         Gemm,
+        MatMul,
         MaxPoolSingleOut,
         Mul,
         Relu,
         Reshape,
         Sub,
+        Transpose,
+        Squeeze,
+        Sigmoid,
     ],
 )

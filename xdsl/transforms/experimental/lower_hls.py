@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.builder import Builder
+from xdsl.context import MLContext
 from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import IndexType, f64, i32
@@ -26,7 +27,7 @@ from xdsl.dialects.llvm import (
     StoreOp,
 )
 from xdsl.dialects.scf import For, ParallelOp, Yield
-from xdsl.ir import Block, MLContext, Operation, OpResult, Region, Use
+from xdsl.ir import Block, Operation, OpResult, Region, Use
 from xdsl.irdl import VarOperand, VarOpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -338,7 +339,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         # wrapping in for loops until we have exhausted the induction variables
         parallel_block = op.body.detach_block(0)
 
-        if res != []:
+        if res:
             parallel_block.insert_arg(res[0].type, 1)
             cast(Operation, parallel_block.last_op).detach()
             yieldop = Yield(res[0].op)
@@ -349,10 +350,10 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
         for i in range(len(lb) - 1):
             for_region.block.erase_arg(for_region.block.args[i])
 
-        if res != []:
-            for_op = For.get(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
+        if res:
+            for_op = For(lb[-1], ub[-1], step[-1], [res[0].op], for_region)
         else:
-            for_op = For.get(lb[-1], ub[-1], step[-1], [], for_region)
+            for_op = For(lb[-1], ub[-1], step[-1], [], for_region)
 
         for i in range(len(lb) - 2, -1, -1):
             for_region = Region(Block([for_op]))
@@ -370,7 +371,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
             )
             yieldop = Yield()
             for_region.block.add_op(yieldop)
-            for_op = For.get(lb[i], ub[i], step[i], [], for_region)
+            for_op = For(lb[i], ub[i], step[i], [], for_region)
 
         for_region.block.insert_op_before(
             hls_pipeline_op, cast(Operation, for_region.block.first_op)

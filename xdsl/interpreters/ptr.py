@@ -6,7 +6,10 @@ from collections.abc import Iterator, Sequence
 from dataclasses import KW_ONLY, dataclass, field
 from typing import Generic, Literal, TypeVar, final
 
+from typing_extensions import Self
+
 _T = TypeVar("_T")
+_TCov = TypeVar("_TCov", covariant=True)
 
 
 @dataclass
@@ -21,6 +24,9 @@ class RawPtr:
     @property
     def memoryview(self) -> memoryview:
         return memoryview(self.memory)[self.offset :]
+
+    def copy(self) -> RawPtr:
+        return RawPtr(bytearray(self.memory), self.offset)
 
     @staticmethod
     def zeros(count: int) -> RawPtr:
@@ -61,13 +67,13 @@ class RawPtr:
 
 
 @final
-@dataclass
-class XType(Generic[_T]):
+@dataclass(frozen=True)
+class XType(Generic[_TCov]):
     """
     A typed format representation, similar to numpy's dtype.
     """
 
-    type: type[_T]
+    type: type[_TCov]
     format: str
     """
     Format string as specified in the `struct` module.
@@ -106,6 +112,9 @@ class TypedPtr(Generic[_T]):
     @property
     def size(self) -> int:
         return self.xtype.size
+
+    def copy(self) -> Self:
+        return type(self)(self.raw.copy(), xtype=self.xtype)
 
     def get_iter(self) -> Iterator[_T]:
         # The memoryview needs to be a multiple of the size of the packed format
@@ -154,6 +163,10 @@ class TypedPtr(Generic[_T]):
     @staticmethod
     def new_int32(els: Sequence[int]) -> TypedPtr[int]:
         return TypedPtr.new(els, xtype=int32)
+
+    @staticmethod
+    def new_int64(els: Sequence[int]) -> TypedPtr[int]:
+        return TypedPtr.new(els, xtype=int64)
 
     @staticmethod
     def new_index(els: Sequence[int], index_bitwidth: int) -> TypedPtr[int]:

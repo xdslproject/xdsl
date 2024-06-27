@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast
 
 import xdsl.parser as affine_parser
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
@@ -38,6 +39,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     LocationAttr,
+    MemrefLayoutAttr,
     MemRefType,
     NoneAttr,
     NoneType,
@@ -55,7 +57,7 @@ from xdsl.dialects.builtin import (
     VectorType,
     i64,
 )
-from xdsl.ir import Attribute, Data, MLContext, ParametrizedAttribute
+from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.exceptions import ParseError
@@ -520,26 +522,17 @@ class AttrParser(BaseParser):
         # layout is the second one
         if self.parse_optional_punctuation(",") is not None:
             memory_space = self.parse_attribute()
+            if not isinstance(memory_or_layout, MemrefLayoutAttr):
+                self.raise_error("Expected a MemRef layout attribute")
             return MemRefType(type, shape, memory_or_layout, memory_space)
 
-        # Otherwise, there is a single argument, so we check based on the
-        # attribute type. If we don't know, we return an error.
-        # MLIR base itself on the `MemRefLayoutAttrInterface`, which we do not
-        # support.
-
-        # If the argument is an integer, it is a memory space
-        if isa(memory_or_layout, AnyIntegerAttr):
-            return MemRefType(type, shape, memory_space=memory_or_layout)
-
-        # We only accept strided layouts and affine_maps
-        if isa(memory_or_layout, StridedLayoutAttr) or (
-            isinstance(memory_or_layout, UnregisteredAttr)
-            and memory_or_layout.attr_name.data == "affine_map"
-        ):
+        # If the argument is a MemrefLayoutAttr, use it as layout
+        if isinstance(memory_or_layout, MemrefLayoutAttr):
             return MemRefType(type, shape, layout=memory_or_layout)
-        self.raise_error(
-            "Cannot decide if the given attribute " "is a layout or a memory space!"
-        )
+
+        # Otherwise, consider it as the memory space.
+        else:
+            return MemRefType(type, shape, memory_space=memory_or_layout)
 
     def _parse_vector_attrs(self) -> AnyVectorType:
         dims: list[int] = []
@@ -603,10 +596,11 @@ class AttrParser(BaseParser):
             return BytesAttr(bytes_lit)
 
         attrs = (
+            self.parse_optional_unit_attr,
             self.parse_optional_builtin_int_or_float_attr,
             self._parse_optional_array_attr,
             self._parse_optional_symref_attr,
-            self._parse_optional_location,
+            self.parse_optional_location,
             self._parse_optional_builtin_dict_attr,
             self.parse_optional_type,
             self._parse_optional_builtin_parametrized_attr,
@@ -658,6 +652,22 @@ class AttrParser(BaseParser):
         offset = self._parse_int_or_question(" in stride offset")
         self._parse_token(Token.Kind.GREATER, "Expected '>' in end of stride attribute")
         return StridedLayoutAttr(strides, None if offset == "?" else offset)
+
+    def parse_optional_unit_attr(self) -> Attribute | None:
+        """
+        Parse a value of `unit` type.
+        unit-attribute ::= `unit`
+        """
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+        name = self._current_token.span.text
+
+        # Unit attribute
+        if name == "unit":
+            self._consume_token()
+            return UnitAttr()
+
+        return None
 
     def _parse_optional_builtin_parametrized_attr(self) -> Attribute | None:
         if self._current_token.kind != Token.Kind.BARE_IDENT:
@@ -883,7 +893,10 @@ class AttrParser(BaseParser):
 
         self.parse_characters(":", " in dense array")
 
-        values = self.parse_comma_separated_list(self.Delimiter.NONE, self.parse_number)
+        values = self.parse_comma_separated_list(
+            self.Delimiter.NONE, lambda: self.parse_number(allow_boolean=True)
+        )
+
         self.parse_characters(">", " in dense array")
 
         return DenseArrayBase.from_list(element_type, values)
@@ -1028,6 +1041,27 @@ class AttrParser(BaseParser):
             element = self._parse_tensor_literal_element()
             return [element], []
 
+    def parse_optional_visibility_keyword(self) -> StringAttr | None:
+        """
+        Parses the visibility keyword of a symbol if present.
+        """
+        if self.parse_optional_keyword("public"):
+            return StringAttr("public")
+        elif self.parse_optional_keyword("nested"):
+            return StringAttr("nested")
+        elif self.parse_optional_keyword("private"):
+            return StringAttr("private")
+        else:
+            return None
+
+    def parse_visibility_keyword(self) -> StringAttr:
+        """
+        Parses the visibility keyword of a symbol.
+        """
+        return self.expect(
+            self.parse_optional_visibility_keyword, "expect symbol visibility keyword"
+        )
+
     def parse_optional_symbol_name(self) -> StringAttr | None:
         """
         Parse an @-identifier if present, and return its name (without the '@') in a
@@ -1079,7 +1113,7 @@ class AttrParser(BaseParser):
 
         return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
-    def _parse_optional_location(self) -> LocationAttr | None:
+    def parse_optional_location(self) -> LocationAttr | None:
         """
         Parse a location attribute, if present.
           location ::= `loc` `(` `unknown` `)`

@@ -7,11 +7,11 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Literal, overload
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
-    MLContext,
     Operation,
     Region,
     SSAValue,
@@ -200,7 +200,7 @@ class Parser(AttrParser):
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
-            self._parse_optional_location()
+            self.parse_optional_location()
 
             # Insert the block argument in the block, and register it in the parser
             block_arg = block.insert_arg(arg_type, len(block.args))
@@ -866,7 +866,7 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        self._parse_optional_location()
+        self.parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 

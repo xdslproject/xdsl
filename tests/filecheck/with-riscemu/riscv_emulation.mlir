@@ -23,7 +23,7 @@ builtin.module {
     %0 = riscv.li 3 : () -> !riscv.reg<a0>
     %1 = riscv.li 2 : () -> !riscv.reg<a1>
     %2 = riscv.li 1 : () -> !riscv.reg<a2>
-    %xyz = riscv_func.call @muladd(%x, %y, %z) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>) -> !riscv.reg<a0>
+    %xyz = riscv_func.call @muladd(%0, %1, %2) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>) -> !riscv.reg<a0>
     riscv.custom_assembly_instruction %xyz {"instruction_name" = "print"} : (!riscv.reg<a0>) -> ()
     %4 = riscv.li 93 : () -> !riscv.reg<a7>
     riscv.ecall
