@@ -52,6 +52,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     ConstantLike,
+    EffectKind,
     HasCanonicalisationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
@@ -2809,11 +2810,19 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        return any(
+    def get_effects(cls, op: Operation) -> set[EffectKind]:
+        effects = set[EffectKind]()
+        if any(
             isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.results, op.operands)
-        )
+            for r in chain(op.results)
+        ):
+            effects.add(EffectKind.WRITE)
+        if any(
+            isinstance(r.type, RegisterType) and r.type.is_allocated
+            for r in chain(op.operands)
+        ):
+            effects.add(EffectKind.READ)
+        return effects
 
 
 class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
