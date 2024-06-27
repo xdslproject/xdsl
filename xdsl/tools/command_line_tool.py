@@ -186,10 +186,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_register_allocation.RISCVRegisterAllocation
 
-    def get_riscv_scf_loop_fusion():
-        from xdsl.transforms import riscv_scf_loop_fusion
+    def get_scf_for_loop_flatten():
+        from xdsl.transforms import scf_for_loop_flatten
 
-        return riscv_scf_loop_fusion.RiscvScfLoopFusionPass
+        return scf_for_loop_flatten.ScfForLoopFlattenPass
 
     def get_riscv_scf_loop_range_folding():
         from xdsl.transforms import riscv_scf_loop_range_folding
@@ -251,11 +251,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_qssa_to_qref.ConvertQssaToQRef
 
-    def get_scf_for_loop_flatten():
-        from xdsl.transforms import scf_for_loop_flatten
-
-        return scf_for_loop_flatten.ScfForLoopFlattenPass
-
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
 
@@ -273,10 +268,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return FunctionConstantPinningPass
 
-    # def get_lower_scf_for_to_labels():
-    #    from xdsl.backend.riscv import riscv_scf_to_asm
+    def get_lower_scf_for_to_labels():
+        from xdsl.backend.riscv import riscv_scf_to_asm
 
-    #     return riscv_scf_to_asm.LowerScfForToLabels
+        return riscv_scf_to_asm.LowerScfForToLabels
 
     def get_stencil_shape_inference():
         from xdsl.transforms.experimental import stencil_shape_inference
@@ -367,7 +362,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
         "lower-riscv-func": get_lower_riscv_func,
-        # "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
+        "lower-riscv-scf-to-labels": get_lower_scf_for_to_labels,
         "lower-snitch": get_lower_snitch,
         "memref-streamify": get_memref_streamify,
         "memref-stream-unnest-out-parameters": get_memref_stream_unnest_out_parameters,
