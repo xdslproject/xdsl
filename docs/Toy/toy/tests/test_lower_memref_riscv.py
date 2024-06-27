@@ -1,8 +1,8 @@
 from xdsl.backend.riscv.lowering.convert_memref_to_riscv import memref_shape_ops
 from xdsl.builder import Builder, ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import func, memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp, f32
-from xdsl.ir import MLContext
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import TestSSAValue
 

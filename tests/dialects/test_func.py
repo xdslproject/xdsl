@@ -6,6 +6,7 @@ from xdsl.dialects.arith import Addi, Constant
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32, i64
 from xdsl.dialects.func import Call, FuncOp, Return
 from xdsl.ir import Block, Region
+from xdsl.traits import CallableOpInterface
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -153,6 +154,19 @@ def test_callable_constructor():
     assert not f.body.block.ops
 
 
+def test_callable_interface():
+    region = Region()
+    func = FuncOp("callable", ((i32, i64), (i64, i32)), region)
+
+    trait = func.get_trait(CallableOpInterface)
+
+    assert trait is not None
+
+    assert trait.get_callable_region(func) is region
+    assert trait.get_argument_types(func) == (i32, i64)
+    assert trait.get_result_types(func) == (i64, i32)
+
+
 def test_call():
     """
     Pass two integers to a function and return their sum
@@ -191,9 +205,9 @@ def test_call():
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) : () -> ()
-  %3 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %4 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
-  %5 = "func.call"(%3, %4) <{"callee" = @func0}> : (i32, i32) -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 2 : i32}> : () -> i32
+  %2 = "func.call"(%0, %1) <{"callee" = @func0}> : (i32, i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 2
@@ -237,8 +251,8 @@ def test_call_II():
     %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
     "func.return"(%1) : (i32) -> ()
   }) : () -> ()
-  %2 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
-  %3 = "func.call"(%2) <{"callee" = @func1}> : (i32) -> i32
+  %0 = "arith.constant"() <{"value" = 1 : i32}> : () -> i32
+  %1 = "func.call"(%0) <{"callee" = @func1}> : (i32) -> i32
 }) : () -> ()
 """  # noqa
     assert len(call0.operands) == 1

@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from typing_extensions import deprecated
+
 from xdsl.ir import Block, Operation, Region, SSAValue
 
 
@@ -118,7 +120,7 @@ class Rewriter:
         block.erase_op(op, safe_erase=safe_erase)
 
     @staticmethod
-    def inline_block_at_location(
+    def inline_block(
         source: Block, insertion_point: InsertPoint, arg_values: Sequence[SSAValue] = ()
     ):
         """
@@ -127,7 +129,7 @@ class Rewriter:
         """
         # MLIR equivalent:
         # https://github.com/llvm/llvm-project/blob/96a3d05ed923d2abd51acb52984b83b9e8044924/mlir/lib/IR/PatternMatch.cpp#L290
-        assert len(arg_values) == len(source.args), (
+        assert arg_values == () or len(arg_values) == len(source.args), (
             f"Expected {len(source.args)} replacement argument values, got "
             f"{len(arg_values)}"
         )
@@ -157,8 +159,9 @@ class Rewriter:
         #       assert not dest.successors,  "expected 'dest' to have no successors");
 
         # Replace all of the successor arguments with the provided values.
-        for arg, val in zip(source.args, arg_values, strict=True):
-            arg.replace_by(val)
+        if arg_values:
+            for arg, val in zip(source.args, arg_values, strict=True):
+                arg.replace_by(val)
 
         # Move operations from the source block to the dest block and erase the
         # source block.
@@ -172,55 +175,56 @@ class Rewriter:
             dest.add_ops(ops)
 
         parent_region = source.parent
-        assert parent_region is not None
-        parent_region.detach_block(source)
+        if parent_region is not None:
+            parent_region.detach_block(source)
         source.erase()
 
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
-    def inline_block_at_end(inlined_block: Block, extended_block: Block):
+    def inline_block_at_end(
+        inlined_block: Block, extended_block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations to the end of another block.
         This block should not be a parent of the block to move to.
         The block operations should not use the block arguments.
         """
-        Rewriter.inline_block_at_location(
-            inlined_block, InsertPoint.at_end(extended_block)
+        Rewriter.inline_block(
+            inlined_block, InsertPoint.at_end(extended_block), arg_values=arg_values
         )
 
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
-    def inline_block_at_start(inlined_block: Block, extended_block: Block):
+    def inline_block_at_start(
+        inlined_block: Block, extended_block: Block, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations to the start of another block.
         This block should not be a parent of the block to move to.
         The block operations should not use the block arguments.
         """
-        Rewriter.inline_block_at_location(
-            inlined_block, InsertPoint.at_start(extended_block)
+        Rewriter.inline_block(
+            inlined_block, InsertPoint.at_start(extended_block), arg_values=arg_values
         )
 
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
     def inline_block_before(
         source: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
     ):
-        Rewriter.inline_block_at_location(
-            source, InsertPoint.before(op), arg_values=arg_values
-        )
+        Rewriter.inline_block(source, InsertPoint.before(op), arg_values=arg_values)
 
+    @deprecated("Please use `inline_block` instead")
     @staticmethod
-    def inline_block_after(block: Block, op: Operation):
+    def inline_block_after(
+        block: Block, op: Operation, arg_values: Sequence[SSAValue] = ()
+    ):
         """
         Move the block operations after another operation.
         The block should not be a parent of the operation.
         The block operations should not use the block arguments.
         """
-        if op.parent is None:
-            raise Exception("Cannot inline a block before a toplevel operation")
-
-        ops = list(block.ops)
-        for block_op in ops:
-            block_op.detach()
-
-        op.parent.insert_ops_after(ops, op)
+        Rewriter.inline_block(block, InsertPoint.after(op), arg_values=arg_values)
 
     @staticmethod
     def insert_block_after(block: Block | list[Block], target: Block):
@@ -253,22 +257,27 @@ class Rewriter:
         region.insert_block(block_list, pos)
 
     @staticmethod
-    def insert_ops_at_location(ops: Sequence[Operation], insertion_point: InsertPoint):
+    def insert_op(
+        op_or_ops: Operation | Sequence[Operation], insertion_point: InsertPoint
+    ):
         """Insert operations at a certain location in a block."""
+        ops = (op_or_ops,) if isinstance(op_or_ops, Operation) else op_or_ops
         if insertion_point.insert_before is not None:
             insertion_point.block.insert_ops_before(ops, insertion_point.insert_before)
         else:
             insertion_point.block.add_ops(ops)
 
+    @deprecated("Please use `insert_op` instead")
     @staticmethod
     def insert_op_after(op: Operation, new_op: Operation):
         """Inserts a new operation after another operation."""
-        Rewriter.insert_ops_at_location((new_op,), InsertPoint.after(op))
+        Rewriter.insert_op(new_op, InsertPoint.after(op))
 
+    @deprecated("Please use `insert_op` instead")
     @staticmethod
     def insert_op_before(op: Operation, new_op: Operation):
         """Inserts a new operation before another operation."""
-        Rewriter.insert_ops_at_location((new_op,), InsertPoint.before(op))
+        Rewriter.insert_op(new_op, InsertPoint.before(op))
 
     @staticmethod
     def move_region_contents_to_new_regions(region: Region) -> Region:

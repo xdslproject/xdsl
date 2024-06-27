@@ -92,7 +92,7 @@ riscv_func.func @xdma() {
 // CHECK-GENERIC-NEXT:     %0 = "riscv.get_register"() : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %1 = "riscv.get_register"() : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %scfgw = "riscv_snitch.scfgw"(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<zero>
-// CHECK-GENERIC-NEXT:     %scfgwi_zero = "riscv_snitch.scfgwi"(%0) {"immediate" = 42 : i12} : (!riscv.reg<>) -> !riscv.reg<zero>
+// CHECK-GENERIC-NEXT:     %scfgwi_zero = "riscv_snitch.scfgwi"(%0) {"immediate" = 42 : si12} : (!riscv.reg<>) -> !riscv.reg<zero>
 // CHECK-GENERIC-NEXT:    "riscv_snitch.frep_outer"(%{{.*}}) ({
 // CHECK-GENERIC-NEXT:      %{{.*}} = "riscv.add"(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_yield"() : () -> ()
@@ -123,10 +123,10 @@ riscv_func.func @xdma() {
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmdst"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmstr"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmrep"(%reg) : (!riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     %2 = "riscv_snitch.dmcpy"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %3 = "riscv_snitch.dmstat"(%reg) : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %4 = "riscv_snitch.dmcpyi"(%reg) <{"config" = 0 : ui5}> : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %5 = "riscv_snitch.dmstati"() <{"status" = 0 : ui5}> : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmcpy"(%reg, %reg) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmstat"(%reg) : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmcpyi"(%reg) <{"config" = 0 : ui5}> : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmstati"() <{"status" = 0 : ui5}> : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "xdma", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()

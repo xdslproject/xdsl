@@ -33,6 +33,7 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     BaseAttr,
+    ConstraintContext,
     ConstraintVar,
     GenericData,
     MessageConstraint,
@@ -125,7 +126,7 @@ def test_simple_data():
 
 
 @irdl_attr_definition
-class IntListData(Data[list[int]]):
+class IntListData(Data[tuple[int, ...]]):
     """
     An attribute holding a list of integers.
     """
@@ -133,7 +134,7 @@ class IntListData(Data[list[int]]):
     name = "test.int_list"
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> list[int]:
+    def parse_parameter(cls, parser: AttrParser) -> tuple[int]:
         raise NotImplementedError()
 
     def print_parameter(self, printer: Printer) -> None:
@@ -145,7 +146,7 @@ class IntListData(Data[list[int]]):
 
 def test_non_class_data():
     """Test the definition of a Data with a non-class parameter."""
-    attr = IntListData([0, 1, 42])
+    attr = IntListData((0, 1, 42))
     stream = StringIO()
     p = Printer(stream=stream)
     p.print_attribute(attr)
@@ -347,7 +348,11 @@ def test_union_constraint_fail():
 
 
 class PositiveIntConstr(AttrConstraint):
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext | None = None,
+    ) -> None:
         if not isinstance(attr, IntData):
             raise VerifyException(
                 f"Expected {IntData.name} attribute, but got {attr.name}."
@@ -563,7 +568,7 @@ def test_informative_constraint():
         VerifyException,
         match="User-enlightening message.\nUnderlying verification failure: Expected attribute #none but got #builtin.int<1>",
     ):
-        constr.verify(IntAttr(1), {})
+        constr.verify(IntAttr(1), ConstraintContext())
     assert constr.get_resolved_variables() == set()
     assert constr.get_unique_base() == NoneAttr
 
@@ -613,7 +618,7 @@ def test_data_with_generic_missing_generic_data_failure():
 A = TypeVar("A", bound=Attribute)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DataListAttr(AttrConstraint):
     """
     A constraint that enforces that the elements of a ListData all respect
@@ -622,10 +627,14 @@ class DataListAttr(AttrConstraint):
 
     elem_constr: AttrConstraint
 
-    def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
         attr = cast(ListData[Attribute], attr)
         for e in attr.data:
-            self.elem_constr.verify(e, constraint_vars)
+            self.elem_constr.verify(e, constraint_context)
 
 
 @irdl_attr_definition

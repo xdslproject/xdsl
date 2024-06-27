@@ -74,6 +74,13 @@ class StridePattern(ParametrizedAttribute):
     ub: ParameterDef[ArrayAttr[IntAttr]]
     strides: ParameterDef[ArrayAttr[IntAttr]]
 
+    def __init__(
+        self,
+        ub: ParameterDef[ArrayAttr[IntAttr]],
+        strides: ParameterDef[ArrayAttr[IntAttr]],
+    ):
+        super().__init__((ub, strides))
+
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
@@ -109,10 +116,8 @@ class StridePattern(ParametrizedAttribute):
         ub: Sequence[int], strides: Sequence[int]
     ) -> StridePattern:
         return StridePattern(
-            (
-                ArrayAttr(IntAttr(i) for i in ub),
-                ArrayAttr(IntAttr(i) for i in strides),
-            )
+            ArrayAttr(IntAttr(i) for i in ub),
+            ArrayAttr(IntAttr(i) for i in strides),
         )
 
     def rank(self):

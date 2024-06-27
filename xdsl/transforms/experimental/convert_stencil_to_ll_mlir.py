@@ -1,15 +1,14 @@
-from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import product
-from typing import TypeVar, cast
+from typing import TypeVar
 from warnings import warn
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
     UnrealizedConversionCastOp,
 )
-from xdsl.dialects.func import FuncOp
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
@@ -34,7 +33,6 @@ from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    MLContext,
     Operation,
     OpResult,
     Region,
@@ -51,6 +49,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -97,7 +96,7 @@ def collectBlockArguments(number: int, block: Block):
 
 
 def update_return_target(
-    return_targets: dict[ReturnOp, list[SSAValue | None]],
+    return_targets: dict[ApplyOp, list[SSAValue | None]],
     old_target: SSAValue,
     new_target: SSAValue | None,
 ):
@@ -131,7 +130,7 @@ def _find_result_store(result: SSAValue) -> tuple[StoreResultOp, ...]:
 
 @dataclass
 class ReturnOpToMemref(RewritePattern):
-    return_target: dict[ReturnOp, list[SSAValue | None]]
+    return_target: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ReturnOp, rewriter: PatternRewriter, /):
@@ -139,13 +138,15 @@ class ReturnOpToMemref(RewritePattern):
         n_res = len(op.arg) // unroll_factor
 
         store_list: list[Operation] = []
-        parallel = op.parent_op()
-        assert isinstance(parallel, scf.ParallelOp)
+        apply = op.parent_op()
+        assert isinstance(apply, ApplyOp)
+        if op.unroll is not None:
+            apply.attributes["__unroll__"] = op.unroll
 
-        n_dims = len(parallel.lowerBound)
+        n_dims = apply.get_rank()
 
         for j in range(n_res):
-            target = self.return_target[op][j]
+            target = self.return_target[apply][j]
 
             unroll = op.unroll
             if unroll is None:
@@ -153,16 +154,25 @@ class ReturnOpToMemref(RewritePattern):
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 arg = op.arg[j * unroll_factor + k]
-                assert (block := op.parent_block()) is not None
-                args = cast(list[SSAValue], collectBlockArguments(n_dims, block))
+                index_ops: list[Operation] = list(
+                    IndexOp(
+                        attributes={
+                            "dim": builtin.IntegerAttr.from_index_int_value(i),
+                            "offset": IndexAttr.get(*([0] * n_dims)),
+                        },
+                        result_types=[builtin.IndexType()],
+                    )
+                    for i in range(n_dims)
+                )
+                store_list += index_ops
 
                 for i in range(n_dims):
                     if offset[i] != 0:
                         constant_op = arith.Constant.from_int_and_width(
                             offset[i], builtin.IndexType()
                         )
-                        add_op = arith.Addi(args[i], constant_op)
-                        args[i] = add_op.results[0]
+                        add_op = arith.Addi(index_ops[i], constant_op)
+                        index_ops[i] = add_op
                         store_list.append(constant_op)
                         store_list.append(add_op)
 
@@ -171,7 +181,7 @@ class ReturnOpToMemref(RewritePattern):
                     for owner in result_owner:
                         if owner.arg:
                             if target is not None:
-                                store = memref.Store.get(owner.arg, target, args)
+                                store = memref.Store.get(owner.arg, target, index_ops)
                             else:
                                 store = list[Operation]()
                             rewriter.replace_op(
@@ -185,10 +195,11 @@ class ReturnOpToMemref(RewritePattern):
 
                 else:
                     if target is not None:
-                        store = memref.Store.get(arg, target, args)
+                        store = memref.Store.get(arg, target, index_ops)
                         store_list.append(store)
 
-        rewriter.replace_matched_op([*store_list])
+        rewriter.insert_op_before_matched_op([*store_list])
+        rewriter.erase_matched_op()
 
 
 def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
@@ -204,38 +215,6 @@ def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
             "The stencil computation requires a field with upper bound at least "
             f"{temp.bounds.ub}, got {field.bounds.ub}, max: {max(field.bounds.ub, temp.bounds.ub)}"
         )
-
-
-class IndexOpToLoopSSA(RewritePattern):
-    @staticmethod
-    def discover_enclosing_loops(op: Operation) -> Iterable[scf.For | scf.ParallelOp]:
-        parent_op = op.parent_op()
-        if parent_op is not None:
-            yield from IndexOpToLoopSSA.discover_enclosing_loops(parent_op)
-        if isa(op, scf.For) or isa(op, scf.ParallelOp):
-            yield op
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: IndexOp, rewriter: PatternRewriter, /):
-        enclosing_loops = list(IndexOpToLoopSSA.discover_enclosing_loops(op))
-        # The first block argument is the loop iterator
-        loop_op = enclosing_loops[0]
-        assert isa(loop_op, scf.For) or isa(loop_op, scf.ParallelOp)
-        assert len(loop_op.body.blocks) == 1
-        assert len(loop_op.body.block.args) >= 1
-        replacement_ssa = loop_op.body.block.args[op.dim.value.data]
-        offset = op.offset.array.data[op.dim.value.data].data
-        if offset == 0:
-            rewriter.replace_matched_op([], [replacement_ssa])
-        else:
-            rewriter.replace_matched_op(
-                [
-                    offset_op := arith.Constant.from_int_and_width(
-                        offset, builtin.IndexType()
-                    ),
-                    arith.Addi(replacement_ssa, offset_op),
-                ]
-            )
 
 
 class LoadOpToMemref(RewritePattern):
@@ -265,28 +244,26 @@ class LoadOpToMemref(RewritePattern):
         subview.result.name_hint = name
 
 
-def prepare_apply_body(op: ApplyOp, rewriter: PatternRewriter, dim: int):
+def prepare_apply_body(op: ApplyOp):
     # First replace all current arguments by their definition
     # and erase them from the block. (We are changing the op
     # to a loop, which has access to them either way)
     entry = op.region.block
 
-    for idx, arg in enumerate(entry.args):
-        arg_uses = set(arg.uses)
-        for use in arg_uses:
-            use.operation.operands[use.index] = op.args[idx]
+    for operand, arg in zip(op.operands, entry.args):
+        arg.replace_by(operand)
         entry.erase_arg(arg)
+    entry.add_op(scf.Yield())
+    for _ in range(op.get_rank()):
+        entry.insert_arg(builtin.IndexType(), 0)
 
-    for _ in range(dim):
-        rewriter.insert_block_argument(entry, 0, builtin.IndexType())
-
-    return rewriter.move_region_contents_to_new_regions(op.region)
+    return op.region.detach_block(entry)
 
 
 @dataclass
 class BufferOpToMemref(RewritePattern):
 
-    return_targets: dict[ReturnOp, list[SSAValue | None]]
+    return_targets: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter, /):
@@ -322,25 +299,25 @@ class BufferOpToMemref(RewritePattern):
             [1] * temp_t.get_num_dims(),
         )
 
-        rewriter.insert_op_before(alloc, first_op)
-        rewriter.insert_op_before(view, first_op)
+        rewriter.insert_op(alloc, InsertPoint.before(first_op))
+        rewriter.insert_op(view, InsertPoint.before(first_op))
 
         update_return_target(self.return_targets, op.temp, view.result)
 
         dealloc = memref.Dealloc.get(alloc.memref)
 
         if not op.res.uses:
-            rewriter.insert_op_after(dealloc, op)
+            rewriter.insert_op_after_matched_op(dealloc)
             rewriter.erase_matched_op()
             return
 
-        rewriter.insert_op_before(dealloc, last_op)
+        rewriter.insert_op(dealloc, InsertPoint.before(last_op))
         rewriter.replace_matched_op([], [view.result])
 
 
 @dataclass
 class ApplyOpToParallel(RewritePattern):
-    return_targets: dict[ReturnOp, list[SSAValue | None]]
+    return_targets: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
@@ -349,15 +326,15 @@ class ApplyOpToParallel(RewritePattern):
         assert isinstance(res_type.bounds, StencilBoundsAttr)
 
         # Get this apply's ReturnOp
-        body_block = op.region.blocks[0]
-        return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
-        unroll = return_op.unroll
+        unroll = op.attributes.get("__unroll__", None)
+        if unroll is not None:
+            assert isinstance(unroll, IndexAttr)
+            unroll = list(u for u in unroll)
 
-        dim = res_type.get_num_dims()
-        body = prepare_apply_body(op, rewriter, dim)
-        body.block.add_op(scf.Yield())
+        rank = op.get_rank()
+        body = prepare_apply_body(op)
         if unroll is None:
-            unroll = [1] * dim
+            unroll = [1] * rank
         else:
             unroll = [i for i in unroll]
 
@@ -391,14 +368,25 @@ class ApplyOpToParallel(RewritePattern):
             lower_bounds=lowerBounds,
             upper_bounds=upperBounds,
             steps=tiled_steps,
-            body=Region(),
+            body=Region(body),
         )
-
-        p.body.insert_block(body.detach_block(0), 0)
+        for index in body.walk():
+            if isinstance(index, IndexOp):
+                offset = list(index.offset)
+                ops: list[Operation] = []
+                res: list[SSAValue] = [body.args[index.dim.value.data]]
+                if offset[index.dim.value.data] != 0:
+                    ops = [
+                        cst := arith.Constant.from_int_and_width(
+                            offset[index.dim.value.data], builtin.IndexType()
+                        ),
+                        add := arith.Addi(body.args[index.dim.value.data], cst),
+                    ]
+                    res = [add.result]
+                rewriter.replace_op(index, ops, res)
 
         # Get the maybe updated results
-        new_results: list[SSAValue | None] = []
-        new_results = self.return_targets[return_op]
+        new_results = self.return_targets[op]
         # Replace with the loop and necessary constants.
         assert isa(boilerplate_ops, list[Operation])
         rewriter.insert_op_before_matched_op([*boilerplate_ops, p])
@@ -413,20 +401,24 @@ class AccessOpToMemref(RewritePattern):
         assert isa(temp, TempType[Attribute])
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
-        # Make pyright happy with the fact that this op has to be in
-        # a block.
-        assert (block := op.parent_block()) is not None
-
         memref_offset = op.offset
 
-        block_args = block.args
         mapping = (
             op.offset_mapping
             if op.offset_mapping is not None
             else range(len(memref_offset))
         )
 
-        args = [block_args[i] for i in mapping]
+        args = [
+            IndexOp(
+                attributes={
+                    "dim": builtin.IntegerAttr.from_index_int_value(i),
+                    "offset": IndexAttr.get(*([0] * op.get_apply().get_rank())),
+                },
+                result_types=[builtin.IndexType()],
+            )
+            for i in mapping
+        ]
 
         off_const_ops: list[Operation] = []
         memref_load_args: list[BlockArgument | OpResult] = []
@@ -440,48 +432,46 @@ class AccessOpToMemref(RewritePattern):
                 memref_load_args.append(add_op.results[0])
                 off_const_ops += [constant_op, add_op]
             else:
-                memref_load_args.append(arg)
+                memref_load_args.append(arg.idx)
 
         load = memref.Load.get(op.temp, memref_load_args)
 
+        rewriter.insert_op_before_matched_op(args)
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])
 
 
 @dataclass
 class StencilStoreToSubview(RewritePattern):
-    return_targets: dict[ReturnOp, list[SSAValue | None]]
+    return_targets: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
-        stores = [o for o in op.walk() if isinstance(o, StoreOp)]
+    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter, /):
+        field = op.field
+        assert isa(field.type, FieldType[Attribute])
+        assert isa(field.type.bounds, StencilBoundsAttr)
+        temp = op.temp
+        assert isa(temp.type, TempType[Attribute])
+        offsets = [i for i in -field.type.bounds.lb]
+        sizes = [i for i in temp.type.get_shape()]
+        subview = memref.Subview.from_static_parameters(
+            field,
+            StencilToMemRefType(field.type),
+            offsets,
+            sizes,
+            [1] * len(sizes),
+        )
+        name = None
+        if subview.source.name_hint:
+            name = subview.source.name_hint + "_storeview"
+        subview.result.name_hint = name
+        if isinstance(field.owner, Operation):
+            rewriter.insert_op(subview, InsertPoint.after(field.owner))
+        else:
+            rewriter.insert_op(subview, InsertPoint.at_start(field.owner))
 
-        for store in stores:
-            field = store.field
-            assert isa(field.type, FieldType[Attribute])
-            assert isa(field.type.bounds, StencilBoundsAttr)
-            temp = store.temp
-            assert isa(temp.type, TempType[Attribute])
-            offsets = [i for i in -field.type.bounds.lb]
-            sizes = [i for i in temp.type.get_shape()]
-            subview = memref.Subview.from_static_parameters(
-                field,
-                StencilToMemRefType(field.type),
-                offsets,
-                sizes,
-                [1] * len(sizes),
-            )
-            name = None
-            if subview.source.name_hint:
-                name = subview.source.name_hint + "_storeview"
-            subview.result.name_hint = name
-            if isinstance(field.owner, Operation):
-                rewriter.insert_op_after(subview, field.owner)
-            else:
-                rewriter.insert_op_at_start(subview, field.owner)
+        rewriter.erase_matched_op()
 
-            rewriter.erase_op(store)
-
-            update_return_target(self.return_targets, field, subview.result)
+        update_return_target(self.return_targets, field, subview.result)
 
 
 class TrivialExternalLoadOpCleanup(RewritePattern):
@@ -556,7 +546,7 @@ def _get_use_target(use: Use) -> SSAValue | None:
 
 
 def return_target_analysis(module: builtin.ModuleOp):
-    return_targets: dict[ReturnOp, list[SSAValue | None]] = {}
+    return_targets: dict[ApplyOp, list[SSAValue | None]] = {}
 
     for op in module.walk():
         if not isinstance(op, ReturnOp):
@@ -565,7 +555,7 @@ def return_target_analysis(module: builtin.ModuleOp):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
 
-        return_targets[op] = []
+        return_targets[apply] = []
         for res in list(apply.res):
             store = [
                 use
@@ -582,7 +572,7 @@ def return_target_analysis(module: builtin.ModuleOp):
             else:
                 field = _get_use_target(store[0])
 
-            return_targets[op].append(field)
+            return_targets[apply].append(field)
 
     return return_targets
 
@@ -604,7 +594,7 @@ class ConvertStencilToLLMLIRPass(ModulePass):
     name = "convert-stencil-to-ll-mlir"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        return_targets: dict[ReturnOp, list[SSAValue | None]] = return_target_analysis(
+        return_targets: dict[ApplyOp, list[SSAValue | None]] = return_target_analysis(
             op
         )
 
@@ -618,13 +608,13 @@ class ConvertStencilToLLMLIRPass(ModulePass):
                     LoadOpToMemref(),
                     AccessOpToMemref(),
                     ReturnOpToMemref(return_targets),
-                    IndexOpToLoopSSA(),
                     TrivialExternalLoadOpCleanup(),
                     TrivialExternalStoreOpCleanup(),
                 ]
             ),
             apply_recursively=True,
             walk_reverse=True,
+            walk_regions_first=True,
         )
         the_one_pass.rewrite_module(op)
         type_pass = PatternRewriteWalker(

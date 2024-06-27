@@ -1,6 +1,7 @@
+from xdsl.context import MLContext
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Block, MLContext, Region
+from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -8,6 +9,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 class AddSections(RewritePattern):
@@ -27,7 +29,9 @@ class AddSections(RewritePattern):
         )
         data_section = riscv.AssemblySectionOp(".data", Region(Block()))
 
-        rewriter.insert_op_at_start((heap_section, data_section), op.body.block)
+        rewriter.insert_op(
+            (heap_section, data_section), InsertPoint.at_start(op.body.block)
+        )
 
 
 class SetupRiscvPass(ModulePass):

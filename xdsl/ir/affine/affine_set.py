@@ -35,7 +35,7 @@ class AffineConstraintExpr:
         return f"{self.lhs} {self.kind.value} {self.rhs}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class AffineSet:
     """
     AffineMap represents a map from a set of dimensions and symbols to a

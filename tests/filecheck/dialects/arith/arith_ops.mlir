@@ -178,4 +178,19 @@
 
   // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i32, i1
   // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.addui_extended %{{.*}}, %{{.*}} : i64, i1
+
+  %low_ui, %high_ui = arith.mului_extended %lhsi32, %rhsi32 : i32
+  %low_ui_index, %high_ui_index = arith.mului_extended %lhsindex, %rhsindex : index
+
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mului_extended %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mului_extended %{{.*}}, %{{.*}} : index
+
+  %low_si, %high_si = arith.mulsi_extended %lhsi32, %rhsi32 : i32
+  %low_si_index, %high_si_index = arith.mulsi_extended %lhsindex, %rhsindex : index
+
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mulsi_extended %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT: %{{.*}}, %{{.*}} = arith.mulsi_extended %{{.*}}, %{{.*}} : index
+
+  %index = arith.index_cast %lhsi32 : i32 to index
+  // CHECK-NEXT: %index = arith.index_cast %lhsi32 : i32 to index
 }) : () -> ()

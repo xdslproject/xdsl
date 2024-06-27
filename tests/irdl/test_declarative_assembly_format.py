@@ -7,11 +7,11 @@ from typing import Annotated, Generic, TypeVar
 
 import pytest
 
+from xdsl.context import MLContext
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
-    MLContext,
     Operation,
     ParametrizedAttribute,
     TypeAttribute,
@@ -1106,7 +1106,7 @@ def test_all_of_attr_inference():
     @irdl_op_definition
     class OneOperandEqTypeAllOfNested(IRDLOperation):
         name = "test.one_operand_eq_type_all_of_nested"
-        index = operand_def(AllOf([AnyAttr(), EqAttrConstraint(UnitType())]))
+        index = operand_def(AllOf((AnyAttr(), EqAttrConstraint(UnitType()))))
 
         assembly_format = "attr-dict $index"
 

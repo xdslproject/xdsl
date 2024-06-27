@@ -1,4 +1,22 @@
-// RUN: xdsl-opt %s -p convert-snrt-to-riscv | filecheck %s
+// RUN: xdsl-opt %s -p inline-snrt{cluster-num=2} | filecheck %s
+
+
+%global_core_base_hartid = "snrt.global_core_base_hartid"() : () -> i32
+%global_core_idx = "snrt.global_core_idx"() : () -> i32
+%global_core_num = "snrt.global_core_num"() : () -> i32
+// unsupported: %global_compute_core_idx = "snrt.global_compute_core_idx"() : () -> i32
+// unsupported: %global_compute_core_num = "snrt.global_compute_core_num"() : () -> i32
+// unsupported: %global_dm_core_num = "snrt.global_dm_core_num"() : () -> i32
+%gcluster_core_idx = "snrt.cluster_core_idx"() : () -> i32
+%cluster_core_num = "snrt.cluster_core_num"() : () -> i32
+// unsupported: %cluster_compute_core_idx = "snrt.cluster_compute_core_idx"() : () -> i32
+%cluster_compute_core_num = "snrt.cluster_compute_core_num"() : () -> i32
+// unsupported: %cluster_dm_core_idx = "snrt.cluster_dm_core_idx"() : () -> i32
+%cluster_dm_core_num = "snrt.cluster_dm_core_num"() : () -> i32
+%cluster_idx = "snrt.cluster_idx"() : () -> i32
+%cluster_num = "snrt.cluster_num"() : () -> i32
+%is_compute_core = "snrt.is_compute_core"() : () -> i1
+%is_dm_core = "snrt.is_dm_core"() : () -> i1
 
 "snrt.cluster_hw_barrier"() : () -> ()
 "snrt.ssr_disable"() : () -> ()
@@ -17,6 +35,49 @@
 
 
 // CHECK-NEXT: builtin.module {
+// CHECK-NEXT:   %global_core_base_hartid = arith.constant 0 : i32
+// CHECK-NEXT:   %global_core_idx = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT:   %global_core_idx_1 = riscv.csrrs %global_core_idx, 3860, "r" : (!riscv.reg<zero>) -> !riscv.reg<>
+// CHECK-NEXT:   %global_core_idx_2 = builtin.unrealized_conversion_cast %global_core_idx_1 : !riscv.reg<> to i32
+// CHECK-NEXT:   %global_core_idx_3 = arith.constant 0 : i32
+// CHECK-NEXT:   %global_core_idx_4 = arith.subi %global_core_idx_2, %global_core_idx_3 : i32
+// CHECK-NEXT:   %global_core_num = arith.constant 18 : i32
+// CHECK-NEXT:   %gcluster_core_idx = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT:   %gcluster_core_idx_1 = riscv.csrrs %gcluster_core_idx, 3860, "r" : (!riscv.reg<zero>) -> !riscv.reg<>
+// CHECK-NEXT:   %gcluster_core_idx_2 = builtin.unrealized_conversion_cast %gcluster_core_idx_1 : !riscv.reg<> to i32
+// CHECK-NEXT:   %gcluster_core_idx_3 = arith.constant 0 : i32
+// CHECK-NEXT:   %gcluster_core_idx_4 = arith.subi %gcluster_core_idx_2, %gcluster_core_idx_3 : i32
+// CHECK-NEXT:   %gcluster_core_idx_5 = arith.constant 9 : i32
+// CHECK-NEXT:   %gcluster_core_idx_6 = arith.remsi %gcluster_core_idx_4, %gcluster_core_idx_5 : i32
+// CHECK-NEXT:   %cluster_core_num = arith.constant 9 : i32
+// CHECK-NEXT:   %cluster_compute_core_num = arith.constant 8 : i32
+// CHECK-NEXT:   %cluster_dm_core_num = arith.constant 1 : i32
+// CHECK-NEXT:   %cluster_idx = arith.constant 9 : i32
+// CHECK-NEXT:   %cluster_idx_1 = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT:   %cluster_idx_2 = riscv.csrrs %cluster_idx_1, 3860, "r" : (!riscv.reg<zero>) -> !riscv.reg<>
+// CHECK-NEXT:   %cluster_idx_3 = builtin.unrealized_conversion_cast %cluster_idx_2 : !riscv.reg<> to i32
+// CHECK-NEXT:   %cluster_idx_4 = arith.constant 0 : i32
+// CHECK-NEXT:   %cluster_idx_5 = arith.subi %cluster_idx_3, %cluster_idx_4 : i32
+// CHECK-NEXT:   %cluster_idx_6 = arith.divsi %cluster_idx_5, %cluster_idx : i32
+// CHECK-NEXT:   %cluster_num = arith.constant 2 : i32
+// CHECK-NEXT:   %is_compute_core = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT:   %is_compute_core_1 = riscv.csrrs %is_compute_core, 3860, "r" : (!riscv.reg<zero>) -> !riscv.reg<>
+// CHECK-NEXT:   %is_compute_core_2 = builtin.unrealized_conversion_cast %is_compute_core_1 : !riscv.reg<> to i32
+// CHECK-NEXT:   %is_compute_core_3 = arith.constant 0 : i32
+// CHECK-NEXT:   %is_compute_core_4 = arith.subi %is_compute_core_2, %is_compute_core_3 : i32
+// CHECK-NEXT:   %is_compute_core_5 = arith.constant 9 : i32
+// CHECK-NEXT:   %is_compute_core_6 = arith.remsi %is_compute_core_4, %is_compute_core_5 : i32
+// CHECK-NEXT:   %is_compute_core_7 = arith.constant 8 : i32
+// CHECK-NEXT:   %is_compute_core_8 = arith.cmpi slt, %is_compute_core_6, %is_compute_core_7 : i32
+// CHECK-NEXT:   %is_dm_core = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT:   %is_dm_core_1 = riscv.csrrs %is_dm_core, 3860, "r" : (!riscv.reg<zero>) -> !riscv.reg<>
+// CHECK-NEXT:   %is_dm_core_2 = builtin.unrealized_conversion_cast %is_dm_core_1 : !riscv.reg<> to i32
+// CHECK-NEXT:   %is_dm_core_3 = arith.constant 0 : i32
+// CHECK-NEXT:   %is_dm_core_4 = arith.subi %is_dm_core_2, %is_dm_core_3 : i32
+// CHECK-NEXT:   %is_dm_core_5 = arith.constant 9 : i32
+// CHECK-NEXT:   %is_dm_core_6 = arith.remsi %is_dm_core_4, %is_dm_core_5 : i32
+// CHECK-NEXT:   %is_dm_core_7 = arith.constant 8 : i32
+// CHECK-NEXT:   %is_dm_core_8 = arith.cmpi sge, %is_dm_core_6, %is_dm_core_7 : i32
 
                  // Lowering of cluster_hw_barrier
 // CHECK-NEXT:   %0 = riscv.get_register : () -> !riscv.reg<zero>

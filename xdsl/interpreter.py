@@ -611,7 +611,7 @@ class Interpreter:
         self.listener.did_interpret_op(op, result.values)
         return result
 
-    def run_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
+    def run_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
         """
         Calls the implementation for the given operation.
         """
@@ -620,7 +620,7 @@ class Interpreter:
 
         return self._run_op(op, inputs).values
 
-    def call_op(self, op: Operation | str, inputs: PythonValues) -> PythonValues:
+    def call_op(self, op: Operation | str, inputs: PythonValues = ()) -> PythonValues:
         """
         Calls the implementation for the given operation.
         """
@@ -742,6 +742,19 @@ class Interpreter:
             data = functions_data[key]
 
         return data
+
+    def set_data(
+        self,
+        functions: type[InterpreterFunctions],
+        key: str,
+        value: Any,
+    ):
+        if functions not in self._impl_data:
+            functions_data: dict[str, Any] = {}
+            self._impl_data[functions] = functions_data
+        else:
+            functions_data = self._impl_data[functions]
+        functions_data[key] = value
 
     def print(self, *args: Any, **kwargs: Any):
         """Print to current file."""

@@ -7,6 +7,7 @@ from xdsl.backend.riscv.lowering.utils import (
     register_type_for_type,
 )
 from xdsl.builder import ImplicitBuilder
+from xdsl.context import MLContext
 from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloat,
@@ -19,7 +20,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
 )
 from xdsl.interpreters.ptr import TypedPtr
-from xdsl.ir import Attribute, MLContext, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -32,12 +33,28 @@ from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import DiagnosticException
 
 
+def bitwidth_of_type(type_attribute: Attribute) -> int:
+    """
+    Returns the width of an element type in bits, or raises ValueError for unknown inputs.
+    """
+    if isinstance(type_attribute, AnyFloat):
+        return type_attribute.get_bitwidth
+    elif isinstance(type_attribute, IntegerType):
+        return type_attribute.width.data
+    else:
+        raise NotImplementedError(
+            f"Unsupported memref element type for riscv lowering: {type_attribute}"
+        )
+
+
 class ConvertMemrefAllocOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter) -> None:
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
-        size = prod(op_memref_type.get_shape()) * 8
+        op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
+        width_in_bytes = bitwidth_of_type(op_memref_type.element_type) // 8
+        size = prod(op_memref_type.get_shape()) * width_in_bytes
         rewriter.replace_matched_op(
             (
                 size_op := riscv.LiOp(size, comment="memref alloc size"),

@@ -72,19 +72,19 @@ class RiscvFunctions(InterpreterFunctions):
         if not attr.is_allocated:
             return value
 
-        # name = attr.register_name
+        name = attr.register_name
 
-        # registers = RiscvFunctions.registers(interpreter)
+        registers = RiscvFunctions.registers(interpreter)
 
-        # if name not in registers:
-        #     raise InterpretationError(f"Value not found for register name {name}")
+        if name not in registers:
+            raise InterpretationError(f"Value not found for register name {name}")
 
-        # stored_value = registers[name]
+        stored_value = registers[name]
 
-        # if stored_value != value:
-        #     raise InterpretationError(
-        #         f"Runtime and stored value mismatch: {value} != {stored_value}"
-        #     )
+        if stored_value != value:
+            raise InterpretationError(
+                f"Runtime and stored value mismatch: {value} != {stored_value}"
+            )
 
         return value
 
@@ -518,6 +518,17 @@ class RiscvFunctions(InterpreterFunctions):
         offset = self.get_immediate_value(interpreter, op.immediate)
         assert isinstance(offset, int)
         results = ((args[0] + offset).float64[0],)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.FMvDOp)
+    def run_fmv_d(
+        self,
+        interpreter: Interpreter,
+        op: riscv.FMvDOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = args
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     # endregion

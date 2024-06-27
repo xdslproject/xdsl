@@ -1009,6 +1009,115 @@ class Transpose(IRDLOperation):
                     )
 
 
+@irdl_op_definition
+class Squeeze(IRDLOperation):
+    """
+    Squeeze the input tensor along the specified axes.
+
+    Squeezing a tensor removes dimensions of size 1, effectively reducing the rank of the tensor and collapsing those dimensions.
+    This operation is particularly useful for removing unnecessary singleton dimensions, which may arise from broadcasting or previous operations.
+
+    Args:
+        input_tensor: The input tensor to be squeezed. This tensor should be a multi-dimensional array-like object.
+        axes: A list of axes along which to squeeze the tensor. If provided, only the specified axes will be squeezed. If not provided, all dimensions of size 1 will be squeezed.
+
+    Returns:
+        output_tensor: The squeezed tensor.
+    """
+
+    name = "onnx.Squeeze"
+
+    T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
+    input_tensor = operand_def(TensorType[T])
+    axes = opt_attr_def(IntegerAttr, attr_name="axes")
+
+    output_tensor = result_def(TensorType[T])
+
+    assembly_format = "`(` $input_tensor `)` attr-dict `:` `(` type($input_tensor) `)` `->` type($output_tensor) "
+
+    def __init__(
+        self,
+        input_tensor: SSAValue,
+        axes: Attribute,
+    ):
+        super().__init__(
+            attributes={
+                "axes": axes,
+            },
+            operands=[input_tensor],
+            result_types=[input_tensor.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(input_tensor_type := self.input_tensor.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        input_tensor_shape = input_tensor_type.get_shape()
+
+        if self.axes is not None:
+            axes_value = self.axes.value.data
+
+            # axes out of bounds: the axes value must between 0 and len(input_tensor.shape)-1
+            if axes_value < 0 or axes_value >= len(input_tensor_shape):
+                max_axes_value = len(input_tensor_shape) - 1
+                raise VerifyException(
+                    f"axes to squeeze must be between 0 and {max_axes_value}, axes: {axes_value}"
+                )
+
+
+@irdl_op_definition
+class Sigmoid(IRDLOperation):
+    """
+    Applies the sigmoid function element-wise to all elements of the input tensor.
+    The sigmoid function, denoted by sigma(x), is a common mathematical function used in machine learning and neural networks. It is defined as:
+    sigma(x) = 1 / (1 + e^-x)
+    where e is the base of the natural logarithm. The sigmoid function maps any real-valued number to the range of [0, 1].
+    The sigmoid function is used as an activation function.
+
+    Args:
+    - input_tensor (TensorType): The input tensor to which the sigmoid function will be applied.
+
+    Returns:
+    - output_tensor (TensorType): The output tensor after applying the sigmoid function element-wise to the input tensor.
+    """
+
+    name = "onnx.Sigmoid"
+
+    T = Annotated[AnyFloat, ConstraintVar("T")]
+    input_tensor = operand_def(TensorType[T])
+    output_tensor = result_def(TensorType[T])
+
+    assembly_format = "`(` $input_tensor`)` attr-dict `:` `(` type($input_tensor) `)` `->` type($output_tensor) "
+
+    def __init__(
+        self,
+        input_tensor: SSAValue,
+    ):
+        super().__init__(
+            operands=[input_tensor],
+            result_types=[input_tensor.type],
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(
+            input_tensor_type := self.input_tensor.type, TensorType
+        ) or not isinstance(output_tensor_type := self.output_tensor.type, TensorType):
+            assert (
+                False
+            ), "onnx elementwise operation operands and result must be of type TensorType"
+
+        input_tensor_shape = input_tensor_type.get_shape()
+        output_tensor_shape = output_tensor_type.get_shape()
+
+        # check if input tensor and output tensor have the same shape
+        if input_tensor_shape != output_tensor_shape:
+            raise VerifyException(
+                f"tensor input shape {input_tensor_shape} is not equal to tensor output shape {output_tensor_shape}"
+            )
+
+
 ONNX = Dialect(
     "onnx",
     [
@@ -1026,5 +1135,7 @@ ONNX = Dialect(
         Reshape,
         Sub,
         Transpose,
+        Squeeze,
+        Sigmoid,
     ],
 )

@@ -111,7 +111,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     f"'ast.{type(node.msg).__name__}'",
                 )
             msg = str(node.msg.value)
-        op = cf.Assert.get(self.inserter.get_operand(), msg)
+        op = cf.Assert(self.inserter.get_operand(), msg)
         self.inserter.insert_op(op)
 
     def visit_Assign(self, node: ast.Assign) -> None:

@@ -1,6 +1,9 @@
+from collections.abc import Sequence
+
+from xdsl.context import MLContext
 from xdsl.dialects import linalg, memref
-from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import MLContext
+from xdsl.dialects.builtin import AffineMapAttr, MemRefType, ModuleOp
+from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -9,7 +12,46 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.loop_nest_lowering_utils import rewrite_generic_to_loops
+from xdsl.rewriter import InsertPoint
+from xdsl.transforms.loop_nest_lowering_utils import (
+    indices_for_map,
+    rewrite_generic_to_loops,
+)
+
+
+def insert_load(
+    value_index: int,
+    value: SSAValue,
+    affine_map_attr: AffineMapAttr,
+    ind_vars: Sequence[SSAValue],
+    rewriter: PatternRewriter,
+    insertion_target: InsertPoint,
+) -> SSAValue:
+    if isinstance(value.type, MemRefType):
+        indices = indices_for_map(
+            rewriter, insertion_target, affine_map_attr.data, ind_vars
+        )
+        op = memref.Load.get(value, indices)
+        rewriter.insert_op(op, insertion_target)
+        return op.res
+    else:
+        return value
+
+
+def insert_store(
+    value: SSAValue,
+    destination: SSAValue,
+    affine_map_attr: AffineMapAttr,
+    ind_vars: Sequence[SSAValue],
+    rewriter: PatternRewriter,
+    insertion_target: InsertPoint,
+):
+    indices = indices_for_map(
+        rewriter, insertion_target, affine_map_attr.data, ind_vars
+    )
+    op = memref.Store.get(value, destination, indices)
+    rewriter.insert_op(op, insertion_target)
+    return op
 
 
 class LowerGenericOpPattern(RewritePattern):
@@ -20,7 +62,18 @@ class LowerGenericOpPattern(RewritePattern):
                 "lowering for linalg.generic with results not yet supported"
             )
 
-        rewrite_generic_to_loops(rewriter, op, memref.Load.get, memref.Store.get)
+        rewrite_generic_to_loops(
+            rewriter,
+            InsertPoint.before(op),
+            op.get_static_loop_ranges(),
+            op.indexing_maps.data,
+            op.indexing_maps.data[-len(op.outputs) :],
+            op.operands,
+            op.outputs,
+            op.body.block,
+            insert_load,
+            insert_store,
+        )
 
 
 class ConvertLinalgToLoopsPass(ModulePass):

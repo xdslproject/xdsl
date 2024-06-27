@@ -19,7 +19,7 @@
 "builtin.module"() ({
 }) {"wrong_all_reduce_operation" = #gpu<all_reduce_op magic>}: () -> ()
 
-// CHECK: Expected `add`, `and`, `max`, `min`, `mul`, `or` or `xor`.
+// CHECK: Expected `add`, `and`, `max`, `min`, `mul`, `or`, or `xor`.
 
 // -----
 
@@ -77,7 +77,7 @@
 "builtin.module"() ({
 }) {"wrong_dim" = #gpu<dim w>}: () -> ()
 
-// CHECK: Expected `x`, `y` or `z`.
+// CHECK: Expected `x`, `y`, or `z`.
 
 // -----
 

@@ -1,6 +1,7 @@
+from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.stencil import ApplyOp, BufferOp, CombineOp, StoreOp
-from xdsl.ir import MLContext, OpResult, SSAValue
+from xdsl.ir import OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -41,6 +42,8 @@ class ApplyOpMaterialization(RewritePattern):
                 new_res.append(out)
         if buffers:
             rewriter.replace_matched_op([clone, *buffers], new_res)
+        else:
+            clone.erase()
 
 
 class StencilStorageMaterializationPass(ModulePass):

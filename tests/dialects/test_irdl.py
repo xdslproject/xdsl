@@ -1,3 +1,6 @@
+# do not include 'from __future__ import annotations' in this file
+from typing import ClassVar
+
 import pytest
 
 from xdsl.dialects.builtin import StringAttr, SymbolRefAttr, i32
@@ -7,6 +10,7 @@ from xdsl.dialects.irdl import (
     AnyOp,
     AttributeOp,
     AttributeType,
+    BaseOp,
     DialectOp,
     IsOp,
     OperandsOp,
@@ -17,6 +21,8 @@ from xdsl.dialects.irdl import (
     TypeOp,
 )
 from xdsl.ir import Block, Region
+from xdsl.irdl import IRDLOperation, irdl_op_definition
+from xdsl.utils.exceptions import PyRDLOpDefinitionError
 from xdsl.utils.test_value import TestSSAValue
 
 
@@ -67,6 +73,25 @@ def test_is_init():
     assert op.output.type == AttributeType()
 
 
+def test_base_init():
+    """Test __init__ of BaseOp."""
+    base_op_ref = BaseOp(SymbolRefAttr("integer"))
+    base_op_ref2 = BaseOp.create(
+        attributes={"base_ref": SymbolRefAttr("integer")},
+        result_types=[AttributeType()],
+    )
+    assert base_op_ref.is_structurally_equivalent(base_op_ref2)
+
+    base_op_name = BaseOp(StringAttr("integer"))
+    base_op_name2 = BaseOp("integer")
+    base_op_name3 = BaseOp.create(
+        attributes={"base_name": StringAttr("integer")},
+        result_types=[AttributeType()],
+    )
+    assert base_op_name.is_structurally_equivalent(base_op_name2)
+    assert base_op_name2.is_structurally_equivalent(base_op_name3)
+
+
 def test_parametric_init():
     """Test __init__ of ParametricOp."""
     val1 = TestSSAValue(AttributeType())
@@ -111,3 +136,52 @@ def test_any_all_of_init(op_type: type[AllOfOp | AnyOfOp]):
 
     assert op.args == (val1, val2)
     assert op.output.type == AttributeType()
+
+
+@pytest.mark.parametrize("op_type", [OperationOp, TypeOp, AttributeOp])
+def test_qualified_name(op_type: type[OperationOp | TypeOp | AttributeOp]):
+    """Test qualified_name property of OperationOp, TypeOp, AttributeOp."""
+    op = op_type.create(
+        attributes={"sym_name": StringAttr("myname")}, regions=[Region(Block())]
+    )
+    dialect = DialectOp("mydialect", Region(Block([op])))
+    dialect.verify()
+    assert op.qualified_name == "mydialect.myname"
+
+
+class MyOpWithClassVar(IRDLOperation):
+    name = "test.has_class_var"
+
+    VAR: ClassVar[str] = "hello_world"
+
+
+class MyOpWithClassVarInvalid(IRDLOperation):
+    name = "test.has_class_var"
+
+    var: ClassVar[str] = "hello_world"
+
+
+def test_class_var_on_op():
+    irdl_op_definition(MyOpWithClassVar)
+
+
+def test_class_var_on_op_invalid():
+    with pytest.raises(PyRDLOpDefinitionError, match="is neither a"):
+        irdl_op_definition(MyOpWithClassVarInvalid)
+
+
+class MySuperWithClassVarDef(IRDLOperation):
+    name = "test.super_has_class_var"
+
+    VAR: ClassVar[str]
+
+
+class MySubWithClassVarOverload(MySuperWithClassVarDef):
+    name = "test.super_has_class_var"
+
+    VAR: ClassVar[str] = "hello_world"
+
+
+def test_class_var_on_super():
+    irdl_op_definition(MySuperWithClassVarDef)
+    irdl_op_definition(MySubWithClassVarOverload)

@@ -350,12 +350,12 @@
 // CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
 // CHECK-GENERIC-NEXT:     %0 = "riscv.get_register"() : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %1 = "riscv.get_register"() : () -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %addi = "riscv.addi"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %slti = "riscv.slti"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %sltiu = "riscv.sltiu"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %andi = "riscv.andi"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %ori = "riscv.ori"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %xori = "riscv.xori"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %addi = "riscv.addi"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %slti = "riscv.slti"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %sltiu = "riscv.sltiu"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %andi = "riscv.andi"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %ori = "riscv.ori"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %xori = "riscv.xori"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %slli = "riscv.slli"(%0) {"immediate" = 1 : ui5} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %srli = "riscv.srli"(%0) {"immediate" = 1 : ui5} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %srai = "riscv.srai"(%0) {"immediate" = 1 : ui5} : (!riscv.reg<>) -> !riscv.reg<>
@@ -389,14 +389,14 @@
 // CHECK-GENERIC-NEXT:     "riscv.bge"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-GENERIC-NEXT:     "riscv.bltu"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-GENERIC-NEXT:     "riscv.bgeu"(%0, %1) {"offset" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     %lb = "riscv.lb"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %lbu = "riscv.lbu"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %lh = "riscv.lh"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %lhu = "riscv.lhu"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     %lw = "riscv.lw"(%0) {"immediate" = 1 : i12} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-GENERIC-NEXT:     "riscv.sb"(%0, %1) {"immediate" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.sh"(%0, %1) {"immediate" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
-// CHECK-GENERIC-NEXT:     "riscv.sw"(%0, %1) {"immediate" = 1 : i12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     %lb = "riscv.lb"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %lbu = "riscv.lbu"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %lh = "riscv.lh"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %lhu = "riscv.lhu"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     %lw = "riscv.lw"(%0) {"immediate" = 1 : si12} : (!riscv.reg<>) -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:     "riscv.sb"(%0, %1) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv.sh"(%0, %1) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
+// CHECK-GENERIC-NEXT:     "riscv.sw"(%0, %1) {"immediate" = 1 : si12} : (!riscv.reg<>, !riscv.reg<>) -> ()
 // CHECK-GENERIC-NEXT:     %csrrw_rw = "riscv.csrrw"(%0) {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %csrrw_w = "riscv.csrrw"(%0) {"csr" = 1024 : i32, "writeonly"} : (!riscv.reg<>) -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     %csrrs_rw = "riscv.csrrs"(%0) {"csr" = 1024 : i32} : (!riscv.reg<>) -> !riscv.reg<>
@@ -427,7 +427,7 @@
 // CHECK-GENERIC-NEXT:       %nested_li = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     }) {"directive" = ".text", "foo" = i32} : () -> ()
 // CHECK-GENERIC-NEXT:     "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:       %nested_li_1 = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
+// CHECK-GENERIC-NEXT:       %nested_li = "riscv.li"() {"immediate" = 1 : i32} : () -> !riscv.reg<>
 // CHECK-GENERIC-NEXT:     }) {"directive" = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:     %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {"instruction_name" = "hello"} : (!riscv.reg<>, !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>)
 // CHECK-GENERIC-NEXT:     %f0 = "riscv.get_float_register"() : () -> !riscv.freg<>

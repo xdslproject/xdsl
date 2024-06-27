@@ -1,9 +1,11 @@
 from abc import ABC
 from collections.abc import Sequence
+from dataclasses import dataclass
 
-from xdsl.dialects import builtin, riscv, riscv_snitch, snitch_runtime
+from xdsl.context import MLContext
+from xdsl.dialects import arith, builtin, riscv, riscv_snitch, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.ir import MLContext, Operation, SSAValue
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -12,6 +14,31 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+
+
+@dataclass(frozen=True)
+class SnrtConstants(ABC):
+    """
+    Constants used when compiling the snitch runtime, depend on the exact snitch
+    architecture target.
+    """
+
+    cluster_num: int = 4
+    """
+    Number of snitch clusters on the chip
+    """
+    cluster_core_num: int = 9
+    """
+    Number of cores per cluster (1 dma + 8 compute)
+    """
+    base_hartid: int = 0
+    """
+    SNRT expects the snitch cores to be numbered contiguously starting at base_hartid
+    """
+    cluster_dm_core_num: int = 1
+    """
+    Number of dm cores per cluster. Compute core num = cluster_core_num - cluster_dm_core_num
+    """
 
 
 class LowerClusterHWBarrier(RewritePattern):
@@ -61,7 +88,9 @@ class LowerSSRDisable(RewritePattern):
                 straight to the generic one.
         """
         rewriter.replace_matched_op(
-            [riscv.CsrrciOp(csr=IntegerAttr(0x7C0, 12), immediate=IntegerAttr(1, 4))],
+            [
+                riscv.CsrrciOp(csr=IntegerAttr(0x7C0, 12), immediate=IntegerAttr(1, 4)),
+            ],
             [],
         )
 
@@ -395,8 +424,248 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
         )
 
 
-class ConvertSnrtToRISCV(ModulePass):
-    name = "convert-snrt-to-riscv"
+@dataclass
+class LowerGlobalCoreBaseHartid(RewritePattern):
+    constants: SnrtConstants
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.GlobalCoreBaseHartidOp, rewriter: PatternRewriter, /
+    ):
+        rewriter.replace_matched_op(
+            [arith.Constant.from_int_and_width(self.constants.base_hartid, builtin.i32)]
+        )
+
+
+@dataclass
+class LowerGlobalCoreNum(RewritePattern):
+    constants: SnrtConstants
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.GlobalCoreNumOp, rewriter: PatternRewriter, /
+    ):
+        rewriter.replace_matched_op(
+            [
+                arith.Constant.from_int_and_width(
+                    self.constants.cluster_num * self.constants.cluster_core_num,
+                    builtin.i32,
+                )
+            ]
+        )
+
+
+@dataclass
+class LowerClusterCoreNum(RewritePattern):
+    constants: SnrtConstants
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.ClusterCoreNumOp, rewriter: PatternRewriter, /
+    ):
+        rewriter.replace_matched_op(
+            [
+                arith.Constant.from_int_and_width(
+                    self.constants.cluster_core_num, builtin.i32
+                )
+            ]
+        )
+
+
+@dataclass
+class LowerClusterNum(RewritePattern):
+    constants: SnrtConstants
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.ClusterNumOp, rewriter: PatternRewriter, /
+    ):
+        rewriter.replace_matched_op(
+            [arith.Constant.from_int_and_width(self.constants.cluster_num, builtin.i32)]
+        )
+
+
+@dataclass
+class LowerClusterDmCoreNum(RewritePattern):
+    constants: SnrtConstants
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.ClusterDmCoreNumOp, rewriter: PatternRewriter, /
+    ):
+        rewriter.replace_matched_op(
+            [
+                arith.Constant.from_int_and_width(
+                    self.constants.cluster_dm_core_num, builtin.i32
+                )
+            ]
+        )
+
+
+class LowerIsComputeCore(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.IsComputeCoreOp, rewriter: PatternRewriter, /
+    ):
+        """
+        inline int __attribute__((const)) snrt_is_compute_core() {
+            return snrt_cluster_core_idx() < snrt_cluster_compute_core_num();
+        }
+        """
+        rewriter.replace_matched_op(
+            [
+                cluster_core_idx := snitch_runtime.ClusterCoreIdxOp(),
+                compute_core_num := snitch_runtime.ClusterComputeCoreNumOp(),
+                arith.Cmpi(cluster_core_idx, compute_core_num, "slt"),
+            ]
+        )
+
+
+class LowerIsDmCore(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.IsDmCoreOp, rewriter: PatternRewriter, /
+    ):
+        """
+        inline int __attribute__((const)) snrt_is_compute_core() {
+            return snrt_cluster_core_idx() < snrt_cluster_compute_core_num();
+        }
+
+        inline int __attribute__((const)) snrt_is_dm_core() {
+            return !snrt_is_compute_core();
+        }
+        """
+        rewriter.replace_matched_op(
+            [
+                cluster_core_idx := snitch_runtime.ClusterCoreIdxOp(),
+                compute_core_num := snitch_runtime.ClusterComputeCoreNumOp(),
+                arith.Cmpi(cluster_core_idx, compute_core_num, "sge"),
+            ]
+        )
+
+
+class LowerClusterCoreIdx(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.ClusterCoreIdxOp, rewriter: PatternRewriter, /
+    ):
+        """
+        inline uint32_t __attribute__((const)) snrt_cluster_core_idx() {
+            return snrt_global_core_idx() % snrt_cluster_core_num();
+        }
+        """
+        rewriter.replace_matched_op(
+            [
+                global_core_idx := snitch_runtime.GlobalCoreIdxOp(),
+                cluster_core_num := snitch_runtime.ClusterCoreNumOp(),
+                arith.RemSI(global_core_idx, cluster_core_num),
+            ]
+        )
+
+
+@dataclass
+class LowerClusterComputeCoreNum(RewritePattern):
+    constants: SnrtConstants
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.ClusterComputeCoreNumOp, rewriter: PatternRewriter, /
+    ):
+        """
+        Implementation:
+
+        inline uint32_t __attribute__((const)) snrt_cluster_compute_core_num() {
+            return snrt_cluster_core_num() - snrt_cluster_dm_core_num();
+        }
+
+        inline uint32_t __attribute__((const)) snrt_cluster_core_num() {
+            return SNRT_CLUSTER_CORE_NUM;
+        }
+
+        inline uint32_t __attribute__((const)) snrt_cluster_dm_core_num() {
+            return SNRT_CLUSTER_DM_CORE_NUM;
+        }
+        """
+        rewriter.replace_matched_op(
+            [
+                arith.Constant.from_int_and_width(
+                    self.constants.cluster_core_num
+                    - self.constants.cluster_dm_core_num,
+                    builtin.i32,
+                )
+            ]
+        )
+
+
+@dataclass
+class LowerGlobalCoreIdx(RewritePattern):
+    constants: SnrtConstants
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.GlobalCoreIdxOp, rewriter: PatternRewriter, /
+    ):
+        """
+        Implementation:
+
+        inline uint32_t __attribute__((const)) snrt_hartid() {
+            uint32_t hartid;
+            asm("csrr %0, mhartid" : "=r"(hartid));
+            return hartid;
+        }
+
+        inline uint32_t __attribute__((const)) snrt_global_core_idx() {
+            return snrt_hartid() - snrt_global_core_base_hartid();
+        }
+        """
+        rewriter.replace_matched_op(
+            [
+                zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                hartid := riscv.CsrrsOp(zero, IntegerAttr(0xF14, 12), readonly=True),
+                hartid_i32 := builtin.UnrealizedConversionCastOp.get(
+                    [hartid], [builtin.i32]
+                ),
+                base_hartid := arith.Constant.from_int_and_width(
+                    self.constants.base_hartid, builtin.i32
+                ),
+                arith.Subi(hartid_i32, base_hartid),
+            ]
+        )
+
+
+class LowerClusterIdx(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: snitch_runtime.ClusterIdxOp, rewriter: PatternRewriter, /
+    ):
+        """
+        Implementation:
+
+        inline uint32_t __attribute__((const)) snrt_cluster_idx() {
+            return snrt_global_core_idx() / snrt_cluster_core_num();
+        }
+        """
+        rewriter.replace_matched_op(
+            [
+                cluster_core_num := snitch_runtime.ClusterCoreNumOp(),
+                core_idx := snitch_runtime.GlobalCoreIdxOp(),
+                arith.DivSI(
+                    core_idx,
+                    cluster_core_num,
+                ),
+            ]
+        )
+
+
+@dataclass(frozen=True)
+class ConvertSnrtToRISCV(SnrtConstants, ModulePass):
+    """
+    Inline operations of the snrt dialect to their definitions.
+
+    Uses arith operations where possible, and emit `riscv.csr*` and `riscv_snitch` ops where required.
+    """
+
+    name = "inline-snrt"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
@@ -408,6 +677,18 @@ class ConvertSnrtToRISCV(ModulePass):
                     LowerDMAStart1DWidePtr(),
                     LowerDMAStart2D(),
                     LowerDMAStart2DWideptr(),
+                    # information getting ops:
+                    LowerClusterIdx(),
+                    LowerClusterNum(self),
+                    LowerClusterCoreIdx(),
+                    LowerClusterCoreNum(self),
+                    LowerClusterDmCoreNum(self),
+                    LowerClusterComputeCoreNum(self),
+                    LowerGlobalCoreNum(self),
+                    LowerGlobalCoreIdx(self),
+                    LowerGlobalCoreBaseHartid(self),
+                    LowerIsComputeCore(),
+                    LowerIsDmCore(),
                 ]
             )
         ).rewrite_module(op)

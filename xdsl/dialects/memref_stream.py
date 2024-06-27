@@ -7,27 +7,145 @@ memrefs instead of registers storing pointers.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import cast
+from collections.abc import Iterator, Sequence
+from enum import auto
+from itertools import product
+from typing import Annotated, Any, cast
 
 from typing_extensions import Self
 
 from xdsl.dialects import memref, stream
-from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, IntAttr, StringAttr
-from xdsl.dialects.linalg import IteratorType, IteratorTypeAttr
+from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    ArrayAttr,
+    IntAttr,
+    StringAttr,
+)
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Attribute, Dialect, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    ParametrizedAttribute,
+    Region,
+    SSAValue,
+)
 from xdsl.irdl import (
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
+    ParameterDef,
+    irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     prop_def,
     region_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
+
+
+class IteratorType(StrEnum):
+    "Iterator type for memref_stream Attribute"
+
+    PARALLEL = auto()
+    REDUCTION = auto()
+
+
+@irdl_attr_definition
+class IteratorTypeAttr(EnumAttribute[IteratorType]):
+    name = "memref_stream.iterator_type"
+
+    @classmethod
+    def parallel(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.PARALLEL)
+
+    @classmethod
+    def reduction(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.REDUCTION)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> IteratorType:
+        with parser.in_angle_brackets():
+            return super().parse_parameter(parser)
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            super().print_parameter(printer)
+
+
+@irdl_attr_definition
+class StridePattern(ParametrizedAttribute):
+    """
+    Attribute representing the order and offsets in which elements will be read from or
+    written to a stream.
+
+    ```
+    // 2D access pattern
+    #pat = #memref_stream.stride_pattern<ub = [16, 8], strides = (d0, d1) -> (d0 + 1, d1 + 2)>
+    // Corresponds to the following locations
+    // for i in range(16):
+    //   for j in range(8):
+    //     yield (i + 1, j + 2)
+    // Note that the upper bounds and strides go from the outermost loop inwards
+    ```
+    """
+
+    name = "memref_stream.stride_pattern"
+
+    ub: ParameterDef[ArrayAttr[IntAttr]]
+    index_map: ParameterDef[AffineMapAttr]
+
+    def __init__(self, ub: ArrayAttr[IntAttr], index_map: ParameterDef[AffineMapAttr]):
+        super().__init__((ub, index_map))
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_identifier("ub")
+            parser.parse_punctuation("=")
+            ub = ArrayAttr(
+                IntAttr(i)
+                for i in parser.parse_comma_separated_list(
+                    parser.Delimiter.SQUARE, parser.parse_integer
+                )
+            )
+            parser.parse_punctuation(",")
+            parser.parse_identifier("index_map")
+            parser.parse_punctuation("=")
+            index_map = AffineMapAttr(parser.parse_affine_map())
+            return (ub, index_map)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string("ub = [")
+            printer.print_list(self.ub, lambda attr: printer.print(attr.data))
+            printer.print_string(f"], index_map = {self.index_map.data}")
+
+    def rank(self):
+        return len(self.ub)
+
+    def verify(self) -> None:
+        if len(self.ub) != self.index_map.data.num_dims:
+            raise VerifyException(
+                f"Expect stride pattern upper bounds {self.ub} to be equal in length to dimensions of {self.index_map}"
+            )
+        if self.index_map.data.num_symbols:
+            raise VerifyException(
+                f"Expect stride pattern map to not contain symbols: {self.index_map}"
+            )
+
+    def index_iter(self) -> Iterator[tuple[int, ...]]:
+        for indices in product(*(range(bound.data) for bound in self.ub.data)):
+            indices: tuple[int, ...] = indices
+            yield self.index_map.data.eval(indices, ())
+
+    def offsets(self) -> tuple[tuple[int, ...], ...]:
+        return tuple(self.index_iter())
 
 
 @irdl_op_definition
@@ -62,15 +180,11 @@ class StreamingRegionOp(IRDLOperation):
     Pointers to memory buffers that will be streamed. The corresponding stride pattern
     defines the order in which the elements of the input buffers will be written to.
     """
-    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+    patterns = prop_def(ArrayAttr[StridePattern])
     """
     Stride patterns that define the order of the input and output streams.
     Like in linalg.generic, the indexing maps corresponding to inputs are followed by the
     indexing maps for the outputs.
-    """
-    bounds = prop_def(ArrayAttr[IntAttr])
-    """
-    The bounds of the iteration space, from the outermost loop inwards. All indexing maps must have the same number of dimensions as the length of `bounds`.
     """
 
     body = region_def("single_block")
@@ -83,24 +197,20 @@ class StreamingRegionOp(IRDLOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
-        indexing_maps: ArrayAttr[AffineMapAttr],
-        bounds: ArrayAttr[IntAttr],
+        patterns: ArrayAttr[StridePattern],
         body: Region,
     ) -> None:
         super().__init__(
             operands=[inputs, outputs],
             regions=[body],
             properties={
-                "bounds": bounds,
-                "indexing_maps": indexing_maps,
+                "patterns": patterns,
             },
         )
 
     def print(self, printer: Printer):
-        printer.print_string(" {bounds = [")
-        printer.print_list(self.bounds, lambda bound: printer.print(bound.data))
-        printer.print_string("], indexing_maps = ")
-        printer.print_attribute(self.indexing_maps)
+        printer.print_string(" {patterns = ")
+        printer.print_attribute(self.patterns)
         printer.print_string("}")
 
         if self.inputs:
@@ -127,18 +237,17 @@ class StreamingRegionOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         parser.parse_punctuation("{")
-        parser.parse_identifier("bounds")
+        parser.parse_identifier("patterns")
         parser.parse_punctuation("=")
-        bound_vals = parser.parse_comma_separated_list(
-            parser.Delimiter.SQUARE, parser.parse_integer
-        )
-        bounds = ArrayAttr(IntAttr(bound) for bound in bound_vals)
 
-        parser.parse_punctuation(",")
-        parser.parse_identifier("indexing_maps")
-        parser.parse_punctuation("=")
-        indexing_maps = parser.parse_attribute()
-        indexing_maps = cast(ArrayAttr[AffineMapAttr], indexing_maps)
+        patterns = parser.parse_attribute()
+        if not isinstance(patterns, ArrayAttr):
+            parser.raise_error(f"Expected ArrayAttr {patterns}")
+        patterns = cast(ArrayAttr[Any], patterns)
+        for pattern in patterns:
+            if not isinstance(pattern, StridePattern):
+                parser.raise_error(f"Expected StridePattern {pattern}")
+        patterns = cast(ArrayAttr[StridePattern], patterns)
 
         parser.parse_punctuation("}")
 
@@ -185,8 +294,7 @@ class StreamingRegionOp(IRDLOperation):
         generic = cls(
             ins,
             outs,
-            indexing_maps,
-            bounds,
+            patterns,
             body,
         )
         generic.attributes |= extra_attrs
@@ -209,6 +317,11 @@ class GenericOp(IRDLOperation):
     pattern defines the order in which the elements of the input buffers will be written
     to.
     """
+    inits = var_operand_def()
+    """
+    Initial values for outputs. The outputs are at corresponding `init_indices`. The inits
+    may be set only for the imperfectly nested form.
+    """
     indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
     """
     Stride patterns that define the order of the input and output streams.
@@ -221,6 +334,10 @@ class GenericOp(IRDLOperation):
     """
 
     iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
+    init_indices = prop_def(ArrayAttr[IntAttr])
+    """
+    Indices into the `outputs` that correspond to the initial values in `inits`.
+    """
 
     body: Region = region_def("single_block")
 
@@ -230,23 +347,58 @@ class GenericOp(IRDLOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue],
+        inits: Sequence[SSAValue],
         body: Region,
         indexing_maps: ArrayAttr[AffineMapAttr],
         iterator_types: ArrayAttr[Attribute],
         bounds: ArrayAttr[IntAttr],
+        init_indices: ArrayAttr[IntAttr],
     ) -> None:
+        for m in indexing_maps:
+            if m.data.num_symbols:
+                raise NotImplementedError(
+                    f"Symbols currently not implemented in {self.name} indexing maps"
+                )
         super().__init__(
-            operands=[inputs, outputs],
+            operands=[inputs, outputs, inits],
             properties={
                 "bounds": bounds,
-                "indexing_maps": ArrayAttr(indexing_maps),
-                "iterator_types": ArrayAttr(iterator_types),
+                "init_indices": init_indices,
+                "indexing_maps": indexing_maps,
+                "iterator_types": iterator_types,
             },
             regions=[body],
         )
 
-    def get_static_loop_ranges(self) -> tuple[int, ...]:
-        return tuple(bound.data for bound in self.bounds)
+    def get_static_loop_ranges(
+        self,
+    ) -> tuple[tuple[int, ...], tuple[int, ...]]:
+        """
+        This operation can represent two sets of perfectly nested loops, or one.
+        If it is one, then the first element of the returned tuple has all the loop
+        bounds, and the second is empty.
+        If there are two, then the first element of the returned tuple has the outer
+        bounds, and the second the inner.
+        """
+        output_maps = self.indexing_maps.data[len(self.inputs) :]
+        # min_dims will equal len(self.iterator_types) in the perfect nest case
+        min_dims = min(m.data.num_dims for m in output_maps)
+        return (
+            tuple(bound.data for bound in self.bounds.data[:min_dims]),
+            tuple(bound.data for bound in self.bounds.data[min_dims:]),
+        )
+
+    @property
+    def is_imperfectly_nested(self) -> bool:
+        return bool(self.get_static_loop_ranges()[1])
+
+    def _print_init(self, printer: Printer, init: SSAValue | None):
+        if init is None:
+            printer.print_string("None")
+        else:
+            printer.print_ssa_value(init)
+            printer.print_string(" : ")
+            printer.print_attribute(init.type)
 
     def print(self, printer: Printer):
         printer.print_string(" {bounds = ")
@@ -275,6 +427,17 @@ class GenericOp(IRDLOperation):
             printer.print_list((o.type for o in self.outputs), printer.print_attribute)
             printer.print_string(")")
 
+        if self.inits:
+            printer.print_string(" inits(")
+            inits: list[SSAValue | None] = [None] * len(self.outputs)
+            for i, val in zip(self.init_indices, self.inits):
+                inits[i.data] = val
+            printer.print_list(
+                inits,
+                lambda val: self._print_init(printer, val),
+            )
+            printer.print_string(")")
+
         extra_attrs = self.attributes.copy()
         if "indexing_maps" in extra_attrs:
             del extra_attrs["indexing_maps"]
@@ -291,6 +454,35 @@ class GenericOp(IRDLOperation):
 
         printer.print_string(" ")
         printer.print_region(self.body)
+
+    @classmethod
+    def _parse_init(cls, parser: Parser) -> SSAValue | None:
+        if parser.parse_optional_characters("None"):
+            return None
+        unresolved = parser.parse_unresolved_operand()
+        parser.parse_punctuation(":")
+        type = parser.parse_type()
+        return parser.resolve_operand(unresolved, type)
+
+    @classmethod
+    def _parse_inits(
+        cls, parser: Parser
+    ) -> tuple[tuple[SSAValue, ...], tuple[int, ...]]:
+        if not parser.parse_optional_characters("inits"):
+            return ((), ())
+
+        parser.parse_punctuation("(")
+        optional_inits = parser.parse_comma_separated_list(
+            Parser.Delimiter.NONE, lambda: cls._parse_init(parser)
+        )
+        parser.parse_punctuation(")")
+        enumerated_inits = tuple(
+            (i, val) for i, val in enumerate(optional_inits) if val is not None
+        )
+        inits = tuple(init for _, init in enumerated_inits)
+        init_indices = tuple(i for i, _ in enumerated_inits)
+
+        return (tuple(inits), init_indices)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
@@ -317,7 +509,7 @@ class GenericOp(IRDLOperation):
             del attrs["indexing_maps"]
         else:
             parser.raise_error(
-                "Expected indexing_maps for linalg.generic",
+                "Expected indexing_maps for memref_stream.generic",
                 attrs_start_pos,
                 attrs_end_pos,
             )
@@ -348,7 +540,7 @@ class GenericOp(IRDLOperation):
                         )
         else:
             parser.raise_error(
-                "Expected iterator_types for linalg.generic",
+                "Expected iterator_types for memref_stream.generic",
                 attrs_start_pos,
                 attrs_end_pos,
             )
@@ -395,7 +587,10 @@ class GenericOp(IRDLOperation):
             parser.parse_punctuation(")")
             outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
         else:
+            outs_types = ()
             outs = ()
+
+        inits, init_indices = cls._parse_inits(parser)
 
         if parser.parse_optional_keyword("attrs"):
             parser.parse_punctuation("=")
@@ -410,15 +605,87 @@ class GenericOp(IRDLOperation):
         generic = cls(
             ins,
             outs,
+            inits,
             body,
             indexing_maps,
             ArrayAttr(iterator_types),
             bounds,
+            ArrayAttr(IntAttr(index) for index in init_indices),
         )
         generic.attributes |= attrs
         generic.attributes |= extra_attrs
 
         return generic
+
+    def verify_(self) -> None:
+        if len(self.inits) != len(self.init_indices):
+            raise VerifyException(
+                f"Mismatching number of inits and init indices: {len(self.inits)} != {self.init_indices}"
+            )
+
+        # Parallel iterator types must preceed reduction iterators
+        iterator_types = self.iterator_types.data
+        num_parallel = iterator_types.count(IteratorTypeAttr.parallel())
+        if IteratorTypeAttr.parallel() in iterator_types[num_parallel:]:
+            raise VerifyException(
+                f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
+            )
+
+        if len(self.inputs) + len(self.outputs) != len(self.indexing_maps):
+            raise VerifyException(
+                "The number of affine maps must match the number of inputs and outputs"
+            )
+
+        # Whether or not the operation represents an imperfect loop nest, verify that the
+        # bounds of the outer + inner nests match the domain of the input affine maps
+        input_count = len(self.inputs)
+        input_maps = self.indexing_maps.data[:input_count]
+
+        for i, m in enumerate(input_maps):
+            if len(iterator_types) != m.data.num_dims:
+                raise VerifyException(f"Invalid number of dims in indexing map {i}")
+
+        # If the operation represents an imperfect loop nest, the bounds must match the
+        # number of parallel iterators; otherwise they must match the total number of
+        # iterators. In either case, they must all be the same.
+        output_maps = self.indexing_maps.data[input_count:]
+
+        min_dims = min(m.data.num_dims for m in output_maps)
+        max_dims = max(m.data.num_dims for m in output_maps)
+
+        if min_dims != max_dims:
+            raise VerifyException(
+                "The number of dims in output indexing maps must all be the same"
+            )
+
+        if min_dims not in (len(iterator_types), num_parallel):
+            # To signify that the output is imperfectly nested, the output affine map has
+            # as many dims as parallel iterators. Otherwise, it has as many dims as
+            # the total number of iterators.
+            raise VerifyException(
+                "The number of dims in output indexing maps must be "
+                f"{len(iterator_types)} or {num_parallel}"
+            )
+
+        if len(self.init_indices) != len(self.inits):
+            raise VerifyException(
+                "The number of inits and init_indices must be the same"
+            )
+
+        # The values of the inits must correspond to outputs where the domain of the
+        # affine map has the same number of dimensions as the number of parallel
+        # iterators.
+        num_outputs = len(self.outputs)
+        output_maps = self.indexing_maps.data[-num_outputs:]
+        for index in self.init_indices:
+            if not (0 <= index.data <= num_outputs):
+                raise VerifyException(f"Init index out of bounds: {index.data}")
+            m = output_maps[index.data]
+            if m.data.num_dims != num_parallel:
+                raise VerifyException(
+                    "Incompatible affine map and initial value for output at index "
+                    f"{index}"
+                )
 
 
 @irdl_op_definition
@@ -426,6 +693,21 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     name = "memref_stream.yield"
 
     traits = frozenset([IsTerminator()])
+
+
+@irdl_op_definition
+class FillOp(IRDLOperation):
+    name = "memref_stream.fill"
+
+    T = Annotated[Attribute, ConstraintVar("T")]
+
+    memref = operand_def(memref.MemRefType[T])
+    value = operand_def(T)
+
+    assembly_format = "$memref `with` $value attr-dict `:` type($memref)"
+
+    def __init__(self, memref: SSAValue, value: SSAValue):
+        super().__init__(operands=(memref, value))
 
 
 MemrefStream = Dialect(
@@ -436,6 +718,10 @@ MemrefStream = Dialect(
         StreamingRegionOp,
         GenericOp,
         YieldOp,
+        FillOp,
     ],
-    [],
+    [
+        IteratorTypeAttr,
+        StridePattern,
+    ],
 )

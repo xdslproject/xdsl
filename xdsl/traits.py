@@ -34,10 +34,6 @@ class OpTrait:
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
-class Pure(OpTrait):
-    """A trait that signals that an operation has no side effects."""
-
-
 class ConstantLike(OpTrait):
     """
     Operation known to be constant-like.
@@ -217,7 +213,7 @@ class IsolatedFromAbove(OpTrait):
 
     def verify(self, op: Operation) -> None:
         # Start by checking all the passed operation's regions
-        regions: list[Region] = op.regions.copy()
+        regions: list[Region] = list(op.regions)
 
         # While regions are left to check
         while regions:
@@ -233,7 +229,7 @@ class IsolatedFromAbove(OpTrait):
                         if not op.is_ancestor(operand.owner):
                             raise VerifyException(
                                 "Operation using value defined out of its "
-                                "IsolatedFromAbove parent!"
+                                f"IsolatedFromAbove parent: {child_op}"
                             )
                     # Check nested regions too; unless the operation is IsolatedFromAbove
                     # too; in which case it will check itself.
@@ -446,3 +442,59 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
+
+
+class MemoryEffect(OpTrait):
+    """
+    A trait that enables operations to expose their side-effects or absence thereof.
+
+    NB: The MLIR implementation further allows to describe what *kind* of side-effects
+    an operation has, e.g., read-only, or allocation.
+    This one is a stripped down version for now, just saying if there are any
+    side-effects or not.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def has_effects(cls, op: Operation) -> bool:
+        raise NotImplementedError()
+
+
+def is_side_effect_free(op: Operation):
+    """
+    Boilerplate helper to check if a generic operation is side effect free for sure.
+    """
+    # If it doesn't say, safely assume it has side effects.
+    if not (trait := op.get_trait(MemoryEffect)):
+        return False
+    return not trait.has_effects(op)
+
+
+class NoMemoryEffect(MemoryEffect):
+    """
+    A trait that signals that an operation never has side effects.
+    """
+
+    @classmethod
+    def has_effects(cls, op: Operation) -> bool:
+        return False
+
+
+class RecursiveMemoryEffect(MemoryEffect):
+    """
+    A trait that signals that an operation has the side effects of its contained
+    operations.
+
+    NB: Upstream, this a separate class, but in our current binary side effect
+    implementation, it's easier to have it this way in my opinion.
+    """
+
+    @classmethod
+    def has_effects(cls, op: Operation) -> bool:
+        if not op.regions:
+            return True
+        return not all(is_side_effect_free(o) for r in op.regions for o in r.walk())
+
+
+class Pure(NoMemoryEffect):
+    """A trait that signals that an operation has no side effects."""

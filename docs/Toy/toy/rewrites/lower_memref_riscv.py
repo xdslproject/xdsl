@@ -1,9 +1,9 @@
 from math import prod
 from typing import Any, cast
 
+from xdsl.context import MLContext
 from xdsl.dialects import memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp
-from xdsl.ir import MLContext
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

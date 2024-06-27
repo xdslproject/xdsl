@@ -66,7 +66,7 @@ from xdsl.ir import (
     SSAValue,
     TypeAttribute,
 )
-from xdsl.traits import IsTerminator
+from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.lexer import Lexer
 
@@ -86,15 +86,27 @@ class Printer:
     """
     maps SSA Values to their "allocated" names
     """
-    _ssa_names: dict[str, int] = field(default_factory=dict, init=False)
-    _block_names: dict[Block, int] = field(default_factory=dict, init=False)
-    _next_valid_name_id: int = field(default=0, init=False)
-    _next_valid_block_id: int = field(default=0, init=False)
+    _ssa_names: list[dict[str, int]] = field(
+        default_factory=lambda: [dict()], init=False
+    )
+    _block_names: list[dict[Block, int]] = field(
+        default_factory=lambda: [dict()], init=False
+    )
+    _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
+    _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
     _current_line: int = field(default=0, init=False)
     _current_column: int = field(default=0, init=False)
     _next_line_callback: list[Callable[[], None]] = field(
         default_factory=list, init=False
     )
+
+    @property
+    def ssa_names(self):
+        return self._ssa_names[-1]
+
+    @property
+    def block_names(self):
+        return self._block_names[-1]
 
     @contextmanager
     def in_angle_brackets(self):
@@ -212,12 +224,12 @@ class Printer:
         self.print(" " * indent * indentNumSpaces)
 
     def _get_new_valid_name_id(self) -> str:
-        self._next_valid_name_id += 1
-        return str(self._next_valid_name_id - 1)
+        self._next_valid_name_id[-1] += 1
+        return str(self._next_valid_name_id[-1] - 1)
 
     def _get_new_valid_block_id(self) -> int:
-        self._next_valid_block_id += 1
-        return self._next_valid_block_id - 1
+        self._next_valid_block_id[-1] += 1
+        return self._next_valid_block_id[-1] - 1
 
     def _print_results(self, op: Operation) -> None:
         results = op.results
@@ -241,11 +253,11 @@ class Printer:
         if value in self._ssa_values:
             name = self._ssa_values[value]
         elif value.name_hint:
-            curr_ind = self._ssa_names.get(value.name_hint, 0)
+            curr_ind = self.ssa_names.get(value.name_hint, 0)
             suffix = f"_{curr_ind}" if curr_ind != 0 else ""
             name = f"{value.name_hint}{suffix}"
             self._ssa_values[value] = name
-            self._ssa_names[value.name_hint] = curr_ind + 1
+            self.ssa_names[value.name_hint] = curr_ind + 1
         else:
             name = self._get_new_valid_name_id()
             self._ssa_values[value] = name
@@ -258,9 +270,9 @@ class Printer:
 
     def print_block_name(self, block: Block) -> None:
         self.print("^")
-        if block not in self._block_names:
-            self._block_names[block] = self._get_new_valid_block_id()
-        self.print(self._block_names[block])
+        if block not in self.block_names:
+            self.block_names[block] = self._get_new_valid_block_id()
+        self.print(self._block_names[-1][block])
 
     def print_block(
         self,
@@ -316,7 +328,6 @@ class Printer:
         * If `print_empty_block` is False, empty entry blocks are not printed.
         * If `print_block_terminators` is False, the block terminators are not printed.
         """
-
         # Empty region
         self.print("{")
         if len(region.blocks) == 0:
@@ -338,7 +349,7 @@ class Printer:
         self._print_new_line()
         self.print("}")
 
-    def print_regions(self, regions: list[Region]) -> None:
+    def print_regions(self, regions: Sequence[Region]) -> None:
         if len(regions) == 0:
             return
 
@@ -387,6 +398,7 @@ class Printer:
 
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, UnitAttr):
+            self.print("unit")
             return
 
         if isinstance(attribute, LocationAttr):
@@ -848,9 +860,24 @@ class Printer:
         if self.print_debuginfo:
             self.print(" loc(unknown)")
 
+    def enter_scope(self) -> None:
+        self._next_valid_name_id.append(self._next_valid_name_id[-1])
+        self._next_valid_block_id.append(self._next_valid_block_id[-1])
+        self._ssa_names.append(self._ssa_names[-1].copy())
+        self._block_names.append(self._block_names[-1].copy())
+
+    def exit_scope(self) -> None:
+        self._next_valid_name_id.pop()
+        self._next_valid_block_id.pop()
+        self._ssa_names.pop()
+        self._block_names.pop()
+
     def print_op(self, op: Operation) -> None:
+        scope = bool(op.get_traits_of_type(IsolatedFromAbove))
         begin_op_pos = self._current_column
         self._print_results(op)
+        if scope:
+            self.enter_scope()
         use_custom_format = False
         if isinstance(op, UnregisteredOp):
             self.print(f'"{op.op_name.data}"')
@@ -874,3 +901,5 @@ class Printer:
             op.print(self)
         else:
             self.print_op_with_default_format(op)
+        if scope:
+            self.exit_scope()

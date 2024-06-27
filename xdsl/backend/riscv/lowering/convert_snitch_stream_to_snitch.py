@@ -1,10 +1,11 @@
+from xdsl.context import MLContext
 from xdsl.dialects import (
     builtin,
     riscv,
     snitch,
     snitch_stream,
 )
-from xdsl.ir import MLContext, Operation
+from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -12,6 +13,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 def insert_stride_pattern_ops(
@@ -37,12 +39,12 @@ def insert_stride_pattern_ops(
     #                              size_t b2, size_t b3, size_t s0, size_t s1,
     #                              size_t s2, size_t s3) {
     #     --b0;
-    #     --b1;
-    #     --b2;
-    #     --b3;
     #     write_ssr_cfg(REG_BOUNDS + 0, dm, b0);
+    #     --b1;
     #     write_ssr_cfg(REG_BOUNDS + 1, dm, b1);
+    #     --b2;
     #     write_ssr_cfg(REG_BOUNDS + 2, dm, b2);
+    #     --b3;
     #     write_ssr_cfg(REG_BOUNDS + 3, dm, b3);
     #     size_t a = 0;
     #     write_ssr_cfg(REG_STRIDES + 0, dm, s0 - a);
@@ -64,18 +66,20 @@ def insert_stride_pattern_ops(
     ints = tuple(builtin.IntAttr(i) for i in range(rank))
 
     b_ops = tuple(riscv.LiOp(b.data) for b in reversed(ub.data))
-    s_ops = tuple(riscv.LiOp(s.data) for s in reversed(strides.data))
     new_b_ops = tuple(riscv.AddiOp(b_op.rd, -1) for b_op in b_ops)
     set_bound_ops = tuple(
         snitch.SsrSetDimensionBoundOp(new_b_op, dm, i)
-        for (i, new_b_op) in zip(ints, new_b_ops)
+        for (i, new_b_op) in zip(ints, new_b_ops, strict=True)
     )
+    interleaved_b_set_bound_ops = tuple(
+        x for t in zip(new_b_ops, set_bound_ops) for x in t
+    )
+    s_ops = tuple(riscv.LiOp(s.data) for s in reversed(strides.data))
 
     new_ops: list[Operation] = [
         *b_ops,
+        *interleaved_b_set_bound_ops,
         *s_ops,
-        *new_b_ops,
-        *set_bound_ops,
         snitch.SsrSetDimensionStrideOp(s_ops[0], dm, ints[0]),
         a_op := riscv.LiOp(0, rd=riscv.IntRegisterType.unallocated()),
     ]
@@ -92,7 +96,7 @@ def insert_stride_pattern_ops(
         new_ops.extend((a_inc_op, new_a_op, stride_op, set_stride_op))
         a_op = new_a_op
 
-    rewriter.insert_op_before(new_ops, target_op)
+    rewriter.insert_op(new_ops, InsertPoint.before(target_op))
 
 
 class LowerStreamingRegionOp(RewritePattern):

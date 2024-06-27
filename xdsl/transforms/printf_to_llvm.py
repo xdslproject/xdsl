@@ -2,8 +2,9 @@ import hashlib
 import re
 from collections.abc import Iterable
 
+from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, llvm, printf
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,

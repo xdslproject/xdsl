@@ -146,6 +146,16 @@ def test_interpreter_data():
 
     assert interpreter.get_data(Funcs1, "a", lambda: {"b": 2}) == {"b": 2}
 
+    # No existing value for key
+    interpreter.set_data(Funcs0, "c", 3)
+
+    assert interpreter.get_data(Funcs0, "c", lambda: {"b": 2}) == 3
+
+    # Update value for key
+    interpreter.set_data(Funcs0, "c", 4)
+
+    assert interpreter.get_data(Funcs0, "c", lambda: {"b": 2}) == 4
+
 
 def test_run_op_interpreter_args():
 
