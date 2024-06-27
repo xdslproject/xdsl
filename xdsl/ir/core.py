@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Hashable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Hashable, Iterable, Iterator, Mapping, Reversible, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -1075,7 +1075,7 @@ OperationInvT = TypeVar("OperationInvT", bound=Operation)
 
 
 @dataclass
-class _BlockOpsIterator:
+class _BlockOpsIterator(Iterator[Operation]):
     """
     Single-pass iterable of the operations in a block. Follows the next_op for
     each operation.
@@ -1095,7 +1095,7 @@ class _BlockOpsIterator:
 
 
 @dataclass
-class _BlockOpsReverseIterator:
+class _BlockOpsReverseIterator(Iterator[Operation]):
     """
     Single-pass iterable of the operations in a block. Follows the prev_op for
     each operation.
@@ -1115,7 +1115,7 @@ class _BlockOpsReverseIterator:
 
 
 @dataclass
-class BlockOps:
+class BlockOps(Reversible[Operation], Iterable[Operation]):
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
     each operation.
@@ -1136,6 +1136,9 @@ class BlockOps:
         """Returns `True` if there are operations in this block."""
         return not self.block.is_empty
 
+    def __reversed__(self):
+        return _BlockOpsReverseIterator(self.block.last_op)
+
     @property
     def first(self) -> Operation | None:
         """
@@ -1149,25 +1152,6 @@ class BlockOps:
         Last operation in the block, None if block is empty.
         """
         return self.block.last_op
-
-
-@dataclass
-class BlockReverseOps:
-    """
-    Multi-pass iterable of the operations in a block. Follows the prev_op for
-    each operation.
-    """
-
-    block: Block
-
-    def __iter__(self):
-        return _BlockOpsReverseIterator(self.block.last_op)
-
-    def __len__(self):
-        result = 0
-        for _ in self:
-            result += 1
-        return result
 
 
 @dataclass(init=False)
@@ -1207,11 +1191,6 @@ class Block(IRNode):
     def ops(self) -> BlockOps:
         """Returns a multi-pass Iterable of this block's operations."""
         return BlockOps(self)
-
-    @property
-    def ops_reverse(self) -> BlockReverseOps:
-        """Returns a multi-pass Iterable of this block's operations."""
-        return BlockReverseOps(self)
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1480,7 +1459,7 @@ class Block(IRNode):
         operation. If reverse is set, then the region, block, and operation lists are
         iterated in reverse order.
         """
-        for op in self.ops_reverse if reverse else self.ops:
+        for op in reversed(self.ops) if reverse else self.ops:
             yield from op.walk(reverse=reverse, region_first=region_first)
 
     def verify(self) -> None:

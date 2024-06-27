@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-cse --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p cse --split-input-file %s | filecheck %s
 
 %a8 = riscv.li 8 : () -> !riscv.reg
 %b8 = riscv.li 8 : () -> !riscv.reg
@@ -10,16 +10,22 @@
 riscv.assembly_section ".text" {
     %d8 = riscv.li 8 : () -> !riscv.reg
     %e8 = riscv.li 8 : () -> !riscv.reg
+
+    "test.op"(%d8, %e8) : (!riscv.reg, !riscv.reg) -> ()
 }
 
 %f8 = riscv.li 8 : () -> !riscv.reg
+
+"test.op"(%a8, %b8, %c8, %a7, %a7, %b7, %f8) : (!riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %a8 = riscv.li 8 : () -> !riscv.reg
 // CHECK-NEXT:    %a7 = riscv.li 7 : () -> !riscv.reg
 // CHECK-NEXT:    riscv.assembly_section ".text" {
 // CHECK-NEXT:      %d8 = riscv.li 8 : () -> !riscv.reg
+// CHECK-NEXT:      "test.op"(%d8, %d8) : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-NEXT:    }
+// CHECK-NEXT:    "test.op"(%a8, %a8, %a8, %a7, %a7, %a7, %a8) : (!riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
 // CHECK-NEXT:  }
 
 // -----
@@ -45,7 +51,7 @@ riscv_scf.for %13 : !riscv.reg = %11 to %8 step %12 {
             %26 = riscv_snitch.read from %0 : !riscv.freg
             %27 = riscv_snitch.read from %1 : !riscv.freg
             %28 = riscv.fmul.d %26, %27 : (!riscv.freg, !riscv.freg) -> !riscv.freg
-            %29 = riscv.fadd.d %21, %26 : (!riscv.freg, !riscv.freg) -> !riscv.freg
+            %29 = riscv.fadd.d %21, %28 : (!riscv.freg, !riscv.freg) -> !riscv.freg
             riscv_scf.yield %29 : !riscv.freg
         }
         %30 = riscv.li 8 : () -> !riscv.reg
@@ -65,7 +71,6 @@ riscv_scf.for %13 : !riscv.reg = %11 to %8 step %12 {
 // CHECK-NEXT:    %{{.*}} = riscv.li 1 : () -> !riscv.reg
 // CHECK-NEXT:    riscv_scf.for %{{.*}} : !riscv.reg = %{{.*}} to %{{.*}} step %{{.*}} {
 // CHECK-NEXT:      riscv_scf.for %{{.*}} : !riscv.reg = %{{.*}} to %{{.*}} step %{{.*}} {
-// CHECK-NEXT:        %{{.*}} = riscv.li 8 : () -> !riscv.reg
 // CHECK-NEXT:        %{{.*}} = riscv.mul %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:        %{{.*}} = riscv.add %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:        %{{.*}} = riscv.mul %{{.*}}, %{{.*}} {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg

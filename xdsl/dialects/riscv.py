@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence, Set
 from io import StringIO
+from itertools import chain
 from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self
@@ -54,6 +55,7 @@ from xdsl.traits import (
     HasCanonicalisationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryEffect,
     NoTerminator,
     Pure,
 )
@@ -2800,6 +2802,20 @@ class WfiOp(NullaryOperation):
 # region RISC-V SSA Helpers
 
 
+class RegisterAllocatedMemoryEffect(MemoryEffect):
+    """
+    An assembly operation that only has side-effect if some registers are allocated to
+    it.
+    """
+
+    @classmethod
+    def has_effects(cls, op: Operation) -> bool:
+        return any(
+            isinstance(r.type, RegisterType) and r.type.is_allocated
+            for r in chain(op.results, op.operands)
+        )
+
+
 class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
@@ -2823,6 +2839,8 @@ class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
     """
 
     res: OpResult = result_def(RDInvT)
+
+    traits = frozenset((RegisterAllocatedMemoryEffect(),))
 
     def __init__(
         self,
@@ -2861,6 +2879,8 @@ class RdRsRsRsFloatOperation(IRDLOperation, RISCVInstruction, ABC):
     rs1: Operand = operand_def(FloatRegisterType)
     rs2: Operand = operand_def(FloatRegisterType)
     rs3: Operand = operand_def(FloatRegisterType)
+
+    traits = frozenset((RegisterAllocatedMemoryEffect(),))
 
     def __init__(
         self,
