@@ -1,8 +1,8 @@
 // RUN: xdsl-opt --split-input-file --verify-diagnostics %s | filecheck %s
 
-%i0 = "test.op"() : () -> !riscv.reg<>
+%i0 = "test.op"() : () -> !riscv.reg
 "riscv_snitch.frep_outer"(%i0) ({
-}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg) -> ()
 
 // CHECK: expected a single block, but got 0 blocks
 
@@ -36,37 +36,37 @@ riscv_snitch.frep_outer %i0 {
 
 // -----
 
-%0 = "test.op"(): () -> !riscv.reg<>
+%0 = "test.op"(): () -> !riscv.reg
 
 "riscv_snitch.frep_outer"(%0) ({
 ^bb0:
-}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg) -> ()
 
 // CHECK: Operation riscv_snitch.frep_outer contains empty block in single-block region that expects at least a terminator
 
 
 // -----
 
-%0 = "test.op"(): () -> !riscv.reg<>
-%f0 = "test.op"(): () -> !riscv.freg<>
+%0 = "test.op"(): () -> !riscv.reg
+%f0 = "test.op"(): () -> !riscv.freg
 
 "riscv_snitch.frep_outer"(%0) ({
 ^bb0:
-    %f1 = "riscv.fadd.s"(%f0, %f0) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+    %f1 = "riscv.fadd.s"(%f0, %f0) : (!riscv.freg, !riscv.freg) -> !riscv.freg
+}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg) -> ()
 
 // CHECK: Operation riscv.fadd.s terminates block in single-block region but is not a terminator
 
 
 // -----
 
-%0 = "test.op"(): () -> !riscv.reg<>
-%f0 = "test.op"(): () -> !riscv.freg<>
+%0 = "test.op"(): () -> !riscv.reg
+%f0 = "test.op"(): () -> !riscv.freg
 
 "riscv_snitch.frep_outer"(%0) ({
 ^bb0:
-    %f1 = "riscv.fadd.s"(%f0, %f0) : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
+    %f1 = "riscv.fadd.s"(%f0, %f0) : (!riscv.freg, !riscv.freg) -> !riscv.freg
     "test.termop"() : () -> ()
-}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<>) -> ()
+}) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg) -> ()
 
 // CHECK: Operation does not verify: 'riscv_snitch.frep_outer' terminates with operation test.termop instead of riscv_snitch.frep_yield
