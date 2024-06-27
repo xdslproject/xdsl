@@ -51,7 +51,7 @@ riscv_scf.for %13 : !riscv.reg = %11 to %8 step %12 {
             %26 = riscv_snitch.read from %0 : !riscv.freg
             %27 = riscv_snitch.read from %1 : !riscv.freg
             %28 = riscv.fmul.d %26, %27 : (!riscv.freg, !riscv.freg) -> !riscv.freg
-            %29 = riscv.fadd.d %21, %26 : (!riscv.freg, !riscv.freg) -> !riscv.freg
+            %29 = riscv.fadd.d %21, %28 : (!riscv.freg, !riscv.freg) -> !riscv.freg
             riscv_scf.yield %29 : !riscv.freg
         }
         %30 = riscv.li 8 : () -> !riscv.reg
@@ -80,6 +80,7 @@ riscv_scf.for %13 : !riscv.reg = %11 to %8 step %12 {
 // CHECK-NEXT:        %{{.*}} = riscv_scf.for %{{.*}} : !riscv.reg = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}) -> (!riscv.freg) {
 // CHECK-NEXT:          %{{.*}} = riscv_snitch.read from %{{.*}} : !riscv.freg
 // CHECK-NEXT:          %{{.*}} = riscv_snitch.read from %{{.*}} : !riscv.freg
+// CHECK-NEXT:          %{{.*}} = riscv.fmul.d %{{.*}}, %{{.*}} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-NEXT:          %{{.*}} = riscv.fadd.d %{{.*}}, %{{.*}} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-NEXT:          riscv_scf.yield %{{.*}} : !riscv.freg
 // CHECK-NEXT:        }
