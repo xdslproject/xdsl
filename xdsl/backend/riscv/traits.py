@@ -16,6 +16,6 @@ class StaticInsnsRepresentation(HasInsnsRepresentation):
         insn_str = self.parameters
         if not isinstance(insn_str, str):
             raise ValueError(
-                "Paramter of StaticInsnsRepresentation must be the insn string"
+                "Parameter of StaticInsnsRepresentation must be the insn string"
             )
         return insn_str
