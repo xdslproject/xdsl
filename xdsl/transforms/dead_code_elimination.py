@@ -9,11 +9,15 @@ from xdsl.traits import IsTerminator, SymbolOpInterface, is_side_effect_free
 def is_trivially_dead(op: Operation):
     # Check that operation is side-effect-free and unused
     return (
-        not op.get_trait(IsTerminator)
+        all(not result.uses for result in op.results)
+        and not op.get_trait(IsTerminator)
         and not op.get_trait(SymbolOpInterface)
-        and is_side_effect_free(op)
-        and all(not result.uses for result in op.results)
+        and would_be_trivially_dead(op)
     )
+
+
+def would_be_trivially_dead(op: Operation) -> bool:
+    return is_side_effect_free(op)
 
 
 class RemoveUnusedOperations(RewritePattern):

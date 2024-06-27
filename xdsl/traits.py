@@ -3,7 +3,8 @@ from __future__ import annotations
 import abc
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from enum import Enum, auto
+from typing import TYPE_CHECKING, Any, TypeVar, final
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -444,6 +445,17 @@ class HasCanonicalisationPatternsTrait(OpTrait):
         raise NotImplementedError()
 
 
+class EffectKind(Enum):
+    """
+    The kind of side effect an operation can have.
+    """
+
+    READ = auto()
+    WRITE = auto()
+    ALLOC = auto()
+    DEALLOC = auto()
+
+
 class MemoryEffect(OpTrait):
     """
     A trait that enables operations to expose their side-effects or absence thereof.
@@ -456,18 +468,34 @@ class MemoryEffect(OpTrait):
 
     @classmethod
     @abc.abstractmethod
-    def has_effects(cls, op: Operation) -> bool:
+    def get_effects(cls, op: Operation) -> set[EffectKind]:
         raise NotImplementedError()
 
+    @final
+    @classmethod
+    def has_effects(cls, op: Operation) -> bool:
+        return len(cls.get_effects(op)) > 0
 
-def is_side_effect_free(op: Operation):
+
+def is_side_effect_free(op: Operation) -> bool:
     """
     Boilerplate helper to check if a generic operation is side effect free for sure.
     """
-    # If it doesn't say, safely assume it has side effects.
-    if not (trait := op.get_trait(MemoryEffect)):
+    if trait := op.get_trait(MemoryEffect):
+        # If the op implements the trait and says it has effects, done
+        if trait.has_effects(op):
+            return False
+        # If it said it has no effect, and does not have recursive effects, done
+        if not op.get_trait(RecursiveMemoryEffect):
+            return True
+    # If it implements neither trait, play safe and assume it has effects
+    elif not op.get_trait(RecursiveMemoryEffect):
         return False
-    return not trait.has_effects(op)
+
+    # If it only has recursive effects, well, recurse
+    return all(
+        is_side_effect_free(o) for r in op.regions for b in r.blocks for o in b.ops
+    )
 
 
 class NoMemoryEffect(MemoryEffect):
@@ -476,24 +504,35 @@ class NoMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        return False
+    def get_effects(cls, op: Operation) -> set[EffectKind]:
+        return set()
 
 
-class RecursiveMemoryEffect(MemoryEffect):
+class MemoryReadEffect(MemoryEffect):
     """
-    A trait that signals that an operation has the side effects of its contained
-    operations.
-
-    NB: Upstream, this a separate class, but in our current binary side effect
-    implementation, it's easier to have it this way in my opinion.
+    A trait that signals that an operation always and only have read side effects.
     """
 
     @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        if not op.regions:
-            return True
-        return not all(is_side_effect_free(o) for r in op.regions for o in r.walk())
+    def get_effects(cls, op: Operation) -> set[EffectKind]:
+        return {EffectKind.READ}
+
+
+class MemoryWriteEffect(MemoryEffect):
+    """
+    A trait that signals that an operation always and only have write side effects.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[EffectKind]:
+        return {EffectKind.WRITE}
+
+
+class RecursiveMemoryEffect(OpTrait):
+    """
+    A trait that signals that an operation has the side effects of its contained
+    operations.
+    """
 
 
 class Pure(NoMemoryEffect):
