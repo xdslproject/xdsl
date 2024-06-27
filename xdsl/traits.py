@@ -445,7 +445,7 @@ class HasCanonicalisationPatternsTrait(OpTrait):
         raise NotImplementedError()
 
 
-class EffectKind(Enum):
+class MemoryEffectKind(Enum):
     """
     The kind of side effect an operation can have.
 
@@ -484,7 +484,7 @@ class MemoryEffect(OpTrait):
 
     @classmethod
     @abc.abstractmethod
-    def get_effects(cls, op: Operation) -> set[EffectKind]:
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
         """
         Returns the concrete side effects of the operation.
         """
@@ -500,7 +500,7 @@ class MemoryEffect(OpTrait):
 
     @final
     @classmethod
-    def only_has_effect(cls, op: Operation, effect: EffectKind) -> bool:
+    def only_has_effect(cls, op: Operation, effect: MemoryEffectKind) -> bool:
         """
         Returns if the operation has the given side effects and no others.
         """
@@ -528,12 +528,12 @@ def is_side_effect_free(op: Operation) -> bool:
     )
 
 
-def get_side_effects_recursively(rootOp: Operation) -> set[EffectKind] | None:
+def get_side_effects_recursively(rootOp: Operation) -> set[MemoryEffectKind] | None:
     """
     Helper to get known side effects of an operation, including recursive effects.
     None means that the operation has unknown effects, for safety.
     """
-    effects = set[EffectKind]()
+    effects = set[MemoryEffectKind]()
     effecting_ops = {rootOp}
     while effecting_ops:
         op = effecting_ops.pop()
@@ -558,7 +558,7 @@ class NoMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectKind]:
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
         return set()
 
 
@@ -568,8 +568,8 @@ class MemoryReadEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectKind]:
-        return {EffectKind.READ}
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        return {MemoryEffectKind.READ}
 
 
 class MemoryWriteEffect(MemoryEffect):
@@ -578,8 +578,8 @@ class MemoryWriteEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectKind]:
-        return {EffectKind.WRITE}
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        return {MemoryEffectKind.WRITE}
 
 
 class RecursiveMemoryEffect(OpTrait):

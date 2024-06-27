@@ -7,10 +7,10 @@ from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 from xdsl.traits import (
-    EffectKind,
     IsolatedFromAbove,
     IsTerminator,
     MemoryEffect,
+    MemoryEffectKind,
     get_side_effects_recursively,
     is_side_effect_free,
 )
@@ -110,7 +110,7 @@ def has_other_side_effecting_op_in_between(
     next_op: Operation | None = from_op
     while next_op and (next_op is not to_op):
         effects = get_side_effects_recursively(next_op)
-        if effects is None or (EffectKind.WRITE in effects):
+        if effects is None or (MemoryEffectKind.WRITE in effects):
             return True
         next_op = next_op.next_op
     return False
@@ -180,7 +180,7 @@ class CSEDriver:
             # If we can't be sure or the op has side effects, bail out
             mem_effects = op.get_trait(MemoryEffect)
             if (not mem_effects) or (
-                not mem_effects.only_has_effect(op, EffectKind.READ)
+                not mem_effects.only_has_effect(op, MemoryEffectKind.READ)
             ):
                 return
 

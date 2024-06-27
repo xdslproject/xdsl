@@ -4,9 +4,9 @@ from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import (
-    EffectKind,
     IsTerminator,
     MemoryEffect,
+    MemoryEffectKind,
     RecursiveMemoryEffect,
     SymbolOpInterface,
 )
@@ -39,7 +39,7 @@ def would_be_trivially_dead(rootOp: Operation) -> bool:
 
             # Currently, only read effects are considered potentially dead.
             # MLIR does smarter things with allocated values here.
-            if any(e != EffectKind.READ for e in effects):
+            if any(e != MemoryEffectKind.READ for e in effects):
                 return False
 
             continue
