@@ -417,6 +417,13 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
         )
 
 
+class ApplyMemoryEffect(RecursiveMemoryEffect):
+
+    @classmethod
+    def has_effects(cls, op: Operation) -> bool:
+        return (len(cast(ApplyOp, op).dest) > 0) or super().has_effects(op)
+
+
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
@@ -448,7 +455,7 @@ class ApplyOp(IRDLOperation):
         [
             IsolatedFromAbove(),
             ApplyOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
+            ApplyMemoryEffect(),
         ]
     )
 
