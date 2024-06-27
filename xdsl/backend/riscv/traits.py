@@ -1,21 +1,21 @@
+from dataclasses import dataclass, field
+
 from xdsl.ir import Operation
-from xdsl.traits import HasInsnsRepresentation
+from xdsl.traits import HasInsnRepresentation
 
 
-class StaticInsnsRepresentation(HasInsnsRepresentation):
+@dataclass(frozen=True)
+class StaticInsnRepresentation(HasInsnRepresentation):
     """
     Returns the first parameter as an insn template string.
 
     See https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html for more information
     """
 
+    insn: str = field(kw_only=True)
+
     def get_insn(self, op: Operation) -> str:
         """
-        Return the insns representation of the operation for printing.
+        Return the insn representation of the operation for printing.
         """
-        insn_str = self.parameters
-        if not isinstance(insn_str, str):
-            raise ValueError(
-                "Parameter of StaticInsnsRepresentation must be the insn string"
-            )
-        return insn_str
+        return self.insn

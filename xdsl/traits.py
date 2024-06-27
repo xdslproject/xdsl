@@ -500,7 +500,7 @@ class Pure(NoMemoryEffect):
     """A trait that signals that an operation has no side effects."""
 
 
-class HasInsnsRepresentation(OpTrait, abc.ABC):
+class HasInsnRepresentation(OpTrait, abc.ABC):
     """
     A trait providing information on how to encode an operation using a .insn assember directive.
 

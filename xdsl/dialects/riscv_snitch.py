@@ -5,7 +5,7 @@ from typing import cast
 
 from typing_extensions import Self
 
-from xdsl.backend.riscv.traits import StaticInsnsRepresentation
+from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, stream
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -463,7 +463,9 @@ class DMSourceOp(IRDLOperation, RISCVInstruction):
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset([StaticInsnsRepresentation(".insn r 0x2b, 0, 0, x0, {0}, {1}")])
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")]
+    )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
@@ -479,7 +481,9 @@ class DMDestinationOp(IRDLOperation, RISCVInstruction):
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset([StaticInsnsRepresentation(".insn r 0x2b, 0, 1, x0, {0}, {1}")])
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")]
+    )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
@@ -495,7 +499,9 @@ class DMStrideOp(IRDLOperation, RISCVInstruction):
     srcstrd = operand_def(riscv.IntRegisterType)
     dststrd = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset([StaticInsnsRepresentation(".insn r 0x2b, 0, 6, x0, {0}, {1}")])
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")]
+    )
 
     def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
         super().__init__(operands=[srcstrd, dststrd])
@@ -510,7 +516,9 @@ class DMRepOp(IRDLOperation, RISCVInstruction):
 
     reps = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset([StaticInsnsRepresentation(".insn r 0x2b, 0, 7, x0, {0}, x0")])
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")]
+    )
 
     def __init__(self, reps: SSAValue | Operation):
         super().__init__(operands=[reps])
@@ -527,7 +535,9 @@ class DMCopyOp(IRDLOperation, RISCVInstruction):
     size = operand_def(riscv.IntRegisterType)
     config = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset([StaticInsnsRepresentation(".insn r 0x2b, 0, 3, {0}, {1}, {2}")])
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")]
+    )
 
     def __init__(
         self,
@@ -548,7 +558,9 @@ class DMStatOp(IRDLOperation, RISCVInstruction):
     dest = result_def(riscv.IntRegisterType)
     status = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset([StaticInsnsRepresentation(".insn r 0x2b, 0, 5, {0}, {1}, {2}")])
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")]
+    )
 
     def __init__(
         self,
@@ -569,7 +581,9 @@ class DMCopyImmOp(IRDLOperation, RISCVInstruction):
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(UImm5Attr)
 
-    traits = frozenset([StaticInsnsRepresentation(".insn r 0x2b, 0, 2, {0}, {1}, {2}")])
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")]
+    )
 
     def __init__(
         self,
@@ -621,7 +635,9 @@ class DMStatImmOp(IRDLOperation, RISCVInstruction):
     dest = result_def(riscv.IntRegisterType)
     status = prop_def(UImm5Attr)
 
-    traits = frozenset([StaticInsnsRepresentation(".insn r 0x2b, 0, 4, {0}, {1}, {2}")])
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")]
+    )
 
     def __init__(
         self,
