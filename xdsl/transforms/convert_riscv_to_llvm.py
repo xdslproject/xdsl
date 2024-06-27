@@ -1,3 +1,5 @@
+from traits import HasInsnRepresentation
+
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import IntegerAttr, UnrealizedConversionCastOp
@@ -11,19 +13,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
-# for custom ops see
-# https://pulp-platform.github.io/snitch_cluster/rm/custom_instructions.html
-custom_ops = {
-    "dmsrc": ".insn r 0x2b, 0, 0, x0, {0}, {1}",
-    "dmdst": ".insn r 0x2b, 0, 1, x0, {0}, {1}",
-    "dmcpyi": ".insn r 0x2b, 0, 2, {0}, {1}, {2}",
-    "dmcpy": ".insn r 0x2b, 0, 3, {0}, {1}, {2}",
-    "dmstati": ".insn r 0x2b, 0, 4, {0}, {1}, {2}",
-    "dmstat": ".insn r 0x2b, 0, 5, {0}, {1}, {2}",
-    "dmstr": ".insn r 0x2b, 0, 6, x0, {0}, {1}",
-    "dmrep": ".insn r 0x2b, 0, 7, x0, {0}, x0",
-}
 
 
 class RiscvToLLVMPattern(RewritePattern):
@@ -78,9 +67,12 @@ class RiscvToLLVMPattern(RewritePattern):
         # construct asm_string
         iname = op.assembly_instruction_name()
 
-        if iname in custom_ops:
+        # check if the operation has a custom insn string (for comaptibility reasons)
+        custon_insns = op.get_trait(HasInsnRepresentation)
+        if custon_insns is not None:
             # generate custom insn inline assembly instruction
-            asm_string = custom_ops[iname].format(*assembly_args_str)
+            insn_str = custon_insns.get_insn(op)  # pyright: ignore [generalTypeIssue]
+            asm_string = insn_str.format(*assembly_args_str)
 
         else:
             # generate generic riscv inline assembly instruction
