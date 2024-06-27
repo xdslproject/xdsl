@@ -529,6 +529,10 @@ def is_side_effect_free(op: Operation) -> bool:
 
 
 def get_side_effects_recursively(rootOp: Operation) -> set[EffectKind] | None:
+    """
+    Helper to get known side effects of an operation, including recursive effects.
+    None means that the operation has unknown effects, for safety.
+    """
     effects = set[EffectKind]()
     effecting_ops = {rootOp}
     while effecting_ops:

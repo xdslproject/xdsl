@@ -102,6 +102,10 @@ class KnownOps:
 def has_other_side_effecting_op_in_between(
     from_op: Operation, to_op: Operation
 ) -> bool:
+    """
+    Returns if there *may* be a 'write' effecting operation between `from_op` and
+    `to_op`.
+    """
     assert from_op.parent_block() == to_op.parent_block()
     next_op: Operation | None = from_op
     while next_op and (next_op is not to_op):
