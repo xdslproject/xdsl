@@ -4,23 +4,23 @@
 riscv_func.func @external() -> ()
 
 riscv_func.func @main() {
-  %zero = riscv.li 0 : () -> !riscv.reg<>
-  %0 = riscv.li 6 : () -> !riscv.reg<>
+  %zero = riscv.li 0 : () -> !riscv.reg
+  %0 = riscv.li 6 : () -> !riscv.reg
   %1 = riscv.li 5 : () -> !riscv.reg<s0>
-  %2 = riscv.fcvt.s.w %0 : (!riscv.reg<>) -> !riscv.freg<>
-  %3 = riscv.fcvt.s.w %1 : (!riscv.reg<s0>) -> !riscv.freg<>
-  %4 = riscv.fadd.s %2, %3 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-  %5 = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<s0>) -> !riscv.reg<>
+  %2 = riscv.fcvt.s.w %0 : (!riscv.reg) -> !riscv.freg
+  %3 = riscv.fcvt.s.w %1 : (!riscv.reg<s0>) -> !riscv.freg
+  %4 = riscv.fadd.s %2, %3 : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %5 = riscv.add %0, %1 : (!riscv.reg, !riscv.reg<s0>) -> !riscv.reg
 
-  riscv_scf.for %6 : !riscv.reg<> = %0 to %1 step %5 {
+  riscv_scf.for %6 : !riscv.reg = %0 to %1 step %5 {
   }
 
-  %7 = riscv_scf.for %8 : !riscv.reg<> = %0 to  %1 step %5 iter_args(%9 = %5) -> (!riscv.reg<>) {
-    %10 = riscv.mv %9 : (!riscv.reg<>) -> !riscv.reg<>
-    riscv_scf.yield %10 : !riscv.reg<>
+  %7 = riscv_scf.for %8 : !riscv.reg = %0 to  %1 step %5 iter_args(%9 = %5) -> (!riscv.reg) {
+    %10 = riscv.mv %9 : (!riscv.reg) -> !riscv.reg
+    riscv_scf.yield %10 : !riscv.reg
   }
 
-  %zero_0 = riscv.li 0 : () -> !riscv.reg<>
+  %zero_0 = riscv.li 0 : () -> !riscv.reg
   %zero_1 = riscv.li 0 : () -> !riscv.reg<a0>
 
   riscv_func.return
