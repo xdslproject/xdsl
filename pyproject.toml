@@ -128,6 +128,7 @@ target-version = "py310"
 "tests/test_declarative_assembly_format.py" = ["F811"]
 "versioneer.py" = ["ALL"]
 "_version.py" = ["ALL"]
+"**/{docs/marimo}/*" = ["E501"]
 
 [tool.ruff.mccabe]
 max-complexity = 10

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.4.10"
+__generated_with = "0.6.10"
 app = marimo.App()
 
 
@@ -140,7 +140,7 @@ def __(mo, model_def):
 
 @app.cell
 def __(init_module, mo):
-    from xdsl.ir import MLContext
+    from xdsl.context import MLContext
     from xdsl.tools.command_line_tool import get_all_dialects
     from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
 
