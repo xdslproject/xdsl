@@ -106,7 +106,7 @@ def has_other_side_effecting_op_in_between(
     Returns if there *may* be a 'write' effecting operation between `from_op` and
     `to_op`.
     """
-    assert from_op.parent_block() == to_op.parent_block()
+    assert from_op.parent is to_op.parent
     next_op: Operation | None = from_op
     while next_op and (next_op is not to_op):
         effects = get_side_effects_recursively(next_op)
