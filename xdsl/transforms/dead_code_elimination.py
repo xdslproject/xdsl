@@ -13,7 +13,7 @@ from xdsl.traits import (
 
 
 def is_trivially_dead(op: Operation):
-    # Check that operation is side-effect-free and unused
+    # Returns if the operation has no observable side-effect.
     return (
         all(not result.uses for result in op.results)
         and (not op.get_trait(IsTerminator))
@@ -33,6 +33,7 @@ def would_be_trivially_dead(rootOp: Operation) -> bool:
         if recursive:
             effecting_ops.update(o for r in op.regions for b in r.blocks for o in b.ops)
 
+        # Try to ensure there are no effects, or only 'read' effects.
         if effect_interface := op.get_trait(MemoryEffect):
             effects = effect_interface.get_effects(op)
 
@@ -42,11 +43,15 @@ def would_be_trivially_dead(rootOp: Operation) -> bool:
                 return False
 
             continue
-
+        # If we couldn't find an interface for its own effects but the op was marked recursive,
+        # just keep checking queued ops.
         if recursive:
             continue
 
+        # If we couldn't find any side-effect info, conservatively assume it has effects.
         return False
+
+    # We indeed couldn't find any problematic effect.
     return True
 
 

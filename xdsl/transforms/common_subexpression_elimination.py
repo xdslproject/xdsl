@@ -139,6 +139,10 @@ class CSEDriver:
                 self._rewriter.erase_op(o)
 
     def _replace_and_delete(self, op: Operation, existing: Operation):
+        """
+        Factoring, replace `op` by `existing` and mark `op` for erasure.
+        """
+
         # Just replace results
         def wasVisited(use: Use):
             return use.operation not in self._known_ops
@@ -171,31 +175,39 @@ class CSEDriver:
         if any(len(region.blocks) > 1 for region in op.regions):
             return
 
+        # Have a close look if the op might have side effects.
         if not is_side_effect_free(op):
+            # If we can't be sure or the op has side effects, bail out
             mem_effects = op.get_trait(MemoryEffect)
             if (not mem_effects) or (
                 not mem_effects.only_has_effect(op, EffectKind.READ)
             ):
                 return
 
+            # If the op is only reading, we can still try to CSE it
             if existing := self._known_ops.get(op):
                 if (
                     op.parent_block() is existing.parent_block()
+                    # We then ensure there are no 'write' side-effecting operations
+                    # in between the two, that could change the result of the operation
                     and not has_other_side_effecting_op_in_between(existing, op)
                 ):
                     self._replace_and_delete(op, existing)
                     return
 
+            # The operation is a CSE candidate, but we did not find a replacement
+            # Mark it for any later occurence
             self._known_ops[op] = op
             return
 
-        # This operation rings a bell!
+        # If we know the operation is side-effect free, we can just replace it
         if existing := self._known_ops.get(op):
 
             self._replace_and_delete(op, existing)
             return
 
-        # First time seeing this one, noting it down!
+        # The operation is a CSE candidate, but we did not find a replacement
+        # Mark it for any later occurence
         self._known_ops[op] = op
 
     def _simplify_block(self, block: Block):
