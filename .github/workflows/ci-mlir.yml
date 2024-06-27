@@ -114,6 +114,7 @@ jobs:
 
     - name: Test MLIR dependent marimo notebooks
       run: |
+        cd xdsl
         make tests-marimo-mlir
 
     - name: Combine coverage data
