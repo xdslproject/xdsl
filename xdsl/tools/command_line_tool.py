@@ -46,6 +46,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_linalg_to_loops.ConvertLinalgToLoopsPass
 
+    def get_convert_riscv_scf_to_llvm():
+        from xdsl.transforms import convert_riscv_to_llvm
+
+        return convert_riscv_to_llvm.ConvertRiscvToLLVMPass
+
     def get_convert_ml_program_to_memref():
         from xdsl.transforms import convert_ml_program_to_memref
 
@@ -344,6 +349,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
         "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
+        "convert-riscv-to-llvm": get_convert_riscv_scf_to_llvm,
         "convert-qref-to-qssa": get_convert_qref_to_qssa,
         "convert-qssa-to-qref": get_convert_qssa_to_qref,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
