@@ -115,6 +115,8 @@ jobs:
     - name: Test MLIR dependent marimo notebooks
       run: |
         cd xdsl
+        # Add mlir-opt to the path
+        export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         make tests-marimo-mlir
 
     - name: Combine coverage data
