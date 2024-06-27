@@ -448,22 +448,40 @@ class HasCanonicalisationPatternsTrait(OpTrait):
 class EffectKind(Enum):
     """
     The kind of side effect an operation can have.
+
+    MLIR has a more detailed version of this, able to tie effects to specfic resources or
+    values. Here, everything has its effect on the universe.
     """
 
     READ = auto()
+    """
+    Indicates that the operation allocates from some
+    resource. An 'allocate' effect implies only allocation of the resource, and
+    not any visible mutation or dereference.
+    """
     WRITE = auto()
+    """
+    Indicates that the operation writes to some resource. A
+    'write' effect implies only mutating a resource, and not any visible
+    dereference or read.
+    """
     ALLOC = auto()
-    DEALLOC = auto()
+    """
+    Indicates that the operation frees some resource that
+    has been allocated. An 'allocate' effect implies only de-allocation of the
+    resource, and not any visible allocation, mutation or dereference.
+    """
+    FREE = auto()
+    """
+    Indicates that the operation frees some resource that
+    has been allocated. An 'allocate' effect implies only de-allocation of the
+    resource, and not any visible allocation, mutation or dereference.
+    """
 
 
 class MemoryEffect(OpTrait):
     """
     A trait that enables operations to expose their side-effects or absence thereof.
-
-    NB: The MLIR implementation further allows to describe what *kind* of side-effects
-    an operation has, e.g., read-only, or allocation.
-    This one is a stripped down version for now, just saying if there are any
-    side-effects or not.
     """
 
     @classmethod
@@ -561,4 +579,7 @@ class RecursiveMemoryEffect(OpTrait):
 
 
 class Pure(NoMemoryEffect):
-    """A trait that signals that an operation has no side effects."""
+    """
+    In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
+    found here.
+    """
