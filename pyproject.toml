@@ -26,7 +26,7 @@ dev = [
     "nbval<0.12",
     "filecheck<0.0.25",
     "lit<19.0.0",
-    "marimo==6.10.0",
+    "marimo==0.6.10",
     "pre-commit==3.7.1",
     "ruff==0.4.10",
     "asv<0.7",
@@ -82,6 +82,7 @@ typeCheckingMode = "strict"
     "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
+    "docs/marimo",
     "tests/filecheck/frontend/dialects/builtin.py",
     "tests/filecheck/frontend/dialects/invalid.py",
     "tests/filecheck/frontend/dialects/arith.py",
@@ -137,6 +138,7 @@ exclude = """
 /(__pycache__|.asv|venv|build|tests/filecheck)/
 |versioneer.py$
 |xdsl/_version.py$
+|docs/marimo
 """
 
 [tool.pytest.ini_options]
