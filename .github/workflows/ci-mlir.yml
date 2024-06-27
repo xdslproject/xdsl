@@ -112,10 +112,6 @@ jobs:
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         pytest --nbval docs/mlir_interoperation.ipynb --maxfail 1 -vv
 
-    - name: Test marimo notebooks
-      run: |
-        make tests-marimo
-
     - name: Combine coverage data
       run: |
         cd xdsl

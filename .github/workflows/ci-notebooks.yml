@@ -34,3 +34,6 @@ jobs:
       run: |
         # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
         pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
+    - name: Test marimo notebooks
+      run: |
+        make tests-marimo
