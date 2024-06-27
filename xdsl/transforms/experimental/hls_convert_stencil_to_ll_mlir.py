@@ -624,7 +624,7 @@ class ApplyOpToHLS(RewritePattern):
             new_return_op.detach()
             new_return_op.erase()
 
-            for operation in new_apply_block.ops_reverse:
+            for operation in reversed(new_apply_block.ops):
                 op_index = new_apply_block.get_operation_index(operation)
                 if op_index not in operation_indices:
                     operation.detach()
