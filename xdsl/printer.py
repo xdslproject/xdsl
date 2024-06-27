@@ -343,16 +343,12 @@ class Printer:
             print_block_args=print_entry_block_args,
             print_block_terminator=print_block_terminators,
         )
-        # TODO: Replace the explicit iteration below with `next_block` accesses
-        block_iter = iter(region.blocks)
-        # Skip entry block
-        next(block_iter)
-        try:
-            while True:
-                block = next(block_iter)
-                self.print_block(block, print_block_terminator=print_block_terminators)
-        except StopIteration:
-            pass
+
+        next_block = entry_block.next_block
+        while next_block is not None:
+            self.print_block(next_block, print_block_terminator=print_block_terminators)
+            next_block = next_block.next_block
+
         self._print_new_line()
         self.print("}")
 

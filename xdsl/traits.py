@@ -191,7 +191,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
     from xdsl.ir import Block
 
     for region in op.regions:
-        if len(region.blocks) == 0:
+        if not region.blocks:
             region.add_block(Block())
 
         for block in region.blocks:
