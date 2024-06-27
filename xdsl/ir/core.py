@@ -1542,6 +1542,48 @@ class Block(IRNode):
         return id(self)
 
 
+@dataclass
+class RegionBlocks(Reversible[Block], Iterable[Block]):
+    """
+    Multi-pass iterable of the blocks in a region.
+    """
+
+    _blocks: list[Block]
+
+    def __iter__(self):
+        return iter(self._blocks)
+
+    def __len__(self):
+        return len(self._blocks)
+
+    def __bool__(self) -> bool:
+        """Returns `True` if there are blocks in this region."""
+        return bool(self._blocks)
+
+    def __reversed__(self):
+        return reversed(self._blocks)
+
+    @property
+    def first(self) -> Block | None:
+        """
+        First block in the region, None if region is empty.
+        """
+        if self._blocks:
+            return self._blocks[0]
+        else:
+            return None
+
+    @property
+    def last(self) -> Block | None:
+        """
+        Last block in the region, None if region is empty.
+        """
+        if self._blocks:
+            return self._blocks[-1]
+        else:
+            return None
+
+
 @dataclass(init=False)
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
@@ -1552,7 +1594,7 @@ class Region(IRNode):
         single-block region should be constructed.
         """
 
-    blocks: list[Block] = field(default_factory=list)
+    _blocks: list[Block] = field(default_factory=list)
     """Blocks contained in the region. The first block is the entry block."""
 
     parent: Operation | None = field(default=None, repr=False)
@@ -1560,7 +1602,7 @@ class Region(IRNode):
 
     def __init__(self, blocks: Block | Iterable[Block] = ()):
         super().__init__()
-        self.blocks = []
+        self._blocks = []
         if isinstance(blocks, Block):
             blocks = (blocks,)
         for block in blocks:
@@ -1582,6 +1624,23 @@ class Region(IRNode):
             if self.parent is not None and self.parent.parent is not None
             else None
         )
+
+    @property
+    def blocks(self) -> RegionBlocks:
+        """
+        A multi-pass iterable of blocks.
+        """
+        return RegionBlocks(self._blocks)
+
+    @property
+    def first_block(self) -> Block | None:
+        """First block in this region. This is the entry block if present."""
+        return self.blocks.first
+
+    @property
+    def last_block(self) -> Block | None:
+        """Last block in this region."""
+        return self.blocks.last
 
     def __repr__(self) -> str:
         return f"Region(num_blocks={len(self.blocks)})"
@@ -1622,12 +1681,12 @@ class Region(IRNode):
         Get the block of a single-block region.
         Returns an exception if the region is not single-block.
         """
-        if len(self.blocks) != 1:
+        if len(self._blocks) != 1:
             raise ValueError(
                 "'block' property of Region class is only available "
                 "for single-block regions."
             )
-        return self.blocks[0]
+        return self._blocks[0]
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
@@ -1642,9 +1701,9 @@ class Region(IRNode):
     def add_block(self, block: Block) -> None:
         """Add a block to the region."""
         self._attach_block(block)
-        self.blocks.append(block)
+        self._blocks.append(block)
 
-    def insert_block(self, blocks: Block | list[Block], index: int) -> None:
+    def insert_block(self, blocks: Block | Iterable[Block], index: int) -> None:
         """
         Insert one or multiple blocks at a given index in the region.
         The blocks should not be attached to another region.
@@ -1654,11 +1713,13 @@ class Region(IRNode):
                 f"Can't insert block in index {index} in a block with "
                 f"{len(self.blocks)} blocks."
             )
-        if not isinstance(blocks, list):
+        if isinstance(blocks, Block):
             blocks = [blocks]
+        else:
+            blocks = list(blocks)
         for block in blocks:
             self._attach_block(block)
-        self.blocks = self.blocks[:index] + blocks + self.blocks[index:]
+        self._blocks = self._blocks[:index] + blocks + self._blocks[index:]
 
     def get_block_index(self, block: Block) -> int:
         """Get the block position in a region."""
@@ -1678,9 +1739,9 @@ class Region(IRNode):
             block_idx = self.get_block_index(block)
         else:
             block_idx = block
-            block = self.blocks[block_idx]
+            block = self._blocks[block_idx]
         block.parent = None
-        self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1 :]
+        self._blocks = self._blocks[:block_idx] + self._blocks[block_idx + 1 :]
         return block
 
     def erase_block(self, block: int | Block, safe_erase: bool = True) -> None:
@@ -1778,8 +1839,8 @@ class Region(IRNode):
         """
         Move the blocks of this region to another region. Leave no blocks in this region.
         """
-        region.blocks = self.blocks
-        self.blocks = []
+        region._blocks = self._blocks
+        self._blocks = []
         for block in region.blocks:
             block.parent = region
 

@@ -330,12 +330,11 @@ class Printer:
         """
         # Empty region
         self.print("{")
-        if len(region.blocks) == 0:
+        if (entry_block := region.blocks.first) is None:
             self._print_new_line()
             self.print("}")
             return
 
-        entry_block = region.blocks[0]
         print_entry_block_args = (
             bool(entry_block.args) and print_entry_block_args
         ) or (not entry_block.ops and print_empty_block)
@@ -344,8 +343,16 @@ class Printer:
             print_block_args=print_entry_block_args,
             print_block_terminator=print_block_terminators,
         )
-        for block in region.blocks[1:]:
-            self.print_block(block, print_block_terminator=print_block_terminators)
+        # TODO: Replace the explicit iteration below with `next_block` accesses
+        block_iter = iter(region.blocks)
+        # Skip entry block
+        next(block_iter)
+        try:
+            while True:
+                block = next(block_iter)
+                self.print_block(block, print_block_terminator=print_block_terminators)
+        except StopIteration:
+            pass
         self._print_new_line()
         self.print("}")
 

@@ -147,12 +147,12 @@ class LowerHLSStreamRead(RewritePattern):
         load = LoadOp(alloca)
 
         # rewriter.insert_op_at_start(alloca, current_parent.body.blocks[0])
-        current_parent.body.blocks[0].insert_op_before(
-            alloca, typing.cast(Operation, current_parent.body.blocks[0].first_op)
+        first_block = current_parent.body.blocks.first
+        assert first_block is not None
+        first_block.insert_op_before(
+            alloca, typing.cast(Operation, first_block.first_op)
         )
-        current_parent.body.blocks[0].insert_op_before(
-            size, typing.cast(Operation, current_parent.body.blocks[0].first_op)
-        )
+        first_block.insert_op_before(size, typing.cast(Operation, first_block.first_op))
 
         # rewriter.replace_matched_op([size, alloca, gep, pop_call, store, load])
         rewriter.replace_matched_op([gep, pop_call, store, load])
@@ -482,7 +482,9 @@ class GetHLSStreamInDataflow(RewritePattern):
         dataflow = PragmaDataflow(empty_region)
         rewriter.insert_op_before_matched_op(dataflow)
         op.detach()
-        dataflow.body.blocks[0].insert_op_before(op, hls_yield)
+        first_block = dataflow.body.blocks.first
+        assert first_block is not None
+        first_block.insert_op_before(op, hls_yield)
 
 
 @dataclass(frozen=True)

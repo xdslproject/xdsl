@@ -395,7 +395,7 @@ def test_region_op_region():
     op = RegionOp.build(regions=[Region()])
     op.verify()
 
-    assert op.region.blocks == []
+    assert not op.region.blocks
 
 
 def test_region_op_blocks():
@@ -410,7 +410,7 @@ def test_region_op_ops():
     op = RegionOp.build(regions=[[op1, op2, TestTermOp.create()]])
     op.verify()
     assert len(op.region.blocks) == 1
-    assert len(op.region.blocks[0].ops) == 3
+    assert len(op.region.block.ops) == 3
 
 
 def test_noop_region():

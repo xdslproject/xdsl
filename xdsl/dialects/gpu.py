@@ -258,7 +258,9 @@ class AllReduceOp(IRDLOperation):
                     "gpu.all_reduce need either a non empty body or an op attribute."
                 )
         if non_empty_body:
-            region_args = self.body.blocks[0].args
+            first_block = self.body.blocks.first
+            assert first_block is not None
+            region_args = first_block.args
             args_types = [r.type for r in region_args]
             if args_types != [self.result.type, self.operand.type]:
                 raise VerifyException(
@@ -429,7 +431,8 @@ class FuncOp(IRDLOperation):
         super().__init__(properties=properties, attributes=attributes, regions=[region])
 
     def verify_(self):
-        entry_block: Block = self.body.blocks[0]
+        entry_block = self.body.blocks.first
+        assert entry_block is not None
         function_inputs = self.function_type.inputs.data
         block_arg_types = tuple(a.type for a in entry_block.args)
         if function_inputs != block_arg_types:
@@ -558,7 +561,9 @@ class LaunchOp(IRDLOperation):
     def verify_(self) -> None:
         if not any(b.ops for b in self.body.blocks):
             raise VerifyException("gpu.launch requires a non-empty body.")
-        body_args = self.body.blocks[0].args
+        first_block = self.body.blocks.first
+        assert first_block is not None
+        body_args = first_block.args
         args_type = [a.type for a in body_args]
         if args_type != [IndexType()] * 12:
             raise VerifyException(

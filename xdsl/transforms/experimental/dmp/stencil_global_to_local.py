@@ -470,7 +470,8 @@ class MpiLoopInvariantCodeMotion:
                 return
             self.has_init.add(parent)
             # add a finalize() call to the end of the function
-            block = parent.regions[0].blocks[-1]
+            block = parent.regions[0].blocks.last
+            assert block is not None
             return_op = block.last_op
             assert return_op is not None
             rewriter.insert_op(mpi.Finalize(), InsertPoint.before(return_op))

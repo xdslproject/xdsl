@@ -148,7 +148,8 @@ class _FuncBase(IRDLOperation, ABC):
         if len(self.body.blocks) == 0:
             return
 
-        entry_block: Block = self.body.blocks[0]
+        entry_block = self.body.blocks.first
+        assert entry_block is not None
         block_arg_types = [arg.type for arg in entry_block.args]
         if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(

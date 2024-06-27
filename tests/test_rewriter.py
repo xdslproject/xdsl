@@ -157,8 +157,8 @@ def test_inline_block_at_end():
         ops_iter = iter(module.ops)
         next(ops_iter)
         test_op = next(ops_iter)
-        module_block = module.regions[0].blocks[0]
-        test_block = test_op.regions[0].blocks[0]
+        module_block = module.regions[0].block
+        test_block = test_op.regions[0].block
 
         rewriter.inline_block(test_block, InsertPoint.at_end(module_block))
 
@@ -190,7 +190,7 @@ def test_inline_block_before():
         ops_iter = iter(module.ops)
         next(ops_iter)
         test_op = next(ops_iter)
-        test_block = test_op.regions[0].blocks[0]
+        test_block = test_op.regions[0].block
 
         rewriter.inline_block(test_block, InsertPoint.before(test_op))
 
@@ -222,7 +222,7 @@ def test_inline_block_after():
         ops_iter = iter(module.ops)
         constant_op = next(ops_iter)
         test_op = next(ops_iter)
-        test_block = test_op.regions[0].blocks[0]
+        test_block = test_op.regions[0].block
 
         rewriter.inline_block(test_block, InsertPoint.after(constant_op))
 
@@ -289,7 +289,7 @@ def test_insert_block_before():
 """
 
     def insert_empty_block_before(module: ModuleOp, rewriter: Rewriter) -> None:
-        rewriter.insert_block_before(Block(), module.regions[0].blocks[0])
+        rewriter.insert_block_before(Block(), module.regions[0].block)
 
     rewrite_and_compare(prog, expected, insert_empty_block_before)
 
@@ -312,7 +312,7 @@ def test_insert_block_after():
 """
 
     def insert_empty_block_after(module: ModuleOp, rewriter: Rewriter) -> None:
-        rewriter.insert_block_after(Block(), module.regions[0].blocks[0])
+        rewriter.insert_block_after(Block(), module.regions[0].block)
 
     rewrite_and_compare(prog, expected, insert_empty_block_after)
 
@@ -334,7 +334,7 @@ def test_insert_op_before():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant = Constant.from_int_and_width(34, i64)
-        first_op = module.regions[0].blocks[0].first_op
+        first_op = module.regions[0].block.first_op
         assert first_op is not None
         rewriter.insert_op(constant, InsertPoint.before(first_op))
 
@@ -358,7 +358,7 @@ def test_insert_op_after():
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         constant = Constant.from_int_and_width(34, i64)
-        first_op = module.regions[0].blocks[0].first_op
+        first_op = module.regions[0].block.first_op
         assert first_op is not None
         rewriter.insert_op(constant, InsertPoint.after(first_op))
 
@@ -503,7 +503,7 @@ def test_inline_region_before():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_before(region, module.body.blocks[1])
+        rewriter.inline_region_before(region, tuple(module.body.blocks)[1])
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -537,7 +537,9 @@ def test_inline_region_after():
                 Block((test.TestOp(result_types=(Float64Type(),)),)),
             )
         )
-        rewriter.inline_region_after(region, module.body.blocks[0])
+        first_block = module.body.blocks.first
+        assert first_block is not None
+        rewriter.inline_region_after(region, first_block)
 
     rewrite_and_compare(prog, expected, transformation)
 

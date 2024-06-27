@@ -428,8 +428,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         # Add target vaariable as an entry block argument.
         assert isinstance(node.target, ast.Name)
-        body = Region([Block()])
-        body.blocks[0].insert_arg(builtin.IndexType(), 0)
+        body = Region([Block(arg_types=(builtin.IndexType(),))])
 
         # Process loop bounds.
         if is_affine:
@@ -527,8 +526,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # In our case, if statement never returns a value and therefore we can
         # simply yield nothing. It is the responsibility of subsequent passes to
         # ensure SSA-form of IR and that values are yielded correctly.
-        true_region.blocks[-1].add_op(scf.Yield())
-        false_region.blocks[-1].add_op(scf.Yield())
+        assert true_region.blocks.last is not None
+        assert false_region.blocks.last is not None
+        true_region.blocks.last.add_op(scf.Yield())
+        false_region.blocks.last.add_op(scf.Yield())
         op = scf.If(cond, [], true_region, false_region)
 
         # Reset insertion point and insert a new operation.
