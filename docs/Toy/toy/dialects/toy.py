@@ -232,7 +232,8 @@ class FuncOp(IRDLOperation):
         if len(self.body.blocks) != 1:
             raise VerifyException("Expected FuncOp to contain one block")
 
-        block = self.body.block
+        block = self.body.blocks.first
+        assert block is not None
 
         if not block.ops:
             raise VerifyException("Expected FuncOp to not be empty")
