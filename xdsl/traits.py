@@ -513,6 +513,6 @@ class HasInsnsRepresentation(OpTrait, abc.ABC):
     @abc.abstractmethod
     def get_insn(self, op: Operation) -> str:
         """
-        Return the insns representation of the operation for printing.
+        Return the insn representation of the operation for printing.
         """
         raise NotImplementedError()
