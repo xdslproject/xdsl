@@ -1,8 +1,6 @@
-from traits import HasInsnRepresentation
-
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
-from xdsl.dialects.builtin import IntegerAttr, UnrealizedConversionCastOp
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, UnrealizedConversionCastOp
 from xdsl.dialects.llvm import InlineAsmOp
 from xdsl.dialects.riscv import IntRegisterType, RISCVInstruction
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
@@ -13,6 +11,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import HasInsnRepresentation
 
 
 class RiscvToLLVMPattern(RewritePattern):
@@ -41,14 +40,27 @@ class RiscvToLLVMPattern(RewritePattern):
                 and isinstance(arg.type, IntRegisterType)
                 and arg.op is op
             ):
+                # can't convert operations that load values into allocated registers
+                if arg.type.is_allocated:
+                    # if we are assigning to x0, just write to nowhere and don't produce
+                    # a result
+                    if arg.type.index == IntAttr(0):
+                        assembly_args_str.append("x0")
+                        continue
+                    return
                 res_types.append(builtin.i32)
                 assembly_args_str.append(f"${len(inputs) + len(res_types) - 1}")
                 constraints.append("=r")
 
             # ssa value used as an input operand
             elif isinstance(arg, SSAValue) and isinstance(arg.type, IntRegisterType):
-                if arg.type == IntRegisterType("zero"):
-                    assembly_args_str.append("x0")
+                # if the input is allocated to a register, use that register
+                if arg.type.is_allocated:
+                    name = arg.type.register_name
+                    if arg.type.index == IntAttr(0):
+                        name = "x0"
+                    assembly_args_str.append(name)
+                # otherwise we need to get the value from the SSA value
                 else:
                     conversion_op = UnrealizedConversionCastOp.get([arg], [builtin.i32])
                     ops_to_insert.append(conversion_op)
