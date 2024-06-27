@@ -502,7 +502,7 @@ class Pure(NoMemoryEffect):
 
 class HasInsnsRepresentation(OpTrait, abc.ABC):
     """
-    A trait providing information on how to encode an operation using a .insns assember directive.
+    A trait providing information on how to encode an operation using a .insn assember directive.
 
     The returned string contains python string.format placeholders where formatted operands are inserted during
     printing.
