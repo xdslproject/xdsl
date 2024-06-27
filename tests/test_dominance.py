@@ -134,8 +134,7 @@ blocks += cast(Operation, blocks[5 - 1].first_op).regions[0].blocks
 )
 def test_nested_properly_dominates_block(a: int, b: int, expected: bool):
     """
-    Test in-region block dominance.
+    Test block dominance including across regions.
     """
-    # Create blocks as in https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332
 
     assert properly_dominates(blocks[a - 1], blocks[b - 1]) == expected
