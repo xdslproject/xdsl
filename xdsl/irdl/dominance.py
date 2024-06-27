@@ -74,23 +74,17 @@ class DominanceInfo:
 
 def _properly_dominates_block(a: Block, b: Block) -> bool:
     """
-    Returns true if block `a` properly dominates block `b`.
+    Returns true if block `a` properly dominates block `b`, assuming they are in the
+    same region.
     """
     if a is b:
         return False
     if a.parent is None:
         raise ValueError("Block `a` has no parent region")
-    region = a.parent
-    bb = b
-    while bb.parent is not a.parent:
-        parent = bb.parent_block()
-        if parent is None:
-            return False
-        if parent is a:
-            return True
-        bb = parent
+    if a.parent is not b.parent:
+        raise ValueError("Blocks `a` and `b` are not in the same region")
 
-    return DominanceInfo(region).properly_dominates(a, b)
+    return DominanceInfo(a.parent).properly_dominates(a, b)
 
 
 def properly_dominates(a: Block, b: Block) -> bool:
