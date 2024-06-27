@@ -11,6 +11,9 @@ from xdsl.parser import Parser
 ctx = MLContext()
 ctx.register_dialect("test", get_all_dialects()["test"])
 
+
+# Create a block graph as in https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332
+
 op = Parser(
     ctx,
     """
@@ -64,10 +67,10 @@ def test_region_properly_dominates_block(a: int, b: int, expected: bool):
     """
     Test in-region block dominance.
     """
-    # Create blocks as in https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332
-
     assert properly_dominates(blocks[a - 1], blocks[b - 1]) == expected
 
+
+# See above, we add a wee nested block to check hierarchical dominance
 
 nested = Parser(
     ctx,
