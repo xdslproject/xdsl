@@ -455,27 +455,25 @@ class EffectKind(Enum):
 
     READ = auto()
     """
-    Indicates that the operation allocates from some
-    resource. An 'allocate' effect implies only allocation of the resource, and
-    not any visible mutation or dereference.
+    Indicates that the operation reads from some resource. A 'read' effect implies only
+    dereferencing of the resource, and not any visible mutation.
     """
+
     WRITE = auto()
     """
-    Indicates that the operation writes to some resource. A
-    'write' effect implies only mutating a resource, and not any visible
-    dereference or read.
+    Indicates that the operation writes to some resource. A 'write' effect implies only
+    mutating a resource, and not any visible dereference or read.
     """
     ALLOC = auto()
     """
-    Indicates that the operation frees some resource that
-    has been allocated. An 'allocate' effect implies only de-allocation of the
-    resource, and not any visible allocation, mutation or dereference.
+    Indicates that the operation allocates from some resource. An 'allocate' effect
+    implies only allocation of the resource, and not any visible mutation or dereference.
     """
     FREE = auto()
     """
-    Indicates that the operation frees some resource that
-    has been allocated. An 'allocate' effect implies only de-allocation of the
-    resource, and not any visible allocation, mutation or dereference.
+    Indicates that the operation frees some resource that has been allocated. A 'free'
+    effect implies only de-allocation of the resource, and not any visible allocation,
+    mutation or dereference.
     """
 
 
