@@ -201,7 +201,7 @@ class PatternRewriter(PatternRewriterListener):
         self.insert_op(new_ops, InsertPoint.before(op))
 
         if new_results is None:
-            new_results = [] if not new_ops else new_ops[-1].results
+            new_results = new_ops[-1].results if new_ops else []
 
         if len(op.results) != len(new_results):
             raise ValueError(
