@@ -485,16 +485,25 @@ class MemoryEffect(OpTrait):
     @classmethod
     @abc.abstractmethod
     def get_effects(cls, op: Operation) -> set[EffectKind]:
+        """
+        Returns the concrete side effects of the operation.
+        """
         raise NotImplementedError()
 
     @final
     @classmethod
     def has_effects(cls, op: Operation) -> bool:
+        """
+        Returns if the operation has any side effects.
+        """
         return len(cls.get_effects(op)) > 0
 
     @final
     @classmethod
     def only_has_effect(cls, op: Operation, effect: EffectKind) -> bool:
+        """
+        Returns if the operation has the given side effects and no others.
+        """
         return cls.get_effects(op) == {effect}
 
 
