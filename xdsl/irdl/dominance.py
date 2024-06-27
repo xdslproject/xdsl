@@ -30,8 +30,10 @@ class DominanceInfo:
             changed = False
             for b in blocks:
                 oldie = self._dominfo[b].copy()
-                self._dominfo[b] = {b} | set[Block].intersection(
-                    *(self._dominfo[p] for p in pred[b])
+                self._dominfo[b] = {b} | (
+                    set[Block].intersection(*(self._dominfo[p] for p in pred[b]))
+                    if pred[b]
+                    else set()
                 )
                 if oldie != self._dominfo[b]:
                     changed = True
@@ -45,20 +47,26 @@ class DominanceInfo:
         return a in self._dominfo[b]
 
 
-def _region_properly_dominates_block(a: Block, b: Block) -> bool:
+def _properly_dominates_block(a: Block, b: Block) -> bool:
     """
     Returns true if block `a` properly dominates block `b`, *assuming they are in the same region*
     """
-    if a.parent is None:
-        raise ValueError("Block `a` has no parent region")
-    if b.parent is not a.parent:
-        raise ValueError("Blocks `a` and `b` are not in the same region")
     if a is b:
         return False
-    if a.last_op is None:
-        return False
-    return DominanceInfo(a.parent).properly_dominates(a, b)
+    if a.parent is None:
+        raise ValueError("Block `a` has no parent region")
+    region = a.parent
+    bb = b
+    while bb.parent is not a.parent:
+        parent = bb.parent_block()
+        if parent is None:
+            return False
+        if parent is a:
+            return True
+        bb = parent
+
+    return DominanceInfo(region).properly_dominates(a, b)
 
 
 def properly_dominates(a: Block, b: Block) -> bool:
-    return _region_properly_dominates_block(a, b)
+    return _properly_dominates_block(a, b)
