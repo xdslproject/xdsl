@@ -313,15 +313,13 @@ func.func @use_before_def() {
 
 // CHECK:         func.func @remove_direct_duplicated_read_op() -> i32 {
 // CHECK-NEXT:      %0 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      %1 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      %2 = arith.addi %0, %1 : i32
-// CHECK-NEXT:      func.return %2 : i32
+// CHECK-NEXT:      %1 = arith.addi %0, %0 : i32
+// CHECK-NEXT:      func.return %1 : i32
 // CHECK-NEXT:    }
 
 
 /// This test is checking that CSE is removing duplicated read op that follow
 /// other.
-/// NB: xDSL doesn't, we don't have the notion of "read" ops.
 // CHECK-LABEL: @remove_multiple_duplicated_read_op
   func.func @remove_multiple_duplicated_read_op() -> i64 {
     %55 = "test.op_with_memread"() : () -> i64
@@ -336,19 +334,14 @@ func.func @use_before_def() {
 
 // CHECK:         func.func @remove_multiple_duplicated_read_op() -> i64 {
 // CHECK-NEXT:      %0 = "test.op_with_memread"() : () -> i64
-// CHECK-NEXT:      %1 = "test.op_with_memread"() : () -> i64
-// CHECK-NEXT:      %2 = arith.addi %0, %1 : i64
-// CHECK-NEXT:      %3 = "test.op_with_memread"() : () -> i64
-// CHECK-NEXT:      %4 = arith.addi %2, %3 : i64
-// CHECK-NEXT:      %5 = "test.op_with_memread"() : () -> i64
-// CHECK-NEXT:      %6 = arith.addi %4, %5 : i64
-// CHECK-NEXT:      func.return %6 : i64
+// CHECK-NEXT:      %1 = arith.addi %0, %0 : i64
+// CHECK-NEXT:      %2 = arith.addi %1, %0 : i64
+// CHECK-NEXT:      %3 = arith.addi %2, %0 : i64
+// CHECK-NEXT:      func.return %3 : i64
 // CHECK-NEXT:    }
 
 /// This test is checking that CSE is not removing duplicated read op that
 /// have write op in between.
-/// NB: xDSL doesn't, we don't have the notion of "read" ops.
-// CHECK-LABEL: @dont_remove_duplicated_read_op_with_sideeffecting
 func.func @dont_remove_duplicated_read_op_with_sideeffecting() -> i32 {
     %62 = "test.op_with_memread"() : () -> i32
     "test.op_with_memwrite"() : () -> ()
@@ -588,7 +581,6 @@ func.func @no_cse_multiple_regions_side_effect(%arg0_12 : i1, %arg1_9 : memref<5
 // CHECK-NEXT:      func.return %0, %2 : memref<5xf32>, memref<5xf32>
 // CHECK-NEXT:    }
 
-// xDSL doesn't have the notion of sideffects.
  func.func @cse_recursive_effects_success() -> (i32, i32, i32) {
     %98 = "test.op_with_memread"() : () -> i32
     %99 = arith.constant true
@@ -613,8 +605,7 @@ func.func @no_cse_multiple_regions_side_effect(%arg0_12 : i1, %arg1_9 : memref<5
 // CHECK-NEXT:        %4 = arith.constant 24 : i32
 // CHECK-NEXT:        scf.yield %4 : i32
 // CHECK-NEXT:      }) : (i1) -> i32
-// CHECK-NEXT:      %5 = "test.op_with_memread"() : () -> i32
-// CHECK-NEXT:      func.return %0, %5, %2 : i32, i32, i32
+// CHECK-NEXT:      func.return %0, %0, %2 : i32, i32, i32
 // CHECK-NEXT:    }
 
 // xDSL doesn't have the notion of sideffects.

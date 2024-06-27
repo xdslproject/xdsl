@@ -476,6 +476,11 @@ class MemoryEffect(OpTrait):
     def has_effects(cls, op: Operation) -> bool:
         return len(cls.get_effects(op)) > 0
 
+    @final
+    @classmethod
+    def only_has_effect(cls, op: Operation, effect: EffectKind) -> bool:
+        return cls.get_effects(op) == {effect}
+
 
 def is_side_effect_free(op: Operation) -> bool:
     """
@@ -496,6 +501,26 @@ def is_side_effect_free(op: Operation) -> bool:
     return all(
         is_side_effect_free(o) for r in op.regions for b in r.blocks for o in b.ops
     )
+
+
+def get_side_effects_recursively(rootOp: Operation) -> set[EffectKind] | None:
+    effects = set[EffectKind]()
+    effecting_ops = {rootOp}
+    while effecting_ops:
+        op = effecting_ops.pop()
+
+        recursive = op.get_trait(RecursiveMemoryEffect)
+
+        if recursive:
+            effecting_ops.update(o for r in op.regions for b in r.blocks for o in b.ops)
+
+        if effect_interface := op.get_trait(MemoryEffect):
+            effects.update(effect_interface.get_effects(op))
+
+        elif not recursive:
+            return None
+
+    return effects
 
 
 class NoMemoryEffect(MemoryEffect):

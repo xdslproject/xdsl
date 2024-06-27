@@ -6,7 +6,14 @@ from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
 from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
-from xdsl.traits import IsolatedFromAbove, IsTerminator, is_side_effect_free
+from xdsl.traits import (
+    EffectKind,
+    IsolatedFromAbove,
+    IsTerminator,
+    MemoryEffect,
+    get_side_effects_recursively,
+    is_side_effect_free,
+)
 from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
 
@@ -92,6 +99,19 @@ class KnownOps:
         return self._known_ops.pop(OperationInfo(k))
 
 
+def has_other_side_effecting_op_in_between(
+    from_op: Operation, to_op: Operation
+) -> bool:
+    assert from_op.parent_block() == to_op.parent_block()
+    next_op: Operation | None = from_op
+    while next_op and (next_op is not to_op):
+        effects = get_side_effects_recursively(next_op)
+        if effects is None or (EffectKind.WRITE in effects):
+            return True
+        next_op = next_op.next_op
+    return False
+
+
 class CSEDriver:
     """
     Boilerplate class to handle and carry the state for CSE.
@@ -114,6 +134,19 @@ class CSEDriver:
             if o.parent is not None:
                 self._rewriter.erase_op(o)
 
+    def _replace_and_delete(self, op: Operation, existing: Operation):
+        # Just replace results
+        def wasVisited(use: Use):
+            return use.operation not in self._known_ops
+
+        for o, n in zip(op.results, existing.results, strict=True):
+            if all(wasVisited(u) for u in o.uses):
+                o.replace_by(n)
+
+        # If no uses remain, we can mark this operation for erasure
+        if all(not r.uses for r in op.results):
+            self._mark_erasure(op)
+
     def _simplify_operation(self, op: Operation):
         """
         Simplify a single operation: replace it by a corresponding known operation in
@@ -134,28 +167,28 @@ class CSEDriver:
         if any(len(region.blocks) > 1 for region in op.regions):
             return
 
-        # Here, MLIR says something like "if the operation has side effects"
-        # Using more generics analytics; and has fancier analysis for that case,
-        # where it might simplify some side-effecting operations still.
-        # Doesmn't mean we can't just simplify what we can with our simpler model :)
         if not is_side_effect_free(op):
+            mem_effects = op.get_trait(MemoryEffect)
+            if (not mem_effects) or (
+                not mem_effects.only_has_effect(op, EffectKind.READ)
+            ):
+                return
+
+            if existing := self._known_ops.get(op):
+                if (
+                    op.parent_block() is existing.parent_block()
+                    and not has_other_side_effecting_op_in_between(existing, op)
+                ):
+                    self._replace_and_delete(op, existing)
+                    return
+
+            self._known_ops[op] = op
             return
 
         # This operation rings a bell!
         if existing := self._known_ops.get(op):
 
-            # Just replace results
-            def wasVisited(use: Use):
-                return use.operation not in self._known_ops
-
-            for o, n in zip(op.results, existing.results, strict=True):
-                if all(wasVisited(u) for u in o.uses):
-                    o.replace_by(n)
-
-            # If no uses remain, we can mark this operation for erasure
-            if all(not r.uses for r in op.results):
-                self._mark_erasure(op)
-
+            self._replace_and_delete(op, existing)
             return
 
         # First time seeing this one, noting it down!
