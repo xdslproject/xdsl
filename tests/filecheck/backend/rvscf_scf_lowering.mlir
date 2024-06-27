@@ -21,30 +21,30 @@ builtin.module {
 // CHECK-NEXT:   %i_in = arith.constant 42 : index
 // CHECK-NEXT:   %f32_in = arith.constant 2.100000e+01 : f32
 // CHECK-NEXT:   %f64_in = arith.constant 4.200000e+01 : f64
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg<>
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg<>
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg<>
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg<>
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f32 to !riscv.freg<>
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f64 to !riscv.freg<>
-// CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
-// CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
-// CHECK-NEXT:   %{{.*}}, %{{.*}}, %{{.*}} = riscv_scf.for %idx : !riscv.reg<> = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (!riscv.reg<>, !riscv.freg<>, !riscv.freg<>) {
-// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg<> to f64
-// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg<> to f32
-// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg<> to index
-// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg<> to index
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f32 to !riscv.freg
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f64 to !riscv.freg
+// CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:   %{{.*}}, %{{.*}}, %{{.*}} = riscv_scf.for %idx : !riscv.reg = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}, %{{.*}} = %{{.*}}) -> (!riscv.reg, !riscv.freg, !riscv.freg) {
+// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f64
+// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f32
+// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to index
+// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to index
 // CHECK-NEXT:     %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
-// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg<>
-// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f32 to !riscv.freg<>
-// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f64 to !riscv.freg<>
-// CHECK-NEXT:     riscv_scf.yield %{{.*}}, %{{.*}}, %{{.*}} : !riscv.reg<>, !riscv.freg<>, !riscv.freg<>
+// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : index to !riscv.reg
+// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f32 to !riscv.freg
+// CHECK-NEXT:     %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f64 to !riscv.freg
+// CHECK-NEXT:     riscv_scf.yield %{{.*}}, %{{.*}}, %{{.*}} : !riscv.reg, !riscv.freg, !riscv.freg
 // CHECK-NEXT:   }
-// CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
-// CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<>) -> !riscv.freg<>
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg<> to index
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg<> to f32
-// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg<> to f64
+// CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:   %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to index
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f32
+// CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f64
 // CHECK-NEXT: }
