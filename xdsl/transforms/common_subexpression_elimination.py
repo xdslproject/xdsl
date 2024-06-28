@@ -107,12 +107,13 @@ def has_other_side_effecting_op_in_between(
     `to_op`.
     """
     assert from_op.parent is to_op.parent
-    next_op: Operation | None = from_op
-    while next_op and (next_op is not to_op):
+    next_op = from_op
+    while next_op is not to_op:
         effects = get_side_effects_recursively(next_op)
         if effects is None or (MemoryEffectKind.WRITE in effects):
             return True
         next_op = next_op.next_op
+        assert next_op is not None, "Incorrect order of ops in side-effect search"
     return False
 
 
