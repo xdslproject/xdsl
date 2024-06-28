@@ -213,14 +213,11 @@ class xDSLOptMain(CommandLineTool):
             from xdsl.dialects.wasm import WasmModule
             from xdsl.dialects.wasm.wat import WatPrinter
 
-            wasm_modules = tuple(op for op in prog.walk() if isinstance(op, WasmModule))
-            if len(wasm_modules) != 1:
-                print(f"invalid number of wasm modules ({len(wasm_modules)})")
-                return
-
-            printer = WatPrinter(output)
-            wasm_module = wasm_modules[0]
-            wasm_module.print_wat(printer)
+            for op in prog.walk():
+                if isinstance(op, WasmModule):
+                    printer = WatPrinter(output)
+                    op.print_wat(printer)
+                    print("", file=output)
 
         def _emulate_riscv(prog: ModuleOp, output: IO[str]):
             # import only if running riscv emulation
