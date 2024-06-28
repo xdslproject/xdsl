@@ -56,9 +56,9 @@ class DominanceInfo:
                 if old != self._dominance[b]:
                     changed = True
 
-    def properly_dominates(self, a: Block, b: Block) -> bool:
+    def strictly_dominates(self, a: Block, b: Block) -> bool:
         """
-        Return if `a` *properly* ("strictly") dominates `b`.
+        Return if `a` *strictly* ("strictly") dominates `b`.
         i.e., if it dominates `b` and is not `b`.
         """
         if a is b:
@@ -72,9 +72,9 @@ class DominanceInfo:
         return a in self._dominance[b]
 
 
-def _properly_dominates_block(a: Block, b: Block) -> bool:
+def _strictly_dominates_block(a: Block, b: Block) -> bool:
     """
-    Returns true if block `a` properly dominates block `b`, assuming they are in the
+    Returns true if block `a` strictly dominates block `b`, assuming they are in the
     same region.
     """
     if a is b:
@@ -84,14 +84,14 @@ def _properly_dominates_block(a: Block, b: Block) -> bool:
     if a.parent is not b.parent:
         raise ValueError("Blocks `a` and `b` are not in the same region")
 
-    return DominanceInfo(a.parent).properly_dominates(a, b)
+    return DominanceInfo(a.parent).strictly_dominates(a, b)
 
 
 # This function could be deemed useless for now, but it's intended to be
 # overloaded with Values and Operations
-def properly_dominates(a: Block, b: Block) -> bool:
+def strictly_dominates(a: Block, b: Block) -> bool:
     """
-    Returns true if block `a` properly dominates block `b`, assuming they are in the
+    Returns true if block `a` strictly dominates block `b`, assuming they are in the
     same region.
     """
-    return _properly_dominates_block(a, b)
+    return _strictly_dominates_block(a, b)

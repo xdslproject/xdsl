@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.context import MLContext
 from xdsl.dialects import get_all_dialects
-from xdsl.irdl.dominance import properly_dominates
+from xdsl.irdl.dominance import strictly_dominates
 from xdsl.parser import Parser
 
 ctx = MLContext()
@@ -60,8 +60,8 @@ blocks = op.regions[0].blocks
         (6, 6, False),
     ),
 )
-def test_region_properly_dominates_block(a: int, b: int, expected: bool):
+def test_region_strictly_dominates_block(a: int, b: int, expected: bool):
     """
     Test in-region block dominance.
     """
-    assert properly_dominates(blocks[a - 1], blocks[b - 1]) == expected
+    assert strictly_dominates(blocks[a - 1], blocks[b - 1]) == expected
