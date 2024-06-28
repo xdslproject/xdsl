@@ -533,10 +533,13 @@ def get_side_effects_recursively(rootOp: Operation) -> set[MemoryEffectKind] | N
         if recursive:
             effecting_ops.update(o for r in op.regions for b in r.blocks for o in b.ops)
 
-        if effect_interface := op.get_trait(MemoryEffect):
-            op_effects = effect_interface.get_effects(op)
-            if op_effects is None:
-                return None
+        if effect_interfaces := op.get_traits_of_type(MemoryEffect):
+            op_effects = set[MemoryEffectKind]()
+            for it in effect_interfaces:
+                it_effects = it.get_effects(op)
+                if it_effects is None:
+                    return None
+                op_effects.update(it_effects)
             effects.update(op_effects)
 
         elif not recursive:
