@@ -8,9 +8,6 @@ from typing import Any
 class WatPrinter:
     stream: Any | None = field(default=None)
 
-    _current_line: int = field(default=0, init=False)
-    _current_column: int = field(default=0, init=False)
-
     def print_string(self, text: str) -> None:
         print(text, end="", file=self.stream)
 
