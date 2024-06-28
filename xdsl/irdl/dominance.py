@@ -8,7 +8,7 @@ class DominanceInfo:
     https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332
     """
 
-    _dominfo: dict[Block, set[Block]]
+    _dominance: dict[Block, set[Block]]
 
     def __init__(self, region: Region):
         """
@@ -17,7 +17,7 @@ class DominanceInfo:
         https://en.wikipedia.org/w/index.php?title=Dominator_(graph_theory)&oldid=1189814332
         """
 
-        self._dominfo = {}
+        self._dominance = {}
 
         # No block, no work
         if not (region.blocks):
@@ -36,24 +36,24 @@ class DominanceInfo:
         entry, *blocks = region.blocks
 
         # The entry block is only dominated by itself
-        self._dominfo[entry] = {entry}
+        self._dominance[entry] = {entry}
 
         # Instantiate other blocks dominators to all blocks
         for b in blocks:
-            self._dominfo[b] = set(region.blocks)
+            self._dominance[b] = set(region.blocks)
 
         # Iteratively filter out dominators until it converges
         changed = True
         while changed:
             changed = False
             for b in blocks:
-                oldie = self._dominfo[b].copy()
-                self._dominfo[b] = {b} | (
-                    set[Block].intersection(*(self._dominfo[p] for p in pred[b]))
+                oldie = self._dominance[b].copy()
+                self._dominance[b] = {b} | (
+                    set[Block].intersection(*(self._dominance[p] for p in pred[b]))
                     if pred[b]
                     else set()
                 )
-                if oldie != self._dominfo[b]:
+                if oldie != self._dominance[b]:
                     changed = True
 
     def properly_dominates(self, a: Block, b: Block) -> bool:
@@ -69,7 +69,7 @@ class DominanceInfo:
         """
         Return if `a` dominates `b`.
         """
-        return a in self._dominfo[b]
+        return a in self._dominance[b]
 
 
 def _properly_dominates_block(a: Block, b: Block) -> bool:
