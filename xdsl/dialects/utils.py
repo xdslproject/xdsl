@@ -131,17 +131,15 @@ def print_func_op_like(
     printer.print(f" @{sym_name.data}")
     if body.blocks:
         printer.print("(")
-        first_block = body.blocks.first
-        assert first_block is not None
         if arg_attrs is not None:
             printer.print_list(
-                zip(first_block.args, arg_attrs),
+                zip(body.blocks[0].args, arg_attrs),
                 lambda arg_with_attrs: print_func_argument(
                     printer, arg_with_attrs[0], arg_with_attrs[1]
                 ),
             )
         else:
-            printer.print_list(first_block.args, printer.print_block_argument)
+            printer.print_list(body.blocks[0].args, printer.print_block_argument)
         printer.print(") ")
         if function_type.outputs:
             printer.print("-> ")

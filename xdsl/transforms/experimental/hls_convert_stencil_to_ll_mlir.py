@@ -192,14 +192,10 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
         # TODO: we are generating 3 copies for now. This is what we need for pw_advection, but should be generalised for codes
         # with a different number of components
         n_components = 0
-        first_body_block = typing.cast(FuncOp, op.parent_op()).body.blocks.first
-        assert first_body_block is not None
-        for _op in first_body_block.ops:
+        for _op in typing.cast(FuncOp, op.parent_op()).body.blocks[0].ops:
             if isinstance(_op, ApplyOp):
                 apply_op = _op
-                first_apply_block = apply_op.region.blocks.first
-                assert first_apply_block is not None
-                for op_in_apply in first_apply_block.ops:
+                for op_in_apply in apply_op.region.blocks[0].ops:
                     if isinstance(op_in_apply, stencil.ReturnOp):
                         return_op = op_in_apply
                         n_components = len(return_op.arg)
@@ -348,8 +344,7 @@ def add_read_write_ops(
     rewriter: PatternRewriter,
     boilerplate: list[Operation],
 ):
-    body_block = op.region.blocks.first
-    assert body_block is not None
+    body_block = op.region.blocks[0]
     return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
     stencil_return_vals: list[SSAValue] = [val for val in return_op.arg]
 
@@ -448,13 +443,11 @@ def transform_apply_into_loop(
         #    y_for_op = for_op
 
         if i == 1:
-            first_block = for_op.body.blocks.first
-            assert first_block is not None
-            first_block.insert_op_before(
-                hls_pipeline_op, typing.cast(Operation, first_block.first_op)
+            for_op.body.blocks[0].insert_op_before(
+                hls_pipeline_op, typing.cast(Operation, for_op.body.blocks[0].first_op)
             )
-            first_block.insert_op_before(
-                ii, typing.cast(Operation, first_block.first_op)
+            for_op.body.blocks[0].insert_op_before(
+                ii, typing.cast(Operation, for_op.body.blocks[0].first_op)
             )
 
     y_for_op = for_op_lst[1]
@@ -529,8 +522,7 @@ class ApplyOpToHLS(RewritePattern):
         # We qualify the parent function as a kernel for futher processing
         typing.cast(Operation, op.parent_op()).attributes["kernel"] = IntAttr(1)
 
-        body_block = op.region.blocks.first
-        assert body_block is not None
+        body_block = op.region.blocks[0]
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
         n_components = len(return_op.arg)
         apply_clones_lst: list[ApplyOp] = [op.clone() for _ in range(n_components)]
@@ -587,13 +579,12 @@ class ApplyOpToHLS(RewritePattern):
             i += 1
 
         for write_idx in indices_stream_to_write:
-            first_block = apply_clone.region.blocks.first
-            assert first_block is not None
-            first_block.insert_arg(self.out_data_streams[0].results[0].type, write_idx)
+            apply_clone.region.blocks[0].insert_arg(
+                self.out_data_streams[0].results[0].type, write_idx
+            )
 
         # Get this apply's ReturnOp
-        body_block = op.region.blocks.first
-        assert body_block is not None
+        body_block = op.region.blocks[0]
         return_op = next(o for o in body_block.ops if isinstance(o, ReturnOp))
 
         # We are going to split the apply by the operations conducive to each returned value
@@ -625,8 +616,7 @@ class ApplyOpToHLS(RewritePattern):
                 component, component_operations, operation_indices
             )
 
-            new_apply_block = new_apply.region.blocks.first
-            assert new_apply_block is not None
+            new_apply_block = new_apply.region.blocks[0]
             new_return_op = next(
                 o for o in new_apply_block.ops if isinstance(o, ReturnOp)
             )
@@ -713,9 +703,9 @@ def collectComponentOperations(
 
 
 def get_number_external_stores(op: FuncOp):
-    first_block = op.body.blocks.first
-    assert first_block is not None
-    external_stores_lst = [o for o in first_block.ops if isinstance(o, ExternalStoreOp)]
+    external_stores_lst = [
+        o for o in op.body.blocks[0].ops if isinstance(o, ExternalStoreOp)
+    ]
 
     return len(external_stores_lst)
 
@@ -927,10 +917,10 @@ def get_number_input_stencils(op: FuncOp):
         assert isinstance(op_field_type, memref.MemRefType)
         return len(op_field_type.get_shape())
 
-    first_block = op.body.blocks.first
-    assert first_block is not None
     external_load_lst = [
-        o for o in first_block.ops if isinstance(o, ExternalLoadOp) and dim(o) == 3
+        o
+        for o in op.body.blocks[0].ops
+        if isinstance(o, ExternalLoadOp) and dim(o) == 3
     ]
 
     n = sum(
@@ -1171,10 +1161,9 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PragmaDataflow, rewriter: PatternRewriter, /):
-        first_block = op.body.blocks.first
-        assert first_block is not None
         if (
-            "compute_loop" in typing.cast(Operation, first_block.first_op).attributes
+            "compute_loop"
+            in typing.cast(Operation, op.body.blocks[0].first_op).attributes
             and not self.inserted_already
             and len(self.original_memref_lst) > 0
         ):
@@ -1229,10 +1218,6 @@ class QualifyInterfacesPass(RewritePattern):
         bundle_idx = 1
         arg_idx = 0
 
-        first_block = op.body.blocks.first
-
-        assert first_block is not None
-
         if "kernel" in op.attributes:
             del op.attributes["kernel"]
 
@@ -1247,19 +1232,19 @@ class QualifyInterfacesPass(RewritePattern):
                     self.module.body.block.add_op(interface_func)
 
                     call_interface_func = func.Call(
-                        interface_func_name, [first_block.args[arg_idx]], []
+                        interface_func_name, [op.body.blocks[0].args[arg_idx]], []
                     )
                     rewriter.insert_op(
-                        call_interface_func, InsertPoint.at_start(first_block)
+                        call_interface_func, InsertPoint.at_start(op.body.blocks[0])
                     )
 
                     bundle_idx += 1
                 else:
                     call_interface_func = llvm.CallOp(
-                        self.interface_coeff_func_name, first_block.args[arg_idx]
+                        self.interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
                     )
                     rewriter.insert_op(
-                        call_interface_func, InsertPoint.at_start(first_block)
+                        call_interface_func, InsertPoint.at_start(op.body.blocks[0])
                     )
                     self.called_coeff_func = True
 

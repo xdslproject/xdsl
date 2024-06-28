@@ -388,7 +388,7 @@ def test_insert_op_at_start():
         def match_and_rewrite(self, mod: ModuleOp, rewriter: PatternRewriter):
             new_cst = Constant.from_int_and_width(42, i32)
 
-            rewriter.insert_op(new_cst, InsertPoint.at_start(mod.regions[0].block))
+            rewriter.insert_op(new_cst, InsertPoint.at_start(mod.regions[0].blocks[0]))
 
     rewrite_and_compare(
         prog,
@@ -668,7 +668,7 @@ def test_block_argument_type_change():
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
                 rewriter.modify_block_argument_type(
-                    matched_op.regs[0].block.args[0], i64
+                    matched_op.regs[0].blocks[0].args[0], i64
                 )
 
     rewrite_and_compare(
@@ -705,11 +705,8 @@ def test_block_argument_erasure():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if (
-                matched_op.regs
-                and (first_block := matched_op.regs[0].blocks.first) is not None
-            ):
-                rewriter.erase_block_argument(first_block.args[0])
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.erase_block_argument(matched_op.regs[0].blocks[0].args[0])
 
     rewrite_and_compare(
         prog, expected, PatternRewriteWalker(Rewrite(), apply_recursively=False)
@@ -743,11 +740,10 @@ def test_block_argument_insertion():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if (
-                matched_op.regs
-                and (first_block := matched_op.regs[0].blocks.first) is not None
-            ):
-                rewriter.insert_block_argument(first_block, 0, test.TestType("int"))
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.insert_block_argument(
+                    matched_op.regs[0].blocks[0], 0, test.TestType("int")
+                )
 
     rewrite_and_compare(
         prog,
@@ -785,11 +781,8 @@ def test_inline_block_before_matched_op():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if (
-                matched_op.regs
-                and (first_block := matched_op.regs[0].blocks.first) is not None
-            ):
-                rewriter.inline_block_before_matched_op(first_block)
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.inline_block_before_matched_op(matched_op.regs[0].blocks[0])
 
     rewrite_and_compare(
         prog,
@@ -834,15 +827,11 @@ def test_inline_block_before():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if (
-                matched_op.regs
-                and (first_block := matched_op.regs[0].blocks.first) is not None
-            ):
-                first_op = first_block.first_op
+            if matched_op.regs and matched_op.regs[0].blocks:
+                first_op = matched_op.regs[0].blocks[0].first_op
 
                 if isinstance(first_op, test.TestOp):
-                    inner_block = first_op.regs[0].blocks.first
-                    assert inner_block is not None
+                    inner_block = first_op.regs[0].blocks[0]
                     rewriter.inline_block(inner_block, InsertPoint.before(first_op))
 
     rewrite_and_compare(
@@ -881,11 +870,10 @@ def test_inline_block_at_before_when_op_is_matched_op():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if (
-                matched_op.regs
-                and (first_block := matched_op.regs[0].blocks.first) is not None
-            ):
-                rewriter.inline_block(first_block, InsertPoint.before(matched_op))
+            if matched_op.regs and matched_op.regs[0].blocks:
+                rewriter.inline_block(
+                    matched_op.regs[0].blocks[0], InsertPoint.before(matched_op)
+                )
 
     rewrite_and_compare(
         prog,
@@ -933,16 +921,12 @@ def test_inline_block_before_with_args():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if (
-                matched_op.regs
-                and (first_block := matched_op.regs[0].blocks.first) is not None
-            ):
-                outer_block = first_block
+            if matched_op.regs and matched_op.regs[0].blocks:
+                outer_block = matched_op.regs[0].blocks[0]
                 first_op = outer_block.first_op
 
                 if isinstance(first_op, test.TestOp):
-                    inner_block = first_op.regs[0].blocks.first
-                    assert inner_block is not None
+                    inner_block = first_op.regs[0].blocks[0]
                     rewriter.inline_block(
                         inner_block, InsertPoint.before(first_op), outer_block.args
                     )
@@ -990,16 +974,12 @@ def test_inline_block_after():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if (
-                matched_op.regs
-                and (first_block := matched_op.regs[0].blocks.first) is not None
-            ):
-                first_op = first_block.first_op
+            if matched_op.regs and matched_op.regs[0].blocks:
+                first_op = matched_op.regs[0].blocks[0].first_op
 
                 if first_op is not None and isinstance(first_op, test.TestOp):
                     if first_op.regs and first_op.regs[0].blocks:
-                        inner_block = first_op.regs[0].blocks.first
-                        assert inner_block is not None
+                        inner_block = first_op.regs[0].blocks[0]
                         rewriter.inline_block(inner_block, InsertPoint.after(first_op))
 
     rewrite_and_compare(
@@ -1045,17 +1025,12 @@ def test_inline_block_after_matched():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if (
-                matched_op.regs
-                and (first_block := matched_op.regs[0].blocks.first) is not None
-            ):
-                first_op = first_block.first_op
+            if matched_op.regs and matched_op.regs[0].blocks:
+                first_op = matched_op.regs[0].block.first_op
 
                 if first_op is not None and isinstance(first_op, test.TestOp):
-                    if (
-                        first_op.regs
-                        and (inner_block := first_op.regs[0].blocks.first) is not None
-                    ):
+                    if first_op.regs and first_op.regs[0].blocks:
+                        inner_block = first_op.regs[0].blocks[0]
                         rewriter.inline_block(
                             inner_block, InsertPoint.after(matched_op)
                         )

@@ -78,9 +78,7 @@ class LowerRiscvScfForPattern(RewritePattern):
         init_block = op.parent_block()
         assert init_block is not None
 
-        first_block = op.body.blocks.first
-        assert first_block is not None
-        body_args = first_block.args
+        body_args = op.body.blocks[0].args
 
         # TODO: add method to rewriter
         end_block = init_block.split_before(
@@ -95,10 +93,8 @@ class LowerRiscvScfForPattern(RewritePattern):
         # block that has the induction variable and loop-carried values as arguments.
         # Split out all operations from the first block into a new block. Move all
         # body blocks from the loop body region to the region containing the loop.
-        first_body_block = op.body.blocks.first
-        last_body_block = op.body.blocks.last
-        assert first_body_block is not None
-        assert last_body_block is not None
+        first_body_block = op.body.blocks[0]
+        last_body_block = op.body.blocks[-1]
 
         # Get the induction variable and its register
         iv = first_body_block.args[0]

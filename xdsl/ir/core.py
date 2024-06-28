@@ -1543,7 +1543,7 @@ class Block(IRNode):
 
 
 @dataclass
-class RegionBlocks(Reversible[Block], Iterable[Block]):
+class RegionBlocks(Sequence[Block], Reversible[Block]):
     """
     Multi-pass iterable of the blocks in a region.
     """
@@ -1552,6 +1552,15 @@ class RegionBlocks(Reversible[Block], Iterable[Block]):
 
     def __iter__(self):
         return iter(self._blocks)
+
+    @overload
+    def __getitem__(self, idx: int) -> Block: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[Block]: ...
+
+    def __getitem__(self, idx: int | slice) -> Block | Sequence[Block]:
+        return self._blocks[idx]
 
     def __len__(self):
         return len(self._blocks)
