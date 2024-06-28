@@ -8,11 +8,9 @@ from xdsl.dialects.experimental import dmp
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
-    Block,
     Dialect,
     Operation,
     ParametrizedAttribute,
-    Region,
     SSAValue,
 )
 from xdsl.irdl import (
@@ -157,11 +155,12 @@ class ApplyOp(IRDLOperation):
 
     Further fields:
       - `communicated_stencil` - the stencil to communicate (send and receive)
-      - `args`  - arguments to the stencil computation, may include other prefetched buffers
-      - `topo`  - as received from `csl_stencil.prefetch`/`dmp.swap`
-      - `swaps` - a set of neighbouring points in the stencil, whose value we wish to retain
-                  (note, these are not guaranteed to be lowered as true point-to-point communication, and
-                  redundant communication should be irgnored)
+      - `args`       - arguments to the stencil computation, may include other prefetched buffers
+      - `topo`       - as received from `csl_stencil.prefetch`/`dmp.swap`
+      - `num_chunks` - number of chunks into which to slice the communication
+      - `swaps`      - a set of neighbouring points in the stencil, whose value we wish to retain
+                       (note, these are not guaranteed to be lowered as true point-to-point communication, and
+                       redundant communication should be irgnored)
 
     Function signatures:
     Before lowering (from `csl_stencil.prefetch` and `stencil.apply`):
@@ -193,13 +192,35 @@ class ApplyOp(IRDLOperation):
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
-    topo = opt_prop_def(dmp.RankTopoAttr)
+    topo = prop_def(dmp.RankTopoAttr)
 
     num_chunks = prop_def(IntegerAttr)
 
     res = var_result_def(stencil.TempType)
 
     traits = frozenset([IsolatedFromAbove(), RecursiveMemoryEffect()])
+
+    # def __init__(
+    #     self,
+    #     communicated_stencil: stencil.TempType[Attribute] | memref.MemRefType[Attribute],
+    #     iter_arg: TensorType[Attribute],
+    #     args: Sequence[Attribute],
+    #
+    #
+    #     args: Sequence[SSAValue] | Sequence[Operation],
+    #     body: Block | Region,
+    #     result_types: Sequence[stencil.TempType[Attribute]],
+    # ):
+    #     assert len(result_types) > 0
+    #
+    #     if isinstance(body, Block):
+    #         body = Region(body)
+    #
+    #     return ApplyOp.build(
+    #         operands=[list(args)],
+    #         regions=[body],
+    #         result_types=[result_types],
+    #     )
 
     def print(self, printer: Printer):
         def print_arg(arg: tuple[SSAValue, Attribute]):
@@ -238,9 +259,6 @@ class ApplyOp(IRDLOperation):
         operands = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
 
         props = parser.parse_optional_properties_dict()
-        topo = props["topo"] if "topo" in props else None
-        swaps = props["swaps"]
-        num_chunks = props["num_chunks"]
 
         parser.parse_punctuation("->")
         result_types = parser.parse_comma_separated_list(
@@ -258,25 +276,8 @@ class ApplyOp(IRDLOperation):
             operands=[operands[0], operands[1], operands[2:]],
             result_types=[result_types],
             regions=[chunk_reduce, post_process],
-            properties={"topo": topo, "swaps": swaps, "num_chunks": num_chunks},
+            properties=props,
             attributes=attrs,
-        )
-
-    @staticmethod
-    def get(
-        args: Sequence[SSAValue] | Sequence[Operation],
-        body: Block | Region,
-        result_types: Sequence[stencil.TempType[Attribute]],
-    ):
-        assert len(result_types) > 0
-
-        if isinstance(body, Block):
-            body = Region(body)
-
-        return ApplyOp.build(
-            operands=[list(args)],
-            regions=[body],
-            result_types=[result_types],
         )
 
     def verify_(self) -> None:
@@ -355,7 +356,7 @@ class ApplyOp(IRDLOperation):
            field of the apply operation.
         """
         # iterate over the block arguments
-        for arg in self.chunk_reduce.block.args:
+        for arg in self.chunk_reduce.block.args + self.post_process.block.args:
             accesses: list[tuple[int, ...]] = []
             # walk the uses of the argument
             for use in arg.uses:
@@ -390,7 +391,7 @@ class AccessOp(IRDLOperation):
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType)
 
-    traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])  # todo
+    traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
 
     def __init__(
         self,
