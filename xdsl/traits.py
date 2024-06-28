@@ -522,7 +522,7 @@ def is_side_effect_free(op: Operation) -> bool:
     elif not op.get_trait(RecursiveMemoryEffect):
         return False
 
-    # If it only has recursive effects, well, recurse
+    # Recurse if it only has recursive effects
     return all(
         is_side_effect_free(o) for r in op.regions for b in r.blocks for o in b.ops
     )
