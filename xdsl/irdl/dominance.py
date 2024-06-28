@@ -87,5 +87,11 @@ def _properly_dominates_block(a: Block, b: Block) -> bool:
     return DominanceInfo(a.parent).properly_dominates(a, b)
 
 
+# This function could be deemed useless for now, but it's intended to be
+# overloaded with Values and Operations
 def properly_dominates(a: Block, b: Block) -> bool:
+    """
+    Returns true if block `a` properly dominates block `b`, assuming they are in the
+    same region.
+    """
     return _properly_dominates_block(a, b)
