@@ -5,10 +5,9 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import (
     IsTerminator,
-    MemoryEffect,
     MemoryEffectKind,
-    RecursiveMemoryEffect,
     SymbolOpInterface,
+    get_side_effects_recursively,
 )
 
 
@@ -23,36 +22,8 @@ def is_trivially_dead(op: Operation):
 
 
 def would_be_trivially_dead(rootOp: Operation) -> bool:
-    effecting_ops = {rootOp}
-    while effecting_ops:
-        op = effecting_ops.pop()
-
-        # If the operation has recursive effects, push all of the nested operations
-        # on to the stack to consider.
-        recursive = op.get_trait(RecursiveMemoryEffect)
-        if recursive:
-            effecting_ops.update(o for r in op.regions for b in r.blocks for o in b.ops)
-
-        # Try to ensure there are no effects, or only 'read' effects.
-        if effect_interface := op.get_trait(MemoryEffect):
-            effects = effect_interface.get_effects(op)
-
-            # Currently, only read effects are considered potentially dead.
-            # MLIR does smarter things with allocated values here.
-            if effects is None or any(e != MemoryEffectKind.READ for e in effects):
-                return False
-
-            continue
-        # If we couldn't find an interface for its own effects but the op was marked recursive,
-        # just keep checking queued ops.
-        if recursive:
-            continue
-
-        # If we couldn't find any side-effect info, conservatively assume it has effects.
-        return False
-
-    # We indeed couldn't find any problematic effect.
-    return True
+    effects = get_side_effects_recursively(rootOp)
+    return effects is not None and all(e == MemoryEffectKind.READ for e in effects)
 
 
 class RemoveUnusedOperations(RewritePattern):

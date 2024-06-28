@@ -514,21 +514,7 @@ def is_side_effect_free(op: Operation) -> bool:
     """
     Boilerplate helper to check if a generic operation is side effect free for sure.
     """
-    if trait := op.get_trait(MemoryEffect):
-        # If the op implements the trait and says it has effects, done
-        if trait.has_effects(op):
-            return False
-        # If it said it has no effect, and does not have recursive effects, done
-        if not op.get_trait(RecursiveMemoryEffect):
-            return True
-    # If it implements neither trait, play safe and assume it has effects
-    elif not op.get_trait(RecursiveMemoryEffect):
-        return False
-
-    # Recurse if it only has recursive effects
-    return all(
-        is_side_effect_free(o) for r in op.regions for b in r.blocks for o in b.ops
-    )
+    return get_side_effects_recursively(op) == set()
 
 
 def get_side_effects_recursively(rootOp: Operation) -> set[MemoryEffectKind] | None:
