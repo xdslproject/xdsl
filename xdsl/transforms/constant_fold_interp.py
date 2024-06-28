@@ -27,7 +27,7 @@ class ConstantFoldInterpPattern(RewritePattern):
     interpreter: Interpreter
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        if not op.has_trait(Pure):
+        if not op.has_trait(Pure) or op.has_trait(ConstantLike):
             # Only rewrite operations that don't have side-effects
             return
 
