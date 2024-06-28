@@ -1,4 +1,3 @@
-from xdsl.backend.riscv import prologue_epilogue_insertion
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
@@ -6,7 +5,10 @@ from xdsl.backend.riscv.lowering import (
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
 from xdsl.interactive.passes import AvailablePass
 from xdsl.interactive.rewrites import individual_rewrite
-from xdsl.transforms import reconcile_unrealized_casts
+from xdsl.transforms import (
+    reconcile_unrealized_casts,
+    test_lower_memref_stream_to_snitch_stream,
+)
 from xdsl.utils.parse_pipeline import PipelinePassSpec
 
 
@@ -39,8 +41,8 @@ def test_get_all_available_passes():
                 pass_spec=None,
             ),
             AvailablePass(
-                display_name="riscv-prologue-epilogue-insertion",
-                module_pass=prologue_epilogue_insertion.PrologueEpilogueInsertion,
+                display_name="test-lower-memref-stream-to-snitch-stream",
+                module_pass=test_lower_memref_stream_to_snitch_stream.TestLowerMemrefStreamToSnitchStream,
                 pass_spec=None,
             ),
         )

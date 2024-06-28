@@ -37,7 +37,7 @@ memref_stream.generic {
     memref_stream.yield %acc_new : f64
 }
 
-// CHECK: Operation does not verify: The number of affine maps must match the number of operands
+// CHECK: Operation does not verify: The number of affine maps must match the number of inputs and outputs
 
 // -----
 
