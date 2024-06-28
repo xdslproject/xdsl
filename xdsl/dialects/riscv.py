@@ -2849,7 +2849,7 @@ class GetAnyRegisterOperation(Generic[RDInvT], IRDLOperation, RISCVOp):
 
     res: OpResult = result_def(RDInvT)
 
-    traits = frozenset((RegisterAllocatedMemoryEffect(),))
+    traits = frozenset((Pure(),))
 
     def __init__(
         self,
