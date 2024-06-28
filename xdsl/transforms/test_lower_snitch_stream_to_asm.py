@@ -15,6 +15,7 @@ from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldin
 from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
 
 TEST_LOWER_SNITCH_STREAM_TO_ASM_PASSES: tuple[ModulePass, ...] = (
+    CanonicalizePass(),
     ConvertRiscvScfForToFrepPass(),
     SnitchRegisterAllocation(),
     ConvertSnitchStreamToSnitch(),

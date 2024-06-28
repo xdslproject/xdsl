@@ -197,7 +197,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
             self.available_registers.reserve_register(iter_arg.type)
 
-        for op in loop.body.block.ops_reverse:
+        for op in reversed(loop.body.block.ops):
             self.process_operation(op)
 
         # Unreserve the loop carried variables for allocation outside of the body
@@ -260,7 +260,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
             self.available_registers.reserve_register(iter_arg.type)
 
-        for op in loop.body.block.ops_reverse:
+        for op in reversed(loop.body.block.ops):
             self.process_operation(op)
 
         # Unreserve the loop carried variables for allocation outside of the body
@@ -299,7 +299,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         self.live_ins_per_block = live_ins_per_block(block)
         assert not self.live_ins_per_block[block]
-        for op in block.ops_reverse:
+        for op in reversed(block.ops):
             self.process_operation(op)
 
 
@@ -308,7 +308,7 @@ def _live_ins_per_block(
 ) -> OrderedSet[SSAValue]:
     res = OrderedSet[SSAValue]([])
 
-    for op in block.ops_reverse:
+    for op in reversed(block.ops):
         # Remove values defined in the block
         # We are traversing backwards, so cannot use the value removed here again
         res.difference_update(op.results)
