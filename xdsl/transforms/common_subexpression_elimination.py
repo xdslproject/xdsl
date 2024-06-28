@@ -9,10 +9,10 @@ from xdsl.rewriter import Rewriter
 from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
-    MemoryEffect,
     MemoryEffectKind,
     get_side_effects_recursively,
     is_side_effect_free,
+    only_has_effect,
 )
 from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
@@ -179,10 +179,7 @@ class CSEDriver:
         # Have a close look if the op might have side effects.
         if not is_side_effect_free(op):
             # If we can't be sure or the op has side effects, bail out
-            mem_effects = op.get_trait(MemoryEffect)
-            if (not mem_effects) or (
-                not mem_effects.only_has_effect(op, MemoryEffectKind.READ)
-            ):
+            if not only_has_effect(op, MemoryEffectKind.READ):
                 return
 
             # If the op is only reading, we can still try to CSE it

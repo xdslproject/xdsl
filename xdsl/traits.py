@@ -503,13 +503,12 @@ class MemoryEffect(OpTrait):
         """
         return bool(cls.get_effects(op))
 
-    @final
-    @classmethod
-    def only_has_effect(cls, op: Operation, effect: MemoryEffectKind) -> bool:
-        """
-        Returns if the operation has the given side effects and no others.
-        """
-        return cls.get_effects(op) == {effect}
+
+def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
+    """
+    Returns if the operation has the given side effects and no others.
+    """
+    return get_side_effects_recursively(op) == {effect}
 
 
 def is_side_effect_free(op: Operation) -> bool:
