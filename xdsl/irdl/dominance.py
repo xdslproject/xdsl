@@ -47,13 +47,13 @@ class DominanceInfo:
         while changed:
             changed = False
             for b in blocks:
-                oldie = self._dominance[b].copy()
+                old = self._dominance[b].copy()
                 self._dominance[b] = {b} | (
                     set[Block].intersection(*(self._dominance[p] for p in pred[b]))
                     if pred[b]
                     else set()
                 )
-                if oldie != self._dominance[b]:
+                if old != self._dominance[b]:
                     changed = True
 
     def properly_dominates(self, a: Block, b: Block) -> bool:
