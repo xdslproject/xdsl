@@ -58,7 +58,7 @@ class DominanceInfo:
 
     def strictly_dominates(self, a: Block, b: Block) -> bool:
         """
-        Return if `a` *strictly* ("strictly") dominates `b`.
+        Return if `a` *strictly* dominates `b`.
         i.e., if it dominates `b` and is not `b`.
         """
         if a is b:
@@ -74,8 +74,8 @@ class DominanceInfo:
 
 def _strictly_dominates_block(a: Block, b: Block) -> bool:
     """
-    Returns true if block `a` strictly dominates block `b`, assuming they are in the
-    same region.
+    Returns true if block `a` strictly dominates block `b`(i.e., if it dominates `b` and
+    is not `b`.), assuming they are in the same region.
     """
     if a is b:
         return False
