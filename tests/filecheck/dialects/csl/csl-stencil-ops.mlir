@@ -174,7 +174,7 @@ builtin.module {
 // CHECK-GENERIC-NEXT:   ^0(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>):
 // CHECK-GENERIC-NEXT:     %0 = "stencil.load"(%a) : (!stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-GENERIC-NEXT:     %1 = "tensor.empty"() : () -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:     %2 = "csl_stencil.apply"(%0, %1) <{"topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "num_chunks" = 2 : i64}> ({
+// CHECK-GENERIC-NEXT:     %2 = "csl_stencil.apply"(%0, %1) <{"num_chunks" = 2 : i64, "topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>]}> ({
 // CHECK-GENERIC-NEXT:     ^1(%recv : memref<4xtensor<255xf32>>, %offset : index, %iter_arg : tensor<510xf32>):
 // CHECK-GENERIC-NEXT:       %3 = "csl_stencil.access"(%recv) <{"offset" = #stencil.index[1, 0], "offset_mapping" = #stencil.index[0, 1]}> : (memref<4xtensor<255xf32>>) -> tensor<255xf32>
 // CHECK-GENERIC-NEXT:       %4 = "csl_stencil.access"(%recv) <{"offset" = #stencil.index[-1, 0], "offset_mapping" = #stencil.index[0, 1]}> : (memref<4xtensor<255xf32>>) -> tensor<255xf32>
