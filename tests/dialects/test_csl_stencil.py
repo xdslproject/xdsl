@@ -41,7 +41,6 @@ def test_access_patterns():
         ],
         result_types=[tens_t],
     )
-    # apply = ApplyOp.get((temp, temp), apply_op_region.detach_block(0), [typ])
 
     r0_t0_acc, r0_t1_acc, r1_t0_acc, r1_t1_acc = tuple(apply.get_accesses())
 

@@ -200,28 +200,6 @@ class ApplyOp(IRDLOperation):
 
     traits = frozenset([IsolatedFromAbove(), RecursiveMemoryEffect()])
 
-    # def __init__(
-    #     self,
-    #     communicated_stencil: stencil.TempType[Attribute] | memref.MemRefType[Attribute],
-    #     iter_arg: TensorType[Attribute],
-    #     args: Sequence[Attribute],
-    #
-    #
-    #     args: Sequence[SSAValue] | Sequence[Operation],
-    #     body: Block | Region,
-    #     result_types: Sequence[stencil.TempType[Attribute]],
-    # ):
-    #     assert len(result_types) > 0
-    #
-    #     if isinstance(body, Block):
-    #         body = Region(body)
-    #
-    #     return ApplyOp.build(
-    #         operands=[list(args)],
-    #         regions=[body],
-    #         result_types=[result_types],
-    #     )
-
     def print(self, printer: Printer):
         def print_arg(arg: tuple[SSAValue, Attribute]):
             printer.print(arg[0])
