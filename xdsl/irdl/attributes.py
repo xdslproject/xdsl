@@ -145,7 +145,7 @@ class ParamAttrDef:
                 if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
                     continue
             raise PyRDLAttrDefinitionError(
-                f"{field_name} is not a parameter definition."
+                f"{field_name} is not a parameter definition (is {type(value)})."
             )
 
         if "name" not in clsdict:

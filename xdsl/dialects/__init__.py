@@ -101,6 +101,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return HLS
 
+    def get_dlti():
+        from xdsl.dialects.dlti import DLTI
+
+        return DLTI
+
     def get_hw():
         from xdsl.dialects.hw import HW
 
@@ -289,6 +294,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "comb": get_comb,
         "csl": get_csl,
         "csl_stencil": get_csl_stencil,
+        "dlti": get_dlti,
         "dmp": get_dmp,
         "fir": get_fir,
         "fsm": get_fsm,
