@@ -501,7 +501,8 @@ class MemoryEffect(OpTrait):
         """
         Returns if the operation has any side effects.
         """
-        return bool(cls.get_effects(op))
+        effects = cls.get_effects(op)
+        return (effects is not None) and len(effects) > 0
 
 
 def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
