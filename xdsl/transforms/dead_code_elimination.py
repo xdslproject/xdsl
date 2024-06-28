@@ -12,16 +12,24 @@ from xdsl.traits import (
 
 
 def is_trivially_dead(op: Operation):
-    # Returns if the operation has no observable side-effect.
+    """
+    Returns if the operation has no observable effect.
+    """
     return (
         all(not result.uses for result in op.results)
         and (not op.get_trait(IsTerminator))
         and (not op.get_trait(SymbolOpInterface))
-        and would_be_trivially_dead(op)
+        and result_only_effects(op)
     )
 
 
-def would_be_trivially_dead(rootOp: Operation) -> bool:
+def result_only_effects(rootOp: Operation) -> bool:
+    """
+    Returns if we can ensure the operation would have no observable effect beyond its
+    returned values.
+
+    cf MLIR's WouldOpBeTriviallyDead
+    """
     effects = get_side_effects_recursively(rootOp)
     return effects is not None and all(e == MemoryEffectKind.READ for e in effects)
 
