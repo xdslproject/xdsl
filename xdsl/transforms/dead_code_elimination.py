@@ -39,7 +39,7 @@ def would_be_trivially_dead(rootOp: Operation) -> bool:
 
             # Currently, only read effects are considered potentially dead.
             # MLIR does smarter things with allocated values here.
-            if any(e != MemoryEffectKind.READ for e in effects):
+            if effects is None or any(e != MemoryEffectKind.READ for e in effects):
                 return False
 
             continue

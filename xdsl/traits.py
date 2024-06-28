@@ -484,9 +484,12 @@ class MemoryEffect(OpTrait):
 
     @classmethod
     @abc.abstractmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind] | None:
         """
         Returns the concrete side effects of the operation.
+
+        Return None if the operation cannot conclude - interpreted as if the operation
+        had no MemoryEffect interface in the first place.
         """
         raise NotImplementedError()
 
@@ -496,7 +499,7 @@ class MemoryEffect(OpTrait):
         """
         Returns if the operation has any side effects.
         """
-        return len(cls.get_effects(op)) > 0
+        return bool(cls.get_effects(op))
 
     @final
     @classmethod
@@ -544,7 +547,10 @@ def get_side_effects_recursively(rootOp: Operation) -> set[MemoryEffectKind] | N
             effecting_ops.update(o for r in op.regions for b in r.blocks for o in b.ops)
 
         if effect_interface := op.get_trait(MemoryEffect):
-            effects.update(effect_interface.get_effects(op))
+            op_effects = effect_interface.get_effects(op)
+            if op_effects is None:
+                return None
+            effects.update(op_effects)
 
         elif not recursive:
             return None
