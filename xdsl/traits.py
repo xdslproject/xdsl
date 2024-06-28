@@ -464,11 +464,13 @@ class MemoryEffectKind(Enum):
     Indicates that the operation writes to some resource. A 'write' effect implies only
     mutating a resource, and not any visible dereference or read.
     """
+
     ALLOC = auto()
     """
     Indicates that the operation allocates from some resource. An 'allocate' effect
     implies only allocation of the resource, and not any visible mutation or dereference.
     """
+
     FREE = auto()
     """
     Indicates that the operation frees some resource that has been allocated. A 'free'
