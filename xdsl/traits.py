@@ -257,8 +257,7 @@ class SymbolTable(OpTrait):
             raise VerifyException(
                 "Operations with a 'SymbolTable' must have exactly one block"
             )
-        block = op.regions[0].blocks.first
-        assert block is not None
+        block = op.regions[0].blocks[0]
         met_names: set[StringAttr] = set()
         for o in block.ops:
             if (sym_name := o.get_attr_or_prop("sym_name")) is None:
@@ -331,9 +330,7 @@ class SymbolTable(OpTrait):
         defined_symbol = tbl_trait.lookup_symbol(symbol_table_op, symbol_name)
 
         if defined_symbol is None:
-            first_block = symbol_table_op.regions[0].blocks.first
-            assert first_block is not None
-            first_block.add_op(symbol_op)
+            symbol_table_op.regions[0].blocks[0].add_op(symbol_op)
             return None
         else:
             parent = defined_symbol.parent

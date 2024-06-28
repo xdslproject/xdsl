@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
@@ -107,8 +107,7 @@ class For(IRDLOperation):
             raise VerifyException(
                 "Expected all operands and result pairs to have matching types"
             )
-        entry_block = self.body.blocks.first
-        assert entry_block is not None
+        entry_block: Block = self.body.blocks[0]
         block_arg_types = [IndexType()] + iter_types
         arg_types = [arg.type for arg in entry_block.args]
         if block_arg_types != arg_types:

@@ -20,7 +20,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
@@ -1598,7 +1598,7 @@ class _RegionBlocksReverseIterator(Iterator[Block]):
 
 
 @dataclass
-class RegionBlocks(Reversible[Block], Iterable[Block]):
+class RegionBlocks(Sequence[Block], Reversible[Block]):
     """
     Multi-pass iterable of the blocks in a region.
     """
@@ -1607,6 +1607,28 @@ class RegionBlocks(Reversible[Block], Iterable[Block]):
 
     def __iter__(self):
         return _RegionBlocksIterator(self._region.first_block)
+
+    @overload
+    def __getitem__(self, idx: int) -> Block: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[Block]: ...
+
+    def __getitem__(self, idx: int | slice) -> Block | Sequence[Block]:
+        if isinstance(idx, int):
+            if 0 <= idx:
+                for i, b in enumerate(self):
+                    if i == idx:
+                        return b
+                raise IndexError
+            else:
+                for i, b in enumerate(reversed(self)):
+                    if -1 == i + idx:
+                        return b
+                raise IndexError
+        else:
+            # This is possible but would require a bit of work to handle complex slices
+            raise NotImplementedError("Indexing of RegionBlocks not yet implemented")
 
     def __len__(self):
         i = 0
@@ -1851,12 +1873,10 @@ class Region(IRNode):
         else:
             self.insert_block_before(block, next_block)
 
+    @deprecated("Please use `region.blocks[index]`")
     def block_at_index(self, index: int) -> Block:
         """Returns the block at the index, or raises IndexError"""
-        for i, b in enumerate(self.blocks):
-            if i == index:
-                return b
-        raise IndexError
+        return self.blocks[index]
 
     def insert_block(self, blocks: Block | Iterable[Block], index: int) -> None:
         """
@@ -1887,7 +1907,7 @@ class Region(IRNode):
         Returns the detached block.
         """
         if isinstance(block, int):
-            block = self.block_at_index(block)
+            block = self.blocks[block]
         else:
             if block.parent is not self:
                 raise Exception("Block is not a child of the region.")

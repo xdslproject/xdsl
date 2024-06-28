@@ -51,8 +51,7 @@ class PrologueEpilogueInsertion(ModulePass):
             return self.flen
 
         # Build the prologue at the beginning of the function.
-        assert func.body.blocks.first is not None
-        builder = Builder.at_start(func.body.blocks.first)
+        builder = Builder.at_start(func.body.blocks[0])
         sp_register = builder.insert(riscv.GetRegisterOp(Registers.SP))
         stack_size = sum(get_register_size(r) for r in used_callee_preserved_registers)
         builder.insert(riscv.AddiOp(sp_register, -stack_size, rd=Registers.SP))

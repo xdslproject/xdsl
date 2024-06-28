@@ -739,21 +739,17 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     assert isinstance(program, ModuleOp)
 
     assert program.is_structurally_equivalent(program.regions[0]) is False
-    assert program.regions[0].blocks.first is not None
-    assert program.is_structurally_equivalent(program.regions[0].blocks.first) is False
+    assert program.is_structurally_equivalent(program.regions[0].blocks[0]) is False
     assert program.regions[0].is_structurally_equivalent(program) is False
-    assert program.regions[0].blocks.first.is_structurally_equivalent(program) is False
+    assert program.regions[0].blocks[0].is_structurally_equivalent(program) is False
 
     func_op = program.ops.first
     assert func_op is not None
 
-    block = func_op.regions[0].blocks.first
-    assert block is not None
+    block = func_op.regions[0].blocks[0]
     ops = list(block.ops)
     assert not ops[0].is_structurally_equivalent(ops[1])
-    last_block = func_op.regions[0].blocks.last
-    assert last_block is not None
-    assert not block.is_structurally_equivalent(last_block)
+    assert not block.is_structurally_equivalent(func_op.regions[0].blocks[1])
 
 
 def test_descriptions():

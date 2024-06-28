@@ -526,10 +526,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # In our case, if statement never returns a value and therefore we can
         # simply yield nothing. It is the responsibility of subsequent passes to
         # ensure SSA-form of IR and that values are yielded correctly.
-        assert true_region.blocks.last is not None
-        assert false_region.blocks.last is not None
-        true_region.blocks.last.add_op(scf.Yield())
-        false_region.blocks.last.add_op(scf.Yield())
+        true_region.blocks[-1].add_op(scf.Yield())
+        false_region.blocks[-1].add_op(scf.Yield())
         op = scf.If(cond, [], true_region, false_region)
 
         # Reset insertion point and insert a new operation.

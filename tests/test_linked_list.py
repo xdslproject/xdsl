@@ -1,3 +1,5 @@
+import pytest
+
 from xdsl.dialects.arith import Constant
 from xdsl.dialects.builtin import i32
 from xdsl.ir import Block, Region
@@ -145,3 +147,31 @@ def test_region_insert():
     assert e.prev_block is d
 
     assert list(region.blocks) == [a, b, c, d, e]
+
+
+def test_region_indexing():
+    a = Block((Constant.from_int_and_width(1, i32),))
+    b = Block((Constant.from_int_and_width(2, i32),))
+    c = Block((Constant.from_int_and_width(3, i32),))
+    d = Block((Constant.from_int_and_width(4, i32),))
+    e = Block((Constant.from_int_and_width(5, i32),))
+
+    region = Region((a, b, c, d, e))
+
+    assert region.blocks[0] == a
+    assert region.blocks[1] == b
+    assert region.blocks[2] == c
+    assert region.blocks[3] == d
+    assert region.blocks[4] == e
+
+    with pytest.raises(IndexError):
+        region.blocks[5]
+
+    assert region.blocks[-1] == e
+    assert region.blocks[-2] == d
+    assert region.blocks[-3] == c
+    assert region.blocks[-4] == b
+    assert region.blocks[-5] == a
+
+    with pytest.raises(IndexError):
+        region.blocks[-6]

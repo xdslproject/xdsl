@@ -145,7 +145,7 @@ def test_block_cast_utils():
     target_op = next(filter(lambda op: isinstance(op, test.TestOp), input.walk()))
     assert target_op is not None
     rewriter = PatternRewriter(target_op)
-    target_block = target_op.regions[0].blocks.first
+    target_block = target_op.regions[0].blocks[0]
     assert target_block is not None
 
     cast_block_args_to_regs(target_block, rewriter)
