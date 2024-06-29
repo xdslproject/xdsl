@@ -44,23 +44,23 @@ class OpInserter:
         Sets the insertion point to the last block in the last region of the
         operation.
         """
-        if len(op.regions) == 0:
+        if not op.regions:
             raise FrontendProgramException(
                 f"Trying to set the insertion point for operation '{op.name}' with no regions."
             )
-        if len(op.regions[-1].blocks) == 0:
+        if (last_block := op.regions[-1].blocks.last) is None:
             raise FrontendProgramException(
                 f"Trying to set the insertion point for operation '{op.name}' with no blocks in its last region."
             )
-        self.insertion_point = op.regions[-1].blocks[-1]
+        self.insertion_point = last_block
 
     def set_insertion_point_from_region(self, region: Region) -> None:
         """Sets the insertion point to the last block in this region."""
-        if len(region.blocks) == 0:
+        if (last_block := region.blocks.last) is None:
             raise FrontendProgramException(
                 "Trying to set the insertion point from the region without blocks."
             )
-        self.insertion_point = region.blocks[-1]
+        self.insertion_point = last_block
 
     def set_insertion_point_from_block(self, block: Block) -> None:
         """Sets the insertion point to this block."""

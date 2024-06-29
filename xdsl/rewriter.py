@@ -286,7 +286,7 @@ class Rewriter:
         for block in region.blocks:
             block.parent = None
             new_region.add_block(block)
-        region.blocks = []
+        region._blocks = []  # pyright: ignore[reportPrivateUsage]
         return new_region
 
     @staticmethod
@@ -297,7 +297,7 @@ class Rewriter:
         for block in region.blocks:
             block.parent = None
         target.insert_block(region.blocks, pos)
-        region.blocks = []
+        region._blocks = []  # pyright: ignore[reportPrivateUsage]
 
     @staticmethod
     def inline_region_before(region: Region, target: Block) -> None:

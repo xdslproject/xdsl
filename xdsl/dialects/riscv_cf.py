@@ -130,8 +130,10 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
         if parent_region is None:
             return
 
-        this_index = parent_region.blocks.index(parent_block)
-        else_index = parent_region.blocks.index(self.else_block)
+        # TODO: use next_block to check this instead
+        blocks = tuple(parent_region.blocks)
+        this_index = blocks.index(parent_block)
+        else_index = blocks.index(self.else_block)
 
         if this_index + 1 != else_index:
             raise VerifyException(
