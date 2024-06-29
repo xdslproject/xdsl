@@ -32,7 +32,7 @@ def result_only_effects(rootOp: Operation) -> bool:
     https://mlir.llvm.org/doxygen/namespacemlir.html#a655db45ed8c23d04d5ed5ee0abe041ad
     """
     effects = get_effects(rootOp)
-    return effects is not None and all(e == MemoryEffectKind.READ for e in effects)
+    return effects is not None and all(e.kind == MemoryEffectKind.READ for e in effects)
 
 
 class RemoveUnusedOperations(RewritePattern):

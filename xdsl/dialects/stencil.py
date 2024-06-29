@@ -58,6 +58,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    EffectInstance,
     HasAncestor,
     HasCanonicalisationPatternsTrait,
     HasParent,
@@ -427,9 +428,9 @@ class ApplyMemoryEffect(RecursiveMemoryEffect):
         effects = super().get_effects(op)
         if effects is not None:
             if len(cast(ApplyOp, op).dest) > 0:
-                effects.add(MemoryEffectKind.WRITE)
+                effects.add(EffectInstance(MemoryEffectKind.WRITE))
             if any(isinstance(o.type, FieldType) for o in op.operands):
-                effects.add(MemoryEffectKind.READ)
+                effects.add(EffectInstance(MemoryEffectKind.READ))
         return effects
 
 
