@@ -10,7 +10,7 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     MemoryEffectKind,
-    get_side_effects_recursively,
+    get_effects,
     is_side_effect_free,
     only_has_effect,
 )
@@ -109,7 +109,7 @@ def has_other_side_effecting_op_in_between(
     assert from_op.parent is to_op.parent
     next_op = from_op
     while next_op is not to_op:
-        effects = get_side_effects_recursively(next_op)
+        effects = get_effects(next_op)
         if effects is None or (MemoryEffectKind.WRITE in effects):
             return True
         next_op = next_op.next_op

@@ -7,7 +7,7 @@ from xdsl.traits import (
     IsTerminator,
     MemoryEffectKind,
     SymbolOpInterface,
-    get_side_effects_recursively,
+    get_effects,
 )
 
 
@@ -30,7 +30,7 @@ def result_only_effects(rootOp: Operation) -> bool:
 
     cf MLIR's WouldOpBeTriviallyDead
     """
-    effects = get_side_effects_recursively(rootOp)
+    effects = get_effects(rootOp)
     return effects is not None and all(e == MemoryEffectKind.READ for e in effects)
 
 

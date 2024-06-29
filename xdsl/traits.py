@@ -509,42 +509,32 @@ def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
     """
     Returns if the operation has the given side effects and no others.
     """
-    return get_side_effects_recursively(op) == {effect}
+    return get_effects(op) == {effect}
 
 
 def is_side_effect_free(op: Operation) -> bool:
     """
     Boilerplate helper to check if a generic operation is side effect free for sure.
     """
-    return get_side_effects_recursively(op) == set()
+    return get_effects(op) == set()
 
 
-def get_side_effects_recursively(rootOp: Operation) -> set[MemoryEffectKind] | None:
+def get_effects(op: Operation) -> set[MemoryEffectKind] | None:
     """
     Helper to get known side effects of an operation, including recursive effects.
     None means that the operation has unknown effects, for safety.
     """
+
+    effect_interfaces = op.get_traits_of_type(MemoryEffect)
+    if not effect_interfaces:
+        return None
+
     effects = set[MemoryEffectKind]()
-    effecting_ops = {rootOp}
-    while effecting_ops:
-        op = effecting_ops.pop()
-
-        recursive = op.get_trait(RecursiveMemoryEffect)
-
-        if recursive:
-            effecting_ops.update(o for r in op.regions for b in r.blocks for o in b.ops)
-
-        if effect_interfaces := op.get_traits_of_type(MemoryEffect):
-            op_effects = set[MemoryEffectKind]()
-            for it in effect_interfaces:
-                it_effects = it.get_effects(op)
-                if it_effects is None:
-                    return None
-                op_effects.update(it_effects)
-            effects.update(op_effects)
-
-        elif not recursive:
+    for it in op.get_traits_of_type(MemoryEffect):
+        it_effects = it.get_effects(op)
+        if it_effects is None:
             return None
+        effects.update(it_effects)
 
     return effects
 
@@ -579,11 +569,23 @@ class MemoryWriteEffect(MemoryEffect):
         return {MemoryEffectKind.WRITE}
 
 
-class RecursiveMemoryEffect(OpTrait):
+class RecursiveMemoryEffect(MemoryEffect):
     """
     A trait that signals that an operation has the side effects of its contained
     operations.
     """
+
+    @classmethod
+    def get_effects(cls, op: Operation):
+        effects = set[MemoryEffectKind]()
+        for r in op.regions:
+            for b in r.blocks:
+                for child_op in b.ops:
+                    child_effects = get_effects(child_op)
+                    if child_effects is None:
+                        return None
+                    effects.update(child_effects)
+        return effects
 
 
 class Pure(NoMemoryEffect):
