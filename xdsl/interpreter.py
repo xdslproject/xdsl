@@ -641,7 +641,7 @@ class Interpreter:
         body = interface.get_callable_region(op)
 
         # TODO: make this an interface that exposes `is_external_decl` or similar
-        if not body.blocks or not body.blocks[0].ops:
+        if (first_block := body.blocks.first) is None or not first_block.ops:
             results = self._impls.call_external(self, name, op, inputs)
         else:
             results = self.run_ssacfg_region(body, inputs, name)
@@ -661,7 +661,7 @@ class Interpreter:
             return results
 
         scope_count = 0
-        block = region.blocks[0]
+        block = region.blocks.first
 
         while block is not None:
             self.push_scope(name)

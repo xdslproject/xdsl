@@ -328,6 +328,18 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm
 
+    def get_test_lower_memref_stream_to_snitch_stream():
+        from xdsl.transforms import test_lower_memref_stream_to_snitch_stream
+
+        return (
+            test_lower_memref_stream_to_snitch_stream.TestLowerMemrefStreamToSnitchStream
+        )
+
+    def get_test_optimise_memref_stream():
+        from xdsl.transforms import test_optimise_memref_stream
+
+        return test_optimise_memref_stream.TestOptimiseMemrefStream
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
@@ -391,6 +403,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-to-csl-stencil": get_stencil_to_csl_stencil,
         "stencil-unroll": get_stencil_unroll,
         "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
+        "test-lower-memref-stream-to-snitch-stream": get_test_lower_memref_stream_to_snitch_stream,
+        "test-optimise-memref-stream": get_test_optimise_memref_stream,
     }
 
 

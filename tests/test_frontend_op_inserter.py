@@ -48,8 +48,7 @@ def test_raises_exception_on_op_with_no_blocks_II():
 
 
 def test_inserts_ops():
-    region = Region([Block(), Block()])
-    inserter = OpInserter(region.blocks[0])
+    inserter = OpInserter(Block())
 
     a = Constant.from_int_and_width(1, i32)
     b = Constant.from_int_and_width(2, i32)
