@@ -130,12 +130,7 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
         if parent_region is None:
             return
 
-        # TODO: use next_block to check this instead
-        blocks = tuple(parent_region.blocks)
-        this_index = blocks.index(parent_block)
-        else_index = blocks.index(self.else_block)
-
-        if this_index + 1 != else_index:
+        if parent_block.next_block is not self.else_block:
             raise VerifyException(
                 "riscv_cf branch op else block must be immediately after op"
             )
