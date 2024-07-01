@@ -345,7 +345,7 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVOp(IRDLOperation, ABC):
+class RISCVAsmOperation(IRDLOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
@@ -434,7 +434,7 @@ AssemblyInstructionArg: TypeAlias = (
 )
 
 
-class RISCVInstruction(RISCVOp, ABC):
+class RISCVInstruction(RISCVAsmOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing. Must
     represent an instruction in the RISC-V instruction set, and have the following format:
@@ -528,7 +528,7 @@ def _assembly_line(
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
     for op in module.body.walk():
-        assert isinstance(op, RISCVOp), f"{op}"
+        assert isinstance(op, RISCVAsmOperation), f"{op}"
         asm = op.assembly_line()
         if asm is not None:
             print(asm, file=output)
@@ -2512,7 +2512,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(RISCVOp):
+class LabelOp(RISCVAsmOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -2567,7 +2567,7 @@ class LabelOp(RISCVOp):
 
 
 @irdl_op_definition
-class DirectiveOp(RISCVOp):
+class DirectiveOp(RISCVAsmOperation):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
@@ -2634,7 +2634,7 @@ class DirectiveOp(RISCVOp):
 
 
 @irdl_op_definition
-class AssemblySectionOp(RISCVOp):
+class AssemblySectionOp(RISCVAsmOperation):
     """
     The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
     with the scope of a section.
@@ -2752,7 +2752,7 @@ class CustomAssemblyInstructionOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVOp):
+class CommentOp(RISCVAsmOperation):
     name = "riscv.comment"
     comment: StringAttr = attr_def(StringAttr)
 
@@ -2814,7 +2814,7 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
         )
 
 
-class GetAnyRegisterOperation(Generic[RDInvT], RISCVOp):
+class GetAnyRegisterOperation(Generic[RDInvT], RISCVAsmOperation):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
     is useful for bridging the RISC-V convention that stores the result of function calls

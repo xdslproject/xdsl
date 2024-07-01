@@ -304,7 +304,7 @@ class BgeuOp(ConditionalBranchOperation):
 
 
 @irdl_op_definition
-class BranchOp(riscv.RISCVOp):
+class BranchOp(riscv.RISCVAsmOperation):
     """
     Branches to a different block, which must follow this operation's block in the parent
     region. Is not printed in assembly.

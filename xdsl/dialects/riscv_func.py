@@ -160,7 +160,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(riscv.RISCVOp):
+class FuncOp(riscv.RISCVAsmOperation):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"

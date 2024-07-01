@@ -20,8 +20,8 @@ from xdsl.dialects.riscv import (
     RdRsImmIntegerOperation,
     RdRsRsOperation,
     Registers,
+    RISCVAsmOperation,
     RISCVInstruction,
-    RISCVOp,
     UImm5Attr,
 )
 from xdsl.dialects.utils import (
@@ -113,7 +113,7 @@ class ScfgwiOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
+class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
     name = "riscv_snitch.frep_yield"
 
     traits = traits_def(
@@ -125,7 +125,7 @@ class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
 
 
 @irdl_op_definition
-class ReadOp(stream.ReadOperation, RISCVOp):
+class ReadOp(stream.ReadOperation, RISCVAsmOperation):
     name = "riscv_snitch.read"
 
     def assembly_line(self) -> str | None:
@@ -133,7 +133,7 @@ class ReadOp(stream.ReadOperation, RISCVOp):
 
 
 @irdl_op_definition
-class WriteOp(stream.WriteOperation, RISCVOp):
+class WriteOp(stream.WriteOperation, RISCVAsmOperation):
     name = "riscv_snitch.write"
 
     def assembly_line(self) -> str | None:
@@ -426,7 +426,7 @@ class FrepInner(FRepOperation):
 
 
 @irdl_op_definition
-class GetStreamOp(RISCVOp):
+class GetStreamOp(RISCVAsmOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(stream.StreamType[riscv.FloatRegisterType])
