@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.6.10"
+__generated_with = "0.6.23"
 app = marimo.App()
 
 
@@ -34,7 +34,7 @@ def __(mo):
 
 @app.cell
 def __(mo, rank):
-    shape = list(range(2, 2 + rank.value))
+    shape = tuple(range(2, 2 + rank.value))
 
     mo.md(
         f"""
@@ -112,20 +112,92 @@ def __(mo, shape):
 
 @app.cell
 def __(mo):
+    # As of version 0.6.14, something breaks when importing from xDSL in multiple cells
+    # https://github.com/marimo-team/marimo/issues/1699
+
+    from xdsl.backend.riscv.lowering import (
+        convert_arith_to_riscv,
+        convert_func_to_riscv_func,
+        convert_memref_to_riscv,
+        convert_scf_to_riscv_scf,
+    )
+    from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
+        ConvertRiscvScfToRiscvCfPass,
+    )
+    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
+        ConvertSnitchStreamToSnitch,
+    )
+    from xdsl.context import MLContext
+    from xdsl.dialects.riscv import riscv_code
+    from xdsl.frontend.onnx.ir_builder import build_module
     from xdsl.ir import Attribute, SSAValue
+    from xdsl.passes import PipelinePass
+    from xdsl.tools.command_line_tool import get_all_dialects
+    from xdsl.transforms import (
+        arith_add_fastmath,
+        convert_linalg_to_memref_stream,
+        convert_memref_stream_to_loops,
+        convert_memref_stream_to_snitch_stream,
+        convert_riscv_scf_for_to_frep,
+        dead_code_elimination,
+        loop_hoist_memref,
+        lower_affine,
+        memref_streamify,
+        reconcile_unrealized_casts,
+        test_lower_snitch_stream_to_asm,
+    )
+    from xdsl.transforms.canonicalize import CanonicalizePass
+    from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
+    from xdsl.transforms.lower_snitch import LowerSnitchPass
+    from xdsl.transforms.mlir_opt import MLIROptPass
+    from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+    from xdsl.transforms.riscv_scf_loop_range_folding import (
+        RiscvScfLoopRangeFoldingPass,
+    )
+    from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
 
     mo.md(
         """
     We then convert the ONNX Graph to the xDSL representation, in the onnx dialect.
     """
     )
-    return Attribute, SSAValue
+    return (
+        Attribute,
+        CanonicalizePass,
+        ConvertOnnxToLinalgPass,
+        ConvertRiscvScfToRiscvCfPass,
+        ConvertSnitchStreamToSnitch,
+        LowerSnitchPass,
+        MLContext,
+        MLIROptPass,
+        PipelinePass,
+        RISCVRegisterAllocation,
+        RiscvScfLoopRangeFoldingPass,
+        SSAValue,
+        SnitchRegisterAllocation,
+        arith_add_fastmath,
+        build_module,
+        convert_arith_to_riscv,
+        convert_func_to_riscv_func,
+        convert_linalg_to_memref_stream,
+        convert_memref_stream_to_loops,
+        convert_memref_stream_to_snitch_stream,
+        convert_memref_to_riscv,
+        convert_riscv_scf_for_to_frep,
+        convert_scf_to_riscv_scf,
+        dead_code_elimination,
+        get_all_dialects,
+        loop_hoist_memref,
+        lower_affine,
+        memref_streamify,
+        reconcile_unrealized_casts,
+        riscv_code,
+        test_lower_snitch_stream_to_asm,
+    )
 
 
 @app.cell
-def __(mo, model_def):
-    from xdsl.frontend.onnx.ir_builder import build_module
-
+def __(build_module, mo, model_def):
     init_module = build_module(model_def.graph).clone()
 
     print(init_module)
@@ -135,15 +207,17 @@ def __(mo, model_def):
     Here is the same function, it takes two `tensor` values of our chosen shape, passes them as operands to the `onnx.Add` operation, and returns it.
     """
     )
-    return build_module, init_module
+    return init_module,
 
 
 @app.cell
-def __(init_module, mo):
-    from xdsl.context import MLContext
-    from xdsl.tools.command_line_tool import get_all_dialects
-    from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
-
+def __(
+    ConvertOnnxToLinalgPass,
+    MLContext,
+    get_all_dialects,
+    init_module,
+    mo,
+):
     ctx = MLContext()
 
     for dialect_name, dialect_factory in get_all_dialects().items():
@@ -160,21 +234,11 @@ def __(init_module, mo):
     We can use a pass implemented in xDSL to convert the ONNX operations to builtin operations, here we can use the `tensor.empty` op to create our output buffer, and `linalg.add` to represent the addition in destination-passing style.
     """
     )
-    return (
-        ConvertOnnxToLinalgPass,
-        MLContext,
-        ctx,
-        dialect_factory,
-        dialect_name,
-        get_all_dialects,
-        linalg_module,
-    )
+    return ctx, dialect_factory, dialect_name, linalg_module
 
 
 @app.cell
-def __(ctx, linalg_module, mo):
-    from xdsl.transforms.mlir_opt import MLIROptPass
-
+def __(MLIROptPass, ctx, linalg_module, mo):
     generalized_module = linalg_module.clone()
 
     MLIROptPass(generic=False, arguments=["--linalg-generalize-named-ops"]).apply(
@@ -188,7 +252,7 @@ def __(ctx, linalg_module, mo):
     We can also call into MLIR, here to convert `linalg.add` to `linalg.generic`, a representation of Einstein summation.
     """
     )
-    return MLIROptPass, generalized_module
+    return generalized_module,
 
 
 @app.cell
@@ -225,16 +289,16 @@ def __(MLIROptPass, bufferized_module, ctx):
 
 
 @app.cell
-def __(ctx, scf_module):
-    from xdsl.backend.riscv.lowering import (
-        convert_arith_to_riscv,
-        convert_func_to_riscv_func,
-        convert_memref_to_riscv,
-        convert_scf_to_riscv_scf,
-    )
-    from xdsl.passes import PipelinePass
-    from xdsl.transforms import reconcile_unrealized_casts
-
+def __(
+    PipelinePass,
+    convert_arith_to_riscv,
+    convert_func_to_riscv_func,
+    convert_memref_to_riscv,
+    convert_scf_to_riscv_scf,
+    ctx,
+    reconcile_unrealized_casts,
+    scf_module,
+):
     riscv_module = scf_module.clone()
 
     lower_to_riscv = PipelinePass(
@@ -248,31 +312,17 @@ def __(ctx, scf_module):
     ).apply(ctx, riscv_module)
 
     print(riscv_module)
-    return (
-        PipelinePass,
-        convert_arith_to_riscv,
-        convert_func_to_riscv_func,
-        convert_memref_to_riscv,
-        convert_scf_to_riscv_scf,
-        lower_to_riscv,
-        reconcile_unrealized_casts,
-        riscv_module,
-    )
+    return lower_to_riscv, riscv_module
 
 
 @app.cell
-def __(PipelinePass, ctx, riscv_module):
-    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
-        ConvertSnitchStreamToSnitch,
-    )
-    from xdsl.transforms.canonicalize import CanonicalizePass
-    from xdsl.transforms.lower_snitch import LowerSnitchPass
-    from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-    from xdsl.transforms.riscv_scf_loop_range_folding import (
-        RiscvScfLoopRangeFoldingPass,
-    )
-    from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
-
+def __(
+    CanonicalizePass,
+    PipelinePass,
+    RISCVRegisterAllocation,
+    ctx,
+    riscv_module,
+):
     regalloc_module = riscv_module.clone()
 
     PipelinePass(
@@ -283,31 +333,23 @@ def __(PipelinePass, ctx, riscv_module):
     ).apply(ctx, regalloc_module)
 
     print(regalloc_module)
-    return (
-        CanonicalizePass,
-        ConvertSnitchStreamToSnitch,
-        LowerSnitchPass,
-        RISCVRegisterAllocation,
-        RiscvScfLoopRangeFoldingPass,
-        SnitchRegisterAllocation,
-        regalloc_module,
-    )
+    return regalloc_module,
 
 
 @app.cell
-def __(CanonicalizePass, ctx, regalloc_module):
-    from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
-        ConvertRiscvScfToRiscvCfPass,
-    )
-    from xdsl.dialects.riscv import riscv_code
-
+def __(
+    CanonicalizePass,
+    ConvertRiscvScfToRiscvCfPass,
+    ctx,
+    regalloc_module,
+):
     assembly_module = regalloc_module.clone()
 
     ConvertRiscvScfToRiscvCfPass().apply(ctx, assembly_module)
     CanonicalizePass().apply(ctx, assembly_module)
 
     print(assembly_module)
-    return ConvertRiscvScfToRiscvCfPass, assembly_module, riscv_code
+    return assembly_module,
 
 
 @app.cell
@@ -328,27 +370,24 @@ def __(assembly_module, mo, riscv_code):
 def __(
     CanonicalizePass,
     PipelinePass,
+    arith_add_fastmath,
     bufferized_module,
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
+    convert_linalg_to_memref_stream,
+    convert_memref_stream_to_loops,
+    convert_memref_stream_to_snitch_stream,
     convert_memref_to_riscv,
+    convert_riscv_scf_for_to_frep,
     convert_scf_to_riscv_scf,
     ctx,
+    dead_code_elimination,
+    loop_hoist_memref,
+    lower_affine,
+    memref_streamify,
     mo,
     reconcile_unrealized_casts,
 ):
-    from xdsl.transforms import (
-        arith_add_fastmath,
-        convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
-        convert_riscv_scf_for_to_frep,
-        dead_code_elimination,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
-    )
-
     snitch_stream_module = bufferized_module.clone()
 
     pass_pipeline = PipelinePass(
@@ -382,25 +421,17 @@ def __(
     xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation to represent a high-level, structured, but Snitch-specific representation of the code:
     """
     )
-    return (
-        arith_add_fastmath,
-        convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
-        convert_riscv_scf_for_to_frep,
-        dead_code_elimination,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
-        pass_pipeline,
-        snitch_stream_module,
-    )
+    return pass_pipeline, snitch_stream_module
 
 
 @app.cell
-def __(ctx, mo, riscv_code, snitch_stream_module):
-    from xdsl.transforms import test_lower_snitch_stream_to_asm
-
+def __(
+    ctx,
+    mo,
+    riscv_code,
+    snitch_stream_module,
+    test_lower_snitch_stream_to_asm,
+):
     snitch_asm_module = snitch_stream_module.clone()
 
     test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm().apply(
@@ -414,7 +445,7 @@ def __(ctx, mo, riscv_code, snitch_stream_module):
     We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:
     """
     )
-    return snitch_asm_module, test_lower_snitch_stream_to_asm
+    return snitch_asm_module,
 
 
 if __name__ == "__main__":
