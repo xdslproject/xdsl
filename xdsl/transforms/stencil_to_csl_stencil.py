@@ -351,8 +351,8 @@ def get_op_split(
         return a, b + rem
 
     # fallback
-    # todo should `stencil.return` always be in second block?
-    return ops, []
+    # always place `stencil.return` in second block?
+    return ops[:-1], [ops[-1]]
 
 
 @dataclass(frozen=True)
@@ -462,7 +462,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
         # after region split, check which block args (from the old ops block) are being accessed in each of the new regions
         # ignore accesses block args which already are part of the region's required signature
-        chunk_reduce_referenced_block_args = sorted(
+        chunk_reduce_used_block_args = sorted(
             set(
                 x
                 for o in chunk_reduce_ops
@@ -471,7 +471,7 @@ class ConvertApplyOpPattern(RewritePattern):
             ),
             key=lambda b: b.index,
         )
-        post_process_referenced_block_args = sorted(
+        post_process_used_block_args = sorted(
             set(
                 x
                 for o in post_process_ops
@@ -496,7 +496,7 @@ class ConvertApplyOpPattern(RewritePattern):
             # required arg 2: %iter_arg
             iter_arg.results[0].type,
             # optional args: as needed by the ops
-            *[a.type for a in chunk_reduce_referenced_block_args],
+            *[a.type for a in chunk_reduce_used_block_args],
         ]
         post_process_args = [
             # required arg 0: stencil.temp to access own data
@@ -504,7 +504,7 @@ class ConvertApplyOpPattern(RewritePattern):
             # required arg 1: %iter_arg
             iter_arg.results[0].type,
             # optional args: as needed by the ops
-            *[a.type for a in post_process_referenced_block_args],
+            *[a.type for a in post_process_used_block_args],
         ]
 
         # set up two regions
@@ -514,11 +514,11 @@ class ConvertApplyOpPattern(RewritePattern):
         # translate old to new block arg index for optional args
         chunk_reduce_oprnd_table = dict[Operand, Operand](
             (old, chunk_reduce.block.args[idx])
-            for idx, old in enumerate(chunk_reduce_referenced_block_args, start=3)
+            for idx, old in enumerate(chunk_reduce_used_block_args, start=3)
         )
         post_process_oprnd_table = dict[Operand, Operand](
             (old, post_process.block.args[idx])
-            for idx, old in enumerate(post_process_referenced_block_args, start=2)
+            for idx, old in enumerate(post_process_used_block_args, start=2)
         )
 
         # add translation from old to new arg index for non-optional args - note, access to iter_arg must be handled separately below
@@ -567,8 +567,8 @@ class ConvertApplyOpPattern(RewritePattern):
                 operands=[
                     communicated_stencil_op_arg,
                     iter_arg,
-                    chunk_reduce_referenced_block_args
-                    + post_process_referenced_block_args,
+                    [op.operands[a.index] for a in chunk_reduce_used_block_args]
+                    + [op.operands[a.index] for a in post_process_used_block_args],
                 ],
                 properties={
                     "swaps": prefetch.op.swaps,
