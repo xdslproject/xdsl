@@ -7,7 +7,8 @@ from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
-    IntAttr,
+    IndexType,
+    IntegerAttr,
     MemRefType,
     ModuleOp,
 )
@@ -39,7 +40,8 @@ class GeneralizeFillPattern(RewritePattern):
         memref_type = cast(MemRefType[Attribute], memref_type)
 
         shape = memref_type.get_shape()
-        ubs = ArrayAttr(IntAttr(ub) for ub in shape)
+        index = IndexType()
+        ubs = ArrayAttr(IntegerAttr(ub, index) for ub in shape)
 
         rewriter.replace_matched_op(
             memref_stream.GenericOp(

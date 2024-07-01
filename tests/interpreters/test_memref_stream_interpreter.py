@@ -4,7 +4,9 @@ from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
     Float32Type,
+    IndexType,
     IntAttr,
+    IntegerAttr,
     MemRefType,
     ModuleOp,
     i32,
@@ -17,6 +19,12 @@ from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue
+
+indextype = IndexType()
+
+
+def index(value: int) -> IntegerAttr[IndexType]:
+    return IntegerAttr(value, indextype)
 
 
 def test_memref_stream_generic():
@@ -54,7 +62,7 @@ def test_memref_stream_generic():
                 memref_stream.IteratorTypeAttr.parallel(),
             )
         ),
-        ArrayAttr((IntAttr(2), IntAttr(3))),
+        ArrayAttr((index(2), index(3))),
         ArrayAttr(()),
     )
 
@@ -108,7 +116,7 @@ def test_memref_stream_generic_scalar():
                 memref_stream.IteratorTypeAttr.parallel(),
             )
         ),
-        ArrayAttr((IntAttr(2), IntAttr(3))),
+        ArrayAttr((index(2), index(3))),
         ArrayAttr(()),
     )
 
@@ -148,7 +156,7 @@ def test_memref_stream_generic_reduction():
             )
         ),
         ArrayAttr((memref_stream.IteratorTypeAttr.reduction(),)),
-        ArrayAttr((IntAttr(3),)),
+        ArrayAttr((index(3),)),
         ArrayAttr(()),
     )
 
@@ -197,7 +205,7 @@ def test_memref_stream_generic_imperfect_nesting():
                 memref_stream.IteratorTypeAttr.reduction(),
             )
         ),
-        ArrayAttr((IntAttr(3), IntAttr(3), IntAttr(2))),
+        ArrayAttr((index(3), index(3), index(2))),
         ArrayAttr(()),
     )
 
@@ -248,7 +256,7 @@ def test_memref_stream_generic_reduction_with_initial_value():
                 memref_stream.IteratorTypeAttr.reduction(),
             )
         ),
-        ArrayAttr((IntAttr(3), IntAttr(3), IntAttr(2))),
+        ArrayAttr((index(3), index(3), index(2))),
         ArrayAttr((IntAttr(0),)),
     )
 

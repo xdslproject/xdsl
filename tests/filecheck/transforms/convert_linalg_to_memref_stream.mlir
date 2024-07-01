@@ -44,7 +44,7 @@ linalg.generic {
     linalg.yield %acc_new : f64
 }
 
-// CHECK-NEXT:    memref_stream.generic {bounds = [#builtin.int<2>, #builtin.int<3>, #builtin.int<4>], indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d2)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%D, %E : memref<2x3xf64>, memref<3x4xf64>) outs(%F : memref<2x4xf64>) {
+// CHECK-NEXT:    memref_stream.generic {bounds = [2, 3, 4], indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d1)>, affine_map<(d0, d1, d2) -> (d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d2)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%D, %E : memref<2x3xf64>, memref<3x4xf64>) outs(%F : memref<2x4xf64>) {
 // CHECK-NEXT:    ^1(%d : f64, %e : f64, %acc_old_1 : f64):
 // CHECK-NEXT:      %prod_1 = arith.mulf %d, %e : f64
 // CHECK-NEXT:      %acc_new_1 = arith.addf %acc_old_1, %prod_1 : f64
@@ -65,7 +65,7 @@ linalg.generic {
     linalg.yield %acc_new : f64
 }
 
-// CHECK-NEXT:    memref_stream.generic {bounds = [#builtin.int<3>, #builtin.int<2>], indexing_maps = [affine_map<(d0, d1) -> ((d0 + d1))>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0)>], iterator_types = ["parallel", "reduction"]} ins(%G, %H : memref<4xf64>, memref<2xf64>) outs(%I : memref<3xf64>) {
+// CHECK-NEXT:    memref_stream.generic {bounds = [3, 2], indexing_maps = [affine_map<(d0, d1) -> ((d0 + d1))>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0)>], iterator_types = ["parallel", "reduction"]} ins(%G, %H : memref<4xf64>, memref<2xf64>) outs(%I : memref<3xf64>) {
 // CHECK-NEXT:    ^2(%g : f64, %h : f64, %acc_old_2 : f64):
 // CHECK-NEXT:      %prod_2 = arith.mulf %g, %h : f64
 // CHECK-NEXT:      %acc_new_2 = arith.addf %acc_old_2, %prod_2 : f64

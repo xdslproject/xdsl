@@ -123,7 +123,7 @@ class StreamOpLowering(RewritePattern):
         shapes = tuple(operand_type.get_shape() for operand_type in operand_types)
         stride_patterns = tuple(
             snitch_stream.StridePattern(
-                pattern.ub,
+                ArrayAttr(ub.value for ub in pattern.ub),
                 ArrayAttr(
                     IntAttr(stride)
                     for stride in strides_for_affine_map(

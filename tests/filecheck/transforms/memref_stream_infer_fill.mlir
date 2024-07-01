@@ -6,7 +6,7 @@
 // CHECK-NEXT:   %Z, %zero = "test.op"() : () -> (memref<8x8xf64>, f64)
 
 memref_stream.generic {
-    bounds = [#builtin.int<8>, #builtin.int<8>],
+    bounds = [8, 8],
     indexing_maps = [
         affine_map<(d0, d1) -> ()>,
         affine_map<(d0, d1) -> (d0, d1)>

@@ -44,7 +44,7 @@ class InferFillPattern(RewritePattern):
         output_type = cast(memref.MemRefType[Attribute], output.type)
 
         type_shape = output_type.get_shape()
-        bounds = tuple(attr.data for attr in op.bounds)
+        bounds = tuple(attr.value.data for attr in op.bounds)
 
         if type_shape != bounds:
             return
