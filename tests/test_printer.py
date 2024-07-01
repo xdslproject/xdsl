@@ -885,3 +885,37 @@ def test_get_printed_name():
     printed = StringIO()
     picked_name = Printer(printed).print_ssa_value(val)
     assert f"%{picked_name}" == printed.getvalue()
+
+
+def test_indented():
+    output = StringIO()
+    printer = Printer(stream=output)
+    printer.print("\n{")
+    with printer.indented():
+        printer.print("\nhello\nhow are you?")
+        printer.print("\n(")
+        with printer.indented():
+            printer.print("\nfoo,")
+            printer.print("\nbar,")
+        printer.print("\n)")
+    printer.print("\n}")
+    printer.print("\n[")
+    with printer.indented(amount=3):
+        printer.print("\nbaz")
+    printer.print("\n]\n")
+
+    EXPECTED = """
+{
+  hello
+  how are you?
+  (
+    foo,
+    bar,
+  )
+}
+[
+      baz
+]
+"""
+
+    assert output.getvalue() == EXPECTED
