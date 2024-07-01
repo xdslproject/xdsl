@@ -6,6 +6,7 @@ excerpts from the WebAssembly Specification, which is licensed under the terms
 described in the WASM-SPEC-LICENSE file.
 """
 
+from collections.abc import Sequence
 from enum import auto
 from typing import Annotated
 
@@ -13,6 +14,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IntegerAttr,
     IntegerType,
+    NoneAttr,
     StringAttr,
     f32,
     f64,
@@ -25,9 +27,12 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
 )
 from xdsl.irdl import (
+    Attribute,
     ParameterDef,
     irdl_attr_definition,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 from xdsl.utils.str_enum import StrEnum
 
 i128 = IntegerType(128)
@@ -40,7 +45,6 @@ F64Type = Annotated[IntegerType, f64]
 
 I32Attr = IntegerAttr[I32Type]
 
-TypeIdx = I32Attr
 FuncIdx = I32Attr
 TableIdx = I32Attr
 MemIdx = I32Attr
@@ -92,6 +96,29 @@ class WasmFuncType(ParametrizedAttribute):
     args: ParameterDef[ArrayAttr[WasmValueType]]
     res: ParameterDef[ArrayAttr[WasmValueType]]
 
+    def __init__(self, args: Sequence[WasmValueType], res: Sequence[WasmValueType]):
+        super().__init__((ArrayAttr(args), ArrayAttr(res)))
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            args = parser.parse_comma_separated_list(
+                AttrParser.Delimiter.PAREN, lambda: parser.parse_attribute()
+            )
+            parser.parse_punctuation("->")
+            res = parser.parse_comma_separated_list(
+                AttrParser.Delimiter.PAREN, lambda: parser.parse_attribute()
+            )
+            return (ArrayAttr(args), ArrayAttr(res))
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print("(")
+            printer.print_list(self.args.data, lambda x: printer.print_attribute(x))
+            printer.print(") -> (")
+            printer.print_list(self.res.data, lambda x: printer.print_attribute(x))
+            printer.print(")")
+
 
 ##==------------------------------------------------------------------------==##
 # WebAssembly tables and memories
@@ -109,7 +136,7 @@ class WasmLimits(ParametrizedAttribute):
     name = "wasm.limits"
 
     min: ParameterDef[I32Attr]
-    max: ParameterDef[I32Attr] | None
+    max: ParameterDef[I32Attr | NoneAttr]
 
 
 @irdl_attr_definition
@@ -220,7 +247,7 @@ class WasmExport(ParametrizedAttribute):
 @irdl_attr_definition
 class WasmImportDescFunc(ParametrizedAttribute):
     name = "wasm.import_desc_func"
-    id: ParameterDef[FuncIdx]
+    id: ParameterDef[WasmFuncType]
 
 
 @irdl_attr_definition
@@ -272,3 +299,6 @@ class WasmImport(ParametrizedAttribute):
 
     import_name: ParameterDef[StringAttr]
     desc: ParameterDef[WasmImportDesc]
+
+    def __init__(self, name: str | StringAttr, desc: WasmImportDesc):
+        super().__init__((StringAttr(name) if isinstance(name, str) else name, desc))
