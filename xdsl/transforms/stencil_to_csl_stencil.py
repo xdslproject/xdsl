@@ -238,6 +238,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
         )
+        assert op.topo is not None, f"topology on {type(op)} is not given"
 
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
@@ -436,15 +437,13 @@ class ConvertApplyOpPattern(RewritePattern):
             prefetch_t_type := prefetch.type.get_element_type(), TensorType[Attribute]
         )
         communicated_stencil_op_arg = prefetch.op.input_stencil
-        swaps_prop_arg = prefetch.op.swaps
-        assert swaps_prop_arg is not None  # todo we should change this on the op
 
         # add empty tensor before op to be used as `iter_arg`
         # this could potentially be re-used if we have one of the same size lying around
         iter_arg = tensor.EmptyOp((), prefetch.type.get_element_type())
         rewriter.insert_op(iter_arg, InsertPoint.before(op))
 
-        # run pass to consume data from `prefetch` accesses first
+        # run pass (on this apply's region only) to consume data from `prefetch` accesses first
         nested_rewriter = PatternRewriteWalker(
             RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx])
         )
@@ -490,7 +489,7 @@ class ConvertApplyOpPattern(RewritePattern):
                     prefetch_t_type.get_element_type(),
                     (prefetch_t_type.get_shape()[0] // self.num_chunks,),
                 ),
-                (len(swaps_prop_arg),),
+                (len(prefetch.op.swaps),),
             ),
             # required arg 1: %offset
             IndexType(),
@@ -572,7 +571,7 @@ class ConvertApplyOpPattern(RewritePattern):
                     + post_process_referenced_block_args,
                 ],
                 properties={
-                    "swaps": swaps_prop_arg,
+                    "swaps": prefetch.op.swaps,
                     "topo": prefetch.op.topo,
                     "num_chunks": IntegerAttr(self.num_chunks, IntegerType(64)),
                 },
