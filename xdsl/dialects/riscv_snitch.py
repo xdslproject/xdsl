@@ -31,6 +31,7 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
+    IRDLOperation,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -148,7 +149,7 @@ ALLOWED_FREP_OP_TYPES = (
 )
 
 
-class FRepOperation(RISCVInstruction):
+class FRepOperation(IRDLOperation, RISCVInstruction):
     """
     From the Snitch paper: https://arxiv.org/abs/2002.10143
 
@@ -426,7 +427,7 @@ class FrepInner(FRepOperation):
 
 
 @irdl_op_definition
-class GetStreamOp(RISCVOp):
+class GetStreamOp(IRDLOperation, RISCVOp):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(stream.StreamType[riscv.FloatRegisterType])
@@ -456,7 +457,7 @@ class GetStreamOp(RISCVOp):
 
 
 @irdl_op_definition
-class DMSourceOp(RISCVInstruction):
+class DMSourceOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
     ptrlo = operand_def(riscv.IntRegisterType)
@@ -474,7 +475,7 @@ class DMSourceOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMDestinationOp(RISCVInstruction):
+class DMDestinationOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
     ptrlo = operand_def(riscv.IntRegisterType)
@@ -492,7 +493,7 @@ class DMDestinationOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStrideOp(RISCVInstruction):
+class DMStrideOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
     srcstrd = operand_def(riscv.IntRegisterType)
@@ -510,7 +511,7 @@ class DMStrideOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMRepOp(RISCVInstruction):
+class DMRepOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmrep"
 
     reps = operand_def(riscv.IntRegisterType)
@@ -527,7 +528,7 @@ class DMRepOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyOp(RISCVInstruction):
+class DMCopyOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmcpy"
 
     dest = result_def(riscv.IntRegisterType)
@@ -551,7 +552,7 @@ class DMCopyOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatOp(RISCVInstruction):
+class DMStatOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmstat"
 
     dest = result_def(riscv.IntRegisterType)
@@ -573,7 +574,7 @@ class DMStatOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyImmOp(RISCVInstruction):
+class DMCopyImmOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmcpyi"
 
     dest = result_def(riscv.IntRegisterType)
@@ -628,7 +629,7 @@ class DMCopyImmOp(RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatImmOp(RISCVInstruction):
+class DMStatImmOp(IRDLOperation, RISCVInstruction):
     name = "riscv_snitch.dmstati"
 
     dest = result_def(riscv.IntRegisterType)

@@ -79,7 +79,7 @@ class SyscallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CallOp(riscv.RISCVInstruction):
+class CallOp(IRDLOperation, riscv.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
@@ -160,7 +160,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(riscv.RISCVOp):
+class FuncOp(IRDLOperation, riscv.RISCVOp):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
@@ -236,7 +236,7 @@ class FuncOp(riscv.RISCVOp):
 
 
 @irdl_op_definition
-class ReturnOp(riscv.RISCVInstruction):
+class ReturnOp(IRDLOperation, riscv.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
