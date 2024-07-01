@@ -157,7 +157,7 @@ class Printer:
 
     def print_string(self, text: str, indent: int | None = None) -> None:
         """
-        Prints a string to the printer's output string.
+        Prints a string to the printer's output.
 
         This function takes into account indentation level when
         printing new lines.
