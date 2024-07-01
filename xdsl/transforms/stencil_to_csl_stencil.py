@@ -366,6 +366,47 @@ class ConvertApplyOpPattern(RewritePattern):
 
     num_chunks: int
 
+    def _translate_operands(
+        self, ops: Sequence[Operand], table: dict[Operand, Operand]
+    ) -> Sequence[Operand]:
+        result: list[Operand] = []
+        for operand in ops:
+            if operand in table:
+                result.append(table[operand])
+            else:
+                result.append(operand)
+        return result
+
+    def _get_insert_slice_op(
+        self,
+        source: Operand,
+        dest: Operand,
+        offset: Operand,
+        static_size: int,
+        result_type: Attribute,
+    ) -> tensor.InsertSliceOp:
+        return tensor.InsertSliceOp(
+            operands=[
+                source,
+                dest,
+                [offset],
+                [],
+                [],
+            ],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(IntegerType(64), (0,)),
+                "static_sizes": DenseArrayBase.from_list(
+                    IntegerType(64),
+                    (static_size,),
+                ),
+                "static_strides": DenseArrayBase.from_list(IntegerType(64), (1,)),
+                "operandSegmentSizes": DenseArrayBase.from_list(
+                    IntegerType(32), (1, 1, 1, 0, 0)
+                ),
+            },
+            result_types=[result_type],
+        )
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
         # calculate memory cost of all prefetch operands
@@ -414,6 +455,12 @@ class ConvertApplyOpPattern(RewritePattern):
             list(op.region.block.ops), op.region.block.args[prefetch_idx]
         )
 
+        # fetch what chunk_reduce is computing for
+        if isinstance(chunk_reduce_ops[-1], stencil.ReturnOp):
+            chunk_res = chunk_reduce_ops[-1].operands[0]
+        else:
+            chunk_res = chunk_reduce_ops[-1].results[0]
+
         # after region split, check which block args (from the old ops block) are being accessed in each of the new regions
         # ignore accesses block args which already are part of the region's required signature
         chunk_reduce_referenced_block_args = sorted(
@@ -461,77 +508,49 @@ class ConvertApplyOpPattern(RewritePattern):
             *[a.type for a in post_process_referenced_block_args],
         ]
 
+        # set up two regions
+        chunk_reduce = Region(Block(arg_types=chunk_reduce_args))
+        post_process = Region(Block(arg_types=post_process_args))
+
         # translate old to new block arg index for optional args
-        chunk_reduce_arg_translation = dict(
-            (old.index, idx)
+        chunk_reduce_oprnd_table = dict[Operand, Operand](
+            (old, chunk_reduce.block.args[idx])
             for idx, old in enumerate(chunk_reduce_referenced_block_args, start=3)
         )
-        post_process_arg_translation = dict(
-            (old.index, idx)
+        post_process_oprnd_table = dict[Operand, Operand](
+            (old, post_process.block.args[idx])
             for idx, old in enumerate(post_process_referenced_block_args, start=2)
         )
 
         # add translation from old to new arg index for non-optional args - note, access to iter_arg must be handled separately below
-        chunk_reduce_arg_translation[prefetch_idx] = 0
-        post_process_arg_translation[communicated_stencil_idx] = 0
-
-        # set up two regions
-        chunk_reduce = Region(Block(arg_types=chunk_reduce_args))
-        post_process = Region(Block(arg_types=post_process_args))
+        chunk_reduce_oprnd_table[op.region.block.args[prefetch_idx]] = (
+            chunk_reduce.block.args[0]
+        )
+        post_process_oprnd_table[op.region.block.args[communicated_stencil_idx]] = (
+            post_process.block.args[0]
+        )
+        post_process_oprnd_table[chunk_res] = post_process.block.args[1]
 
         # detach ops from old region
         for o in op.region.block.ops:
             op.region.block.detach_op(o)
 
-        # fetch what chunk_reduce is computing for
-        if isinstance(chunk_reduce_ops[-1], stencil.ReturnOp):
-            chunk_res = chunk_reduce_ops[-1].operands[0]
-        else:
-            chunk_res = chunk_reduce_ops[-1].results[0]
-
         # add operations from list to chunk_reduce, use translation table to rebuild operands
         for o in chunk_reduce_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
                 break
-
-            new_args: list[Operand] = []
-            for arg in o.operands:
-                if isinstance(arg, BlockArgument):
-                    new_args.append(
-                        chunk_reduce.block.args[chunk_reduce_arg_translation[arg.index]]
-                    )
-                else:
-                    new_args.append(arg)
-            o.operands = new_args
+            o.operands = self._translate_operands(o.operands, chunk_reduce_oprnd_table)
             chunk_reduce.block.add_op(o)
 
         # put `chunk_res` into `iter_arg` (using tensor.insert_slice) and yield the result
         chunk_reduce.block.add_ops(
             [
-                insert_slice_op := tensor.InsertSliceOp(
-                    operands=[
-                        chunk_res,
-                        chunk_reduce.block.args[2],
-                        [chunk_reduce.block.args[1]],
-                        [],
-                        [],
-                    ],
-                    properties={
-                        "static_offsets": DenseArrayBase.from_list(
-                            IntegerType(64), (0,)
-                        ),
-                        "static_sizes": DenseArrayBase.from_list(
-                            IntegerType(64),
-                            (prefetch_t_type.get_shape()[0] // self.num_chunks,),
-                        ),
-                        "static_strides": DenseArrayBase.from_list(
-                            IntegerType(64), (1,)
-                        ),
-                        "operandSegmentSizes": DenseArrayBase.from_list(
-                            IntegerType(32), (1, 1, 1, 0, 0)
-                        ),
-                    },
-                    result_types=[iter_arg.results[0].type],
+                insert_slice_op := self._get_insert_slice_op(
+                    source=chunk_res,
+                    dest=chunk_reduce.block.args[2],
+                    offset=chunk_reduce.block.args[1],
+                    static_size=prefetch_t_type.get_shape()[0] // self.num_chunks,
+                    result_type=iter_arg.results[0].type,
                 ),
                 csl_stencil.YieldOp(insert_slice_op.result),
             ]
@@ -539,19 +558,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
         # add operations from list to post_process, use translation table to rebuild operands
         for o in post_process_ops:
-            new_args: list[Operand] = []
-            for arg in o.operands:
-                if isinstance(arg, BlockArgument):
-                    new_args.append(
-                        post_process.block.args[post_process_arg_translation[arg.index]]
-                    )
-                # chunk_res has been moved to different block, its result is in iter_arg which we access here instead
-                # this cannot be handled by the index translation
-                elif arg == chunk_res:
-                    new_args.append(post_process.block.args[1])
-                else:
-                    new_args.append(arg)
-            o.operands = new_args
+            o.operands = self._translate_operands(o.operands, post_process_oprnd_table)
             post_process.block.add_op(o)
             if isinstance(o, stencil.ReturnOp):
                 rewriter.replace_op(o, csl_stencil.YieldOp(*o.operands))
