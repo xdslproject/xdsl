@@ -3,7 +3,7 @@
 %A, %B, %C = "test.op"() : () -> (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>)
 
 memref_stream.generic {
-    bounds = [#builtin.int<4>, #builtin.int<2>, #builtin.int<3>],
+    bounds = [4, 2, 3],
     indexing_maps = [
         affine_map<(d0, d1, d2) -> (d0, d1)>,
         affine_map<(d0, d1, d2) -> (d1, d2)>,
@@ -24,7 +24,7 @@ memref_stream.generic {
 %A, %B, %C = "test.op"() : () -> (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>)
 
 memref_stream.generic {
-    bounds = [#builtin.int<4>, #builtin.int<2>, #builtin.int<3>],
+    bounds = [4, 2, 3],
     indexing_maps = [
         affine_map<(d0, d1, d2) -> (d0, d1)>,
         affine_map<(d0, d1, d2) -> (d1, d2)>
@@ -44,7 +44,7 @@ memref_stream.generic {
 %A, %B, %C = "test.op"() : () -> (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>)
 
 memref_stream.generic {
-    bounds = [#builtin.int<4>, #builtin.int<2>, #builtin.int<3>],
+    bounds = [4, 2, 3],
     indexing_maps = [
         affine_map<(d0, d1, d2, d3) -> (d0, d1)>,
         affine_map<(d0, d1, d2) -> (d1, d2)>,
@@ -65,7 +65,7 @@ memref_stream.generic {
 %A, %B, %C = "test.op"() : () -> (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>)
 
 memref_stream.generic {
-    bounds = [#builtin.int<4>, #builtin.int<2>, #builtin.int<3>],
+    bounds = [4, 2, 3],
     indexing_maps = [
         affine_map<(d0, d1, d2) -> (d0, d1)>,
         affine_map<(d0, d1, d2) -> (d1, d2)>,
@@ -86,7 +86,7 @@ memref_stream.generic {
 %A, %B, %C, %D = "test.op"() : () -> (memref<4x2xf64>, memref<2x3xf64>, memref<4x3xf64>, memref<4x3xf64>)
 
 memref_stream.generic {
-    bounds = [#builtin.int<4>, #builtin.int<2>, #builtin.int<3>],
+    bounds = [4, 2, 3],
     indexing_maps = [
         affine_map<(d0, d1, d2) -> (d0, d1)>,
         affine_map<(d0, d1, d2) -> (d1, d2)>,

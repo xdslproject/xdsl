@@ -11,7 +11,7 @@
     ]
   } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8x16xf64>) {
     ^0(%0 : !stream.readable<f64>, %1 : !stream.readable<f64>, %2 : !stream.writable<f64>):
-      memref_stream.generic {bounds = [#builtin.int<8>, #builtin.int<16>], indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%0, %1 : !stream.readable<f64>, !stream.readable<f64>) outs(%2 : !stream.writable<f64>) {
+      memref_stream.generic {bounds = [8, 16], indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%0, %1 : !stream.readable<f64>, !stream.readable<f64>) outs(%2 : !stream.writable<f64>) {
       ^1(%in : f64, %in_0 : f64, %out : f64):
         %3 = arith.addf %in, %in_0 : f64
         memref_stream.yield %3 : f64
@@ -48,7 +48,7 @@
     ]
   } ins(%arg0_1 : memref<16x16xf64>) outs(%arg1_1 : memref<16x16xf64>) {
     ^2(%4 : !stream.readable<f64>, %5 : !stream.writable<f64>):
-      memref_stream.generic {bounds = [#builtin.int<16>, #builtin.int<16>], indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%4 : !stream.readable<f64>) outs(%5 : !stream.writable<f64>) {
+      memref_stream.generic {bounds = [16, 16], indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%4 : !stream.readable<f64>) outs(%5 : !stream.writable<f64>) {
       ^3(%in_1 : f64, %out_1 : f64):
         %6 = arith.maximumf %in_1, %cst : f64
         memref_stream.yield %6 : f64
@@ -85,7 +85,7 @@ func.func public @fill(%arg0 : memref<16x16xf64>) -> memref<16x16xf64> {
   } outs(%arg0 : memref<16x16xf64>) {
   ^3(%7 : !stream.writable<f64>):
     memref_stream.generic {
-        bounds = [#builtin.int<16>, #builtin.int<16>],
+        bounds = [16, 16],
         indexing_maps = [
             affine_map<(d0, d1) -> ()>,
             affine_map<(d0, d1) -> (d0, d1)>
@@ -125,7 +125,7 @@ func.func @main(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x3xf64>
     } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) {
     ^0(%0 : !stream.readable<f64>, %1 : !stream.readable<f64>):
       memref_stream.generic {
-        bounds = [#builtin.int<4>, #builtin.int<3>, #builtin.int<2>],
+        bounds = [4, 3, 2],
         indexing_maps = [
           affine_map<(d0, d1, d2) -> (d0, d2)>,
           affine_map<(d0, d1, d2) -> (d2, d1)>,
@@ -174,7 +174,7 @@ func.func @elide_affine(%A : memref<6xf64>, %B : memref<f64>) -> memref<f64> {
     } ins(%A : memref<6xf64>) {
     ^0(%0 : !stream.readable<f64>):
       memref_stream.generic {
-        bounds = [#builtin.int<2>, #builtin.int<3>],
+        bounds = [2, 3],
         indexing_maps = [
           affine_map<(d0, d1) -> (d0 * 3 + d1)>,
           affine_map<(d0, d1) -> ()>
@@ -215,7 +215,7 @@ func.func @nested_imperfect(%A : memref<2x3x4xf64>, %B : memref<f64>) -> memref<
     } ins(%A : memref<2x3x4xf64>) {
     ^0(%0 : !stream.readable<f64>):
       memref_stream.generic {
-        bounds = [#builtin.int<2>, #builtin.int<3>, #builtin.int<4>],
+        bounds = [2, 3, 4],
         indexing_maps = [
           affine_map<(d0, d1, d2) -> (d0, d1, d2)>,
           affine_map<() -> ()>
@@ -265,7 +265,7 @@ func.func @main_inits(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x
     } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) {
     ^0(%0 : !stream.readable<f64>, %1 : !stream.readable<f64>):
       memref_stream.generic {
-        bounds = [#builtin.int<4>, #builtin.int<3>, #builtin.int<2>],
+        bounds = [4, 3, 2],
         indexing_maps = [
           affine_map<(d0, d1, d2) -> (d0, d2)>,
           affine_map<(d0, d1, d2) -> (d2, d1)>,

@@ -18,7 +18,10 @@ from xdsl.dialects import memref, stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
+    IndexType,
     IntAttr,
+    IntegerAttr,
+    IntegerType,
     StringAttr,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
@@ -46,6 +49,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -97,10 +101,14 @@ class StridePattern(ParametrizedAttribute):
 
     name = "memref_stream.stride_pattern"
 
-    ub: ParameterDef[ArrayAttr[IntAttr]]
+    ub: ParameterDef[ArrayAttr[IntegerAttr[IndexType]]]
     index_map: ParameterDef[AffineMapAttr]
 
-    def __init__(self, ub: ArrayAttr[IntAttr], index_map: ParameterDef[AffineMapAttr]):
+    def __init__(
+        self,
+        ub: ArrayAttr[IntegerAttr[IndexType]],
+        index_map: ParameterDef[AffineMapAttr],
+    ):
         super().__init__((ub, index_map))
 
     @classmethod
@@ -108,8 +116,9 @@ class StridePattern(ParametrizedAttribute):
         with parser.in_angle_brackets():
             parser.parse_identifier("ub")
             parser.parse_punctuation("=")
+            index = IndexType()
             ub = ArrayAttr(
-                IntAttr(i)
+                IntegerAttr(i, index)
                 for i in parser.parse_comma_separated_list(
                     parser.Delimiter.SQUARE, parser.parse_integer
                 )
@@ -123,7 +132,7 @@ class StridePattern(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_string("ub = [")
-            printer.print_list(self.ub, lambda attr: printer.print(attr.data))
+            printer.print_list(self.ub, lambda attr: printer.print(attr.value.data))
             printer.print_string(f"], index_map = {self.index_map.data}")
 
     def rank(self):
@@ -140,7 +149,7 @@ class StridePattern(ParametrizedAttribute):
             )
 
     def index_iter(self) -> Iterator[tuple[int, ...]]:
-        for indices in product(*(range(bound.data) for bound in self.ub.data)):
+        for indices in product(*(range(bound.value.data) for bound in self.ub.data)):
             indices: tuple[int, ...] = indices
             yield self.index_map.data.eval(indices, ())
 
@@ -328,7 +337,7 @@ class GenericOp(IRDLOperation):
     Like in linalg.generic, the indexing maps corresponding to inputs are followed by the
     indexing maps for the outputs.
     """
-    bounds = prop_def(ArrayAttr[IntAttr])
+    bounds = prop_def(ArrayAttr[IntegerAttr[IndexType]])
     """
     The bounds of the iteration space, from the outermost loop inwards. All indexing maps must have the same number of dimensions as the length of `bounds`.
     """
@@ -351,7 +360,7 @@ class GenericOp(IRDLOperation):
         body: Region,
         indexing_maps: ArrayAttr[AffineMapAttr],
         iterator_types: ArrayAttr[Attribute],
-        bounds: ArrayAttr[IntAttr],
+        bounds: ArrayAttr[IntegerAttr[IndexType]],
         init_indices: ArrayAttr[IntAttr],
     ) -> None:
         for m in indexing_maps:
@@ -384,8 +393,8 @@ class GenericOp(IRDLOperation):
         # min_dims will equal len(self.iterator_types) in the perfect nest case
         min_dims = min(m.data.num_dims for m in output_maps)
         return (
-            tuple(bound.data for bound in self.bounds.data[:min_dims]),
-            tuple(bound.data for bound in self.bounds.data[min_dims:]),
+            tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
+            tuple(bound.value.data for bound in self.bounds.data[min_dims:]),
         )
 
     @property
@@ -401,9 +410,12 @@ class GenericOp(IRDLOperation):
             printer.print_attribute(init.type)
 
     def print(self, printer: Printer):
-        printer.print_string(" {bounds = ")
-        printer.print_attribute(self.bounds)
-        printer.print_string(", indexing_maps = ")
+        printer.print_string(" {bounds = [")
+        printer.print_list(
+            self.bounds.data,
+            lambda bound: printer.print_string(f"{bound.value.data}"),
+        )
+        printer.print_string("], indexing_maps = ")
         printer.print_attribute(self.indexing_maps)
         printer.print_string(", iterator_types = [")
         printer.print_list(
@@ -492,8 +504,11 @@ class GenericOp(IRDLOperation):
 
         if "bounds" in attrs:
             bounds = attrs["bounds"]
-            assert isinstance(bounds, ArrayAttr)
-            bounds = cast(ArrayAttr[IntAttr], bounds)
+            assert isa(bounds, ArrayAttr[IntegerAttr[IntegerType | IndexType]]), bounds
+            index = IndexType()
+            bounds = ArrayAttr(
+                tuple(IntegerAttr(attr.value, index) for attr in bounds.data)
+            )
             del attrs["bounds"]
         else:
             parser.raise_error(
