@@ -140,4 +140,31 @@ memref_stream.streaming_region {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }) : (!riscv.reg) -> ()
 
+%I, %J, %K = "test.op"() : () -> (memref<3x5xf64>, memref<5x8xf64>, memref<3x8xf64>)
+// CHECK-NEXT:    %I, %J, %K = "test.op"() : () -> (memref<3x5xf64>, memref<5x8xf64>, memref<3x8xf64>)
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %I : memref<3x5xf64> to !riscv.reg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %J : memref<5x8xf64> to !riscv.reg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %K : memref<3x8xf64> to !riscv.reg
+
+// more complex maps
+memref_stream.streaming_region {
+    patterns = [
+        #memref_stream.stride_pattern<ub = [3, 2, 5, 4], index_map = (d0, d1, d2, d3) -> (d0, d2)>,
+        #memref_stream.stride_pattern<ub = [3, 2, 5, 4], index_map = (d0, d1, d2, d3) -> (d2, ((d1 * 4) + d3))>,
+        #memref_stream.stride_pattern<ub = [3, 2, 4], index_map = (d0, d1, d2) -> (d0, ((d1 * 4) + d2))>
+    ]
+} ins(%I, %J : memref<3x5xf64>, memref<5x8xf64>) outs(%K : memref<3x8xf64>) {
+^0(%i : !stream.readable<f64>, %j : !stream.readable<f64>, %k : !stream.writable<f64>):
+    %res = "test.op"() : () -> f64
+    memref_stream.yield %res : f64
+}
+// CHECK-NEXT:    "snitch_stream.streaming_region"(%{{.*}}, %{{.*}}, %{{.*}}) <{"stride_patterns" = [#snitch_stream.stride_pattern<ub = [3, 2, 5, 4], strides = [40, 0, 8, 0]>, #snitch_stream.stride_pattern<ub = [3, 2, 5, 4], strides = [0, 32, 64, 8]>, #snitch_stream.stride_pattern<ub = [24], strides = [8]>], "operandSegmentSizes" = array<i32: 2, 1>}> ({
+// CHECK-NEXT:    ^{{.*}}(%{{.*}} : !stream.readable<!riscv.freg>, %{{.*}} : !stream.readable<!riscv.freg>, %{{.*}} : !stream.writable<!riscv.freg>):
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg> to !stream.readable<f64>
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.readable<!riscv.freg> to !stream.readable<f64>
+// CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !stream.writable<!riscv.freg> to !stream.writable<f64>
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> f64
+// CHECK-NEXT:      memref_stream.yield %{{.*}} : f64
+// CHECK-NEXT:    }) : (!riscv.reg, !riscv.reg, !riscv.reg) -> ()
+
 // CHECK-NEXT:  }

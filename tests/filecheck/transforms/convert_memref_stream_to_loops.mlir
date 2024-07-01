@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-stream-to-loops %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-stream-to-loops --split-input-file --verify-diagnostics %s | filecheck %s
 
 // CHECK:       builtin.module {
 
@@ -307,3 +307,72 @@ func.func @main_inits(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x
 // CHECK-NEXT:    }
 
 // CHECK-NEXT:  }
+
+// -----
+
+func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
+    memref_stream.generic {
+        bounds = [3, 2, 5, 4],
+        indexing_maps = [
+            affine_map<(d0, d1, d2, d3) -> (d0, d2)>,
+            affine_map<(d0, d1, d2, d3) -> (d2, d1 * 4 + d3)>,
+            affine_map<(d0, d1, d3) -> (d0, d1 * 4 + d3)>
+        ],
+        iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
+    } ins(%A, %B : memref<3x5xf64>, memref<5x8xf64>) outs(%C : memref<3x8xf64>) {
+    ^1(
+        %a0 : f64, %a1 : f64, %a2 : f64, %a3 : f64,
+        %b0 : f64, %b1 : f64, %b2 : f64, %b3 : f64,
+        %c0 : f64, %c1 : f64, %c2 : f64, %c3 : f64
+    ):
+        %prod0 = arith.mulf %a0, %b0 fastmath<fast> : f64
+        %prod1 = arith.mulf %a1, %b1 fastmath<fast> : f64
+        %prod2 = arith.mulf %a2, %b2 fastmath<fast> : f64
+        %prod3 = arith.mulf %a3, %b3 fastmath<fast> : f64
+
+        %res0 = arith.addf %prod0, %c0 fastmath<fast> : f64
+        %res1 = arith.addf %prod1, %c1 fastmath<fast> : f64
+        %res2 = arith.addf %prod2, %c2 fastmath<fast> : f64
+        %res3 = arith.addf %prod3, %c3 fastmath<fast> : f64
+
+        memref_stream.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
+    }
+    func.return %C : memref<3x8xf64>
+}
+
+// CHECK: Error while applying pattern: Cannot yet lower interleaved iterators
+
+// -----
+
+func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
+    %zero_float = arith.constant 0.000000e+00 : f64
+    memref_stream.generic {
+        bounds = [3, 2, 5, 4],
+        indexing_maps = [
+            affine_map<(d0, d1, d2, d3) -> (d0, d2)>,
+            affine_map<(d0, d1, d2, d3) -> (d2, d1 * 4 + d3)>,
+            affine_map<(d0, d1, d3) -> (d0, d1 * 4 + d3)>
+        ],
+        iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
+    } ins(%A, %B : memref<3x5xf64>, memref<5x8xf64>) outs(%C : memref<3x8xf64>) inits(%zero_float : f64) {
+    ^1(
+        %a0 : f64, %a1 : f64, %a2 : f64, %a3 : f64,
+        %b0 : f64, %b1 : f64, %b2 : f64, %b3 : f64,
+        %c0 : f64, %c1 : f64, %c2 : f64, %c3 : f64
+    ):
+        %prod0 = arith.mulf %a0, %b0 fastmath<fast> : f64
+        %prod1 = arith.mulf %a1, %b1 fastmath<fast> : f64
+        %prod2 = arith.mulf %a2, %b2 fastmath<fast> : f64
+        %prod3 = arith.mulf %a3, %b3 fastmath<fast> : f64
+
+        %res0 = arith.addf %prod0, %c0 fastmath<fast> : f64
+        %res1 = arith.addf %prod1, %c1 fastmath<fast> : f64
+        %res2 = arith.addf %prod2, %c2 fastmath<fast> : f64
+        %res3 = arith.addf %prod3, %c3 fastmath<fast> : f64
+
+        memref_stream.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
+    }
+    func.return %C : memref<3x8xf64>
+}
+
+// CHECK: Error while applying pattern: Cannot yet lower interleaved iterators
