@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p "stencil-to-csl-stencil" | filecheck %s
+// RUN: xdsl-opt %s -p "stencil-to-csl-stencil{num_chunks=2}" | filecheck %s
 
 builtin.module {
   func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {

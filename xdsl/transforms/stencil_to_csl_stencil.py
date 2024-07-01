@@ -1,7 +1,6 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 from math import prod
-
-from attr import dataclass
 
 from xdsl.context import MLContext
 from xdsl.dialects import arith, memref, stencil, tensor
@@ -33,6 +32,9 @@ from xdsl.utils.hints import isa
 
 
 def get_stencil_accessed_symbols(op: Operand) -> set[Operand]:
+    """
+    Returns the symbols of all stencil accessess by op and all its dependencies.
+    """
     res: set[Operand] = set()
     frontier: set[Operand] = set((op,))
     next: set[Operand] = set()
@@ -52,9 +54,22 @@ def get_stencil_accessed_symbols(op: Operand) -> set[Operand]:
 @dataclass(frozen=True)
 class RestructureSymmetricReductionPattern(RewritePattern):
     """
-    Identifies e.g. `(a+b)+c` constructs and re-structures the computation to first consume data from accesses to `buf`
+    Consume data first where that data comes from stencil accesses to `buf`.
 
-    This works for various ops (of the same type) and bracketings, with restructuring always happening based on three operands.
+    Identifies a pattern of 2 connected binary ops with 3 args, e.g. of the form `(a+b)+c` with different ops and
+    bracketings supported, and attempts to re-structure the order of computation.
+
+    Being in principle similarly to constant folding, the difference is that args are *not* required to be stencil
+    accesses, but could have further compute applied before being passed to the reduction function.
+    Uses helper function `get_stencil_accessed_symbols` to check which bufs are stencil-accessed in each of these args,
+    and to distinguish the following three cases:
+
+     (1) all accesses in an arg tree are to `buf`  - arg should be moved forward in the computation
+     (2) no accesses are to `buf`                  - arg should be moved backward in the computation
+     (3) there's a mix                             - unknown, take any or no action
+
+    If two args are identified that should be moved forward, or two args are identified that should be moved backwards,
+    the computation is restructured accordingly.
     """
 
     buf: BlockArgument
@@ -63,7 +78,7 @@ class RestructureSymmetricReductionPattern(RewritePattern):
     def match_and_rewrite(
         self, op: arith.Addf | arith.Mulf, rewriter: PatternRewriter, /
     ):
-        # this rewrite only works if there is 1 use which is the same type of operation
+        # this rewrite requires exactly 1 use which is the same type of operation
         if len(op.result.uses) != 1 or not isinstance(
             use := list(op.result.uses)[0].operation, type(op)
         ):
@@ -77,6 +92,7 @@ class RestructureSymmetricReductionPattern(RewritePattern):
             first_compute = type(op)(one, two)
             second_compute = type(op)(first_compute, three)
 
+            # insert ops at the earliest point after both of its dependencies
             rewriter.insert_op(
                 first_compute,
                 InsertPoint.after(
@@ -97,6 +113,7 @@ class RestructureSymmetricReductionPattern(RewritePattern):
                     )[1]
                 ),
             )
+
             rewriter.replace_op(op, [], [first_compute.results[0]])
             rewriter.replace_op(use, [], [second_compute.results[0]])
 
@@ -286,9 +303,10 @@ def get_op_split(
     - `a` contains neighbour accesses plus the minumum set of instructions to reduce the accessed data to 1 thing
     - `b` contains everything else
 
-    Attempts to re-organise symmetric instructions as needed, e.g. `(a+b)+c` to `a+(b+c)`
+    If no valid split can be found, return `(ops, [])`.
 
-    If no valid split can be found, return `(ops, [])`
+    This function does not attempt to arithmetically re-structure the computation to obtain a good split. To do this,
+    `RestructureSymmetricReductionPattern()` may be executed first.
     """
     a: Sequence[Operation] = []
     b: Sequence[Operation] = []
@@ -346,11 +364,11 @@ class ConvertApplyOpPattern(RewritePattern):
     prefetch overhead across multiple apply ops.
     """
 
-    # hard-coding num_chunks - this should probably be a pass param
-    num_chunks: int = 2
+    num_chunks: int
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
+        # calculate memory cost of all prefetch operands
         def get_prefetch_overhead(o: OpResult):
             assert isa(o.type, memref.MemRefType[Attribute])
             assert isa(t_type := o.type.get_element_type(), TensorType[Attribute])
@@ -363,12 +381,11 @@ class ConvertApplyOpPattern(RewritePattern):
             for o in op.operands
             if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
         ]
-        candidate_prefetches.sort(reverse=True)
         if len(candidate_prefetches) == 0:
             return
 
         # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
-        prefetch = candidate_prefetches[0][1]
+        prefetch = max(candidate_prefetches)[1]
         prefetch_idx = op.operands.index(prefetch)
         assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
         communicated_stencil_idx = op.operands.index(prefetch.op.input_stencil)
@@ -377,25 +394,28 @@ class ConvertApplyOpPattern(RewritePattern):
         assert isa(
             prefetch_t_type := prefetch.type.get_element_type(), TensorType[Attribute]
         )
-
-        nested_rewriter = PatternRewriteWalker(
-            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx])
-        )
-
-        nested_rewriter.rewrite_op(op)
-
         communicated_stencil_op_arg = prefetch.op.input_stencil
-        topo_prop_arg = prefetch.op.topo
         swaps_prop_arg = prefetch.op.swaps
         assert swaps_prop_arg is not None  # todo we should change this on the op
 
+        # add empty tensor before op to be used as `iter_arg`
         # this could potentially be re-used if we have one of the same size lying around
         iter_arg = tensor.EmptyOp((), prefetch.type.get_element_type())
         rewriter.insert_op(iter_arg, InsertPoint.before(op))
 
+        # run pass to consume data from `prefetch` accesses first
+        nested_rewriter = PatternRewriteWalker(
+            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx])
+        )
+        nested_rewriter.rewrite_op(op)
+
+        # determine how ops should be split across the two regions
         chunk_reduce_ops, post_process_ops = get_op_split(
             list(op.region.block.ops), op.region.block.args[prefetch_idx]
         )
+
+        # after region split, check which block args (from the old ops block) are being accessed in each of the new regions
+        # ignore accesses block args which already are part of the region's required signature
         chunk_reduce_referenced_block_args = sorted(
             set(
                 x
@@ -415,6 +435,7 @@ class ConvertApplyOpPattern(RewritePattern):
             key=lambda b: b.index,
         )
 
+        # set up region signatures, comprising fixed and optional args - see docs on `csl_stencil.apply` for details
         chunk_reduce_args = [
             # required arg 0: slice of type(%prefetch)
             memref.MemRefType(
@@ -440,6 +461,7 @@ class ConvertApplyOpPattern(RewritePattern):
             *[a.type for a in post_process_referenced_block_args],
         ]
 
+        # translate old to new block arg index for optional args
         chunk_reduce_arg_translation = dict(
             (old.index, idx)
             for idx, old in enumerate(chunk_reduce_referenced_block_args, start=3)
@@ -449,21 +471,25 @@ class ConvertApplyOpPattern(RewritePattern):
             for idx, old in enumerate(post_process_referenced_block_args, start=2)
         )
 
-        # instead of prefetch buffer ops should be accessing arg 0
+        # add translation from old to new arg index for non-optional args - note, access to iter_arg must be handled separately below
         chunk_reduce_arg_translation[prefetch_idx] = 0
         post_process_arg_translation[communicated_stencil_idx] = 0
 
+        # set up two regions
         chunk_reduce = Region(Block(arg_types=chunk_reduce_args))
         post_process = Region(Block(arg_types=post_process_args))
 
+        # detach ops from old region
         for o in op.region.block.ops:
             op.region.block.detach_op(o)
 
+        # fetch what chunk_reduce is computing for
         if isinstance(chunk_reduce_ops[-1], stencil.ReturnOp):
             chunk_res = chunk_reduce_ops[-1].operands[0]
         else:
             chunk_res = chunk_reduce_ops[-1].results[0]
 
+        # add operations from list to chunk_reduce, use translation table to rebuild operands
         for o in chunk_reduce_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
                 break
@@ -479,6 +505,7 @@ class ConvertApplyOpPattern(RewritePattern):
             o.operands = new_args
             chunk_reduce.block.add_op(o)
 
+        # put `chunk_res` into `iter_arg` (using tensor.insert_slice) and yield the result
         chunk_reduce.block.add_ops(
             [
                 insert_slice_op := tensor.InsertSliceOp(
@@ -510,6 +537,7 @@ class ConvertApplyOpPattern(RewritePattern):
             ]
         )
 
+        # add operations from list to post_process, use translation table to rebuild operands
         for o in post_process_ops:
             new_args: list[Operand] = []
             for arg in o.operands:
@@ -517,6 +545,8 @@ class ConvertApplyOpPattern(RewritePattern):
                     new_args.append(
                         post_process.block.args[post_process_arg_translation[arg.index]]
                     )
+                # chunk_res has been moved to different block, its result is in iter_arg which we access here instead
+                # this cannot be handled by the index translation
                 elif arg == chunk_res:
                     new_args.append(post_process.block.args[1])
                 else:
@@ -531,11 +561,12 @@ class ConvertApplyOpPattern(RewritePattern):
                 operands=[
                     communicated_stencil_op_arg,
                     iter_arg,
-                    [],  # todo other stuff
+                    chunk_reduce_referenced_block_args
+                    + post_process_referenced_block_args,
                 ],
                 properties={
                     "swaps": swaps_prop_arg,
-                    "topo": topo_prop_arg,
+                    "topo": prefetch.op.topo,
                     "num_chunks": IntegerAttr(self.num_chunks, IntegerType(64)),
                 },
                 regions=[
@@ -545,19 +576,21 @@ class ConvertApplyOpPattern(RewritePattern):
                 result_types=[r.type for r in op.results],
             )
         )
-        # todo update shapes
 
 
 @dataclass(frozen=True)
 class StencilToCslStencilPass(ModulePass):
     name = "stencil-to-csl-stencil"
 
+    # chunks into which to slice communication
+    num_chunks: int = 1
+
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         module_pass = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
                     ConvertSwapToPrefetchPattern(),
-                    ConvertApplyOpPattern(),
+                    ConvertApplyOpPattern(num_chunks=self.num_chunks),
                 ]
             ),
             walk_reverse=False,
@@ -565,4 +598,5 @@ class StencilToCslStencilPass(ModulePass):
         )
         module_pass.rewrite_module(op)
 
-        BackpropagateStencilShapes().apply(ctx, op)
+        if self.num_chunks > 1:
+            BackpropagateStencilShapes().apply(ctx, op)
