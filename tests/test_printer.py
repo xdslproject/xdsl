@@ -897,6 +897,9 @@ def test_indented():
         with printer.indented():
             printer.print("\nfoo,")
             printer.print("\nbar,")
+            printer.print("\n")
+            printer.print_string_raw("test\nraw print!")
+            printer.print_string("\ndifferent indent level", indent=4)
         printer.print("\n)")
     printer.print("\n}")
     printer.print("\n[")
@@ -911,6 +914,9 @@ def test_indented():
   (
     foo,
     bar,
+    test
+raw print!
+        different indent level
   )
 }
 [
