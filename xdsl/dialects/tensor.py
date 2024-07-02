@@ -242,6 +242,43 @@ class InsertSliceOp(IRDLOperation):
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     @staticmethod
+    def get(
+        source: Operand,
+        dest: Operand,
+        static_sizes: Sequence[int],
+        static_offsets: Sequence[int] | None = None,
+        static_strides: Sequence[int] | None = None,
+        offsets: Sequence[Operand] | None = None,
+        sizes: Sequence[Operand] | None = None,
+        strides: Sequence[Operand] | None = None,
+        result_type: Attribute | None = None,
+    ) -> InsertSliceOp:
+
+        dims = len(static_sizes)
+        return InsertSliceOp.build(
+            operands=[
+                source,
+                dest,
+                offsets if offsets else [],
+                sizes if sizes else [],
+                strides if strides else [],
+            ],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(
+                    i64, static_offsets if static_offsets else [0] * dims
+                ),
+                "static_sizes": DenseArrayBase.from_list(
+                    i64,
+                    static_sizes,
+                ),
+                "static_strides": DenseArrayBase.from_list(
+                    i64, static_strides if static_strides else [1] * dims
+                ),
+            },
+            result_types=[result_type if result_type else dest.type],
+        )
+
+    @staticmethod
     def from_static_parameters(
         source: SSAValue | Operation,
         dest: SSAValue | Operation,
