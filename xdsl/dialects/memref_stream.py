@@ -57,8 +57,24 @@ class IteratorType(StrEnum):
     "Iterator type for memref_stream Attribute"
 
     PARALLEL = auto()
+    """
+    The corresponding iterators appear in the output.
+    """
     REDUCTION = auto()
+    """
+    The corresponding iterators do not appear in the output.
+    """
     INTERLEAVED = auto()
+    """
+    All inputs and outputs of the operation will be operated this many times in parallel.
+    This is helpful to circumvent the latency in the loop.
+    For example, if the ALU of the target has a pipeline of length 4, and the operation
+    accumulates its innermost dimension, there will be stalls waiting fof the pipeline to
+    clear in each iteration.
+    By interleaving the loop with a factor of 4, four dimensions can be processed in
+    parallel, removing the stalls.
+    The corresponding iterators may appear in the output.
+    """
 
 
 @irdl_attr_definition
