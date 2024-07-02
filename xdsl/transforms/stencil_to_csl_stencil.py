@@ -376,17 +376,6 @@ class ConvertApplyOpPattern(RewritePattern):
 
     num_chunks: int = 1
 
-    def _translate_operands(
-        self, ops: Sequence[Operand], table: dict[Operand, Operand]
-    ) -> Sequence[Operand]:
-        result: list[Operand] = []
-        for operand in ops:
-            if operand in table:
-                result.append(table[operand])
-            else:
-                result.append(operand)
-        return result
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
         # calculate memory cost of all prefetch operands
@@ -517,7 +506,7 @@ class ConvertApplyOpPattern(RewritePattern):
         for o in chunk_reduce_ops:
             if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
                 break
-            o.operands = self._translate_operands(o.operands, chunk_reduce_oprnd_table)
+            o.operands = [chunk_reduce_oprnd_table.get(x, x) for x in o.operands]
             chunk_reduce.block.add_op(o)
 
         # put `chunk_res` into `iter_arg` (using tensor.insert_slice) and yield the result
@@ -535,7 +524,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
         # add operations from list to post_process, use translation table to rebuild operands
         for o in post_process_ops:
-            o.operands = self._translate_operands(o.operands, post_process_oprnd_table)
+            o.operands = [post_process_oprnd_table.get(x, x) for x in o.operands]
             post_process.block.add_op(o)
             if isinstance(o, stencil.ReturnOp):
                 rewriter.replace_op(o, csl_stencil.YieldOp(*o.operands))
