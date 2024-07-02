@@ -295,12 +295,12 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
 
 
 def get_op_split(
-    ops: Sequence[Operation], prefetch: BlockArgument
+    ops: Sequence[Operation], buf: BlockArgument
 ) -> tuple[Sequence[Operation], Sequence[Operation]]:
     """
-    Returns a split of ops into an `(a,b)` tuple, such that:
+    Returns a split of `ops` into an `(a,b)` tuple, such that:
 
-    - `a` contains neighbour accesses plus the minumum set of instructions to reduce the accessed data to 1 thing
+    - `a` contains neighbour accesses to `buf` plus the minumum set of instructions to reduce the accessed data to 1 thing
     - `b` contains everything else
 
     If no valid split can be found, return `(ops, [])`.
@@ -313,36 +313,40 @@ def get_op_split(
     rem: Sequence[Operation] = []
     for op in ops:
         if isinstance(op, csl_stencil.AccessOp):
-            (b, a)[op.op == prefetch].append(op)
+            (b, a)[op.op == buf].append(op)
         else:
             rem.append(op)
 
+    # loop until we can make no more changes, or until only 1 thing computed in `a` is used outside of it
     has_changes = True
     while (
         len(
+            # ops in `a` used outside of `a`
             a_exports := set(
                 op
                 for op in a
-                for r in op.results
-                for u in r.uses
-                if u.operation not in a
+                for result in op.results
+                for use in result.uses
+                if use.operation not in a
             )
         )
         > 1
         and has_changes
     ):
-        a_deps = set(
-            u.operation for op in a_exports for r in op.results for u in r.uses
-        )
         has_changes = False
-        movable = [
-            op
-            for op in a_deps
-            if all(x.op in a for x in op.operands if isinstance(x, OpResult))
-        ]
-        if len(movable) > 0:
-            has_changes = True
-            for op in movable:
+
+        # ops that directly depend on `a` but are not themselves in `a`
+        fontier = set(
+            use.operation
+            for op in a_exports
+            for result in op.results
+            for use in result.uses
+        )
+
+        for op in fontier:
+            # frontier ops are only movable if *all* their operands are already in `a`
+            if all(x.op in a for x in op.operands if isinstance(x, OpResult)):
+                has_changes = True
                 a.append(op)
                 rem.remove(op)
 
@@ -350,7 +354,7 @@ def get_op_split(
         return a, b + rem
 
     # fallback
-    # always place `stencil.return` in second block?
+    # always place `stencil.return` in second block
     return ops[:-1], [ops[-1]]
 
 
@@ -362,9 +366,15 @@ class ConvertApplyOpPattern(RewritePattern):
     If there are several candidate prefetch ops, the one with the largest result buffer size is selected.
     The selection is greedy, and could in the future be expanded into a more global selection optimising for minimal
     prefetch overhead across multiple apply ops.
+
+    args:
+        num_chunks - number of chunks into which communication and computation should be split.
+                     Effectively, the number of times `csl_stencil.apply.chunk_reduce` will be executed and the
+                     tensor sizes it handles. Higher values may increase compute overhead but reduce size of
+                     communication buffers when lowered.
     """
 
-    num_chunks: int
+    num_chunks: int = 1
 
     def _translate_operands(
         self, ops: Sequence[Operand], table: dict[Operand, Operand]
