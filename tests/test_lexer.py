@@ -53,13 +53,14 @@ def assert_token_fail(input: str):
         ("|", Token.Kind.VERTICAL_BAR),
         ("{-#", Token.Kind.FILE_METADATA_BEGIN),
         ("#-}", Token.Kind.FILE_METADATA_END),
+        ("/", Token.Kind.FORWARD_SLASH),
     ],
 )
 def test_punctuation(text: str, kind: Token.Kind):
     assert_single_token(text, kind)
 
 
-@pytest.mark.parametrize("text", [".", "&", "/"])
+@pytest.mark.parametrize("text", [".", "&"])
 def test_punctuation_fail(text: str):
     assert_token_fail(text)
 
