@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from fractions import Fraction
-from xdsl.ir import Data, TypeAttribute
-from xdsl.ir.core import Dialect
-from xdsl.irdl.attributes import irdl_attr_definition
-from xdsl.parser.attribute_parser import AttrParser
+
+from xdsl.ir import Data, Dialect, TypeAttribute
+from xdsl.irdl import irdl_attr_definition
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
 
@@ -13,6 +13,7 @@ class AngleAttr(Data[Fraction], TypeAttribute):
     """
     Attribute that wraps around a fraction, implicitly multiplying by pi and keeping the result in the range [0,2pi)
     """
+
     name = "quantum.angle"
 
     @classmethod
@@ -21,10 +22,12 @@ class AngleAttr(Data[Fraction], TypeAttribute):
             i = parser.parse_optional_integer()
             numerator = 1 if i is None else i
             if numerator == 0:
-                return Fraction(0,1)
-            parser.parse_characters('pi')
-            denominator = parser.parse_integer() if parser.parse_optional_characters('/') else 1
-            return Fraction(numerator,denominator) % 2
+                return Fraction(0, 1)
+            parser.parse_characters("pi")
+            denominator = (
+                parser.parse_integer() if parser.parse_optional_characters("/") else 1
+            )
+            return Fraction(numerator, denominator) % 2
 
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -35,12 +38,10 @@ class AngleAttr(Data[Fraction], TypeAttribute):
             if self.data.numerator != 1:
                 printer.print(self.data.numerator)
 
-            printer.print('pi')
+            printer.print("pi")
             if self.data.denominator != 1:
-                printer.print('/')
+                printer.print("/")
                 printer.print(self.data.denominator)
-
-
 
     def __add__(self, other: AngleAttr):
         AngleAttr.new([(self.data + other.data) % 2])
