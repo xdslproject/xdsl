@@ -183,12 +183,21 @@ def test_op_operands_comparison():
 
 
 def test_op_clone():
-    a = TestWithPropOp.create(properties={"prop": i32}, attributes={"attr": i64})
+    a = TestWithPropOp.create(
+        properties={"prop": i32}, attributes={"attr": i64}, result_types=(i32,)
+    )
+    a.results[0].name_hint = "name_hint"
     b = a.clone()
+    c = a.clone(clone_name_hints=True)
 
     assert a is not b
+    assert a is not c
 
     assert a.is_structurally_equivalent(b)
+    assert a.is_structurally_equivalent(c)
+
+    assert b.results[0].name_hint is None
+    assert c.results[0].name_hint == "name_hint"
 
 
 def test_op_clone_with_regions():
