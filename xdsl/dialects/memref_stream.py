@@ -57,7 +57,24 @@ class IteratorType(StrEnum):
     "Iterator type for memref_stream Attribute"
 
     PARALLEL = auto()
+    """
+    The corresponding iterators appear in the output.
+    """
     REDUCTION = auto()
+    """
+    The corresponding iterators do not appear in the output.
+    """
+    INTERLEAVED = auto()
+    """
+    All inputs and outputs of the operation will be operated this many times in parallel.
+    This is helpful to circumvent the latency in the loop.
+    For example, if the ALU of the target has a pipeline of length 4, and the operation
+    accumulates its innermost dimension, there will be stalls waiting fof the pipeline to
+    clear in each iteration.
+    By interleaving the loop with a factor of 4, four dimensions can be processed in
+    parallel, removing the stalls.
+    The corresponding iterators may appear in the output.
+    """
 
 
 @irdl_attr_definition
@@ -71,6 +88,10 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
     @classmethod
     def reduction(cls) -> IteratorTypeAttr:
         return IteratorTypeAttr(IteratorType.REDUCTION)
+
+    @classmethod
+    def interleaved(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.INTERLEAVED)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
@@ -641,10 +662,21 @@ class GenericOp(IRDLOperation):
         # Parallel iterator types must preceed reduction iterators
         iterator_types = self.iterator_types.data
         num_parallel = iterator_types.count(IteratorTypeAttr.parallel())
+        num_reduction = iterator_types.count(IteratorTypeAttr.reduction())
+        num_interleaved = iterator_types.count(IteratorTypeAttr.interleaved())
+
         if IteratorTypeAttr.parallel() in iterator_types[num_parallel:]:
             raise VerifyException(
                 f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
             )
+        if (
+            IteratorTypeAttr.reduction()
+            in iterator_types[num_parallel + num_reduction :]
+        ):
+            raise VerifyException(
+                f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
+            )
+        assert num_parallel + num_reduction + num_interleaved == len(iterator_types)
 
         if len(self.inputs) + len(self.outputs) != len(self.indexing_maps):
             raise VerifyException(
@@ -673,13 +705,13 @@ class GenericOp(IRDLOperation):
                 "The number of dims in output indexing maps must all be the same"
             )
 
-        if min_dims not in (len(iterator_types), num_parallel):
+        if min_dims not in (len(iterator_types), num_parallel + num_interleaved):
             # To signify that the output is imperfectly nested, the output affine map has
             # as many dims as parallel iterators. Otherwise, it has as many dims as
             # the total number of iterators.
             raise VerifyException(
                 "The number of dims in output indexing maps must be "
-                f"{len(iterator_types)} or {num_parallel}"
+                f"{len(iterator_types)} or {num_parallel + num_interleaved}"
             )
 
         if len(self.init_indices) != len(self.inits):
@@ -696,7 +728,7 @@ class GenericOp(IRDLOperation):
             if not (0 <= index.data <= num_outputs):
                 raise VerifyException(f"Init index out of bounds: {index.data}")
             m = output_maps[index.data]
-            if m.data.num_dims != num_parallel:
+            if m.data.num_dims != (num_parallel + num_interleaved):
                 raise VerifyException(
                     "Incompatible affine map and initial value for output at index "
                     f"{index}"
