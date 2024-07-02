@@ -311,6 +311,10 @@ class AccessOpUpdateShape(RewritePattern):
 
 
 class CslStencilAccessOpUpdateShape(RewritePattern):
+    """
+    Updates the result type of a tensorized `csl_stencil.access` op
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
@@ -387,13 +391,17 @@ class FillOpUpdateShape(RewritePattern):
 
 @dataclass(frozen=True)
 class BackpropagateStencilShapes(ModulePass):
+    """
+    Greedily back-propagates the result types of tensorized ops.
+    Use after creating/modifying tensorization.
+    """
+
     name = "backpropagate-stencil-shapes"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
         backpropagate_stencil_shapes = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
-                    # AccessOpUpdateShape(),
                     CslStencilAccessOpUpdateShape(),
                     ExtractSliceOpUpdateShape(),
                     EmptyOpUpdateShape(),
