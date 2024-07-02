@@ -14,8 +14,8 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IntegerAttr,
     IntegerType,
-    NoneAttr,
     StringAttr,
+    UnitAttr,
     f32,
     f64,
     i32,
@@ -60,13 +60,13 @@ LabelIdx = I32Attr
 
 
 class WasmRefTypeEnum(StrEnum):
-    FuncRef = auto()
+    FuncRef = "funcref"
     """
     wasm> The type funcref denotes the infinite union of all references to
     functions, regardless of their function types.
     """
 
-    ExternRef = auto()
+    ExternRef = "externref"
     """
     wasm> The type externref denotes the infinite union of all references to
     objects owned. by the embedder and that can be passed into WebAssembly
@@ -136,7 +136,16 @@ class WasmLimits(ParametrizedAttribute):
     name = "wasm.limits"
 
     min: ParameterDef[I32Attr]
-    max: ParameterDef[I32Attr | NoneAttr]
+    max: ParameterDef[I32Attr | UnitAttr]
+
+    def __init__(self, min: I32Attr | int, max: I32Attr | int | None):
+        min_attr = min if isinstance(min, IntegerAttr) else IntegerAttr(min, 32)
+        max_attr = (
+            max
+            if isinstance(max, IntegerAttr)
+            else IntegerAttr(max, 32) if max is not None else UnitAttr()
+        )
+        super().__init__((min_attr, max_attr))
 
 
 @irdl_attr_definition
@@ -150,6 +159,9 @@ class WasmMemoryType(ParametrizedAttribute):
     name = "wasm.mem"
 
     limits: ParameterDef[WasmLimits]
+
+    def __init__(self, limits: WasmLimits):
+        super().__init__((limits,))
 
 
 @irdl_attr_definition
@@ -165,6 +177,9 @@ class WasmTableType(ParametrizedAttribute):
 
     elements: ParameterDef[WasmRefType]
     limits: ParameterDef[WasmLimits]
+
+    def __init__(self, elem: WasmRefType, limits: WasmLimits):
+        super().__init__((elem, limits))
 
 
 class WasmMutEnum(StrEnum):
@@ -188,6 +203,9 @@ class WasmGlobalType(ParametrizedAttribute):
     mutability: ParameterDef[WasmMut]
     type: ParameterDef[WasmValueType]
 
+    def __init__(self, mutability: WasmMut, type: WasmValueType):
+        super().__init__((mutability, type))
+
 
 ##==------------------------------------------------------------------------==##
 # WebAssembly exports
@@ -199,11 +217,17 @@ class WasmExportDescFunc(ParametrizedAttribute):
     name = "wasm.export_desc_func"
     id: ParameterDef[FuncIdx]
 
+    def __init__(self, func: FuncIdx):
+        super().__init__((func,))
+
 
 @irdl_attr_definition
 class WasmExportDescTable(ParametrizedAttribute):
     name = "wasm.export_desc_table"
     id: ParameterDef[TableIdx]
+
+    def __init__(self, table: TableIdx):
+        super().__init__((table,))
 
 
 @irdl_attr_definition
@@ -211,11 +235,17 @@ class WasmExportDescMem(ParametrizedAttribute):
     name = "wasm.export_desc_mem"
     id: ParameterDef[MemIdx]
 
+    def __init__(self, mem: MemIdx):
+        super().__init__((mem,))
+
 
 @irdl_attr_definition
 class WasmExportDescGlobal(ParametrizedAttribute):
     name = "wasm.export_desc_global"
     id: ParameterDef[GlobalIdx]
+
+    def __init__(self, glob: GlobalIdx):
+        super().__init__((glob,))
 
 
 WasmExportDesc = (
@@ -238,6 +268,9 @@ class WasmExport(ParametrizedAttribute):
     export_name: ParameterDef[StringAttr]
     desc: ParameterDef[WasmExportDesc]
 
+    def __init__(self, name: str | StringAttr, desc: WasmExportDesc):
+        super().__init__((StringAttr(name) if isinstance(name, str) else name, desc))
+
 
 ##==------------------------------------------------------------------------==##
 # WebAssembly imports
@@ -249,11 +282,17 @@ class WasmImportDescFunc(ParametrizedAttribute):
     name = "wasm.import_desc_func"
     id: ParameterDef[WasmFuncType]
 
+    def __init__(self, func: WasmFuncType):
+        super().__init__((func,))
+
 
 @irdl_attr_definition
 class WasmImportDescTable(ParametrizedAttribute):
     name = "wasm.import_desc_table"
     id: ParameterDef[TableIdx]
+
+    def __init__(self, table: TableIdx):
+        super().__init__((table,))
 
 
 @irdl_attr_definition
@@ -261,11 +300,17 @@ class WasmImportDescMem(ParametrizedAttribute):
     name = "wasm.import_desc_mem"
     id: ParameterDef[MemIdx]
 
+    def __init__(self, mem: MemIdx):
+        super().__init__((mem,))
+
 
 @irdl_attr_definition
 class WasmImportDescGlobal(ParametrizedAttribute):
     name = "wasm.import_desc_global"
     id: ParameterDef[GlobalIdx]
+
+    def __init__(self, glob: GlobalIdx):
+        super().__init__((glob,))
 
 
 WasmImportDesc = (

@@ -40,7 +40,8 @@ from .wat import WatPrintable, WatPrinter
 # WebAssembly module
 ##==------------------------------------------------------------------------==##
 
-ARRAY_SECTIONS = {"tables", "mems", "exports", "imports"}
+SECTIONS = ("tables", "mems", "start", "imports", "exports")
+ARRAY_SECTIONS = ("tables", "mems", "exports", "imports")
 
 
 @irdl_op_definition
@@ -73,32 +74,32 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
         properties: dict[str, Attribute] = {}
         properties["tables"] = ArrayAttr(tables or ())
         properties["mems"] = ArrayAttr(mems or ())
-        properties["exports"] = ArrayAttr(exports or ())
-        properties["imports"] = ArrayAttr(imports or ())
         if start:
             properties["start"] = start
+        properties["imports"] = ArrayAttr(imports or ())
+        properties["exports"] = ArrayAttr(exports or ())
 
         super().__init__(properties=properties)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        properties: dict[str, Attribute] = {}
+        unordered_properties: dict[str, Attribute] = {}
 
         def parse_section():
             section = parser.parse_identifier("wasm module section name")
-            if section in properties:
+            if section in unordered_properties:
                 parser.raise_error(
                     f"wasm module section '{section}' is declared multiple times"
                 )
             if section in ARRAY_SECTIONS:
-                properties[section] = ArrayAttr(
+                unordered_properties[section] = ArrayAttr(
                     parser.parse_comma_separated_list(
                         Parser.Delimiter.SQUARE, lambda: parser.parse_attribute()
                     )
                 )
                 return
             if section == "start":
-                properties[section] = FuncIdx(
+                unordered_properties[section] = FuncIdx(
                     parser.parse_integer(
                         allow_boolean=False,
                         allow_negative=False,
@@ -109,10 +110,20 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
                 return
             parser.raise_error(f"unknown wasm module section '{section}'")
 
-        parser.parse_comma_separated_list(
-            Parser.Delimiter.PAREN, parse_section, "wasm module sections"
-        )
+        parser.parse_punctuation("(")
+        while parser.parse_optional_punctuation(")") is None:
+            parse_section()
+
         attr_dict = parser.parse_optional_attr_dict_with_keyword()
+
+        properties: dict[str, Attribute] = {}
+        for section in SECTIONS:
+            if section in unordered_properties:
+                properties[section] = unordered_properties[section]
+                continue
+            if section in ARRAY_SECTIONS:
+                properties[section] = ArrayAttr(())
+                continue
 
         return cls.create(
             properties=properties, attributes=attr_dict.data if attr_dict else {}
@@ -123,22 +134,26 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
 
         printed_one = False
 
-        def print_named_array(name: str):
+        def print_named_array(name: str) -> bool:
             to_print = cast(ArrayAttr[Attribute], self.properties[name])
             assert isinstance(to_print, ArrayAttr)
-            if len(to_print.data) != 0:
-                printer.print(f"\n{name} [")
-                printer.print_list(to_print, lambda x: printer.print_attribute(x))
-                printer.print("]")
+            if len(to_print.data) == 0:
+                return False
+            printer.print(f"\n{name} [")
+            printer.print_list(to_print, lambda x: printer.print_attribute(x))
+            printer.print("]")
+            return True
 
-        print_named_array("tables")
-        print_named_array("mems")
-        print_named_array("exports")
-        print_named_array("imports")
+        with printer.indented():
+            printed_one |= print_named_array("tables")
+            printed_one |= print_named_array("mems")
 
-        if self.start is not None:
-            printer.print(f"\nstart {self.start.value.data}")
-            printed_one = True
+            if self.start is not None:
+                printer.print(f"\nstart {self.start.value.data}")
+                printed_one = True
+
+            printed_one |= print_named_array("imports")
+            printed_one |= print_named_array("exports")
 
         if printed_one:
             printer.print("\n")

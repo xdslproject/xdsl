@@ -1,5 +1,5 @@
 // RUN: xdsl-opt %s -t wat | filecheck %s
 
-wasm.module
+wasm.module()
 
 // CHECK: (module)
