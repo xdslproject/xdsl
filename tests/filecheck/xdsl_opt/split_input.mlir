@@ -6,6 +6,8 @@
 }) : () -> ()
 
 // -----
+// CHECK: // -----
+
 "builtin.module"() ({
   "test.op"() : () -> ()
 // CHECK: "builtin.module"() ({
@@ -13,6 +15,8 @@
 }) : () -> ()
 
 // -----
+// CHECK: // -----
+
 "builtin.module"() ({
   %x = "test.op"() : () -> i1
 // CHECK: "builtin.module"() ({
@@ -22,6 +26,8 @@
 }) : () -> ()
 
 // -----
+// CHECK: // -----
+
 "builtin.module"() ({
   %x = "test.op"() : () -> i2
 // CHECK: "builtin.module"() ({
