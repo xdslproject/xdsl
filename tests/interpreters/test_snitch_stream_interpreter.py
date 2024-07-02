@@ -33,6 +33,11 @@ def test_stride_pattern_offsets(
 @pytest.mark.parametrize(
     "inputs, outputs",
     [
+        (((1, 1), (1, 1)), ((1,), (1,))),
+        (
+            ((1, 1), (2, 3)),
+            ((1,), (3,)),
+        ),  # Technically any number could be in the second position, since the bound is 1
         (((24,), (1,)), ((24,), (1,))),
         (((2, 3, 4), (12, 4, 1)), ((24,), (1,))),
         (((3, 2), (16, 8)), ((6,), (8,))),
