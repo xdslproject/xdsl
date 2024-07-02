@@ -9,6 +9,10 @@ from xdsl.pattern_rewriter import (
 
 
 class RedundantIterArgInitialisation(RewritePattern):
+    """
+    Removes redundant allocations of empty tensors with no uses other than passed
+    as `iter_arg` to `csl_stencil.apply`. Prefer re-use where possible.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -24,5 +28,6 @@ class RedundantIterArgInitialisation(RewritePattern):
                 and len(next_apply.iter_arg.uses) == 1
                 and isinstance(next_apply.iter_arg, OpResult)
                 and isinstance(next_apply.iter_arg.op, tensor.EmptyOp)
+                and op.iter_arg.type == next_apply.iter_arg.type
             ):
                 rewriter.replace_op(next_apply.iter_arg.op, [], [op.iter_arg])
