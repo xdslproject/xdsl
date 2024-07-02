@@ -249,6 +249,7 @@ class Token:
         VERTICAL_BAR = "|"
         FILE_METADATA_BEGIN = "{-#"
         FILE_METADATA_END = "#-}"
+        FORWARD_SLASH = "/"
 
         @staticmethod
         def get_punctuation_spelling_to_kind_dict() -> dict[str, Token.Kind]:
@@ -273,6 +274,7 @@ class Token:
                 "|": Token.Kind.VERTICAL_BAR,
                 "{-#": Token.Kind.FILE_METADATA_BEGIN,
                 "#-}": Token.Kind.FILE_METADATA_END,
+                "/": Token.Kind.FORWARD_SLASH,
             }
 
         def is_punctuation(self) -> bool:
@@ -317,6 +319,7 @@ class Token:
         "|",
         "{-#",
         "#-}",
+        "/",
     ]
 
     kind: Kind
@@ -460,6 +463,7 @@ class Lexer:
             "*": Token.Kind.STAR,
             "?": Token.Kind.QUESTION,
             "|": Token.Kind.VERTICAL_BAR,
+            "/": Token.Kind.FORWARD_SLASH,
         }
         if current_char in single_char_punctuation:
             return self._form_token(single_char_punctuation[current_char], start_pos)
