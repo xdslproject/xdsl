@@ -6,7 +6,14 @@ from xdsl.dialects.builtin import ModuleOp, UnregisteredOp
 from xdsl.ir import Block, Operation, Region, Use
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
-from xdsl.traits import IsolatedFromAbove, IsTerminator, is_side_effect_free
+from xdsl.traits import (
+    IsolatedFromAbove,
+    IsTerminator,
+    MemoryEffectKind,
+    get_effects,
+    is_side_effect_free,
+    only_has_effect,
+)
 from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
 
@@ -92,6 +99,24 @@ class KnownOps:
         return self._known_ops.pop(OperationInfo(k))
 
 
+def has_other_side_effecting_op_in_between(
+    from_op: Operation, to_op: Operation
+) -> bool:
+    """
+    Returns if there *may* be a 'write' effecting operation between `from_op` and
+    `to_op`.
+    """
+    assert from_op.parent is to_op.parent
+    next_op = from_op
+    while next_op is not to_op:
+        effects = get_effects(next_op)
+        if effects is None or (MemoryEffectKind.WRITE in effects):
+            return True
+        next_op = next_op.next_op
+        assert next_op is not None, "Incorrect order of ops in side-effect search"
+    return False
+
+
 class CSEDriver:
     """
     Boilerplate class to handle and carry the state for CSE.
@@ -114,6 +139,23 @@ class CSEDriver:
             if o.parent is not None:
                 self._rewriter.erase_op(o)
 
+    def _replace_and_delete(self, op: Operation, existing: Operation):
+        """
+        Factoring, replace `op` by `existing` and mark `op` for erasure.
+        """
+
+        # Just replace results
+        def wasVisited(use: Use):
+            return use.operation not in self._known_ops
+
+        for o, n in zip(op.results, existing.results, strict=True):
+            if all(wasVisited(u) for u in o.uses):
+                o.replace_by(n)
+
+        # If no uses remain, we can mark this operation for erasure
+        if all(not r.uses for r in op.results):
+            self._mark_erasure(op)
+
     def _simplify_operation(self, op: Operation):
         """
         Simplify a single operation: replace it by a corresponding known operation in
@@ -134,31 +176,36 @@ class CSEDriver:
         if any(len(region.blocks) > 1 for region in op.regions):
             return
 
-        # Here, MLIR says something like "if the operation has side effects"
-        # Using more generics analytics; and has fancier analysis for that case,
-        # where it might simplify some side-effecting operations still.
-        # Doesmn't mean we can't just simplify what we can with our simpler model :)
+        # Have a close look if the op might have side effects.
         if not is_side_effect_free(op):
+            # If we can't be sure or the op has side effects, bail out
+            if not only_has_effect(op, MemoryEffectKind.READ):
+                return
+
+            # If the op is only reading, we can still try to CSE it
+            if existing := self._known_ops.get(op):
+                if (
+                    op.parent_block() is existing.parent_block()
+                    # We then ensure there are no 'write' side-effecting operations
+                    # in between the two, that could change the result of the operation
+                    and not has_other_side_effecting_op_in_between(existing, op)
+                ):
+                    self._replace_and_delete(op, existing)
+                    return
+
+            # The operation is a CSE candidate, but we did not find a replacement
+            # Mark it for any later occurence
+            self._known_ops[op] = op
             return
 
-        # This operation rings a bell!
+        # If we know the operation is side-effect free, we can just replace it
         if existing := self._known_ops.get(op):
 
-            # Just replace results
-            def wasVisited(use: Use):
-                return use.operation not in self._known_ops
-
-            for o, n in zip(op.results, existing.results, strict=True):
-                if all(wasVisited(u) for u in o.uses):
-                    o.replace_by(n)
-
-            # If no uses remain, we can mark this operation for erasure
-            if all(not r.uses for r in op.results):
-                self._mark_erasure(op)
-
+            self._replace_and_delete(op, existing)
             return
 
-        # First time seeing this one, noting it down!
+        # The operation is a CSE candidate, but we did not find a replacement
+        # Mark it for any later occurence
         self._known_ops[op] = op
 
     def _simplify_block(self, block: Block):
