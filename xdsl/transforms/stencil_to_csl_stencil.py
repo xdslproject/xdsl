@@ -5,7 +5,6 @@ from math import prod
 from xdsl.context import MLContext
 from xdsl.dialects import arith, memref, stencil, tensor
 from xdsl.dialects.builtin import (
-    DenseArrayBase,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -378,36 +377,6 @@ class ConvertApplyOpPattern(RewritePattern):
                 result.append(operand)
         return result
 
-    def _get_insert_slice_op(
-        self,
-        source: Operand,
-        dest: Operand,
-        offset: Operand,
-        static_size: int,
-        result_type: Attribute,
-    ) -> tensor.InsertSliceOp:
-        return tensor.InsertSliceOp(
-            operands=[
-                source,
-                dest,
-                [offset],
-                [],
-                [],
-            ],
-            properties={
-                "static_offsets": DenseArrayBase.from_list(IntegerType(64), (0,)),
-                "static_sizes": DenseArrayBase.from_list(
-                    IntegerType(64),
-                    (static_size,),
-                ),
-                "static_strides": DenseArrayBase.from_list(IntegerType(64), (1,)),
-                "operandSegmentSizes": DenseArrayBase.from_list(
-                    IntegerType(32), (1, 1, 1, 0, 0)
-                ),
-            },
-            result_types=[result_type],
-        )
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
         # calculate memory cost of all prefetch operands
@@ -544,12 +513,11 @@ class ConvertApplyOpPattern(RewritePattern):
         # put `chunk_res` into `iter_arg` (using tensor.insert_slice) and yield the result
         chunk_reduce.block.add_ops(
             [
-                insert_slice_op := self._get_insert_slice_op(
+                insert_slice_op := tensor.InsertSliceOp.get(
                     source=chunk_res,
                     dest=chunk_reduce.block.args[2],
-                    offset=chunk_reduce.block.args[1],
-                    static_size=prefetch_t_type.get_shape()[0] // self.num_chunks,
-                    result_type=iter_arg.results[0].type,
+                    offsets=(chunk_reduce.block.args[1],),
+                    static_sizes=(prefetch_t_type.get_shape()[0] // self.num_chunks,),
                 ),
                 csl_stencil.YieldOp(insert_slice_op.result),
             ]
