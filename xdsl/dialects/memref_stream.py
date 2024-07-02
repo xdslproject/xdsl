@@ -223,9 +223,20 @@ class StreamingRegionOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print_string(" {patterns = ")
-        printer.print_attribute(self.patterns)
-        printer.print_string("}")
+        with printer.indented():
+            printer.print_string(" {")
+            if self.patterns.data:
+                printer.print_string("\npatterns = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.patterns.data,
+                        lambda attr: printer.print("\n", attr),
+                        delimiter=",",
+                    )
+                printer.print_string("\n]")
+            else:
+                printer.print_string("\npatterns = []")
+        printer.print_string("\n}")
 
         if self.inputs:
             printer.print_string(" ins(")
@@ -415,20 +426,37 @@ class GenericOp(IRDLOperation):
             printer.print_attribute(init.type)
 
     def print(self, printer: Printer):
-        printer.print_string(" {bounds = [")
-        printer.print_list(
-            self.bounds.data,
-            lambda bound: printer.print_string(f"{bound.value.data}"),
-        )
-        printer.print_string("], indexing_maps = ")
-        printer.print_attribute(self.indexing_maps)
-        printer.print_string(", iterator_types = [")
-        printer.print_list(
-            self.iterator_types,
-            lambda iterator_type: printer.print_string_literal(iterator_type.data),
-        )
-        printer.print_string("]")
-        printer.print_string("}")
+        printer.print_string(" {")
+        with printer.indented():
+            if self.bounds:
+                printer.print_string("\nbounds = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.bounds.data,
+                        lambda bound: printer.print_string(f"{bound.value.data}"),
+                    )
+                printer.print_string("],")
+            else:
+                printer.print_string("\nbounds = [],")
+
+            if self.indexing_maps:
+                printer.print_string("\nindexing_maps = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.indexing_maps.data,
+                        lambda m: printer.print_string(f"\n{m}"),
+                        delimiter=",",
+                    )
+                printer.print_string("\n],")
+            else:
+                printer.print_string("\nindexing_maps = [].")
+            printer.print_string("\niterator_types = [")
+            printer.print_list(
+                self.iterator_types,
+                lambda iterator_type: printer.print_string_literal(iterator_type.data),
+            )
+            printer.print_string("]")
+        printer.print_string("\n}")
 
         if self.inputs:
             printer.print_string(" ins(")
