@@ -9,20 +9,20 @@
 
 // CHECK-NEXT: %q2 = qssa.h %q0
 
-%q3, %q4 = qssa.cz %q1, %q2
+%q3 = qssa.rz <pi/2> %q1
 
-// CHECK-NEXT: %q3, %q4 = qssa.cz %q1, %q2
+// CHECK-NEXT: %q3 = qssa.rz <pi/2> %q1
 
-%q5, %q6 = qssa.cnot %q3, %q4
+%q4, %q5 = qssa.cnot %q2, %q3
 
-// CHECK-NEXT: %q5, %q6 = qssa.cnot %q3, %q4
+// CHECK-NEXT: %q4, %q5 = qssa.cnot %q2, %q3
 
-%0 = qssa.measure %q6
+%0 = qssa.measure %q4
 
-// CHECK-NEXT: %0 = qssa.measure %q6
+// CHECK-NEXT: %0 = qssa.measure %q4
 
 // CHECK-GENERIC: %q0, %q1 = "qssa.alloc"() : () -> (!qssa.qubit, !qssa.qubit)
 // CHECK-GENERIC-NEXT: %q2 = "qssa.h"(%q0) : (!qssa.qubit) -> !qssa.qubit
-// CHECK-GENERIC-NEXT: %q3, %q4 = "qssa.cz"(%q1, %q2) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
-// CHECK-GENERIC-NEXT: %q5, %q6 = "qssa.cnot"(%q3, %q4) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
-// CHECK-GENERIC-NEXT: %0 = "qssa.measure"(%q6) : (!qssa.qubit) -> i1
+// CHECK-GENERIC-NEXT: %q3 = "qssa.rz"(%q1) <{"angle" = !quantum.angle<pi/2>}> : (!qssa.qubit) -> !qssa.qubit
+// CHECK-GENERIC-NEXT: %q4, %q5 = "qssa.cnot"(%q2, %q3) : (!qssa.qubit, !qssa.qubit) -> (!qssa.qubit, !qssa.qubit)
+// CHECK-GENERIC-NEXT: %0 = "qssa.measure"(%q4) : (!qssa.qubit) -> i1
