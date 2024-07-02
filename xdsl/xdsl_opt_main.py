@@ -1,4 +1,5 @@
 import argparse
+import re
 import sys
 from collections.abc import Callable, Sequence
 from contextlib import redirect_stdout
@@ -279,7 +280,14 @@ class xDSLOptMain(CommandLineTool):
         f, file_extension = self.get_input_stream()
         chunks = [(f, 0)]
         if self.args.split_input_file:
-            chunks_str = [chunk for chunk in f.read().split("// -----")]
+            chunks_str = [
+                chunk
+                for chunk in re.split(
+                    r"^[^\S\r\n]*// -----",
+                    f.read(),
+                    flags=re.MULTILINE,
+                )
+            ]
             chunks_off = accumulate(
                 [0, *[chunk.count("\n") for chunk in chunks_str[:-1]]]
             )
