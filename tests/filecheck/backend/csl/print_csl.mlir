@@ -357,7 +357,7 @@ csl.func @builtins() {
   }
 }) {sym_name = "layout.csl"} : () -> ()
 
-// CHECK-NEXT: // FILE: program.csl
+// CHECK: // FILE: program.csl
 // CHECK-NEXT:
 // CHECK-NEXT: fn no_args_no_return() void {
 // CHECK-NEXT:   return;
