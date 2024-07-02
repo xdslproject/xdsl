@@ -1,6 +1,5 @@
 // RUN: xdsl-opt --allow-unregistered-dialect %s -p cse | filecheck %s
 
-// CHECK-DAG: #[[$MAP:.*]] = affine_map<(d0) -> (d0 mod 2)>
 #map0 = affine_map<(d0) -> (d0 mod 2)>
 
 func.func @simple_constant() -> (i32, i32) {

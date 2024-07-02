@@ -80,7 +80,7 @@ riscv_func.func @pres_4(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
     riscv_func.return
 }
 
-// CHECK:
+// CHECK:        .text:
 // CHECK-NEXT:   pres_1:
 // CHECK-NEXT:       mv a3, zero
 // CHECK-NEXT:       addi a4, zero, 512

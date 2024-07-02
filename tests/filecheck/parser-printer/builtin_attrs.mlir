@@ -120,7 +120,7 @@
                       value2 = dense<[0.0, 1.0]> : tensor<2xf64>,
                       sym_name = "dense_tensor_attr"} : () -> ()
 
-  // CHECK: "value1" = dense<[[2, 3]]> : tensor<1x2xi32>, "value2" = dense<[0.000000e+00, 1.000000e+00]> : tensor<2xf64>
+  // CHECK: "value1" = dense<[{{#?}}[2, 3]]> : tensor<1x2xi32>, "value2" = dense<[0.000000e+00, 1.000000e+00]> : tensor<2xf64>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<"0xFF00"> : tensor<2xi8>,
@@ -132,7 +132,7 @@
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<"0xFF00CAFE"> : tensor<2x2xi8>,
                       sym_name = "dense_tensor_attr_hex_long"} : () -> ()
-  // CHECK: "value1" = dense<[[-1, 0], [-54, -2]]> : tensor<2x2xi8>
+  // CHECK: "value1" = dense<[{{#?}}[-1, 0], [-54, -2]]> : tensor<2x2xi8>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<"0xCAFEBABE"> : tensor<2xf32>,
@@ -152,14 +152,14 @@
                       value2 = dense<[[0.0], [1.0]]> : tensor<2x1xf64>,
                       sym_name = "dense_corner_attr"} : () -> ()
 
-  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[0.000000e+00], [1.000000e+00]]> : tensor<2x1xf64>
+  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[{{#?}}[0.000000e+00], [1.000000e+00]]> : tensor<2x1xf64>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<> : tensor<1x23x0x4xi32>,
                       value2 = dense<[[-0.0], [-1.0]]> : tensor<2x1xf64>,
                       sym_name = "dense_negative_attr"} : () -> ()
 
-  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[[-0.000000e+00], [-1.000000e+00]]> : tensor<2x1xf64>
+  // CHECK: "value1" = dense<> : tensor<1x23x0x4xi32>, "value2" = dense<[{{#?}}[-0.000000e+00], [-1.000000e+00]]> : tensor<2x1xf64>
 
   "func.func"() ({}) {function_type = () -> (),
                       value1 = dense<12> : tensor<2x3xi32>,
