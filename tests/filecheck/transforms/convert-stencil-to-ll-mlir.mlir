@@ -815,7 +815,72 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      }) : (index, index, index, index, index, index) -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
-  
+
+  func.func private @stencil_forwarding_store(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>, %2 : !stencil.field<[-4,68]xf64>) {
+    %3 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,65]xf64>
+    %4 = stencil.apply(%5 = %3 : !stencil.temp<[-1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
+      %6 = stencil.access %5[-1] : !stencil.temp<[-1,65]xf64>
+      %7 = stencil.access %5[0] : !stencil.temp<[-1,65]xf64>
+      %8 = stencil.access %5[1] : !stencil.temp<[-1,65]xf64>
+      %9 = arith.addf %6, %7 : f64
+      %10 = arith.addf %8, %9 : f64
+      stencil.return %10 : f64
+    }
+    %11 = stencil.store %4 to %1 ([0] : [64]) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64> with_halo : !stencil.temp<[-1,65]xf64>
+    %12 = stencil.apply(%13 = %11 : !stencil.temp<[-1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
+      %14 = stencil.access %13[-1] : !stencil.temp<[-1,65]xf64>
+      %15 = stencil.access %13[0] : !stencil.temp<[-1,65]xf64>
+      %16 = stencil.access %13[1] : !stencil.temp<[-1,65]xf64>
+      %17 = arith.addf %14, %15 : f64
+      %18 = arith.addf %16, %17 : f64
+      stencil.return %18 : f64
+    }
+    stencil.store %12 to %2 ([0] : [64]) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64>
+    func.return
+  }
 
 }
+
+// CHECK:         func.func private @stencil_forwarding_store(%0 : memref<72xf64>, %1 : memref<72xf64>, %2 : memref<72xf64>) {
+// CHECK-NEXT:      %3 = "memref.subview"(%1) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:      %4 = "memref.subview"(%2) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:      %5 = "memref.subview"(%0) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 66>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<66xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:      %6 = arith.constant 0 : index
+// CHECK-NEXT:      %7 = arith.constant 1 : index
+// CHECK-NEXT:      %8 = arith.constant 64 : index
+// CHECK-NEXT:      "scf.parallel"(%6, %8, %7) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
+// CHECK-NEXT:      ^0(%9 : index):
+// CHECK-NEXT:        %10 = arith.constant -1 : index
+// CHECK-NEXT:        %11 = arith.addi %9, %10 : index
+// CHECK-NEXT:        %12 = memref.load %5[%11] : memref<66xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        %13 = memref.load %5[%9] : memref<66xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        %14 = arith.constant 1 : index
+// CHECK-NEXT:        %15 = arith.addi %9, %14 : index
+// CHECK-NEXT:        %16 = memref.load %5[%15] : memref<66xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        %17 = arith.addf %12, %13 : f64
+// CHECK-NEXT:        %18 = arith.addf %16, %17 : f64
+// CHECK-NEXT:        memref.store %18, %3[%9] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        scf.yield
+// CHECK-NEXT:      }) : (index, index, index) -> ()
+// CHECK-NEXT:      %19 = "memref.subview"(%1) <{"static_offsets" = array<i64: 4>, "static_sizes" = array<i64: 64>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (memref<72xf64>) -> memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:      %20 = arith.constant 0 : index
+// CHECK-NEXT:      %21 = arith.constant 1 : index
+// CHECK-NEXT:      %22 = arith.constant 64 : index
+// CHECK-NEXT:      "scf.parallel"(%20, %22, %21) <{"operandSegmentSizes" = array<i32: 1, 1, 1, 0>}> ({
+// CHECK-NEXT:      ^1(%23 : index):
+// CHECK-NEXT:        %24 = arith.constant -1 : index
+// CHECK-NEXT:        %25 = arith.addi %23, %24 : index
+// CHECK-NEXT:        %26 = memref.load %19[%25] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        %27 = memref.load %19[%23] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        %28 = arith.constant 1 : index
+// CHECK-NEXT:        %29 = arith.addi %23, %28 : index
+// CHECK-NEXT:        %30 = memref.load %19[%29] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        %31 = arith.addf %26, %27 : f64
+// CHECK-NEXT:        %32 = arith.addf %30, %31 : f64
+// CHECK-NEXT:        memref.store %32, %4[%23] : memref<64xf64, strided<[1], offset: 4>>
+// CHECK-NEXT:        scf.yield
+// CHECK-NEXT:      }) : (index, index, index) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+
 // CHECK-NEXT: }

@@ -327,3 +327,55 @@ func.func @buffer(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x
 // CHECK-NEXT:      stencil.store %14 to %2 ([48, 0, 0] : [64, 64, 60]) : !stencil.temp<[48,64]x[0,64]x[0,60]xf64> to !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
+
+// -----
+
+builtin.module {
+  func.func private @stencil_forwarding_store(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>, %11 : !stencil.field<[-4,68]xf64>) {
+    %2 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
+    %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
+      %5 = stencil.access %4[-1] : !stencil.temp<?xf64>
+      %12 = stencil.access %4[0] : !stencil.temp<?xf64>
+      %13 = stencil.access %4[1] : !stencil.temp<?xf64>
+      %17 = arith.addf %5, %12 : f64
+      %18 = arith.addf %13, %17 : f64
+      stencil.return %18 : f64
+    }
+    %6 = stencil.store %3 to %1 ([0] : [64]) : !stencil.temp<?xf64> to !stencil.field<[-4,68]xf64> with_halo : !stencil.temp<?xf64>
+    %7 = stencil.apply(%8 = %6 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
+      %14 = stencil.access %8[-1] : !stencil.temp<?xf64>
+      %15 = stencil.access %8[0] : !stencil.temp<?xf64>
+      %16 = stencil.access %8[1] : !stencil.temp<?xf64>
+      %19 = arith.addf %14, %15 : f64
+      %20 = arith.addf %16, %19 : f64
+      stencil.return %20 : f64
+    }
+    stencil.store %7 to %11 ([0] : [64]) : !stencil.temp<?xf64> to !stencil.field<[-4,68]xf64>
+    func.return
+  }
+}
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    func.func private @stencil_forwarding_store(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>, %2 : !stencil.field<[-4,68]xf64>) {
+// CHECK-NEXT:      %3 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:      %4 = stencil.apply(%5 = %3 : !stencil.temp<[-1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
+// CHECK-NEXT:        %6 = stencil.access %5[-1] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %7 = stencil.access %5[0] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %8 = stencil.access %5[1] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %9 = arith.addf %6, %7 : f64
+// CHECK-NEXT:        %10 = arith.addf %8, %9 : f64
+// CHECK-NEXT:        stencil.return %10 : f64
+// CHECK-NEXT:      }
+// CHECK-NEXT:      %5 = stencil.store %4 to %1 ([0] : [64]) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64> with_halo : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:      %6 = stencil.apply(%7 = %5 : !stencil.temp<[-1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
+// CHECK-NEXT:        %8 = stencil.access %7[-1] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %9 = stencil.access %7[0] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %10 = stencil.access %7[1] : !stencil.temp<[-1,65]xf64>
+// CHECK-NEXT:        %11 = arith.addf %8, %9 : f64
+// CHECK-NEXT:        %12 = arith.addf %10, %11 : f64
+// CHECK-NEXT:        stencil.return %12 : f64
+// CHECK-NEXT:      }
+// CHECK-NEXT:      stencil.store %6 to %2 ([0] : [64]) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64>
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
