@@ -876,7 +876,7 @@ class Operation(IRNode):
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
-        clone_name_hints: bool = False,
+        clone_name_hints: bool = True,
     ) -> OpT:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
@@ -916,7 +916,7 @@ class Operation(IRNode):
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
-        clone_name_hints: bool = False,
+        clone_name_hints: bool = True,
     ) -> OpT:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
@@ -1967,7 +1967,7 @@ class Region(IRNode):
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
-        clone_name_hints: bool = False,
+        clone_name_hints: bool = True,
     ):
         """
         Clone all block of this region into `dest` to position `insert_index`

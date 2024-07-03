@@ -188,35 +188,58 @@ def test_op_clone():
     )
     a.results[0].name_hint = "name_hint"
     b = a.clone()
-    c = a.clone(clone_name_hints=True)
 
     assert a is not b
-    assert a is not c
-
     assert a.is_structurally_equivalent(b)
-    assert a.is_structurally_equivalent(c)
 
-    assert b.results[0].name_hint is None
+    # Name hints
+
+    c = a.clone(clone_name_hints=True)
+    d = a.clone(clone_name_hints=False)
+    assert a is not c
+    assert a is not d
+
+    assert a.is_structurally_equivalent(c)
+    assert a.is_structurally_equivalent(d)
+
+    assert b.results[0].name_hint == "name_hint"
     assert c.results[0].name_hint == "name_hint"
+    assert d.results[0].name_hint is None
 
 
 def test_op_clone_with_regions():
-    a = test.TestOp.create()
-    op0 = test.TestOp.create(
-        regions=[Region([Block([a])]), Region([Block([a.clone()])])]
-    )
+    # Children
+    ca0 = test.TestOp.create(result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    # Parent
+    pa = test.TestOp.create(regions=[Region([Block([ca0])]), Region([Block([ca1])])])
 
-    cloned_op = op0.clone()
+    pb = pa.clone()
+    assert pa is not pb
 
-    assert cloned_op is not op0
-    assert len(cloned_op.regions[0].ops) == 1
-    assert len(cloned_op.regions[1].ops) == 1
+    assert len(pb.regions[0].ops) == 1
+    assert len(pb.regions[1].ops) == 1
 
-    for op0_region, cloned_op_region in zip(op0.regions, cloned_op.regions):
+    for op0_region, cloned_op_region in zip(pa.regions, pb.regions):
         for op0_region_op, cloned_region_op in zip(
             op0_region.ops, cloned_op_region.ops
         ):
             assert op0_region_op is not cloned_region_op
+
+    pc = pa.clone(clone_name_hints=True)
+    pd = pa.clone(clone_name_hints=False)
+
+    def name_hints(op: Operation):
+        for o in op.walk():
+            for res in o.results:
+                yield res.name_hint
+
+    assert tuple(name_hints(pa)) == ("a", "b")
+    assert tuple(name_hints(pb)) == ("a", "b")
+    assert tuple(name_hints(pc)) == ("a", "b")
+    assert tuple(name_hints(pd)) == (None, None)
 
 
 def test_block_branching_to_another_region_wrong():
