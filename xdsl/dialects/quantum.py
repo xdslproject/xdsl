@@ -25,7 +25,7 @@ class AngleAttr(Data[Fraction], TypeAttribute):
                 return Fraction(0, 1)
             parser.parse_characters("pi")
             denominator = (
-                parser.parse_integer() if parser.parse_optional_characters("/") else 1
+                parser.parse_integer() if parser.parse_optional_punctuation(":") else 1
             )
             return Fraction(numerator, denominator) % 2
 
@@ -40,7 +40,7 @@ class AngleAttr(Data[Fraction], TypeAttribute):
 
             printer.print("pi")
             if self.data.denominator != 1:
-                printer.print("/")
+                printer.print(":")
                 printer.print(self.data.denominator)
 
     def __add__(self, other: AngleAttr):
