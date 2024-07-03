@@ -516,7 +516,8 @@ def is_side_effect_free(op: Operation) -> bool:
     """
     Boilerplate helper to check if a generic operation is side effect free for sure.
     """
-    return get_effects(op) == set()
+    effects = get_effects(op)
+    return effects is not None and len(effects) == 0
 
 
 def get_effects(op: Operation) -> set[MemoryEffectKind] | None:
