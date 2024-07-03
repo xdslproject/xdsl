@@ -20,7 +20,13 @@
     func.return %arg2 : memref<8x16xf64>
   }
 // CHECK-NEXT:    func.func public @dsum(%{{.*}} : memref<8x16xf64>, %{{.*}} : memref<8x16xf64>, %{{.*}} : memref<8x16xf64>) -> memref<8x16xf64> {
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>, #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>, #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>]} ins(%{{.*}}, %{{.*}} : memref<8x16xf64>, memref<8x16xf64>) outs(%{{.*}} : memref<8x16xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}}, %{{.*}} : memref<8x16xf64>, memref<8x16xf64>) outs(%{{.*}} : memref<8x16xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.writable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 8 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
@@ -58,7 +64,13 @@
   }
 // CHECK-NEXT:    func.func public @relu(%{{.*}} : memref<16x16xf64>, %{{.*}} : memref<16x16xf64>) -> memref<16x16xf64> {
 // CHECK-NEXT:      %{{.*}} = arith.constant 0.000000e+00 : f64
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>, #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>, #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>]} ins(%{{.*}} : memref<16x16xf64>) outs(%{{.*}} : memref<16x16xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}} : memref<16x16xf64>) outs(%{{.*}} : memref<16x16xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.writable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
@@ -101,7 +113,11 @@ func.func public @fill(%arg0 : memref<16x16xf64>) -> memref<16x16xf64> {
 
 // CHECK-NEXT:    func.func public @fill(%{{.*}} : memref<16x16xf64>) -> memref<16x16xf64> {
 // CHECK-NEXT:      %{{.*}} = arith.constant 0.000000e+00 : f64
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>]} outs(%{{.*}} : memref<16x16xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } outs(%{{.*}} : memref<16x16xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.writable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 16 : index
@@ -142,7 +158,12 @@ func.func @main(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x3xf64>
     func.return %C : memref<4x3xf64>
 }
 // CHECK-NEXT:    func.func @main(%{{.*}} : memref<4x2xf64>, %{{.*}} : memref<2x3xf64>, %{{.*}} : memref<4x3xf64>) -> memref<4x3xf64> {
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d0, d2)>, #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>]} ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d0, d2)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.readable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 4 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
@@ -189,7 +210,11 @@ func.func @elide_affine(%A : memref<6xf64>, %B : memref<f64>) -> memref<f64> {
     func.return %B : memref<f64>
 }
 // CHECK-NEXT:    func.func @elide_affine(%{{.*}} : memref<6xf64>, %{{.*}} : memref<f64>) -> memref<f64> {
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [2, 3], index_map = (d0, d1) -> (((d0 * 3) + d1))>]} ins(%{{.*}} : memref<6xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [2, 3], index_map = (d0, d1) -> (((d0 * 3) + d1))>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}} : memref<6xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 2 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
@@ -231,7 +256,11 @@ func.func @nested_imperfect(%A : memref<2x3x4xf64>, %B : memref<f64>) -> memref<
 }
 
 // CHECK-NEXT:    func.func @nested_imperfect(%{{.*}} : memref<2x3x4xf64>, %{{.*}} : memref<f64>) -> memref<f64> {
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [2, 3, 4], index_map = (d0, d1, d2) -> (d0, d1, d2)>]} ins(%{{.*}} : memref<2x3x4xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [2, 3, 4], index_map = (d0, d1, d2) -> (d0, d1, d2)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}} : memref<2x3x4xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 2 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
@@ -283,7 +312,12 @@ func.func @main_inits(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x
 }
 // CHECK-NEXT:    func.func @main_inits(%{{.*}} : memref<4x2xf64>, %{{.*}} : memref<2x3xf64>, %{{.*}} : memref<4x3xf64>) -> memref<4x3xf64> {
 // CHECK-NEXT:      %zero_float = arith.constant 0.000000e+00 : f64
-// CHECK-NEXT:      memref_stream.streaming_region {patterns = [#memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d0, d2)>, #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>]} ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) {
+// CHECK-NEXT:      memref_stream.streaming_region {
+// CHECK-NEXT:        patterns = [
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d0, d2)>,
+// CHECK-NEXT:          #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>
+// CHECK-NEXT:        ]
+// CHECK-NEXT:      } ins(%{{.*}}, %{{.*}} : memref<4x2xf64>, memref<2x3xf64>) {
 // CHECK-NEXT:      ^{{.*}}(%{{.*}} : !stream.readable<f64>, %{{.*}} : !stream.readable<f64>):
 // CHECK-NEXT:        %{{.*}} = arith.constant 4 : index
 // CHECK-NEXT:        %{{.*}} = arith.constant 3 : index
