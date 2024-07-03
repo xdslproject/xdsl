@@ -875,6 +875,8 @@ class Operation(IRNode):
         self: OpT,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
+        *,
+        clone_name_hints: bool = True,
     ) -> OpT:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
@@ -901,23 +903,37 @@ class Operation(IRNode):
             successors=successors,
             regions=regions,
         )
-        for idx, result in enumerate(cloned_op.results):
-            value_mapper[self.results[idx]] = result
+        for self_result, cloned_result in zip(
+            self.results, cloned_op.results, strict=True
+        ):
+            value_mapper[self_result] = cloned_result
+            if clone_name_hints:
+                cloned_result.name_hint = self_result.name_hint
         return cloned_op
 
     def clone(
         self: OpT,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
+        *,
+        clone_name_hints: bool = True,
     ) -> OpT:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
             value_mapper = {}
         if block_mapper is None:
             block_mapper = {}
-        op = self.clone_without_regions(value_mapper, block_mapper)
+        op = self.clone_without_regions(
+            value_mapper, block_mapper, clone_name_hints=clone_name_hints
+        )
         for idx, region in enumerate(self.regions):
-            region.clone_into(op.regions[idx], 0, value_mapper, block_mapper)
+            region.clone_into(
+                op.regions[idx],
+                0,
+                value_mapper,
+                block_mapper,
+                clone_name_hints=clone_name_hints,
+            )
         return op
 
     @classmethod
@@ -1950,6 +1966,8 @@ class Region(IRNode):
         insert_index: int | None = None,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
+        *,
+        clone_name_hints: bool = True,
     ):
         """
         Clone all block of this region into `dest` to position `insert_index`
@@ -1979,7 +1997,11 @@ class Region(IRNode):
                 new_block.insert_arg(block_arg.type, idx)
                 value_mapper[block_arg] = new_block.args[idx]
             for op in block.ops:
-                new_block.add_op(op.clone(value_mapper, block_mapper))
+                new_block.add_op(
+                    op.clone(
+                        value_mapper, block_mapper, clone_name_hints=clone_name_hints
+                    )
+                )
 
     def walk(
         self, *, reverse: bool = False, region_first: bool = False

@@ -163,6 +163,12 @@ class StridePattern(ParametrizedAttribute):
             if bound.data != 1
         )
 
+        if not tuples:
+            # All bounds are 1
+            return StridePattern.from_bounds_and_strides(
+                (1,), (self.strides.data[-1].data,)
+            )
+
         # Outermost bound and stride
         ub0, s0 = tuples[0]
 
