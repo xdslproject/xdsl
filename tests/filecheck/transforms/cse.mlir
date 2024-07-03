@@ -84,7 +84,7 @@ func.func @different_ops() -> (i32, i32) {
     func.return %20, %21, %22 : i1, i1, i1
   }
 
-// CHECK-NEXT:      %0 = arith.cmpi slt, %arg0, %arg1 : index
+// CHECK:      %0 = arith.cmpi slt, %arg0, %arg1 : index
 // CHECK-NEXT:      %1 = arith.cmpi ne, %arg0, %arg1 : index
 // CHECK-NEXT:      func.return %0, %1, %1 : i1, i1, i1
 // CHECK-NEXT:    }
@@ -189,7 +189,7 @@ func.func @up_propagate() -> i32 {
     func.return %38 : i32
   }
 
-// CHECK-NEXT:      %0 = arith.constant 0 : i32
+// CHECK:      %0 = arith.constant 0 : i32
 // CHECK-NEXT:      %1 = arith.constant true
 // CHECK-NEXT:      "cf.cond_br"(%1, %0) [^0, ^1] <{"operandSegmentSizes" = array<i32: 1, 0, 1>}> : (i1, i32) -> ()
 // CHECK-NEXT:    ^0:
