@@ -34,15 +34,15 @@ memref_stream.generic {
 // CHECK-NEXT:      iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
 // CHECK-NEXT:    } ins(%A, %B : memref<3x5xf64>, memref<5x8xf64>) outs(%C : memref<3x8xf64>) inits(%zero_float : f64) {
 // CHECK-NEXT:    ^0(%a : f64, %a_1 : f64, %a_2 : f64, %a_3 : f64, %b : f64, %b_1 : f64, %b_2 : f64, %b_3 : f64, %c : f64, %c_1 : f64, %c_2 : f64, %c_3 : f64):
-// CHECK-NEXT:      %0 = arith.mulf %a, %b fastmath<fast> : f64
-// CHECK-NEXT:      %1 = arith.mulf %a_1, %b_1 fastmath<fast> : f64
-// CHECK-NEXT:      %2 = arith.mulf %a_2, %b_2 fastmath<fast> : f64
-// CHECK-NEXT:      %3 = arith.mulf %a_3, %b_3 fastmath<fast> : f64
-// CHECK-NEXT:      %4 = arith.addf %0, %c fastmath<fast> : f64
-// CHECK-NEXT:      %5 = arith.addf %1, %c_1 fastmath<fast> : f64
-// CHECK-NEXT:      %6 = arith.addf %2, %c_2 fastmath<fast> : f64
-// CHECK-NEXT:      %7 = arith.addf %3, %c_3 fastmath<fast> : f64
-// CHECK-NEXT:      memref_stream.yield %4, %5, %6, %7 : f64, f64, f64, f64
+// CHECK-NEXT:      %prod = arith.mulf %a, %b fastmath<fast> : f64
+// CHECK-NEXT:      %prod_1 = arith.mulf %a_1, %b_1 fastmath<fast> : f64
+// CHECK-NEXT:      %prod_2 = arith.mulf %a_2, %b_2 fastmath<fast> : f64
+// CHECK-NEXT:      %prod_3 = arith.mulf %a_3, %b_3 fastmath<fast> : f64
+// CHECK-NEXT:      %res = arith.addf %prod, %c fastmath<fast> : f64
+// CHECK-NEXT:      %res_1 = arith.addf %prod_1, %c_1 fastmath<fast> : f64
+// CHECK-NEXT:      %res_2 = arith.addf %prod_2, %c_2 fastmath<fast> : f64
+// CHECK-NEXT:      %res_3 = arith.addf %prod_3, %c_3 fastmath<fast> : f64
+// CHECK-NEXT:      memref_stream.yield %res, %res_1, %res_2, %res_3 : f64, f64, f64, f64
 // CHECK-NEXT:    }
 
 // CHECK-NEXT:  }
