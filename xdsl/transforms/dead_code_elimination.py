@@ -28,7 +28,8 @@ def result_only_effects(rootOp: Operation) -> bool:
     Returns if we can ensure the operation would have no observable effect beyond its
     returned values.
 
-    cf MLIR's WouldOpBeTriviallyDead
+    cf MLIR's WouldOpBeTriviallyDead:
+    https://mlir.llvm.org/doxygen/namespacemlir.html#a655db45ed8c23d04d5ed5ee0abe041ad
     """
     effects = get_effects(rootOp)
     return effects is not None and all(e == MemoryEffectKind.READ for e in effects)
