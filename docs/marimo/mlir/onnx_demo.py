@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.6.23"
+__generated_with = "0.6.25"
 app = marimo.App()
 
 
@@ -130,6 +130,9 @@ def __(mo):
     from xdsl.context import MLContext
     from xdsl.dialects.riscv import riscv_code
     from xdsl.frontend.onnx.ir_builder import build_module
+    from xdsl.interpreter import Interpreter, OpCounter
+    from xdsl.interpreters import register_implementations
+    from xdsl.interpreters.ptr import TypedPtr
     from xdsl.ir import Attribute, SSAValue
     from xdsl.passes import PipelinePass
     from xdsl.tools.command_line_tool import get_all_dialects
@@ -167,14 +170,17 @@ def __(mo):
         ConvertOnnxToLinalgPass,
         ConvertRiscvScfToRiscvCfPass,
         ConvertSnitchStreamToSnitch,
+        Interpreter,
         LowerSnitchPass,
         MLContext,
         MLIROptPass,
+        OpCounter,
         PipelinePass,
         RISCVRegisterAllocation,
         RiscvScfLoopRangeFoldingPass,
         SSAValue,
         SnitchRegisterAllocation,
+        TypedPtr,
         arith_add_fastmath,
         build_module,
         convert_arith_to_riscv,
@@ -191,6 +197,7 @@ def __(mo):
         lower_affine,
         memref_streamify,
         reconcile_unrealized_casts,
+        register_implementations,
         riscv_code,
         test_lower_snitch_stream_to_asm,
     )
@@ -446,6 +453,161 @@ def __(
     """
     )
     return snitch_asm_module,
+
+
+@app.cell
+def __(
+    Interpreter,
+    OpCounter,
+    TypedPtr,
+    ctx,
+    mo,
+    rank,
+    register_implementations,
+    riscv_module,
+    shape,
+):
+    from math import prod
+
+    n = prod(shape)
+
+    lhs = TypedPtr.new_float64([i + 1 for i in range(n)]).raw
+    rhs = TypedPtr.new_float64([(i + 1) / 100 for i in range(n)]).raw
+
+    lhs.float64.get_list(n), rhs.float64.get_list(n)
+
+    riscv_op_counter = OpCounter()
+    riscv_interpreter = Interpreter(riscv_module, listener=riscv_op_counter)
+
+    register_implementations(riscv_interpreter, ctx, include_wgpu=False)
+
+    (riscv_res,) = riscv_interpreter.call_op("main_graph", (lhs, rhs))
+
+    mo.md(
+        f"""
+    One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
+
+    {rank}
+
+    ```
+    Shape:  {shape}
+    LHS:    {lhs.float64.get_list(n)}
+    RHS:    {rhs.float64.get_list(n)}
+    Result: {riscv_res.float64.get_list(n)}
+    ```
+    """
+    )
+    return lhs, n, prod, rhs, riscv_interpreter, riscv_op_counter, riscv_res
+
+
+@app.cell
+def __(
+    Interpreter,
+    OpCounter,
+    ctx,
+    lhs,
+    mo,
+    n,
+    register_implementations,
+    rhs,
+    snitch_stream_module,
+):
+    snitch_op_counter = OpCounter()
+    snitch_interpreter = Interpreter(snitch_stream_module, listener=snitch_op_counter)
+
+    register_implementations(snitch_interpreter, ctx, include_wgpu=False)
+
+    (snitch_res,) = snitch_interpreter.call_op("main_graph", (lhs, rhs))
+
+    mo.md(
+        f"""
+    We can also interpret the Snitch version of the code to compare the results:
+
+    Snitch result: {snitch_res.float64.get_list(n)}
+    """
+    )
+    return snitch_interpreter, snitch_op_counter, snitch_res
+
+
+@app.cell
+def __(mo, rank, riscv_op_counter, snitch_op_counter):
+    rv_dict = dict(riscv_op_counter.ops)
+    sn_dict = dict(snitch_op_counter.ops)
+
+    all_keys = sorted(set(rv_dict) | set(sn_dict))
+    max_len_key = max(len(k) for k in all_keys)
+    max_len_value = max(len(str(val)) for val in (*rv_dict.values(), *sn_dict.values()))
+
+    def format_row(key: str, *values: str):
+        paddings = tuple(" " * (max_len_value - len(val)) for val in values)
+        vals = "".join(f"\t{padding}{val}" for padding, val in zip(paddings, values))
+        return f"{key}{' ' * (max_len_key - len(key))}{vals}\n"
+
+    rows = " " * max_len_key + "\trv\tsn\tdiff\n"
+
+    ZERO_VAL = "."
+
+    for key in all_keys:
+        rv_val = rv_dict.get(key, 0)
+        sn_val = sn_dict.get(key, 0)
+        diff_val = sn_val - rv_val
+
+        rv_str = str(rv_val) if rv_val else ZERO_VAL
+        sn_str = str(sn_val) if sn_val else ZERO_VAL
+        diff_str = (
+            (f"+{diff_val}" if diff_val > 0 else f"{diff_val}") if diff_val else "="
+        )
+
+        rows += key
+        rows += " " * (max_len_key - len(key))
+        rows += "\t"
+        rows += " " * (max_len_value - len(rv_str))
+        rows += rv_str
+        rows += "\t"
+        rows += " " * (max_len_value - len(sn_str))
+        rows += sn_str
+        rows += "\t"
+        rows += " " * (max_len_value - len(diff_str))
+        rows += diff_str
+        rows += "\n"
+
+    rv_sum = sum(rv_dict.values())
+    sn_sum = sum(sn_dict.values())
+    total_diff = sn_sum - rv_sum
+
+    rows += format_row("total", str(rv_sum), str(sn_sum), str(total_diff))
+
+    mo.md(
+        f"""
+    We can also compare the number of instructions executed in our interpreter runs:
+
+    {rank}
+
+    ```
+    {rows}
+    ```
+    """
+    )
+    return (
+        ZERO_VAL,
+        all_keys,
+        diff_str,
+        diff_val,
+        format_row,
+        key,
+        max_len_key,
+        max_len_value,
+        rows,
+        rv_dict,
+        rv_str,
+        rv_sum,
+        rv_val,
+        sn_dict,
+        sn_str,
+        sn_sum,
+        sn_val,
+        total_diff,
+    )
 
 
 if __name__ == "__main__":
