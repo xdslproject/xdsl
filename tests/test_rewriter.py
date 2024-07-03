@@ -365,6 +365,76 @@ def test_insert_op_after():
     rewrite_and_compare(prog, expected, transformation)
 
 
+def test_insert_op_after_all():
+    """Test the insertion of an operation after another operation."""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() <{"value" = 40 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 41 : i32}> : () -> i32
+  %2 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() <{"value" = 40 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 41 : i32}> : () -> i32
+  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+  %3 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        # constant = Constant.from_int_and_width(34, i64)
+        first_op = module.regions[0].blocks[0].first_op
+        assert first_op is not None
+        second_op = first_op.next_op
+        assert second_op is not None
+        add_op = Addi(first_op, second_op)
+        rewriter.insert_op(
+            add_op,
+            InsertPoint.after_all(
+                (
+                    first_op,
+                    second_op,
+                )
+            ),
+        )
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+def test_insert_op_after_operands():
+    """Test the insertion of an operation after another operation."""
+    prog = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() <{"value" = 40 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 41 : i32}> : () -> i32
+  %2 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %0 = "arith.constant"() <{"value" = 40 : i32}> : () -> i32
+  %1 = "arith.constant"() <{"value" = 41 : i32}> : () -> i32
+  %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
+  %3 = "arith.constant"() <{"value" = 42 : i32}> : () -> i32
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        # constant = Constant.from_int_and_width(34, i64)
+        first_op = module.regions[0].blocks[0].first_op
+        assert first_op is not None
+        second_op = first_op.next_op
+        assert second_op is not None
+        add_op = Addi(first_op, second_op)
+        rewriter.insert_op(add_op, InsertPoint.after_operands(add_op.operands))
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
 def test_preserve_naming_single_op():
     """Test the preservation of names of SSAValues"""
     prog = """\

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import cast
 
 from typing_extensions import deprecated
 
-from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.ir import Block, BlockArgument, Operation, OpResult, Region, SSAValue
+from xdsl.irdl import Operand
 
 
 @dataclass(frozen=True)
@@ -48,6 +50,50 @@ class InsertPoint:
         if block is None:
             raise ValueError("Operation insertion point must have a parent block")
         return InsertPoint(block, op.next_op)
+
+    @staticmethod
+    def after_all(ops: Sequence[Operation]) -> InsertPoint:
+        """Gets the insertion point after all operations, which must all belong to the same block."""
+        if len(ops) == 0:
+            raise ValueError("Cannot insert after no given operands")
+
+        if any(
+            op.parent is None or op.parent_block() != ops[0].parent_block()
+            for op in ops
+        ):
+            raise ValueError(
+                "Operation insertion must be for ops in the same parent block"
+            )
+
+        return InsertPoint.after(
+            max(
+                [
+                    (op.parent.get_operation_index(op), op)
+                    for op in ops
+                    if op.parent is not None
+                ]
+            )[1]
+        )
+
+    @staticmethod
+    def after_operands(ops: Sequence[Operand]) -> InsertPoint:
+        """Gets the insertion point after all operands (which must be of the same block) are present."""
+        if len(ops) == 0:
+            raise ValueError("Cannot insert after no operands")
+        operations: list[Operation] = [
+            op_r.op for op_r in ops if isinstance(op_r, OpResult)
+        ]
+
+        if len(operations) > 0:
+            return InsertPoint.after_all(operations)
+
+        for blk_arg in ops:
+            if not isinstance(blk_arg, BlockArgument):
+                raise ValueError(f"Unsupported operand type: {type(blk_arg)}")
+            if blk_arg.block != cast(BlockArgument, ops[0]).block:
+                raise ValueError("Block args must be of the same block")
+
+        return InsertPoint.at_start(cast(BlockArgument, ops[0]).block)
 
     @staticmethod
     def at_start(block: Block) -> InsertPoint:
