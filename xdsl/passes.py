@@ -130,9 +130,6 @@ class ModulePass(ABC):
             if op_field.name == "name" or not op_field.init:
                 continue
 
-            if _is_optional(op_field):
-                arg_dict[op_field.name] = _get_default(op_field)
-
             val = getattr(self, op_field.name)
             if val is None:
                 arg_dict.update({op_field.name: ()})
