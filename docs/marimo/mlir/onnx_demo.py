@@ -4,53 +4,78 @@ __generated_with = "0.6.25"
 app = marimo.App()
 
 
-@app.cell
-def __():
-    import marimo as mo
-
+@app.cell(hide_code=True)
+def __(mo):
     mo.md(
         """
-    # ONNX to Snitch
+        # ONNX to Snitch
 
-    This notebook uses Marimo, a Jupyter-like notebook with interactive UI elements and reactive state.
-    """
+        This notebook uses Marimo, a Jupyter-like notebook with interactive UI elements and reactive state.
+        """
     )
-    return mo,
+    return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     rank = mo.ui.slider(1, 4, value=2, label="Rank")
 
     mo.md(
         f"""
-    For example, here is a slider, which can take on values from 1 to 4.
+        For example, here is a slider, which can take on values from 1 to 4.
 
-    {rank}
-    """
+        {rank}
+        """
     )
     return rank,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, rank):
     shape = tuple(range(2, 2 + rank.value))
 
     mo.md(
         f"""
-    We use the slider to determine the shape of our inputs and outputs:
+        We use the slider to determine the shape of our inputs and outputs:
 
-    {shape}
-    """
+        ```
+        A: {'x'.join(str(dim) for dim in shape)}xf64
+        B: {'x'.join(str(dim) for dim in shape)}xf64
+        C: {'x'.join(str(dim) for dim in shape)}xf64
+        ```
+        """
     )
     return shape,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, shape):
+    mo.md(
+        f"""
+        ### The ONNX model
+
+        We use the ONNX API to build a simple function, one that returns the elementwise sum of two arrays of shape {shape}
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __():
     import onnx
     from onnx import AttributeProto, GraphProto, TensorProto, ValueInfoProto, helper
+    return (
+        AttributeProto,
+        GraphProto,
+        TensorProto,
+        ValueInfoProto,
+        helper,
+        onnx,
+    )
 
+
+@app.cell
+def __(TensorProto, helper, onnx, shape):
     # Create one input (ValueInfoProto)
     X1 = helper.make_tensor_value_info("X1", TensorProto.DOUBLE, shape)
     X2 = helper.make_tensor_value_info("X2", TensorProto.DOUBLE, shape)
@@ -81,245 +106,162 @@ def __(mo, shape):
         graph_def, producer_name="onnx-example", opset_imports=opset_import
     )
 
-    print(f"The model is:\n{model_def}")
     onnx.checker.check_model(model_def)
-    # onnx.save(model_def, "add.onnx")
-    print("The model is checked!")
-
-    mo.md(
-        f"""
-    ### The ONNX model
-
-    We use the ONNX API to build a simple function, one that returns the elementwise sum of two arrays of shape {shape}
-    """
-    )
-    return (
-        AttributeProto,
-        GraphProto,
-        TensorProto,
-        ValueInfoProto,
-        X1,
-        X2,
-        Y,
-        graph_def,
-        helper,
-        model_def,
-        node_def,
-        onnx,
-        opset_import,
-    )
+    return X1, X2, Y, graph_def, model_def, node_def, opset_import
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
-    # As of version 0.6.14, something breaks when importing from xDSL in multiple cells
-    # https://github.com/marimo-team/marimo/issues/1699
-
-    from xdsl.backend.riscv.lowering import (
-        convert_arith_to_riscv,
-        convert_func_to_riscv_func,
-        convert_memref_to_riscv,
-        convert_scf_to_riscv_scf,
-    )
-    from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
-        ConvertRiscvScfToRiscvCfPass,
-    )
-    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
-        ConvertSnitchStreamToSnitch,
-    )
-    from xdsl.context import MLContext
-    from xdsl.dialects.riscv import riscv_code
-    from xdsl.frontend.onnx.ir_builder import build_module
-    from xdsl.interpreter import Interpreter, OpCounter
-    from xdsl.interpreters import register_implementations
-    from xdsl.interpreters.ptr import TypedPtr
-    from xdsl.ir import Attribute, SSAValue
-    from xdsl.passes import PipelinePass
-    from xdsl.tools.command_line_tool import get_all_dialects
-    from xdsl.transforms import (
-        arith_add_fastmath,
-        convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
-        convert_riscv_scf_for_to_frep,
-        dead_code_elimination,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
-        reconcile_unrealized_casts,
-        test_lower_snitch_stream_to_asm,
-    )
-    from xdsl.transforms.canonicalize import CanonicalizePass
-    from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
-    from xdsl.transforms.lower_snitch import LowerSnitchPass
-    from xdsl.transforms.mlir_opt import MLIROptPass
-    from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-    from xdsl.transforms.riscv_scf_loop_range_folding import (
-        RiscvScfLoopRangeFoldingPass,
-    )
-    from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
-
     mo.md(
         """
-    We then convert the ONNX Graph to the xDSL representation, in the onnx dialect.
-    """
+        ONNX uses a serialized binary format for neural networks, but can also print a string format, which can be useful for debugging.
+        Here is the textual format of our model:
+        """
     )
-    return (
-        Attribute,
-        CanonicalizePass,
-        ConvertOnnxToLinalgPass,
-        ConvertRiscvScfToRiscvCfPass,
-        ConvertSnitchStreamToSnitch,
-        Interpreter,
-        LowerSnitchPass,
-        MLContext,
-        MLIROptPass,
-        OpCounter,
-        PipelinePass,
-        RISCVRegisterAllocation,
-        RiscvScfLoopRangeFoldingPass,
-        SSAValue,
-        SnitchRegisterAllocation,
-        TypedPtr,
-        arith_add_fastmath,
-        build_module,
-        convert_arith_to_riscv,
-        convert_func_to_riscv_func,
-        convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
-        convert_memref_to_riscv,
-        convert_riscv_scf_for_to_frep,
-        convert_scf_to_riscv_scf,
-        dead_code_elimination,
-        get_all_dialects,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
-        reconcile_unrealized_casts,
-        register_implementations,
-        riscv_code,
-        test_lower_snitch_stream_to_asm,
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo, model_def):
+    mo.accordion(
+        {
+            "ONNX Graph": mo.plain_text(f"{model_def}"),
+        }
     )
+    return
 
 
 @app.cell
-def __(build_module, mo, model_def):
+def __(build_module, html, mo, model_def):
     init_module = build_module(model_def.graph).clone()
 
-    print(init_module)
+    mo.md(f"""
+    ### Compiling to RISC-V
 
-    mo.md(
-        """
-    Here is the same function, it takes two `tensor` values of our chosen shape, passes them as operands to the `onnx.Add` operation, and returns it.
+    Here is the xDSL representation of the function, it takes two `tensor` values of our chosen shape, passes them as operands to the `onnx.Add` operation, and returns it:
+
+    {html(init_module)}
     """
     )
     return init_module,
 
 
 @app.cell
-def __(
-    ConvertOnnxToLinalgPass,
-    MLContext,
-    get_all_dialects,
-    init_module,
-    mo,
-):
+def __(init_module, mo):
+    mo.ui.code_editor(str(init_module), language="json", disabled=True)
+    return
+
+
+@app.cell(hide_code=True)
+def __(MLContext, get_all_dialects):
     ctx = MLContext()
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         ctx.register_dialect(dialect_name, dialect_factory)
+    return ctx, dialect_factory, dialect_name
 
-    linalg_module = init_module.clone()
 
-    ConvertOnnxToLinalgPass().apply(ctx, linalg_module)
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md("xDSL seamlessly interoperates with MLIR, we the `mlir-opt` tool to compile the input to a form that we want to process:")
+    return
 
-    print(linalg_module)
 
-    mo.md(
-        """
-    We can use a pass implemented in xDSL to convert the ONNX operations to builtin operations, here we can use the `tensor.empty` op to create our output buffer, and `linalg.add` to represent the addition in destination-passing style.
+@app.cell(hide_code=True)
+def __(
+    ConvertOnnxToLinalgPass,
+    MLIROptPass,
+    init_module,
+    mo,
+    pipeline_accordion,
+):
+    bufferized_module, linalg_accordion = pipeline_accordion(
+        (
+            (
+                mo.md(
+                    """\
+    We can use a pass implemented in xDSL to convert the ONNX operations to builtin operations, here we can use the `tensor.empty` op to create our output buffer, and `linalg.add` to represent the addition in destination-passing style:
     """
-    )
-    return ctx, dialect_factory, dialect_name, linalg_module
-
-
-@app.cell
-def __(MLIROptPass, ctx, linalg_module, mo):
-    generalized_module = linalg_module.clone()
-
-    MLIROptPass(generic=False, arguments=["--linalg-generalize-named-ops"]).apply(
-        ctx, generalized_module
-    )
-
-    print(generalized_module)
-
-    mo.md(
-        """
-    We can also call into MLIR, here to convert `linalg.add` to `linalg.generic`, a representation of Einstein summation.
+                ),
+                ConvertOnnxToLinalgPass()
+            ),
+            (
+                mo.md(
+                    """
+    We can also call into MLIR, here to convert `linalg.add` to `linalg.generic`, a representation of Einstein summation:
     """
+                ),
+                MLIROptPass(
+                    generic=False,
+                    arguments=["--linalg-generalize-named-ops"]
+                )
+            ),
+            (
+                mo.md(
+                    """We then use MLIR to bufferize our function:"""
+                ),
+                MLIROptPass(
+                    arguments=[
+                        "--empty-tensor-to-alloc-tensor",
+                        "--one-shot-bufferize=bufferize-function-boundaries function-boundary-type-conversion=identity-layout-map",
+                    ]
+                )
+            )
+        ),
+        init_module
     )
-    return generalized_module,
+
+    linalg_accordion
+    return bufferized_module, linalg_accordion
 
 
-@app.cell
-def __(MLIROptPass, ctx, generalized_module, mo):
-    bufferized_module = generalized_module.clone()
-
-    MLIROptPass(
-        arguments=[
-            "--empty-tensor-to-alloc-tensor",
-            "--one-shot-bufferize=bufferize-function-boundaries function-boundary-type-conversion=identity-layout-map",
-        ]
-    ).apply(ctx, bufferized_module)
-
-    print(bufferized_module)
-
-    mo.md(
-        """
-    We then use MLIR to bufferize our function.
-    """
-    )
-    return bufferized_module,
-
-
-@app.cell
-def __(MLIROptPass, bufferized_module, ctx):
-    scf_module = bufferized_module.clone()
-
-    MLIROptPass(
-        arguments=["--convert-linalg-to-loops", "--lower-affine", "--canonicalize"]
-    ).apply(ctx, scf_module)
-
-    print(scf_module)
-    return scf_module,
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md("We can take this representation, and lower to RISC-V-specific dialects:")
+    return
 
 
 @app.cell
 def __(
     PipelinePass,
+    bufferized_module,
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
+    convert_linalg_to_loops,
     convert_memref_to_riscv,
     convert_scf_to_riscv_scf,
-    ctx,
+    pipeline_accordion,
     reconcile_unrealized_casts,
-    scf_module,
 ):
-    riscv_module = scf_module.clone()
-
     lower_to_riscv = PipelinePass(
         [
+            convert_linalg_to_loops.ConvertLinalgToLoopsPass(),
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
             convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
             convert_arith_to_riscv.ConvertArithToRiscvPass(),
             convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
             reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
         ]
-    ).apply(ctx, riscv_module)
+    )
 
-    print(riscv_module)
-    return lower_to_riscv, riscv_module
+    riscv_module, riscv_accordion = pipeline_accordion(
+        tuple(("", p) for p in lower_to_riscv.passes), bufferized_module
+    )
+
+    riscv_accordion
+    return lower_to_riscv, riscv_accordion, riscv_module
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        #### Register allocation
+
+        We implemented a register allocator for our RISC-V representation, that works on functions with structured control flow:
+        """
+    )
+    return
 
 
 @app.cell
@@ -327,53 +269,76 @@ def __(
     CanonicalizePass,
     PipelinePass,
     RISCVRegisterAllocation,
-    ctx,
+    pipeline_accordion,
     riscv_module,
 ):
-    regalloc_module = riscv_module.clone()
-
-    PipelinePass(
+    allocate_registers = PipelinePass(
         [
             RISCVRegisterAllocation(),
             CanonicalizePass(),
         ]
-    ).apply(ctx, regalloc_module)
+    )
 
-    print(regalloc_module)
-    return regalloc_module,
+    regalloc_module, regalloc_accordion = pipeline_accordion(
+        tuple(("", p) for p in allocate_registers.passes), riscv_module
+    )
+
+    regalloc_accordion
+    return allocate_registers, regalloc_accordion, regalloc_module
 
 
 @app.cell
 def __(
     CanonicalizePass,
     ConvertRiscvScfToRiscvCfPass,
-    ctx,
+    PipelinePass,
+    pipeline_accordion,
     regalloc_module,
 ):
-    assembly_module = regalloc_module.clone()
+    lower_to_asm = PipelinePass(
+        [
+            ConvertRiscvScfToRiscvCfPass(),
+            CanonicalizePass(),
+        ]
+    )
 
-    ConvertRiscvScfToRiscvCfPass().apply(ctx, assembly_module)
-    CanonicalizePass().apply(ctx, assembly_module)
+    riscv_asm_module, assembly_accordion = pipeline_accordion(
+        tuple(("", p) for p in lower_to_asm.passes), regalloc_module
+    )
 
-    print(assembly_module)
-    return assembly_module,
+    assembly_accordion
+    return assembly_accordion, lower_to_asm, riscv_asm_module
 
 
 @app.cell
-def __(assembly_module, mo, riscv_code):
-    assembly = riscv_code(assembly_module)
+def __(mo):
+    mo.md("This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.")
+    return
 
-    print(assembly)
 
-    mo.md(
-        """
-    This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.
-    """
-    )
+@app.cell
+def __(mo, riscv_asm_module, riscv_code):
+    assembly = riscv_code(riscv_asm_module)
+
+    mo.accordion({
+        "Assembly": mo.ui.code_editor(assembly, language="python", disabled=True)
+    })
     return assembly,
 
 
-@app.cell
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        """
+        ### Compiling to Snitch
+
+        xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation to represent a high-level, structured, but Snitch-specific representation of the code:
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def __(
     CanonicalizePass,
     PipelinePass,
@@ -387,17 +352,14 @@ def __(
     convert_memref_to_riscv,
     convert_riscv_scf_for_to_frep,
     convert_scf_to_riscv_scf,
-    ctx,
     dead_code_elimination,
     loop_hoist_memref,
     lower_affine,
     memref_streamify,
-    mo,
+    pipeline_accordion,
     reconcile_unrealized_casts,
 ):
-    snitch_stream_module = bufferized_module.clone()
-
-    pass_pipeline = PipelinePass(
+    convert_linalg_to_snitch = PipelinePass(
         [
             convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
             memref_streamify.MemrefStreamifyPass(),
@@ -417,21 +379,25 @@ def __(
         ]
     )
 
-    pass_pipeline.apply(ctx, snitch_stream_module)
-
-    print(snitch_stream_module)
-
-    mo.md(
-        """
-    ### Compiling to Snitch
-
-    xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation to represent a high-level, structured, but Snitch-specific representation of the code:
-    """
+    snitch_stream_module, snitch_stream_accordion = pipeline_accordion(
+        tuple(("", p) for p in convert_linalg_to_snitch.passes), bufferized_module
     )
-    return pass_pipeline, snitch_stream_module
+
+    snitch_stream_accordion
+    return (
+        convert_linalg_to_snitch,
+        snitch_stream_accordion,
+        snitch_stream_module,
+    )
 
 
-@app.cell
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md("We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:")
+    return
+
+
+@app.cell(hide_code=True)
 def __(
     ctx,
     mo,
@@ -445,14 +411,24 @@ def __(
         ctx, snitch_asm_module
     )
 
-    print(riscv_code(snitch_asm_module))
+    snitch_asm = riscv_code(snitch_asm_module)
 
+    mo.accordion({
+        "Snitch Assembly": mo.ui.code_editor(snitch_asm, language="python", disabled=True)
+    })
+    return snitch_asm, snitch_asm_module
+
+
+@app.cell(hide_code=True)
+def __(mo):
     mo.md(
         """
-    We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:
-    """
+        ### Interpreting the assembly using xDSL
+
+        One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
+        """
     )
-    return snitch_asm_module,
+    return
 
 
 @app.cell
@@ -461,8 +437,6 @@ def __(
     OpCounter,
     TypedPtr,
     ctx,
-    mo,
-    rank,
     register_implementations,
     riscv_module,
     shape,
@@ -482,22 +456,24 @@ def __(
     register_implementations(riscv_interpreter, ctx, include_wgpu=False)
 
     (riscv_res,) = riscv_interpreter.call_op("main_graph", (lhs, rhs))
+    return lhs, n, prod, rhs, riscv_interpreter, riscv_op_counter, riscv_res
 
+
+@app.cell(hide_code=True)
+def __(lhs, mo, n, rank, rhs, riscv_res, shape):
     mo.md(
         f"""
-    One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
+        {rank}
 
-    {rank}
-
-    ```
-    Shape:  {shape}
-    LHS:    {lhs.float64.get_list(n)}
-    RHS:    {rhs.float64.get_list(n)}
-    Result: {riscv_res.float64.get_list(n)}
-    ```
-    """
+        ```
+        Shape:  {shape}
+        LHS:    {lhs.float64.get_list(n)}
+        RHS:    {rhs.float64.get_list(n)}
+        Result: {riscv_res.float64.get_list(n)}
+        ```
+        """
     )
-    return lhs, n, prod, rhs, riscv_interpreter, riscv_op_counter, riscv_res
+    return
 
 
 @app.cell
@@ -506,8 +482,6 @@ def __(
     OpCounter,
     ctx,
     lhs,
-    mo,
-    n,
     register_implementations,
     rhs,
     snitch_stream_module,
@@ -518,18 +492,24 @@ def __(
     register_implementations(snitch_interpreter, ctx, include_wgpu=False)
 
     (snitch_res,) = snitch_interpreter.call_op("main_graph", (lhs, rhs))
-
-    mo.md(
-        f"""
-    We can also interpret the Snitch version of the code to compare the results:
-
-    Snitch result: {snitch_res.float64.get_list(n)}
-    """
-    )
     return snitch_interpreter, snitch_op_counter, snitch_res
 
 
-@app.cell
+@app.cell(hide_code=True)
+def __(mo, n, snitch_res):
+    mo.md(
+        f"""
+        We can also interpret the Snitch version of the code to compare the results:
+
+        ```
+        Snitch result: {snitch_res.float64.get_list(n)}
+        ```
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def __(mo, rank, riscv_op_counter, snitch_op_counter):
     rv_dict = dict(riscv_op_counter.ops)
     sn_dict = dict(snitch_op_counter.ops)
@@ -579,7 +559,9 @@ def __(mo, rank, riscv_op_counter, snitch_op_counter):
 
     mo.md(
         f"""
-    We can also compare the number of instructions executed in our interpreter runs:
+    The interpreter kept track of the number of times an operation was executed, which we can use as a proxy for performance.
+
+    For example, we can see that one version has many more instructions executed overall ({rv_sum} vs {sn_sum}), and that one version uses explicit load and store instructions, while the other uses the streaming equivalents:
 
     {rank}
 
@@ -608,6 +590,157 @@ def __(mo, rank, riscv_op_counter, snitch_op_counter):
         sn_val,
         total_diff,
     )
+
+
+@app.cell(hide_code=True)
+def __():
+    # As of version 0.6.14, something breaks when importing from xDSL in multiple cells
+    # https://github.com/marimo-team/marimo/issues/1699
+
+    from xdsl.backend.riscv.lowering import (
+        convert_arith_to_riscv,
+        convert_func_to_riscv_func,
+        convert_memref_to_riscv,
+        convert_scf_to_riscv_scf,
+    )
+    from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
+        ConvertRiscvScfToRiscvCfPass,
+    )
+    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
+        ConvertSnitchStreamToSnitch,
+    )
+    from xdsl.context import MLContext
+    from xdsl.dialects.riscv import riscv_code
+    from xdsl.frontend.onnx.ir_builder import build_module
+    from xdsl.interpreter import Interpreter, OpCounter
+    from xdsl.interpreters import register_implementations
+    from xdsl.interpreters.ptr import TypedPtr
+    from xdsl.ir import Attribute, SSAValue
+    from xdsl.passes import PipelinePass
+    from xdsl.tools.command_line_tool import get_all_dialects
+    from xdsl.transforms import (
+        arith_add_fastmath,
+        convert_linalg_to_loops,
+        convert_linalg_to_memref_stream,
+        convert_memref_stream_to_loops,
+        convert_memref_stream_to_snitch_stream,
+        convert_riscv_scf_for_to_frep,
+        dead_code_elimination,
+        loop_hoist_memref,
+        lower_affine,
+        memref_streamify,
+        reconcile_unrealized_casts,
+        test_lower_snitch_stream_to_asm,
+    )
+    from xdsl.transforms.canonicalize import CanonicalizePass
+    from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
+    from xdsl.transforms.lower_snitch import LowerSnitchPass
+    from xdsl.transforms.mlir_opt import MLIROptPass
+    from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+    from xdsl.transforms.riscv_scf_loop_range_folding import (
+        RiscvScfLoopRangeFoldingPass,
+    )
+    from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
+    return (
+        Attribute,
+        CanonicalizePass,
+        ConvertOnnxToLinalgPass,
+        ConvertRiscvScfToRiscvCfPass,
+        ConvertSnitchStreamToSnitch,
+        Interpreter,
+        LowerSnitchPass,
+        MLContext,
+        MLIROptPass,
+        OpCounter,
+        PipelinePass,
+        RISCVRegisterAllocation,
+        RiscvScfLoopRangeFoldingPass,
+        SSAValue,
+        SnitchRegisterAllocation,
+        TypedPtr,
+        arith_add_fastmath,
+        build_module,
+        convert_arith_to_riscv,
+        convert_func_to_riscv_func,
+        convert_linalg_to_loops,
+        convert_linalg_to_memref_stream,
+        convert_memref_stream_to_loops,
+        convert_memref_stream_to_snitch_stream,
+        convert_memref_to_riscv,
+        convert_riscv_scf_for_to_frep,
+        convert_scf_to_riscv_scf,
+        dead_code_elimination,
+        get_all_dialects,
+        loop_hoist_memref,
+        lower_affine,
+        memref_streamify,
+        reconcile_unrealized_casts,
+        register_implementations,
+        riscv_code,
+        test_lower_snitch_stream_to_asm,
+    )
+
+
+@app.cell(hide_code=True)
+def __():
+    import marimo as mo
+    return mo,
+
+
+@app.cell
+def __(ModuleOp, mo):
+    import html as htmllib
+
+    def html(module: ModuleOp) -> mo.Html:
+        return f"""\
+        <small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small>
+        """
+        # return mo.as_html(str(module))
+    return html, htmllib
+
+
+@app.cell(hide_code=True)
+def __():
+    from collections import Counter
+    return Counter,
+
+
+@app.cell(hide_code=True)
+def __(Counter, ModuleOp, PipelinePass, ctx, html, mo):
+    def pipeline_accordion(passes: tuple[tuple[mo.Html, PipelinePass], ...], module: ModuleOp) -> tuple[ModuleOp, mo.Html]:
+        res = module.clone()
+        d = {}
+        total_key_count = Counter(str(p.pipeline_pass_spec()) for _, p in passes)
+        d_key_count = Counter()
+        for text, p in passes:
+            p.apply(ctx, res)
+            spec = str(p.pipeline_pass_spec())
+            d_key_count[spec] += 1
+            if total_key_count[spec] != 1:
+                header = f"{spec} ({d_key_count[spec]})"
+            else:
+                header = spec
+            html_res = html(res)
+            d[header] = mo.vstack((
+                text,
+                # mo.plain_text(f"Pass: {p.pipeline_pass_spec()}"),
+                mo.md(html_res)
+            ))
+        return (res, mo.accordion(d))
+    return pipeline_accordion,
+
+
+@app.cell(disabled=True)
+def __(assembly, mo, riscv_code, snitch_asm_module):
+    from difflib import Differ, HtmlDiff, unified_diff
+
+    # bla = Differ().compare("hello\nworld".split(), "bla\nworld".split())
+    bla = Differ().compare(riscv_code(snitch_asm_module).splitlines(), assembly.splitlines())
+    bb = HtmlDiff().make_table("hello\nworld".split(), "bla\nworld".split())
+    # bla = Differ().compare(((1, 2), (2)), ((1, 3), (2)))
+    c = "\n".join(unified_diff("hello\nworld".split(), "bla\nworld".split()))
+    mo.ui.code_editor("\n".join(bla), language="diff")
+    return Differ, HtmlDiff, bb, bla, c, unified_diff
 
 
 if __name__ == "__main__":
