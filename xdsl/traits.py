@@ -551,7 +551,7 @@ class NoMemoryEffect(MemoryEffect):
 
 class MemoryReadEffect(MemoryEffect):
     """
-    A trait that signals that an operation always and only have read side effects.
+    A trait that signals that an operation has read side effects.
     """
 
     @classmethod
@@ -561,7 +561,7 @@ class MemoryReadEffect(MemoryEffect):
 
 class MemoryWriteEffect(MemoryEffect):
     """
-    A trait that signals that an operation always and only have write side effects.
+    A trait that signals that an operation always has write side effects.
     """
 
     @classmethod
