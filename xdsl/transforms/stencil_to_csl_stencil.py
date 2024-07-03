@@ -321,7 +321,7 @@ def get_op_split(
     has_changes = True
     while (
         len(
-            # ops in `a` used outside of `a`
+            # ops in `a` whose results are used outside of `a`
             a_exports := set(
                 op
                 for op in a
