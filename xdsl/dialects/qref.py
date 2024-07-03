@@ -166,10 +166,9 @@ class RZGateOp(QRefBase):
 
     assembly_format = "$angle $input attr-dict"
 
-    def __init__(self, input: SSAValue):
+    def __init__(self, angle: AngleAttr, input: SSAValue):
         super().__init__(
-            operands=(input,),
-            result_types=(),
+            operands=(input,), result_types=(), properties={"angle": angle}
         )
 
     def ssa_op(self) -> qssa.RZGateOp:
