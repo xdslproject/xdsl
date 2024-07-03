@@ -115,7 +115,8 @@ class FuncOp(IRDLOperation):
             return
 
         # TODO: how to verify that there is a terminator?
-        entry_block: Block = self.body.blocks[0]
+        entry_block = self.body.blocks.first
+        assert entry_block is not None
         block_arg_types = [arg.type for arg in entry_block.args]
         if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
@@ -201,12 +202,12 @@ class FuncOp(IRDLOperation):
         the function_type attribute.
         """
         if isinstance(arg, int):
+            block = self.body.blocks.first
+            assert block is not None
             try:
-                arg = self.body.blocks[0].args[arg]
+                arg = block.args[arg]
             except IndexError:
-                raise IndexError(
-                    f"Block {self.body.blocks[0]} does not have argument #{arg}"
-                )
+                raise IndexError(f"Block {block} does not have argument #{arg}")
 
         if arg not in self.args:
             raise ValueError(f"Arg {arg} does not belong to this function")
@@ -241,7 +242,9 @@ class FuncOp(IRDLOperation):
         """
         if self.is_declaration:
             return None
-        ret_op = self.body.blocks[-1].last_op
+        if (last_block := self.body.blocks.last) is None:
+            return None
+        ret_op = last_block.last_op
         if not isinstance(ret_op, Return):
             return None
         return ret_op
@@ -254,7 +257,10 @@ class FuncOp(IRDLOperation):
         assert (
             not self.is_declaration
         ), "Function declarations don't have BlockArguments!"
-        return self.body.blocks[0].args
+
+        block = self.body.blocks.first
+        assert block is not None
+        return block.args
 
     @property
     def is_declaration(self) -> bool:

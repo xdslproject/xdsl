@@ -4,23 +4,23 @@ riscv.assembly_section ".text" {
     riscv.directive ".globl" "ddot"
     riscv.directive ".p2align" "2"
     riscv_func.func @ddot(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-        %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg<>
-        %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg<>
-        %Z_moved = riscv.mv %Z : (!riscv.reg<a2>) -> !riscv.reg<>
-        %init = riscv.fld %Z_moved, 0 : (!riscv.reg<>) -> !riscv.freg<>
-        %lb = riscv.li 0 : () -> !riscv.reg<>
-        %ub = riscv.li 1024 : () -> !riscv.reg<>
-        %c8 = riscv.li 8 : () -> !riscv.reg<>
-        %res = riscv_scf.for %i : !riscv.reg<> = %lb to %ub step %c8 iter_args(%acc_in = %init) -> (!riscv.freg<>) {
-            %x_ptr = riscv.add %X_moved, %i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-            %x = riscv.fld %x_ptr, 0 : (!riscv.reg<>) -> !riscv.freg<>
-            %y_ptr = riscv.add %Y_moved, %i : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-            %y = riscv.fld %y_ptr, 0 : (!riscv.reg<>) -> !riscv.freg<>
-            %xy = riscv.fmul.d %x, %y : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-            %acc_out = riscv.fadd.d %acc_in, %xy : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-            riscv_scf.yield %acc_out : !riscv.freg<>
+        %X_moved = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg
+        %Y_moved = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg
+        %Z_moved = riscv.mv %Z : (!riscv.reg<a2>) -> !riscv.reg
+        %init = riscv.fld %Z_moved, 0 : (!riscv.reg) -> !riscv.freg
+        %lb = riscv.li 0 : () -> !riscv.reg
+        %ub = riscv.li 1024 : () -> !riscv.reg
+        %c8 = riscv.li 8 : () -> !riscv.reg
+        %res = riscv_scf.for %i : !riscv.reg = %lb to %ub step %c8 iter_args(%acc_in = %init) -> (!riscv.freg) {
+            %x_ptr = riscv.add %X_moved, %i : (!riscv.reg, !riscv.reg) -> !riscv.reg
+            %x = riscv.fld %x_ptr, 0 : (!riscv.reg) -> !riscv.freg
+            %y_ptr = riscv.add %Y_moved, %i : (!riscv.reg, !riscv.reg) -> !riscv.reg
+            %y = riscv.fld %y_ptr, 0 : (!riscv.reg) -> !riscv.freg
+            %xy = riscv.fmul.d %x, %y : (!riscv.freg, !riscv.freg) -> !riscv.freg
+            %acc_out = riscv.fadd.d %acc_in, %xy : (!riscv.freg, !riscv.freg) -> !riscv.freg
+            riscv_scf.yield %acc_out : !riscv.freg
         }
-        riscv.fsd %Z_moved, %res, 0 : (!riscv.reg<>, !riscv.freg<>) -> ()
+        riscv.fsd %Z_moved, %res, 0 : (!riscv.reg, !riscv.freg) -> ()
         riscv_func.return
     }
 }

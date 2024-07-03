@@ -193,16 +193,15 @@ class PatternRewriter(PatternRewriterListener):
         Otherwise, replace its uses with ErasedSSAValue.
         """
         self.has_done_action = True
+
         if isinstance(new_ops, Operation):
-            new_ops = [new_ops]
+            new_ops = (new_ops,)
 
         # First, insert the new operations before the matched operation
         self.insert_op(new_ops, InsertPoint.before(op))
 
-        if isinstance(new_ops, Operation):
-            new_ops = [new_ops]
         if new_results is None:
-            new_results = [] if len(new_ops) == 0 else new_ops[-1].results
+            new_results = new_ops[-1].results if new_ops else []
 
         if len(op.results) != len(new_results):
             raise ValueError(

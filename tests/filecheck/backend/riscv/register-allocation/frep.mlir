@@ -2,19 +2,19 @@
 // RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive limit_registers=0}" %s | filecheck %s --check-prefix=CHECK-LIVENESS-BLOCK-NAIVE-J
 
 riscv_func.func @main() {
-  %0 = riscv.li 6 : () -> !riscv.reg<>
+  %0 = riscv.li 6 : () -> !riscv.reg
   %1 = riscv.li 5 : () -> !riscv.reg<s0>
-  %2 = riscv.fcvt.s.w %0 : (!riscv.reg<>) -> !riscv.freg<>
-  %3 = riscv.fcvt.s.w %1 : (!riscv.reg<s0>) -> !riscv.freg<>
-  %4 = riscv.fadd.s %2, %3 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-  %5 = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<s0>) -> !riscv.reg<>
+  %2 = riscv.fcvt.s.w %0 : (!riscv.reg) -> !riscv.freg
+  %3 = riscv.fcvt.s.w %1 : (!riscv.reg<s0>) -> !riscv.freg
+  %4 = riscv.fadd.s %2, %3 : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %5 = riscv.add %0, %1 : (!riscv.reg, !riscv.reg<s0>) -> !riscv.reg
 
   riscv_snitch.frep_outer %0 {
   }
 
-  %7 = riscv_snitch.frep_outer %0 iter_args(%6 = %5) -> (!riscv.reg<>) {
-    %8 = riscv.mv %6 : (!riscv.reg<>) -> !riscv.reg<>
-    riscv_snitch.frep_yield %8 : !riscv.reg<>
+  %7 = riscv_snitch.frep_outer %0 iter_args(%6 = %5) -> (!riscv.reg) {
+    %8 = riscv.mv %6 : (!riscv.reg) -> !riscv.reg
+    riscv_snitch.frep_yield %8 : !riscv.reg
   }
   riscv_func.return
 }

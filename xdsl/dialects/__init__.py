@@ -266,6 +266,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Vector
 
+    def get_wasm():
+        from xdsl.dialects.wasm import Wasm
+
+        return Wasm
+
     def get_x86():
         from xdsl.dialects.x86 import X86
 
@@ -324,5 +329,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "tensor": get_tensor,
         "test": get_test,
         "vector": get_vector,
+        "wasm": get_wasm,
         "x86": get_x86,
     }

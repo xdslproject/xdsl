@@ -1348,8 +1348,8 @@ def irdl_op_verify_regions(
                 f"Region '{name}' at position {i} expected a single block, but got "
                 f"{len(region.blocks)} blocks"
             )
-        if len(region.blocks) > 0:
-            entry_args_types = tuple(a.type for a in region.blocks[0].args)
+        if (first_block := region.blocks.first) is not None:
+            entry_args_types = tuple(a.type for a in first_block.args)
             try:
                 region_def.entry_args.verify(entry_args_types, constraint_context)
             except Exception as e:

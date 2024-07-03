@@ -18,6 +18,7 @@ from xdsl.transforms.loop_nest_lowering_utils import (
     rewrite_generic_to_imperfect_loops,
     rewrite_generic_to_loops,
 )
+from xdsl.utils.exceptions import DiagnosticException
 
 
 def _insert_load(
@@ -65,6 +66,8 @@ class LowerGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
+        if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
+            raise DiagnosticException("Cannot yet lower interleaved iterators")
         ins_count = len(op.inputs)
         if any(not isinstance(init, UnitAttr) for init in op.inits):
             constant_vals: list[SSAValue | None] = [None] * len(op.outputs)

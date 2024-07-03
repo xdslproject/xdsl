@@ -5,6 +5,7 @@ from typing import cast
 
 from typing_extensions import Self
 
+from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, stream
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -19,8 +20,8 @@ from xdsl.dialects.riscv import (
     RdRsImmIntegerOperation,
     RdRsRsOperation,
     Registers,
+    RISCVAsmOperation,
     RISCVInstruction,
-    RISCVOp,
     UImm5Attr,
 )
 from xdsl.dialects.utils import (
@@ -30,7 +31,6 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
-    IRDLOperation,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -113,7 +113,7 @@ class ScfgwiOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
+class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
     name = "riscv_snitch.frep_yield"
 
     traits = traits_def(
@@ -125,7 +125,7 @@ class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
 
 
 @irdl_op_definition
-class ReadOp(stream.ReadOperation, RISCVOp):
+class ReadOp(stream.ReadOperation, RISCVAsmOperation):
     name = "riscv_snitch.read"
 
     def assembly_line(self) -> str | None:
@@ -133,7 +133,7 @@ class ReadOp(stream.ReadOperation, RISCVOp):
 
 
 @irdl_op_definition
-class WriteOp(stream.WriteOperation, RISCVOp):
+class WriteOp(stream.WriteOperation, RISCVAsmOperation):
     name = "riscv_snitch.write"
 
     def assembly_line(self) -> str | None:
@@ -148,7 +148,7 @@ ALLOWED_FREP_OP_TYPES = (
 )
 
 
-class FRepOperation(IRDLOperation, RISCVInstruction):
+class FRepOperation(RISCVInstruction):
     """
     From the Snitch paper: https://arxiv.org/abs/2002.10143
 
@@ -426,7 +426,7 @@ class FrepInner(FRepOperation):
 
 
 @irdl_op_definition
-class GetStreamOp(IRDLOperation, RISCVOp):
+class GetStreamOp(RISCVAsmOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(stream.StreamType[riscv.FloatRegisterType])
@@ -456,12 +456,16 @@ class GetStreamOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class DMSourceOp(IRDLOperation, RISCVInstruction):
+class DMSourceOp(RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")]
+    )
+
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
 
@@ -470,12 +474,16 @@ class DMSourceOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMDestinationOp(IRDLOperation, RISCVInstruction):
+class DMDestinationOp(RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")]
+    )
+
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
         super().__init__(operands=[ptrlo, ptrhi])
 
@@ -484,11 +492,15 @@ class DMDestinationOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStrideOp(IRDLOperation, RISCVInstruction):
+class DMStrideOp(RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
     srcstrd = operand_def(riscv.IntRegisterType)
     dststrd = operand_def(riscv.IntRegisterType)
+
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")]
+    )
 
     def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
         super().__init__(operands=[srcstrd, dststrd])
@@ -498,10 +510,14 @@ class DMStrideOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMRepOp(IRDLOperation, RISCVInstruction):
+class DMRepOp(RISCVInstruction):
     name = "riscv_snitch.dmrep"
 
     reps = operand_def(riscv.IntRegisterType)
+
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")]
+    )
 
     def __init__(self, reps: SSAValue | Operation):
         super().__init__(operands=[reps])
@@ -511,12 +527,16 @@ class DMRepOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyOp(IRDLOperation, RISCVInstruction):
+class DMCopyOp(RISCVInstruction):
     name = "riscv_snitch.dmcpy"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = operand_def(riscv.IntRegisterType)
+
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")]
+    )
 
     def __init__(
         self,
@@ -531,11 +551,15 @@ class DMCopyOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatOp(IRDLOperation, RISCVInstruction):
+class DMStatOp(RISCVInstruction):
     name = "riscv_snitch.dmstat"
 
     dest = result_def(riscv.IntRegisterType)
     status = operand_def(riscv.IntRegisterType)
+
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")]
+    )
 
     def __init__(
         self,
@@ -549,12 +573,16 @@ class DMStatOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyImmOp(IRDLOperation, RISCVInstruction):
+class DMCopyImmOp(RISCVInstruction):
     name = "riscv_snitch.dmcpyi"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(UImm5Attr)
+
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")]
+    )
 
     def __init__(
         self,
@@ -600,11 +628,15 @@ class DMCopyImmOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatImmOp(IRDLOperation, RISCVInstruction):
+class DMStatImmOp(RISCVInstruction):
     name = "riscv_snitch.dmstati"
 
     dest = result_def(riscv.IntRegisterType)
     status = prop_def(UImm5Attr)
+
+    traits = frozenset(
+        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")]
+    )
 
     def __init__(
         self,

@@ -46,7 +46,7 @@ def test_ops_accessor():
     region = Region(block0)
 
     assert len(region.ops) == 3
-    assert len(region.blocks[0].ops) == 3
+    assert len(region.block.ops) == 3
 
     # Operation to subtract b from a
     d = Subi(a, b)
@@ -70,7 +70,7 @@ def test_ops_accessor_II():
     region = Region(block0)
 
     assert len(region.ops) == 3
-    assert len(region.blocks[0].ops) == 3
+    assert len(region.block.ops) == 3
 
     # Operation to subtract b from a
     d = Subi(a, b)
@@ -81,9 +81,9 @@ def test_ops_accessor_II():
     region2 = Region()
     region.move_blocks(region2)
 
-    region2.blocks[0].erase_op(a, safe_erase=False)
-    region2.blocks[0].erase_op(b, safe_erase=False)
-    region2.blocks[0].erase_op(c, safe_erase=False)
+    region2.block.erase_op(a, safe_erase=False)
+    region2.block.erase_op(b, safe_erase=False)
+    region2.block.erase_op(c, safe_erase=False)
 
     assert isinstance(c.lhs, ErasedSSAValue)
     assert isinstance(c.rhs, ErasedSSAValue)
@@ -293,7 +293,7 @@ def test_split_block_first():
     # Check preconditions
 
     assert old_block.parent is region
-    assert region.blocks == [old_block]
+    assert list(region.blocks) == [old_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is c
@@ -316,7 +316,7 @@ def test_split_block_first():
 
     assert old_block.parent is region
     assert new_block.parent is region
-    assert region.blocks == [old_block, new_block]
+    assert list(region.blocks) == [old_block, new_block]
 
     assert old_block.first_op is None
     assert old_block.last_op is None
@@ -344,7 +344,7 @@ def test_split_block_middle():
     # Check preconditions
 
     assert old_block.parent is region
-    assert region.blocks == [old_block]
+    assert list(region.blocks) == [old_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is c
@@ -367,7 +367,7 @@ def test_split_block_middle():
 
     assert old_block.parent is region
     assert new_block.parent is region
-    assert region.blocks == [old_block, new_block]
+    assert list(region.blocks) == [old_block, new_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is a
@@ -395,7 +395,7 @@ def test_split_block_last():
     # Check preconditions
 
     assert old_block.parent is region
-    assert region.blocks == [old_block]
+    assert list(region.blocks) == [old_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is c
@@ -418,7 +418,7 @@ def test_split_block_last():
 
     assert old_block.parent is region
     assert new_block.parent is region
-    assert region.blocks == [old_block, new_block]
+    assert list(region.blocks) == [old_block, new_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is b

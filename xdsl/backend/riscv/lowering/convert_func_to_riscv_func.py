@@ -28,8 +28,7 @@ class LowerFuncOp(RewritePattern):
         if len(op.function_type.outputs.data) > 2:
             raise ValueError("Cannot lower func.func with more than 2 outputs")
 
-        if op.body.blocks:
-            first_block = op.body.blocks[0]
+        if (first_block := op.body.blocks.first) is not None:
             cast_block_args_from_a_regs(first_block, rewriter)
 
             input_types = [arg.type for arg in first_block.args]

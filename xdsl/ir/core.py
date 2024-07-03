@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Hashable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Hashable, Iterable, Iterator, Mapping, Reversible, Sequence
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -20,7 +20,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
@@ -1075,7 +1075,7 @@ OperationInvT = TypeVar("OperationInvT", bound=Operation)
 
 
 @dataclass
-class _BlockOpsIterator:
+class _BlockOpsIterator(Iterator[Operation]):
     """
     Single-pass iterable of the operations in a block. Follows the next_op for
     each operation.
@@ -1095,7 +1095,7 @@ class _BlockOpsIterator:
 
 
 @dataclass
-class _BlockOpsReverseIterator:
+class _BlockOpsReverseIterator(Iterator[Operation]):
     """
     Single-pass iterable of the operations in a block. Follows the prev_op for
     each operation.
@@ -1115,7 +1115,7 @@ class _BlockOpsReverseIterator:
 
 
 @dataclass
-class BlockOps:
+class BlockOps(Reversible[Operation], Iterable[Operation]):
     """
     Multi-pass iterable of the operations in a block. Follows the next_op for
     each operation.
@@ -1136,6 +1136,9 @@ class BlockOps:
         """Returns `True` if there are operations in this block."""
         return not self.block.is_empty
 
+    def __reversed__(self):
+        return _BlockOpsReverseIterator(self.block.last_op)
+
     @property
     def first(self) -> Operation | None:
         """
@@ -1151,25 +1154,6 @@ class BlockOps:
         return self.block.last_op
 
 
-@dataclass
-class BlockReverseOps:
-    """
-    Multi-pass iterable of the operations in a block. Follows the prev_op for
-    each operation.
-    """
-
-    block: Block
-
-    def __iter__(self):
-        return _BlockOpsReverseIterator(self.block.last_op)
-
-    def __len__(self):
-        result = 0
-        for _ in self:
-            result += 1
-        return result
-
-
 @dataclass(init=False)
 class Block(IRNode):
     """A sequence of operations"""
@@ -1179,6 +1163,9 @@ class Block(IRNode):
 
     _first_op: Operation | None = field(repr=False)
     _last_op: Operation | None = field(repr=False)
+
+    _next_block: Block | None = field(default=None, repr=False)
+    _prev_block: Block | None = field(default=None, repr=False)
 
     parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
@@ -1209,9 +1196,14 @@ class Block(IRNode):
         return BlockOps(self)
 
     @property
-    def ops_reverse(self) -> BlockReverseOps:
-        """Returns a multi-pass Iterable of this block's operations."""
-        return BlockReverseOps(self)
+    def next_block(self) -> Block | None:
+        """The next block in the parent region"""
+        return self._next_block
+
+    @property
+    def prev_block(self) -> Block | None:
+        """The previous block in the parent region"""
+        return self._prev_block
 
     def parent_op(self) -> Operation | None:
         return self.parent.parent if self.parent else None
@@ -1480,7 +1472,7 @@ class Block(IRNode):
         operation. If reverse is set, then the region, block, and operation lists are
         iterated in reverse order.
         """
-        for op in self.ops_reverse if reverse else self.ops:
+        for op in reversed(self.ops) if reverse else self.ops:
             yield from op.walk(reverse=reverse, region_first=region_first)
 
     def verify(self) -> None:
@@ -1509,6 +1501,8 @@ class Block(IRNode):
         This function is called prior to deleting a block.
         """
         self.parent = None
+        self._next_block = None
+        self._prev_block = None
         for op in self.ops:
             op.drop_all_references()
 
@@ -1563,6 +1557,108 @@ class Block(IRNode):
         return id(self)
 
 
+@dataclass
+class _RegionBlocksIterator(Iterator[Block]):
+    """
+    Single-pass iterable of the blocks in a region. Follows the next_block for
+    each operation.
+    """
+
+    next_block: Block | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        next_block = self.next_block
+        if next_block is None:
+            raise StopIteration
+        self.next_block = next_block.next_block
+        return next_block
+
+
+@dataclass
+class _RegionBlocksReverseIterator(Iterator[Block]):
+    """
+    Single-pass iterable of the blocks in a region. Follows the prev_block for
+    each block.
+    """
+
+    prev_block: Block | None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        prev_block = self.prev_block
+        if prev_block is None:
+            raise StopIteration
+        self.prev_block = prev_block.prev_block
+        return prev_block
+
+
+@dataclass
+class RegionBlocks(Sequence[Block], Reversible[Block]):
+    """
+    Multi-pass iterable of the blocks in a region.
+    """
+
+    _region: Region
+
+    def __iter__(self):
+        return _RegionBlocksIterator(self._region.first_block)
+
+    @overload
+    def __getitem__(self, idx: int) -> Block: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> Sequence[Block]: ...
+
+    def __getitem__(self, idx: int | slice) -> Block | Sequence[Block]:
+        if isinstance(idx, int):
+            if 0 <= idx:
+                for i, b in enumerate(self):
+                    if i == idx:
+                        return b
+                raise IndexError
+            else:
+                for i, b in enumerate(reversed(self)):
+                    if -1 == i + idx:
+                        return b
+                raise IndexError
+        else:
+            # This is possible but would require a bit of work to handle complex slices
+            raise NotImplementedError("Indexing of RegionBlocks not yet implemented")
+
+    def __len__(self):
+        i = 0
+        for _ in self:
+            i += 1
+        return i
+
+    def __bool__(self) -> bool:
+        """Returns `True` if there are blocks in this region."""
+        first_block = self._region.first_block
+        return first_block is not None
+
+    def __reversed__(self):
+        return _RegionBlocksReverseIterator(self._region.last_block)
+
+    @property
+    def first(self) -> Block | None:
+        """
+        First block in the region, None if region is empty.
+        """
+        return self._region.first_block
+
+    @property
+    def last(self) -> Block | None:
+        """
+        Last block in the region, None if region is empty.
+        """
+        return self._region.last_block
+
+
 @dataclass(init=False)
 class Region(IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
@@ -1573,19 +1669,18 @@ class Region(IRNode):
         single-block region should be constructed.
         """
 
-    blocks: list[Block] = field(default_factory=list)
-    """Blocks contained in the region. The first block is the entry block."""
+    _first_block: Block | None = field(default=None, repr=False)
+    """The first block in the region. This is the entry block if it is present."""
+
+    _last_block: Block | None = field(default=None, repr=False)
+    """The last block in the region."""
 
     parent: Operation | None = field(default=None, repr=False)
     """Operation containing the region."""
 
     def __init__(self, blocks: Block | Iterable[Block] = ()):
         super().__init__()
-        self.blocks = []
-        if isinstance(blocks, Block):
-            blocks = (blocks,)
-        for block in blocks:
-            self.add_block(block)
+        self.add_block(blocks)
 
     @property
     def parent_node(self) -> IRNode | None:
@@ -1603,6 +1698,23 @@ class Region(IRNode):
             if self.parent is not None and self.parent.parent is not None
             else None
         )
+
+    @property
+    def blocks(self) -> RegionBlocks:
+        """
+        A multi-pass iterable of blocks.
+        """
+        return RegionBlocks(self)
+
+    @property
+    def first_block(self) -> Block | None:
+        """First block in this region. This is the entry block if present."""
+        return self._first_block
+
+    @property
+    def last_block(self) -> Block | None:
+        """Last block in this region."""
+        return self._last_block
 
     def __repr__(self) -> str:
         return f"Region(num_blocks={len(self.blocks)})"
@@ -1643,12 +1755,12 @@ class Region(IRNode):
         Get the block of a single-block region.
         Returns an exception if the region is not single-block.
         """
-        if len(self.blocks) != 1:
+        if self._first_block is None or self._first_block is not self._last_block:
             raise ValueError(
                 "'block' property of Region class is only available "
                 "for single-block regions."
             )
-        return self.blocks[0]
+        return self._first_block
 
     def _attach_block(self, block: Block) -> None:
         """Attach a block to the region, and check that it has no parents."""
@@ -1660,26 +1772,125 @@ class Region(IRNode):
             raise ValueError("Can't add a block to a region contained in the block.")
         block.parent = self
 
-    def add_block(self, block: Block) -> None:
-        """Add a block to the region."""
-        self._attach_block(block)
-        self.blocks.append(block)
+    def add_block(self, block: Block | Iterable[Block]) -> None:
+        """
+        Insert one or multiple blocks at the end of the region.
+        The blocks should not be attached to another region.
+        """
+        blocks_iter: Iterator[Block]
+        if isinstance(block, Block):
+            blocks_iter = iter((block,))
+        else:
+            blocks_iter = iter(block)
+        prev_block = self.last_block
 
-    def insert_block(self, blocks: Block | list[Block], index: int) -> None:
+        if prev_block is None:
+            try:
+                # First block
+                prev_block = next(blocks_iter)
+                self._attach_block(prev_block)
+                self._first_block = prev_block
+            except StopIteration:
+                # blocks_iter is empty, nothing to do
+                return
+
+        try:
+            while True:
+                next_block = next(blocks_iter)
+                self._attach_block(next_block)
+                next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                    prev_block
+                )
+                prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                    next_block
+                )
+                prev_block = next_block
+
+        except StopIteration:
+            # Repair last block
+            self._last_block = prev_block
+            return
+
+    def insert_block_before(
+        self, block: Block | Iterable[Block], target: Block
+    ) -> None:
+        """
+        Insert one or multiple blocks before a given block in the region.
+        The blocks should not be attached to another region.
+        """
+        if target.parent is not self:
+            raise ValueError(
+                "Cannot insert blocks before a block into a region that is not the target's parent"
+            )
+        blocks_iter: Iterator[Block]
+        if isinstance(block, Block):
+            blocks_iter = iter((block,))
+        else:
+            blocks_iter = iter(block)
+        prev_block = target.prev_block
+
+        if prev_block is None:
+            try:
+                # First block
+                new_first = next(blocks_iter)
+                self._attach_block(new_first)
+                self._first_block = new_first
+                new_first._next_block = target  # pyright: ignore[reportPrivateUsage]
+                prev_block = new_first
+            except StopIteration:
+                # blocks_iter is empty, nothing to do
+                return
+
+        # The invariant for the loop is that prev_block is always before target when
+        # calling `next`.
+
+        try:
+            while True:
+                next_block = next(blocks_iter)
+                self._attach_block(next_block)
+                next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                    prev_block
+                )
+                prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                    next_block
+                )
+                prev_block = next_block
+
+        except StopIteration:
+            # Repair broken link
+            prev_block._next_block = target  # pyright: ignore[reportPrivateUsage]
+            target._prev_block = prev_block  # pyright: ignore[reportPrivateUsage]
+            return
+
+    def insert_block_after(self, block: Block | Iterable[Block], target: Block) -> None:
+        """
+        Insert one or multiple blocks after a given block in the region.
+        The blocks should not be attached to another region.
+        """
+        next_block = target.next_block
+        if next_block is None:
+            self.add_block(block)
+        else:
+            self.insert_block_before(block, next_block)
+
+    @deprecated("Please use `region.blocks[index]`")
+    def block_at_index(self, index: int) -> Block:
+        """Returns the block at the index, or raises IndexError"""
+        return self.blocks[index]
+
+    def insert_block(self, blocks: Block | Iterable[Block], index: int) -> None:
         """
         Insert one or multiple blocks at a given index in the region.
         The blocks should not be attached to another region.
         """
-        if index < 0 or index > len(self.blocks):
-            raise ValueError(
-                f"Can't insert block in index {index} in a block with "
-                f"{len(self.blocks)} blocks."
-            )
-        if not isinstance(blocks, list):
-            blocks = [blocks]
-        for block in blocks:
-            self._attach_block(block)
-        self.blocks = self.blocks[:index] + blocks + self.blocks[index:]
+        i = -1
+        for i, b in enumerate(self.blocks):
+            if i == index:
+                self.insert_block_before(blocks, b)
+                return
+        if i + 1 == index:
+            # Append block
+            self.add_block(blocks)
 
     def get_block_index(self, block: Block) -> int:
         """Get the block position in a region."""
@@ -1695,13 +1906,26 @@ class Region(IRNode):
         Detach a block from the region.
         Returns the detached block.
         """
-        if isinstance(block, Block):
-            block_idx = self.get_block_index(block)
+        if isinstance(block, int):
+            block = self.blocks[block]
         else:
-            block_idx = block
-            block = self.blocks[block_idx]
+            if block.parent is not self:
+                raise Exception("Block is not a child of the region.")
+
         block.parent = None
-        self.blocks = self.blocks[:block_idx] + self.blocks[block_idx + 1 :]
+        if (prev_block := block.prev_block) is None:
+            self._first_block = block.next_block
+        else:
+            prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                block.next_block
+            )
+        if (next_block := block.next_block) is None:
+            self._last_block = block.prev_block
+        else:
+            next_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                block.prev_block
+            )
+
         return block
 
     def erase_block(self, block: int | Block, safe_erase: bool = True) -> None:
@@ -1799,10 +2023,66 @@ class Region(IRNode):
         """
         Move the blocks of this region to another region. Leave no blocks in this region.
         """
-        region.blocks = self.blocks
-        self.blocks = []
-        for block in region.blocks:
+        if region is self:
+            raise ValueError("Cannot move region into itself.")
+        self_first_block = self._first_block
+        if self_first_block is None:
+            return
+        self_last_block = self._last_block
+        assert self_last_block is not None
+        other_last_block = region.last_block
+        if other_last_block is None:
+            region._first_block = self._first_block
+        else:
+            self_first_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                other_last_block
+            )
+            other_last_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                self_first_block
+            )
+        region._last_block = self_last_block
+
+        for block in self.blocks:
             block.parent = region
+
+        self._first_block = None
+        self._last_block = None
+
+    def move_blocks_before(self, target: Block) -> None:
+        """
+        Move the blocks of this region to another region, before the target block.
+        Leave no blocks in this region.
+        """
+        region = target.parent
+        if region is self:
+            raise ValueError("Cannot move region into itself.")
+        if region is None:
+            raise ValueError("Cannot inline region before a block with no parent")
+
+        first_block = self._first_block
+        if not first_block:
+            return
+        last_block = self._last_block
+        assert last_block is not None
+
+        if target.prev_block is None:
+            region._first_block = first_block
+        else:
+            target.prev_block._next_block = (  # pyright: ignore[reportPrivateUsage]
+                first_block
+            )
+            first_block._prev_block = (  # pyright: ignore[reportPrivateUsage]
+                target.prev_block
+            )
+
+        for block in self.blocks:
+            block.parent = region
+
+        last_block._next_block = target  # pyright: ignore[reportPrivateUsage]
+        target._prev_block = last_block  # pyright: ignore[reportPrivateUsage]
+
+        self._first_block = None
+        self._last_block = None
 
     def is_structurally_equivalent(
         self,

@@ -18,18 +18,18 @@
 // CHECK-NEXT:     riscv.ecall
 
     riscv_func.func @main() {
-        %0 = riscv_func.call @get_one() : () -> !riscv.reg<>
-        %1 = riscv_func.call @get_one() : () -> !riscv.reg<>
-        %2 = riscv_func.call @add(%0, %1) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-        riscv_func.call @my_print(%2) : (!riscv.reg<>) -> ()
+        %0 = riscv_func.call @get_one() : () -> !riscv.reg
+        %1 = riscv_func.call @get_one() : () -> !riscv.reg
+        %2 = riscv_func.call @add(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
+        riscv_func.call @my_print(%2) : (!riscv.reg) -> ()
         riscv_func.return
     }
 
 // CHECK-NEXT:    riscv_func.func @main() {
-// CHECK-NEXT:        %{{.*}} = riscv_func.call @get_one() : () -> !riscv.reg<>
-// CHECK-NEXT:        %{{.*}} = riscv_func.call @get_one() : () -> !riscv.reg<>
-// CHECK-NEXT:        %{{.*}} = riscv_func.call @add(%{{.*}}, %{{.*}}) : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:        riscv_func.call @my_print(%{{.*}}) : (!riscv.reg<>) -> ()
+// CHECK-NEXT:        %{{.*}} = riscv_func.call @get_one() : () -> !riscv.reg
+// CHECK-NEXT:        %{{.*}} = riscv_func.call @get_one() : () -> !riscv.reg
+// CHECK-NEXT:        %{{.*}} = riscv_func.call @add(%{{.*}}, %{{.*}}) : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:        riscv_func.call @my_print(%{{.*}}) : (!riscv.reg) -> ()
 // CHECK-NEXT:        riscv_func.return
 // CHECK-NEXT:    }
 
@@ -43,23 +43,23 @@
 // CHECK-NEXT:   }
 
     riscv_func.func @get_one() {
-        %0 = riscv.li 1 : () -> !riscv.reg<>
-        riscv_func.return %0 : !riscv.reg<>
+        %0 = riscv.li 1 : () -> !riscv.reg
+        riscv_func.return %0 : !riscv.reg
     }
 
 // CHECK-NEXT:   riscv_func.func @get_one() {
-// CHECK-NEXT:       %{{\d+}} = riscv.li 1 : () -> !riscv.reg<>
-// CHECK-NEXT:       riscv_func.return %{{\d+}} : !riscv.reg<>
+// CHECK-NEXT:       %{{\d+}} = riscv.li 1 : () -> !riscv.reg
+// CHECK-NEXT:       riscv_func.return %{{\d+}} : !riscv.reg
 // CHECK-NEXT:   }
 
-    riscv_func.func @add(%arg0 : !riscv.reg<>, %arg1 : !riscv.reg<>) {
-        %res = riscv.add %arg0, %arg1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-        riscv_func.return %res : !riscv.reg<>
+    riscv_func.func @add(%arg0 : !riscv.reg, %arg1 : !riscv.reg) {
+        %res = riscv.add %arg0, %arg1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+        riscv_func.return %res : !riscv.reg
     }
 
-// CHECK-NEXT:   riscv_func.func @add(%arg0 : !riscv.reg<>, %arg1 : !riscv.reg<>) {
-// CHECK-NEXT:       %res = riscv.add %arg0, %arg1 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-// CHECK-NEXT:       riscv_func.return %res : !riscv.reg<>
+// CHECK-NEXT:   riscv_func.func @add(%arg0 : !riscv.reg, %arg1 : !riscv.reg) {
+// CHECK-NEXT:       %res = riscv.add %arg0, %arg1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:       riscv_func.return %res : !riscv.reg
 // CHECK-NEXT:   }
 
     riscv_func.func private @visibility_private() {

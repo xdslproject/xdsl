@@ -14,7 +14,7 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: ${VENV_DIR}/ venv clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
+.PHONY: ${VENV_DIR}/ venv clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright tests-marimo tests-marimo-mlir
 .PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
@@ -51,8 +51,22 @@ pytest-toy:
 
 tests-toy: filecheck-toy pytest-toy
 
+tests-marimo:
+	@for file in docs/marimo/*.py; do \
+		echo "Running $$file"; \
+		python3 "$$file" || exit 1; \
+	done
+	@echo "All marimo tests passed successfully."
+
+tests-marimo-mlir:
+	@for file in docs/marimo/mlir/*.py; do \
+		echo "Running $$file"; \
+		python3 "$$file" || exit 1; \
+	done
+	@echo "All marimo mlir tests passed successfully."
+
 # run all tests
-tests: pytest tests-toy filecheck pytest-nb pyright
+tests: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-mlir pyright
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory

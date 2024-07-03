@@ -191,7 +191,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
     from xdsl.ir import Block
 
     for region in op.regions:
-        if len(region.blocks) == 0:
+        if not region.blocks:
             region.add_block(Block())
 
         for block in region.blocks:
@@ -498,3 +498,21 @@ class RecursiveMemoryEffect(MemoryEffect):
 
 class Pure(NoMemoryEffect):
     """A trait that signals that an operation has no side effects."""
+
+
+class HasInsnRepresentation(OpTrait, abc.ABC):
+    """
+    A trait providing information on how to encode an operation using a .insn assember directive.
+
+    The returned string contains python string.format placeholders where formatted operands are inserted during
+    printing.
+
+    See https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html for more information.
+    """
+
+    @abc.abstractmethod
+    def get_insn(self, op: Operation) -> str:
+        """
+        Return the insn representation of the operation for printing.
+        """
+        raise NotImplementedError()

@@ -30,33 +30,33 @@ builtin.module {
    // CHECK-NEXT:   riscv_func.return
    // CHECK-NEXT: }
 
-  riscv_func.func @arg_rec(%0 : !riscv.reg<>) -> !riscv.reg<> {
-    %1 = riscv_func.call @arg_rec(%0) : (!riscv.reg<>) -> !riscv.reg<>
-    riscv_func.return %1 : !riscv.reg<>
+  riscv_func.func @arg_rec(%0 : !riscv.reg) -> !riscv.reg {
+    %1 = riscv_func.call @arg_rec(%0) : (!riscv.reg) -> !riscv.reg
+    riscv_func.return %1 : !riscv.reg
   }
 
-   // CHECK: riscv_func.func @arg_rec(%0 : !riscv.reg<>) -> !riscv.reg<> {
-   // CHECK-NEXT:   %{{.*}} = riscv_func.call @arg_rec(%{{.*}}) : (!riscv.reg<>) -> !riscv.reg<>
-   // CHECK-NEXT:   riscv_func.return %{{.*}} : !riscv.reg<>
+   // CHECK: riscv_func.func @arg_rec(%0 : !riscv.reg) -> !riscv.reg {
+   // CHECK-NEXT:   %{{.*}} = riscv_func.call @arg_rec(%{{.*}}) : (!riscv.reg) -> !riscv.reg
+   // CHECK-NEXT:   riscv_func.return %{{.*}} : !riscv.reg
    // CHECK-NEXT: }
 
-  riscv_func.func @arg_rec_block(!riscv.reg<>) -> !riscv.reg<> {
-  ^0(%2 : !riscv.reg<>):
-    %3 = riscv_func.call @arg_rec_block(%2) : (!riscv.reg<>) -> !riscv.reg<>
-    riscv_func.return %3 : !riscv.reg<>
+  riscv_func.func @arg_rec_block(!riscv.reg) -> !riscv.reg {
+  ^0(%2 : !riscv.reg):
+    %3 = riscv_func.call @arg_rec_block(%2) : (!riscv.reg) -> !riscv.reg
+    riscv_func.return %3 : !riscv.reg
   }
 
-  // CHECK: riscv_func.func @arg_rec_block(%{{\d+}} : !riscv.reg<>) -> !riscv.reg<> {
-  // CHECK-NEXT:   %{{\d+}} = riscv_func.call @arg_rec_block(%{{\d+}}) : (!riscv.reg<>) -> !riscv.reg<>
-  // CHECK-NEXT:   riscv_func.return %{{\d+}} : !riscv.reg<>
+  // CHECK: riscv_func.func @arg_rec_block(%{{\d+}} : !riscv.reg) -> !riscv.reg {
+  // CHECK-NEXT:   %{{\d+}} = riscv_func.call @arg_rec_block(%{{\d+}}) : (!riscv.reg) -> !riscv.reg
+  // CHECK-NEXT:   riscv_func.return %{{\d+}} : !riscv.reg
   // CHECK-NEXT: }
 
-  riscv_func.func @multi_return_body(%a : !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>) {
-    riscv_func.return %a, %a : !riscv.reg<>, !riscv.reg<>
+  riscv_func.func @multi_return_body(%a : !riscv.reg) -> (!riscv.reg, !riscv.reg) {
+    riscv_func.return %a, %a : !riscv.reg, !riscv.reg
   }
 
-  // CHECK: riscv_func.func @multi_return_body(%a : !riscv.reg<>) -> (!riscv.reg<>, !riscv.reg<>) {
-  // CHECK-NEXT:   riscv_func.return %a, %a : !riscv.reg<>, !riscv.reg<>
+  // CHECK: riscv_func.func @multi_return_body(%a : !riscv.reg) -> (!riscv.reg, !riscv.reg) {
+  // CHECK-NEXT:   riscv_func.return %a, %a : !riscv.reg, !riscv.reg
   // CHECK-NEXT: }
 
   riscv_func.func private @visibility_private() {

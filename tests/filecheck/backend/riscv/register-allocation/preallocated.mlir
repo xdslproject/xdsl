@@ -1,12 +1,12 @@
 // RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" %s | filecheck %s --check-prefix=LIVE-BNAIVE
 
 riscv_func.func @main() {
-  %0 = riscv.li 6 : () -> !riscv.reg<>
+  %0 = riscv.li 6 : () -> !riscv.reg
   %1 = riscv.li 5 : () -> !riscv.reg<t0>
-  %3 = riscv.fcvt.s.w %0 : (!riscv.reg<>) -> !riscv.freg<>
-  %4 = riscv.fcvt.s.w %1 : (!riscv.reg<t0>) -> !riscv.freg<>
-  %5 = riscv.fadd.s %3, %4 : (!riscv.freg<>, !riscv.freg<>) -> !riscv.freg<>
-  %2 = riscv.add %0, %1 : (!riscv.reg<>, !riscv.reg<t0>) -> !riscv.reg<>
+  %3 = riscv.fcvt.s.w %0 : (!riscv.reg) -> !riscv.freg
+  %4 = riscv.fcvt.s.w %1 : (!riscv.reg<t0>) -> !riscv.freg
+  %5 = riscv.fadd.s %3, %4 : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  %2 = riscv.add %0, %1 : (!riscv.reg, !riscv.reg<t0>) -> !riscv.reg
   riscv_func.return
 }
 
