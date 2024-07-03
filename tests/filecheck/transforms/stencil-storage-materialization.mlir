@@ -42,8 +42,8 @@ builtin.module{
 // CHECK:         func.func @buffer_copy(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
 // CHECK-NEXT:      %int = stencil.load %in : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
 // CHECK-NEXT:      %midt = stencil.apply(%0 = %int : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
-// CHECK-NEXT:        %1 = stencil.access %0[-1] : !stencil.temp<?xf64>
-// CHECK-NEXT:        stencil.return %1 : f64
+// CHECK-NEXT:        %v = stencil.access %0[-1] : !stencil.temp<?xf64>
+// CHECK-NEXT:        stencil.return %v : f64
 // CHECK-NEXT:      }
 // CHECK-NEXT:      %midt_1 = stencil.buffer %midt : !stencil.temp<?xf64>
 // CHECK-NEXT:      %outt = stencil.apply(%midb = %midt_1 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {

@@ -246,41 +246,41 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // SHAPE-NEXT:      %10 = stencil.load %3 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,64]x[0,65]x[0,64]xf64>
 // SHAPE-NEXT:      %11 = stencil.load %4 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,64]xf64>
 // SHAPE-NEXT:      %12 = stencil.apply(%13 = %7 : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[-1,66]x[0,64]xf64>) {
-// SHAPE-NEXT:        %14 = arith.constant 1.000000e+00 : f64
-// SHAPE-NEXT:        %15 = arith.constant 7.000000e+00 : f64
-// SHAPE-NEXT:        %16 = arith.constant 1.200000e+01 : f64
-// SHAPE-NEXT:        %17 = arith.divf %15, %16 : f64
-// SHAPE-NEXT:        %18 = arith.divf %14, %16 : f64
-// SHAPE-NEXT:        %19 = stencil.access %13[0, -1, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
-// SHAPE-NEXT:        %20 = stencil.access %13[0, 0, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
+// SHAPE-NEXT:        %cst = arith.constant 1.000000e+00 : f64
+// SHAPE-NEXT:        %cst_1 = arith.constant 7.000000e+00 : f64
+// SHAPE-NEXT:        %cst_2 = arith.constant 1.200000e+01 : f64
+// SHAPE-NEXT:        %14 = arith.divf %cst_1, %cst_2 : f64
+// SHAPE-NEXT:        %15 = arith.divf %cst, %cst_2 : f64
+// SHAPE-NEXT:        %16 = stencil.access %13[0, -1, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
+// SHAPE-NEXT:        %17 = stencil.access %13[0, 0, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
+// SHAPE-NEXT:        %18 = arith.addf %16, %17 : f64
+// SHAPE-NEXT:        %19 = stencil.access %13[0, -2, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
+// SHAPE-NEXT:        %20 = stencil.access %13[0, 1, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
 // SHAPE-NEXT:        %21 = arith.addf %19, %20 : f64
-// SHAPE-NEXT:        %22 = stencil.access %13[0, -2, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
-// SHAPE-NEXT:        %23 = stencil.access %13[0, 1, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
+// SHAPE-NEXT:        %22 = arith.mulf %14, %18 : f64
+// SHAPE-NEXT:        %23 = arith.mulf %15, %21 : f64
 // SHAPE-NEXT:        %24 = arith.addf %22, %23 : f64
-// SHAPE-NEXT:        %25 = arith.mulf %17, %21 : f64
-// SHAPE-NEXT:        %26 = arith.mulf %18, %24 : f64
-// SHAPE-NEXT:        %27 = arith.addf %25, %26 : f64
-// SHAPE-NEXT:        %28 = stencil.store_result %27 : !stencil.result<f64>
-// SHAPE-NEXT:        stencil.return %28 : !stencil.result<f64>
+// SHAPE-NEXT:        %25 = stencil.store_result %24 : !stencil.result<f64>
+// SHAPE-NEXT:        stencil.return %25 : !stencil.result<f64>
 // SHAPE-NEXT:      }
 // SHAPE-NEXT:      %13 = stencil.buffer %12 : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>
 // SHAPE-NEXT:      %14, %15, %16, %17 = stencil.apply(%18 = %7 : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>, %19 = %13 : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>) -> (!stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>, !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>) {
-// SHAPE-NEXT:        %20 = arith.constant 0.000000e+00 : f64
-// SHAPE-NEXT:        %21 = arith.constant 1.000000e+00 : f64
-// SHAPE-NEXT:        %22 = stencil.access %19[0, 0, 0] : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>
-// SHAPE-NEXT:        %23 = stencil.access %18[0, 0, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
-// SHAPE-NEXT:        %24 = arith.subf %22, %23 : f64
-// SHAPE-NEXT:        %25 = stencil.access %19[0, 1, 0] : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>
-// SHAPE-NEXT:        %26 = arith.subf %25, %23 : f64
-// SHAPE-NEXT:        %27 = arith.addf %24, %26 : f64
-// SHAPE-NEXT:        %28 = arith.mulf %24, %26 : f64
-// SHAPE-NEXT:        %29 = arith.cmpf olt, %28, %20 : f64
-// SHAPE-NEXT:        %30 = arith.select %29, %21, %20 : f64
-// SHAPE-NEXT:        %31 = stencil.store_result %24 : !stencil.result<f64>
-// SHAPE-NEXT:        %32 = stencil.store_result %26 : !stencil.result<f64>
-// SHAPE-NEXT:        %33 = stencil.store_result %27 : !stencil.result<f64>
-// SHAPE-NEXT:        %34 = stencil.store_result %30 : !stencil.result<f64>
-// SHAPE-NEXT:        stencil.return %31, %32, %33, %34 : !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>
+// SHAPE-NEXT:        %cst = arith.constant 0.000000e+00 : f64
+// SHAPE-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
+// SHAPE-NEXT:        %20 = stencil.access %19[0, 0, 0] : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>
+// SHAPE-NEXT:        %21 = stencil.access %18[0, 0, 0] : !stencil.temp<[0,64]x[-3,67]x[0,64]xf64>
+// SHAPE-NEXT:        %22 = arith.subf %20, %21 : f64
+// SHAPE-NEXT:        %23 = stencil.access %19[0, 1, 0] : !stencil.temp<[0,64]x[-1,66]x[0,64]xf64>
+// SHAPE-NEXT:        %24 = arith.subf %23, %21 : f64
+// SHAPE-NEXT:        %25 = arith.addf %22, %24 : f64
+// SHAPE-NEXT:        %26 = arith.mulf %22, %24 : f64
+// SHAPE-NEXT:        %27 = arith.cmpf olt, %26, %cst : f64
+// SHAPE-NEXT:        %28 = arith.select %27, %cst_1, %cst : f64
+// SHAPE-NEXT:        %29 = stencil.store_result %22 : !stencil.result<f64>
+// SHAPE-NEXT:        %30 = stencil.store_result %24 : !stencil.result<f64>
+// SHAPE-NEXT:        %31 = stencil.store_result %25 : !stencil.result<f64>
+// SHAPE-NEXT:        %32 = stencil.store_result %28 : !stencil.result<f64>
+// SHAPE-NEXT:        stencil.return %29, %30, %31, %32 : !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>, !stencil.result<f64>
 // SHAPE-NEXT:      }
 // SHAPE-NEXT:      %18 = stencil.buffer %14 : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
 // SHAPE-NEXT:      %19 = stencil.buffer %15 : !stencil.temp<[0,64]x[-1,65]x[0,64]xf64>
@@ -391,158 +391,158 @@ func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?
 // MLIR-NEXT:      %29 = arith.constant 64 : index
 // MLIR-NEXT:      "scf.parallel"(%21, %22, %23, %27, %28, %29, %24, %25, %26) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
 // MLIR-NEXT:      ^0(%30 : index, %31 : index, %32 : index):
-// MLIR-NEXT:        %33 = arith.constant 1.000000e+00 : f64
-// MLIR-NEXT:        %34 = arith.constant 7.000000e+00 : f64
-// MLIR-NEXT:        %35 = arith.constant 1.200000e+01 : f64
-// MLIR-NEXT:        %36 = arith.divf %34, %35 : f64
-// MLIR-NEXT:        %37 = arith.divf %33, %35 : f64
-// MLIR-NEXT:        %38 = arith.constant -1 : index
-// MLIR-NEXT:        %39 = arith.addi %31, %38 : index
-// MLIR-NEXT:        %40 = memref.load %16[%30, %39, %32] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %41 = memref.load %16[%30, %31, %32] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %42 = arith.addf %40, %41 : f64
-// MLIR-NEXT:        %43 = arith.constant -2 : index
+// MLIR-NEXT:        %cst = arith.constant 1.000000e+00 : f64
+// MLIR-NEXT:        %cst_1 = arith.constant 7.000000e+00 : f64
+// MLIR-NEXT:        %cst_2 = arith.constant 1.200000e+01 : f64
+// MLIR-NEXT:        %33 = arith.divf %cst_1, %cst_2 : f64
+// MLIR-NEXT:        %34 = arith.divf %cst, %cst_2 : f64
+// MLIR-NEXT:        %35 = arith.constant -1 : index
+// MLIR-NEXT:        %36 = arith.addi %31, %35 : index
+// MLIR-NEXT:        %37 = memref.load %16[%30, %36, %32] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %38 = memref.load %16[%30, %31, %32] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %39 = arith.addf %37, %38 : f64
+// MLIR-NEXT:        %40 = arith.constant -2 : index
+// MLIR-NEXT:        %41 = arith.addi %31, %40 : index
+// MLIR-NEXT:        %42 = memref.load %16[%30, %41, %32] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %43 = arith.constant 1 : index
 // MLIR-NEXT:        %44 = arith.addi %31, %43 : index
 // MLIR-NEXT:        %45 = memref.load %16[%30, %44, %32] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %46 = arith.constant 1 : index
-// MLIR-NEXT:        %47 = arith.addi %31, %46 : index
-// MLIR-NEXT:        %48 = memref.load %16[%30, %47, %32] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %49 = arith.addf %45, %48 : f64
-// MLIR-NEXT:        %50 = arith.mulf %36, %42 : f64
-// MLIR-NEXT:        %51 = arith.mulf %37, %49 : f64
-// MLIR-NEXT:        %52 = arith.addf %50, %51 : f64
-// MLIR-NEXT:        memref.store %52, %1[%30, %31, %32] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
+// MLIR-NEXT:        %46 = arith.addf %42, %45 : f64
+// MLIR-NEXT:        %47 = arith.mulf %33, %39 : f64
+// MLIR-NEXT:        %48 = arith.mulf %34, %46 : f64
+// MLIR-NEXT:        %49 = arith.addf %47, %48 : f64
+// MLIR-NEXT:        memref.store %49, %1[%30, %31, %32] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
 // MLIR-NEXT:        scf.yield
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
-// MLIR-NEXT:      %53 = arith.constant 0 : index
-// MLIR-NEXT:      %54 = arith.constant -1 : index
-// MLIR-NEXT:      %55 = arith.constant 0 : index
-// MLIR-NEXT:      %56 = arith.constant 1 : index
-// MLIR-NEXT:      %57 = arith.constant 1 : index
-// MLIR-NEXT:      %58 = arith.constant 1 : index
-// MLIR-NEXT:      %59 = arith.constant 64 : index
-// MLIR-NEXT:      %60 = arith.constant 65 : index
-// MLIR-NEXT:      %61 = arith.constant 64 : index
-// MLIR-NEXT:      "scf.parallel"(%53, %54, %55, %59, %60, %61, %56, %57, %58) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^1(%62 : index, %63 : index, %64 : index):
-// MLIR-NEXT:        %65 = arith.constant 0.000000e+00 : f64
-// MLIR-NEXT:        %66 = arith.constant 1.000000e+00 : f64
-// MLIR-NEXT:        %67 = memref.load %1[%62, %63, %64] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
-// MLIR-NEXT:        %68 = memref.load %16[%62, %63, %64] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %69 = arith.subf %67, %68 : f64
-// MLIR-NEXT:        %70 = arith.constant 1 : index
-// MLIR-NEXT:        %71 = arith.addi %63, %70 : index
-// MLIR-NEXT:        %72 = memref.load %1[%62, %71, %64] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
-// MLIR-NEXT:        %73 = arith.subf %72, %68 : f64
-// MLIR-NEXT:        %74 = arith.addf %69, %73 : f64
-// MLIR-NEXT:        %75 = arith.mulf %69, %73 : f64
-// MLIR-NEXT:        %76 = arith.cmpf olt, %75, %65 : f64
-// MLIR-NEXT:        %77 = arith.select %76, %66, %65 : f64
-// MLIR-NEXT:        memref.store %69, %arg9[%62, %63, %64] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:        memref.store %73, %arg10[%62, %63, %64] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:        memref.store %74, %arg11[%62, %63, %64] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:        memref.store %77, %arg12[%62, %63, %64] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:      %50 = arith.constant 0 : index
+// MLIR-NEXT:      %51 = arith.constant -1 : index
+// MLIR-NEXT:      %52 = arith.constant 0 : index
+// MLIR-NEXT:      %53 = arith.constant 1 : index
+// MLIR-NEXT:      %54 = arith.constant 1 : index
+// MLIR-NEXT:      %55 = arith.constant 1 : index
+// MLIR-NEXT:      %56 = arith.constant 64 : index
+// MLIR-NEXT:      %57 = arith.constant 65 : index
+// MLIR-NEXT:      %58 = arith.constant 64 : index
+// MLIR-NEXT:      "scf.parallel"(%50, %51, %52, %56, %57, %58, %53, %54, %55) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
+// MLIR-NEXT:      ^1(%59 : index, %60 : index, %61 : index):
+// MLIR-NEXT:        %cst_3 = arith.constant 0.000000e+00 : f64
+// MLIR-NEXT:        %cst_4 = arith.constant 1.000000e+00 : f64
+// MLIR-NEXT:        %62 = memref.load %1[%59, %60, %61] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
+// MLIR-NEXT:        %63 = memref.load %16[%59, %60, %61] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %64 = arith.subf %62, %63 : f64
+// MLIR-NEXT:        %65 = arith.constant 1 : index
+// MLIR-NEXT:        %66 = arith.addi %60, %65 : index
+// MLIR-NEXT:        %67 = memref.load %1[%59, %66, %61] : memref<64x67x64xf64, strided<[4288, 64, 1], offset: 64>>
+// MLIR-NEXT:        %68 = arith.subf %67, %63 : f64
+// MLIR-NEXT:        %69 = arith.addf %64, %68 : f64
+// MLIR-NEXT:        %70 = arith.mulf %64, %68 : f64
+// MLIR-NEXT:        %71 = arith.cmpf olt, %70, %cst_3 : f64
+// MLIR-NEXT:        %72 = arith.select %71, %cst_4, %cst_3 : f64
+// MLIR-NEXT:        memref.store %64, %arg9[%59, %60, %61] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:        memref.store %68, %arg10[%59, %60, %61] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:        memref.store %69, %arg11[%59, %60, %61] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:        memref.store %72, %arg12[%59, %60, %61] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
 // MLIR-NEXT:        scf.yield
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
-// MLIR-NEXT:      %78 = arith.constant 0 : index
-// MLIR-NEXT:      %79 = arith.constant 0 : index
-// MLIR-NEXT:      %80 = arith.constant 0 : index
-// MLIR-NEXT:      %81 = arith.constant 1 : index
-// MLIR-NEXT:      %82 = arith.constant 1 : index
-// MLIR-NEXT:      %83 = arith.constant 1 : index
-// MLIR-NEXT:      %84 = arith.constant 64 : index
-// MLIR-NEXT:      %85 = arith.constant 65 : index
-// MLIR-NEXT:      %86 = arith.constant 64 : index
-// MLIR-NEXT:      "scf.parallel"(%78, %79, %80, %84, %85, %86, %81, %82, %83) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^2(%87 : index, %88 : index, %89 : index):
-// MLIR-NEXT:        %cst = arith.constant 0.000000e+00 : f64
-// MLIR-NEXT:        %cst_1 = arith.constant 1.000000e+00 : f64
-// MLIR-NEXT:        %90 = arith.constant -1 : index
-// MLIR-NEXT:        %91 = arith.addi %88, %90 : index
-// MLIR-NEXT:        %92 = memref.load %arg12[%87, %91, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:        %93 = arith.cmpf oeq, %92, %cst : f64
-// MLIR-NEXT:        %94 = arith.select %93, %cst_1, %cst : f64
-// MLIR-NEXT:        %95 = memref.load %arg12[%87, %88, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:        %96 = arith.mulf %95, %94 : f64
-// MLIR-NEXT:        %97 = arith.addf %92, %96 : f64
-// MLIR-NEXT:        %98 = memref.load %17[%87, %88, %89] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %99 = arith.cmpf ogt, %98, %cst : f64
-// MLIR-NEXT:        %100 = "scf.if"(%99) ({
-// MLIR-NEXT:          %101 = arith.constant -1 : index
-// MLIR-NEXT:          %102 = arith.addi %88, %101 : index
-// MLIR-NEXT:          %103 = memref.load %arg10[%87, %102, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:          %104 = arith.constant -1 : index
-// MLIR-NEXT:          %105 = arith.addi %88, %104 : index
-// MLIR-NEXT:          %106 = memref.load %arg11[%87, %105, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:          %107 = arith.mulf %98, %106 : f64
-// MLIR-NEXT:          %108 = arith.subf %103, %107 : f64
-// MLIR-NEXT:          %109 = arith.subf %cst_1, %98 : f64
-// MLIR-NEXT:          %110 = arith.mulf %109, %108 : f64
-// MLIR-NEXT:          scf.yield %110 : f64
+// MLIR-NEXT:      %73 = arith.constant 0 : index
+// MLIR-NEXT:      %74 = arith.constant 0 : index
+// MLIR-NEXT:      %75 = arith.constant 0 : index
+// MLIR-NEXT:      %76 = arith.constant 1 : index
+// MLIR-NEXT:      %77 = arith.constant 1 : index
+// MLIR-NEXT:      %78 = arith.constant 1 : index
+// MLIR-NEXT:      %79 = arith.constant 64 : index
+// MLIR-NEXT:      %80 = arith.constant 65 : index
+// MLIR-NEXT:      %81 = arith.constant 64 : index
+// MLIR-NEXT:      "scf.parallel"(%73, %74, %75, %79, %80, %81, %76, %77, %78) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
+// MLIR-NEXT:      ^2(%82 : index, %83 : index, %84 : index):
+// MLIR-NEXT:        %cst_5 = arith.constant 0.000000e+00 : f64
+// MLIR-NEXT:        %cst_6 = arith.constant 1.000000e+00 : f64
+// MLIR-NEXT:        %85 = arith.constant -1 : index
+// MLIR-NEXT:        %86 = arith.addi %83, %85 : index
+// MLIR-NEXT:        %87 = memref.load %arg12[%82, %86, %84] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:        %88 = arith.cmpf oeq, %87, %cst_5 : f64
+// MLIR-NEXT:        %89 = arith.select %88, %cst_6, %cst_5 : f64
+// MLIR-NEXT:        %90 = memref.load %arg12[%82, %83, %84] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:        %91 = arith.mulf %90, %89 : f64
+// MLIR-NEXT:        %92 = arith.addf %87, %91 : f64
+// MLIR-NEXT:        %93 = memref.load %17[%82, %83, %84] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %94 = arith.cmpf ogt, %93, %cst_5 : f64
+// MLIR-NEXT:        %95 = "scf.if"(%94) ({
+// MLIR-NEXT:          %96 = arith.constant -1 : index
+// MLIR-NEXT:          %97 = arith.addi %83, %96 : index
+// MLIR-NEXT:          %98 = memref.load %arg10[%82, %97, %84] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:          %99 = arith.constant -1 : index
+// MLIR-NEXT:          %100 = arith.addi %83, %99 : index
+// MLIR-NEXT:          %101 = memref.load %arg11[%82, %100, %84] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:          %102 = arith.mulf %93, %101 : f64
+// MLIR-NEXT:          %103 = arith.subf %98, %102 : f64
+// MLIR-NEXT:          %104 = arith.subf %cst_6, %93 : f64
+// MLIR-NEXT:          %105 = arith.mulf %104, %103 : f64
+// MLIR-NEXT:          scf.yield %105 : f64
 // MLIR-NEXT:        }, {
-// MLIR-NEXT:          %111 = memref.load %arg9[%87, %88, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:          %112 = memref.load %arg11[%87, %88, %89] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
-// MLIR-NEXT:          %113 = arith.mulf %98, %112 : f64
-// MLIR-NEXT:          %114 = arith.addf %111, %113 : f64
-// MLIR-NEXT:          %115 = arith.addf %cst_1, %98 : f64
-// MLIR-NEXT:          %116 = arith.mulf %115, %114 : f64
-// MLIR-NEXT:          scf.yield %116 : f64
+// MLIR-NEXT:          %106 = memref.load %arg9[%82, %83, %84] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:          %107 = memref.load %arg11[%82, %83, %84] : memref<64x66x64xf64, strided<[4224, 64, 1], offset: 64>>
+// MLIR-NEXT:          %108 = arith.mulf %93, %107 : f64
+// MLIR-NEXT:          %109 = arith.addf %106, %108 : f64
+// MLIR-NEXT:          %110 = arith.addf %cst_6, %93 : f64
+// MLIR-NEXT:          %111 = arith.mulf %110, %109 : f64
+// MLIR-NEXT:          scf.yield %111 : f64
 // MLIR-NEXT:        }) : (i1) -> f64
-// MLIR-NEXT:        %117 = arith.mulf %100, %97 : f64
-// MLIR-NEXT:        %118 = "scf.if"(%99) ({
-// MLIR-NEXT:          %119 = arith.constant -1 : index
-// MLIR-NEXT:          %120 = arith.addi %88, %119 : index
-// MLIR-NEXT:          %121 = memref.load %16[%87, %120, %89] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:          %122 = arith.addf %121, %117 : f64
-// MLIR-NEXT:          scf.yield %122 : f64
+// MLIR-NEXT:        %112 = arith.mulf %95, %92 : f64
+// MLIR-NEXT:        %113 = "scf.if"(%94) ({
+// MLIR-NEXT:          %114 = arith.constant -1 : index
+// MLIR-NEXT:          %115 = arith.addi %83, %114 : index
+// MLIR-NEXT:          %116 = memref.load %16[%82, %115, %84] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:          %117 = arith.addf %116, %112 : f64
+// MLIR-NEXT:          scf.yield %117 : f64
 // MLIR-NEXT:        }, {
-// MLIR-NEXT:          %123 = memref.load %16[%87, %88, %89] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:          %124 = arith.addf %123, %117 : f64
-// MLIR-NEXT:          scf.yield %124 : f64
+// MLIR-NEXT:          %118 = memref.load %16[%82, %83, %84] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:          %119 = arith.addf %118, %112 : f64
+// MLIR-NEXT:          scf.yield %119 : f64
 // MLIR-NEXT:        }) : (i1) -> f64
-// MLIR-NEXT:        memref.store %118, %15[%87, %88, %89] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        memref.store %113, %15[%82, %83, %84] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        scf.yield
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
-// MLIR-NEXT:      %125 = arith.constant 0 : index
-// MLIR-NEXT:      %126 = arith.constant 0 : index
-// MLIR-NEXT:      %127 = arith.constant 0 : index
-// MLIR-NEXT:      %128 = arith.constant 1 : index
-// MLIR-NEXT:      %129 = arith.constant 1 : index
-// MLIR-NEXT:      %130 = arith.constant 1 : index
-// MLIR-NEXT:      %131 = arith.constant 64 : index
-// MLIR-NEXT:      %132 = arith.constant 65 : index
-// MLIR-NEXT:      %133 = arith.constant 64 : index
-// MLIR-NEXT:      "scf.parallel"(%125, %126, %127, %131, %132, %133, %128, %129, %130) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^3(%134 : index, %135 : index, %136 : index):
-// MLIR-NEXT:        %137 = memref.load %19[%134, %135, %136] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %138 = memref.load %15[%134, %135, %136] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %139 = arith.mulf %137, %138 : f64
-// MLIR-NEXT:        memref.store %139, %arg9_1[%134, %135, %136] : memref<64x65x64xf64, strided<[4160, 64, 1]>>
+// MLIR-NEXT:      %120 = arith.constant 0 : index
+// MLIR-NEXT:      %121 = arith.constant 0 : index
+// MLIR-NEXT:      %122 = arith.constant 0 : index
+// MLIR-NEXT:      %123 = arith.constant 1 : index
+// MLIR-NEXT:      %124 = arith.constant 1 : index
+// MLIR-NEXT:      %125 = arith.constant 1 : index
+// MLIR-NEXT:      %126 = arith.constant 64 : index
+// MLIR-NEXT:      %127 = arith.constant 65 : index
+// MLIR-NEXT:      %128 = arith.constant 64 : index
+// MLIR-NEXT:      "scf.parallel"(%120, %121, %122, %126, %127, %128, %123, %124, %125) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
+// MLIR-NEXT:      ^3(%129 : index, %130 : index, %131 : index):
+// MLIR-NEXT:        %132 = memref.load %19[%129, %130, %131] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %133 = memref.load %15[%129, %130, %131] : memref<64x65x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %134 = arith.mulf %132, %133 : f64
+// MLIR-NEXT:        memref.store %134, %arg9_1[%129, %130, %131] : memref<64x65x64xf64, strided<[4160, 64, 1]>>
 // MLIR-NEXT:        scf.yield
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
-// MLIR-NEXT:      %140 = arith.constant 0 : index
-// MLIR-NEXT:      %141 = arith.constant 0 : index
-// MLIR-NEXT:      %142 = arith.constant 0 : index
-// MLIR-NEXT:      %143 = arith.constant 1 : index
-// MLIR-NEXT:      %144 = arith.constant 1 : index
-// MLIR-NEXT:      %145 = arith.constant 1 : index
-// MLIR-NEXT:      %146 = arith.constant 64 : index
-// MLIR-NEXT:      %147 = arith.constant 64 : index
-// MLIR-NEXT:      %148 = arith.constant 64 : index
-// MLIR-NEXT:      "scf.parallel"(%140, %141, %142, %146, %147, %148, %143, %144, %145) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
-// MLIR-NEXT:      ^4(%149 : index, %150 : index, %151 : index):
-// MLIR-NEXT:        %152 = memref.load %16[%149, %150, %151] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %153 = memref.load %20[%149, %150, %151] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %154 = arith.mulf %152, %153 : f64
-// MLIR-NEXT:        %155 = memref.load %arg9_1[%149, %150, %151] : memref<64x65x64xf64, strided<[4160, 64, 1]>>
-// MLIR-NEXT:        %156 = arith.constant 1 : index
-// MLIR-NEXT:        %157 = arith.addi %150, %156 : index
-// MLIR-NEXT:        %158 = memref.load %arg9_1[%149, %157, %151] : memref<64x65x64xf64, strided<[4160, 64, 1]>>
-// MLIR-NEXT:        %159 = arith.subf %155, %158 : f64
-// MLIR-NEXT:        %160 = arith.addf %154, %159 : f64
-// MLIR-NEXT:        %161 = memref.load %18[%149, %150, %151] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// MLIR-NEXT:        %162 = arith.divf %160, %161 : f64
-// MLIR-NEXT:        memref.store %162, %13[%149, %150, %151] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:      %135 = arith.constant 0 : index
+// MLIR-NEXT:      %136 = arith.constant 0 : index
+// MLIR-NEXT:      %137 = arith.constant 0 : index
+// MLIR-NEXT:      %138 = arith.constant 1 : index
+// MLIR-NEXT:      %139 = arith.constant 1 : index
+// MLIR-NEXT:      %140 = arith.constant 1 : index
+// MLIR-NEXT:      %141 = arith.constant 64 : index
+// MLIR-NEXT:      %142 = arith.constant 64 : index
+// MLIR-NEXT:      %143 = arith.constant 64 : index
+// MLIR-NEXT:      "scf.parallel"(%135, %136, %137, %141, %142, %143, %138, %139, %140) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
+// MLIR-NEXT:      ^4(%144 : index, %145 : index, %146 : index):
+// MLIR-NEXT:        %147 = memref.load %16[%144, %145, %146] : memref<64x70x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %148 = memref.load %20[%144, %145, %146] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %149 = arith.mulf %147, %148 : f64
+// MLIR-NEXT:        %150 = memref.load %arg9_1[%144, %145, %146] : memref<64x65x64xf64, strided<[4160, 64, 1]>>
+// MLIR-NEXT:        %151 = arith.constant 1 : index
+// MLIR-NEXT:        %152 = arith.addi %145, %151 : index
+// MLIR-NEXT:        %153 = memref.load %arg9_1[%144, %152, %146] : memref<64x65x64xf64, strided<[4160, 64, 1]>>
+// MLIR-NEXT:        %154 = arith.subf %150, %153 : f64
+// MLIR-NEXT:        %155 = arith.addf %149, %154 : f64
+// MLIR-NEXT:        %156 = memref.load %18[%144, %145, %146] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// MLIR-NEXT:        %157 = arith.divf %155, %156 : f64
+// MLIR-NEXT:        memref.store %157, %13[%144, %145, %146] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // MLIR-NEXT:        scf.yield
 // MLIR-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // MLIR-NEXT:      memref.dealloc %6 : memref<64x65x64xf64>
