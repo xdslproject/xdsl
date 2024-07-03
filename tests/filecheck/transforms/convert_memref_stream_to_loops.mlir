@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-stream-to-loops --split-input-file --verify-diagnostics %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-stream-to-loops %s | filecheck %s
 
 // CHECK:       builtin.module {
 
@@ -340,10 +340,6 @@ func.func @main_inits(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x
 // CHECK-NEXT:      func.return %{{.*}} : memref<4x3xf64>
 // CHECK-NEXT:    }
 
-// CHECK-NEXT:  }
-
-// -----
-
 func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
     memref_stream.generic {
         bounds = [3, 2, 5, 4],
@@ -374,9 +370,61 @@ func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : 
     func.return %C : memref<3x8xf64>
 }
 
-// CHECK: Error while applying pattern: Cannot yet lower interleaved iterators
-
-// -----
+// CHECK-NEXT:    func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
+// CHECK-NEXT:      %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 5 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = memref.load %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = memref.load %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = memref.load %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = memref.load %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%c0 = %{{.*}}, %c1 = %{{.*}}, %c2 = %{{.*}}, %c3 = %{{.*}}) -> (f64, f64, f64, f64) {
+// CHECK-NEXT:            %a0 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
+// CHECK-NEXT:            %a1 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
+// CHECK-NEXT:            %a2 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
+// CHECK-NEXT:            %a3 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
+// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %b0 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
+// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %b1 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
+// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %b2 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
+// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %b3 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
+// CHECK-NEXT:            %prod0 = arith.mulf %a0, %b0 fastmath<fast> : f64
+// CHECK-NEXT:            %prod1 = arith.mulf %a1, %b1 fastmath<fast> : f64
+// CHECK-NEXT:            %prod2 = arith.mulf %a2, %b2 fastmath<fast> : f64
+// CHECK-NEXT:            %prod3 = arith.mulf %a3, %b3 fastmath<fast> : f64
+// CHECK-NEXT:            %res0 = arith.addf %prod0, %c0 fastmath<fast> : f64
+// CHECK-NEXT:            %res1 = arith.addf %prod1, %c1 fastmath<fast> : f64
+// CHECK-NEXT:            %res2 = arith.addf %prod2, %c2 fastmath<fast> : f64
+// CHECK-NEXT:            %res3 = arith.addf %prod3, %c3 fastmath<fast> : f64
+// CHECK-NEXT:            scf.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
+// CHECK-NEXT:          }
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return %C : memref<3x8xf64>
+// CHECK-NEXT:    }
 
 func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
     %zero_float = arith.constant 0.000000e+00 : f64
@@ -409,4 +457,53 @@ func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : mem
     func.return %C : memref<3x8xf64>
 }
 
-// CHECK: Error while applying pattern: Cannot yet lower interleaved iterators
+// CHECK-NEXT:    func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : memref<3x8xf64>) -> memref<3x8xf64> {
+// CHECK-NEXT:      %zero_float = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:      %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 5 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:      %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:          %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%c0 = %zero_float, %c1 = %zero_float, %c2 = %zero_float, %c3 = %zero_float) -> (f64, f64, f64, f64) {
+// CHECK-NEXT:            %a0 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
+// CHECK-NEXT:            %a1 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
+// CHECK-NEXT:            %a2 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
+// CHECK-NEXT:            %a3 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
+// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %b0 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
+// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %b1 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
+// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %b2 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
+// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %b3 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
+// CHECK-NEXT:            %prod0 = arith.mulf %a0, %b0 fastmath<fast> : f64
+// CHECK-NEXT:            %prod1 = arith.mulf %a1, %b1 fastmath<fast> : f64
+// CHECK-NEXT:            %prod2 = arith.mulf %a2, %b2 fastmath<fast> : f64
+// CHECK-NEXT:            %prod3 = arith.mulf %a3, %b3 fastmath<fast> : f64
+// CHECK-NEXT:            %res0 = arith.addf %prod0, %c0 fastmath<fast> : f64
+// CHECK-NEXT:            %res1 = arith.addf %prod1, %c1 fastmath<fast> : f64
+// CHECK-NEXT:            %res2 = arith.addf %prod2, %c2 fastmath<fast> : f64
+// CHECK-NEXT:            %res3 = arith.addf %prod3, %c3 fastmath<fast> : f64
+// CHECK-NEXT:            scf.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
+// CHECK-NEXT:          }
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return %C : memref<3x8xf64>
+// CHECK-NEXT:    }
+
+// CHECK-NEXT:  }

@@ -35,6 +35,10 @@ class PipelineGenericPattern(RewritePattern):
             # Already interleaved
             return
 
+        if memref_stream.IteratorTypeAttr.reduction() not in op.iterator_types:
+            # No reduction
+            return
+
         interleave_bound_index = -1
         interleave_bound = -1
         for index, (iterator_type, bound) in enumerate(

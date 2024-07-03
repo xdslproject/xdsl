@@ -66,8 +66,6 @@ def indices_for_map(
 INSERT_LOAD: TypeAlias = Callable[
     [
         int,
-        SSAValue,
-        AffineMapAttr,
         Sequence[SSAValue],
         PatternRewriter,
         InsertPoint,
@@ -78,9 +76,8 @@ INSERT_LOAD: TypeAlias = Callable[
 
 INSERT_STORE: TypeAlias = Callable[
     [
+        int,
         SSAValue,
-        SSAValue,
-        AffineMapAttr,
         Sequence[SSAValue],
         PatternRewriter,
         InsertPoint,
@@ -177,15 +174,11 @@ def _insert_load_ops(
     The integer values are incremented by `index_increment`.
     """
     res: list[tuple[int, SSAValue]] = []
-    for i, (affine_map_attr, operand, arg) in enumerate(
-        zip(affine_map_attrs, operands, args, strict=True)
-    ):
+    for i, arg in enumerate(args):
         if not arg.uses:
             continue
         res_val = insert_load(
             i + index_increment,
-            operand,
-            affine_map_attr,
             ind_vars,
             rewriter,
             insertion_point,
@@ -198,9 +191,7 @@ def _insert_store_ops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
     ind_vars: Sequence[BlockArgument],
-    output_indexing_maps: Sequence[AffineMapAttr],
     yield_operands: Sequence[SSAValue],
-    output_operands: Sequence[SSAValue],
     insert_store: INSERT_STORE,
 ):
     """
@@ -212,12 +203,8 @@ def _insert_store_ops(
     The `output_operands` are the structures to store into.
     The `output_indexing_maps`, `yield_operands`, and `output_operands` must have the same length.
     """
-    for affine_map_attr, yield_value, ref in zip(
-        output_indexing_maps, yield_operands, output_operands, strict=True
-    ):
-        insert_store(
-            yield_value, ref, affine_map_attr, ind_vars, rewriter, insertion_point
-        )
+    for i, yield_value in enumerate(yield_operands):
+        insert_store(i, yield_value, ind_vars, rewriter, insertion_point)
 
 
 def rewrite_generic_to_loops(
@@ -282,9 +269,7 @@ def rewrite_generic_to_loops(
             rewriter,
             insertion_point,
             ind_vars,
-            store_indexing_maps,
             yield_op.operands,
-            store_operands,
             insert_store,
         )
 
@@ -420,9 +405,7 @@ def rewrite_generic_to_imperfect_loops(
             rewriter,
             insertion_point,
             outer_ind_vars,
-            store_indexing_maps,
             inner_loop_nest_results,
-            store_operands,
             insert_store,
         )
 

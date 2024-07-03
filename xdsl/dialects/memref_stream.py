@@ -420,14 +420,36 @@ class GenericOp(IRDLOperation):
         bounds, and the second is empty.
         If there are two, then the first element of the returned tuple has the outer
         bounds, and the second the inner.
+        Interleaved iterators are not returned in either tuple.
         """
         output_maps = self.indexing_maps.data[len(self.inputs) :]
         # min_dims will equal len(self.iterator_types) in the perfect nest case
         min_dims = min(m.data.num_dims for m in output_maps)
-        return (
-            tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
-            tuple(bound.value.data for bound in self.bounds.data[min_dims:]),
+        num_interleaved = sum(
+            it.data == IteratorType.INTERLEAVED for it in self.iterator_types
         )
+        if num_interleaved:
+            res = (
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[: min_dims - num_interleaved]
+                ),
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[
+                        min_dims - num_interleaved : -num_interleaved
+                    ]
+                ),
+            )
+        else:
+            res = (
+                tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[min_dims - num_interleaved :]
+                ),
+            )
+        return res
 
     @property
     def is_imperfectly_nested(self) -> bool:
