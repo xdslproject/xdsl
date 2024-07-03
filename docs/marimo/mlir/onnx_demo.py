@@ -131,10 +131,8 @@ def __(mo, model_def):
     return
 
 
-@app.cell
-def __(build_module, html, mo, model_def):
-    init_module = build_module(model_def.graph).clone()
-
+@app.cell(hide_code=True)
+def __(html, init_module, mo):
     mo.md(f"""
     ### Compiling to RISC-V
 
@@ -143,13 +141,13 @@ def __(build_module, html, mo, model_def):
     {html(init_module)}
     """
     )
-    return init_module,
+    return
 
 
 @app.cell
-def __(init_module, mo):
-    mo.ui.code_editor(str(init_module), language="json", disabled=True)
-    return
+def __(build_module, model_def):
+    init_module = build_module(model_def.graph)
+    return init_module,
 
 
 @app.cell(hide_code=True)
@@ -303,27 +301,27 @@ def __(
     )
 
     riscv_asm_module, assembly_accordion = pipeline_accordion(
-        tuple(("", p) for p in lower_to_asm.passes), regalloc_module
+        (("", lower_to_asm),), regalloc_module
     )
 
     assembly_accordion
     return assembly_accordion, lower_to_asm, riscv_asm_module
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo):
     mo.md("This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(mo, riscv_asm_module, riscv_code):
-    assembly = riscv_code(riscv_asm_module)
+    riscv_asm = riscv_code(riscv_asm_module)
 
     mo.accordion({
-        "Assembly": mo.ui.code_editor(assembly, language="python", disabled=True)
+        "RISC-V Assembly": mo.ui.code_editor(riscv_asm, language="python", disabled=True)
     })
-    return assembly,
+    return riscv_asm,
 
 
 @app.cell(hide_code=True)
@@ -687,7 +685,7 @@ def __():
     return mo,
 
 
-@app.cell
+@app.cell(hide_code=True)
 def __(ModuleOp, mo):
     import html as htmllib
 
@@ -706,15 +704,21 @@ def __():
 
 
 @app.cell(hide_code=True)
-def __(Counter, ModuleOp, PipelinePass, ctx, html, mo):
-    def pipeline_accordion(passes: tuple[tuple[mo.Html, PipelinePass], ...], module: ModuleOp) -> tuple[ModuleOp, mo.Html]:
+def __(Counter, ModuleOp, ModulePass, PipelinePass, ctx, html, mo):
+    def spec_str(p: ModulePass) -> str:
+        if isinstance(p, PipelinePass):
+            return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
+        else:
+            return str(p.pipeline_pass_spec())
+
+    def pipeline_accordion(passes: tuple[tuple[mo.Html, ModulePass], ...], module: ModuleOp) -> tuple[ModuleOp, mo.Html]:
         res = module.clone()
         d = {}
-        total_key_count = Counter(str(p.pipeline_pass_spec()) for _, p in passes)
+        total_key_count = Counter(spec_str(p) for _, p in passes)
         d_key_count = Counter()
         for text, p in passes:
             p.apply(ctx, res)
-            spec = str(p.pipeline_pass_spec())
+            spec = spec_str(p)
             d_key_count[spec] += 1
             if total_key_count[spec] != 1:
                 header = f"{spec} ({d_key_count[spec]})"
@@ -727,15 +731,15 @@ def __(Counter, ModuleOp, PipelinePass, ctx, html, mo):
                 mo.md(html_res)
             ))
         return (res, mo.accordion(d))
-    return pipeline_accordion,
+    return pipeline_accordion, spec_str
 
 
-@app.cell(disabled=True)
-def __(assembly, mo, riscv_code, snitch_asm_module):
+@app.cell(disabled=True, hide_code=True)
+def __(mo, riscv_asm, riscv_code, snitch_asm_module):
     from difflib import Differ, HtmlDiff, unified_diff
 
     # bla = Differ().compare("hello\nworld".split(), "bla\nworld".split())
-    bla = Differ().compare(riscv_code(snitch_asm_module).splitlines(), assembly.splitlines())
+    bla = Differ().compare(riscv_code(snitch_asm_module).splitlines(), riscv_asm.splitlines())
     bb = HtmlDiff().make_table("hello\nworld".split(), "bla\nworld".split())
     # bla = Differ().compare(((1, 2), (2)), ((1, 3), (2)))
     c = "\n".join(unified_diff("hello\nworld".split(), "bla\nworld".split()))
