@@ -40,8 +40,7 @@ class AngleAttr(Data[Fraction], TypeAttribute):
 
             printer.print("pi")
             if self.data.denominator != 1:
-                printer.print(":")
-                printer.print(self.data.denominator)
+                printer.print(":", self.data.denominator)
 
     def __add__(self, other: AngleAttr):
         AngleAttr.new([(self.data + other.data) % 2])
