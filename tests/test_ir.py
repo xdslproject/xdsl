@@ -46,7 +46,7 @@ def test_ops_accessor():
     region = Region(block0)
 
     assert len(region.ops) == 3
-    assert len(region.blocks[0].ops) == 3
+    assert len(region.block.ops) == 3
 
     # Operation to subtract b from a
     d = Subi(a, b)
@@ -70,7 +70,7 @@ def test_ops_accessor_II():
     region = Region(block0)
 
     assert len(region.ops) == 3
-    assert len(region.blocks[0].ops) == 3
+    assert len(region.block.ops) == 3
 
     # Operation to subtract b from a
     d = Subi(a, b)
@@ -81,9 +81,9 @@ def test_ops_accessor_II():
     region2 = Region()
     region.move_blocks(region2)
 
-    region2.blocks[0].erase_op(a, safe_erase=False)
-    region2.blocks[0].erase_op(b, safe_erase=False)
-    region2.blocks[0].erase_op(c, safe_erase=False)
+    region2.block.erase_op(a, safe_erase=False)
+    region2.block.erase_op(b, safe_erase=False)
+    region2.block.erase_op(c, safe_erase=False)
 
     assert isinstance(c.lhs, ErasedSSAValue)
     assert isinstance(c.rhs, ErasedSSAValue)
@@ -183,31 +183,63 @@ def test_op_operands_comparison():
 
 
 def test_op_clone():
-    a = TestWithPropOp.create(properties={"prop": i32}, attributes={"attr": i64})
+    a = TestWithPropOp.create(
+        properties={"prop": i32}, attributes={"attr": i64}, result_types=(i32,)
+    )
+    a.results[0].name_hint = "name_hint"
     b = a.clone()
 
     assert a is not b
-
     assert a.is_structurally_equivalent(b)
+
+    # Name hints
+
+    c = a.clone(clone_name_hints=True)
+    d = a.clone(clone_name_hints=False)
+    assert a is not c
+    assert a is not d
+
+    assert a.is_structurally_equivalent(c)
+    assert a.is_structurally_equivalent(d)
+
+    assert b.results[0].name_hint == "name_hint"
+    assert c.results[0].name_hint == "name_hint"
+    assert d.results[0].name_hint is None
 
 
 def test_op_clone_with_regions():
-    a = test.TestOp.create()
-    op0 = test.TestOp.create(
-        regions=[Region([Block([a])]), Region([Block([a.clone()])])]
-    )
+    # Children
+    ca0 = test.TestOp.create(result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    # Parent
+    pa = test.TestOp.create(regions=[Region([Block([ca0])]), Region([Block([ca1])])])
 
-    cloned_op = op0.clone()
+    pb = pa.clone()
+    assert pa is not pb
 
-    assert cloned_op is not op0
-    assert len(cloned_op.regions[0].ops) == 1
-    assert len(cloned_op.regions[1].ops) == 1
+    assert len(pb.regions[0].ops) == 1
+    assert len(pb.regions[1].ops) == 1
 
-    for op0_region, cloned_op_region in zip(op0.regions, cloned_op.regions):
+    for op0_region, cloned_op_region in zip(pa.regions, pb.regions):
         for op0_region_op, cloned_region_op in zip(
             op0_region.ops, cloned_op_region.ops
         ):
             assert op0_region_op is not cloned_region_op
+
+    pc = pa.clone(clone_name_hints=True)
+    pd = pa.clone(clone_name_hints=False)
+
+    def name_hints(op: Operation):
+        for o in op.walk():
+            for res in o.results:
+                yield res.name_hint
+
+    assert tuple(name_hints(pa)) == ("a", "b")
+    assert tuple(name_hints(pb)) == ("a", "b")
+    assert tuple(name_hints(pc)) == ("a", "b")
+    assert tuple(name_hints(pd)) == (None, None)
 
 
 def test_block_branching_to_another_region_wrong():
@@ -293,7 +325,7 @@ def test_split_block_first():
     # Check preconditions
 
     assert old_block.parent is region
-    assert region.blocks == [old_block]
+    assert list(region.blocks) == [old_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is c
@@ -316,7 +348,7 @@ def test_split_block_first():
 
     assert old_block.parent is region
     assert new_block.parent is region
-    assert region.blocks == [old_block, new_block]
+    assert list(region.blocks) == [old_block, new_block]
 
     assert old_block.first_op is None
     assert old_block.last_op is None
@@ -344,7 +376,7 @@ def test_split_block_middle():
     # Check preconditions
 
     assert old_block.parent is region
-    assert region.blocks == [old_block]
+    assert list(region.blocks) == [old_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is c
@@ -367,7 +399,7 @@ def test_split_block_middle():
 
     assert old_block.parent is region
     assert new_block.parent is region
-    assert region.blocks == [old_block, new_block]
+    assert list(region.blocks) == [old_block, new_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is a
@@ -395,7 +427,7 @@ def test_split_block_last():
     # Check preconditions
 
     assert old_block.parent is region
-    assert region.blocks == [old_block]
+    assert list(region.blocks) == [old_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is c
@@ -418,7 +450,7 @@ def test_split_block_last():
 
     assert old_block.parent is region
     assert new_block.parent is region
-    assert region.blocks == [old_block, new_block]
+    assert list(region.blocks) == [old_block, new_block]
 
     assert old_block.first_op is a
     assert old_block.last_op is b

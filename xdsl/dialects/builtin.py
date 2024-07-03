@@ -1427,7 +1427,7 @@ class ModuleOp(IRDLOperation):
         region = parser.parse_region()
 
         # Add a block if the region is empty
-        if len(region.blocks) == 0:
+        if not region.blocks:
             region.add_block(Block())
 
         return ModuleOp(region, attributes)

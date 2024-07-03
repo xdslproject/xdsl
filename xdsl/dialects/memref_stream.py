@@ -18,7 +18,10 @@ from xdsl.dialects import memref, stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
+    IndexType,
     IntAttr,
+    IntegerAttr,
+    IntegerType,
     StringAttr,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
@@ -46,6 +49,7 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, NoTerminator
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -53,7 +57,24 @@ class IteratorType(StrEnum):
     "Iterator type for memref_stream Attribute"
 
     PARALLEL = auto()
+    """
+    The corresponding iterators appear in the output.
+    """
     REDUCTION = auto()
+    """
+    The corresponding iterators do not appear in the output.
+    """
+    INTERLEAVED = auto()
+    """
+    All inputs and outputs of the operation will be operated this many times in parallel.
+    This is helpful to circumvent the latency in the loop.
+    For example, if the ALU of the target has a pipeline of length 4, and the operation
+    accumulates its innermost dimension, there will be stalls waiting fof the pipeline to
+    clear in each iteration.
+    By interleaving the loop with a factor of 4, four dimensions can be processed in
+    parallel, removing the stalls.
+    The corresponding iterators may appear in the output.
+    """
 
 
 @irdl_attr_definition
@@ -67,6 +88,10 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
     @classmethod
     def reduction(cls) -> IteratorTypeAttr:
         return IteratorTypeAttr(IteratorType.REDUCTION)
+
+    @classmethod
+    def interleaved(cls) -> IteratorTypeAttr:
+        return IteratorTypeAttr(IteratorType.INTERLEAVED)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> IteratorType:
@@ -97,10 +122,14 @@ class StridePattern(ParametrizedAttribute):
 
     name = "memref_stream.stride_pattern"
 
-    ub: ParameterDef[ArrayAttr[IntAttr]]
+    ub: ParameterDef[ArrayAttr[IntegerAttr[IndexType]]]
     index_map: ParameterDef[AffineMapAttr]
 
-    def __init__(self, ub: ArrayAttr[IntAttr], index_map: ParameterDef[AffineMapAttr]):
+    def __init__(
+        self,
+        ub: ArrayAttr[IntegerAttr[IndexType]],
+        index_map: ParameterDef[AffineMapAttr],
+    ):
         super().__init__((ub, index_map))
 
     @classmethod
@@ -108,8 +137,9 @@ class StridePattern(ParametrizedAttribute):
         with parser.in_angle_brackets():
             parser.parse_identifier("ub")
             parser.parse_punctuation("=")
+            index = IndexType()
             ub = ArrayAttr(
-                IntAttr(i)
+                IntegerAttr(i, index)
                 for i in parser.parse_comma_separated_list(
                     parser.Delimiter.SQUARE, parser.parse_integer
                 )
@@ -123,7 +153,7 @@ class StridePattern(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_string("ub = [")
-            printer.print_list(self.ub, lambda attr: printer.print(attr.data))
+            printer.print_list(self.ub, lambda attr: printer.print(attr.value.data))
             printer.print_string(f"], index_map = {self.index_map.data}")
 
     def rank(self):
@@ -140,7 +170,7 @@ class StridePattern(ParametrizedAttribute):
             )
 
     def index_iter(self) -> Iterator[tuple[int, ...]]:
-        for indices in product(*(range(bound.data) for bound in self.ub.data)):
+        for indices in product(*(range(bound.value.data) for bound in self.ub.data)):
             indices: tuple[int, ...] = indices
             yield self.index_map.data.eval(indices, ())
 
@@ -209,9 +239,20 @@ class StreamingRegionOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print_string(" {patterns = ")
-        printer.print_attribute(self.patterns)
-        printer.print_string("}")
+        with printer.indented():
+            printer.print_string(" {")
+            if self.patterns.data:
+                printer.print_string("\npatterns = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.patterns.data,
+                        lambda attr: printer.print("\n", attr),
+                        delimiter=",",
+                    )
+                printer.print_string("\n]")
+            else:
+                printer.print_string("\npatterns = []")
+        printer.print_string("\n}")
 
         if self.inputs:
             printer.print_string(" ins(")
@@ -328,7 +369,7 @@ class GenericOp(IRDLOperation):
     Like in linalg.generic, the indexing maps corresponding to inputs are followed by the
     indexing maps for the outputs.
     """
-    bounds = prop_def(ArrayAttr[IntAttr])
+    bounds = prop_def(ArrayAttr[IntegerAttr[IndexType]])
     """
     The bounds of the iteration space, from the outermost loop inwards. All indexing maps must have the same number of dimensions as the length of `bounds`.
     """
@@ -351,7 +392,7 @@ class GenericOp(IRDLOperation):
         body: Region,
         indexing_maps: ArrayAttr[AffineMapAttr],
         iterator_types: ArrayAttr[Attribute],
-        bounds: ArrayAttr[IntAttr],
+        bounds: ArrayAttr[IntegerAttr[IndexType]],
         init_indices: ArrayAttr[IntAttr],
     ) -> None:
         for m in indexing_maps:
@@ -384,8 +425,8 @@ class GenericOp(IRDLOperation):
         # min_dims will equal len(self.iterator_types) in the perfect nest case
         min_dims = min(m.data.num_dims for m in output_maps)
         return (
-            tuple(bound.data for bound in self.bounds.data[:min_dims]),
-            tuple(bound.data for bound in self.bounds.data[min_dims:]),
+            tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
+            tuple(bound.value.data for bound in self.bounds.data[min_dims:]),
         )
 
     @property
@@ -401,17 +442,37 @@ class GenericOp(IRDLOperation):
             printer.print_attribute(init.type)
 
     def print(self, printer: Printer):
-        printer.print_string(" {bounds = ")
-        printer.print_attribute(self.bounds)
-        printer.print_string(", indexing_maps = ")
-        printer.print_attribute(self.indexing_maps)
-        printer.print_string(", iterator_types = [")
-        printer.print_list(
-            self.iterator_types,
-            lambda iterator_type: printer.print_string_literal(iterator_type.data),
-        )
-        printer.print_string("]")
-        printer.print_string("}")
+        printer.print_string(" {")
+        with printer.indented():
+            if self.bounds:
+                printer.print_string("\nbounds = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.bounds.data,
+                        lambda bound: printer.print_string(f"{bound.value.data}"),
+                    )
+                printer.print_string("],")
+            else:
+                printer.print_string("\nbounds = [],")
+
+            if self.indexing_maps:
+                printer.print_string("\nindexing_maps = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.indexing_maps.data,
+                        lambda m: printer.print_string(f"\n{m}"),
+                        delimiter=",",
+                    )
+                printer.print_string("\n],")
+            else:
+                printer.print_string("\nindexing_maps = [].")
+            printer.print_string("\niterator_types = [")
+            printer.print_list(
+                self.iterator_types,
+                lambda iterator_type: printer.print_string_literal(iterator_type.data),
+            )
+            printer.print_string("]")
+        printer.print_string("\n}")
 
         if self.inputs:
             printer.print_string(" ins(")
@@ -492,8 +553,11 @@ class GenericOp(IRDLOperation):
 
         if "bounds" in attrs:
             bounds = attrs["bounds"]
-            assert isinstance(bounds, ArrayAttr)
-            bounds = cast(ArrayAttr[IntAttr], bounds)
+            assert isa(bounds, ArrayAttr[IntegerAttr[IntegerType | IndexType]]), bounds
+            index = IndexType()
+            bounds = ArrayAttr(
+                tuple(IntegerAttr(attr.value, index) for attr in bounds.data)
+            )
             del attrs["bounds"]
         else:
             parser.raise_error(
@@ -626,10 +690,21 @@ class GenericOp(IRDLOperation):
         # Parallel iterator types must preceed reduction iterators
         iterator_types = self.iterator_types.data
         num_parallel = iterator_types.count(IteratorTypeAttr.parallel())
+        num_reduction = iterator_types.count(IteratorTypeAttr.reduction())
+        num_interleaved = iterator_types.count(IteratorTypeAttr.interleaved())
+
         if IteratorTypeAttr.parallel() in iterator_types[num_parallel:]:
             raise VerifyException(
                 f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
             )
+        if (
+            IteratorTypeAttr.reduction()
+            in iterator_types[num_parallel + num_reduction :]
+        ):
+            raise VerifyException(
+                f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
+            )
+        assert num_parallel + num_reduction + num_interleaved == len(iterator_types)
 
         if len(self.inputs) + len(self.outputs) != len(self.indexing_maps):
             raise VerifyException(
@@ -658,13 +733,13 @@ class GenericOp(IRDLOperation):
                 "The number of dims in output indexing maps must all be the same"
             )
 
-        if min_dims not in (len(iterator_types), num_parallel):
+        if min_dims not in (len(iterator_types), num_parallel + num_interleaved):
             # To signify that the output is imperfectly nested, the output affine map has
             # as many dims as parallel iterators. Otherwise, it has as many dims as
             # the total number of iterators.
             raise VerifyException(
                 "The number of dims in output indexing maps must be "
-                f"{len(iterator_types)} or {num_parallel}"
+                f"{len(iterator_types)} or {num_parallel + num_interleaved}"
             )
 
         if len(self.init_indices) != len(self.inits):
@@ -681,7 +756,7 @@ class GenericOp(IRDLOperation):
             if not (0 <= index.data <= num_outputs):
                 raise VerifyException(f"Init index out of bounds: {index.data}")
             m = output_maps[index.data]
-            if m.data.num_dims != num_parallel:
+            if m.data.num_dims != (num_parallel + num_interleaved):
                 raise VerifyException(
                     "Incompatible affine map and initial value for output at index "
                     f"{index}"

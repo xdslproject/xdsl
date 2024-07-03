@@ -14,7 +14,6 @@ from xdsl.dialects.riscv import (
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    IRDLOperation,
     Successor,
     VarOperand,
     irdl_op_definition,
@@ -54,7 +53,7 @@ class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalisationPattern
         return (ElideConstantBranches(),)
 
 
-class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
+class ConditionalBranchOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V branch operations. Lowers to RsRsOffOperation.
     """
@@ -130,10 +129,7 @@ class ConditionalBranchOperation(IRDLOperation, RISCVInstruction, ABC):
         if parent_region is None:
             return
 
-        this_index = parent_region.blocks.index(parent_block)
-        else_index = parent_region.blocks.index(self.else_block)
-
-        if this_index + 1 != else_index:
+        if parent_block.next_block is not self.else_block:
             raise VerifyException(
                 "riscv_cf branch op else block must be immediately after op"
             )
@@ -303,7 +299,7 @@ class BgeuOp(ConditionalBranchOperation):
 
 
 @irdl_op_definition
-class BranchOp(IRDLOperation, riscv.RISCVOp):
+class BranchOp(riscv.RISCVAsmOperation):
     """
     Branches to a different block, which must follow this operation's block in the parent
     region. Is not printed in assembly.
@@ -392,7 +388,7 @@ class BranchOp(IRDLOperation, riscv.RISCVOp):
 
 
 @irdl_op_definition
-class JOp(IRDLOperation, RISCVInstruction):
+class JOp(RISCVInstruction):
     """
     A pseudo-instruction, for unconditional jumps you don't expect to return from.
     Is equivalent to JalOp with `rd` = `x0`.

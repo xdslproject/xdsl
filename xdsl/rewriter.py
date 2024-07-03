@@ -283,46 +283,34 @@ class Rewriter:
     def move_region_contents_to_new_regions(region: Region) -> Region:
         """Move the region blocks to a new region."""
         new_region = Region()
-        for block in region.blocks:
-            block.parent = None
-            new_region.add_block(block)
-        region.blocks = []
+        region.move_blocks(new_region)
         return new_region
-
-    @staticmethod
-    def _inline_region_at_pos(region: Region, target: Region, pos: int) -> None:
-        """Move the region blocks to an existing region, at position `pos`."""
-        if region is target:
-            raise ValueError("Cannot move region into itself.")
-        for block in region.blocks:
-            block.parent = None
-        target.insert_block(region.blocks, pos)
-        region.blocks = []
 
     @staticmethod
     def inline_region_before(region: Region, target: Block) -> None:
         """Move the region blocks to an existing region, before `target`."""
-        parent_region = target.parent
-        if parent_region is None:
-            raise ValueError("Cannot inline region before a block with no parent")
-        pos = parent_region.get_block_index(target)
-        Rewriter._inline_region_at_pos(region, parent_region, pos)
+        region.move_blocks_before(target)
 
     @staticmethod
     def inline_region_after(region: Region, target: Block) -> None:
         """Move the region blocks to an existing region, after `target`."""
-        parent_region = target.parent
-        if parent_region is None:
-            raise ValueError("Cannot inline region before a block with no parent")
-        pos = parent_region.get_block_index(target) + 1
-        Rewriter._inline_region_at_pos(region, parent_region, pos)
+        if target.next_block is not None:
+            Rewriter.inline_region_before(region, target.next_block)
+        else:
+            parent_region = target.parent
+            if parent_region is None:
+                raise ValueError("Cannot inline region before a block with no parent")
+            region.move_blocks(region)
 
     @staticmethod
     def inline_region_at_start(region: Region, target: Region) -> None:
         """Move the region blocks to the start of an existing region."""
-        Rewriter._inline_region_at_pos(region, target, 0)
+        if target.first_block is not None:
+            Rewriter.inline_region_before(region, target.first_block)
+        else:
+            Rewriter.inline_region_at_end(region, target)
 
     @staticmethod
     def inline_region_at_end(region: Region, target: Region) -> None:
         """Move the region blocks to the end of an existing region."""
-        Rewriter._inline_region_at_pos(region, target, len(target.blocks))
+        region.move_blocks(target)

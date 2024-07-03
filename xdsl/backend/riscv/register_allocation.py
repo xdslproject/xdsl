@@ -9,7 +9,7 @@ from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
     Registers,
-    RISCVOp,
+    RISCVAsmOperation,
     RISCVRegisterType,
 )
 from xdsl.ir import Block, Operation, SSAValue
@@ -23,7 +23,7 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
     allocated: set[RISCVRegisterType] = set()
 
     for op in func.walk():
-        if not isinstance(op, RISCVOp):
+        if not isinstance(op, RISCVAsmOperation):
             continue
 
         for param in chain(op.operands, op.results):
@@ -122,13 +122,13 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 self.allocate_for_loop(op)
             case riscv_snitch.FRepOperation():
                 self.allocate_frep_loop(op)
-            case RISCVOp():
+            case RISCVAsmOperation():
                 self.process_riscv_op(op)
             case _:
                 # Ignore non-riscv operations
                 return
 
-    def process_riscv_op(self, op: RISCVOp) -> None:
+    def process_riscv_op(self, op: RISCVAsmOperation) -> None:
         """
         Allocate registers for RISC-V Instruction.
         """
