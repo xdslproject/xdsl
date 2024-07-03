@@ -142,7 +142,11 @@ class Printer:
             text = str(arg)
             self.print_string(text)
 
-    def print_string(self, text: str) -> None:
+    def print_string_raw(self, text: str) -> None:
+        """
+        Prints a string to the printer's output, without taking
+        indentation into account.
+        """
         lines = text.split("\n")
         if len(lines) != 1:
             self._current_line += len(lines) - 1
@@ -150,6 +154,47 @@ class Printer:
         else:
             self._current_column += len(lines[-1])
         print(text, end="", file=self.stream)
+
+    def print_string(self, text: str, indent: int | None = None) -> None:
+        """
+        Prints a string to the printer's output.
+
+        This function takes into account indentation level when
+        printing new lines.
+
+        Indentation level for newlines within the printed string
+        can be overriden by specifying the `indent` argument.
+        """
+
+        lines = text.split("\n")
+
+        # Line and column information is not computed ahead of time
+        # as indent-aware newline printing may use it as part of
+        # callbacks.
+        indent = indent or self._indent
+        indent_len = indent * indentNumSpaces
+        print(lines[0], end="", file=self.stream)
+        self._current_column += len(lines[0])
+        for line in lines[1:]:
+            self._print_new_line(indent=indent)
+            print(line, end="", file=self.stream)
+            self._current_line += 1
+            self._current_column = len(line) + indent_len
+
+    @contextmanager
+    def indented(self, amount: int = 1):
+        """
+        Increases the indentation level by the provided amount
+        for the duration of the context.
+
+        Only affects new lines printed within the context.
+        """
+
+        self._indent += amount
+        try:
+            yield
+        finally:
+            self._indent -= amount
 
     def _add_message_on_next_line(self, message: str, begin_pos: int, end_pos: int):
         """Add a message that will be displayed on the next line."""
@@ -166,7 +211,7 @@ class Printer:
         Print a message.
         This is expected to be called at the beginning of a new line and to create a new
         line at the end.
-        [begin_pos, end_pos)
+        The span of the message to be underlined is represented as [begin_pos, end_pos).
         """
         indent = self._indent if indent is None else indent
         indent_size = indent * indentNumSpaces
@@ -216,12 +261,12 @@ class Printer:
         self, indent: int | None = None, print_message: bool = True
     ) -> None:
         indent = self._indent if indent is None else indent
-        self.print("\n")
+        self.print_string_raw("\n")
         if print_message:
             for callback in self._next_line_callback:
                 callback()
             self._next_line_callback = []
-        self.print(" " * indent * indentNumSpaces)
+        self.print_string_raw(" " * indent * indentNumSpaces)
 
     def _get_new_valid_name_id(self) -> str:
         self._next_valid_name_id[-1] += 1
@@ -295,13 +340,12 @@ class Printer:
                 self.print(")")
             self.print(":")
 
-        self._indent += 1
-        for op in block.ops:
-            if not print_block_terminator and op.has_trait(IsTerminator):
-                continue
-            self._print_new_line()
-            self.print_op(op)
-        self._indent -= 1
+        with self.indented():
+            for op in block.ops:
+                if not print_block_terminator and op.has_trait(IsTerminator):
+                    continue
+                self._print_new_line()
+                self.print_op(op)
 
     def print_block_argument(self, arg: BlockArgument, print_type: bool = True) -> None:
         """
@@ -330,12 +374,11 @@ class Printer:
         """
         # Empty region
         self.print("{")
-        if len(region.blocks) == 0:
+        if (entry_block := region.blocks.first) is None:
             self._print_new_line()
             self.print("}")
             return
 
-        entry_block = region.blocks[0]
         print_entry_block_args = (
             bool(entry_block.args) and print_entry_block_args
         ) or (not entry_block.ops and print_empty_block)
@@ -344,8 +387,12 @@ class Printer:
             print_block_args=print_entry_block_args,
             print_block_terminator=print_block_terminators,
         )
-        for block in region.blocks[1:]:
-            self.print_block(block, print_block_terminator=print_block_terminators)
+
+        next_block = entry_block.next_block
+        while next_block is not None:
+            self.print_block(next_block, print_block_terminator=print_block_terminators)
+            next_block = next_block.next_block
+
         self._print_new_line()
         self.print("}")
 

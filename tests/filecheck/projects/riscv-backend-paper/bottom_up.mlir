@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-stream-infer-fill,memref-stream-unnest-out-parameters,memref-stream-fold-fill,memref-stream-generalize-fill,memref-streamify,convert-memref-stream-to-loops,canonicalize,scf-for-loop-flatten,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-stream-to-snitch,reconcile-unrealized-casts,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-memref-stream,test-optimise-memref-stream,test-lower-memref-stream-to-snitch-stream,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x8x8xf64>,
@@ -240,13 +240,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %Y : memref<8x8xf64>,
     %G : memref<8x8xf64>
   ) {
-    %c0 = arith.constant 0 : index
-    %c1 = arith.constant 1 : index
-    %c2 = arith.constant 2 : index
-    %c4 = arith.constant 4 : index
-    %c8 = arith.constant 8 : index
-    %frep_count = arith.constant 6 : index
-
+    %zero_float = arith.constant 0.0 : f64
     memref_stream.streaming_region {
       patterns = [
         #memref_stream.stride_pattern<ub = [8, 2, 8, 4], index_map = (m, n, k, j) -> (m, k)>,
@@ -255,22 +249,14 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) outs(%G : memref<8x8xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %g_stream : !stream.writable<f64>):
+      %c0 = arith.constant 0 : index
+      %c1 = arith.constant 1 : index
+      %c2 = arith.constant 2 : index
+      %c8 = arith.constant 8 : index
+      %frep_count = arith.constant 8 : index
       scf.for %i0 = %c0 to %c8 step %c1 {
         scf.for %i1 = %c0 to %c2 step %c1 {
-          %x00 = memref_stream.read from %x_stream : f64
-          %y00 = memref_stream.read from %y_stream : f64
-          %init0 = arith.mulf %x00, %y00 fastmath<fast> : f64
-          %x01 = memref_stream.read from %x_stream : f64
-          %y01 = memref_stream.read from %y_stream : f64
-          %init1 = arith.mulf %x01, %y01 fastmath<fast> : f64
-          %x02 = memref_stream.read from %x_stream : f64
-          %y02 = memref_stream.read from %y_stream : f64
-          %init2 = arith.mulf %x02, %y02 fastmath<fast> : f64
-          %x03 = memref_stream.read from %x_stream : f64
-          %y03 = memref_stream.read from %y_stream : f64
-          %init3 = arith.mulf %x03, %y03 fastmath<fast> : f64
-
-          %g00, %g01, %g02, %g03 = scf.for %inner_i = %c0 to %frep_count step %c1 iter_args(%acc0 = %init0, %acc1 = %init1, %acc2 = %init2, %acc3 = %init3) -> (f64, f64, f64, f64) {
+          %g00, %g01, %g02, %g03 = scf.for %inner_i = %c0 to %frep_count step %c1 iter_args(%acc0 = %zero_float, %acc1 = %zero_float, %acc2 = %zero_float, %acc3 = %zero_float) -> (f64, f64, f64, f64) {
             %x10 = memref_stream.read from %x_stream : f64
             %y10 = memref_stream.read from %y_stream : f64
             %prod10 = arith.mulf %x10, %y10 fastmath<fast> : f64
@@ -290,26 +276,10 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
             scf.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
           }
 
-          %x20 = memref_stream.read from %x_stream : f64
-          %y20 = memref_stream.read from %y_stream : f64
-          %prod20 = arith.mulf %x20, %y20 fastmath<fast> : f64
-          %g10 = arith.addf %prod20, %g00 fastmath<fast> : f64
-          memref_stream.write %g10 to %g_stream : f64
-          %x21 = memref_stream.read from %x_stream : f64
-          %y21 = memref_stream.read from %y_stream : f64
-          %prod21 = arith.mulf %x21, %y21 fastmath<fast> : f64
-          %g11 = arith.addf %prod21, %g01 fastmath<fast> : f64
-          memref_stream.write %g11 to %g_stream : f64
-          %x22 = memref_stream.read from %x_stream : f64
-          %y22 = memref_stream.read from %y_stream : f64
-          %prod22 = arith.mulf %x22, %y22 fastmath<fast> : f64
-          %g12 = arith.addf %prod22, %g02 fastmath<fast> : f64
-          memref_stream.write %g12 to %g_stream : f64
-          %x23 = memref_stream.read from %x_stream : f64
-          %y23 = memref_stream.read from %y_stream : f64
-          %prod23 = arith.mulf %x23, %y23 fastmath<fast> : f64
-          %g13 = arith.addf %prod23, %g03 fastmath<fast> : f64
-          memref_stream.write %g13 to %g_stream : f64
+          memref_stream.write %g00 to %g_stream : f64
+          memref_stream.write %g01 to %g_stream : f64
+          memref_stream.write %g02 to %g_stream : f64
+          memref_stream.write %g03 to %g_stream : f64
         }
       }
     }
@@ -321,66 +291,67 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:  .globl matmul
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  matmul:
-// CHECK-NEXT:      mv t3, a0
-// CHECK-NEXT:      mv t0, a1
-// CHECK-NEXT:      mv t1, a2
-// CHECK-NEXT:      li t4, 3
-// CHECK-NEXT:      scfgwi t4, 64
-// CHECK-NEXT:      li t4, 7
-// CHECK-NEXT:      scfgwi t4, 96
-// CHECK-NEXT:      li t4, 1
-// CHECK-NEXT:      scfgwi t4, 128
-// CHECK-NEXT:      li t4, 7
-// CHECK-NEXT:      scfgwi t4, 160
+// CHECK-NEXT:      mv t0, a0
+// CHECK-NEXT:      mv t1, a1
+// CHECK-NEXT:      mv t2, a2
+// CHECK-NEXT:      fcvt.d.w ft3, zero
+// CHECK-NEXT:      li t3, 3
+// CHECK-NEXT:      scfgwi t3, 64
+// CHECK-NEXT:      li t3, 7
+// CHECK-NEXT:      scfgwi t3, 96
+// CHECK-NEXT:      li t3, 1
+// CHECK-NEXT:      scfgwi t3, 128
+// CHECK-NEXT:      li t3, 7
+// CHECK-NEXT:      scfgwi t3, 160
 // CHECK-NEXT:      scfgwi zero, 192
-// CHECK-NEXT:      li t4, 8
-// CHECK-NEXT:      scfgwi t4, 224
-// CHECK-NEXT:      li t4, -56
-// CHECK-NEXT:      scfgwi t4, 256
-// CHECK-NEXT:      li t4, 8
-// CHECK-NEXT:      scfgwi t4, 288
-// CHECK-NEXT:      li t4, 3
-// CHECK-NEXT:      scfgwi t4, 65
-// CHECK-NEXT:      li t4, 7
-// CHECK-NEXT:      scfgwi t4, 97
-// CHECK-NEXT:      li t4, 1
-// CHECK-NEXT:      scfgwi t4, 129
-// CHECK-NEXT:      li t4, 7
-// CHECK-NEXT:      scfgwi t4, 161
-// CHECK-NEXT:      li t4, 8
-// CHECK-NEXT:      scfgwi t4, 193
-// CHECK-NEXT:      li t4, 40
-// CHECK-NEXT:      scfgwi t4, 225
-// CHECK-NEXT:      li t4, -440
-// CHECK-NEXT:      scfgwi t4, 257
-// CHECK-NEXT:      li t4, -504
-// CHECK-NEXT:      scfgwi t4, 289
-// CHECK-NEXT:      li t4, 63
-// CHECK-NEXT:      scfgwi t4, 66
-// CHECK-NEXT:      li t4, 8
-// CHECK-NEXT:      scfgwi t4, 194
-// CHECK-NEXT:      scfgwi t3, 864
-// CHECK-NEXT:      scfgwi t0, 865
-// CHECK-NEXT:      scfgwi t1, 898
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 224
+// CHECK-NEXT:      li t3, -56
+// CHECK-NEXT:      scfgwi t3, 256
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 288
+// CHECK-NEXT:      li t3, 3
+// CHECK-NEXT:      scfgwi t3, 65
+// CHECK-NEXT:      li t3, 7
+// CHECK-NEXT:      scfgwi t3, 97
+// CHECK-NEXT:      li t3, 1
+// CHECK-NEXT:      scfgwi t3, 129
+// CHECK-NEXT:      li t3, 7
+// CHECK-NEXT:      scfgwi t3, 161
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 193
+// CHECK-NEXT:      li t3, 40
+// CHECK-NEXT:      scfgwi t3, 225
+// CHECK-NEXT:      li t3, -440
+// CHECK-NEXT:      scfgwi t3, 257
+// CHECK-NEXT:      li t3, -504
+// CHECK-NEXT:      scfgwi t3, 289
+// CHECK-NEXT:      li t3, 63
+// CHECK-NEXT:      scfgwi t3, 66
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 194
+// CHECK-NEXT:      scfgwi t0, 864
+// CHECK-NEXT:      scfgwi t1, 865
+// CHECK-NEXT:      scfgwi t2, 898
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      li t1, 16
 // CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
-// CHECK-NEXT:  scf_body_1_for:
-// CHECK-NEXT:      fmul.d ft6, ft0, ft1
-// CHECK-NEXT:      fmul.d ft5, ft0, ft1
-// CHECK-NEXT:      fmul.d ft4, ft0, ft1
-// CHECK-NEXT:      fmul.d ft3, ft0, ft1
-// CHECK-NEXT:      li t3, 5
+// CHECK-NEXT:  scf_body_{{\d+}}_for:
+// CHECK-NEXT:      fmv.d ft7, ft3
+// CHECK-NEXT:      fmv.d ft6, ft3
+// CHECK-NEXT:      fmv.d ft5, ft3
+// CHECK-NEXT:      fmv.d ft4, ft3
+// CHECK-NEXT:      li t3, 7
 // CHECK-NEXT:      frep.o t3, 4, 0, 0
+// CHECK-NEXT:      fmadd.d ft7, ft0, ft1, ft7
 // CHECK-NEXT:      fmadd.d ft6, ft0, ft1, ft6
 // CHECK-NEXT:      fmadd.d ft5, ft0, ft1, ft5
 // CHECK-NEXT:      fmadd.d ft4, ft0, ft1, ft4
-// CHECK-NEXT:      fmadd.d ft3, ft0, ft1, ft3
-// CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft6
-// CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft5
-// CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft4
-// CHECK-NEXT:      fmadd.d ft2, ft0, ft1, ft3
+// CHECK-NEXT:      fmv.d ft2, ft7
+// CHECK-NEXT:      fmv.d ft2, ft6
+// CHECK-NEXT:      fmv.d ft2, ft5
+// CHECK-NEXT:      fmv.d ft2, ft4
 // CHECK-NEXT:      addi t0, t0, 1
 // CHECK-NEXT:      blt t0, t1, scf_body_{{\d+}}_for
 // CHECK-NEXT:  scf_body_end_{{\d+}}_for:

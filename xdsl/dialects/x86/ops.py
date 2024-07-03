@@ -2051,10 +2051,7 @@ class ConditionalJumpOperation(IRDLOperation, X86Instruction, ABC):
         if parent_region is None:
             return
 
-        this_index = parent_region.blocks.index(parent_block)
-        else_index = parent_region.blocks.index(self.else_block)
-
-        if this_index + 1 != else_index:
+        if parent_block.next_block is not self.else_block:
             raise VerifyException("else block must be immediately after op")
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:

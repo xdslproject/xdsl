@@ -203,7 +203,7 @@ class Desymrefier:
         if num_blocks == 1:
             # If there is only one block, preparing region is easier, so we
             # handle it separately.
-            self.prepare_block(region.blocks[0])
+            self.prepare_block(region.block)
         else:
             # TODO: Support regions with multiple blocks. This is not too
             # difficult but requires many more things:

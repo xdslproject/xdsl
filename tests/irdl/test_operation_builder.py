@@ -395,7 +395,7 @@ def test_region_op_region():
     op = RegionOp.build(regions=[Region()])
     op.verify()
 
-    assert op.region.blocks == []
+    assert not op.region.blocks
 
 
 def test_region_op_blocks():

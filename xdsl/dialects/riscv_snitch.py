@@ -20,8 +20,8 @@ from xdsl.dialects.riscv import (
     RdRsImmIntegerOperation,
     RdRsRsOperation,
     Registers,
+    RISCVAsmOperation,
     RISCVInstruction,
-    RISCVOp,
     UImm5Attr,
 )
 from xdsl.dialects.utils import (
@@ -31,7 +31,6 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
-    IRDLOperation,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -114,7 +113,7 @@ class ScfgwiOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
+class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
     name = "riscv_snitch.frep_yield"
 
     traits = traits_def(
@@ -126,7 +125,7 @@ class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
 
 
 @irdl_op_definition
-class ReadOp(stream.ReadOperation, RISCVOp):
+class ReadOp(stream.ReadOperation, RISCVAsmOperation):
     name = "riscv_snitch.read"
 
     def assembly_line(self) -> str | None:
@@ -134,7 +133,7 @@ class ReadOp(stream.ReadOperation, RISCVOp):
 
 
 @irdl_op_definition
-class WriteOp(stream.WriteOperation, RISCVOp):
+class WriteOp(stream.WriteOperation, RISCVAsmOperation):
     name = "riscv_snitch.write"
 
     def assembly_line(self) -> str | None:
@@ -149,7 +148,7 @@ ALLOWED_FREP_OP_TYPES = (
 )
 
 
-class FRepOperation(IRDLOperation, RISCVInstruction):
+class FRepOperation(RISCVInstruction):
     """
     From the Snitch paper: https://arxiv.org/abs/2002.10143
 
@@ -427,7 +426,7 @@ class FrepInner(FRepOperation):
 
 
 @irdl_op_definition
-class GetStreamOp(IRDLOperation, RISCVOp):
+class GetStreamOp(RISCVAsmOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(stream.StreamType[riscv.FloatRegisterType])
@@ -457,7 +456,7 @@ class GetStreamOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class DMSourceOp(IRDLOperation, RISCVInstruction):
+class DMSourceOp(RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
     ptrlo = operand_def(riscv.IntRegisterType)
@@ -475,7 +474,7 @@ class DMSourceOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMDestinationOp(IRDLOperation, RISCVInstruction):
+class DMDestinationOp(RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
     ptrlo = operand_def(riscv.IntRegisterType)
@@ -493,7 +492,7 @@ class DMDestinationOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStrideOp(IRDLOperation, RISCVInstruction):
+class DMStrideOp(RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
     srcstrd = operand_def(riscv.IntRegisterType)
@@ -511,7 +510,7 @@ class DMStrideOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMRepOp(IRDLOperation, RISCVInstruction):
+class DMRepOp(RISCVInstruction):
     name = "riscv_snitch.dmrep"
 
     reps = operand_def(riscv.IntRegisterType)
@@ -528,7 +527,7 @@ class DMRepOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyOp(IRDLOperation, RISCVInstruction):
+class DMCopyOp(RISCVInstruction):
     name = "riscv_snitch.dmcpy"
 
     dest = result_def(riscv.IntRegisterType)
@@ -552,7 +551,7 @@ class DMCopyOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatOp(IRDLOperation, RISCVInstruction):
+class DMStatOp(RISCVInstruction):
     name = "riscv_snitch.dmstat"
 
     dest = result_def(riscv.IntRegisterType)
@@ -574,7 +573,7 @@ class DMStatOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyImmOp(IRDLOperation, RISCVInstruction):
+class DMCopyImmOp(RISCVInstruction):
     name = "riscv_snitch.dmcpyi"
 
     dest = result_def(riscv.IntRegisterType)
@@ -629,7 +628,7 @@ class DMCopyImmOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatImmOp(IRDLOperation, RISCVInstruction):
+class DMStatImmOp(RISCVInstruction):
     name = "riscv_snitch.dmstati"
 
     dest = result_def(riscv.IntRegisterType)
