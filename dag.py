@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.2.5"
+__generated_with = "0.6.25"
 app = marimo.App()
 
 
@@ -23,8 +23,8 @@ def __(mo):
             scf.for %17 = %c0 to %c8 step %c1 {
             %18 = arith.constant 8 : i32
             %19 = arith.addi %16, %17 : i32
-            %20 = builtin.unrealized_conversion_cast %19 : i32 to !riscv.reg<>
-            "test.op"(%20) : (!riscv.reg<>) -> ()
+            %20 = builtin.unrealized_conversion_cast %19 : i32 to !riscv.reg
+            "test.op"(%20) : (!riscv.reg) -> ()
             }
         }
     }
@@ -46,15 +46,35 @@ def __(mo):
 
 
 @app.cell
-def __(input):
+def __():
     from xdsl.parser import Parser
     from xdsl.interactive.passes import get_new_registered_context
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.interactive.passes import iter_condensed_passes
+    from xdsl.utils.hashable_module import HashableModule
 
+    from xdsl.dialects.builtin import UnrealizedConversionCastOp
+    from xdsl.dialects.func import FuncOp
+    from xdsl.dialects.scf import For
+    return (
+        For,
+        FuncOp,
+        HashableModule,
+        ModuleOp,
+        Parser,
+        UnrealizedConversionCastOp,
+        get_new_registered_context,
+        iter_condensed_passes,
+    )
+
+
+@app.cell
+def __(Parser, get_new_registered_context, input):
     ctx = get_new_registered_context()
     input_module = Parser(ctx, input.value).parse_module()
 
     print(input_module)
-    return Parser, ctx, get_new_registered_context, input_module
+    return ctx, input_module
 
 
 @app.cell
@@ -65,30 +85,25 @@ def __():
 
 
 @app.cell
-def __():
-    from xdsl.dialects.builtin import ModuleOp
-    return ModuleOp,
-
-
-@app.cell
 def __(input):
     input
     return
 
 
 @app.cell
-def __(ModuleOp, input_module):
-    from xdsl.interactive.passes import iter_condensed_passes
-    from xdsl.utils.hashable_module import HashableModule
-
+def __(
+    For,
+    FuncOp,
+    HashableModule,
+    ModuleOp,
+    UnrealizedConversionCastOp,
+    input_module,
+    iter_condensed_passes,
+):
     import networkx as nx
     import random
 
     from typing import Callable
-
-    from xdsl.dialects.builtin import UnrealizedConversionCastOp
-    from xdsl.dialects.func import FuncOp
-    from xdsl.dialects.scf import For
 
     G = nx.MultiDiGraph()
 
@@ -139,17 +154,12 @@ def __(ModuleOp, input_module):
                 queue.append(target)
     return (
         Callable,
-        For,
-        FuncOp,
         G,
-        HashableModule,
-        UnrealizedConversionCastOp,
         available_pass,
         can_lower_arith,
         can_lower_scf,
         filters,
         has_no_casts,
-        iter_condensed_passes,
         nx,
         queue,
         random,
@@ -369,7 +379,7 @@ def __(G, HashableModule, nx):
             # The number of nodes is the sum of counts of parents
             for node in generation:
                 count_by_node[node] = sum(count_by_node[parent] for parent in dag.predecessors(node))
-            
+
         return sum(count_by_node.values())
 
     equivalent_tree_node_count(G)
