@@ -23,10 +23,16 @@ class AngleAttr(Data[Fraction], TypeAttribute):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Fraction:
         with parser.in_angle_brackets():
-            i = parser.parse_optional_integer()
-            numerator = 1 if i is None else i
+            negate = -1 if parser.parse_optional_punctuation("-") else 1
+
+            numerator = parser.parse_optional_integer()
+            if numerator is None:
+                numerator = 1
+            numerator = numerator * negate
+
             if numerator == 0:
                 return Fraction(0, 1)
+
             parser.parse_characters("pi")
             denominator = (
                 parser.parse_integer() if parser.parse_optional_punctuation(":") else 1
