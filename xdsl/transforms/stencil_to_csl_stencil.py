@@ -289,9 +289,9 @@ def get_op_split(
     This function does not attempt to arithmetically re-structure the computation to obtain a good split. To do this,
     `RestructureSymmetricReductionPattern()` may be executed first.
     """
-    a: Sequence[Operation] = []
-    b: Sequence[Operation] = []
-    rem: Sequence[Operation] = []
+    a: list[Operation] = []
+    b: list[Operation] = []
+    rem: list[Operation] = []
     for op in ops:
         if isinstance(op, csl_stencil.AccessOp):
             (b, a)[op.op == buf].append(op)
@@ -316,20 +316,17 @@ def get_op_split(
     ):
         has_changes = False
 
-        # ops that directly depend on `a` but are not themselves in `a`
-        fontier = set(
-            use.operation
-            for op in a_exports
-            for result in op.results
-            for use in result.uses
-        )
-
-        for op in fontier:
-            # frontier ops are only movable if *all* their operands are already in `a`
-            if all(x.op in a for x in op.operands if isinstance(x, OpResult)):
-                has_changes = True
-                a.append(op)
-                rem.remove(op)
+        # find ops that directly depend on `a` but are not themselves in `a`
+        for exp in a_exports:
+            for result in exp.results:
+                for use in result.uses:
+                    # op is only movable if *all* operands are already in `a` (and it hasn't been moved yet)
+                    if (op := use.operation) in rem and all(
+                        x.op in a for x in op.operands if isinstance(x, OpResult)
+                    ):
+                        has_changes = True
+                        a.append(use.operation)
+                        rem.remove(use.operation)
 
     if len(a_exports) == 1:
         return a, b + rem
