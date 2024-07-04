@@ -28,6 +28,10 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.utils import (
+    parse_dynamic_index_list_without_types,
+    print_dynamic_index_list,
+)
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -606,6 +610,37 @@ class Subview(IRDLOperation):
 
     traits = frozenset((MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect()))
 
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        offsets: Sequence[SSAValue],
+        sizes: Sequence[SSAValue],
+        strides: Sequence[SSAValue],
+        static_offsets: Sequence[int] | DenseArrayBase,
+        static_sizes: Sequence[int] | DenseArrayBase,
+        static_strides: Sequence[int] | DenseArrayBase,
+        result_type: Attribute,
+    ):
+        if not isinstance(static_offsets, DenseArrayBase):
+            static_offsets = DenseArrayBase.create_dense_int_or_index(
+                i64, static_offsets
+            )
+        if not isinstance(static_sizes, DenseArrayBase):
+            static_sizes = DenseArrayBase.create_dense_int_or_index(i64, static_sizes)
+        if not isinstance(static_strides, DenseArrayBase):
+            static_strides = DenseArrayBase.create_dense_int_or_index(
+                i64, static_strides
+            )
+        super().__init__(
+            operands=[source, offsets, sizes, strides],
+            result_types=[result_type],
+            properties={
+                "static_offsets": static_offsets,
+                "static_sizes": static_sizes,
+                "static_strides": static_strides,
+            },
+        )
+
     @staticmethod
     def from_static_parameters(
         source: SSAValue | Operation,
@@ -658,15 +693,79 @@ class Subview(IRDLOperation):
             source_type.memory_space,
         )
 
-        return Subview.build(
-            operands=[source, [], [], []],
-            result_types=[return_type],
-            properties={
-                "static_offsets": DenseArrayBase.from_list(i64, offsets),
-                "static_sizes": DenseArrayBase.from_list(i64, sizes),
-                "static_strides": DenseArrayBase.from_list(i64, strides),
-            },
+        return Subview(
+            source,
+            (),
+            (),
+            (),
+            DenseArrayBase.from_list(i64, offsets),
+            DenseArrayBase.from_list(i64, sizes),
+            DenseArrayBase.from_list(i64, strides),
+            return_type,
         )
+
+    def print(self, printer: Printer):
+        printer.print_string_raw(" ")
+        printer.print_ssa_value(self.source)
+        print_dynamic_index_list(
+            printer,
+            self.offsets,
+            (cast(int, offset.data) for offset in self.static_offsets.data.data),
+        )
+        printer.print_string_raw(" ")
+        print_dynamic_index_list(
+            printer,
+            self.sizes,
+            (cast(int, size.data) for size in self.static_sizes.data.data),
+        )
+        printer.print_string_raw(" ")
+        print_dynamic_index_list(
+            printer,
+            self.strides,
+            (cast(int, stride.data) for stride in self.static_strides.data.data),
+        )
+        printer.print_op_attributes(self.attributes, print_keyword=True)
+        printer.print_string(" : ")
+        printer.print_attribute(self.source.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.result.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Subview:
+        unresolved_source = parser.parse_unresolved_operand()
+        pos = parser.pos
+        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(parser)
+        dynamic_offsets = parser.resolve_operands(
+            dynamic_offsets, (i64,) * len(dynamic_offsets), pos
+        )
+        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(parser)
+        dynamic_sizes = parser.resolve_operands(
+            dynamic_sizes, (i64,) * len(dynamic_offsets), pos
+        )
+        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(parser)
+        dynamic_strides = parser.resolve_operands(
+            dynamic_strides, (i64,) * len(dynamic_offsets), pos
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        parser.parse_punctuation(":")
+        operand_type = parser.parse_attribute()
+        source = parser.resolve_operand(unresolved_source, operand_type)
+        parser.parse_characters("to")
+        res_type = parser.parse_attribute()
+
+        op = Subview(
+            source,
+            dynamic_offsets,
+            dynamic_sizes,
+            dynamic_strides,
+            static_offsets,
+            static_sizes,
+            static_strides,
+            res_type,
+        )
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
 
 
 @irdl_op_definition
