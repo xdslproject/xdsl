@@ -2495,6 +2495,18 @@ class LiOp(RISCVInstruction, ABC):
         _print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print(" : ")
+        printer.print_attribute(self.rd.type)
+
 
 @irdl_op_definition
 class EcallOp(NullaryOperation):
@@ -2849,6 +2861,18 @@ class GetAnyRegisterOperation(Generic[RDInvT], RISCVAsmOperation):
     def assembly_line(self) -> str | None:
         # Don't print assembly for creating a SSA value representing register
         return None
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print(" : ")
+        printer.print_attribute(self.res.type)
 
 
 @irdl_op_definition
