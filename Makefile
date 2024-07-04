@@ -54,14 +54,28 @@ tests-toy: filecheck-toy pytest-toy
 tests-marimo:
 	@for file in docs/marimo/*.py; do \
 		echo "Running $$file"; \
-		python3 "$$file" || exit 1; \
+		error_message=$$(python3 "$$file" 2>&1) || { \
+			echo "Error running $$file"; \
+			echo "$$error_message"; \
+			exit 1; \
+		}; \
 	done
 	@echo "All marimo tests passed successfully."
 
 tests-marimo-mlir:
+	@if command -v mlir-opt &> /dev/null; then \
+		echo "MLIR is installed, running tests."; \
+	else \
+		echo "MLIR is not installed, skipping tests."; \
+		exit 0; \
+	fi
 	@for file in docs/marimo/mlir/*.py; do \
 		echo "Running $$file"; \
-		python3 "$$file" || exit 1; \
+		error_message=$$(python3 "$$file" 2>&1) || { \
+			echo "Error running $$file"; \
+			echo "$$error_message"; \
+			exit 1; \
+		}; \
 	done
 	@echo "All marimo mlir tests passed successfully."
 
