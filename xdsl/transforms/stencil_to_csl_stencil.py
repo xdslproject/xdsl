@@ -30,12 +30,12 @@ from xdsl.transforms.experimental.stencil_tensorize_z_dimension import (
 from xdsl.utils.hints import isa
 
 
-def get_stencil_accessed_symbols(op: Operand) -> set[Operand]:
+def get_stencil_access_operands(op: Operand) -> set[Operand]:
     """
     Returns the symbols of all stencil accessess by op and all its dependencies.
     """
     res: set[Operand] = set()
-    frontier: set[Operand] = set((op,))
+    frontier: set[Operand] = {op}
     next: set[Operand] = set()
     while len(frontier) > 0:
         for o in frontier:
@@ -85,40 +85,21 @@ class RestructureSymmetricReductionPattern(RewritePattern):
         c_op = use.operands[0] if use.operands[1] == op.result else use.operands[1]
 
         def rewrite(one: Operand, two: Operand, three: Operand):
-            """
-            Builds `(one+two)+three` where `'+' == type(op)`
-            """
+            """Builds `(one+two)+three` where `'+' == type(op)`"""
+
             first_compute = type(op)(one, two)
             second_compute = type(op)(first_compute, three)
 
-            # insert ops at the earliest point after both of its dependencies
-            rewriter.insert_op(
-                first_compute,
-                InsertPoint.after(
-                    max(
-                        (o.op.parent.get_operation_index(o.op), o.op)
-                        for o in [one, two]
-                        if isinstance(o, OpResult) and isinstance(o.op.parent, Block)
-                    )[1]
-                ),
-            )
-            rewriter.insert_op(
-                second_compute,
-                InsertPoint.after(
-                    max(
-                        (o.op.parent.get_operation_index(o.op), o.op)
-                        for o in [three, first_compute.results[0]]
-                        if isinstance(o, OpResult) and isinstance(o.op.parent, Block)
-                    )[1]
-                ),
-            )
-
+            # Both ops are inserted at the later point to ensure all dependencies are present when moving compute around.
+            # Moving the replacement of `op` backwards is safe because we previously asserted at `op` only has one use (ie. in `use`)
             rewriter.replace_op(op, [], [first_compute.results[0]])
-            rewriter.replace_op(use, [], [second_compute.results[0]])
+            rewriter.replace_op(
+                use, [first_compute, second_compute], [second_compute.results[0]]
+            )
 
-        a = get_stencil_accessed_symbols(a_op := op.lhs)
-        b = get_stencil_accessed_symbols(b_op := op.rhs)
-        c = get_stencil_accessed_symbols(c_op)
+        a = get_stencil_access_operands(a_op := op.lhs)
+        b = get_stencil_access_operands(b_op := op.rhs)
+        c = get_stencil_access_operands(c_op)
 
         if self.move_fwd(a) and self.move_fwd(b):
             return
