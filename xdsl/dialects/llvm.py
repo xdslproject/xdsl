@@ -1313,6 +1313,20 @@ class CallOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ZeroOp(IRDLOperation):
+    name = "llvm.mlir.zero"
+
+    nullptr: OpResult = result_def(LLVMPointerType)
+
+    def __init__(self, ptr_type: LLVMPointerType | None = None):
+        if ptr_type is None:
+            ptr_type = LLVMPointerType.opaque()
+        assert isinstance(ptr_type, LLVMPointerType)
+
+        super().__init__(result_types=[ptr_type]) 
+
+   
 LLVM = Dialect(
     "llvm",
     [
@@ -1346,6 +1360,7 @@ LLVM = Dialect(
         ReturnOp,
         ConstantOp,
         CallIntrinsicOp,
+        ZeroOp,
     ],
     [
         LLVMStructType,
