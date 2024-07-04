@@ -17,6 +17,10 @@ class AngleAttr(Data[Fraction], TypeAttribute):
     name = "quantum.angle"
 
     @classmethod
+    def from_fraction(cls, numerator: int, denominator: int = 1) -> AngleAttr:
+        return AngleAttr(Fraction(numerator, denominator) % 2)
+
+    @classmethod
     def parse_parameter(cls, parser: AttrParser) -> Fraction:
         with parser.in_angle_brackets():
             i = parser.parse_optional_integer()
@@ -42,11 +46,14 @@ class AngleAttr(Data[Fraction], TypeAttribute):
             if self.data.denominator != 1:
                 printer.print(":", self.data.denominator)
 
-    def __add__(self, other: AngleAttr):
-        AngleAttr.new([(self.data + other.data) % 2])
+    def __add__(self, other: AngleAttr) -> AngleAttr:
+        return AngleAttr.new((self.data + other.data) % 2)
 
-    def __sub__(self, other: AngleAttr):
-        AngleAttr.new([(self.data - other.data) % 2])
+    def __sub__(self, other: AngleAttr) -> AngleAttr:
+        return AngleAttr.new((self.data - other.data) % 2)
+
+    def __neg__(self) -> AngleAttr:
+        return AngleAttr.new(-self.data % 2)
 
 
 QUANTUM = Dialect(
