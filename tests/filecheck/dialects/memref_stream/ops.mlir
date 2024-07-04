@@ -58,7 +58,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel"]
 } ins(%A, %B : memref<2xf32>, memref<3xf32>) outs(%C : memref<3x2xf64>) attrs = {hello = "world"} {
-^bb0(%arg3: f32, %arg4: f32):
+^bb0(%arg3: f32, %arg4: f32, %arg5: f32):
     memref_stream.yield %arg3 : f32
 }
 
@@ -71,12 +71,12 @@ memref_stream.generic {
 // CHECK-NEXT:    ],
 // CHECK-NEXT:    iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:  } ins(%A, %B : memref<2xf32>, memref<3xf32>) outs(%C : memref<3x2xf64>) attrs =  {"hello" = "world"} {
-// CHECK-NEXT:  ^1(%arg3 : f32, %arg4 : f32):
+// CHECK-NEXT:  ^1(%arg3 : f32, %arg4 : f32, %arg5 : f32):
 // CHECK-NEXT:    memref_stream.yield %arg3 : f32
 // CHECK-NEXT:  }
 
 // CHECK-GENERIC-NEXT:    "memref_stream.generic"(%A, %B, %C) <{"bounds" = [3 : index, 2 : index], "init_indices" = [], "indexing_maps" = [affine_map<(d0, d1) -> (d0)>, affine_map<(d0, d1) -> (d1)>, affine_map<(d0, d1) -> (d0, d1)>], "iterator_types" = [#memref_stream.iterator_type<parallel>, #memref_stream.iterator_type<parallel>], "operandSegmentSizes" = array<i32: 2, 1, 0>}> ({
-// CHECK-GENERIC-NEXT:    ^1(%arg3 : f32, %arg4 : f32):
+// CHECK-GENERIC-NEXT:    ^1(%arg3 : f32, %arg4 : f32, %arg5 : f32):
 // CHECK-GENERIC-NEXT:      "memref_stream.yield"(%arg3) : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) {"hello" = "world"} : (memref<2xf32>, memref<3xf32>, memref<3x2xf64>) -> ()
 
