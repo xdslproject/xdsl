@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 from typing_extensions import Self
 
@@ -595,6 +595,9 @@ class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 @irdl_op_definition
 class Subview(IRDLOperation):
+
+    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
+
     name = "memref.subview"
 
     source: Operand = operand_def(MemRefType)
@@ -711,18 +714,21 @@ class Subview(IRDLOperation):
             printer,
             self.offsets,
             (cast(int, offset.data) for offset in self.static_offsets.data.data),
+            dynamic_index=Subview.DYNAMIC_INDEX,
         )
         printer.print_string_raw(" ")
         print_dynamic_index_list(
             printer,
             self.sizes,
             (cast(int, size.data) for size in self.static_sizes.data.data),
+            dynamic_index=Subview.DYNAMIC_INDEX,
         )
         printer.print_string_raw(" ")
         print_dynamic_index_list(
             printer,
             self.strides,
             (cast(int, stride.data) for stride in self.static_strides.data.data),
+            dynamic_index=Subview.DYNAMIC_INDEX,
         )
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_string(" : ")
@@ -734,15 +740,21 @@ class Subview(IRDLOperation):
     def parse(cls, parser: Parser) -> Subview:
         unresolved_source = parser.parse_unresolved_operand()
         pos = parser.pos
-        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(parser)
+        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=Subview.DYNAMIC_INDEX
+        )
         dynamic_offsets = parser.resolve_operands(
             dynamic_offsets, (i64,) * len(dynamic_offsets), pos
         )
-        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(parser)
+        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=Subview.DYNAMIC_INDEX
+        )
         dynamic_sizes = parser.resolve_operands(
             dynamic_sizes, (i64,) * len(dynamic_offsets), pos
         )
-        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(parser)
+        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=Subview.DYNAMIC_INDEX
+        )
         dynamic_strides = parser.resolve_operands(
             dynamic_strides, (i64,) * len(dynamic_offsets), pos
         )
