@@ -41,7 +41,7 @@ def test_memref_stream_generic():
         ),
         (TestSSAValue(MemRefType(i32, [1, 6])),),
         (),
-        Region(Block(arg_types=(i32, i32))),
+        Region(Block(arg_types=(i32, i32, i32))),
         ArrayAttr(
             (
                 AffineMapAttr(AffineMap.identity(2)),
@@ -68,7 +68,7 @@ def test_memref_stream_generic():
         ArrayAttr(()),
     )
 
-    with ImplicitBuilder(op.body) as (a, b):
+    with ImplicitBuilder(op.body) as (a, b, _c_init):
         c = arith.Muli(a, b).result
         memref_stream.YieldOp(c)
 
@@ -95,7 +95,7 @@ def test_memref_stream_generic_scalar():
         ),
         (TestSSAValue(MemRefType(i32, [1, 6])),),
         (),
-        Region(Block(arg_types=(i32, i32))),
+        Region(Block(arg_types=(i32, i32, i32))),
         ArrayAttr(
             (
                 AffineMapAttr(AffineMap.identity(2)),
@@ -122,7 +122,7 @@ def test_memref_stream_generic_scalar():
         ArrayAttr(()),
     )
 
-    with ImplicitBuilder(op.body) as (a, b):
+    with ImplicitBuilder(op.body) as (a, b, _c_init):
         c = arith.Muli(a, b).result
         memref_stream.YieldOp(c)
 

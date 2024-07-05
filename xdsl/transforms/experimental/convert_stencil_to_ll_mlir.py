@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from itertools import product
+from math import prod
 from typing import TypeVar
 from warnings import warn
 
@@ -285,24 +286,20 @@ class BufferOpToMemref(RewritePattern):
         last_op = block.last_op
         assert last_op is not None
 
-        alloc = memref.Alloc.get(temp_t.get_element_type(), shape=temp_t.get_shape())
+        shape = temp_t.get_shape()
+        strides = [prod(shape[i + 1 :]) for i in range(len(shape))]
+        offset = -sum(o * s for o, s in zip(temp_bounds.lb, strides, strict=True))
+
+        layout = memref.StridedLayoutAttr(strides, offset)
+        alloc = memref.Alloc.get(
+            temp_t.get_element_type(), shape=temp_t.get_shape(), layout=layout
+        )
         alloc_type = alloc.memref.type
         assert isa(alloc_type, MemRefType[Attribute])
 
-        offset = list(-temp_bounds.lb)
-
-        view = memref.Subview.from_static_parameters(
-            alloc,
-            alloc_type,
-            offset,
-            temp_t.get_shape(),
-            [1] * temp_t.get_num_dims(),
-        )
-
         rewriter.insert_op(alloc, InsertPoint.before(first_op))
-        rewriter.insert_op(view, InsertPoint.before(first_op))
 
-        update_return_target(self.return_targets, op.temp, view.result)
+        update_return_target(self.return_targets, op.temp, alloc.memref)
 
         dealloc = memref.Dealloc.get(alloc.memref)
 
@@ -312,7 +309,7 @@ class BufferOpToMemref(RewritePattern):
             return
 
         rewriter.insert_op(dealloc, InsertPoint.before(last_op))
-        rewriter.replace_matched_op([], [view.result])
+        rewriter.replace_matched_op([], [alloc.memref])
 
 
 @dataclass

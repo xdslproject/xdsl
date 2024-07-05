@@ -56,6 +56,7 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     MemoryEffect,
+    MemoryEffectKind,
     NoTerminator,
     Pure,
 )
@@ -2495,6 +2496,18 @@ class LiOp(RISCVInstruction, ABC):
         _print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print(" : ")
+        printer.print_attribute(self.rd.type)
+
 
 @irdl_op_definition
 class EcallOp(NullaryOperation):
@@ -2807,11 +2820,19 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        return any(
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        effects = set[MemoryEffectKind]()
+        if any(
             isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.results, op.operands)
-        )
+            for r in chain(op.results)
+        ):
+            effects.add(MemoryEffectKind.WRITE)
+        if any(
+            isinstance(r.type, RegisterType) and r.type.is_allocated
+            for r in chain(op.operands)
+        ):
+            effects.add(MemoryEffectKind.READ)
+        return effects
 
 
 class GetAnyRegisterOperation(Generic[RDInvT], RISCVAsmOperation):
@@ -2849,6 +2870,18 @@ class GetAnyRegisterOperation(Generic[RDInvT], RISCVAsmOperation):
     def assembly_line(self) -> str | None:
         # Don't print assembly for creating a SSA value representing register
         return None
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print(" : ")
+        printer.print_attribute(self.res.type)
 
 
 @irdl_op_definition
