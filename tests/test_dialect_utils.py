@@ -56,6 +56,19 @@ def test_print_dynamic_index_list():
     print_dynamic_index_list(printer, [], [])
     assert stream.getvalue() == "[]"
 
+    # Test case 6: Mix of integers and SSA values with custom dynamic index
+    dynamic_index = -42
+    stream = StringIO()
+    printer = Printer(stream)
+    values = [TestSSAValue(IndexType()), TestSSAValue(IndexType())]
+    print_dynamic_index_list(
+        printer,
+        values,
+        [1, dynamic_index, 3, dynamic_index],
+        dynamic_index=dynamic_index,
+    )
+    assert stream.getvalue() == "[1, %0, 3, %1]"
+
 
 @pytest.mark.parametrize(
     "delimiter,expected",
@@ -98,37 +111,44 @@ def test_parse_dynamic_index_without_type():
 
 
 def test_parse_dynamic_index_list_with_types():
-
+    dynamic_index = -42
+    test_values = (TestSSAValue(i32), TestSSAValue(index))
     parser = Parser(ctx, "[%0 : i32, 42, %1 : index]")
-    parser.ssa_values["0"] = (TestSSAValue(i32),)
-    parser.ssa_values["1"] = (TestSSAValue(index),)
-    values, indices = parse_dynamic_index_list_with_types(parser)
+    parser.ssa_values["0"] = (test_values[0],)
+    parser.ssa_values["1"] = (test_values[1],)
+    values, indices = parse_dynamic_index_list_with_types(
+        parser, dynamic_index=dynamic_index
+    )
     assert len(values) == 2
-    assert len(indices) == 1
-    assert isinstance(values[0], SSAValue)
-    assert isinstance(values[1], SSAValue)
-    assert indices[0] == 42
+    assert values[0] is test_values[0]
+    assert values[1] is test_values[1]
+    assert tuple(indices) == (dynamic_index, 42, dynamic_index)
 
 
 def test_parse_dynamic_index_list_without_types():
+    dynamic_index = -42
     parser = Parser(ctx, "[%0, 42, %1]")
-    values, indices = parse_dynamic_index_list_without_types(parser)
+    values, indices = parse_dynamic_index_list_without_types(
+        parser, dynamic_index=dynamic_index
+    )
+
     assert len(values) == 2
-    assert len(indices) == 1
     assert isinstance(values[0], UnresolvedOperand)
     assert isinstance(values[1], UnresolvedOperand)
-    assert indices[0] == 42
+
+    assert tuple(indices) == (dynamic_index, 42, dynamic_index)
 
 
 def test_parse_dynamic_index_list_with_custom_delimiter():
+    dynamic_index = -42
+    test_values = (TestSSAValue(i32), TestSSAValue(index))
     parser = Parser(ctx, "(%0 : i32, 42, %1 : index)")
+    parser.ssa_values["0"] = (test_values[0],)
+    parser.ssa_values["1"] = (test_values[1],)
     values, indices = parse_dynamic_index_list_with_types(
-        parser, delimiter=Parser.Delimiter.PAREN
+        parser, dynamic_index=dynamic_index, delimiter=Parser.Delimiter.PAREN
     )
-    parser.ssa_values["0"] = (TestSSAValue(i32),)
-    parser.ssa_values["1"] = (TestSSAValue(index),)
     assert len(values) == 2
-    assert len(indices) == 1
-    assert isinstance(values[0], SSAValue)
-    assert isinstance(values[1], SSAValue)
-    assert indices[0] == 42
+    assert values[0] is test_values[0]
+    assert values[1] is test_values[1]
+    assert tuple(indices) == (dynamic_index, 42, dynamic_index)

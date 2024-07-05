@@ -271,6 +271,8 @@ def print_dynamic_index_list(
     values: Sequence[SSAValue],
     integers: Iterable[int],
     value_types: Sequence[Attribute] = (),
+    *,
+    dynamic_index: int = DYNAMIC_INDEX,
     delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
 ):
     """
@@ -281,6 +283,8 @@ def print_dynamic_index_list(
     indicating their types. This allows idiomatic printing of mixed value and
     integer attributes in a list. E.g.
     `[%arg0 : index, 7, 42, %arg42 : i32]`.
+    The `dynamic_index` parameter specifies the sentinel value to use to print an ssa
+    value instead of a constant.
     """
     if delimiter.value is not None:
         printer.print_string(delimiter.value[0])
@@ -288,7 +292,7 @@ def print_dynamic_index_list(
     for integer_index, integer in enumerate(integers):
         if integer_index:
             printer.print_string(", ")
-        if integer == DYNAMIC_INDEX:
+        if integer == dynamic_index:
             printer.print_ssa_value(values[value_index])
             if value_types:
                 printer.print_string_raw(" : ")
@@ -328,11 +332,15 @@ def parse_dynamic_index_without_type(parser: Parser) -> int | UnresolvedOperand:
 
 def parse_dynamic_index_list_with_types(
     parser: Parser,
+    *,
+    dynamic_index: int = DYNAMIC_INDEX,
     delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
 ) -> tuple[Sequence[SSAValue], Sequence[int]]:
     """
     Parses an in index list, composed of a mix of indices and ssa values without a type:
     e.g. `[1, 2, 3, %val, 5]`.
+    The `dynamic_index` parameter specifies the sentinel value to use to print an ssa
+    value instead of a constant.
     """
     mixed_values = parser.parse_comma_separated_list(
         delimiter, lambda: parse_dynamic_index_with_type(parser)
@@ -345,6 +353,7 @@ def parse_dynamic_index_list_with_types(
         if isinstance(value_or_index, int):
             indices.append(value_or_index)
         else:
+            indices.append(dynamic_index)
             values.append(value_or_index)
 
     return values, indices
@@ -352,11 +361,15 @@ def parse_dynamic_index_list_with_types(
 
 def parse_dynamic_index_list_without_types(
     parser: Parser,
+    *,
+    dynamic_index: int = DYNAMIC_INDEX,
     delimiter: Parser.Delimiter = Parser.Delimiter.SQUARE,
 ) -> tuple[Sequence[UnresolvedOperand], Sequence[int]]:
     """
     Parses an in index list, composed of a mix of indices and ssa values with a types:
     e.g. `[1, 2, 3, %val : i32, 5]`.
+    The `dynamic_index` parameter specifies the sentinel value to use to print an ssa
+    value instead of a constant.
     """
     mixed_values = parser.parse_comma_separated_list(
         delimiter, lambda: parse_dynamic_index_without_type(parser)
@@ -369,6 +382,7 @@ def parse_dynamic_index_list_without_types(
         if isinstance(value_or_index, int):
             indices.append(value_or_index)
         else:
+            indices.append(dynamic_index)
             values.append(value_or_index)
 
     return values, indices
