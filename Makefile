@@ -59,6 +59,11 @@ tests-marimo:
 	@echo "All marimo tests passed successfully."
 
 tests-marimo-mlir:
+	@if ! command -v mlir-opt > /dev/null 2>&1; then \
+		echo "MLIR is not installed, skipping tests."; \
+		exit 0; \
+	fi
+	@echo "MLIR is installed, running tests."
 	@for file in docs/marimo/mlir/*.py; do \
 		echo "Running $$file"; \
 		python3 "$$file" || exit 1; \
