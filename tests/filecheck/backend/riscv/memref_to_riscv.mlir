@@ -186,3 +186,49 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi16>
 memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 
 // CHECK-NEXT:  }
+
+// -----
+
+// CHECK:       builtin.module {
+
+// CHECK-NEXT:    %v_f64 = "test.op"() : () -> f64
+// CHECK-NEXT:    %i0, %i1, %offset = "test.op"() : () -> (index, index, index)
+// CHECK-NEXT:    %original = "test.op"() : () -> memref<4x3x2xf64>
+%v_f64 = "test.op"() : () -> f64
+%i0, %i1, %offset = "test.op"() : () -> (index, index, index)
+%original = "test.op"() : () -> memref<4x3x2xf64>
+
+// CHECK-NEXT:    %zero_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to memref<3x2xf64>
+%zero_subview = memref.subview %original[0, 0, 0][1, 3, 2][1, 1, 1] : memref<4x3x2xf64> to memref<3x2xf64>
+
+// CHECK-NEXT:    %static_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
+// CHECK-NEXT:    %static_subview_1 = riscv.addi %static_subview, 384 {"comment" = "subview into original memref"} : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %static_subview_2 = builtin.unrealized_conversion_cast %static_subview_1 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: 6>>
+%static_subview = memref.subview %original[1, 0, 0][1, 3, 2][1, 1, 1] :
+  memref<4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: 6>>
+
+// CHECK-NEXT:    %0 = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
+// CHECK-NEXT:    %1 = builtin.unrealized_conversion_cast %offset : index to !riscv.reg
+// CHECK-NEXT:    %dynamic_subview = riscv.li 6 : !riscv.reg
+// CHECK-NEXT:    %dynamic_subview_1 = riscv.mul %1, %dynamic_subview : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %dynamic_subview_2 = riscv.add %0, %dynamic_subview_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %dynamic_subview_3 = riscv.li 8 : !riscv.reg
+// CHECK-NEXT:    %dynamic_subview_4 = riscv.mul %dynamic_subview_2, %dynamic_subview_3 {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %dynamic_subview_5 = riscv.add %0, %dynamic_subview_4 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %dynamic_subview_6 = builtin.unrealized_conversion_cast %dynamic_subview_5 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: ?>>
+%dynamic_subview = memref.subview %original[%offset, 0, 0][1, 3, 2][1, 1, 1] :
+  memref<4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: ?>>
+
+// CHECK-NEXT:  }
+
+// -----
+
+%0 = memref.alloc() : memref<8x16x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2)>>
+
+// Subview with constant offsets, sizes and strides.
+%1 = memref.subview %0[0, 2, 0][4, 4, 4][1, 1, 1]
+  : memref<8x16x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2)>> to
+    memref<4x4x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2 + 8)>>
+
+// CHECK:      Only strided layout attrs implemented
+
