@@ -382,26 +382,26 @@ func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : 
 // CHECK-NEXT:      %{{.*}} = arith.constant 1 : index
 // CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
 // CHECK-NEXT:        scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          %{{.*}} = memref.load %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          %{{.*}} = memref.load %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          %{{.*}} = memref.load %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          %{{.*}} = memref.load %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
 // CHECK-NEXT:          %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} = scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} iter_args(%c0 = %{{.*}}, %c1 = %{{.*}}, %c2 = %{{.*}}, %c3 = %{{.*}}) -> (f64, f64, f64, f64) {
 // CHECK-NEXT:            %a0 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
 // CHECK-NEXT:            %a1 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
 // CHECK-NEXT:            %a2 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
 // CHECK-NEXT:            %a3 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
-// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:            %b0 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
-// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:            %b1 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
-// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:            %b2 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
-// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:            %b3 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
 // CHECK-NEXT:            %prod0 = arith.mulf %a0, %b0 fastmath<fast> : f64
 // CHECK-NEXT:            %prod1 = arith.mulf %a1, %b1 fastmath<fast> : f64
@@ -413,13 +413,13 @@ func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : 
 // CHECK-NEXT:            %res3 = arith.addf %prod3, %c3 fastmath<fast> : f64
 // CHECK-NEXT:            scf.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
 // CHECK-NEXT:          }
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }
@@ -475,13 +475,13 @@ func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : mem
 // CHECK-NEXT:            %a1 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
 // CHECK-NEXT:            %a2 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
 // CHECK-NEXT:            %a3 = memref.load %A[%{{.*}}, %{{.*}}] : memref<3x5xf64>
-// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:            %b0 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
-// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:            %b1 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
-// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:            %b2 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
-// CHECK-NEXT:            %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:            %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:            %b3 = memref.load %B[%{{.*}}, %{{.*}}] : memref<5x8xf64>
 // CHECK-NEXT:            %prod0 = arith.mulf %a0, %b0 fastmath<fast> : f64
 // CHECK-NEXT:            %prod1 = arith.mulf %a1, %b1 fastmath<fast> : f64
@@ -493,13 +493,13 @@ func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : mem
 // CHECK-NEXT:            %res3 = arith.addf %prod3, %c3 fastmath<fast> : f64
 // CHECK-NEXT:            scf.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
 // CHECK-NEXT:          }
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
-// CHECK-NEXT:          %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (((d0 * 4) + d1))>}> : (index, index) -> index
+// CHECK-NEXT:          %{{.*}} = affine.apply affine_map<(d0, d1) -> (((d0 * 4) + d1))> (%{{.*}}, %{{.*}})
 // CHECK-NEXT:          memref.store %{{.*}}, %C[%{{.*}}, %{{.*}}] : memref<3x8xf64>
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }
