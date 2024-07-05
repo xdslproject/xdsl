@@ -4,6 +4,7 @@ from typing import TypeGuard, cast
 from attr import dataclass
 
 from xdsl.context import MLContext
+from xdsl.dialects import builtin
 from xdsl.dialects.arith import (
     Addf,
     BinaryOperation,
@@ -14,6 +15,7 @@ from xdsl.dialects.arith import (
 )
 from xdsl.dialects.builtin import (
     AnyFloat,
+    ArrayAttr,
     ContainerType,
     IntAttr,
     MemRefType,
@@ -21,6 +23,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     TensorType,
 )
+from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.func import FuncOp
 from xdsl.dialects.linalg import FillOp
 from xdsl.dialects.stencil import (
@@ -35,7 +38,7 @@ from xdsl.dialects.stencil import (
     StoreOp,
     TempType,
 )
-from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp
+from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp, InsertSliceOp
 from xdsl.ir import (
     Attribute,
     Operation,
@@ -69,6 +72,15 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
                             return r_type
                 # abort when encountering an un-tensorized ReturnOp successor
                 return None
+            if (
+                isinstance(use.operation, InsertSliceOp)
+                and is_tensor(use.operation.result.type)
+                and isa(use.operation.static_sizes.data, ArrayAttr[IntAttr])
+            ):
+                return TensorType(
+                    use.operation.result.type.get_element_type(),
+                    use.operation.static_sizes.data,
+                )
             for ret in use.operation.results:
                 if isa(r_type := ret.type, TensorType[Attribute]):
                     return r_type
@@ -298,6 +310,28 @@ class AccessOpUpdateShape(RewritePattern):
                 )
 
 
+class CslStencilAccessOpUpdateShape(RewritePattern):
+    """
+    Updates the result type of a tensorized `csl_stencil.access` op
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
+        if typ := get_required_result_type(op):
+            if needs_update_shape(op.result.type, typ) and (
+                isa(op.op.type, TempType[TensorType[Attribute]])
+                or isa(op.op.type, MemRefType[TensorType[Attribute]])
+            ):
+                rewriter.replace_matched_op(
+                    csl_stencil.AccessOp(
+                        op.op,
+                        op.offset,
+                        op.op.type.get_element_type(),
+                        op.offset_mapping,
+                    )
+                )
+
+
 class ExtractSliceOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
@@ -356,6 +390,32 @@ class FillOpUpdateShape(RewritePattern):
 
 
 @dataclass(frozen=True)
+class BackpropagateStencilShapes(ModulePass):
+    """
+    Greedily back-propagates the result types of tensorized ops.
+    Use after creating/modifying tensorization.
+    """
+
+    name = "backpropagate-stencil-shapes"
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        backpropagate_stencil_shapes = PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    CslStencilAccessOpUpdateShape(),
+                    ExtractSliceOpUpdateShape(),
+                    EmptyOpUpdateShape(),
+                    FillOpUpdateShape(),
+                    ArithOpUpdateShape(),
+                ]
+            ),
+            walk_reverse=True,
+            apply_recursively=False,
+        )
+        backpropagate_stencil_shapes.rewrite_module(op)
+
+
+@dataclass(frozen=True)
 class StencilTensorizeZDimension(ModulePass):
     name = "stencil-tensorize-z-dimension"
 
@@ -386,17 +446,4 @@ class StencilTensorizeZDimension(ModulePass):
             apply_recursively=False,
         )
         stencil_pass.rewrite_module(op)
-        backpropagate_stencil_shapes = PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    # AccessOpUpdateShape(),
-                    ExtractSliceOpUpdateShape(),
-                    EmptyOpUpdateShape(),
-                    FillOpUpdateShape(),
-                    ArithOpUpdateShape(),
-                ]
-            ),
-            walk_reverse=True,
-            apply_recursively=False,
-        )
-        backpropagate_stencil_shapes.rewrite_module(op)
+        BackpropagateStencilShapes().apply(ctx=ctx, op=op)
