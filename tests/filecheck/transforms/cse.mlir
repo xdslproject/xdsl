@@ -18,14 +18,14 @@ func.func @simple_constant() -> (i32, i32) {
   func.func @basic() -> (index, index) {
     %2 = arith.constant 0 : index
     %3 = arith.constant 0 : index
-    %4 = "affine.apply"(%2) <{"map" = affine_map<(d0) -> ((d0 mod 2))>}> : (index) -> index
-    %5 = "affine.apply"(%3) <{"map" = affine_map<(d0) -> ((d0 mod 2))>}> : (index) -> index
+    %4 = affine.apply affine_map<(d0) -> ((d0 mod 2))>(%2)
+    %5 = affine.apply affine_map<(d0) -> ((d0 mod 2))>(%3)
     func.return %4, %5 : index, index
   }
 
 // CHECK:         func.func @basic() -> (index, index) {
 // CHECK-NEXT:      %0 = arith.constant 0 : index
-// CHECK-NEXT:      %1 = "affine.apply"(%0) <{"map" = affine_map<(d0) -> ((d0 mod 2))>}> : (index) -> index
+// CHECK-NEXT:      %1 = affine.apply affine_map<(d0) -> ((d0 mod 2))>(%0)
 // CHECK-NEXT:      func.return %1, %1 : index, index
 // CHECK-NEXT:    }
 
