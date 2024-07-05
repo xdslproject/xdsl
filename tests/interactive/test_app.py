@@ -183,7 +183,7 @@ async def test_buttons():
     riscv_func.func @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> {
       %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
       %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
-      %two = riscv.li 2 : () -> !riscv.reg
+      %two = riscv.li 2 : !riscv.reg
       %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
       %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg
       %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
