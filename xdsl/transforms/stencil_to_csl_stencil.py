@@ -1,21 +1,124 @@
 from collections.abc import Sequence
-
-from attr import dataclass
+from dataclasses import dataclass
+from math import prod
 
 from xdsl.context import MLContext
-from xdsl.dialects import memref, stencil, tensor
-from xdsl.dialects.builtin import ModuleOp, TensorType
+from xdsl.dialects import arith, memref, stencil, tensor
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    TensorType,
+)
 from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import Attribute, OpResult
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region
+from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
+from xdsl.transforms.experimental.stencil_tensorize_z_dimension import (
+    BackpropagateStencilShapes,
+)
 from xdsl.utils.hints import isa
+
+
+def get_stencil_access_operands(op: Operand) -> set[Operand]:
+    """
+    Returns the symbols of all stencil accessess by op and all its dependencies.
+    """
+    res: set[Operand] = set()
+    frontier: set[Operand] = {op}
+    next: set[Operand] = set()
+    while len(frontier) > 0:
+        for o in frontier:
+            if isinstance(o, OpResult):
+                if isinstance(o.op, csl_stencil.AccessOp):
+                    res.add(o.op.op)
+                else:
+                    next.update(o.op.operands)
+        frontier = next
+        next = set()
+
+    return res
+
+
+@dataclass(frozen=True)
+class RestructureSymmetricReductionPattern(RewritePattern):
+    """
+    Consume data first where that data comes from stencil accesses to `buf`.
+
+    Identifies a pattern of 2 connected binary ops with 3 args, e.g. of the form `(a+b)+c` with different ops and
+    bracketings supported, and attempts to re-structure the order of computation.
+
+    Being in principle similarly to constant folding, the difference is that args are *not* required to be stencil
+    accesses, but could have further compute applied before being passed to the reduction function.
+    Uses helper function `get_stencil_accessed_symbols` to check which bufs are stencil-accessed in each of these args,
+    and to distinguish the following three cases:
+
+     (1) all accesses in an arg tree are to `buf`  - arg should be moved forward in the computation
+     (2) no accesses are to `buf`                  - arg should be moved backward in the computation
+     (3) there's a mix                             - unknown, take any or no action
+
+    If two args are identified that should be moved forward, or two args are identified that should be moved backwards,
+    the computation is restructured accordingly.
+    """
+
+    buf: BlockArgument
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: arith.Addf | arith.Mulf, rewriter: PatternRewriter, /
+    ):
+        # this rewrite requires exactly 1 use which is the same type of operation
+        if len(op.result.uses) != 1 or not isinstance(
+            use := list(op.result.uses)[0].operation, type(op)
+        ):
+            return
+        c_op = use.operands[0] if use.operands[1] == op.result else use.operands[1]
+
+        def rewrite(one: Operand, two: Operand, three: Operand):
+            """Builds `(one+two)+three` where `'+' == type(op)`"""
+
+            first_compute = type(op)(one, two)
+            second_compute = type(op)(first_compute, three)
+
+            # Both ops are inserted at the later point to ensure all dependencies are present when moving compute around.
+            # Moving the replacement of `op` backwards is safe because we previously asserted at `op` only has one use (ie. in `use`)
+            rewriter.replace_op(op, [], [first_compute.results[0]])
+            rewriter.replace_op(
+                use, [first_compute, second_compute], [second_compute.results[0]]
+            )
+
+        a = get_stencil_access_operands(a_op := op.lhs)
+        b = get_stencil_access_operands(b_op := op.rhs)
+        c = get_stencil_access_operands(c_op)
+
+        if self.move_fwd(a) and self.move_fwd(b):
+            return
+        elif self.move_back(a) and self.move_back(b):
+            return
+        elif self.move_fwd(a) and self.move_fwd(c):
+            rewrite(a_op, c_op, b_op)
+        elif self.move_fwd(b) and self.move_fwd(c):
+            rewrite(b_op, c_op, a_op)
+        elif self.move_back(a) and not self.move_back(c):
+            rewrite(c_op, b_op, a_op)
+        elif self.move_back(b) and not self.move_back(c):
+            rewrite(c_op, a_op, b_op)
+
+    def move_fwd(self, accs: set[Operand]) -> bool:
+        return self.buf in accs and len(accs) == 1
+
+    def move_back(self, accs: set[Operand]) -> bool:
+        return self.buf not in accs
 
 
 @dataclass(frozen=True)
@@ -115,6 +218,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
         )
+        assert op.topo is not None, f"topology on {type(op)} is not given"
 
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
@@ -171,10 +275,279 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             nested_rewriter.rewrite_op(new_apply_op)
 
 
+def get_op_split(
+    ops: Sequence[Operation], buf: BlockArgument
+) -> tuple[Sequence[Operation], Sequence[Operation]]:
+    """
+    Returns a split of `ops` into an `(a,b)` tuple, such that:
+
+    - `a` contains neighbour accesses to `buf` plus the minumum set of instructions to reduce the accessed data to 1 thing
+    - `b` contains everything else
+
+    If no valid split can be found, return `(ops, [])`.
+
+    This function does not attempt to arithmetically re-structure the computation to obtain a good split. To do this,
+    `RestructureSymmetricReductionPattern()` may be executed first.
+    """
+    a: list[Operation] = []
+    b: list[Operation] = []
+    rem: list[Operation] = []
+    for op in ops:
+        if isinstance(op, csl_stencil.AccessOp):
+            (b, a)[op.op == buf].append(op)
+        else:
+            rem.append(op)
+
+    # loop until we can make no more changes, or until only 1 thing computed in `a` is used outside of it
+    has_changes = True
+    while (
+        len(
+            # ops in `a` whose results are used outside of `a`
+            a_exports := set(
+                op
+                for op in a
+                for result in op.results
+                for use in result.uses
+                if use.operation not in a
+            )
+        )
+        > 1
+        and has_changes
+    ):
+        has_changes = False
+
+        # find ops that directly depend on `a` but are not themselves in `a`
+        for exp in a_exports:
+            for result in exp.results:
+                for use in result.uses:
+                    # op is only movable if *all* operands are already in `a` (and it hasn't been moved yet)
+                    if (op := use.operation) in rem and all(
+                        x.op in a for x in op.operands if isinstance(x, OpResult)
+                    ):
+                        has_changes = True
+                        a.append(use.operation)
+                        rem.remove(use.operation)
+
+    if len(a_exports) == 1:
+        return a, b + rem
+
+    # fallback
+    # always place `stencil.return` in second block
+    return ops[:-1], [ops[-1]]
+
+
+@dataclass(frozen=True)
+class ConvertApplyOpPattern(RewritePattern):
+    """
+    Fuses a `csl_stencil.prefetch` and a `stencil.apply` to build a `csl_stencil.apply`.
+
+    If there are several candidate prefetch ops, the one with the largest result buffer size is selected.
+    The selection is greedy, and could in the future be expanded into a more global selection optimising for minimal
+    prefetch overhead across multiple apply ops.
+
+    args:
+        num_chunks - number of chunks into which communication and computation should be split.
+                     Effectively, the number of times `csl_stencil.apply.chunk_reduce` will be executed and the
+                     tensor sizes it handles. Higher values may increase compute overhead but reduce size of
+                     communication buffers when lowered.
+    """
+
+    num_chunks: int = 1
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter, /):
+        # calculate memory cost of all prefetch operands
+        def get_prefetch_overhead(o: OpResult):
+            assert isa(o.type, memref.MemRefType[Attribute])
+            assert isa(t_type := o.type.get_element_type(), TensorType[Attribute])
+            buf_count = prod(o.type.get_shape())
+            buf_size = prod(t_type.get_shape())
+            return buf_count * buf_size
+
+        candidate_prefetches = [
+            (get_prefetch_overhead(o), o)
+            for o in op.operands
+            if isinstance(o, OpResult) and isinstance(o.op, csl_stencil.PrefetchOp)
+        ]
+        if len(candidate_prefetches) == 0:
+            return
+
+        # select the prefetch with the biggest communication overhead to be fused with matched stencil.apply
+        prefetch = max(candidate_prefetches)[1]
+        prefetch_idx = op.operands.index(prefetch)
+        assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
+        communicated_stencil_idx = op.operands.index(prefetch.op.input_stencil)
+        assert isinstance(prefetch.op, csl_stencil.PrefetchOp)
+        assert isa(prefetch.type, memref.MemRefType[Attribute])
+        assert isa(
+            prefetch_t_type := prefetch.type.get_element_type(), TensorType[Attribute]
+        )
+        communicated_stencil_op_arg = prefetch.op.input_stencil
+
+        # add empty tensor before op to be used as `iter_arg`
+        # this could potentially be re-used if we have one of the same size lying around
+        iter_arg = tensor.EmptyOp((), prefetch.type.get_element_type())
+        rewriter.insert_op(iter_arg, InsertPoint.before(op))
+
+        # run pass (on this apply's region only) to consume data from `prefetch` accesses first
+        nested_rewriter = PatternRewriteWalker(
+            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx])
+        )
+        nested_rewriter.rewrite_op(op)
+
+        # determine how ops should be split across the two regions
+        chunk_reduce_ops, post_process_ops = get_op_split(
+            list(op.region.block.ops), op.region.block.args[prefetch_idx]
+        )
+
+        # fetch what chunk_reduce is computing for
+        if isinstance(chunk_reduce_ops[-1], stencil.ReturnOp):
+            chunk_res = chunk_reduce_ops[-1].operands[0]
+        else:
+            chunk_res = chunk_reduce_ops[-1].results[0]
+
+        # after region split, check which block args (from the old ops block) are being accessed in each of the new regions
+        # ignore accesses block args which already are part of the region's required signature
+        chunk_reduce_used_block_args = sorted(
+            set(
+                x
+                for o in chunk_reduce_ops
+                for x in o.operands
+                if isinstance(x, BlockArgument) and x.index != prefetch_idx
+            ),
+            key=lambda b: b.index,
+        )
+        post_process_used_block_args = sorted(
+            set(
+                x
+                for o in post_process_ops
+                for x in o.operands
+                if isinstance(x, BlockArgument) and x.index != communicated_stencil_idx
+            ),
+            key=lambda b: b.index,
+        )
+
+        # set up region signatures, comprising fixed and optional args - see docs on `csl_stencil.apply` for details
+        chunk_reduce_args = [
+            # required arg 0: slice of type(%prefetch)
+            memref.MemRefType(
+                TensorType(
+                    prefetch_t_type.get_element_type(),
+                    (prefetch_t_type.get_shape()[0] // self.num_chunks,),
+                ),
+                (len(prefetch.op.swaps),),
+            ),
+            # required arg 1: %offset
+            IndexType(),
+            # required arg 2: %iter_arg
+            iter_arg.results[0].type,
+            # optional args: as needed by the ops
+            *[a.type for a in chunk_reduce_used_block_args],
+        ]
+        post_process_args = [
+            # required arg 0: stencil.temp to access own data
+            communicated_stencil_op_arg.type,
+            # required arg 1: %iter_arg
+            iter_arg.results[0].type,
+            # optional args: as needed by the ops
+            *[a.type for a in post_process_used_block_args],
+        ]
+
+        # set up two regions
+        chunk_reduce = Region(Block(arg_types=chunk_reduce_args))
+        post_process = Region(Block(arg_types=post_process_args))
+
+        # translate old to new block arg index for optional args
+        chunk_reduce_oprnd_table = dict[Operand, Operand](
+            (old, chunk_reduce.block.args[idx])
+            for idx, old in enumerate(chunk_reduce_used_block_args, start=3)
+        )
+        post_process_oprnd_table = dict[Operand, Operand](
+            (old, post_process.block.args[idx])
+            for idx, old in enumerate(post_process_used_block_args, start=2)
+        )
+
+        # add translation from old to new arg index for non-optional args - note, access to iter_arg must be handled separately below
+        chunk_reduce_oprnd_table[op.region.block.args[prefetch_idx]] = (
+            chunk_reduce.block.args[0]
+        )
+        post_process_oprnd_table[op.region.block.args[communicated_stencil_idx]] = (
+            post_process.block.args[0]
+        )
+        post_process_oprnd_table[chunk_res] = post_process.block.args[1]
+
+        # detach ops from old region
+        for o in op.region.block.ops:
+            op.region.block.detach_op(o)
+
+        # add operations from list to chunk_reduce, use translation table to rebuild operands
+        for o in chunk_reduce_ops:
+            if isinstance(o, stencil.ReturnOp | csl_stencil.YieldOp):
+                break
+            o.operands = [chunk_reduce_oprnd_table.get(x, x) for x in o.operands]
+            chunk_reduce.block.add_op(o)
+
+        # put `chunk_res` into `iter_arg` (using tensor.insert_slice) and yield the result
+        chunk_reduce.block.add_ops(
+            [
+                insert_slice_op := tensor.InsertSliceOp.get(
+                    source=chunk_res,
+                    dest=chunk_reduce.block.args[2],
+                    offsets=(chunk_reduce.block.args[1],),
+                    static_sizes=(prefetch_t_type.get_shape()[0] // self.num_chunks,),
+                ),
+                csl_stencil.YieldOp(insert_slice_op.result),
+            ]
+        )
+
+        # add operations from list to post_process, use translation table to rebuild operands
+        for o in post_process_ops:
+            o.operands = [post_process_oprnd_table.get(x, x) for x in o.operands]
+            post_process.block.add_op(o)
+            if isinstance(o, stencil.ReturnOp):
+                rewriter.replace_op(o, csl_stencil.YieldOp(*o.operands))
+
+        rewriter.replace_matched_op(
+            csl_stencil.ApplyOp(
+                operands=[
+                    communicated_stencil_op_arg,
+                    iter_arg,
+                    [op.operands[a.index] for a in chunk_reduce_used_block_args]
+                    + [op.operands[a.index] for a in post_process_used_block_args],
+                ],
+                properties={
+                    "swaps": prefetch.op.swaps,
+                    "topo": prefetch.op.topo,
+                    "num_chunks": IntegerAttr(self.num_chunks, IntegerType(64)),
+                },
+                regions=[
+                    chunk_reduce,
+                    post_process,
+                ],
+                result_types=[r.type for r in op.results],
+            )
+        )
+
+
 @dataclass(frozen=True)
 class StencilToCslStencilPass(ModulePass):
     name = "stencil-to-csl-stencil"
 
+    # chunks into which to slice communication
+    num_chunks: int = 1
+
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
-        module_pass = PatternRewriteWalker(ConvertSwapToPrefetchPattern())
+        module_pass = PatternRewriteWalker(
+            GreedyRewritePatternApplier(
+                [
+                    ConvertSwapToPrefetchPattern(),
+                    ConvertApplyOpPattern(num_chunks=self.num_chunks),
+                ]
+            ),
+            walk_reverse=False,
+            apply_recursively=True,
+        )
         module_pass.rewrite_module(op)
+
+        if self.num_chunks > 1:
+            BackpropagateStencilShapes().apply(ctx, op)

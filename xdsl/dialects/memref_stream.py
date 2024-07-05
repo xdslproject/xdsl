@@ -704,6 +704,8 @@ class GenericOp(IRDLOperation):
             raise VerifyException(
                 f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
             )
+        if num_interleaved > 1:
+            raise VerifyException(f"Too many interleaved bounds: {num_interleaved}")
         assert num_parallel + num_reduction + num_interleaved == len(iterator_types)
 
         if len(self.inputs) + len(self.outputs) != len(self.indexing_maps):
@@ -723,6 +725,7 @@ class GenericOp(IRDLOperation):
         # If the operation represents an imperfect loop nest, the bounds must match the
         # number of parallel iterators; otherwise they must match the total number of
         # iterators. In either case, they must all be the same.
+        output_count = len(self.outputs)
         output_maps = self.indexing_maps.data[input_count:]
 
         min_dims = min(m.data.num_dims for m in output_maps)
@@ -761,6 +764,21 @@ class GenericOp(IRDLOperation):
                     "Incompatible affine map and initial value for output at index "
                     f"{index}"
                 )
+
+        interleave_factor = self.bounds.data[-1].value.data if num_interleaved else 1
+
+        # If the operation is interleaved, use the interleaving factor to check
+        # the number of arguments
+        init_count = len(self.inits)
+        # Outputs with initial values correspond to accumulators in the presence of
+        # reduction
+        acc_count = output_count if num_reduction else (output_count - init_count)
+        expected_block_arg_count = (input_count + acc_count) * interleave_factor
+
+        if expected_block_arg_count != len(self.body.block.args):
+            raise VerifyException(
+                f"Invalid number of arguments in block ({len(self.body.block.args)}), expected {expected_block_arg_count}"
+            )
 
 
 @irdl_op_definition
