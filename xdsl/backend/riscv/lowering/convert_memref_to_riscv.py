@@ -89,24 +89,13 @@ def memref_shape_ops(
     """
     assert len(shape) == len(indices)
 
-    # Only handle a small subset of elements
-    # Might be useful as a helper for other passes in the future
-    match element_type:
-        case IntegerType():
-            bitwidth = element_type.width.data
-            if bitwidth != 32:
-                raise DiagnosticException(
-                    f"Unsupported memref element type for riscv lowering: {element_type}"
-                )
-            bytes_per_element = element_type.width.data // 8
-        case Float32Type():
-            bytes_per_element = element_type.get_bitwidth // 8
-        case Float64Type():
-            bytes_per_element = element_type.get_bitwidth // 8
-        case _:
-            raise DiagnosticException(
-                f"Unsupported memref element type for riscv lowering: {element_type}"
-            )
+    bitwidth = bitwidth_of_type(element_type)
+    if bitwidth % 8:
+        raise DiagnosticException(
+            f"Cannot create offset for element type {element_type}"
+            f" with bitwidth {bitwidth}"
+        )
+    bytes_per_element = bitwidth // 8
 
     if not shape:
         # Scalar memref
@@ -117,17 +106,29 @@ def memref_shape_ops(
     head, *tail = indices
 
     for factor, value in zip(shape[1:], tail):
-        ops.extend(
-            (
-                factor_op := riscv.LiOp(factor),
-                offset_op := riscv.MulOp(
-                    factor_op.rd, head, rd=riscv.IntRegisterType.unallocated()
-                ),
-                new_head_op := riscv.AddOp(
-                    offset_op, value, rd=riscv.IntRegisterType.unallocated()
-                ),
+        if factor == 0:
+            continue
+        if factor == 1:
+            ops.extend(
+                (
+                    new_head_op := riscv.AddOp(
+                        head, value, rd=riscv.IntRegisterType.unallocated()
+                    ),
+                )
             )
-        )
+        else:
+            ops.extend(
+                (
+                    factor_op := riscv.LiOp(factor),
+                    offset_op := riscv.MulOp(
+                        factor_op.rd, head, rd=riscv.IntRegisterType.unallocated()
+                    ),
+                    new_head_op := riscv.AddOp(
+                        offset_op, value, rd=riscv.IntRegisterType.unallocated()
+                    ),
+                )
+            )
+
         head = new_head_op.rd
 
     ops.extend(
