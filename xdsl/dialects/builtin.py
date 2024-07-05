@@ -67,6 +67,11 @@ if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
 
+DYNAMIC_INDEX = -1
+"""
+A constant value denoting a dynamic index in a shape.
+"""
+
 
 class ShapedType(ABC):
     @abstractmethod
