@@ -11,11 +11,13 @@ from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.convert_memref_stream_to_snitch_stream import (
     ConvertMemrefStreamToSnitch,
 )
+from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 
 TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM: tuple[ModulePass, ...] = (
     CanonicalizePass(),
     ConvertMemrefToRiscvPass(),
+    LowerAffinePass(),
     ConvertScfToRiscvPass(),
     ConvertArithToRiscvPass(),
     ConvertFuncToRiscvFuncPass(),
