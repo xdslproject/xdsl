@@ -88,7 +88,7 @@ def test_get_diff_operation_count():
     # get output module
     output_text = """builtin.module {
   func.func @hello(%n : index) -> index {
-    %two = riscv.li 2 : () -> !riscv.reg
+    %two = riscv.li 2 : !riscv.reg
     %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
     %res = builtin.unrealized_conversion_cast %n : index to !riscv.reg
     %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
