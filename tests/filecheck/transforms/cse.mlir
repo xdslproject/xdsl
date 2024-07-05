@@ -25,7 +25,7 @@ func.func @simple_constant() -> (i32, i32) {
 
 // CHECK:         func.func @basic() -> (index, index) {
 // CHECK-NEXT:      %0 = arith.constant 0 : index
-// CHECK-NEXT:      %1 = affine.apply affine_map<(d0) -> ((d0 mod 2))>(%0)
+// CHECK-NEXT:      %1 = affine.apply affine_map<(d0) -> ((d0 mod 2))> (%0)
 // CHECK-NEXT:      func.return %1, %1 : index, index
 // CHECK-NEXT:    }
 
