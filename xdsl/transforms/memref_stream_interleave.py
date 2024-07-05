@@ -152,6 +152,11 @@ class MemrefStreamInterleavePass(ModulePass):
     resulting body that should be executed concurrently.
     The pass will search through possible factors, starting with `pipeline-depth`, going
     up to `pipeline-depth * 2`, and then down to 1, stopping at the first one.
+    The search range is bound by `pipeline-depth * 2` as very large interleaving factors
+    would cause too much register pressure, potentially running out of registers.
+    In the future, it would be good to take the number of available registers into account
+    when choosing a search range, as well as inspecting the generic body for
+    read-after-write dependencies.
     """
 
     name = "memref-stream-interleave"
