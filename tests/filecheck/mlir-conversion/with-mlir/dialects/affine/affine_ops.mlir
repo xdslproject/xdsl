@@ -55,12 +55,12 @@
     // CHECK-NEXT: "affine.store"(%{{.*}}, %{{.*}}) <{"map" = affine_map<() -> (0, 0)>}> : (f64, memref<2x3xf64>) -> ()
 
     %zero = "test.op"() : () -> index
-    %2 = "affine.apply"(%zero, %zero) <{"map" = affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))>}> : (index, index) -> index
+    %2 = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%zero)[%zero]
     %min = "affine.min"(%zero) <{"map" = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
     %same_value = "affine.load"(%memref, %zero, %zero) <{"map" = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf64>, index, index) -> f64
 
     // CHECK:      %{{.*}} = "test.op"() : () -> index
-    // CHECK-NEXT: %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))>}> : (index, index) -> index
+    // CHECK-NEXT: %{{.*}} = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%{{.*}})[%{{.*}}]
     // CHECK-NEXT: %{{.*}} = "affine.min"(%{{.*}}) <{"map" = affine_map<(d0) -> ((d0 + 41), d0)>}> : (index) -> index
     // CHECK-NEXT: %{{.*}} = "affine.load"(%{{.*}}, %{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> (d0, d1)>}> : (memref<2x3xf64>, index, index) -> f64
 
@@ -78,7 +78,7 @@
     }, {
       "affine.yield"() : () -> ()
     }) {"condition" = affine_set<() : (0 == 0)>} : () -> ()
-    
+
     func.return
   }
 // CHECK:    func.func @empty() {
