@@ -18,6 +18,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.exceptions import DiagnosticException
 
 
 def affine_expr_ops(
@@ -133,6 +134,18 @@ class LowerAffineYield(RewritePattern):
         rewriter.replace_matched_op(scf.Yield(*op.arguments))
 
 
+class LowerAffineApply(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: affine.ApplyOp, rewriter: PatternRewriter, /):
+        affine_map = op.map.data
+        if len(affine_map.results) != 1:
+            raise DiagnosticException("Only maps with 1 result implemented")
+        if affine_map.num_symbols:
+            raise DiagnosticException("Only maps with no symbols implemented")
+        ops, val = affine_expr_ops(affine_map.results[0], op.mapOperands, ())
+        rewriter.replace_matched_op(ops, (val,))
+
+
 class LowerAffinePass(ModulePass):
     name = "lower-affine"
 
@@ -144,6 +157,7 @@ class LowerAffinePass(ModulePass):
                     LowerAffineLoad(),
                     LowerAffineFor(),
                     LowerAffineYield(),
+                    LowerAffineApply(),
                 ]
             )
         ).rewrite_module(op)
