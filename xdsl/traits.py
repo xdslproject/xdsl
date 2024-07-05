@@ -505,6 +505,15 @@ class MemoryEffect(OpTrait):
         return (effects is not None) and len(effects) > 0
 
 
+def has_exact_effect(op: Operation, effect: MemoryEffectKind) -> bool:
+    """
+    Returns if the operation has the given side effects and no others.
+
+    proxy for only_has_effect
+    """
+    return only_has_effect(op, effect)
+
+
 def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
     """
     Returns if the operation has the given side effects and no others.
