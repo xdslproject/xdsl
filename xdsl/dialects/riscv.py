@@ -56,6 +56,7 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     MemoryEffect,
+    MemoryEffectKind,
     NoTerminator,
     Pure,
 )
@@ -2807,11 +2808,19 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        return any(
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        effects = set[MemoryEffectKind]()
+        if any(
             isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.results, op.operands)
-        )
+            for r in chain(op.results)
+        ):
+            effects.add(MemoryEffectKind.WRITE)
+        if any(
+            isinstance(r.type, RegisterType) and r.type.is_allocated
+            for r in chain(op.operands)
+        ):
+            effects.add(MemoryEffectKind.READ)
+        return effects
 
 
 class GetAnyRegisterOperation(Generic[RDInvT], RISCVAsmOperation):
