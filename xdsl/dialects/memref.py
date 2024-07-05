@@ -738,25 +738,28 @@ class Subview(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Subview:
+        index = IndexType()
         unresolved_source = parser.parse_unresolved_operand()
         pos = parser.pos
         dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
             parser, dynamic_index=Subview.DYNAMIC_INDEX
         )
+        pos = parser.pos
         dynamic_offsets = parser.resolve_operands(
-            dynamic_offsets, (i64,) * len(dynamic_offsets), pos
+            dynamic_offsets, (index,) * len(dynamic_offsets), pos
         )
+        pos = parser.pos
         dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
             parser, dynamic_index=Subview.DYNAMIC_INDEX
         )
         dynamic_sizes = parser.resolve_operands(
-            dynamic_sizes, (i64,) * len(dynamic_offsets), pos
+            dynamic_sizes, (index,) * len(dynamic_sizes), pos
         )
         dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
             parser, dynamic_index=Subview.DYNAMIC_INDEX
         )
         dynamic_strides = parser.resolve_operands(
-            dynamic_strides, (i64,) * len(dynamic_offsets), pos
+            dynamic_strides, (index,) * len(dynamic_strides), pos
         )
         attrs = parser.parse_optional_attr_dict_with_keyword()
         parser.parse_punctuation(":")
