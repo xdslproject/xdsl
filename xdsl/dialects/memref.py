@@ -537,7 +537,9 @@ class ExtractStridedMetaDataOp(IRDLOperation):
     sizes: VarOpResult = var_result_def(IndexType)
     strides: VarOpResult = var_result_def(IndexType)
 
-    irdl_options = [AttrSizedResultSegments(), NoMemoryEffect()]
+    traits = frozenset([NoMemoryEffect()])
+
+    irdl_options = [AttrSizedResultSegments()]
 
     def __init__(self, source: SSAValue | Operation):
         """
