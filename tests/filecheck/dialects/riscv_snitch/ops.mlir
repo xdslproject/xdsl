@@ -2,8 +2,8 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 riscv_func.func @xfrep() {
-  %0 = riscv.get_register : () -> !riscv.reg
-  %1 = riscv.get_register : () -> !riscv.reg
+  %0 = riscv.get_register : !riscv.reg
+  %1 = riscv.get_register : !riscv.reg
 
   // RISC-V extensions
   %scfgw = riscv_snitch.scfgw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg<zero>
@@ -57,8 +57,8 @@ riscv_func.func @xfrep() {
 }
 
 riscv_func.func @xdma() {
-  %reg = riscv.get_register : () -> !riscv.reg
-  // CHECK: %reg = riscv.get_register : () -> !riscv.reg
+  %reg = riscv.get_register : !riscv.reg
+  // CHECK: %reg = riscv.get_register : !riscv.reg
 
 
   riscv_snitch.dmsrc %reg, %reg : (!riscv.reg, !riscv.reg) -> ()
