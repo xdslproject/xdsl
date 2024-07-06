@@ -668,8 +668,8 @@ class MatmulOp(IRDLOperation):
     res = var_result_def(AnyTensorType)
 
     assembly_format = (
-        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
+        "attr-dict `ins` `(` $inputs `:` type($inputs) `)` ` ` "
+        "`outs` `(` $outputs `:` type($outputs) `)` (`->` type($res)^)?"
     )
 
     irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
@@ -681,12 +681,12 @@ class MatmulOp(IRDLOperation):
         res: Sequence[Attribute] | None = None,
     ):
         if res is None:
-            result_types = tuple(output.type for output in outputs)
+            result_types = tuple(cast(AnyTensorType, output_type) for output in outputs if isinstance(output_type := output.type, TensorType))
         else:
             result_types = res
         super().__init__(
             operands=(inputs, outputs),
-            result_types=result_types,
+            result_types=(result_types,),
         )
 
 
