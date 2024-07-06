@@ -159,9 +159,9 @@ def pointer_offsets_ops(
     element_type: Attribute,
 ) -> tuple[list[Operation], SSAValue]:
     """
-    Returns ssa value representing pointer into the memref at given indices.
-    The pointer is byte-indexed, and the indices are strided by element size, so the index
-    into the flat memory buffer needs to be multiplied by the size of the element.
+    Returns an ssa value representing a pointer into the memref at the given indices.
+    'pairs' consists of the indices as SSA values and the corresponding stride of the dimension being indexed in 
+    number of elements. 'element_type' must be the element type of the memref being indexed. 
     """
     bitwidth = bitwidth_of_type(element_type)
     if bitwidth % 8:
