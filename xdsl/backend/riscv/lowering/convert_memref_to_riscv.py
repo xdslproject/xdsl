@@ -77,7 +77,19 @@ class ConvertMemrefAllocOp(RewritePattern):
 class ConvertMemrefDeallocOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Dealloc, rewriter: PatternRewriter) -> None:
-        raise DiagnosticException("Lowering memref.dealloc not implemented yet")
+        rewriter.replace_matched_op(
+            (
+                ptr := UnrealizedConversionCastOp.get(
+                    (op.memref,), (riscv.Registers.UNALLOCATED_INT,)
+                ),
+                move_op := riscv.MVOp(ptr.results[0], rd=riscv.Registers.A0),
+                riscv_func.CallOp(
+                    SymbolRefAttr("free"),
+                    (move_op.rd,),
+                    (),
+                ),
+            )
+        )
 
 
 def get_strided_pointer(
@@ -326,6 +338,9 @@ class ConvertMemrefToRiscvPass(ModulePass):
         contains_malloc = PatternRewriteWalker(ConvertMemrefAllocOp()).rewrite_module(
             op
         )
+        contains_dealloc = PatternRewriteWalker(
+            ConvertMemrefDeallocOp()
+        ).rewrite_module(op)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
@@ -342,6 +357,14 @@ class ConvertMemrefToRiscvPass(ModulePass):
                 "malloc",
                 Region(),
                 ((riscv.Registers.A0,), (riscv.Registers.A0,)),
+                visibility="private",
+            )
+            SymbolTable.insert_or_update(op, func_op)
+        if contains_dealloc:
+            func_op = riscv_func.FuncOp(
+                "free",
+                Region(),
+                ((riscv.Registers.A0,), ()),
                 visibility="private",
             )
             SymbolTable.insert_or_update(op, func_op)
