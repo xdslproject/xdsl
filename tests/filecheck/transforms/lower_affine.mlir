@@ -49,8 +49,8 @@
 
 // CHECK-NEXT:    %apply_dim, %apply_sym = "test.op"() : () -> (index, index)
 // CHECK-NEXT:    %apply_res = arith.constant 42 : index
-// CHECK-NEXT:    %apply_res_1 = arith.muli %apply_dim, %apply_res : index
-// CHECK-NEXT:    %apply_res_2 = arith.addi %apply_sym, %apply_res_1 : index
+// CHECK-NEXT:    %apply_res_1 = arith.muli %apply_sym, %apply_res : index
+// CHECK-NEXT:    %apply_res_2 = arith.addi %apply_dim, %apply_res_1 : index
 // CHECK-NEXT:    %apply_res_3 = arith.constant -1 : index
 // CHECK-NEXT:    %apply_res_4 = arith.addi %apply_res_2, %apply_res_3 : index
 %apply_dim, %apply_sym = "test.op"() : () -> (index, index)
