@@ -352,10 +352,10 @@ class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait
     @classmethod
     def get_canonicalization_patterns(cls):
         from xdsl.transforms.canonicalization_patterns.memref_stream import (
-            RemoveUnusedOperandPattern,
+            RemoveUnusedInitOperandPattern,
         )
 
-        return (RemoveUnusedOperandPattern(),)
+        return (RemoveUnusedInitOperandPattern(),)
 
 
 @irdl_op_definition

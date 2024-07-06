@@ -48,11 +48,12 @@ memref_stream.generic {
 // CHECK-NEXT:    bounds = [4, 2, 3],
 // CHECK-NEXT:    indexing_maps = [
 // CHECK-NEXT:      affine_map<(d0, d1, d2) -> (d0, d2)>,
+// CHECK-NEXT:      affine_map<(d0, d1) -> (d0, d1)>,
 // CHECK-NEXT:      affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:    ],
 // CHECK-NEXT:    iterator_types = ["parallel", "parallel", "reduction"]
-// CHECK-NEXT:  } ins(%{{.*}} : memref<4x2xf64>) outs(%{{.*}} : memref<4x3xf64>) {
-// CHECK-NEXT:  ^{{.*}}(%{{.*}} : f64, %{{.*}} : f64):
+// CHECK-NEXT:  } ins(%{{.*}} : memref<4x2xf64>) outs(%{{.*}}, %{{.*}} : memref<4x3xf64>, memref<4x3xf64>) inits(%H : f64, None) {
+// CHECK-NEXT:  ^{{.*}}(%{{.*}} : f64, %{{.*}} : f64, %{{.*}} : f64):
 // CHECK-NEXT:    linalg.yield %{{.*}}, %{{.*}} : f64, f64
 // CHECK-NEXT:  }
 memref_stream.generic {
