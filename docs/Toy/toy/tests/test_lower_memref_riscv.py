@@ -2,8 +2,6 @@ from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import func, memref, riscv
 from xdsl.dialects.builtin import ModuleOp, UnrealizedConversionCastOp, f32
-from xdsl.pattern_rewriter import PatternRewriter
-from xdsl.utils.test_value import TestSSAValue
 
 from ..rewrites.lower_memref_riscv import LowerMemrefToRiscv
 
