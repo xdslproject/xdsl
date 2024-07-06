@@ -1,5 +1,5 @@
 from xdsl.dialects import memref_stream
-from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr, IntAttr
+from xdsl.dialects.builtin import AffineMapAttr, ArrayAttr
 from xdsl.ir import SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -8,7 +8,11 @@ from xdsl.pattern_rewriter import (
 )
 
 
-class RemoveUnusedOperandPattern(RewritePattern):
+class RemoveUnusedInitOperandPattern(RewritePattern):
+    """
+    Removes the inputs corresponding to unused arguments in the body.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
@@ -20,18 +24,19 @@ class RemoveUnusedOperandPattern(RewritePattern):
         block = op.body.block
         block_args = block.args
 
-        unused_indices = tuple(
-            index for index, arg in enumerate(block_args) if not arg.uses
+        inputs = op.inputs
+
+        num_inputs = len(inputs)
+
+        unused_input_indices = tuple(
+            index for index, arg in enumerate(block_args[:num_inputs]) if not arg.uses
         )
 
-        if not unused_indices:
+        if not unused_input_indices:
             # All args have uses, nothing to remove
             return
 
-        inputs = op.inputs
         outputs = op.outputs
-
-        num_inputs = len(inputs)
 
         optional_inits: list[SSAValue | None] = [None] * len(outputs)
         for init_index, init in zip(op.init_indices, op.inits, strict=True):
@@ -40,13 +45,11 @@ class RemoveUnusedOperandPattern(RewritePattern):
         assert len(optional_inits) == len(outputs)
 
         new_inputs: list[SSAValue] = []
-        new_outputs: list[SSAValue] = []
         new_indexing_maps: list[AffineMapAttr] = []
-        new_optional_inits: list[SSAValue | None] = []
 
         num_outputs_dropped = 0
-        for index, arg in enumerate(block_args):
-            drop_operand = index in unused_indices
+        for index, arg in enumerate(block_args[:num_inputs]):
+            drop_operand = index in unused_input_indices
             is_input = index < num_inputs
             if drop_operand:
                 num_outputs_dropped += not is_input
@@ -54,36 +57,22 @@ class RemoveUnusedOperandPattern(RewritePattern):
                 continue
 
             new_indexing_maps.append(op.indexing_maps.data[index])
-            if is_input:
-                new_inputs.append(inputs[index])
-            else:
-                output_index = index - num_inputs
-                new_optional_inits.append(optional_inits[output_index])
-                new_outputs.append(outputs[output_index])
+            new_inputs.append(inputs[index])
 
-        assert len(new_outputs) == len(new_optional_inits)
+        new_indexing_maps.extend(op.indexing_maps.data[num_inputs:])
 
-        new_inits: list[SSAValue] = []
-        new_init_indices: list[IntAttr] = []
-
-        for index, init in enumerate(new_optional_inits):
-            if init is not None:
-                new_inits.append(init)
-                new_init_indices.append(IntAttr(index))
-
-        for arg in reversed(block_args):
-            if not arg.uses:
-                block.erase_arg(arg)
+        for i in reversed(unused_input_indices):
+            block.erase_arg(block_args[i])
 
         rewriter.replace_matched_op(
             memref_stream.GenericOp(
                 new_inputs,
-                new_outputs,
-                new_inits,
+                op.outputs,
+                op.inits,
                 rewriter.move_region_contents_to_new_regions(op.body),
                 ArrayAttr(new_indexing_maps),
                 op.iterator_types,
                 op.bounds,
-                ArrayAttr(new_init_indices),
+                op.init_indices,
             )
         )
