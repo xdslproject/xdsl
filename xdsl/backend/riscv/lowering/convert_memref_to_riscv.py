@@ -1,5 +1,4 @@
 from collections.abc import Iterable, Sequence
-from itertools import accumulate
 from math import prod
 from typing import Any, cast
 
@@ -19,6 +18,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     NoneAttr,
+    ShapedType,
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
@@ -160,8 +160,8 @@ def pointer_offsets_ops(
 ) -> tuple[list[Operation], SSAValue]:
     """
     Returns an ssa value representing a pointer into the memref at the given indices.
-    'pairs' consists of the indices as SSA values and the corresponding stride of the dimension being indexed in 
-    number of elements. 'element_type' must be the element type of the memref being indexed. 
+    'pairs' consists of the indices as SSA values and the corresponding stride of the dimension being indexed in
+    number of elements. 'element_type' must be the element type of the memref being indexed.
     """
     bitwidth = bitwidth_of_type(element_type)
     if bitwidth % 8:
@@ -399,9 +399,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
         result_shape = result_type.get_shape()
         result_strides = tuple(result_layout_attr.get_strides())
 
-        identity_strides = tuple(
-            accumulate(reversed(result_shape), lambda acc, new: acc * new, initial=1)
-        )[::-1]
+        identity_strides = ShapedType.strides_for_shape(result_shape)
 
         if identity_strides[-len(result_strides) :] != result_strides:
             # The subview may be rank reducing, we want the suffix of the original strides
