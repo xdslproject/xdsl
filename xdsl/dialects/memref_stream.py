@@ -47,7 +47,11 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.traits import (
+    HasCanonicalisationPatternsTrait,
+    IsTerminator,
+    NoTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -343,6 +347,17 @@ class StreamingRegionOp(IRDLOperation):
         return generic
 
 
+class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+
+    @classmethod
+    def get_canonicalization_patterns(cls):
+        from xdsl.transforms.canonicalization_patterns.memref_stream import (
+            RemoveUnusedOperandPattern,
+        )
+
+        return (RemoveUnusedOperandPattern(),)
+
+
 @irdl_op_definition
 class GenericOp(IRDLOperation):
     name = "memref_stream.generic"
@@ -381,6 +396,8 @@ class GenericOp(IRDLOperation):
     """
 
     body: Region = region_def("single_block")
+
+    traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
