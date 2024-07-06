@@ -47,7 +47,7 @@ class RemoveUnusedOperandPattern(RewritePattern):
         num_outputs_dropped = 0
         for index, arg in enumerate(block_args):
             drop_operand = index in unused_indices
-            is_input = index <= num_inputs
+            is_input = index < num_inputs
             if drop_operand:
                 num_outputs_dropped += not is_input
                 arg.erase()
