@@ -142,8 +142,8 @@ class LowerAffineApply(RewritePattern):
         operands = op.mapOperands
         assert affine_map.num_dims + affine_map.num_symbols == len(operands)
 
-        dims = operands[affine_map.num_dims :]
-        symbols = operands[: affine_map.num_dims]
+        dims = operands[: affine_map.num_dims]
+        symbols = operands[affine_map.num_dims :]
 
         new_ops: list[Operation] = []
         new_results: list[SSAValue] = []
