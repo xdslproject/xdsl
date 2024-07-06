@@ -37,9 +37,7 @@ from .dialects import toy
 from .frontend.ir_gen import IRGen
 from .frontend.parser import Parser
 from .rewrites.inline_toy import InlineToyPass
-from .rewrites.lower_memref_riscv import LowerMemrefToRiscv
 from .rewrites.lower_toy_affine import LowerToAffinePass
-from .rewrites.setup_riscv_pass import SetupRiscvPass
 from .rewrites.shape_inference import ShapeInferencePass
 
 
@@ -100,9 +98,7 @@ def transform(
     if target == "scf":
         return
 
-    SetupRiscvPass().apply(ctx, module_op)
     ConvertFuncToRiscvFuncPass().apply(ctx, module_op)
-    LowerMemrefToRiscv().apply(ctx, module_op)
     ConvertMemrefToRiscvPass().apply(ctx, module_op)
     ConvertPrintFormatToRiscvDebugPass().apply(ctx, module_op)
     ConvertArithToRiscvPass().apply(ctx, module_op)
@@ -166,6 +162,4 @@ def compile(program: str) -> str:
 def emulate_riscv(program: str):
     from xdsl.interpreters.riscv_emulator import run_riscv
 
-    from .emulator.toy_accelerator_instructions import ToyAccelerator
-
-    run_riscv(program, extensions=[ToyAccelerator], unlimited_regs=True, verbosity=0)
+    run_riscv(program, unlimited_regs=True, verbosity=10)
