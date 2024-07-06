@@ -27,6 +27,9 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
             continue
 
         if isinstance(op, riscv_func.CallOp):
+            # These registers are not guaranteed to hold the same values when the callee
+            # returns, according to the RISC-V calling convention.
+            # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
             allocated.update(riscv.Registers.A)
             allocated.update(riscv.Registers.T)
             allocated.update(riscv.Registers.FA)
