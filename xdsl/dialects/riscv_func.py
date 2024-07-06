@@ -232,7 +232,10 @@ class FuncOp(riscv.RISCVAsmOperation):
         )
 
     def assembly_line(self) -> str:
-        return f"{self.sym_name.data}:"
+        if self.body.blocks:
+            return f"{self.sym_name.data}:"
+        else:
+            return ""
 
 
 @irdl_op_definition
