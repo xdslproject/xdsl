@@ -1,4 +1,4 @@
-from xdsl.backend.riscv.lowering.convert_memref_to_riscv import memref_shape_ops
+from xdsl.backend.riscv.lowering.convert_memref_to_riscv import get_strided_pointer
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.context import MLContext
 from xdsl.dialects import func, memref, riscv
@@ -84,10 +84,9 @@ def test_insert_shape_ops_1d():
             )
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
-    shape = [2]
     dummy_op = list(input_1d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
-    ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
+    ops, _ = get_strided_pointer(mem, indices, MEMREF_TYPE_2XF32)
     rewriter.insert_op_before_matched_op(ops)
 
     assert f"{expected_1d}" == f"{input_1d}"
@@ -108,7 +107,7 @@ def test_insert_shape_ops_2d():
     def expected_2d():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
             v1 = riscv.LiOp(2)
-            v2 = riscv.MulOp(v1, indices[0], rd=riscv.IntRegisterType.unallocated())
+            v2 = riscv.MulOp(indices[0], v1, rd=riscv.IntRegisterType.unallocated())
             v3 = riscv.AddOp(v2, indices[1], rd=riscv.IntRegisterType.unallocated())
             v4 = riscv.LiOp(4).rd
             v5 = riscv.MulOp(
@@ -120,10 +119,9 @@ def test_insert_shape_ops_2d():
             _ = riscv.AddOp(mem, v5, rd=riscv.IntRegisterType.unallocated())
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
-    shape = [2, 2]
     dummy_op = list(input_2d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
-    ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
+    ops, _ = get_strided_pointer(mem, indices, MEMREF_TYPE_2X2XF32)
     rewriter.insert_op_before_matched_op(ops)
 
     assert f"{input_2d}" == f"{expected_2d}"
@@ -147,27 +145,26 @@ def test_insert_shape_ops_3d():
     @Builder.implicit_region
     def expected_3d():
         with ImplicitBuilder(func.FuncOp("impl", ((), ())).body):
-            v1 = riscv.LiOp(2)
-            v2 = riscv.MulOp(v1, indices[0], rd=riscv.IntRegisterType.unallocated())
-            v3 = riscv.AddOp(v2, indices[1], rd=riscv.IntRegisterType.unallocated())
-            v4 = riscv.LiOp(2)
-            v4 = riscv.MulOp(v4, v3, rd=riscv.IntRegisterType.unallocated())
-            v5 = riscv.AddOp(v4, indices[2], rd=riscv.IntRegisterType.unallocated())
-            v6 = riscv.LiOp(4).rd
-            v7 = riscv.MulOp(
-                v5,
+            v1 = riscv.LiOp(4)
+            v2 = riscv.MulOp(indices[0], v1, rd=riscv.IntRegisterType.unallocated())
+            v3 = riscv.LiOp(2)
+            v4 = riscv.MulOp(indices[1], v3, rd=riscv.IntRegisterType.unallocated())
+            v5 = riscv.AddOp(v2, v4, rd=riscv.IntRegisterType.unallocated())
+            v6 = riscv.AddOp(v5, indices[2], rd=riscv.IntRegisterType.unallocated())
+            v7 = riscv.LiOp(4).rd
+            v8 = riscv.MulOp(
                 v6,
+                v7,
                 rd=riscv.IntRegisterType.unallocated(),
                 comment="multiply by element size",
             ).rd
-            _ = riscv.AddOp(mem, v7, rd=riscv.IntRegisterType.unallocated())
+            _ = riscv.AddOp(mem, v8, rd=riscv.IntRegisterType.unallocated())
             riscv.CustomAssemblyInstructionOp("some_memref_op", (), ())
 
-    shape = [2, 2, 2]
     dummy_op = list(input_3d.walk())[-1]
     rewriter = PatternRewriter(dummy_op)
 
-    ops, _ = memref_shape_ops(mem, indices, shape, MEMREF_TYPE_2XF32.element_type)
+    ops, _ = get_strided_pointer(mem, indices, MEMREF_TYPE_2X2X2XF32)
     rewriter.insert_op_before_matched_op(ops)
 
     assert f"{input_3d}" == f"{expected_3d}"

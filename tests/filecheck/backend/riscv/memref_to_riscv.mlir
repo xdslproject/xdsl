@@ -15,7 +15,7 @@
 // CHECK-NEXT:   %2 = builtin.unrealized_conversion_cast %r : index to !riscv.reg
 // CHECK-NEXT:   %3 = builtin.unrealized_conversion_cast %c : index to !riscv.reg
 // CHECK-NEXT:   %4 = riscv.li 2 : !riscv.reg
-// CHECK-NEXT:   %5 = riscv.mul %4, %2 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:   %5 = riscv.mul %2, %4 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %6 = riscv.add %5, %3 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %7 = riscv.li 4 : !riscv.reg
 // CHECK-NEXT:   %8 = riscv.mul %6, %7 {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -27,7 +27,7 @@ memref.store %v_f32, %m_f32[%r, %c] {"nontemporal" = false} : memref<3x2xf32>
 // CHECK-NEXT:   %11 = builtin.unrealized_conversion_cast %r : index to !riscv.reg
 // CHECK-NEXT:   %12 = builtin.unrealized_conversion_cast %c : index to !riscv.reg
 // CHECK-NEXT:   %13 = riscv.li 2 : !riscv.reg
-// CHECK-NEXT:   %14 = riscv.mul %13, %11 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:   %14 = riscv.mul %11, %13 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %15 = riscv.add %14, %12 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %16 = riscv.li 4 : !riscv.reg
 // CHECK-NEXT:   %17 = riscv.mul %15, %16 {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -198,24 +198,53 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 %i0, %i1, %offset = "test.op"() : () -> (index, index, index)
 %original = "test.op"() : () -> memref<4x3x2xf64>
 
-// CHECK-NEXT:    %zero_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to memref<3x2xf64>
+// CHECK-NEXT:    %0 = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
+// CHECK-NEXT: %zero_subview = riscv.li 0
+// CHECK-NEXT: %zero_subview_1 = riscv.li 0
+// CHECK-NEXT: %zero_subview_2 = riscv.li 0
+// CHECK-NEXT: %zero_subview_3 = riscv.li 6
+// CHECK-NEXT: %zero_subview_4 = riscv.mul %zero_subview, %zero_subview_3
+// CHECK-NEXT: %zero_subview_5 = riscv.li 2
+// CHECK-NEXT: %zero_subview_6 = riscv.mul %zero_subview_1, %zero_subview_5
+// CHECK-NEXT: %zero_subview_7 = riscv.add %zero_subview_4, %zero_subview_6
+// CHECK-NEXT: %zero_subview_8 = riscv.add %zero_subview_7, %zero_subview_2
+// CHECK-NEXT: %zero_subview_9 = riscv.li 8
+// CHECK-NEXT: %zero_subview_10 = riscv.mul %zero_subview_8, %zero_subview_9
+// CHECK-NEXT: %zero_subview_11 = riscv.add %0, %zero_subview_10
+// CHECK-NEXT: %zero_subview_12 = builtin.unrealized_conversion_cast %zero_subview_11 : !riscv.reg to memref<3x2xf64>
 %zero_subview = memref.subview %original[0, 0, 0][1, 3, 2][1, 1, 1] : memref<4x3x2xf64> to memref<3x2xf64>
 
-// CHECK-NEXT:    %static_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
-// CHECK-NEXT:    %static_subview_1 = riscv.addi %static_subview, 384 {"comment" = "subview into original memref"} : (!riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    %static_subview_2 = builtin.unrealized_conversion_cast %static_subview_1 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: 6>>
+// CHECK: %1 = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
+// CHECK-NEXT: %static_subview = riscv.li 1
+// CHECK-NEXT: %static_subview_1 = riscv.li 0
+// CHECK-NEXT: %static_subview_2 = riscv.li 0
+// CHECK-NEXT: %static_subview_3 = riscv.li 6
+// CHECK-NEXT: %static_subview_4 = riscv.mul %static_subview, %static_subview_3
+// CHECK-NEXT: %static_subview_5 = riscv.li 2
+// CHECK-NEXT: %static_subview_6 = riscv.mul %static_subview_1, %static_subview_5
+// CHECK-NEXT: %static_subview_7 = riscv.add %static_subview_4, %static_subview_6
+// CHECK-NEXT: %static_subview_8 = riscv.add %static_subview_7, %static_subview_2
+// CHECK-NEXT: %static_subview_9 = riscv.li 8
+// CHECK-NEXT: %static_subview_10 = riscv.mul %static_subview_8, %static_subview_9
+// CHECK-NEXT: %static_subview_11 = riscv.add %1, %static_subview_10
+// CHECK-NEXT: %static_subview_12 = builtin.unrealized_conversion_cast %static_subview_11 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: 6>>
 %static_subview = memref.subview %original[1, 0, 0][1, 3, 2][1, 1, 1] :
   memref<4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: 6>>
 
-// CHECK-NEXT:    %0 = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
-// CHECK-NEXT:    %1 = builtin.unrealized_conversion_cast %offset : index to !riscv.reg
-// CHECK-NEXT:    %dynamic_subview = riscv.li 6 : !riscv.reg
-// CHECK-NEXT:    %dynamic_subview_1 = riscv.mul %1, %dynamic_subview : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    %dynamic_subview_2 = riscv.add %0, %dynamic_subview_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    %dynamic_subview_3 = riscv.li 8 : !riscv.reg
-// CHECK-NEXT:    %dynamic_subview_4 = riscv.mul %dynamic_subview_2, %dynamic_subview_3 {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    %dynamic_subview_5 = riscv.add %0, %dynamic_subview_4 : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-NEXT:    %dynamic_subview_6 = builtin.unrealized_conversion_cast %dynamic_subview_5 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: ?>>
+// CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
+// CHECK-NEXT: %3 = builtin.unrealized_conversion_cast %offset : index to !riscv.reg
+// CHECK-NEXT: %dynamic_subview = riscv.li 0
+// CHECK-NEXT: %dynamic_subview_1 = riscv.li 0
+// CHECK-NEXT: %dynamic_subview_2 = riscv.li 6
+// CHECK-NEXT: %dynamic_subview_3 = riscv.mul %3, %dynamic_subview_2
+// CHECK-NEXT: %dynamic_subview_4 = riscv.li 2
+// CHECK-NEXT: %dynamic_subview_5 = riscv.mul %dynamic_subview, %dynamic_subview_4
+// CHECK-NEXT: %dynamic_subview_6 = riscv.add %dynamic_subview_3, %dynamic_subview_5
+// CHECK-NEXT: %dynamic_subview_7 = riscv.add %dynamic_subview_6, %dynamic_subview_1
+// CHECK-NEXT: %dynamic_subview_8 = riscv.li 8
+// CHECK-NEXT: %dynamic_subview_9 = riscv.mul %dynamic_subview_7, %dynamic_subview_8
+// CHECK-NEXT: %dynamic_subview_10 = riscv.add %2, %dynamic_subview_9
+// CHECK-NEXT: %dynamic_subview_11 = builtin.unrealized_conversion_cast %dynamic_subview_10 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: ?>>
 %dynamic_subview = memref.subview %original[%offset, 0, 0][1, 3, 2][1, 1, 1] :
   memref<4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: ?>>
 
@@ -230,16 +259,25 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
   : memref<8x16x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2)>> to
     memref<4x4x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2 + 8)>>
 
-// CHECK:      Only strided layout attrs implemented
+// CHECK:      Unsupported layout type  affine_map<(d0, d1, d2) -> ((((d0 * 64) + (d1 * 4)) + d2))>
 
 // -----
 
 %m = "test.op"() : () -> memref<2x3xf64, strided<[1, 2], offset: ?>>
 %i0, %i1 = "test.op"() : () -> (index, index)
 
+// CHECK: %0 = builtin.unrealized_conversion_cast %m : memref<2x3xf64, strided<[1, 2], offset: ?>> to !riscv.reg
+// CHECK-NEXT: %1 = builtin.unrealized_conversion_cast %i0 : index to !riscv.reg
+// CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %i1 : index to !riscv.reg
+// CHECK-NEXT: %3 = riscv.li 2
+// CHECK-NEXT: %4 = riscv.mul %2, %3
+// CHECK-NEXT: %5 = riscv.add %1, %4
+// CHECK-NEXT: %6 = riscv.li 8
+// CHECK-NEXT: %7 = riscv.mul %5, %6
+// CHECK-NEXT: %8 = riscv.add %0, %7
+// CHECK-NEXT: %v = riscv.fld %8, 0
+// CHECK-NEXT: %v_1 = builtin.unrealized_conversion_cast %v : !riscv.freg to f64
 %v = memref.load %m[%i0, %i1] : memref<2x3xf64, strided<[1, 2], offset: ?>>
-
-// CHECK:      Cannot lower load from memref type with non-contiguous layout memref<2x3xf64, strided<[1, 2], offset: ?>>
 
 // -----
 
@@ -250,4 +288,14 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 
 memref.store %v, %m[%i0, %i1] : memref<2x3xf64, strided<[1, 2], offset: ?>>
 
-// CHECK:      Cannot lower store to memref type with non-contiguous layout memref<2x3xf64, strided<[1, 2], offset: ?>>
+// CHECK: %0 = builtin.unrealized_conversion_cast %v : f64 to !riscv.freg
+// CHECK-NEXT: %1 = builtin.unrealized_conversion_cast %m : memref<2x3xf64, strided<[1, 2], offset: ?>> to !riscv.reg
+// CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %i0 : index to !riscv.reg
+// CHECK-NEXT: %3 = builtin.unrealized_conversion_cast %i1 : index to !riscv.reg
+// CHECK-NEXT: %4 = riscv.li 2
+// CHECK-NEXT: %5 = riscv.mul %3, %4
+// CHECK-NEXT: %6 = riscv.add %2, %5
+// CHECK-NEXT: %7 = riscv.li 8
+// CHECK-NEXT: %8 = riscv.mul %6, %7
+// CHECK-NEXT: %9 = riscv.add %1, %8
+// CHECK-NEXT: riscv.fsd %9, %0, 0
