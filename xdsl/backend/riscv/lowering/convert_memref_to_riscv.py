@@ -187,7 +187,6 @@ def pointer_offsets_ops(
                     res_ptr, index, rd=riscv.IntRegisterType.unallocated()
                 )
             )
-            res_ptr = head_op.rd
         else:
             ops.extend(
                 (
