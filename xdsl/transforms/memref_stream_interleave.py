@@ -19,7 +19,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.exceptions import DiagnosticException
 
 
 @dataclass(frozen=True)
@@ -51,10 +50,20 @@ class PipelineGenericPattern(RewritePattern):
             # No parallel dimension
             return
 
-        if interleave_bound % self.pipeline_depth:
-            raise DiagnosticException(
-                "Ranges of interleave factors not implemented yet"
-            )
+        interleave_factor = 1
+        # Search factors until the next number divisible by pipeline_depth
+        for potential_factor in range(self.pipeline_depth, self.pipeline_depth * 2):
+            if not interleave_bound % potential_factor:
+                # Found a larger factor
+                interleave_factor = potential_factor
+                break
+        if interleave_factor == 1:
+            # No larger perfect factors found, try smaller factors in descending order
+            for potential_factor in range(self.pipeline_depth - 1, 1, -1):
+                if not interleave_bound % potential_factor:
+                    # Found a smaller factor
+                    interleave_factor = potential_factor
+                    break
 
         old_block = op.body.block
         new_region = Region(
@@ -62,18 +71,18 @@ class PipelineGenericPattern(RewritePattern):
                 arg_types=(
                     t
                     for arg in old_block.args
-                    for t in repeat(arg.type, self.pipeline_depth)
+                    for t in repeat(arg.type, interleave_factor)
                 )
             )
         )
         with ImplicitBuilder(new_region) as args:
             # For each interleaved block replica, a mapping from old values to new values
             value_map: tuple[dict[SSAValue, SSAValue], ...] = tuple(
-                {} for _ in range(self.pipeline_depth)
+                {} for _ in range(interleave_factor)
             )
             for arg_index, new_arg in enumerate(args):
-                old_arg = old_block.args[arg_index // self.pipeline_depth]
-                value_map[arg_index % self.pipeline_depth][old_arg] = new_arg
+                old_arg = old_block.args[arg_index // interleave_factor]
+                value_map[arg_index % interleave_factor][old_arg] = new_arg
                 new_arg.name_hint = old_arg.name_hint
             for block_op in old_block.ops:
                 if isinstance(block_op, memref_stream.YieldOp):
@@ -81,12 +90,12 @@ class PipelineGenericPattern(RewritePattern):
                         *([vm[arg] for vm in value_map for arg in block_op.arguments])
                     )
                 else:
-                    for i in range(self.pipeline_depth):
+                    for i in range(interleave_factor):
                         block_op.clone(value_mapper=value_map[i])
 
         # New maps are the same, except that they have one more dimension and the
         # dimension that is interleaved is updated to
-        # `dim * self.pipeline_depth + new_dim`.
+        # `dim * interleave_factor + new_dim`.
         new_indexing_maps = ArrayAttr(
             AffineMapAttr(
                 m.data.replace_dims_and_symbols(
@@ -97,7 +106,7 @@ class PipelineGenericPattern(RewritePattern):
                         )
                         + (
                             AffineExpr.dimension(interleave_bound_index)
-                            * self.pipeline_depth
+                            * interleave_factor
                             + AffineExpr.dimension(m.data.num_dims),
                         )
                         + tuple(
@@ -117,9 +126,9 @@ class PipelineGenericPattern(RewritePattern):
 
         # The new bounds are the same, except there is one more bound
         new_bounds = list(op.bounds)
-        new_bounds.append(IntegerAttr.from_index_int_value(self.pipeline_depth))
+        new_bounds.append(IntegerAttr.from_index_int_value(interleave_factor))
         new_bounds[interleave_bound_index] = IntegerAttr.from_index_int_value(
-            interleave_bound // self.pipeline_depth
+            interleave_bound // interleave_factor
         )
 
         rewriter.replace_matched_op(
@@ -145,6 +154,13 @@ class MemrefStreamInterleavePass(ModulePass):
     Tiles the innermost parallel dimension of a `memref_stream.generic`.
     If specified, the `pipeline-depth` parameter specifies the number of operations in the
     resulting body that should be executed concurrently.
+    The pass will search through possible factors, starting with `pipeline-depth`, going
+    up to `pipeline-depth * 2`, and then down to 1, stopping at the first one.
+    The search range is bound by `pipeline-depth * 2` as very large interleaving factors
+    would cause too much register pressure, potentially running out of registers.
+    In the future, it would be good to take the number of available registers into account
+    when choosing a search range, as well as inspecting the generic body for
+    read-after-write dependencies.
     """
 
     name = "memref-stream-interleave"
