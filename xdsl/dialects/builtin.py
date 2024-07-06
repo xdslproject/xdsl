@@ -83,6 +83,13 @@ class ShapedType(ABC):
     def element_count(self) -> int:
         return prod(self.get_shape())
 
+    @staticmethod
+    def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
+        import operator
+        from itertools import accumulate
+
+        return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
+
 
 class AnyShapedType(AttrConstraint):
     def verify(
@@ -1173,6 +1180,13 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
             offset = NoneAttr()
 
         super().__init__([strides, offset])
+
+    def get_strides(self) -> Iterable[int | None]:
+        for stride in self.strides:
+            if isinstance(stride, NoneAttr):
+                yield None
+            else:
+                yield stride.data
 
 
 @irdl_attr_definition
