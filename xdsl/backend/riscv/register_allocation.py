@@ -4,7 +4,7 @@ from itertools import chain
 from ordered_set import OrderedSet
 
 from xdsl.backend.riscv.register_queue import RegisterQueue
-from xdsl.dialects import riscv_func, riscv_scf, riscv_snitch
+from xdsl.dialects import riscv, riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
@@ -25,6 +25,12 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
     for op in func.walk():
         if not isinstance(op, RISCVAsmOperation):
             continue
+
+        if isinstance(op, riscv_func.CallOp):
+            allocated.update(riscv.Registers.A)
+            allocated.update(riscv.Registers.T)
+            allocated.update(riscv.Registers.FA)
+            allocated.update(riscv.Registers.FT)
 
         for param in chain(op.operands, op.results):
             if isinstance(param.type, RISCVRegisterType) and param.type.is_allocated:
