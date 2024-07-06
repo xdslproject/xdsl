@@ -232,3 +232,22 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 
 // CHECK:      Only strided layout attrs implemented
 
+// -----
+
+%m = "test.op"() : () -> memref<2x3xf64, strided<[1, 2], offset: ?>>
+%i0, %i1 = "test.op"() : () -> (index, index)
+
+%v = memref.load %m[%i0, %i1] : memref<2x3xf64, strided<[1, 2], offset: ?>>
+
+// CHECK:      Cannot lower load from memref type with non-contiguous layout memref<2x3xf64, strided<[1, 2], offset: ?>>
+
+// -----
+
+
+%m = "test.op"() : () -> memref<2x3xf64, strided<[1, 2], offset: ?>>
+%v = "test.op"() : () -> f64
+%i0, %i1 = "test.op"() : () -> (index, index)
+
+memref.store %v, %m[%i0, %i1] : memref<2x3xf64, strided<[1, 2], offset: ?>>
+
+// CHECK:      Cannot lower store to memref type with non-contiguous layout memref<2x3xf64, strided<[1, 2], offset: ?>>

@@ -223,10 +223,17 @@ def pointer_offsets_ops(
 class ConvertMemrefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
-        value, mem, *indices = cast_operands_to_regs(rewriter)
-
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
+
+        if not memref_type.is_contiguous():
+            raise DiagnosticException(
+                "Cannot lower store to memref type with non-contiguous layout"
+                f" {memref_type}"
+            )
+
+        value, mem, *indices = cast_operands_to_regs(rewriter)
+
         shape = memref_type.get_shape()
 
         ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
@@ -266,12 +273,19 @@ class ConvertMemrefStoreOp(RewritePattern):
 class ConvertMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
-        mem, *indices = cast_operands_to_regs(rewriter)
-
         assert isinstance(
             op_memref_type := op.memref.type, memref.MemRefType
         ), f"{op.memref.type}"
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
+
+        if not memref_type.is_contiguous():
+            raise DiagnosticException(
+                "Cannot lower load from memref type with non-contiguous layout"
+                f" {memref_type}"
+            )
+
+        mem, *indices = cast_operands_to_regs(rewriter)
+
         shape = memref_type.get_shape()
         ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
         rewriter.insert_op_before_matched_op(ops)
@@ -375,6 +389,19 @@ class ConvertMemrefSubviewOp(RewritePattern):
         # subview, and that if the offset is stated in the layout attribute, then it's
         # correct.
 
+        # https://github.com/llvm/llvm-project/blob/4a9aef683df895934c26591404692d41a687b005/mlir/lib/Dialect/MemRef/Transforms/ExpandStridedMetadata.cpp#L173-L186
+        # Replace `dst = subview(memref, sub_offset, sub_sizes, sub_strides))`
+        # With
+        #
+        # \verbatim
+        # source_buffer, source_offset, source_sizes, source_strides =
+        #     extract_strided_metadata(memref)
+        # offset = source_offset + sum(sub_offset#i * source_strides#i)
+        # sizes = sub_sizes
+        # strides#i = base_strides#i * sub_sizes#i
+        # dst = reinterpret_cast baseBuffer, offset, sizes, strides
+        # \endverbatim
+
         source = op.source
         result = op.result
         source_type = source.type
@@ -394,18 +421,30 @@ class ConvertMemrefSubviewOp(RewritePattern):
         if not isinstance(result_layout_attr, StridedLayoutAttr):
             raise DiagnosticException("Only strided layout attrs implemented")
 
-        # We still need to check that the layout attribute strides are contiguous in
-        # memory.
-        result_shape = result_type.get_shape()
-        result_strides = tuple(result_layout_attr.get_strides())
-
-        identity_strides = ShapedType.strides_for_shape(result_shape)
-
-        if identity_strides[-len(result_strides) :] != result_strides:
-            # The subview may be rank reducing, we want the suffix of the original strides
+        if ShapedType.strides_for_shape(result_type.get_shape()) != tuple(
+            result_layout_attr.get_strides()
+        ):
             raise DiagnosticException(
-                "Cannot lower strides that do not result in a contiguous subview"
+                "Cannot lower subview that forms a non-contiguous memref"
+                f" {result_layout_attr}"
             )
+
+        source_layout_attr = source_type.layout
+        source_shape = source_type.get_shape()
+
+        if not isinstance(source_layout_attr, NoneAttr):
+            if not isinstance(source_layout_attr, StridedLayoutAttr):
+                raise DiagnosticException("Only strided layout attrs implemented")
+
+            if ShapedType.strides_for_shape(source_shape) != tuple(
+                source_layout_attr.get_strides()
+            ):
+                raise DiagnosticException(
+                    "Cannot lower subview from a non-contiguous memref"
+                    f" {source_layout_attr}"
+                )
+
+        source_strides = source_type.strides_for_shape(source_shape)
 
         factor = bitwidth_of_type(result_type.element_type)
 
@@ -433,7 +472,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
 
         dynamic_offset_index = 0
         for static_offset_attr, stride in zip(
-            op.static_offsets.data, identity_strides, strict=True
+            op.static_offsets.data, source_strides, strict=True
         ):
             static_offset = static_offset_attr.data
             assert isinstance(static_offset, int)
