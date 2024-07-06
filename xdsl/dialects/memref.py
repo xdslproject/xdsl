@@ -599,10 +599,6 @@ class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 class Subview(IRDLOperation):
 
     DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
-    """
-    Constant value used to denote dynamic indices in offsets, sizes, and strides.
-    Same constant as in MLIR.
-    """
 
     name = "memref.subview"
 

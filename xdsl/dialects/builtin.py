@@ -83,13 +83,6 @@ class ShapedType(ABC):
     def element_count(self) -> int:
         return prod(self.get_shape())
 
-    @staticmethod
-    def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
-        import operator
-        from itertools import accumulate
-
-        return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
-
 
 class AnyShapedType(AttrConstraint):
     def verify(
@@ -1181,19 +1174,6 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
 
         super().__init__([strides, offset])
 
-    def get_strides(self) -> Iterable[int | None]:
-        for stride in self.strides:
-            if isinstance(stride, NoneAttr):
-                yield None
-            else:
-                yield stride.data
-
-    def get_offset(self) -> int | None:
-        if isinstance(self.offset, NoneAttr):
-            return None
-        else:
-            return self.offset.data
-
 
 @irdl_attr_definition
 class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
@@ -1534,22 +1514,6 @@ class MemRefType(
 
     def get_element_type(self) -> _MemRefTypeElement:
         return self.element_type
-
-    def is_contiguous(self) -> bool:
-        layout = self.layout
-        if isinstance(layout, NoneAttr):
-            return True
-
-        shape = self.get_shape()
-        match layout:
-            case StridedLayoutAttr():
-                strides = ShapedType.strides_for_shape(shape)
-                return strides == layout.get_strides()
-            case AffineMapAttr():
-                m = layout.data
-                return m == AffineMap.identity(m.num_dims, m.num_symbols)
-            case _:
-                raise NotImplementedError(f"Unsupported layout type {layout}")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:

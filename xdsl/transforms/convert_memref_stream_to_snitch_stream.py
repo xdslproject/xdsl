@@ -1,6 +1,7 @@
 import operator
 from collections.abc import Sequence
 from functools import reduce
+from itertools import accumulate
 from typing import cast
 
 from xdsl.backend.riscv.lowering.utils import (
@@ -22,7 +23,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
     ModuleOp,
-    ShapedType,
     UnrealizedConversionCastOp,
 )
 from xdsl.ir import Attribute, Operation
@@ -195,7 +195,9 @@ def offset_map_from_shape(shape: Sequence[int], factor: int) -> AffineMap:
         # Return empty map to avoid reducing over an empty sequence
         return AffineMap(0, 0, (AffineExpr.constant(factor),))
 
-    strides = ShapedType.strides_for_shape(shape, factor)
+    strides: tuple[int, ...] = tuple(
+        accumulate(reversed(shape), operator.mul, initial=factor)
+    )[:-1]
 
     return AffineMap(
         len(shape),
@@ -203,7 +205,10 @@ def offset_map_from_shape(shape: Sequence[int], factor: int) -> AffineMap:
         (
             reduce(
                 operator.add,
-                (AffineExpr.dimension(i) * stride for i, stride in enumerate(strides)),
+                (
+                    AffineExpr.dimension(i) * stride
+                    for i, stride in enumerate(reversed(strides))
+                ),
             ),
         ),
     )
