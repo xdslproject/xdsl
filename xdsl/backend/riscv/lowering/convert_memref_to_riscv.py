@@ -181,42 +181,20 @@ def pointer_offsets_ops(
     res_ptr = src_ptr
 
     for index, factor in pairs:
-        if factor == 1:
-            ops.append(
+        ops.extend(
+            (
+                factor_op := riscv.LiOp(factor * bytes_per_element),
+                offset_op := riscv.MulOp(
+                    index, factor_op.rd, rd=riscv.IntRegisterType.unallocated()
+                ),
                 head_op := riscv.AddOp(
-                    res_ptr, index, rd=riscv.IntRegisterType.unallocated()
-                )
+                    res_ptr, offset_op.rd, rd=riscv.IntRegisterType.unallocated()
+                ),
             )
-        else:
-            ops.extend(
-                (
-                    factor_op := riscv.LiOp(factor),
-                    offset_op := riscv.MulOp(
-                        index, factor_op.rd, rd=riscv.IntRegisterType.unallocated()
-                    ),
-                    head_op := riscv.AddOp(
-                        res_ptr, offset_op.rd, rd=riscv.IntRegisterType.unallocated()
-                    ),
-                )
-            )
+        )
         res_ptr = head_op.rd
 
-    ops.extend(
-        [
-            bytes_per_element_op := riscv.LiOp(bytes_per_element),
-            offset_bytes := riscv.MulOp(
-                res_ptr,
-                bytes_per_element_op.rd,
-                rd=riscv.IntRegisterType.unallocated(),
-                comment="multiply by element size",
-            ),
-            ptr := riscv.AddOp(
-                src_ptr, offset_bytes, rd=riscv.IntRegisterType.unallocated()
-            ),
-        ]
-    )
-
-    return ops, ptr.rd
+    return ops, res_ptr
 
 
 class ConvertMemrefStoreOp(RewritePattern):
