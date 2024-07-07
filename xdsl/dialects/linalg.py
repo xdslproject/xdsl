@@ -681,7 +681,11 @@ class MatmulOp(IRDLOperation):
         res: Sequence[Attribute] | None = None,
     ):
         if res is None:
-            result_types = tuple(cast(AnyTensorType, output_type) for output in outputs if isinstance(output_type := output.type, TensorType))
+            result_types = tuple(
+                cast(AnyTensorType, output_type)
+                for output in outputs
+                if isinstance(output_type := output.type, TensorType)
+            )
         else:
             result_types = res
         super().__init__(
