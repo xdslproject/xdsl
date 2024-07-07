@@ -1,5 +1,4 @@
-from collections.abc import Iterable, Sequence
-from itertools import accumulate
+from collections.abc import Iterable
 from math import prod
 from typing import Any, cast
 
@@ -19,6 +18,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     NoneAttr,
+    ShapedType,
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
@@ -39,7 +39,7 @@ from xdsl.utils.exceptions import DiagnosticException
 
 def bitwidth_of_type(type_attribute: Attribute) -> int:
     """
-    Returns the width of an element type in bits, or raises ValueError for unknown inputs.
+    Returns the width of an element type in bits, or raises DiagnosticException for unknown inputs.
     """
     if isinstance(type_attribute, AnyFloat):
         return type_attribute.get_bitwidth
@@ -49,6 +49,21 @@ def bitwidth_of_type(type_attribute: Attribute) -> int:
         raise NotImplementedError(
             f"Unsupported memref element type for riscv lowering: {type_attribute}"
         )
+
+
+def element_size_for_type(type_attribute: Attribute) -> int:
+    """
+    Returns the width of an element type in bytes, or raises DiagnosticException for
+    unknown inputs, or sizes not divisible by 8.
+    """
+    bitwidth = bitwidth_of_type(type_attribute)
+    if bitwidth % 8:
+        raise DiagnosticException(
+            f"Cannot determine size for element type {type_attribute}"
+            f" with bitwidth {bitwidth}"
+        )
+    bytes_per_element = bitwidth // 8
+    return bytes_per_element
 
 
 class ConvertMemrefAllocOp(RewritePattern):
@@ -80,60 +95,75 @@ class ConvertMemrefDeallocOp(RewritePattern):
         raise DiagnosticException("Lowering memref.dealloc not implemented yet")
 
 
-def memref_shape_ops(
+def get_strided_pointer(
     src_ptr: SSAValue,
-    indices: Sequence[SSAValue],
-    shape: Sequence[int],
-    element_type: Attribute,
+    indices: Iterable[SSAValue],
+    memref_type: MemRefType[Any],
 ) -> tuple[list[Operation], SSAValue]:
     """
-    Returns ssa value representing pointer into the memref at given indices.
-    The pointer is byte-indexed, and the indices are strided by element size, so the index
-    into the flat memory buffer needs to be multiplied by the size of the element.
+    Given a buffer pointer 'src_ptr' which was originally of type 'memref_type', returns
+    a new pointer to the element being accessed by the 'indices'.
     """
-    assert len(shape) == len(indices)
 
-    bitwidth = bitwidth_of_type(element_type)
-    if bitwidth % 8:
-        raise DiagnosticException(
-            f"Cannot create offset for element type {element_type}"
-            f" with bitwidth {bitwidth}"
-        )
-    bytes_per_element = bitwidth // 8
+    bytes_per_element = element_size_for_type(memref_type.element_type)
 
-    if not shape:
-        # Scalar memref
-        return ([], src_ptr)
+    match memref_type.layout:
+        case NoneAttr():
+            strides = ShapedType.strides_for_shape(memref_type.get_shape())
+        case StridedLayoutAttr():
+            strides = memref_type.layout.get_strides()
+        case _:
+            raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
 
     ops: list[Operation] = []
 
-    head, *tail = indices
+    head: SSAValue | None = None
 
-    for factor, value in zip(shape[1:], tail):
-        if factor == 0:
+    for index, stride in zip(indices, strides, strict=True):
+        # Calculate the offset that needs to be added through the index of the current
+        # dimension.
+        increment = index
+        match stride:
+            case None:
+                raise DiagnosticException(
+                    f"MemRef {memref_type} with dynamic stride is not yet implemented"
+                )
+            case 1:
+                # Stride 1 is a noop making the index equal to the offset.
+                pass
+            case _:
+                # Otherwise, multiply the stride (which by definition is the number of
+                # elements required to be skipped when incrementing that dimension).
+                ops.extend(
+                    (
+                        stride_op := riscv.LiOp(stride),
+                        offset_op := riscv.MulOp(
+                            increment,
+                            stride_op.rd,
+                            rd=riscv.IntRegisterType.unallocated(),
+                        ),
+                    )
+                )
+                stride_op.rd.name_hint = "pointer_dim_stride"
+                offset_op.rd.name_hint = "pointer_dim_offset"
+                increment = offset_op.rd
+
+        if head is None:
+            # First iteration.
+            head = increment
             continue
-        if factor == 1:
-            ops.extend(
-                (
-                    new_head_op := riscv.AddOp(
-                        head, value, rd=riscv.IntRegisterType.unallocated()
-                    ),
-                )
-            )
-        else:
-            ops.extend(
-                (
-                    factor_op := riscv.LiOp(factor),
-                    offset_op := riscv.MulOp(
-                        factor_op.rd, head, rd=riscv.IntRegisterType.unallocated()
-                    ),
-                    new_head_op := riscv.AddOp(
-                        offset_op, value, rd=riscv.IntRegisterType.unallocated()
-                    ),
-                )
-            )
 
-        head = new_head_op.rd
+        # Otherwise sum up the products.
+        ops.append(
+            add_op := riscv.AddOp(
+                head, increment, rd=riscv.IntRegisterType.unallocated()
+            )
+        )
+        add_op.rd.name_hint = "pointer_offset"
+        head = add_op.rd
+
+    if head is None:
+        return ops, src_ptr
 
     ops.extend(
         [
@@ -150,72 +180,9 @@ def memref_shape_ops(
         ]
     )
 
-    return ops, ptr.rd
-
-
-def pointer_offsets_ops(
-    src_ptr: SSAValue,
-    pairs: Iterable[tuple[SSAValue, int]],
-    element_type: Attribute,
-) -> tuple[list[Operation], SSAValue]:
-    """
-    Returns ssa value representing pointer into the memref at given indices.
-    The pointer is byte-indexed, and the indices are strided by element size, so the index
-    into the flat memory buffer needs to be multiplied by the size of the element.
-    """
-    bitwidth = bitwidth_of_type(element_type)
-    if bitwidth % 8:
-        raise DiagnosticException(
-            f"Cannot create offset for element type {element_type}"
-            f" with bitwidth {bitwidth}"
-        )
-    bytes_per_element = bitwidth // 8
-
-    pairs = tuple((index, factor) for index, factor in pairs if factor != 0)
-
-    if not pairs:
-        # Scalar memref
-        return ([], src_ptr)
-
-    ops: list[Operation] = []
-    res_ptr = src_ptr
-
-    for index, factor in pairs:
-        if factor == 1:
-            ops.append(
-                head_op := riscv.AddOp(
-                    res_ptr, index, rd=riscv.IntRegisterType.unallocated()
-                )
-            )
-            res_ptr = head_op.rd
-        else:
-            ops.extend(
-                (
-                    factor_op := riscv.LiOp(factor),
-                    offset_op := riscv.MulOp(
-                        index, factor_op.rd, rd=riscv.IntRegisterType.unallocated()
-                    ),
-                    head_op := riscv.AddOp(
-                        res_ptr, offset_op.rd, rd=riscv.IntRegisterType.unallocated()
-                    ),
-                )
-            )
-        res_ptr = head_op.rd
-
-    ops.extend(
-        [
-            bytes_per_element_op := riscv.LiOp(bytes_per_element),
-            offset_bytes := riscv.MulOp(
-                res_ptr,
-                bytes_per_element_op.rd,
-                rd=riscv.IntRegisterType.unallocated(),
-                comment="multiply by element size",
-            ),
-            ptr := riscv.AddOp(
-                src_ptr, offset_bytes, rd=riscv.IntRegisterType.unallocated()
-            ),
-        ]
-    )
+    bytes_per_element_op.rd.name_hint = "bytes_per_element"
+    offset_bytes.rd.name_hint = "scaled_pointer_offset"
+    ptr.rd.name_hint = "offset_pointer"
 
     return ops, ptr.rd
 
@@ -223,13 +190,13 @@ def pointer_offsets_ops(
 class ConvertMemrefStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Store, rewriter: PatternRewriter):
-        value, mem, *indices = cast_operands_to_regs(rewriter)
-
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
-        shape = memref_type.get_shape()
 
-        ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
+        value, mem, *indices = cast_operands_to_regs(rewriter)
+
+        shape = memref_type.get_shape()
+        ops, ptr = get_strided_pointer(mem, indices, memref_type)
 
         rewriter.insert_op_before_matched_op(ops)
         match value.type:
@@ -266,14 +233,15 @@ class ConvertMemrefStoreOp(RewritePattern):
 class ConvertMemrefLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Load, rewriter: PatternRewriter):
-        mem, *indices = cast_operands_to_regs(rewriter)
-
         assert isinstance(
             op_memref_type := op.memref.type, memref.MemRefType
         ), f"{op.memref.type}"
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
+
+        mem, *indices = cast_operands_to_regs(rewriter)
+
         shape = memref_type.get_shape()
-        ops, ptr = memref_shape_ops(mem, indices, shape, memref_type.element_type)
+        ops, ptr = get_strided_pointer(mem, indices, memref_type)
         rewriter.insert_op_before_matched_op(ops)
 
         result_register_type = register_type_for_type(op.res.type)
@@ -375,6 +343,24 @@ class ConvertMemrefSubviewOp(RewritePattern):
         # subview, and that if the offset is stated in the layout attribute, then it's
         # correct.
 
+        # From MLIR docs:
+        # https://github.com/llvm/llvm-project/blob/4a9aef683df895934c26591404692d41a687b005/mlir/lib/Dialect/MemRef/Transforms/ExpandStridedMetadata.cpp#L173-L186
+        # Replace `dst = subview(memref, sub_offset, sub_sizes, sub_strides))`
+        # With
+        #
+        # \verbatim
+        # source_buffer, source_offset, source_sizes, source_strides =
+        #     extract_strided_metadata(memref)
+        # offset = source_offset + sum(sub_offset#i * source_strides#i)
+        # sizes = sub_sizes
+        # strides#i = base_strides#i * sub_sizes#i
+        # dst = reinterpret_cast baseBuffer, offset, sizes, strides
+        # \endverbatim
+
+        # This lowering does not preserve offset, sizes, and strides at runtime, instead
+        # representing the memref as the base + offset directly, and relying on users of
+        # the memref to use the information in the type to scale accesses.
+
         source = op.source
         result = op.result
         source_type = source.type
@@ -394,70 +380,62 @@ class ConvertMemrefSubviewOp(RewritePattern):
         if not isinstance(result_layout_attr, StridedLayoutAttr):
             raise DiagnosticException("Only strided layout attrs implemented")
 
-        # We still need to check that the layout attribute strides are contiguous in
-        # memory.
-        result_shape = result_type.get_shape()
-        result_strides = tuple(result_layout_attr.get_strides())
+        offset = result_layout_attr.get_offset()
 
-        identity_strides = tuple(
-            accumulate(reversed(result_shape), lambda acc, new: acc * new, initial=1)
-        )[::-1]
+        factor = element_size_for_type(result_type.element_type)
 
-        if identity_strides[-len(result_strides) :] != result_strides:
-            # The subview may be rank reducing, we want the suffix of the original strides
-            raise DiagnosticException(
-                "Cannot lower strides that do not result in a contiguous subview"
-            )
-
-        factor = bitwidth_of_type(result_type.element_type)
-
-        if (static_offset := result_layout_attr.get_offset()) is not None:
-            # The offset is known statically, can just add it, scaled by element bitwidth
+        if offset == 0:
             rewriter.replace_matched_op(
-                (
-                    src := UnrealizedConversionCastOp.get(
-                        (source,), (riscv.IntRegisterType.unallocated(),)
-                    ),
-                    res := riscv.AddiOp(
-                        src,
-                        static_offset * factor,
-                        comment="subview into original memref",
-                    ),
-                    UnrealizedConversionCastOp.get((res,), (result_type,)),
-                )
+                UnrealizedConversionCastOp.get((source,), (result_type,))
             )
             return
 
-        # Accumulate op offsets into a new register
-        src, *offsets = cast_operands_to_regs(rewriter)
-
-        pairs: list[tuple[SSAValue, int]] = []
-
-        dynamic_offset_index = 0
-        for static_offset_attr, stride in zip(
-            op.static_offsets.data, identity_strides, strict=True
-        ):
-            static_offset = static_offset_attr.data
-            assert isinstance(static_offset, int)
-            if static_offset == memref.Subview.DYNAMIC_INDEX:
-                pairs.append((offsets[dynamic_offset_index], stride))
-                dynamic_offset_index += 1
-            else:
-                if static_offset:
-                    # No need to insert arithmetic ops that will be multiplied by zero
-                    rewriter.insert_op_before_matched_op(
-                        offset_op := riscv.LiOp(static_offset)
-                    )
-                    pairs.append((offset_op.rd, stride))
-
-        ops, ptr = pointer_offsets_ops(
-            src,
-            pairs,
-            source_type.element_type,
+        src = UnrealizedConversionCastOp.get(
+            (source,), (riscv.IntRegisterType.unallocated(),)
         )
+        src_rd = src.results[0]
+
+        if offset is None:
+            indices: list[SSAValue] = []
+            index_ops: list[Operation] = []
+
+            dynamic_offset_index = 0
+            for static_offset_attr in op.static_offsets.data:
+                static_offset = static_offset_attr.data
+                assert isinstance(static_offset, int)
+                if static_offset == memref.Subview.DYNAMIC_INDEX:
+                    index_ops.append(
+                        cast_index_op := UnrealizedConversionCastOp.get(
+                            (op.offsets[dynamic_offset_index],),
+                            (riscv.IntRegisterType.unallocated(),),
+                        )
+                    )
+                    index_val = cast_index_op.results[0]
+                    dynamic_offset_index += 1
+                else:
+                    # No need to insert arithmetic ops that will be multiplied by zero
+                    index_ops.append(offset_op := riscv.LiOp(static_offset))
+                    index_val = offset_op.rd
+                index_val.name_hint = "subview_dim_index"
+                indices.append(index_val)
+            offset_ops, offset_rd = get_strided_pointer(src_rd, indices, source_type)
+        else:
+            factor_op = riscv.AddiOp(
+                src_rd,
+                offset * factor,
+                comment="subview offset",
+            )
+            index_ops = []
+            offset_ops = (factor_op,)
+            offset_rd = factor_op.rd
 
         rewriter.replace_matched_op(
-            (*ops, UnrealizedConversionCastOp.get((ptr,), (result_type,)))
+            (
+                src,
+                *index_ops,
+                *offset_ops,
+                UnrealizedConversionCastOp.get((offset_rd,), (result_type,)),
+            )
         )
 
 
