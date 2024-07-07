@@ -294,6 +294,7 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 // CHECK-NEXT:    %scaled_pointer_offset = riscv.mul %pointer_offset, %bytes_per_element
 // CHECK-NEXT:    %offset_pointer = riscv.add %m_1, %scaled_pointer_offset
 // CHECK-NEXT:    riscv.fsd %offset_pointer, %v_1, 0
+
 memref.store %v, %m[%i0, %i1] : memref<2x3xf64, strided<[6, 1], offset: ?>>
 
 // -----

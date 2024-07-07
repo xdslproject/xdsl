@@ -144,8 +144,6 @@ def move_to_unallocated_regs(
 
 def cast_ops_for_values(
     values: Sequence[SSAValue],
-    *,
-    copy_name_hints: bool = False,
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Returns cast operations and new SSA values. The SSA values are guaranteed to be either
@@ -173,19 +171,13 @@ def cast_ops_for_values(
     return new_ops, new_values
 
 
-def cast_operands_to_regs(
-    rewriter: PatternRewriter,
-    *,
-    copy_name_hints: bool = False,
-) -> list[SSAValue]:
+def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
     if the operands were not already int registers
     """
 
-    new_ops, new_operands = cast_ops_for_values(
-        rewriter.current_operation.operands, copy_name_hints=copy_name_hints
-    )
+    new_ops, new_operands = cast_ops_for_values(rewriter.current_operation.operands)
     rewriter.insert_op_before_matched_op(new_ops)
     return new_operands
 

@@ -1535,22 +1535,6 @@ class MemRefType(
     def get_element_type(self) -> _MemRefTypeElement:
         return self.element_type
 
-    def is_contiguous(self) -> bool:
-        layout = self.layout
-        if isinstance(layout, NoneAttr):
-            return True
-
-        shape = self.get_shape()
-        match layout:
-            case StridedLayoutAttr():
-                strides = ShapedType.strides_for_shape(shape)
-                return strides == layout.get_strides()
-            case AffineMapAttr():
-                m = layout.data
-                return m == AffineMap.identity(m.num_dims, m.num_symbols)
-            case _:
-                raise NotImplementedError(f"Unsupported layout type {layout}")
-
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in memref attribute")

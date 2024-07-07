@@ -193,7 +193,7 @@ class ConvertMemrefStoreOp(RewritePattern):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        value, mem, *indices = cast_operands_to_regs(rewriter, copy_name_hints=True)
+        value, mem, *indices = cast_operands_to_regs(rewriter)
 
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
@@ -238,7 +238,7 @@ class ConvertMemrefLoadOp(RewritePattern):
         ), f"{op.memref.type}"
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        mem, *indices = cast_operands_to_regs(rewriter, copy_name_hints=True)
+        mem, *indices = cast_operands_to_regs(rewriter)
 
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
