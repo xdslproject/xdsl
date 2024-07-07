@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from itertools import product
+from typing import cast
 
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
@@ -46,7 +47,7 @@ from xdsl.irdl import (
     region_def,
     var_operand_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import NoTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -247,6 +248,110 @@ class StreamingRegionOp(IRDLOperation):
                 "stride_patterns": stride_patterns,
             },
         )
+
+    def print(self, printer: Printer):
+        with printer.indented():
+            printer.print_string(" {")
+            if self.stride_patterns.data:
+                printer.print_string("\npatterns = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.stride_patterns.data,
+                        lambda attr: printer.print("\n", attr),
+                        delimiter=",",
+                    )
+                printer.print_string("\n]")
+            else:
+                printer.print_string("\npatterns = []")
+        printer.print_string("\n}")
+
+        if self.inputs:
+            printer.print_string(" ins(")
+            printer.print_list(self.inputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_string(")")
+
+        if self.outputs:
+            printer.print_string(" outs(")
+            printer.print_list(self.outputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_string(")")
+
+        if self.attributes:
+            printer.print(" attrs = ")
+            printer.print_op_attributes(self.attributes)
+
+        printer.print_string(" ")
+        printer.print_region(self.body)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> StreamingRegionOp:
+        parser.parse_punctuation("{")
+        parser.parse_identifier("stride_patterns")
+        parser.parse_punctuation("=")
+
+        patterns = parser.parse_attribute()
+        if not isinstance(patterns, ArrayAttr):
+            parser.raise_error(f"Expected ArrayAttr {patterns}")
+        patterns = cast(ArrayAttr[Attribute], patterns)
+        for pattern in patterns:
+            if not isinstance(pattern, StridePattern):
+                parser.raise_error(f"Expected StridePattern {pattern}")
+        patterns = cast(ArrayAttr[StridePattern], patterns)
+
+        parser.parse_punctuation("}")
+
+        pos = parser.pos
+        if parser.parse_optional_characters("ins"):
+            parser.parse_punctuation("(")
+            unresolved_ins = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            ins_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
+        else:
+            ins = ()
+
+        pos = parser.pos
+        if parser.parse_optional_characters("outs"):
+            parser.parse_punctuation("(")
+            unresolved_outs = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            outs_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
+        else:
+            outs = ()
+
+        if parser.parse_optional_keyword("attrs"):
+            parser.parse_punctuation("=")
+            extra_attrs = parser.expect(
+                parser.parse_optional_attr_dict, "expect extra attributes"
+            )
+        else:
+            extra_attrs = {}
+
+        body = parser.parse_region()
+
+        generic = cls(
+            ins,
+            outs,
+            patterns,
+            body,
+        )
+        generic.attributes |= extra_attrs
+
+        return generic
 
 
 SnitchStream = Dialect(
