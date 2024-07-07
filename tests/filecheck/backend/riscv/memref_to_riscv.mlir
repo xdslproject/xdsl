@@ -9,13 +9,12 @@
 %r, %c = "test.op"() : () -> (index, index)
 %m_f32, %m_f64, %m_i32, %m_scalar_i32 = "test.op"() : () -> (memref<3x2xf32>, memref<3x2xf64>, memref<3xi32>, memref<i32>)
 
-
 // CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %v_f32 : f32 to !riscv.freg
 // CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %m_f32 : memref<3x2xf32> to !riscv.reg
 // CHECK-NEXT:   %2 = builtin.unrealized_conversion_cast %r : index to !riscv.reg
 // CHECK-NEXT:   %3 = builtin.unrealized_conversion_cast %c : index to !riscv.reg
 // CHECK-NEXT:   %4 = riscv.li 2 : !riscv.reg
-// CHECK-NEXT:   %5 = riscv.mul %4, %2 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:   %5 = riscv.mul %2, %4 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %6 = riscv.add %5, %3 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %7 = riscv.li 4 : !riscv.reg
 // CHECK-NEXT:   %8 = riscv.mul %6, %7 {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -27,7 +26,7 @@ memref.store %v_f32, %m_f32[%r, %c] {"nontemporal" = false} : memref<3x2xf32>
 // CHECK-NEXT:   %11 = builtin.unrealized_conversion_cast %r : index to !riscv.reg
 // CHECK-NEXT:   %12 = builtin.unrealized_conversion_cast %c : index to !riscv.reg
 // CHECK-NEXT:   %13 = riscv.li 2 : !riscv.reg
-// CHECK-NEXT:   %14 = riscv.mul %13, %11 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:   %14 = riscv.mul %11, %13 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %15 = riscv.add %14, %12 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %16 = riscv.li 4 : !riscv.reg
 // CHECK-NEXT:   %17 = riscv.mul %15, %16 {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -186,3 +185,49 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi16>
 memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 
 // CHECK-NEXT:  }
+
+// -----
+
+%m = "test.op"() : () -> memref<2x3xf64, strided<[6, 1], offset: ?>>
+%i0, %i1 = "test.op"() : () -> (index, index)
+
+// CHECK: %0 = builtin.unrealized_conversion_cast %m : memref<2x3xf64, strided<[6, 1], offset: ?>> to !riscv.reg
+// CHECK-NEXT: %1 = builtin.unrealized_conversion_cast %i0 : index to !riscv.reg
+// CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %i1 : index to !riscv.reg
+// CHECK-NEXT: %3 = riscv.li 6
+// CHECK-NEXT: %4 = riscv.mul %1, %3
+// CHECK-NEXT: %5 = riscv.add %4, %2
+// CHECK-NEXT: %6 = riscv.li 8
+// CHECK-NEXT: %7 = riscv.mul %5, %6
+// CHECK-NEXT: %8 = riscv.add %0, %7
+// CHECK-NEXT: %v = riscv.fld %8, 0
+// CHECK-NEXT: %v_1 = builtin.unrealized_conversion_cast %v : !riscv.freg to f64
+%v = memref.load %m[%i0, %i1] : memref<2x3xf64, strided<[6, 1], offset: ?>>
+
+// -----
+
+%m = "test.op"() : () -> memref<2x3xf64, strided<[6, 1], offset: ?>>
+%v = "test.op"() : () -> f64
+%i0, %i1 = "test.op"() : () -> (index, index)
+
+memref.store %v, %m[%i0, %i1] : memref<2x3xf64, strided<[6, 1], offset: ?>>
+
+// CHECK: %0 = builtin.unrealized_conversion_cast %v : f64 to !riscv.freg
+// CHECK-NEXT: %1 = builtin.unrealized_conversion_cast %m : memref<2x3xf64, strided<[6, 1], offset: ?>> to !riscv.reg
+// CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %i0 : index to !riscv.reg
+// CHECK-NEXT: %3 = builtin.unrealized_conversion_cast %i1 : index to !riscv.reg
+// CHECK-NEXT: %4 = riscv.li 6
+// CHECK-NEXT: %5 = riscv.mul %2, %4
+// CHECK-NEXT: %6 = riscv.add %5, %3
+// CHECK-NEXT: %7 = riscv.li 8
+// CHECK-NEXT: %8 = riscv.mul %6, %7
+// CHECK-NEXT: %9 = riscv.add %1, %8
+// CHECK-NEXT: riscv.fsd %9, %0, 0
+
+// -----
+
+%m = "test.op"() : () -> memref<2xf64, strided<[?]>>
+%i0 = "test.op"() : () -> index
+%v = memref.load %m[%i0] : memref<2xf64, strided<[?]>>
+
+// CHECK: MemRef memref<2xf64, strided<[?]>> with dynamic stride is not yet implemented
