@@ -223,3 +223,11 @@ memref.store %v, %m[%i0, %i1] : memref<2x3xf64, strided<[6, 1], offset: ?>>
 // CHECK-NEXT: %8 = riscv.mul %6, %7
 // CHECK-NEXT: %9 = riscv.add %1, %8
 // CHECK-NEXT: riscv.fsd %9, %0, 0
+
+// -----
+
+%m = "test.op"() : () -> memref<2xf64, strided<[?]>>
+%i0 = "test.op"() : () -> index
+%v = memref.load %m[%i0] : memref<2xf64, strided<[?]>>
+
+// CHECK: MemRef memref<2xf64, strided<[?]>> with dynamic stride is not yet implemented

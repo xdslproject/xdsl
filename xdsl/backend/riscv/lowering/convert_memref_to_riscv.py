@@ -110,33 +110,43 @@ def get_strided_pointer(
 
     head: SSAValue | None = None
 
-    for index, stride in zip(indices, strides):
+    for index, stride in zip(indices, strides, strict=True):
+        # Calculate the offset that needs to be added through the index of the current
+        # dimension.
+        increment = index
         match stride:
             case None:
-                raise NotImplementedError(
+                raise DiagnosticException(
                     f"MemRef {memref_type} with dynamic stride is not yet implemented"
                 )
             case 1:
+                # Stride 1 is a noop making the index equal to the offset.
                 pass
             case _:
+                # Otherwise, multiply the stride (which by definition is the number of
+                # elements required to be skipped when incrementing that dimension).
                 ops.extend(
                     (
                         stride_op := riscv.LiOp(stride),
                         offset_op := riscv.MulOp(
-                            index, stride_op.rd, rd=riscv.IntRegisterType.unallocated()
+                            increment,
+                            stride_op.rd,
+                            rd=riscv.IntRegisterType.unallocated(),
                         ),
                     )
                 )
-                index = offset_op.rd
+                increment = offset_op.rd
 
         if head is None:
             # First iteration.
-            head = index
+            head = increment
             continue
 
         # Otherwise sum up the products.
         ops.append(
-            add_op := riscv.AddOp(head, index, rd=riscv.IntRegisterType.unallocated())
+            add_op := riscv.AddOp(
+                head, increment, rd=riscv.IntRegisterType.unallocated()
+            )
         )
         head = add_op.rd
 
