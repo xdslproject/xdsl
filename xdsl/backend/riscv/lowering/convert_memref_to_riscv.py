@@ -135,6 +135,8 @@ def get_strided_pointer(
                         ),
                     )
                 )
+                stride_op.rd.name_hint = "pointer_dim_stride"
+                offset_op.rd.name_hint = "pointer_dim_offset"
                 increment = offset_op.rd
 
         if head is None:
@@ -148,6 +150,7 @@ def get_strided_pointer(
                 head, increment, rd=riscv.IntRegisterType.unallocated()
             )
         )
+        add_op.rd.name_hint = "pointer_offset"
         head = add_op.rd
 
     if head is None:
@@ -167,6 +170,10 @@ def get_strided_pointer(
             ),
         ]
     )
+
+    bytes_per_element_op.rd.name_hint = "bytes_per_element"
+    offset_bytes.rd.name_hint = "scaled_pointer_offset"
+    ptr.rd.name_hint = "offset_pointer"
 
     return ops, ptr.rd
 

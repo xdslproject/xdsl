@@ -161,9 +161,12 @@ def cast_ops_for_values(
                 (value,), (new_type.unallocated(),)
             )
             new_ops.append(cast_op)
-            value = cast_op.results[0]
+            new_value = cast_op.results[0]
+            new_value.name_hint = value.name_hint
+        else:
+            new_value = value
 
-        new_values.append(value)
+        new_values.append(new_value)
 
     return new_ops, new_values
 
