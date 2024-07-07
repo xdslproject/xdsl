@@ -36,6 +36,20 @@ def test_linalg_on_memrefs():
     func.FuncOp("foo", ([], []), funcBody)
 
 
+def test_matmul_on_memrefs():
+    @Builder.implicit_region(())
+    def funcBody(args: tuple[Any, ...]):
+        A = memref.Alloc.get(f32, shape=[100, 50])
+        B = memref.Alloc.get(f32, shape=[50, 100])
+        C = memref.Alloc.get(f32, shape=[100, 100])
+
+        linalg.MatmulOp(inputs=(A.results[0], B.results[0]), outputs=(C.results[0],))
+
+        func.Return()
+
+    func.FuncOp("foo", ([], []), funcBody)
+
+
 def test_loop_range_methods():
     A = memref.Alloc.get(f32, shape=[100, 50])
     B = memref.Alloc.get(f32, shape=[50, 100])
