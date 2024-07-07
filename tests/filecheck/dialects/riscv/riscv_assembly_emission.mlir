@@ -295,4 +295,7 @@
     riscv_func.return
     // CHECK-NEXT: ret
   }
+// External
+riscv_func.func @external()
+// CHECK-EMPTY:
 }) : () -> ()
