@@ -164,8 +164,7 @@ def cast_ops_for_values(
             )
             new_ops.append(cast_op)
             new_value = cast_op.results[0]
-            if copy_name_hints:
-                new_value.name_hint = value.name_hint
+            new_value.name_hint = value.name_hint
         else:
             new_value = value
 
