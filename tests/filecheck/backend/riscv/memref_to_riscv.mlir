@@ -188,37 +188,37 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 
 // -----
 
-%m = "test.op"() : () -> memref<2x3xf64, strided<[1, 2], offset: ?>>
+%m = "test.op"() : () -> memref<2x3xf64, strided<[6, 1], offset: ?>>
 %i0, %i1 = "test.op"() : () -> (index, index)
 
-// CHECK: %0 = builtin.unrealized_conversion_cast %m : memref<2x3xf64, strided<[1, 2], offset: ?>> to !riscv.reg
+// CHECK: %0 = builtin.unrealized_conversion_cast %m : memref<2x3xf64, strided<[6, 1], offset: ?>> to !riscv.reg
 // CHECK-NEXT: %1 = builtin.unrealized_conversion_cast %i0 : index to !riscv.reg
 // CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %i1 : index to !riscv.reg
-// CHECK-NEXT: %3 = riscv.li 2
-// CHECK-NEXT: %4 = riscv.mul %2, %3
-// CHECK-NEXT: %5 = riscv.add %1, %4
+// CHECK-NEXT: %3 = riscv.li 6
+// CHECK-NEXT: %4 = riscv.mul %1, %3
+// CHECK-NEXT: %5 = riscv.add %4, %2
 // CHECK-NEXT: %6 = riscv.li 8
 // CHECK-NEXT: %7 = riscv.mul %5, %6
 // CHECK-NEXT: %8 = riscv.add %0, %7
 // CHECK-NEXT: %v = riscv.fld %8, 0
 // CHECK-NEXT: %v_1 = builtin.unrealized_conversion_cast %v : !riscv.freg to f64
-%v = memref.load %m[%i0, %i1] : memref<2x3xf64, strided<[1, 2], offset: ?>>
+%v = memref.load %m[%i0, %i1] : memref<2x3xf64, strided<[6, 1], offset: ?>>
 
 // -----
 
-%m = "test.op"() : () -> memref<2x3xf64, strided<[1, 2], offset: ?>>
+%m = "test.op"() : () -> memref<2x3xf64, strided<[6, 1], offset: ?>>
 %v = "test.op"() : () -> f64
 %i0, %i1 = "test.op"() : () -> (index, index)
 
-memref.store %v, %m[%i0, %i1] : memref<2x3xf64, strided<[1, 2], offset: ?>>
+memref.store %v, %m[%i0, %i1] : memref<2x3xf64, strided<[6, 1], offset: ?>>
 
 // CHECK: %0 = builtin.unrealized_conversion_cast %v : f64 to !riscv.freg
-// CHECK-NEXT: %1 = builtin.unrealized_conversion_cast %m : memref<2x3xf64, strided<[1, 2], offset: ?>> to !riscv.reg
+// CHECK-NEXT: %1 = builtin.unrealized_conversion_cast %m : memref<2x3xf64, strided<[6, 1], offset: ?>> to !riscv.reg
 // CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %i0 : index to !riscv.reg
 // CHECK-NEXT: %3 = builtin.unrealized_conversion_cast %i1 : index to !riscv.reg
-// CHECK-NEXT: %4 = riscv.li 2
-// CHECK-NEXT: %5 = riscv.mul %3, %4
-// CHECK-NEXT: %6 = riscv.add %2, %5
+// CHECK-NEXT: %4 = riscv.li 6
+// CHECK-NEXT: %5 = riscv.mul %2, %4
+// CHECK-NEXT: %6 = riscv.add %5, %3
 // CHECK-NEXT: %7 = riscv.li 8
 // CHECK-NEXT: %8 = riscv.mul %6, %7
 // CHECK-NEXT: %9 = riscv.add %1, %8
