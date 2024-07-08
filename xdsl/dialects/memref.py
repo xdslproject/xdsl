@@ -651,6 +651,51 @@ class Subview(IRDLOperation):
         )
 
     @staticmethod
+    def get(
+        source: SSAValue,
+        offsets: Sequence[SSAValue | int],
+        sizes: Sequence[SSAValue | int],
+        strides: Sequence[SSAValue | int],
+        result_type: Attribute,
+    ) -> Subview:
+        dyn_offsets: list[SSAValue] = []
+        dyn_sizes: list[SSAValue] = []
+        dyn_strides: list[SSAValue] = []
+        static_offsets: list[int] = []
+        static_sizes: list[int] = []
+        static_strides: list[int] = []
+
+        for offset in offsets:
+            if isinstance(offset, int):
+                static_offsets.append(offset)
+            else:
+                static_offsets.append(Subview.DYNAMIC_INDEX)
+                dyn_offsets.append(offset)
+        for size in sizes:
+            if isinstance(size, int):
+                static_sizes.append(size)
+            else:
+                static_sizes.append(Subview.DYNAMIC_INDEX)
+                dyn_sizes.append(size)
+        for stride in strides:
+            if isinstance(stride, int):
+                static_strides.append(stride)
+            else:
+                static_strides.append(Subview.DYNAMIC_INDEX)
+                dyn_strides.append(stride)
+
+        return Subview(
+            source,
+            dyn_offsets,
+            dyn_sizes,
+            dyn_strides,
+            static_offsets,
+            static_sizes,
+            static_strides,
+            result_type,
+        )
+
+    @staticmethod
     def from_static_parameters(
         source: SSAValue | Operation,
         source_type: MemRefType[Attribute],
