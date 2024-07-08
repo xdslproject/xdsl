@@ -139,7 +139,7 @@ builtin.module {
 // CHECK-NEXT:   func.func @gauss_seidel(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
 // CHECK-NEXT:     %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:     %1 = tensor.empty() : tensor<510xf32>
-// CHECK-NEXT:     %2 = csl_stencil.apply(%0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %1 : tensor<510xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) ({
+// CHECK-NEXT:     %2 = csl_stencil.apply(%0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %1 : tensor<510xf32>) <{"num_chunks" = 2 : i64, "topo" = #dmp.topo<1022x510>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>]}> -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) ({
 // CHECK-NEXT:     ^0(%recv : memref<4xtensor<255xf32>>, %offset : index, %iter_arg : tensor<510xf32>):
 // CHECK-NEXT:       %3 = csl_stencil.access %recv[1, 0] : memref<4xtensor<255xf32>>
 // CHECK-NEXT:       %4 = csl_stencil.access %recv[-1, 0] : memref<4xtensor<255xf32>>
