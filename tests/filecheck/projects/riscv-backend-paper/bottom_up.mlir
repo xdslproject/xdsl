@@ -241,40 +241,28 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %G : memref<8x8xf64>
   ) {
     %zero_float = arith.constant 0.0 : f64
-    memref_stream.streaming_region {
-      patterns = [
-        #memref_stream.stride_pattern<ub = [8, 2, 8, 4], index_map = (m, n, k, j) -> (m, k)>,
-        #memref_stream.stride_pattern<ub = [8, 2, 8, 4], index_map = (m, n, k, j) -> (k, n * 4 + j)>,
-        #memref_stream.stride_pattern<ub = [8, 2, 4], index_map = (m, n, j) -> (m, n * 4 + j)>
-      ]
+    linalg.generic {
+        indexing_maps = [
+            affine_map<(d0, d1) -> ()>,
+            affine_map<(d0, d1) -> (d0, d1)>
+        ],
+        iterator_types = ["parallel", "parallel"]
+    } ins(%zero_float : f64) outs(%G : memref<8x8xf64>) {
+    ^bb0(%in: f64, %out: f64):
+        linalg.yield %in : f64
+    }
+    linalg.generic {
+        indexing_maps = [
+            affine_map<(d0, d1, d2) -> (d0, d2)>,
+            affine_map<(d0, d1, d2) -> (d2, d1)>,
+            affine_map<(d0, d1, d2) -> (d0, d1)>
+        ],
+        iterator_types = ["parallel", "parallel", "reduction"]
     } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) outs(%G : memref<8x8xf64>) {
-    ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %g_stream : !stream.writable<f64>):
-      memref_stream.generic {
-          bounds = [8, 2, 8, 4],
-          indexing_maps = [
-              affine_map<(d0, d1, d2, d3) -> (d0, d2)>,
-              affine_map<(d0, d1, d2, d3) -> (d2, d1 * 4 + d3)>,
-              affine_map<(d0, d1, d3) -> (d0, d1 * 4 + d3)>
-          ],
-          iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
-      } ins(%x_stream, %y_stream : !stream.readable<f64>, !stream.readable<f64>) outs(%g_stream : !stream.writable<f64>) inits(%zero_float : f64) {
-      ^1(
-          %x0 : f64, %x1 : f64, %x2 : f64, %x3 : f64,
-          %y0 : f64, %y1 : f64, %y2 : f64, %y3 : f64,
-          %g0 : f64, %g1 : f64, %g2 : f64, %g3 : f64
-      ):
-          %prod0 = arith.mulf %x0, %y0 fastmath<fast> : f64
-          %prod1 = arith.mulf %x1, %y1 fastmath<fast> : f64
-          %prod2 = arith.mulf %x2, %y2 fastmath<fast> : f64
-          %prod3 = arith.mulf %x3, %y3 fastmath<fast> : f64
-
-          %res0 = arith.addf %prod0, %g0 fastmath<fast> : f64
-          %res1 = arith.addf %prod1, %g1 fastmath<fast> : f64
-          %res2 = arith.addf %prod2, %g2 fastmath<fast> : f64
-          %res3 = arith.addf %prod3, %g3 fastmath<fast> : f64
-
-          memref_stream.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
-      }
+    ^0(%x : f64, %y : f64, %acc_old : f64):
+        %prod = arith.mulf %x, %y fastmath<fast> : f64
+        %acc_new = arith.addf %acc_old, %prod fastmath<fast> : f64
+        linalg.yield %acc_new : f64
     }
 
     func.return
