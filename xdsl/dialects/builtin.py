@@ -1188,6 +1188,12 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
             else:
                 yield stride.data
 
+    def get_offset(self) -> int | None:
+        if isinstance(self.offset, NoneAttr):
+            return None
+        else:
+            return self.offset.data
+
 
 @irdl_attr_definition
 class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):

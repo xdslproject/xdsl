@@ -196,6 +196,79 @@ memref.store %v, %m[%d0] {"nontemporal" = false} : memref<1xi64>
 
 // -----
 
+// CHECK:       builtin.module {
+
+// CHECK-NEXT:    %v_f64 = "test.op"() : () -> f64
+// CHECK-NEXT:    %i0, %i1, %offset = "test.op"() : () -> (index, index, index)
+// CHECK-NEXT:    %original = "test.op"() : () -> memref<4x3x2xf64>
+%v_f64 = "test.op"() : () -> f64
+%i0, %i1, %offset = "test.op"() : () -> (index, index, index)
+%original = "test.op"() : () -> memref<4x3x2xf64>
+
+// CHECK-NEXT:    %zero_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to memref<3x2xf64>
+%zero_subview = memref.subview %original[0, 0, 0][1, 3, 2][1, 1, 1] : memref<4x3x2xf64> to memref<3x2xf64>
+
+// CHECK-NEXT:    %static_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
+// CHECK-NEXT:    %static_subview_1 = riscv.addi %static_subview, 48 {"comment" = "subview offset"} : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %static_subview_2 = builtin.unrealized_conversion_cast %static_subview_1 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: 6>>
+%static_subview = memref.subview %original[1, 0, 0][1, 3, 2][1, 1, 1] :
+  memref<4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: 6>>
+
+// CHECK-NEXT:    %dynamic_subview = builtin.unrealized_conversion_cast %original : memref<4x3x2xf64> to !riscv.reg
+// CHECK-NEXT:    %subview_dim_index = builtin.unrealized_conversion_cast %offset : index to !riscv.reg
+// CHECK-NEXT:    %subview_dim_index_1 = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:    %subview_dim_index_2 = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:    %pointer_dim_stride = riscv.li 6 : !riscv.reg
+// CHECK-NEXT:    %pointer_dim_offset = riscv.mul %subview_dim_index, %pointer_dim_stride : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %pointer_dim_stride_1 = riscv.li 2 : !riscv.reg
+// CHECK-NEXT:    %pointer_dim_offset_1 = riscv.mul %subview_dim_index_1, %pointer_dim_stride_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %pointer_offset = riscv.add %pointer_dim_offset, %pointer_dim_offset_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %pointer_offset_1 = riscv.add %pointer_offset, %subview_dim_index_2 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %bytes_per_element = riscv.li 8 : !riscv.reg
+// CHECK-NEXT:    %scaled_pointer_offset = riscv.mul %pointer_offset_1, %bytes_per_element {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %offset_pointer = riscv.add %dynamic_subview, %scaled_pointer_offset : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %dynamic_subview_1 = builtin.unrealized_conversion_cast %offset_pointer : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: ?>>
+%dynamic_subview = memref.subview %original[%offset, 0, 0][1, 3, 2][1, 1, 1] :
+  memref<4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: ?>>
+
+// CHECK-NEXT:    %larger_original = "test.op"() : () -> memref<5x4x3x2xf64>
+%larger_original = "test.op"() : () -> memref<5x4x3x2xf64>
+// CHECK-NEXT:    %larger_dynamic_subview = builtin.unrealized_conversion_cast %larger_original : memref<5x4x3x2xf64> to !riscv.reg
+// CHECK-NEXT:    %subview_dim_index_3 = builtin.unrealized_conversion_cast %offset : index to !riscv.reg
+// CHECK-NEXT:    %subview_dim_index_4 = builtin.unrealized_conversion_cast %offset : index to !riscv.reg
+// CHECK-NEXT:    %subview_dim_index_5 = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:    %subview_dim_index_6 = riscv.li 0 : !riscv.reg
+// CHECK-NEXT:    %pointer_dim_stride_2 = riscv.li 24 : !riscv.reg
+// CHECK-NEXT:    %pointer_dim_offset_2 = riscv.mul %subview_dim_index_3, %pointer_dim_stride_2 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %pointer_dim_stride_3 = riscv.li 6 : !riscv.reg
+// CHECK-NEXT:    %pointer_dim_offset_3 = riscv.mul %subview_dim_index_4, %pointer_dim_stride_3 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %pointer_offset_2 = riscv.add %pointer_dim_offset_2, %pointer_dim_offset_3 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %pointer_dim_stride_4 = riscv.li 2 : !riscv.reg
+// CHECK-NEXT:    %pointer_dim_offset_4 = riscv.mul %subview_dim_index_5, %pointer_dim_stride_4 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %pointer_offset_3 = riscv.add %pointer_offset_2, %pointer_dim_offset_4 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %pointer_offset_4 = riscv.add %pointer_offset_3, %subview_dim_index_6 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %bytes_per_element_1 = riscv.li 8 : !riscv.reg
+// CHECK-NEXT:    %scaled_pointer_offset_1 = riscv.mul %pointer_offset_4, %bytes_per_element_1 {"comment" = "multiply by element size"} : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %offset_pointer_1 = riscv.add %larger_dynamic_subview, %scaled_pointer_offset_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-NEXT:    %larger_dynamic_subview_1 = builtin.unrealized_conversion_cast %offset_pointer_1 : !riscv.reg to memref<3x2xf64, strided<[2, 1], offset: ?>>
+%larger_dynamic_subview = memref.subview %larger_original[%offset, %offset, 0, 0][1, 1, 3, 2][1, 1, 1, 1] :
+  memref<5x4x3x2xf64> to memref<3x2xf64, strided<[2, 1], offset: ?>>
+
+// CHECK-NEXT:  }
+
+// -----
+
+%0 = memref.alloc() : memref<8x16x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2)>>
+
+// Subview with constant offsets, sizes and strides.
+%1 = memref.subview %0[0, 2, 0][4, 4, 4][1, 1, 1]
+  : memref<8x16x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2)>> to
+    memref<4x4x4xf32, affine_map<(d0, d1, d2) -> (d0 * 64 + d1 * 4 + d2 + 8)>>
+
+// CHECK:      Only strided layout attrs implemented
+
+// -----
+
 %m = "test.op"() : () -> memref<2x3xf64, strided<[6, 1], offset: ?>>
 %i0, %i1 = "test.op"() : () -> (index, index)
 

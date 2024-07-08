@@ -39,7 +39,7 @@ from xdsl.utils.exceptions import DiagnosticException
 
 def bitwidth_of_type(type_attribute: Attribute) -> int:
     """
-    Returns the width of an element type in bits, or raises ValueError for unknown inputs.
+    Returns the width of an element type in bits, or raises DiagnosticException for unknown inputs.
     """
     if isinstance(type_attribute, AnyFloat):
         return type_attribute.get_bitwidth
@@ -49,6 +49,21 @@ def bitwidth_of_type(type_attribute: Attribute) -> int:
         raise NotImplementedError(
             f"Unsupported memref element type for riscv lowering: {type_attribute}"
         )
+
+
+def element_size_for_type(type_attribute: Attribute) -> int:
+    """
+    Returns the width of an element type in bytes, or raises DiagnosticException for
+    unknown inputs, or sizes not divisible by 8.
+    """
+    bitwidth = bitwidth_of_type(type_attribute)
+    if bitwidth % 8:
+        raise DiagnosticException(
+            f"Cannot determine size for element type {type_attribute}"
+            f" with bitwidth {bitwidth}"
+        )
+    bytes_per_element = bitwidth // 8
+    return bytes_per_element
 
 
 class ConvertMemrefAllocOp(RewritePattern):
@@ -102,13 +117,7 @@ def get_strided_pointer(
     a new pointer to the element being accessed by the 'indices'.
     """
 
-    bitwidth = bitwidth_of_type(memref_type.element_type)
-    if bitwidth % 8:
-        raise DiagnosticException(
-            f"Cannot create offset for element type {memref_type.element_type}"
-            f" with bitwidth {bitwidth}"
-        )
-    bytes_per_element = bitwidth // 8
+    bytes_per_element = element_size_for_type(memref_type.element_type)
 
     match memref_type.layout:
         case NoneAttr():
@@ -338,6 +347,110 @@ class ConvertMemrefGetGlobalOp(RewritePattern):
         )
 
 
+class ConvertMemrefSubviewOp(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter):
+        # Assumes that the operation is valid, meaning that the subview is indeed a
+        # subview, and that if the offset is stated in the layout attribute, then it's
+        # correct.
+
+        # From MLIR docs:
+        # https://github.com/llvm/llvm-project/blob/4a9aef683df895934c26591404692d41a687b005/mlir/lib/Dialect/MemRef/Transforms/ExpandStridedMetadata.cpp#L173-L186
+        # Replace `dst = subview(memref, sub_offset, sub_sizes, sub_strides))`
+        # With
+        #
+        # \verbatim
+        # source_buffer, source_offset, source_sizes, source_strides =
+        #     extract_strided_metadata(memref)
+        # offset = source_offset + sum(sub_offset#i * source_strides#i)
+        # sizes = sub_sizes
+        # strides#i = base_strides#i * sub_sizes#i
+        # dst = reinterpret_cast baseBuffer, offset, sizes, strides
+        # \endverbatim
+
+        # This lowering does not preserve offset, sizes, and strides at runtime, instead
+        # representing the memref as the base + offset directly, and relying on users of
+        # the memref to use the information in the type to scale accesses.
+
+        source = op.source
+        result = op.result
+        source_type = source.type
+        assert isinstance(source_type, MemRefType)
+        source_type = cast(MemRefType[Attribute], source_type)
+        result_type = cast(MemRefType[Attribute], result.type)
+
+        result_layout_attr = result_type.layout
+        if isinstance(result_layout_attr, NoneAttr):
+            # When a subview has no layout attr, the result is a perfect subview at offset
+            # 0.
+            rewriter.replace_matched_op(
+                UnrealizedConversionCastOp.get((source,), (result_type,))
+            )
+            return
+
+        if not isinstance(result_layout_attr, StridedLayoutAttr):
+            raise DiagnosticException("Only strided layout attrs implemented")
+
+        offset = result_layout_attr.get_offset()
+
+        factor = element_size_for_type(result_type.element_type)
+
+        if offset == 0:
+            rewriter.replace_matched_op(
+                UnrealizedConversionCastOp.get((source,), (result_type,))
+            )
+            return
+
+        src = UnrealizedConversionCastOp.get(
+            (source,), (riscv.IntRegisterType.unallocated(),)
+        )
+        src_rd = src.results[0]
+
+        if offset is None:
+            indices: list[SSAValue] = []
+            index_ops: list[Operation] = []
+
+            dynamic_offset_index = 0
+            for static_offset_attr in op.static_offsets.data:
+                static_offset = static_offset_attr.data
+                assert isinstance(static_offset, int)
+                if static_offset == memref.Subview.DYNAMIC_INDEX:
+                    index_ops.append(
+                        cast_index_op := UnrealizedConversionCastOp.get(
+                            (op.offsets[dynamic_offset_index],),
+                            (riscv.IntRegisterType.unallocated(),),
+                        )
+                    )
+                    index_val = cast_index_op.results[0]
+                    dynamic_offset_index += 1
+                else:
+                    # No need to insert arithmetic ops that will be multiplied by zero
+                    index_ops.append(offset_op := riscv.LiOp(static_offset))
+                    index_val = offset_op.rd
+                index_val.name_hint = "subview_dim_index"
+                indices.append(index_val)
+            offset_ops, offset_rd = get_strided_pointer(src_rd, indices, source_type)
+        else:
+            factor_op = riscv.AddiOp(
+                src_rd,
+                offset * factor,
+                comment="subview offset",
+            )
+            index_ops = []
+            offset_ops = (factor_op,)
+            offset_rd = factor_op.rd
+
+        rewriter.replace_matched_op(
+            (
+                src,
+                *index_ops,
+                *offset_ops,
+                UnrealizedConversionCastOp.get((offset_rd,), (result_type,)),
+            )
+        )
+
+
 class ConvertMemrefToRiscvPass(ModulePass):
     name = "convert-memref-to-riscv"
 
@@ -356,6 +469,7 @@ class ConvertMemrefToRiscvPass(ModulePass):
                     ConvertMemrefLoadOp(),
                     ConvertMemrefGlobalOp(),
                     ConvertMemrefGetGlobalOp(),
+                    ConvertMemrefSubviewOp(),
                 ]
             )
         ).rewrite_module(op)
