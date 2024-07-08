@@ -1,8 +1,8 @@
 import operator
-from collections.abc import Sequence
 from functools import reduce
 from typing import cast
 
+from xdsl.backend.riscv.lowering.convert_memref_to_riscv import element_size_for_type
 from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
@@ -21,11 +21,11 @@ from xdsl.dialects import (
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
+    MemRefType,
     ModuleOp,
-    ShapedType,
     UnrealizedConversionCastOp,
 )
-from xdsl.ir import Attribute, Operation
+from xdsl.ir import Attribute, AttributeCovT, Operation
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -36,6 +36,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import DiagnosticException
 
 
 class ReadOpLowering(RewritePattern):
@@ -119,19 +120,17 @@ class StreamOpLowering(RewritePattern):
         if not all(el_type == builtin.f64 for el_type in el_types):
             # Only support f64 streams for now
             return
-        bytes_per_element = 8
-        shapes = tuple(operand_type.get_shape() for operand_type in operand_types)
         stride_patterns = tuple(
             snitch_stream.StridePattern(
                 ArrayAttr(ub.value for ub in pattern.ub),
                 ArrayAttr(
                     IntAttr(stride)
                     for stride in strides_for_affine_map(
-                        pattern.index_map.data, shape, bytes_per_element
+                        pattern.index_map.data, memref_type
                     )
                 ),
             ).simplified()
-            for pattern, shape in zip(op.patterns, shapes, strict=True)
+            for pattern, memref_type in zip(op.patterns, operand_types, strict=True)
         )
         if len(set(stride_patterns)) == 1:
             stride_patterns = (stride_patterns[0],)
@@ -166,11 +165,10 @@ class StreamOpLowering(RewritePattern):
             rewriter.modify_block_argument_type(arg, stream_type)
 
 
-def offset_map_from_shape(shape: Sequence[int], factor: int) -> AffineMap:
+def strides_map_from_memref_type(memref_type: MemRefType[AttributeCovT]) -> AffineMap:
     """
-    Given a list of lengths for each dimension of a memref, and the number of bytes per
-    element, returns the map from indices to an offset in bytes in memory. The resulting
-    map has one result expression.
+    Given a memref returns the map from indices to an offset in bytes in memory. The
+    resulting map has one result expression.
 
     e.g.:
     ```
@@ -182,35 +180,48 @@ def offset_map_from_shape(shape: Sequence[int], factor: int) -> AffineMap:
             el = my_list[k]
             print(el) # -> 1, 2, 3, 4, 5, 6
 
-    map = offset_map_from_strides([3, 1])
+    map = strides_map_from_memref_type(MemRefType(f64, [3, 1]))
 
     for i in range(2):
         for j in range(3):
-            k = map.eval(i, j)
+            k = map.eval(i, j) // 8 # factor of 8 since 8 bytes in f64
             el = my_list[k]
             print(el) # -> 1, 2, 3, 4, 5, 6
     ```
     """
-    if not shape:
-        # Return empty map to avoid reducing over an empty sequence
-        return AffineMap(0, 0, (AffineExpr.constant(factor),))
+    maybe_strides = tuple(memref_type.get_strides())
+    for stride in maybe_strides:
+        if stride is None:
+            raise DiagnosticException(
+                f"Cannot get strides from dynamic layout {memref_type}"
+            )
 
-    strides = ShapedType.strides_for_shape(shape, factor)
+    strides = cast(tuple[int, ...], maybe_strides)
+
+    if not strides:
+        raise DiagnosticException(
+            f"Unsupported empty shape in memref of type {memref_type}"
+        )
+
+    factor = element_size_for_type(memref_type.element_type)
 
     return AffineMap(
-        len(shape),
+        len(strides),
         0,
         (
             reduce(
                 operator.add,
-                (AffineExpr.dimension(i) * stride for i, stride in enumerate(strides)),
+                (
+                    AffineExpr.dimension(i) * stride * factor
+                    for i, stride in enumerate(strides)
+                ),
             ),
         ),
     )
 
 
 def strides_for_affine_map(
-    affine_map: AffineMap, shape: Sequence[int], factor: int
+    affine_map: AffineMap, memref_type: MemRefType[AttributeCovT]
 ) -> list[int]:
     """
     Given an iteration space represented as an affine map (for indexing) and a shape (for
@@ -220,7 +231,7 @@ def strides_for_affine_map(
     """
     if affine_map.num_symbols:
         raise ValueError("Cannot create strides for affine map with symbols")
-    offset_map = offset_map_from_shape(shape, factor)
+    offset_map = strides_map_from_memref_type(memref_type)
     composed = offset_map.compose(affine_map)
 
     zeros = [0] * composed.num_dims
@@ -235,7 +246,7 @@ def strides_for_affine_map(
     return result
 
 
-class ConvertMemrefStreamToSnitch(ModulePass):
+class ConvertMemrefStreamToSnitchStreamPass(ModulePass):
     """
     Converts memref_stream `read` and `write` operations to the snitch_stream equivalents.
 
@@ -250,7 +261,7 @@ class ConvertMemrefStreamToSnitch(ModulePass):
      streaming region or if the defining operation is a stream read.
     """
 
-    name = "convert-memref-stream-to-snitch"
+    name = "convert-memref-stream-to-snitch-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(

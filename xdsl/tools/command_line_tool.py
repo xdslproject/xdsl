@@ -241,10 +241,12 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_onnx_to_linalg.ConvertOnnxToLinalgPass
 
-    def get_convert_memref_stream_to_snitch():
+    def get_convert_memref_stream_to_snitch_stream():
         from xdsl.transforms import convert_memref_stream_to_snitch_stream
 
-        return convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitch
+        return (
+            convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitchStreamPass
+        )
 
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
@@ -359,7 +361,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
-        "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
+        "convert-memref-stream-to-snitch-stream": get_convert_memref_stream_to_snitch_stream,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-qref-to-qssa": get_convert_qref_to_qssa,
         "convert-qssa-to-qref": get_convert_qssa_to_qref,

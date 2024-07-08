@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-stream-to-snitch %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-stream-to-snitch-stream %s | filecheck %s
 
 // CHECK:       builtin.module {
 
@@ -195,6 +195,31 @@ memref_stream.streaming_region {
 // CHECK-NEXT:      %k_1 = builtin.unrealized_conversion_cast %k : !stream.writable<!riscv.freg> to !stream.writable<f64>
 // CHECK-NEXT:      %res = "test.op"() : () -> f64
 // CHECK-NEXT:      memref_stream.yield %res : f64
+// CHECK-NEXT:    }
+
+
+%A_strided = "test.op"() : () -> memref<3x2xf64, strided<[4, 1]>>
+// CHECK-NEXT:    %A_strided = "test.op"() : () -> memref<3x2xf64, strided<[4, 1]>>
+
+
+memref_stream.streaming_region {
+    patterns = [
+        #memref_stream.stride_pattern<ub = [3, 2], index_map = (d0, d1) -> (d0, d1)>
+    ]
+} ins(%A_strided : memref<3x2xf64, strided<[4, 1]>>) {
+^bb0(%a_strided: !stream.readable<f64>):
+    "test.op"(%a_strided) : (!stream.readable<f64>) -> ()
+}
+
+// CHECK-NEXT:    %A_strided_1 = builtin.unrealized_conversion_cast %A_strided : memref<3x2xf64, strided<[4, 1]>> to !riscv.reg
+// CHECK-NEXT:    snitch_stream.streaming_region {
+// CHECK-NEXT:      patterns = [
+// CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [3, 2], strides = [32, 8]>
+// CHECK-NEXT:      ]
+// CHECK-NEXT:    } ins(%A_strided_1 : !riscv.reg) {
+// CHECK-NEXT:    ^{{.*}}(%a_strided : !stream.readable<!riscv.freg>):
+// CHECK-NEXT:      %a_strided_1 = builtin.unrealized_conversion_cast %a_strided : !stream.readable<!riscv.freg> to !stream.readable<f64>
+// CHECK-NEXT:      "test.op"(%a_strided_1) : (!stream.readable<f64>) -> ()
 // CHECK-NEXT:    }
 
 // CHECK-NEXT:  }

@@ -9,7 +9,7 @@ from xdsl.backend.riscv.lowering.convert_scf_to_riscv_scf import ConvertScfToRis
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.transforms.canonicalize import CanonicalizePass
 from xdsl.transforms.convert_memref_stream_to_snitch_stream import (
-    ConvertMemrefStreamToSnitch,
+    ConvertMemrefStreamToSnitchStreamPass,
 )
 from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
@@ -21,7 +21,7 @@ TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM: tuple[ModulePass, ...] = (
     ConvertScfToRiscvPass(),
     ConvertArithToRiscvPass(),
     ConvertFuncToRiscvFuncPass(),
-    ConvertMemrefStreamToSnitch(),
+    ConvertMemrefStreamToSnitchStreamPass(),
     ReconcileUnrealizedCastsPass(),
 )
 
