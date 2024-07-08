@@ -38,7 +38,7 @@ dev = [
 ]
 gui = ["textual==0.63.2", "pyclip==0.7"]
 onnx = ["onnx==1.16.1"]
-riscv = ["riscemu==2.2.6"]
+riscv = ["riscemu==2.2.7"]
 wgpu = ["wgpu==0.16.0"]
 
 [project.urls]
