@@ -61,7 +61,7 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -1137,7 +1137,9 @@ class MemrefLayoutAttr(Attribute, ABC):
 
     name = "abstract.memref_layout_att"
 
-    pass
+    @abstractmethod
+    def get_strides(self) -> Iterable[int | None]:
+        raise NotImplementedError()
 
 
 @irdl_attr_definition
@@ -1213,6 +1215,9 @@ class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
     @staticmethod
     def constant_map(value: int) -> AffineMapAttr:
         return AffineMapAttr(AffineMap.constant_map(value))
+
+    def get_strides(self) -> Iterable[int | None]:
+        raise DiagnosticException("Cannot yet extract strides from affine map")
 
 
 @irdl_attr_definition
@@ -1557,6 +1562,18 @@ class MemRefType(
         if self.layout != NoneAttr() or self.memory_space != NoneAttr():
             printer.print(", ", self.layout, ", ", self.memory_space)
         printer.print(">")
+
+    def get_strides(self) -> Iterable[int | None]:
+        """
+        Yields the strides of the memref for each dimension.
+        The stride of a dimension is the number of elements that are skipped when
+        incrementing the corresponding index by one.
+        """
+        match self.layout:
+            case NoneAttr():
+                return ShapedType.strides_for_shape(self.get_shape())
+            case _:
+                return self.layout.get_strides()
 
 
 @irdl_attr_definition
