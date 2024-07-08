@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-memref-stream-to-snitch %s | filecheck %s
+// RUN: xdsl-opt -p convert-memref-stream-to-snitch-stream %s | filecheck %s
 
 // CHECK:       builtin.module {
 
