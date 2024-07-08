@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.6.23"
+__generated_with = "0.7.0"
 app = marimo.App()
 
 
@@ -395,7 +395,7 @@ def __(
             convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
             memref_streamify.MemrefStreamifyPass(),
             convert_memref_stream_to_loops.ConvertMemrefStreamToLoopsPass(),
-            convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitch(),
+            convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitchStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
             loop_hoist_memref.LoopHoistMemrefPass(),
             lower_affine.LowerAffinePass(),

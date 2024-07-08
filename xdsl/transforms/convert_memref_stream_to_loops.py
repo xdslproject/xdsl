@@ -80,6 +80,14 @@ class LowerGenericOpPattern(RewritePattern):
                 rewriter: PatternRewriter,
                 insertion_point: InsertPoint,
             ) -> SSAValue:
+                """
+                Inserts a load op or returns an initial value for a given operand of the
+                generic operation being lowered.
+                If the operation contains an INTERLEAVED iterator type then the body has a
+                corresponding factor of duplication of arguments.
+                To determine the appropriate operand and indexing map, the source_index is
+                divided by the interleave factor.
+                """
                 source = op.operands[source_index // interleave_factor]
                 affine_map_attr = op.indexing_maps.data[
                     source_index // interleave_factor
@@ -108,6 +116,14 @@ class LowerGenericOpPattern(RewritePattern):
                 rewriter: PatternRewriter,
                 insertion_point: InsertPoint,
             ) -> SSAValue:
+                """
+                Inserts a load op for a given operand of the generic operation being
+                lowered.
+                If the operation contains an INTERLEAVED iterator type then the body has a
+                corresponding factor of duplication of arguments.
+                To determine the appropriate operand and indexing map, the source_index is
+                divided by the interleave factor.
+                """
                 source = op.operands[source_index // interleave_factor]
                 affine_map_attr = op.indexing_maps.data[
                     source_index // interleave_factor
@@ -128,6 +144,13 @@ class LowerGenericOpPattern(RewritePattern):
             rewriter: PatternRewriter,
             insertion_point: InsertPoint,
         ) -> Operation:
+            """
+            Inserts a store op for a given operand of the generic operation being lowered.
+            If the operation contains an INTERLEAVED iterator
+            type then the body has a corresponding factor of duplication of arguments.
+            To determine the appropriate operand and indexing map, the source_index is
+            divided by the interleave factor.
+            """
             nonlocal op
             index = (source_index + ins_count) // interleave_factor
             destination = op.operands[index]
