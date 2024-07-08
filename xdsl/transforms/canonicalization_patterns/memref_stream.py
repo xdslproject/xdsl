@@ -47,12 +47,9 @@ class RemoveUnusedInitOperandPattern(RewritePattern):
         new_inputs: list[SSAValue] = []
         new_indexing_maps: list[AffineMapAttr] = []
 
-        num_outputs_dropped = 0
         for index, arg in enumerate(block_args[:num_inputs]):
             drop_operand = index in unused_input_indices
-            is_input = index < num_inputs
             if drop_operand:
-                num_outputs_dropped += not is_input
                 arg.erase()
                 continue
 
