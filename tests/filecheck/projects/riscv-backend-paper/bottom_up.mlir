@@ -249,38 +249,31 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ]
     } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) outs(%G : memref<8x8xf64>) {
     ^0(%x_stream : !stream.readable<f64>, %y_stream : !stream.readable<f64>, %g_stream : !stream.writable<f64>):
-      %c0 = arith.constant 0 : index
-      %c1 = arith.constant 1 : index
-      %c2 = arith.constant 2 : index
-      %c8 = arith.constant 8 : index
-      %frep_count = arith.constant 8 : index
-      scf.for %i0 = %c0 to %c8 step %c1 {
-        scf.for %i1 = %c0 to %c2 step %c1 {
-          %g00, %g01, %g02, %g03 = scf.for %inner_i = %c0 to %frep_count step %c1 iter_args(%acc0 = %zero_float, %acc1 = %zero_float, %acc2 = %zero_float, %acc3 = %zero_float) -> (f64, f64, f64, f64) {
-            %x10 = memref_stream.read from %x_stream : f64
-            %y10 = memref_stream.read from %y_stream : f64
-            %prod10 = arith.mulf %x10, %y10 fastmath<fast> : f64
-            %res0 = arith.addf %prod10, %acc0 fastmath<fast> : f64
-            %x11 = memref_stream.read from %x_stream : f64
-            %y11 = memref_stream.read from %y_stream : f64
-            %prod11 = arith.mulf %x11, %y11 fastmath<fast> : f64
-            %res1 = arith.addf %prod11, %acc1 fastmath<fast> : f64
-            %x12 = memref_stream.read from %x_stream : f64
-            %y12 = memref_stream.read from %y_stream : f64
-            %prod12 = arith.mulf %x12, %y12 fastmath<fast> : f64
-            %res2 = arith.addf %prod12, %acc2 fastmath<fast> : f64
-            %x13 = memref_stream.read from %x_stream : f64
-            %y13 = memref_stream.read from %y_stream : f64
-            %prod13 = arith.mulf %x13, %y13 fastmath<fast> : f64
-            %res3 = arith.addf %prod13, %acc3 fastmath<fast> : f64
-            scf.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
-          }
+      memref_stream.generic {
+          bounds = [8, 2, 8, 4],
+          indexing_maps = [
+              affine_map<(d0, d1, d2, d3) -> (d0, d2)>,
+              affine_map<(d0, d1, d2, d3) -> (d2, d1 * 4 + d3)>,
+              affine_map<(d0, d1, d3) -> (d0, d1 * 4 + d3)>
+          ],
+          iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
+      } ins(%x_stream, %y_stream : !stream.readable<f64>, !stream.readable<f64>) outs(%g_stream : !stream.writable<f64>) inits(%zero_float : f64) {
+      ^1(
+          %x0 : f64, %x1 : f64, %x2 : f64, %x3 : f64,
+          %y0 : f64, %y1 : f64, %y2 : f64, %y3 : f64,
+          %g0 : f64, %g1 : f64, %g2 : f64, %g3 : f64
+      ):
+          %prod0 = arith.mulf %x0, %y0 fastmath<fast> : f64
+          %prod1 = arith.mulf %x1, %y1 fastmath<fast> : f64
+          %prod2 = arith.mulf %x2, %y2 fastmath<fast> : f64
+          %prod3 = arith.mulf %x3, %y3 fastmath<fast> : f64
 
-          memref_stream.write %g00 to %g_stream : f64
-          memref_stream.write %g01 to %g_stream : f64
-          memref_stream.write %g02 to %g_stream : f64
-          memref_stream.write %g03 to %g_stream : f64
-        }
+          %res0 = arith.addf %prod0, %g0 fastmath<fast> : f64
+          %res1 = arith.addf %prod1, %g1 fastmath<fast> : f64
+          %res2 = arith.addf %prod2, %g2 fastmath<fast> : f64
+          %res3 = arith.addf %prod3, %g3 fastmath<fast> : f64
+
+          memref_stream.yield %res0, %res1, %res2, %res3 : f64, f64, f64, f64
       }
     }
 
