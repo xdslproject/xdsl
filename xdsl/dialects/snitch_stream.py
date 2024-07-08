@@ -280,7 +280,7 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(")")
 
         if self.attributes:
-            printer.print(" attrs = ")
+            printer.print(" attributes = ")
             printer.print_op_attributes(self.attributes)
 
         printer.print_string(" ")
@@ -333,7 +333,7 @@ class StreamingRegionOp(IRDLOperation):
         else:
             outs = ()
 
-        if parser.parse_optional_keyword("attrs"):
+        if parser.parse_optional_keyword("attributes"):
             parser.parse_punctuation("=")
             extra_attrs = parser.expect(
                 parser.parse_optional_attr_dict, "expect extra attributes"
