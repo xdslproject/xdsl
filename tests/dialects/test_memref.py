@@ -491,10 +491,10 @@ def test_memref_copy():
 
 
 def test_get_strides():
-    strided = StridedLayoutAttr((12, 4, 1), 5)
+    strided = StridedLayoutAttr((24, 4, 1), 5)
     affine = AffineMapAttr(AffineMap.identity(3))
 
-    assert tuple(strided.get_strides()) == (12, 4, 1)
+    assert tuple(strided.get_strides()) == (24, 4, 1)
     with pytest.raises(
         DiagnosticException, match="Cannot yet extract strides from affine map"
     ):
@@ -504,4 +504,4 @@ def test_get_strides():
     assert tuple(t_none.get_strides()) == (12, 4, 1)
 
     t_id = MemRefType(i32, (2, 3, 4), strided)
-    assert tuple(t_id.get_strides()) == (12, 4, 1)
+    assert tuple(t_id.get_strides()) == (24, 4, 1)
