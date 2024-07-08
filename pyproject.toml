@@ -28,7 +28,7 @@ dev = [
     "lit<19.0.0",
     "marimo==0.7.0",
     "pre-commit==3.7.1",
-    "ruff==0.5.0",
+    "ruff==0.5.1",
     "asv<0.7",
     "isort==5.13.2",
     "nbconvert>=7.7.2,<8.0.0",
@@ -38,7 +38,7 @@ dev = [
 ]
 gui = ["textual==0.63.2", "pyclip==0.7"]
 onnx = ["onnx==1.16.1"]
-riscv = ["riscemu==2.2.6"]
+riscv = ["riscemu==2.2.7"]
 wgpu = ["wgpu==0.16.0"]
 
 [project.urls]
