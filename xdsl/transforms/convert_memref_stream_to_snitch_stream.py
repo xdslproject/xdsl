@@ -167,9 +167,8 @@ class StreamOpLowering(RewritePattern):
 
 def strides_map_from_memref_type(memref_type: MemRefType[AttributeCovT]) -> AffineMap:
     """
-    Given a list of lengths for each dimension of a memref, and the number of bytes per
-    element, returns the map from indices to an offset in bytes in memory. The resulting
-    map has one result expression.
+    Given a memref returns the map from indices to an offset in bytes in memory. The
+    resulting map has one result expression.
 
     e.g.:
     ```
