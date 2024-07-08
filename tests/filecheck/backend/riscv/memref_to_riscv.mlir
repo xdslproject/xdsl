@@ -131,7 +131,8 @@ memref.store %scalar_x_i32, %m_scalar_i32[] {"nontemporal" = false} : memref<i32
 // CHECK-NEXT:    %m = "test.op"() : () -> memref<1x1xf32>
 %m = "test.op"() : () -> memref<1x1xf32>
 
-// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %m : memref<1x1xf32> to !riscv.reg<a0>
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %m : memref<1x1xf32> to !riscv.reg
+// CHECK-NEXT:    %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:    riscv_func.call @free(%{{.*}}) : (!riscv.reg<a0>) -> ()
 "memref.dealloc"(%m) : (memref<1x1xf32>) -> ()
 
