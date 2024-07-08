@@ -1,9 +1,9 @@
 // RUN: xdsl-opt -p convert-linalg-to-memref-stream,test-optimise-memref-stream,test-lower-memref-stream-to-snitch-stream,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
-    %X: memref<1x1x8x8xf64>,
+    %X: memref<1x1x10x10xf64>,
     %Y: memref<1x1x3x3xf64>,
-    %Z: memref<1x1x6x6xf64>
+    %Z: memref<1x1x8x8xf64>
 ) -> () {
     %zero_float = arith.constant 0.0 : f64
     linalg.generic {
@@ -12,7 +12,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
             affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
         ],
         iterator_types = ["parallel", "parallel", "parallel", "parallel"]
-    } ins(%zero_float : f64) outs(%Z : memref<1x1x6x6xf64>) {
+    } ins(%zero_float : f64) outs(%Z : memref<1x1x8x8xf64>) {
     ^bb0(%in: f64, %out: f64):
         linalg.yield %in : f64
     }
@@ -23,7 +23,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"]
-    } ins(%X, %Y : memref<1x1x8x8xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x6x6xf64>) {
+    } ins(%X, %Y : memref<1x1x10x10xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x8x8xf64>) {
     ^0(%x : f64, %y : f64, %acc : f64):
       %prod = arith.mulf %x, %y fastmath<fast> : f64
       %res = arith.addf %prod, %acc fastmath<fast> : f64
@@ -46,23 +46,23 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      scfgwi t3, 64
 // CHECK-NEXT:      li t3, 2
 // CHECK-NEXT:      scfgwi t3, 96
-// CHECK-NEXT:      li t3, 5
+// CHECK-NEXT:      li t3, 7
 // CHECK-NEXT:      scfgwi t3, 128
-// CHECK-NEXT:      li t3, 5
+// CHECK-NEXT:      li t3, 7
 // CHECK-NEXT:      scfgwi t3, 160
 // CHECK-NEXT:      li t3, 8
 // CHECK-NEXT:      scfgwi t3, 192
-// CHECK-NEXT:      li t3, 48
+// CHECK-NEXT:      li t3, 64
 // CHECK-NEXT:      scfgwi t3, 224
-// CHECK-NEXT:      li t3, -136
+// CHECK-NEXT:      li t3, -168
 // CHECK-NEXT:      scfgwi t3, 256
-// CHECK-NEXT:      li t3, -120
+// CHECK-NEXT:      li t3, -152
 // CHECK-NEXT:      scfgwi t3, 288
 // CHECK-NEXT:      li t3, 2
 // CHECK-NEXT:      scfgwi t3, 65
 // CHECK-NEXT:      li t3, 2
 // CHECK-NEXT:      scfgwi t3, 97
-// CHECK-NEXT:      li t3, 35
+// CHECK-NEXT:      li t3, 63
 // CHECK-NEXT:      scfgwi t3, 129
 // CHECK-NEXT:      li t3, 8
 // CHECK-NEXT:      scfgwi t3, 193
@@ -70,7 +70,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      scfgwi t3, 225
 // CHECK-NEXT:      li t3, -64
 // CHECK-NEXT:      scfgwi t3, 257
-// CHECK-NEXT:      li t3, 35
+// CHECK-NEXT:      li t3, 63
 // CHECK-NEXT:      scfgwi t3, 66
 // CHECK-NEXT:      li t3, 8
 // CHECK-NEXT:      scfgwi t3, 194
@@ -78,7 +78,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      scfgwi t1, 833
 // CHECK-NEXT:      scfgwi t2, 898
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      li t1, 36
+// CHECK-NEXT:      li t1, 64
 // CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d+}}_for:
@@ -355,8 +355,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // y[ K x N ]
 // g[ M x N ]
 func.func public @pooling_nchw_max_d1_s2_3x3(
-    %X: memref<1x1x16x16xf64>,
-    %Y: memref<1x1x7x7xf64>
+    %X: memref<1x1x18x18xf64>,
+    %Y: memref<1x1x8x8xf64>
 ) -> () {
     %min_val = arith.constant -10000 : f64
     linalg.generic {
@@ -365,7 +365,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
             affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
         ],
         iterator_types = ["parallel", "parallel", "parallel", "parallel"]
-    } ins(%min_val : f64) outs(%Y : memref<1x1x7x7xf64>) {
+    } ins(%min_val : f64) outs(%Y : memref<1x1x8x8xf64>) {
     ^bb0(%in: f64, %out: f64):
         linalg.yield %in : f64
     }
@@ -378,7 +378,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
         affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
-    } ins(%X, %alloc : memref<1x1x16x16xf64>, memref<3x3xf32>) outs(%Y : memref<1x1x7x7xf64>) {
+    } ins(%X, %alloc : memref<1x1x18x18xf64>, memref<3x3xf32>) outs(%Y : memref<1x1x8x8xf64>) {
     ^0(%x : f64, %alloc_val: f64, %acc : f64):
       %res = arith.maximumf %x, %acc : f64
       linalg.yield %res : f64
@@ -400,26 +400,26 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      scfgwi t0, 64
 // CHECK-NEXT:      li t0, 2
 // CHECK-NEXT:      scfgwi t0, 96
-// CHECK-NEXT:      li t0, 6
+// CHECK-NEXT:      li t0, 7
 // CHECK-NEXT:      scfgwi t0, 128
-// CHECK-NEXT:      li t0, 6
+// CHECK-NEXT:      li t0, 7
 // CHECK-NEXT:      scfgwi t0, 160
 // CHECK-NEXT:      li t0, 8
 // CHECK-NEXT:      scfgwi t0, 192
-// CHECK-NEXT:      li t0, 112
+// CHECK-NEXT:      li t0, 128
 // CHECK-NEXT:      scfgwi t0, 224
-// CHECK-NEXT:      li t0, -256
+// CHECK-NEXT:      li t0, -288
 // CHECK-NEXT:      scfgwi t0, 256
-// CHECK-NEXT:      li t0, -112
+// CHECK-NEXT:      li t0, -128
 // CHECK-NEXT:      scfgwi t0, 288
-// CHECK-NEXT:      li t0, 48
+// CHECK-NEXT:      li t0, 63
 // CHECK-NEXT:      scfgwi t0, 65
 // CHECK-NEXT:      li t0, 8
 // CHECK-NEXT:      scfgwi t0, 193
 // CHECK-NEXT:      scfgwi t1, 864
 // CHECK-NEXT:      scfgwi t2, 897
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      li t1, 49
+// CHECK-NEXT:      li t1, 64
 // CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d+}}_for:
@@ -479,8 +479,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // y[ K x N ]
 // g[ M x N ]
 func.func public @pooling_nchw_sum_d1_s2_3x3(
-    %X: memref<1x1x16x16xf64>,
-    %Y: memref<1x1x7x7xf64>
+    %X: memref<1x1x18x18xf64>,
+    %Y: memref<1x1x8x8xf64>
 ) -> () {
     %zero_float = arith.constant 0.0 : f64
     linalg.generic {
@@ -489,7 +489,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
             affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>
         ],
         iterator_types = ["parallel", "parallel", "parallel", "parallel"]
-    } ins(%zero_float : f64) outs(%Y : memref<1x1x7x7xf64>) {
+    } ins(%zero_float : f64) outs(%Y : memref<1x1x8x8xf64>) {
     ^bb0(%in: f64, %out: f64):
         linalg.yield %in : f64
     }
@@ -501,7 +501,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
         affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2, d3)>
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
-    } ins(%X, %alloc : memref<1x1x16x16xf64>, memref<3x3xf32>) outs(%Y : memref<1x1x7x7xf64>) {
+    } ins(%X, %alloc : memref<1x1x18x18xf64>, memref<3x3xf32>) outs(%Y : memref<1x1x8x8xf64>) {
     ^0(%x : f64, %alloc_val: f64, %acc : f64):
       %res = arith.addf %x, %acc : f64
       linalg.yield %res : f64
@@ -522,26 +522,26 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:      scfgwi t0, 64
 // CHECK-NEXT:      li t0, 2
 // CHECK-NEXT:      scfgwi t0, 96
-// CHECK-NEXT:      li t0, 6
+// CHECK-NEXT:      li t0, 7
 // CHECK-NEXT:      scfgwi t0, 128
-// CHECK-NEXT:      li t0, 6
+// CHECK-NEXT:      li t0, 7
 // CHECK-NEXT:      scfgwi t0, 160
 // CHECK-NEXT:      li t0, 8
 // CHECK-NEXT:      scfgwi t0, 192
-// CHECK-NEXT:      li t0, 112
+// CHECK-NEXT:      li t0, 128
 // CHECK-NEXT:      scfgwi t0, 224
-// CHECK-NEXT:      li t0, -256
+// CHECK-NEXT:      li t0, -288
 // CHECK-NEXT:      scfgwi t0, 256
-// CHECK-NEXT:      li t0, -112
+// CHECK-NEXT:      li t0, -128
 // CHECK-NEXT:      scfgwi t0, 288
-// CHECK-NEXT:      li t0, 48
+// CHECK-NEXT:      li t0, 63
 // CHECK-NEXT:      scfgwi t0, 65
 // CHECK-NEXT:      li t0, 8
 // CHECK-NEXT:      scfgwi t0, 193
 // CHECK-NEXT:      scfgwi t1, 864
 // CHECK-NEXT:      scfgwi t2, 897
 // CHECK-NEXT:      csrrsi zero, 1984, 1
-// CHECK-NEXT:      li t1, 49
+// CHECK-NEXT:      li t1, 64
 // CHECK-NEXT:      mv t0, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d+}}_for:
