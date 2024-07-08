@@ -3,17 +3,36 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
-from xdsl.traits import IsTerminator, SymbolOpInterface, is_side_effect_free
+from xdsl.traits import (
+    IsTerminator,
+    MemoryEffectKind,
+    SymbolOpInterface,
+    get_effects,
+)
 
 
 def is_trivially_dead(op: Operation):
-    # Check that operation is side-effect-free and unused
+    """
+    Returns if the operation has no observable effect.
+    """
     return (
-        not op.get_trait(IsTerminator)
-        and not op.get_trait(SymbolOpInterface)
-        and is_side_effect_free(op)
-        and all(not result.uses for result in op.results)
+        all(not result.uses for result in op.results)
+        and (not op.get_trait(IsTerminator))
+        and (not op.get_trait(SymbolOpInterface))
+        and result_only_effects(op)
     )
+
+
+def result_only_effects(rootOp: Operation) -> bool:
+    """
+    Returns if we can ensure the operation would have no observable effect beyond its
+    returned values.
+
+    cf MLIR's WouldOpBeTriviallyDead:
+    https://mlir.llvm.org/doxygen/namespacemlir.html#a655db45ed8c23d04d5ed5ee0abe041ad
+    """
+    effects = get_effects(rootOp)
+    return effects is not None and all(e == MemoryEffectKind.READ for e in effects)
 
 
 class RemoveUnusedOperations(RewritePattern):

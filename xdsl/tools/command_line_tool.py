@@ -72,9 +72,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return constant_fold_interp.ConstantFoldInterpPass
 
     def get_convert_snrt_to_riscv():
-        from xdsl.transforms import convert_snrt_to_riscv
+        from xdsl.transforms import inline_snrt
 
-        return convert_snrt_to_riscv.ConvertSnrtToRISCV
+        return inline_snrt.ConvertSnrtToRISCV
 
     def get_convert_stencil_to_ll_mlir():
         from xdsl.transforms.experimental import convert_stencil_to_ll_mlir
@@ -156,6 +156,26 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass
 
+    def get_memref_stream_fold_fill():
+        from xdsl.transforms import memref_stream_fold_fill
+
+        return memref_stream_fold_fill.MemrefStreamFoldFillPass
+
+    def get_memref_stream_generalize_fill():
+        from xdsl.transforms import memref_stream_generalize_fill
+
+        return memref_stream_generalize_fill.MemrefStreamGeneralizeFillPass
+
+    def get_memref_stream_infer_fill():
+        from xdsl.transforms import memref_stream_infer_fill
+
+        return memref_stream_infer_fill.MemrefStreamInferFillPass
+
+    def get_memref_stream_interleave():
+        from xdsl.transforms import memref_stream_interleave
+
+        return memref_stream_interleave.MemrefStreamInterleavePass
+
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
 
@@ -170,11 +190,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import printf_to_putchar
 
         return printf_to_putchar.PrintfToPutcharPass
-
-    def get_riscv_cse():
-        from xdsl.transforms import riscv_cse
-
-        return riscv_cse.RiscvCommonSubexpressionElimination
 
     def get_riscv_register_allocation():
         from xdsl.transforms import riscv_register_allocation
@@ -226,15 +241,27 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_onnx_to_linalg.ConvertOnnxToLinalgPass
 
-    def get_convert_memref_stream_to_snitch():
+    def get_convert_memref_stream_to_snitch_stream():
         from xdsl.transforms import convert_memref_stream_to_snitch_stream
 
-        return convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitch
+        return (
+            convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitchStreamPass
+        )
 
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
         return convert_print_format_to_riscv_debug.ConvertPrintFormatToRiscvDebugPass
+
+    def get_convert_qref_to_qssa():
+        from xdsl.transforms import convert_qref_to_qssa
+
+        return convert_qref_to_qssa.ConvertQRefToQssa
+
+    def get_convert_qssa_to_qref():
+        from xdsl.transforms import convert_qssa_to_qref
+
+        return convert_qssa_to_qref.ConvertQssaToQRef
 
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
@@ -308,6 +335,18 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm
 
+    def get_test_lower_memref_stream_to_snitch_stream():
+        from xdsl.transforms import test_lower_memref_stream_to_snitch_stream
+
+        return (
+            test_lower_memref_stream_to_snitch_stream.TestLowerMemrefStreamToSnitchStream
+        )
+
+    def get_test_optimise_memref_stream():
+        from xdsl.transforms import test_optimise_memref_stream
+
+        return test_optimise_memref_stream.TestOptimiseMemrefStream
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
@@ -322,14 +361,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
-        "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
+        "convert-memref-stream-to-snitch-stream": get_convert_memref_stream_to_snitch_stream,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
+        "convert-qref-to-qssa": get_convert_qref_to_qssa,
+        "convert-qssa-to-qref": get_convert_qssa_to_qref,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
-        "convert-snrt-to-riscv": get_convert_snrt_to_riscv,
+        "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
         "dce": get_dce,
@@ -349,13 +390,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lower-snitch": get_lower_snitch,
         "memref-streamify": get_memref_streamify,
         "memref-stream-unnest-out-parameters": get_memref_stream_unnest_out_parameters,
+        "memref-stream-fold-fill": get_memref_stream_fold_fill,
+        "memref-stream-generalize-fill": get_memref_stream_generalize_fill,
+        "memref-stream-infer-fill": get_memref_stream_infer_fill,
+        "memref-stream-interleave": get_memref_stream_interleave,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_register_allocation,
-        "riscv-cse": get_riscv_cse,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
@@ -367,6 +411,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-to-csl-stencil": get_stencil_to_csl_stencil,
         "stencil-unroll": get_stencil_unroll,
         "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
+        "test-lower-memref-stream-to-snitch-stream": get_test_lower_memref_stream_to_snitch_stream,
+        "test-optimise-memref-stream": get_test_optimise_memref_stream,
     }
 
 

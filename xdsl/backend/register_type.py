@@ -67,8 +67,9 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         raise NotImplementedError()
 
     def print_parameters(self, printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string(self.spelling.data)
+        if self.spelling.data:
+            with printer.in_angle_brackets():
+                printer.print_string(self.spelling.data)
 
     def verify(self) -> None:
         raise NotImplementedError()

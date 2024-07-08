@@ -24,14 +24,27 @@ class MemrefStreamFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ) -> PythonValues:
 
-        inputs_count = len(op.inputs)
+        if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
+            raise NotImplementedError(
+                "Interpreter for interleaved operations not yet implemented"
+            )
 
-        outputs: tuple[ShapedArray[float], ...] = args[inputs_count:]
+        inputs_count = len(op.inputs)
+        outputs_count = len(op.outputs)
+
+        outputs: tuple[ShapedArray[int | float], ...] = args[
+            inputs_count : inputs_count + outputs_count
+        ]
+        init_values: tuple[int | float, ...] = args[inputs_count + outputs_count :]
 
         indexing_maps = tuple(attr.data for attr in op.indexing_maps)
         output_indexing_maps = indexing_maps[inputs_count:]
 
         outer_ubs, inner_ubs = op.get_static_loop_ranges()
+
+        inits: list[None | int | float] = [None] * len(op.outputs)
+        for index, init in zip(op.init_indices, init_values, strict=True):
+            inits[index.data] = init
 
         if inner_ubs:
             inputs: tuple[ShapedArray[float] | float, ...] = args[:inputs_count]
@@ -39,12 +52,15 @@ class MemrefStreamFunctions(InterpreterFunctions):
             for outer_indices in product(*(range(outer_ub) for outer_ub in outer_ubs)):
                 output_loop_args = tuple(
                     (
-                        (cast(ShapedArray[Any], o)).load(
-                            indexing_map.eval(outer_indices, ())
-                        )
+                        o.load(indexing_map.eval(outer_indices, ()))
+                        if init is None
+                        else init
                     )
-                    for o, indexing_map in zip(
-                        outputs, output_indexing_maps, strict=True
+                    for o, indexing_map, init in zip(
+                        outputs,
+                        output_indexing_maps,
+                        inits,
+                        strict=True,
                     )
                 )
                 for inner_indices in product(
@@ -67,7 +83,6 @@ class MemrefStreamFunctions(InterpreterFunctions):
                         op.body, input_loop_args + output_loop_args, "for_loop"
                     )
                     output_loop_args = loop_results
-                print(output_loop_args, output_indexing_maps, outputs)
                 for res, indexing_map, output in zip(
                     output_loop_args, output_indexing_maps, outputs, strict=True
                 ):

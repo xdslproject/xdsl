@@ -19,4 +19,4 @@ repos:
     rev: 24.2.0
     hooks:
     -   id: black
-        exclude: "/(__pycache__|.asv|venv|build|tests/filecheck)/|versioneer.py$|xdsl/_version.py$"
+        exclude: "/(__pycache__|.asv|venv|build|tests/filecheck)/|versioneer.py$|xdsl/_version.py$|docs/marimo"

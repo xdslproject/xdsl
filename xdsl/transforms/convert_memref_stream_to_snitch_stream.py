@@ -1,7 +1,6 @@
 import operator
 from collections.abc import Sequence
 from functools import reduce
-from itertools import accumulate
 from typing import cast
 
 from xdsl.backend.riscv.lowering.utils import (
@@ -23,6 +22,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     IntAttr,
     ModuleOp,
+    ShapedType,
     UnrealizedConversionCastOp,
 )
 from xdsl.ir import Attribute, Operation
@@ -123,7 +123,7 @@ class StreamOpLowering(RewritePattern):
         shapes = tuple(operand_type.get_shape() for operand_type in operand_types)
         stride_patterns = tuple(
             snitch_stream.StridePattern(
-                pattern.ub,
+                ArrayAttr(ub.value for ub in pattern.ub),
                 ArrayAttr(
                     IntAttr(stride)
                     for stride in strides_for_affine_map(
@@ -195,9 +195,7 @@ def offset_map_from_shape(shape: Sequence[int], factor: int) -> AffineMap:
         # Return empty map to avoid reducing over an empty sequence
         return AffineMap(0, 0, (AffineExpr.constant(factor),))
 
-    strides: tuple[int, ...] = tuple(
-        accumulate(reversed(shape), operator.mul, initial=factor)
-    )[:-1]
+    strides = ShapedType.strides_for_shape(shape, factor)
 
     return AffineMap(
         len(shape),
@@ -205,10 +203,7 @@ def offset_map_from_shape(shape: Sequence[int], factor: int) -> AffineMap:
         (
             reduce(
                 operator.add,
-                (
-                    AffineExpr.dimension(i) * stride
-                    for i, stride in enumerate(reversed(strides))
-                ),
+                (AffineExpr.dimension(i) * stride for i, stride in enumerate(strides)),
             ),
         ),
     )
@@ -240,7 +235,7 @@ def strides_for_affine_map(
     return result
 
 
-class ConvertMemrefStreamToSnitch(ModulePass):
+class ConvertMemrefStreamToSnitchStreamPass(ModulePass):
     """
     Converts memref_stream `read` and `write` operations to the snitch_stream equivalents.
 
@@ -255,7 +250,7 @@ class ConvertMemrefStreamToSnitch(ModulePass):
      streaming region or if the defining operation is a stream read.
     """
 
-    name = "convert-memref-stream-to-snitch"
+    name = "convert-memref-stream-to-snitch-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(

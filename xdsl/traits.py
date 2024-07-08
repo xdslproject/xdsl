@@ -3,7 +3,8 @@ from __future__ import annotations
 import abc
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar
+from enum import Enum, auto
+from typing import TYPE_CHECKING, Any, TypeVar, final
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -191,7 +192,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
     from xdsl.ir import Block
 
     for region in op.regions:
-        if len(region.blocks) == 0:
+        if not region.blocks:
             region.add_block(Block())
 
         for block in region.blocks:
@@ -444,30 +445,108 @@ class HasCanonicalisationPatternsTrait(OpTrait):
         raise NotImplementedError()
 
 
+class MemoryEffectKind(Enum):
+    """
+    The kind of side effect an operation can have.
+
+    MLIR has a more detailed version of this, able to tie effects to specfic resources or
+    values. Here, everything has its effect on the universe.
+    """
+
+    READ = auto()
+    """
+    Indicates that the operation reads from some resource. A 'read' effect implies only
+    dereferencing of the resource, and not any visible mutation.
+    """
+
+    WRITE = auto()
+    """
+    Indicates that the operation writes to some resource. A 'write' effect implies only
+    mutating a resource, and not any visible dereference or read.
+    """
+
+    ALLOC = auto()
+    """
+    Indicates that the operation allocates from some resource. An 'allocate' effect
+    implies only allocation of the resource, and not any visible mutation or dereference.
+    """
+
+    FREE = auto()
+    """
+    Indicates that the operation frees some resource that has been allocated. A 'free'
+    effect implies only de-allocation of the resource, and not any visible allocation,
+    mutation or dereference.
+    """
+
+
 class MemoryEffect(OpTrait):
     """
     A trait that enables operations to expose their side-effects or absence thereof.
-
-    NB: The MLIR implementation further allows to describe what *kind* of side-effects
-    an operation has, e.g., read-only, or allocation.
-    This one is a stripped down version for now, just saying if there are any
-    side-effects or not.
     """
 
     @classmethod
     @abc.abstractmethod
-    def has_effects(cls, op: Operation) -> bool:
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind] | None:
+        """
+        Returns the concrete side effects of the operation.
+
+        Return None if the operation cannot conclude - interpreted as if the operation
+        had no MemoryEffect interface in the first place.
+        """
         raise NotImplementedError()
 
+    @final
+    @classmethod
+    def has_effects(cls, op: Operation) -> bool:
+        """
+        Returns if the operation has any side effects.
+        """
+        effects = cls.get_effects(op)
+        return (effects is not None) and len(effects) > 0
 
-def is_side_effect_free(op: Operation):
+
+def has_exact_effect(op: Operation, effect: MemoryEffectKind) -> bool:
+    """
+    Returns if the operation has the given side effects and no others.
+
+    proxy for only_has_effect
+    """
+    return only_has_effect(op, effect)
+
+
+def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
+    """
+    Returns if the operation has the given side effects and no others.
+    """
+    return get_effects(op) == {effect}
+
+
+def is_side_effect_free(op: Operation) -> bool:
     """
     Boilerplate helper to check if a generic operation is side effect free for sure.
     """
-    # If it doesn't say, safely assume it has side effects.
-    if not (trait := op.get_trait(MemoryEffect)):
-        return False
-    return not trait.has_effects(op)
+    effects = get_effects(op)
+    return effects is not None and len(effects) == 0
+
+
+def get_effects(op: Operation) -> set[MemoryEffectKind] | None:
+    """
+    Helper to get known side effects of an operation, including recursive effects.
+    None means that the operation has unknown effects, for safety.
+    """
+
+    effect_interfaces = op.get_traits_of_type(MemoryEffect)
+    if not effect_interfaces:
+        return None
+
+    effects = set[MemoryEffectKind]()
+    for it in op.get_traits_of_type(MemoryEffect):
+        it_effects = it.get_effects(op)
+        if it_effects is None:
+            return None
+        effects.update(it_effects)
+
+    return effects
 
 
 class NoMemoryEffect(MemoryEffect):
@@ -476,25 +555,69 @@ class NoMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        return False
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        return set()
+
+
+class MemoryReadEffect(MemoryEffect):
+    """
+    A trait that signals that an operation has read side effects.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        return {MemoryEffectKind.READ}
+
+
+class MemoryWriteEffect(MemoryEffect):
+    """
+    A trait that signals that an operation always has write side effects.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        return {MemoryEffectKind.WRITE}
 
 
 class RecursiveMemoryEffect(MemoryEffect):
     """
     A trait that signals that an operation has the side effects of its contained
     operations.
-
-    NB: Upstream, this a separate class, but in our current binary side effect
-    implementation, it's easier to have it this way in my opinion.
     """
 
     @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        if not op.regions:
-            return True
-        return not all(is_side_effect_free(o) for r in op.regions for o in r.walk())
+    def get_effects(cls, op: Operation):
+        effects = set[MemoryEffectKind]()
+        for r in op.regions:
+            for b in r.blocks:
+                for child_op in b.ops:
+                    child_effects = get_effects(child_op)
+                    if child_effects is None:
+                        return None
+                    effects.update(child_effects)
+        return effects
 
 
 class Pure(NoMemoryEffect):
-    """A trait that signals that an operation has no side effects."""
+    """
+    In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
+    found here.
+    """
+
+
+class HasInsnRepresentation(OpTrait, abc.ABC):
+    """
+    A trait providing information on how to encode an operation using a .insn assember directive.
+
+    The returned string contains python string.format placeholders where formatted operands are inserted during
+    printing.
+
+    See https://sourceware.org/binutils/docs/as/RISC_002dV_002dDirectives.html for more information.
+    """
+
+    @abc.abstractmethod
+    def get_insn(self, op: Operation) -> str:
+        """
+        Return the insn representation of the operation for printing.
+        """
+        raise NotImplementedError()

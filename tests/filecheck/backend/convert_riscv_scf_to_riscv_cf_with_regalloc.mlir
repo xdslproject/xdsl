@@ -2,22 +2,22 @@
 
 builtin.module {
     riscv_func.func @sum_range(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
-        %2 = riscv.li 1 : () -> !riscv.reg<>
-        %3 = riscv.li 0 : () -> !riscv.reg<>
-        %arg = riscv.mv %3 : (!riscv.reg<>) -> !riscv.reg<>
-        %4 = riscv_scf.for %5 : !riscv.reg<> = %0 to %1 step %2 iter_args(%6 = %arg) -> (!riscv.reg<>) {
-            %7 = riscv.add %5, %6 : (!riscv.reg<>, !riscv.reg<>) -> !riscv.reg<>
-            riscv_scf.yield %7 : !riscv.reg<>
+        %2 = riscv.li 1 : !riscv.reg
+        %3 = riscv.li 0 : !riscv.reg
+        %arg = riscv.mv %3 : (!riscv.reg) -> !riscv.reg
+        %4 = riscv_scf.for %5 : !riscv.reg = %0 to %1 step %2 iter_args(%6 = %arg) -> (!riscv.reg) {
+            %7 = riscv.add %5, %6 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+            riscv_scf.yield %7 : !riscv.reg
         }
-        %8 = riscv.mv %4 : (!riscv.reg<>) -> !riscv.reg<>
-        riscv_func.return %8 : !riscv.reg<>
+        %8 = riscv.mv %4 : (!riscv.reg) -> !riscv.reg
+        riscv_func.return %8 : !riscv.reg
     }
 }
 
 // CHECK:        builtin.module {
 // CHECK-NEXT:    riscv_func.func @sum_range(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
-// CHECK-NEXT:      %2 = riscv.li 1 : () -> !riscv.reg<t2>
-// CHECK-NEXT:      %3 = riscv.li 0 : () -> !riscv.reg<zero>
+// CHECK-NEXT:      %2 = riscv.li 1 : !riscv.reg<t2>
+// CHECK-NEXT:      %3 = riscv.li 0 : !riscv.reg<zero>
 // CHECK-NEXT:      %arg = riscv.mv %3 : (!riscv.reg<zero>) -> !riscv.reg<t0>
 // CHECK-NEXT:      %4 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<t1>
 // CHECK-NEXT:      riscv_cf.bge %4 : !riscv.reg<t1>, %1 : !riscv.reg<a1>, ^0(%4 : !riscv.reg<t1>, %arg : !riscv.reg<t0>), ^1(%4 : !riscv.reg<t1>, %arg : !riscv.reg<t0>)

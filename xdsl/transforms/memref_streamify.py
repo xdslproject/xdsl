@@ -3,10 +3,7 @@ from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref, memref_stream, stream
-from xdsl.dialects.builtin import (
-    ArrayAttr,
-    ModuleOp,
-)
+from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.ir import Attribute, Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -26,18 +23,25 @@ class StreamifyGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
+        if any(isinstance(operand.type, stream.StreamType) for operand in op.operands):
+            # Already streamified
+            return
+
+        init_indices = set(index.data for index in op.init_indices)
+
         # Currently can only stream memrefs that are not inout
         streamable_input_indices = tuple(
             (index, cast(memref.MemRefType[Attribute], value_type).element_type)
             for index, value in enumerate(op.inputs)
             if isinstance(value_type := value.type, memref.MemRefType)
+            and op.body.block.args[index].uses
         )
         input_count = len(op.inputs)
         streamable_output_indices = tuple(
             (index, cast(memref.MemRefType[Attribute], value_type).element_type)
             for index, value in enumerate(op.outputs)
             if isinstance(value_type := value.type, memref.MemRefType)
-            if not op.body.block.args[index + input_count].uses
+            if index in init_indices or not op.body.block.args[index + input_count].uses
         )
         if not streamable_input_indices and not streamable_output_indices:
             # No memrefs to convert to streams
@@ -59,16 +63,34 @@ class StreamifyGenericOpPattern(RewritePattern):
             stream.WritableStreamType(el_type) for el_type in output_el_types
         )
 
-        patterns = ArrayAttr(
-            tuple(
-                memref_stream.StridePattern(
-                    ArrayAttr(op.bounds.data[: indexing_map.data.num_dims]),
-                    indexing_map,
-                )
-                for index, _ in streamed_operand_indices
-                if (indexing_map := op.indexing_maps.data[index])
+        # input patterns are never unnested
+        input_patterns = tuple(
+            memref_stream.StridePattern(
+                op.bounds,
+                indexing_map,
             )
+            for index, _ in streamable_input_indices
+            if (indexing_map := op.indexing_maps.data[index])
         )
+        # output patterns never contain iteration dimensions
+        output_patterns = tuple(
+            memref_stream.StridePattern(
+                ArrayAttr(
+                    tuple(
+                        bound
+                        for iterator_type, bound in zip(
+                            op.iterator_types, op.bounds.data
+                        )
+                        if iterator_type.data != memref_stream.IteratorType.REDUCTION
+                    )
+                ),
+                indexing_map,
+            )
+            for output_index, _ in streamed_output_indices
+            if (indexing_map := op.indexing_maps.data[output_index + input_count])
+        )
+
+        patterns = ArrayAttr(input_patterns + output_patterns)
         rewriter.insert_op_before_matched_op(
             streaming_region_op := memref_stream.StreamingRegionOp(
                 tuple(op.inputs[index] for index, _ in streamed_input_indices),
@@ -78,7 +100,7 @@ class StreamifyGenericOpPattern(RewritePattern):
             )
         )
         new_body = streaming_region_op.body.block
-        new_operands = list(op.operands)
+        new_operands = list(op.operands[: len(op.inputs) + len(op.outputs)])
         for stream_index, (index, _) in enumerate(streamed_operand_indices):
             new_operands[index] = new_body.args[stream_index]
 
@@ -86,10 +108,12 @@ class StreamifyGenericOpPattern(RewritePattern):
             memref_stream.GenericOp(
                 new_operands[:input_count],
                 new_operands[input_count:],
+                op.inits,
                 rewriter.move_region_contents_to_new_regions(op.body),
                 op.indexing_maps,
                 op.iterator_types,
                 op.bounds,
+                op.init_indices,
             ),
             InsertPoint.at_end(new_body),
         )

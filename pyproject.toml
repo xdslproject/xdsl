@@ -26,8 +26,9 @@ dev = [
     "nbval<0.12",
     "filecheck<0.0.25",
     "lit<19.0.0",
+    "marimo==0.7.0",
     "pre-commit==3.7.1",
-    "ruff==0.4.10",
+    "ruff==0.5.1",
     "asv<0.7",
     "isort==5.13.2",
     "nbconvert>=7.7.2,<8.0.0",
@@ -37,7 +38,7 @@ dev = [
 ]
 gui = ["textual==0.63.2", "pyclip==0.7"]
 onnx = ["onnx==1.16.1"]
-riscv = ["riscemu==2.2.6"]
+riscv = ["riscemu==2.2.7"]
 wgpu = ["wgpu==0.16.0"]
 
 [project.urls]
@@ -81,6 +82,7 @@ typeCheckingMode = "strict"
     "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
+    "docs/marimo",
     "tests/filecheck/frontend/dialects/builtin.py",
     "tests/filecheck/frontend/dialects/invalid.py",
     "tests/filecheck/frontend/dialects/arith.py",
@@ -126,6 +128,7 @@ target-version = "py310"
 "tests/test_declarative_assembly_format.py" = ["F811"]
 "versioneer.py" = ["ALL"]
 "_version.py" = ["ALL"]
+"**/{docs/marimo}/*" = ["E501"]
 
 [tool.ruff.mccabe]
 max-complexity = 10
@@ -136,6 +139,7 @@ exclude = """
 /(__pycache__|.asv|venv|build|tests/filecheck)/
 |versioneer.py$
 |xdsl/_version.py$
+|docs/marimo
 """
 
 [tool.pytest.ini_options]

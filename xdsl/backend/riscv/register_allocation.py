@@ -4,12 +4,12 @@ from itertools import chain
 from ordered_set import OrderedSet
 
 from xdsl.backend.riscv.register_queue import RegisterQueue
-from xdsl.dialects import riscv_func, riscv_scf, riscv_snitch
+from xdsl.dialects import riscv, riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
     Registers,
-    RISCVOp,
+    RISCVAsmOperation,
     RISCVRegisterType,
 )
 from xdsl.ir import Block, Operation, SSAValue
@@ -23,8 +23,17 @@ def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
     allocated: set[RISCVRegisterType] = set()
 
     for op in func.walk():
-        if not isinstance(op, RISCVOp):
+        if not isinstance(op, RISCVAsmOperation):
             continue
+
+        if isinstance(op, riscv_func.CallOp):
+            # These registers are not guaranteed to hold the same values when the callee
+            # returns, according to the RISC-V calling convention.
+            # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
+            allocated.update(riscv.Registers.A)
+            allocated.update(riscv.Registers.T)
+            allocated.update(riscv.Registers.FA)
+            allocated.update(riscv.Registers.FT)
 
         for param in chain(op.operands, op.results):
             if isinstance(param.type, RISCVRegisterType) and param.type.is_allocated:
@@ -122,13 +131,13 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 self.allocate_for_loop(op)
             case riscv_snitch.FRepOperation():
                 self.allocate_frep_loop(op)
-            case RISCVOp():
+            case RISCVAsmOperation():
                 self.process_riscv_op(op)
             case _:
                 # Ignore non-riscv operations
                 return
 
-    def process_riscv_op(self, op: RISCVOp) -> None:
+    def process_riscv_op(self, op: RISCVAsmOperation) -> None:
         """
         Allocate registers for RISC-V Instruction.
         """
@@ -197,7 +206,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
             self.available_registers.reserve_register(iter_arg.type)
 
-        for op in loop.body.block.ops_reverse:
+        for op in reversed(loop.body.block.ops):
             self.process_operation(op)
 
         # Unreserve the loop carried variables for allocation outside of the body
@@ -260,7 +269,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
             self.available_registers.reserve_register(iter_arg.type)
 
-        for op in loop.body.block.ops_reverse:
+        for op in reversed(loop.body.block.ops):
             self.process_operation(op)
 
         # Unreserve the loop carried variables for allocation outside of the body
@@ -299,7 +308,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         self.live_ins_per_block = live_ins_per_block(block)
         assert not self.live_ins_per_block[block]
-        for op in block.ops_reverse:
+        for op in reversed(block.ops):
             self.process_operation(op)
 
 
@@ -308,7 +317,7 @@ def _live_ins_per_block(
 ) -> OrderedSet[SSAValue]:
     res = OrderedSet[SSAValue]([])
 
-    for op in block.ops_reverse:
+    for op in reversed(block.ops):
         # Remove values defined in the block
         # We are traversing backwards, so cannot use the value removed here again
         res.difference_update(op.results)

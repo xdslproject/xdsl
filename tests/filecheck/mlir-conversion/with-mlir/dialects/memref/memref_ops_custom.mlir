@@ -23,6 +23,8 @@ memref.store %v0, %m[%i0, %i1] {"nontemporal" = true} : memref<2x3xi32>
 %a1 = memref.alloc() : memref<2x3xf32>
 %a2 = memref.alloc()[%i1] {alignment = 8}: memref<2x3xf32, affine_map<(d0, d1)[s0] -> (d0 + s0, d1)>, 1>
 memref.dealloc %a1 : memref<2x3xf32>
+%s0 = memref.subview %r[0, 0] [1, 3] [1, 1] : memref<10x3xi32> to memref<3xi32>
+%s2 = memref.subview %r[%i0, 0] [1, 3] [1, 1] : memref<10x3xi32> to memref<3xi32, strided<[1], offset: ?>>
 
 // CHECK:       module {
 // CHECK-NEXT:    func.func @memref_alloca_scope() {
@@ -46,4 +48,7 @@ memref.dealloc %a1 : memref<2x3xf32>
 // CHECK-NEXT:   %{{.*}} = memref.alloc() : memref<2x3xf32>
 // CHECK-NEXT:   %{{.*}} = memref.alloc()[%{{.*}}] {alignment = 8 : i64} : memref<2x3xf32, affine_map<(d0, d1)[s0] -> (d0 + s0, d1)>, 1>
 // CHECK-NEXT:   memref.dealloc %{{.*}} : memref<2x3xf32>
+// CHECK-NEXT:   %{{.*}} = memref.subview %{{.*}}[0, 0] [1, 3] [1, 1] : memref<10x3xi32> to memref<3xi32>
+// CHECK-NEXT:   %{{.*}} = memref.subview %{{.*}}[%{{.*}}, 0] [1, 3] [1, 1] : memref<10x3xi32> to memref<3xi32, strided<[1], offset: ?>>
+
 // CHECK-NEXT: }

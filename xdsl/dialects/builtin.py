@@ -67,6 +67,11 @@ if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
 
+DYNAMIC_INDEX = -1
+"""
+A constant value denoting a dynamic index in a shape.
+"""
+
 
 class ShapedType(ABC):
     @abstractmethod
@@ -77,6 +82,13 @@ class ShapedType(ABC):
 
     def element_count(self) -> int:
         return prod(self.get_shape())
+
+    @staticmethod
+    def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
+        import operator
+        from itertools import accumulate
+
+        return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
 
 
 class AnyShapedType(AttrConstraint):
@@ -1169,6 +1181,19 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
 
         super().__init__([strides, offset])
 
+    def get_strides(self) -> Iterable[int | None]:
+        for stride in self.strides:
+            if isinstance(stride, NoneAttr):
+                yield None
+            else:
+                yield stride.data
+
+    def get_offset(self) -> int | None:
+        if isinstance(self.offset, NoneAttr):
+            return None
+        else:
+            return self.offset.data
+
 
 @irdl_attr_definition
 class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
@@ -1427,7 +1452,7 @@ class ModuleOp(IRDLOperation):
         region = parser.parse_region()
 
         # Add a block if the region is empty
-        if len(region.blocks) == 0:
+        if not region.blocks:
             region.add_block(Block())
 
         return ModuleOp(region, attributes)

@@ -9,7 +9,6 @@ from typing import IO, Literal, cast
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    ContainerType,
     DenseIntOrFPElementsAttr,
     DictionaryAttr,
     Float16Type,
@@ -31,6 +30,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Block, Operation, OpResult, Region, SSAValue
 from xdsl.irdl import Operand
 from xdsl.traits import is_side_effect_free
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -223,6 +223,32 @@ class CslPrintContext:
         self.variables[val] = name
         return name
 
+    def _memref_type_to_string(self, val: SSAValue):
+        """
+        Generate the string representing the type of a memref.
+
+        We need to get the SSAValue passed here, as for unknown sizes, we need to put the
+        variable name in the type.
+
+        For every unknown size (-1) in the shape, we look up the corresponding operand to the value
+        that created the memref (e.g. memref.alloc, csl.constants, ...)
+        """
+        type = val.type
+        assert isa(type, MemRefType[Attribute])
+        assert isinstance(
+            val, OpResult
+        ), "The value provided to _memref_type_to_string must be an op result"
+        dims: list[str] = []
+        idx = 0
+        for dim in type.get_shape():
+            if dim == -1:
+                dims.append(self.variables[val.owner.operands[idx]])
+                idx += 1
+            else:
+                dims.append(str(dim))
+        dims_str = ",".join(dims)
+        return f"[{dims_str}]{self.mlir_type_to_csl_type(type.element_type)}"
+
     def mlir_type_to_csl_type(self, type_attr: Attribute) -> str:
         """
         Convert an MLR type to a csl type. CSL supports a very limited set of types:
@@ -260,10 +286,14 @@ class CslPrintContext:
                 return f"u{width}"
             case IntegerType(width=IntAttr(data=width)):
                 return f"i{width}"
-            case MemRefType():
-                t: ContainerType[TypeAttribute] = type_attr
-                shape = ", ".join(str(s) for s in t.get_shape())
-                type = self.mlir_type_to_csl_type(t.get_element_type())
+            case MemRefType(element_type=Attribute() as elem_t, shape=shape):
+                if any(dim.data == -1 for dim in shape):
+                    raise ValueError(
+                        "Can't print memrefs using mlir_type_to_csl_type if they have dynamic sizes. "
+                        "Use _memref_type_to_string instead"
+                    )
+                shape = ", ".join(str(s.data) for s in shape)
+                type = self.mlir_type_to_csl_type(elem_t)
                 return f"[{shape}]{type}"
             case csl.PtrType(type=ty, kind=kind, constness=const):
                 match kind.data:
@@ -475,6 +505,13 @@ class CslPrintContext:
                     b_var = self._get_variable_name_for(b)
                     self._print_or_promote_to_inline_expr(
                         res, f"@concat_structs({a_var}, {b_var})"
+                    )
+                case csl.ConstantsOp(value=val, result=res, is_const=constness):
+                    type = self._memref_type_to_string(res)
+                    res_name = self._get_variable_name_for(res)
+                    kind = "const" if constness else "var"
+                    self.print(
+                        f"{kind} {res_name} : {type} = @constants({type}, {self._var_use(val)});"
                     )
                 case memref.Global(
                     sym_name=name, type=ty, initial_value=init, constant=const

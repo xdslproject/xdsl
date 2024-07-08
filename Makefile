@@ -14,7 +14,7 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: ${VENV_DIR}/ venv clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright
+.PHONY: ${VENV_DIR}/ venv clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright tests-marimo tests-marimo-mlir
 .PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
@@ -51,8 +51,35 @@ pytest-toy:
 
 tests-toy: filecheck-toy pytest-toy
 
+tests-marimo:
+	@for file in docs/marimo/*.py; do \
+		echo "Running $$file"; \
+		error_message=$$(python3 "$$file" 2>&1) || { \
+			echo "Error running $$file"; \
+			echo "$$error_message"; \
+			exit 1; \
+		}; \
+	done
+	@echo "All marimo tests passed successfully."
+
+tests-marimo-mlir:
+	@if ! command -v mlir-opt > /dev/null 2>&1; then \
+		echo "MLIR is not installed, skipping tests."; \
+		exit 0; \
+	fi
+	@echo "MLIR is installed, running tests."
+	@for file in docs/marimo/mlir/*.py; do \
+		echo "Running $$file"; \
+		error_message=$$(python3 "$$file" 2>&1) || { \
+			echo "Error running $$file"; \
+			echo "$$error_message"; \
+			exit 1; \
+		}; \
+	done
+	@echo "All marimo mlir tests passed successfully."
+
 # run all tests
-tests: pytest tests-toy filecheck pytest-nb pyright
+tests: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-mlir pyright
 	@echo All tests done.
 
 # re-generate the output from all jupyter notebooks in the docs directory

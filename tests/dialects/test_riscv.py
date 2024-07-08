@@ -134,8 +134,8 @@ def test_return_op():
 
 
 def test_immediate_i_inst():
-    # I-Type - 12-bits immediate
-    lb, ub = Signedness.SIGNLESS.value_range(12)
+    # I-Type - 12-bits signed immediate
+    lb, ub = Signedness.SIGNED.value_range(12)
     a1 = TestSSAValue(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
@@ -149,8 +149,8 @@ def test_immediate_i_inst():
 
 
 def test_immediate_s_inst():
-    # S-Type - 12-bits immediate
-    lb, ub = Signedness.SIGNLESS.value_range(12)
+    # S-Type - 12-bits signed immediate
+    lb, ub = Signedness.SIGNED.value_range(12)
     a1 = TestSSAValue(riscv.Registers.A1)
     a2 = TestSSAValue(riscv.Registers.A2)
 
@@ -242,7 +242,7 @@ def test_riscv_parse_immediate_value():
     ctx = MLContext()
     ctx.load_dialect(riscv.RISCV)
 
-    prog = """riscv.jalr %0, 1.1, !riscv.reg<> : (!riscv.reg<>) -> ()"""
+    prog = """riscv.jalr %0, 1.1, !riscv.reg : (!riscv.reg) -> ()"""
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError, match="Expected immediate"):
         parser.parse_operation()

@@ -20,6 +20,7 @@ from xdsl.transforms.loop_nest_lowering_utils import (
 
 
 def insert_load(
+    value_index: int,
     value: SSAValue,
     affine_map_attr: AffineMapAttr,
     ind_vars: Sequence[SSAValue],
