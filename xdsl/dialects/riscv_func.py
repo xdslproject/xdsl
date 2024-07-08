@@ -231,11 +231,11 @@ class FuncOp(riscv.RISCVAsmOperation):
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
-    def assembly_line(self) -> str:
+    def assembly_line(self) -> str | None:
         if self.body.blocks:
             return f"{self.sym_name.data}:"
         else:
-            return ""
+            return None
 
 
 @irdl_op_definition

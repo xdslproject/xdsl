@@ -162,4 +162,4 @@ def compile(program: str) -> str:
 def emulate_riscv(program: str):
     from xdsl.interpreters.riscv_emulator import run_riscv
 
-    run_riscv(program, unlimited_regs=True, verbosity=10)
+    run_riscv(program, unlimited_regs=True, verbosity=0)
