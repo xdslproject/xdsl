@@ -83,7 +83,7 @@ class RiscvFunctions(InterpreterFunctions):
 
         if stored_value != value:
             raise InterpretationError(
-                f"Runtime and stored value mismatch: {value} != {stored_value}"
+                f"Runtime and stored value mismatch: {value} != {stored_value} {attr}"
             )
 
         return value
