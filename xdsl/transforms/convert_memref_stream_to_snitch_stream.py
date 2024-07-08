@@ -235,7 +235,7 @@ def strides_for_affine_map(
     return result
 
 
-class ConvertMemrefStreamToSnitch(ModulePass):
+class ConvertMemrefStreamToSnitchStreamPass(ModulePass):
     """
     Converts memref_stream `read` and `write` operations to the snitch_stream equivalents.
 
@@ -250,7 +250,7 @@ class ConvertMemrefStreamToSnitch(ModulePass):
      streaming region or if the defining operation is a stream read.
     """
 
-    name = "convert-memref-stream-to-snitch"
+    name = "convert-memref-stream-to-snitch-stream"
 
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
