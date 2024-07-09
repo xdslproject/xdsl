@@ -117,11 +117,11 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      fmv.d ft2, ft4
 // CHECK-NEXT:      addi t6, t6, 1
 // CHECK-NEXT:      blt t6, a3, scf_body_{{\d}}_for
-// CHECK-NEXT:  scf_body_end_0_for:
+// CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      addi t3, t3, 1
 // CHECK-NEXT:      blt t3, t4, scf_body_{{\d}}_for
-// CHECK-NEXT:  scf_body_end_1_for:
+// CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      ret
 
   func.func @ddot(
@@ -473,11 +473,11 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      fmv.d ft1, ft4
 // CHECK-NEXT:      addi t5, t5, 1
 // CHECK-NEXT:      blt t5, t6, scf_body_{{\d}}_for
-// CHECK-NEXT:  scf_body_end_3_for:
+// CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      addi t2, t2, 1
 // CHECK-NEXT:      blt t2, t3, scf_body_{{\d}}_for
-// CHECK-NEXT:  scf_body_end_4_for:
+// CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      ret
 
   func.func public @relu(%X: memref<16x16xf64>, %Y: memref<16x16xf64>) {
@@ -622,9 +622,9 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:      fmv.d ft1, ft4
 // CHECK-NEXT:      addi t5, t5, 1
 // CHECK-NEXT:      blt t5, t6, scf_body_{{\d}}_for
-// CHECK-NEXT:  scf_body_end_5_for:
+// CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1
 // CHECK-NEXT:      addi t2, t2, 1
 // CHECK-NEXT:      blt t2, t3, scf_body_{{\d}}_for
-// CHECK-NEXT:  scf_body_end_6_for:
+// CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      ret
