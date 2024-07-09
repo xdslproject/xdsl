@@ -25,20 +25,40 @@ builtin.module {
     %zero_f32 = arith.constant 0 : f32
     %one_f32 = arith.constant 1 : f32
 
-    %tsc_size_words = "csl.member_access"(%time) <{field_name = "tsc_size_words"}> : (!csl.imported_module) -> i32
+    %tsc_size_words = "csl.member_access"(%time) <{field = "tsc_size_words"}> : (!csl.imported_module) -> i32
 
     %tscEndBuffer = "csl.constants"(%tsc_size_words, %zero_u16) : (i32, ui16) -> memref<?xui16>
     %tscStartBuffer = "csl.constants"(%tsc_size_words, %zero_u16) : (i32, ui16) -> memref<?xui16>
     %0 = arith.constant 2 : ui16
-    %1 = arith.muli %two, %pattern : ui16
+    %1 = arith.muli %0, %pattern : ui16
     %2 = arith.constant 1 : ui16
     %3 = arith.subi %1, %2 : ui16
 
     %zCoeffs = "csl.constants"(%3, %one_f32) <{is_const}> : (ui16, f32) -> memref<?xf32>
 
-    %zValuesA = "csl.constants"(%paddedZDim, %zero_f32) -> memref<?xf32>
-    %zValuesB = "csl.constants"(%paddedZDim, %zero_f32) -> memref<?xf32>
-    %accumulator = "csl.constants"(%paddedZDim, %zero_f32) -> memref<?xf32>
+    %zValuesA = "csl.constants"(%paddedZDim, %zero_f32) : (i32, f32) -> memref<?xf32>
+    %zValuesB = "csl.constants"(%paddedZDim, %zero_f32) : (i32, f32) -> memref<?xf32>
+    %accumulator = "csl.constants"(%paddedZDim, %zero_f32) : (i32, f32) -> memref<?xf32>
+
+    %dummy = "csl.constants"(%zDim, %zero_f32) : (i16, f32) -> memref<?xf32>
+
+    %c5_i32 = arith.constant 5 : i32
+    %time_buf_f32 = "csl.constants"(%c5_i32, %zero_f32) : (i32, f32) -> memref<?xf32>
+
+    // TODO: add these three:
+    // var ptr_time_buf_f32 : [*]f32 = &time_buf_f32;
+    // var ptr_z_buffer_a: [*]f32 = &zValuesA;
+    // var ptr_z_buffer_b: [*]f32 = &zValuesB;
+
+    %mem_z_buf_dsd = "csl.get_mem_dsd"(%dummy, %zDim) : (memref<?xf32>, i16) -> !csl<dsd mem1d_dsd>
+    // var mem_z_buf_dsd = @get_dsd(mem1d_dsd, .{ .tensor_access = |i|{zDim} -> dummy[i] });
+
+    // @concat_structs(.{
+    //   .pattern = pattern,
+    //   .chunkSize = chunkSize,
+    // }, stencilCommsParams
+    %4 = "csl.const_struct"(%pattern, %chunkSize) <{ssa_fields = ["pattern","chunkSize"]}> : (ui16, i32) -> !csl.comptime_struct
+
 
 
   }) {sym_name = "pe.csl"} : () -> ()
