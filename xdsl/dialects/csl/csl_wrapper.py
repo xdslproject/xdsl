@@ -279,9 +279,8 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     def __init__(self, *operands: SSAValue | Operation):
         super().__init__(*operands)
 
-    def from_field_name_mapping(
-        self, field_name_mapping: dict[str, Operand | SSAValue]
-    ):
+    @staticmethod
+    def from_field_name_mapping(field_name_mapping: dict[str, Operand | SSAValue]):
         operands: list[Operand | SSAValue] = []
         attributes: list[StringAttr] = []
         for attr, op in field_name_mapping.items():
@@ -289,6 +288,7 @@ class YieldOp(AbstractYieldOperation[Attribute]):
             operands.append(op)
         result = YieldOp(*operands)
         result.attributes.update({"fields": ArrayAttr[StringAttr](attributes)})
+        return result
 
     def verify_(self) -> None:
         if self.fields is not None and len(self.fields) != len(self.operands):
