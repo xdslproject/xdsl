@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.csl import csl
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Attribute, Block, Dialect, Region
+from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -73,27 +73,39 @@ class ModuleOp(IRDLOperation):
     @staticmethod
     def from_properties(properties: dict[str, Attribute]):
         layout_module = Region(Block())
+        program_module = Region(Block())
         x = layout_module.block.insert_arg(IntegerType(16), 0)
         y = layout_module.block.insert_arg(IntegerType(16), 1)
         x.name_hint = "x"
         y.name_hint = "y"
 
         for name, value in properties.items():
-            arg = layout_module.block.insert_arg(value, len(layout_module.block.args))
-            arg.name_hint = name
-
-        return ModuleOp(properties=properties, regions=[layout_module, Region(Block())])
-
-    def create_program_block_args_from_layout(self):
-        """Initialise `program_module` BlockArguments from properties and `layout_module` yield op"""
-        assert (
-            len(self.program_module.block.args) == 0
-        ), "program_module block args are not empty"
-        for name, value in self.properties.items():
-            arg = self.program_module.block.insert_arg(
-                value, len(self.program_module.block.args)
+            if not isa(value, IntegerAttr[IntegerType]):
+                raise ValueError("Can only create module from IntegerAttr properties")
+            l_arg = layout_module.block.insert_arg(
+                value.type, len(layout_module.block.args)
             )
-            arg.name_hint = name
+            l_arg.name_hint = name
+            p_arg = program_module.block.insert_arg(
+                value.type, len(program_module.block.args)
+            )
+            p_arg.name_hint = name
+
+        props = {
+            "width": properties.pop("width"),
+            "height": properties.pop("height"),
+            "params": DictionaryAttr(properties),
+        }
+
+        return ModuleOp(properties=props, regions=[layout_module, program_module])
+
+    def update_program_block_args_from_layout(self):
+        """Update `program_module` BlockArguments by adding yield op fields"""
+        assert (
+            len(self.program_module.block.args)
+            == len(self.program_module.block.args) - 2
+            # minus two as layout_module has additional x and y args
+        ), "program_module block args should only contain args from properties when calling this function"
 
         yield_op = self.layout_module.block.last_op
         if not isinstance(yield_op, YieldOp):
@@ -228,6 +240,13 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = traits_def(
         lambda: frozenset([IsTerminator(), HasParent(ModuleOp), Pure()])
     )
+
+    def __init__(
+        self,
+        *operands: SSAValue | Operation,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        IRDLOperation.__init__(self, operands=[operands], attributes=attributes)
 
     def verify_(self) -> None:
         if self.fields is not None and len(self.fields) != len(self.operands):
