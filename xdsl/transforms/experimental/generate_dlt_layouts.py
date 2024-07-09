@@ -3,6 +3,7 @@ Lower Data-Layout Trees into LLVM struct types (and other things)
 """
 
 import abc
+import typing
 from dataclasses import dataclass
 from typing import Iterable, Self, TypeVar, cast
 
@@ -492,6 +493,30 @@ def _make_dense_layouts(layout: T, map: dict[str, dlt.Layout]) -> T:
     else:
         children = [_make_dense_layouts(child, map) for child in layout.get_children()]
         return layout.from_new_children(children)
+
+
+def _try_apply_sparse(layout: dlt.Layout):
+    if isinstance(layout, list):
+        return [_try_apply_sparse(l) for l in layout]
+    if isinstance(layout, dlt.AbstractLayoutAttr):
+        a_layout = typing.cast(dlt.AbstractLayoutAttr, layout)
+        if len(dims := a_layout.common_abstract_dimensions()) > 1:
+            dims = list(dims)
+            dims.sort(key= lambda d: d.extent.value.value.data if isinstance(d.extent, dlt.StaticExtentAttr) else 0)
+            sparse = [dims.pop()]
+            return _make_sparse_layout(a_layout, dims, sparse)
+    children = [_try_apply_sparse(child) for child in layout.get_children()]
+    return layout.from_new_children(children)
+
+
+def _make_sparse_layout(layout: dlt.AbstractLayoutAttr, direct_dims: list[dlt.DimensionAttr], sparse_dims: list[dlt.DimensionAttr]):
+    assert layout.common_abstract_dimensions().issuperset(direct_dims+sparse_dims)
+    assert all(all(dim in child.dimensions for dim in sparse_dims) for child in layout.children)
+    assert len(set(direct_dims).intersection(set(sparse_dims))) == 0
+    direct_node = dlt.AbstractLayoutAttr([([],direct_dims,dlt.PrimitiveLayoutAttr(dlt.IndexRangeType()))])
+    abstract_children = [dlt.AbstractChildAttr(a_child.member_specifiers, a_child.dimensions.remove(direct_dims+sparse_dims), a_child.child) for a_child in layout.children]
+    coo_node = dlt.UnpackedCOOLayoutAttr(dlt.AbstractLayoutAttr(abstract_children), sparse_dims)
+    return dlt.IndexingLayoutAttr(direct_node, coo_node)
 
 
 def _get_deep_base(

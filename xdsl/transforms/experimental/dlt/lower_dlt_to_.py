@@ -27,8 +27,18 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.experimental.dlt.layout_llvm_semantics import ArgIndexGetter, ExtentResolver, IndexGetter, \
-    PtrCarriedExtentGetter, PtrCarriedIndexGetter, SSAExtentGetter, Semantic_Map, StaticExtentGetter
+from xdsl.transforms.experimental.dlt import layout_llvm_semantics
+from xdsl.transforms.experimental.dlt.layout_llvm_semantics import (
+    ArgIndexGetter,
+    ExtentResolver,
+    IndexGetter,
+    NoCallback,
+    PtrCarriedExtentGetter,
+    PtrCarriedIndexGetter,
+    SSAExtentGetter,
+    Semantic_Map,
+    StaticExtentGetter,
+)
 from xdsl.transforms.experimental.dlt.layout_manipulation import Manipulator
 
 
@@ -381,7 +391,7 @@ class DLTSelectRewriter(RewritePattern):
         )
         ops.append(get_ptr_op)
 
-        select_ops, select_result, out_layout = Semantic_Map.get_select_for(
+        select_ops, select_result = Semantic_Map.get_select_for(
             input_layout,
             output_layout,
             members,
@@ -417,6 +427,7 @@ class DLTSelectRewriter(RewritePattern):
 
         pass
 
+
 @dataclass
 class DLTGetRewriter(RewritePattern):
 
@@ -436,47 +447,43 @@ class DLTGetRewriter(RewritePattern):
         llvm_dlt_ptr_in = cast_input_op.outputs[0]
 
         get_data_ptr_op = llvm.ExtractValueOp(
-            DenseArrayBase.from_list(i64, [0]), llvm_dlt_ptr_in, llvm.LLVMPointerType.opaque()
+            DenseArrayBase.from_list(i64, [0]),
+            llvm_dlt_ptr_in,
+            llvm.LLVMPointerType.opaque(),
         )
         ops.append(get_data_ptr_op)
         llvm_data_ptr = get_data_ptr_op.res
 
-        input_layout = input_type.layout
-
-        if not isinstance(input_layout, dlt.PrimitiveLayoutAttr | dlt.ConstantLayoutAttr):
-            select_ops, select_result, layout_out = Semantic_Map.get_select_for(
-                input_type.layout,
-                None,
-                set(input_type.filled_members),
+        get_ops, get_res, get_found = Semantic_Map.get_getter_for(
+            input_type.layout,
+            get_type,
+            set(input_type.filled_members),
+            {
+                dim: PtrCarriedIndexGetter(llvm_dlt_ptr_in, input_type, dim=dim)
+                for dim in input_type.filled_dimensions
+            },
+            ExtentResolver(
                 {
-                    dim: PtrCarriedIndexGetter(llvm_dlt_ptr_in, input_type, dim=dim)
-                    for dim in input_type.filled_dimensions
-                },
-                ExtentResolver({
-                    extent: PtrCarriedExtentGetter(llvm_dlt_ptr_in, input_type, extent=extent)
+                    extent: PtrCarriedExtentGetter(
+                        llvm_dlt_ptr_in, input_type, extent=extent
+                    )
                     for extent in input_type.filled_extents
-                }),
-                llvm_data_ptr,
-            )
-            ops.extend(select_ops)
+                }
+            ),
+            llvm_data_ptr,
+        )
+        ops.extend(get_ops)
+        if get_found is not True:
+            zero_ops, zero_val = layout_llvm_semantics._get_packed_zero_for_accepted_type(get_type)
+            ops.extend(zero_ops)
+            if isinstance(get_found, SSAValue):
+                ops.append(select_op := arith.Select(get_found, get_res, zero_val))
+                get_res = select_op.result
+            else:
+                get_res = zero_val
 
-            input_layout = layout_out
-            llvm_data_ptr = select_result
 
-        if isinstance(input_layout, dlt.PrimitiveLayoutAttr):
-            load_op = llvm.LoadOp(llvm_data_ptr, get_type)
-            ops.append(load_op)
-            result = load_op.dereferenced_value
-        elif isinstance(input_layout, dlt.ConstantLayoutAttr):
-            assert get_type == input_layout.base_data.type
-            const_op = arith.Constant(input_layout.base_data)
-            ops.append(const_op)
-            result = const_op.result
-        else:
-            raise NotImplementedError()
-
-        rewriter.replace_matched_op(ops, [result])
-
+        rewriter.replace_matched_op(ops, [get_res])
 
 
 @dataclass
@@ -498,40 +505,32 @@ class DLTSetRewriter(RewritePattern):
         llvm_dlt_ptr_in = cast_input_op.outputs[0]
 
         get_data_ptr_op = llvm.ExtractValueOp(
-            DenseArrayBase.from_list(i64, [0]), llvm_dlt_ptr_in, llvm.LLVMPointerType.opaque()
+            DenseArrayBase.from_list(i64, [0]),
+            llvm_dlt_ptr_in,
+            llvm.LLVMPointerType.opaque(),
         )
         ops.append(get_data_ptr_op)
         llvm_data_ptr = get_data_ptr_op.res
 
-        input_layout = input_type.layout
-
-        if not isinstance(input_layout, dlt.PrimitiveLayoutAttr | dlt.ConstantLayoutAttr):
-            select_ops, select_result, layout_out = Semantic_Map.get_select_for(
-                input_type.layout,
-                None,
-                set(input_type.filled_members),
+        set_ops = Semantic_Map.get_setter_for(
+            input_type.layout,
+            set_op.value,
+            set(input_type.filled_members),
+            {
+                dim: PtrCarriedIndexGetter(llvm_dlt_ptr_in, input_type, dim=dim)
+                for dim in input_type.filled_dimensions
+            },
+            ExtentResolver(
                 {
-                    dim: PtrCarriedIndexGetter(llvm_dlt_ptr_in, input_type, dim=dim)
-                    for dim in input_type.filled_dimensions
-                },
-                ExtentResolver({
-                    extent: PtrCarriedExtentGetter(llvm_dlt_ptr_in, input_type, extent=extent)
+                    extent: PtrCarriedExtentGetter(
+                        llvm_dlt_ptr_in, input_type, extent=extent
+                    )
                     for extent in input_type.filled_extents
-                }),
-                llvm_data_ptr,
-            )
-            ops.extend(select_ops)
-
-            input_layout = layout_out
-            llvm_data_ptr = select_result
-
-        if isinstance(input_layout, dlt.PrimitiveLayoutAttr):
-            store_op = llvm.StoreOp(set_op.value, llvm_data_ptr)
-            ops.append(store_op)
-        elif isinstance(input_layout, dlt.ConstantLayoutAttr):
-            raise ValueError()
-        else:
-            raise NotImplementedError()
+                }
+            ),
+            llvm_data_ptr,
+        )
+        ops.extend(set_ops)
 
         rewriter.replace_matched_op(ops, [])
 
@@ -565,7 +564,9 @@ class DLTAllocRewriter(RewritePattern):
         # size_ops, alloc_bytes = from_int_to_ssa(
         #     get_size_from_layout(ptr_type.layout, extent_resolver), sum=True
         # )
-        size_ops, (alloc_bytes,) = Semantic_Map.get_size(ptr_type.layout, extent_resolver).sum().output()
+        size_ops, (alloc_bytes,) = (
+            Semantic_Map.get_size(ptr_type.layout, extent_resolver).sum().output()
+        )
         ops.extend(size_ops)
 
         # ops.append(mr_alloc_op := memref.Alloc.get(IntegerType(8), 64, [-1], [alloc_bytes]))
@@ -589,14 +590,23 @@ class DLTAllocRewriter(RewritePattern):
         init_values_map = {
             cast(
                 dlt.PtrType, init_arg.type
-            ).contents_type.get_single_element(): init_arg
+            ).contents_type: init_arg
             for init_arg in alloc_op.initialValues
         }
 
         # init_ops = init_layout(
         #     ptr_type.layout, extent_resolver, buffer, init_values_map
         # )
-        init_ops = Semantic_Map.init_layout(ptr_type.layout, extent_resolver, buffer, init_values_map)
+        init_ops, callback_ret = Semantic_Map.init_layout(
+            ptr_type.layout,
+            extent_resolver,
+            buffer,
+            init_values_map,
+            NoCallback(),
+            [],
+            True,
+            True,
+        )
         ops.extend(init_ops)
 
         cast_output_op = UnrealizedConversionCastOp.get(ptr_struct, alloc_op.res.type)
@@ -802,13 +812,25 @@ class DLTIterateRewriter(RewritePattern):
                 if extent.is_static():
                     assert all(dim.extent == extent for dim in ext_dims)
                 else:
-                    get_tensor_extent_ops, (tensor_extent,) = tensor_arg_extent_resolver.resolve(extent).output()
+                    get_tensor_extent_ops, (tensor_extent,) = (
+                        tensor_arg_extent_resolver.resolve(extent).output()
+                    )
 
                     ops.extend(get_tensor_extent_ops)
-                    get_iterate_extent_ops, (iterate_extent,) = extent_resolver.resolve(extent).output()
+                    get_iterate_extent_ops, (iterate_extent,) = extent_resolver.resolve(
+                        extent
+                    ).output()
                     ops.extend(get_iterate_extent_ops)
                     ops.append(cond := arith.Cmpi(iterate_extent, tensor_extent, "ne"))
-                    fail = [printf.PrintFormatOp("Failed Extent Assertion: {} != {}", iterate_extent, tensor_extent), llvm.CallOp("abort"), scf.Yield()]
+                    fail = [
+                        printf.PrintFormatOp(
+                            "Failed Extent Assertion: {} != {}",
+                            iterate_extent,
+                            tensor_extent,
+                        ),
+                        llvm.CallOp("abort"),
+                        scf.Yield(),
+                    ]
                     ops.append(scf.If(cond, (), fail))
 
         ops.append(lb := arith.Constant(IntegerAttr(0, IndexType())))
@@ -966,6 +988,12 @@ class DLTIndexTypeRewriter(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(self, typ: builtin.IndexType, /) -> Attribute | None:
         return builtin.i64
+
+@dataclass
+class DLTIndexRangeTypeRewriter(TypeConversionPattern):
+    @attr_type_rewrite_pattern
+    def convert_type(self, typ: dlt.IndexRangeType, /) -> Attribute | None:
+        return llvm.LLVMStructType.from_type_list([IndexType(), IndexType()])
 
 
 def add_to_llvm_pointer(

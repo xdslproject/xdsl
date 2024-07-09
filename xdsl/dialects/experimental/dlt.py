@@ -1247,6 +1247,11 @@ class AbstractLayoutAttr(Layout):
              c.dimensions == o.dimensions
              for c, o in zip(self.children, other.children)]
 
+    def common_abstract_dimensions(self) -> set[DimensionAttr]:
+        return set.intersection(*[set(c.dimensions) for c in self.children])
+
+    def common_abstract_members(self) -> set[MemberAttr]:
+        return set.intersection(*[set(c.member_specifiers) for c in self.children])
 
 @irdl_attr_definition
 class PrimitiveLayoutAttr(Layout):
@@ -1572,6 +1577,8 @@ class IndexingLayoutAttr(Layout):
         if index_type == None:
             raise VerifyException("Index child is indexed by None - this is not allow.")
         direct_child_contents = self.directChild.contents_type
+        if direct_child_contents.get_single_element() is None:
+            raise VerifyException("Indexed node does not support multi-tensor structures as the direct_child")
         direct_base_types = [e.base_type for e in direct_child_contents.elements]
         if not all(index_type == bt for bt in direct_base_types):
             raise VerifyException(f"Index child calls for index type; {index_type} but direct child has type "
@@ -2707,6 +2714,16 @@ class IterateOp(DTLLayoutScopedOp):
         assert 0 <= idx < len(self.iter_args)
         assert use in self.iter_args[idx].uses
         return self.body.block.args[len(self.extents) + len(self.tensors) + idx]
+
+    def get_block_arg_for_iter_arg_idx(self, index: int) -> BlockArgument:
+        assert 0 <= index < len(self.iter_args)
+        return self.body.block.args[len(self.extents) + len(self.tensors) + index]
+
+    def get_block_args_for_extent_args(self) -> list[BlockArgument]:
+        return list(self.body.block.args[0:len(self.extents)])
+
+    def get_block_args_for_tensor_args(self) -> list[BlockArgument]:
+        return list(self.body.block.args[len(self.extents):len(self.extents)+len(self.tensors)])
 
     def get_block_arg_for_tensor_arg_idx(self, index: int) -> BlockArgument:
         index += len(self.extents)

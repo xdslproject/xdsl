@@ -35,7 +35,9 @@ class ManipulatorMap:
         allowable_dimensions: set[dlt.DimensionAttr],
         allowable_extents: set[dlt.InitDefinedExtentAttr],
     ) -> tuple[dlt.Layout, set[dlt.MemberAttr], set[dlt.DimensionAttr]]:
-
+        """
+        Minimal reduction should ensure than all members/dimensions that are not allowable are used in finding the subtree layout. If this is not possible an InconsistantLayout exception is raised
+        """
         possible_extents_check = all(
             e in allowable_extents for e in layout.get_all_init_base_extents()
         )
@@ -756,7 +758,6 @@ class StructManipulator(LayoutNodeManipulator[dlt.StructLayoutAttr]):
         else:
             return None
 
-
     def reduce_to_terminal(
         self,
         layout: dlt.StructLayoutAttr,
@@ -934,6 +935,127 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
         )
 
 
+class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
+
+    def minimal_reduction(
+        self,
+        layout: dlt.IndexingLayoutAttr,
+        members: set[dlt.MemberAttr],
+        dimensions: set[dlt.DimensionAttr],
+        extents: set[dlt.InitDefinedExtentAttr],
+        allowable_members: set[dlt.MemberAttr],
+        allowable_dimensions: set[dlt.DimensionAttr],
+        allowable_extents: set[dlt.InitDefinedExtentAttr],
+    ) -> tuple[dlt.Layout, set[dlt.MemberAttr], set[dlt.DimensionAttr]]:
+        raise InConsistentLayoutException(
+            "Cannot reduce through Indexing node as it is unsafe to hold pointers to values contained inside"
+        )
+
+    def structural_reduction(
+        self, layout: T, dlt_type: dlt.TypeType
+    ) -> None | dlt.Layout:
+        return None
+
+    def reduce_to_terminal(
+        self,
+        layout: dlt.IndexingLayoutAttr,
+        members_to_select: set[dlt.MemberAttr],
+        dimensions_to_select: set[dlt.DimensionAttr],
+        base_type: dlt.AcceptedTypes,
+    ) -> None | dlt.Layout:
+        direct_type = layout.directChild.contents_type
+        direct_members = direct_type.all_member_attributes().intersection(members_to_select)
+        direct_dims = direct_type.all_dimension_attributes().intersection(dimensions_to_select)
+        reduced_direct = self.manipulator.reduce_to_terminal(layout.directChild, direct_members, direct_dims, layout.indexedChild.indexed_by())
+        if reduced_direct is None:
+            return None
+
+        indexed_members = members_to_select - direct_members
+        indexed_dims = dimensions_to_select - direct_dims
+        return self.manipulator.reduce_to_terminal(layout.indexedChild, indexed_members, indexed_dims, base_type)
+
+    def can_layout_derive_to(
+        self,
+        layout: T,
+        starting_point: dlt.PtrType,
+        end_layout: dlt.Layout,
+        end_point: dlt.PtrType,
+        selectable_members: set[dlt.MemberAttr],
+        selectable_dimensions: set[dlt.DimensionAttr],
+        usable_extents: set[dlt.InitDefinedExtentAttr],
+        enclosing_knowledge: set[dlt.KnowledgeLayout],
+    ) -> bool:
+        return False # cannot derive layout through indexing node as it is unsafe to hold pointers contained inside
+
+    def embed_layout_in(
+        self,
+        child_layout: dlt.Layout,
+        parent_layout: dlt.IndexingLayoutAttr,
+        members: set[dlt.MemberAttr],
+        dimensions: set[dlt.DimensionAttr],
+        extents: set[dlt.InitDefinedExtentAttr],
+    ) -> dlt.Layout:
+        direct_type = parent_layout.directChild.contents_type
+        if direct_type.has_selectable(members, dimensions) \
+            and direct_type.with_selection(members, dimensions) == child_layout.contents_type:
+            new_direct_child = self.manipulator.embed_layout_in(child_layout, parent_layout.directChild, members, dimensions, extents)
+            return parent_layout.from_new_children([new_direct_child, parent_layout.indexedChild])
+        else:
+            index_members = members - direct_type.all_member_attributes()
+            index_dimensions = dimensions - direct_type.all_dimension_attributes()
+            new_index_child = self.manipulator.embed_layout_in(child_layout, parent_layout.indexedChild, index_members, index_dimensions, extents)
+            return parent_layout.from_new_children([parent_layout.directChild, new_index_child])
+
+class UnpackedCOOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr]):
+
+    def minimal_reduction(self, layout: T, members: set[dlt.MemberAttr], dimensions: set[dlt.DimensionAttr],
+                          extents: set[dlt.InitDefinedExtentAttr], allowable_members: set[dlt.MemberAttr],
+                          allowable_dimensions: set[dlt.DimensionAttr],
+                          allowable_extents: set[dlt.InitDefinedExtentAttr]) -> tuple[
+        dlt.Layout, set[dlt.MemberAttr], set[dlt.DimensionAttr]]:
+        raise InConsistentLayoutException(
+            "Cannot reduce through UnpackedCOO node as it is unsafe to hold pointers to values contained inside"
+        )
+
+    def structural_reduction(self, layout: T, dlt_type: dlt.TypeType) -> None | dlt.Layout:
+        return None
+
+    def reduce_to_terminal(self, layout: dlt.UnpackedCOOLayoutAttr, members_to_select: set[dlt.MemberAttr],
+                           dimensions_to_select: set[dlt.DimensionAttr],
+                           base_type: dlt.AcceptedTypes) -> None | dlt.Layout:
+        if any(dim not in dimensions_to_select for dim in layout.dimensions):
+            raise InConsistentLayoutException()
+        return self.manipulator.reduce_to_terminal(
+            layout.child,
+            members_to_select,
+            dimensions_to_select - set(layout.dimensions),
+            base_type,
+        )
+
+    def can_layout_derive_to(self, layout: T, starting_point: dlt.PtrType, end_layout: dlt.Layout,
+                             end_point: dlt.PtrType, selectable_members: set[dlt.MemberAttr],
+                             selectable_dimensions: set[dlt.DimensionAttr],
+                             usable_extents: set[dlt.InitDefinedExtentAttr],
+                             enclosing_knowledge: set[dlt.KnowledgeLayout]) -> bool:
+        return False # cannot derive layout through UnpackedCOO node as it is unsafe to hold pointers contained inside
+
+    def embed_layout_in(self, child_layout: dlt.Layout, parent_layout: dlt.UnpackedCOOLayoutAttr, members: set[dlt.MemberAttr],
+                        dimensions: set[dlt.DimensionAttr], extents: set[dlt.InitDefinedExtentAttr]) -> dlt.Layout:
+        if any(dim not in dimensions for dim in parent_layout.dimensions):
+            raise InConsistentLayoutException()
+        return parent_layout.from_new_children(
+            [
+                self.manipulator.embed_layout_in(
+                    child_layout,
+                    parent_layout.child,
+                    members,
+                    dimensions - set(parent_layout.dimensions),
+                    extents,
+                )
+            ]
+        )
+
+
 Manipulator = ManipulatorMap()
 Manipulator.add(dlt.AbstractLayoutAttr, AbstractManipulator(Manipulator))
 Manipulator.add(dlt.PrimitiveLayoutAttr, PrimitiveManipulator(Manipulator))
@@ -942,3 +1064,6 @@ Manipulator.add(dlt.MemberLayoutAttr, MemberManipulator(Manipulator))
 Manipulator.add(dlt.DenseLayoutAttr, DenseManipulator(Manipulator))
 Manipulator.add(dlt.StructLayoutAttr, StructManipulator(Manipulator))
 Manipulator.add(dlt.ArithDropLayoutAttr, ArithDropManipulator(Manipulator))
+Manipulator.add(dlt.IndexingLayoutAttr, IndexingManipulator(Manipulator))
+Manipulator.add(dlt.UnpackedCOOLayoutAttr, UnpackedCOOManipulator(Manipulator))
+
