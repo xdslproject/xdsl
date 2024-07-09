@@ -10,9 +10,9 @@ from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
+    Operand,
     irdl_op_definition,
     opt_attr_def,
-    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -26,7 +26,7 @@ from xdsl.utils.hints import isa
 
 
 @irdl_op_definition
-class ImportModule(IRDLOperation):
+class ImportModuleOp(IRDLOperation):
     """
     Lightweight wrapper around `csl.import_module` that allows specifying field names directly
     and removes the need for handling structs or setting up struct operands
@@ -37,7 +37,23 @@ class ImportModule(IRDLOperation):
     ops = var_operand_def()
     module = prop_def(StringAttr)
     fields = prop_def(ArrayAttr[StringAttr])
-    result = result_def(csl.ImportedModuleType())
+    result = result_def(csl.ImportedModuleType)
+
+    def __init__(self, module: str, field_name_mapping: dict[str, Operand | SSAValue]):
+        ops: list[Operand | SSAValue] = []
+        fields: list[StringAttr] = []
+        for field, op in field_name_mapping.items():
+            ops.append(op)
+            fields.append(StringAttr(field))
+
+        super().__init__(
+            operands=[ops],
+            properties={
+                "module": StringAttr(module),
+                "fields": ArrayAttr(fields),
+            },
+            result_types=[csl.ImportedModuleType()],
+        )
 
     def verify_(self) -> None:
         if len(self.fields) != len(self.ops):
@@ -65,7 +81,7 @@ class ModuleOp(IRDLOperation):
 
     width = prop_def(IntegerAttr)
     height = prop_def(IntegerAttr)
-    params = opt_prop_def(DictionaryAttr)
+    params = prop_def(DictionaryAttr)
 
     layout_module = region_def("single_block")
     program_module = region_def("single_block")
@@ -103,7 +119,7 @@ class ModuleOp(IRDLOperation):
         """Update `program_module` BlockArguments by adding yield op fields"""
         assert (
             len(self.program_module.block.args)
-            == len(self.program_module.block.args) - 2
+            == len(self.layout_module.block.args) - 2
             # minus two as layout_module has additional x and y args
         ), "program_module block args should only contain args from properties when calling this function"
 
@@ -125,7 +141,7 @@ class ModuleOp(IRDLOperation):
             raise ValueError("'x' and 'y' not allowed as property names")
 
         all_params: dict[str, Attribute] = {"width": self.width, "height": self.height}
-        if self.params is not None:
+        if len(self.params.data) > 0:
             all_params.update(self.params.data)
 
         expected_layout_args: dict[str, IntegerType] = {
@@ -169,13 +185,6 @@ class ModuleOp(IRDLOperation):
                     f"Program module block arg types do not match for arg {name} expected: {exp} but got: {got}. Block arg types must correspond to prop types and layout yield result types (in order)"
                 )
 
-        program_yield_op = self.program_module.block.last_op
-        if (
-            not isinstance(program_yield_op, YieldOp)
-            or program_yield_op.fields is not None
-        ):
-            raise ValueError("program module yield may not specify fields property")
-
     @classmethod
     def parse(cls, parser: Parser):
         args = parser.parse_op_args_list()
@@ -214,8 +223,7 @@ class ModuleOp(IRDLOperation):
         printer.print("() ")
 
         params: dict[str, Attribute] = {"width": self.width, "height": self.height}
-        if self.params is not None:
-            params.update(self.params.data)
+        params.update(self.params.data)
 
         printer.print("<")
         printer.print_attr_dict(params)
@@ -224,6 +232,33 @@ class ModuleOp(IRDLOperation):
         printer.print(", ")
         printer.print_region(self.program_module, print_entry_block_args=True)
         printer.print(")")
+
+    def get_layout_arg(self, name: str):
+        available_arg_names = ["x", "y", "width", "height"] + list(
+            self.params.data.keys()
+        )
+        assert (
+            name in available_arg_names
+        ), f"{name} does not refer to a block arg of this layout_module"
+        idx = available_arg_names.index(name)
+        return self.layout_module.block.args[idx]
+
+    def get_program_arg(self, name: str):
+        layout_yield = self.layout_module.block.last_op
+        assert isinstance(layout_yield, YieldOp)
+        yield_args = (
+            []
+            if layout_yield.fields is None
+            else [y.data for y in layout_yield.fields.data]
+        )
+        available_arg_names = (
+            ["width", "height"] + list(self.params.data.keys()) + yield_args
+        )
+        assert (
+            name in available_arg_names
+        ), f"{name} does not refer to a block arg of this program_module"
+        idx = available_arg_names.index(name)
+        return self.program_module.block.args[idx]
 
 
 @irdl_op_definition
@@ -241,12 +276,19 @@ class YieldOp(AbstractYieldOperation[Attribute]):
         lambda: frozenset([IsTerminator(), HasParent(ModuleOp), Pure()])
     )
 
-    def __init__(
-        self,
-        *operands: SSAValue | Operation,
-        attributes: dict[str, Attribute] | None = None,
+    def __init__(self, *operands: SSAValue | Operation):
+        super().__init__(*operands)
+
+    def from_field_name_mapping(
+        self, field_name_mapping: dict[str, Operand | SSAValue]
     ):
-        IRDLOperation.__init__(self, operands=[operands], attributes=attributes)
+        operands: list[Operand | SSAValue] = []
+        attributes: list[StringAttr] = []
+        for attr, op in field_name_mapping.items():
+            attributes.append(StringAttr(attr))
+            operands.append(op)
+        result = YieldOp(*operands)
+        result.attributes.update({"fields": ArrayAttr[StringAttr](attributes)})
 
     def verify_(self) -> None:
         if self.fields is not None and len(self.fields) != len(self.operands):
@@ -256,7 +298,7 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 CSL_WRAPPER = Dialect(
     "csl_wrapper",
     [
-        ImportModule,
+        ImportModuleOp,
         ModuleOp,
         YieldOp,
     ],
