@@ -215,7 +215,9 @@ class ApplyOp(IRDLOperation):
             zip(args, (a.type for a in args)),
             print_arg,
         )
-        printer.print(") -> (")
+        printer.print(") <")
+        printer.print_attr_dict(self.properties)
+        printer.print("> -> (")
         printer.print_list((r.type for r in self.res), printer.print_attribute)
         printer.print(") ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
