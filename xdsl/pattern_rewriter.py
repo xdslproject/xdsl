@@ -521,7 +521,10 @@ class TypeConversionPattern(RewritePattern):
         for region in op.regions:
             for block in region.blocks:
                 for arg in block.args:
-                    converted = self.convert_type(arg.type)
+                    if self.recursive:
+                        converted = self._convert_type_rec(arg.type)
+                    else:
+                        converted = self.convert_type(arg.type)
                     if converted is not None and converted != arg.type:
                         rewriter.modify_block_argument_type(arg, converted)
         if changed:
