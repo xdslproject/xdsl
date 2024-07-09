@@ -16,8 +16,8 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
-    IntRegisterType,
     FloatRegisterType,
+    IntRegisterType,
     RdRsImmIntegerOperation,
     RdRsRsOperation,
     Registers,
