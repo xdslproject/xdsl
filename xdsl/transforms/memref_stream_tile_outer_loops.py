@@ -28,20 +28,30 @@ from xdsl.utils.exceptions import DiagnosticException
 
 
 def insert_subview(
-    val: SSAValue,
-    m: AffineMapAttr,
+    memref_val: SSAValue,
+    affine_map: AffineMap,
     apply_operands: Sequence[SSAValue],
     upper_bounds: Sequence[int],
     location: InsertPoint,
 ):
-
-    name_hint_prefix = val.name_hint + "_" if val.name_hint is not None else ""
+    """
+    A helper method to insert a subview from the input `memref_val` to one with new upper
+    bounds, given that it will be accessed with the specified affine map.
+    `apply_operands` are the operands to use to determine the new offset,
+    and `upper_bounds` the new shape.
+    Any new operations should be inserted at `location`.
+    """
+    name_hint_prefix = (
+        memref_val.name_hint + "_" if memref_val.name_hint is not None else ""
+    )
     apply_ops = tuple(
         affine.ApplyOp(
             apply_operands,
-            AffineMapAttr(AffineMap(m.data.num_dims, m.data.num_symbols, (res,))),
+            AffineMapAttr(
+                AffineMap(affine_map.num_dims, affine_map.num_symbols, (res,))
+            ),
         )
-        for res in m.data.results
+        for res in affine_map.results
     )
     offset_vals = tuple(apply_op.result for apply_op in apply_ops)
     for offset_val in offset_vals:
@@ -54,7 +64,7 @@ def insert_subview(
         apply_op.map.data.eval(max_values, ())[0] + 1 for apply_op in apply_ops
     )
 
-    source_type = val.type
+    source_type = memref_val.type
     if not isinstance(source_type, memref.MemRefType):
         raise DiagnosticException("Cannot create subview from non-memref type")
     source_type = cast(MemRefType[Attribute], source_type)
@@ -66,12 +76,8 @@ def insert_subview(
     else:
         dest_type = source_type
 
-    # While not technically incorrect, the new size should be smaller than the source,
-    # instead of just reusing the source shape.
-    # We could compute the new shape and make it dynamic but it's not strictly
-    # speaking necessar for the rest of the pipeline.
     subview_op = memref.Subview.get(
-        val,
+        memref_val,
         offset_vals,
         sizes,
         (1,) * len(strides),
@@ -137,13 +143,15 @@ def materialize_loop(
     num_inputs = len(generic_op.inputs)
 
     new_inputs = tuple(
-        insert_subview(input_val, m, input_apply_operands, input_upper_bounds, loc)
+        insert_subview(input_val, m.data, input_apply_operands, input_upper_bounds, loc)
         for input_val, m in zip(
             generic_op.inputs, generic_op.indexing_maps.data[:num_inputs], strict=True
         )
     )
     new_outputs = tuple(
-        insert_subview(output_val, m, output_apply_operands, output_upper_bounds, loc)
+        insert_subview(
+            output_val, m.data, output_apply_operands, output_upper_bounds, loc
+        )
         for output_val, m in zip(
             generic_op.outputs, generic_op.indexing_maps.data[num_inputs:], strict=True
         )
