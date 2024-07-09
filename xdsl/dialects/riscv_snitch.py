@@ -17,8 +17,10 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
     IntRegisterType,
+    FloatRegisterType,
     RdRsImmIntegerOperation,
     RdRsRsOperation,
+    RdRsOperation,
     Registers,
     RISCVAsmOperation,
     RISCVInstruction,
@@ -677,6 +679,82 @@ class DMStatImmOp(RISCVInstruction):
 
 # endregion
 
+# region Snitch Packed SIMD Extension
+
+# Operations that map directly to the packed SIMD ISA provided by Snitch FPU.
+# The implemented ISA is *almost* the one specified here:
+# * https://iis-git.ee.ethz.ch/smach/smallFloat-spec/-/blob/master/smallFloat_isa.pdf
+# Beware of main undocumented differences from the spec:
+# * Additional reductions (e.g.: vfsum.*)
+# * Missing reductions (e.g.: vfdotp.*)
+# * Control of alternative FP formats (e.g.: IEEE fp16 vs BF16) delegated to the
+#   RISC-V float CSR instead of being part of the encoding
+
+
+@irdl_op_definition
+class VFCpkASSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Packs two scalar f32 values from rs1 and rs2 and packs the result as two adjacent
+    entries into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = f[rs1]
+    f[rd][hi] = f[rs2]
+    """
+
+    name = "riscv_snitch.vfcpka.s.s"
+
+    def assembly_instruction_name(self) -> str:
+        return "vfcpka.s.s"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class VFMulSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Performs vectorial multiplication of corresponding f32 values from
+    rs1 and rs2 and stores the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = f[rs1][lo] * f[rs2][lo]
+    f[rd][hi] = f[rs1][hi] * f[rs2][hi]
+    """
+
+    name = "riscv_snitch.vfmul.s"
+
+    def assembly_instruction_name(self) -> str:
+        return "vfmul.s"
+
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class VFAddSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Performs vectorial addition of corresponding f32 values from
+    rs1 and rs2 and stores the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = f[rs1][lo] + f[rs2][lo]
+    f[rd][hi] = f[rs1][hi] + f[rs2][hi]
+    """
+
+    name = "riscv_snitch.vfadd.s"
+
+    def assembly_instruction_name(self) -> str:
+        return "vfadd.s"
+
+    traits = frozenset((Pure(),))
+
+
+# endregion
+
 RISCV_Snitch = Dialect(
     "riscv_snitch",
     [
@@ -696,6 +774,9 @@ RISCV_Snitch = Dialect(
         DMCopyImmOp,
         DMStatOp,
         DMStatImmOp,
+        VFMulSOp,
+        VFAddSOp,
+        VFCpkASSOp,
     ],
     [],
 )

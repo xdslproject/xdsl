@@ -86,6 +86,22 @@ riscv_func.func @xdma() {
   riscv_func.return
 }
 
+riscv_func.func @simd() {
+  // CHECK-LABEL: @simd
+  %v = riscv.get_float_register : !riscv.freg
+  
+  %0 = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK: %0 = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+
+  %1 = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %1 = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+
+  %2 = riscv_snitch.vfcpka.s.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %2 = riscv_snitch.vfcpka.s.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+
+  riscv_func.return
+}
+
 
 // CHECK-GENERIC-NEXT: "builtin.module"() ({
 // CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
@@ -129,6 +145,13 @@ riscv_func.func @xdma() {
 // CHECK-GENERIC-NEXT:     %{{.*}} = "riscv_snitch.dmstati"() <{"status" = 0 : ui5}> : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {"sym_name" = "xdma", "function_type" = () -> ()} : () -> ()
+// CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
+// CHECK-GENERIC-NEXT:       %v = "riscv.get_float_register"() : () -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %0 = "riscv_snitch.vfmul.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %1 = "riscv_snitch.vfadd.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %2 = "riscv_snitch.vfcpka.s.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       "riscv_func.return"() : () -> ()
+// CHECK-GENERIC-NEXT:     }) {"sym_name" = "simd", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
 
 
