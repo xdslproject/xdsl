@@ -20,7 +20,6 @@ from xdsl.dialects.riscv import (
     FloatRegisterType,
     RdRsImmIntegerOperation,
     RdRsRsOperation,
-    RdRsOperation,
     Registers,
     RISCVAsmOperation,
     RISCVInstruction,
