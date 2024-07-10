@@ -234,6 +234,7 @@ class ModuleOp(IRDLOperation):
         printer.print(")")
 
     def get_layout_arg(self, name: str):
+        """Retrieve layout block arg for name that is x, y, or one of the properties"""
         available_arg_names = ["x", "y", "width", "height"] + list(
             self.params.data.keys()
         )
@@ -244,6 +245,7 @@ class ModuleOp(IRDLOperation):
         return self.layout_module.block.args[idx]
 
     def get_program_arg(self, name: str):
+        """Retrieve program block arg for name that is one of the properties or a param set up by layout yield"""
         layout_yield = self.layout_module.block.last_op
         assert isinstance(layout_yield, YieldOp)
         yield_args = (
@@ -265,7 +267,7 @@ class ModuleOp(IRDLOperation):
 class YieldOp(AbstractYieldOperation[Attribute]):
     """
     Layout module `yield` ops should be lowered to `@set_tile_code` and must specify `fields`.
-    Program module `yield` ops have no particular meaning and may not specify `fields`.
+    Program module `yield` ops have no particular meaning and specify `fields` here is permitted but undefined.
     """
 
     name = "csl_wrapper.yield"
