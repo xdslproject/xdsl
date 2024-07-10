@@ -217,5 +217,4 @@ class MemrefStreamTileOuterLoopsPass(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         PatternRewriteWalker(
             TileGenericPattern(self.target_rank),
-            apply_recursively=False,
         ).rewrite_module(op)
