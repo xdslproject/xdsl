@@ -73,11 +73,25 @@ def insert_subview(
     source_type = cast(MemRefType[Attribute], source_type)
     layout_attr = source_type.layout
     strides = tuple(source_type.get_strides())
-    if isinstance(layout_attr, NoneAttr):
-        layout_attr = StridedLayoutAttr(strides, None)
-        dest_type = MemRefType(source_type.element_type, dest_shape, layout_attr)
-    else:
-        dest_type = source_type
+    match layout_attr:
+        case NoneAttr():
+            layout_attr = StridedLayoutAttr(strides, None)
+            dest_type = MemRefType(source_type.element_type, dest_shape, layout_attr)
+        case StridedLayoutAttr():
+            # We currently only support subviews from memref with statically known strides and dynamic offsets
+            if any(stride is None for stride in layout_attr.get_strides()):
+                raise DiagnosticException(
+                    f"Layout attr for tiling {layout_attr} not yet supported"
+                )
+            if layout_attr.get_offset() is not None:
+                raise DiagnosticException(
+                    f"Layout attr for tiling {layout_attr} not yet supported"
+                )
+            dest_type = source_type
+        case _:
+            raise DiagnosticException(
+                f"Unsupported layout attr for tiling {layout_attr}"
+            )
 
     subview_op = memref.Subview.get(
         memref_val,
