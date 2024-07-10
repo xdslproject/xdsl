@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.csl import ParameterDef, csl
 from xdsl.ir import (
     Attribute,
+    Block,
     BlockArgument,
     Dialect,
     Operation,
@@ -181,7 +182,24 @@ class ModuleOp(IRDLOperation):
                 "height": height,
                 "params": params_attr,
             },
-            regions=[Region(), Region()],
+            regions=[
+                Region(
+                    Block(
+                        arg_types=itertools.chain(
+                            [i16] * 4,
+                            (param.type for param in params),
+                        )
+                    )
+                ),
+                Region(
+                    Block(
+                        arg_types=itertools.chain(
+                            [i16] * 2,
+                            (param.type for param in params),
+                        )
+                    )
+                ),
+            ],
         )
 
     def update_program_block_args_from_layout(self):
