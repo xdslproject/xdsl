@@ -56,6 +56,11 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 
 %diff = linalg.sub ins(%2, %2 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%3 : tensor<2x3xf32>) -> tensor<2x3xf32>
 
+%18, %19 = "test.op"() : () -> (memref<64x9216xf32>, memref<9216x4096xf32>)
+%20 = "test.op"() : () -> (memref<64x4096xf32>)
+
+linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%20 : memref<64x4096xf32>)
+
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:  module {
@@ -91,5 +96,8 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    } -> tensor<2x3xf32>
 // CHECK-NEXT:    %{{.*}} = linalg.sub ins(%{{.*}}, %{{.*}} : tensor<2x3xf32>, tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %16:2 = "test.op"() : () -> (memref<64x9216xf32>, memref<9216x4096xf32>)
+// CHECK-NEXT:    %17 = "test.op"() : () -> memref<64x4096xf32>
+// CHECK-NEXT:    linalg.matmul {id} ins(%16#0, %16#1 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%17 : memref<64x4096xf32>)
 // CHECK-NEXT:  }
 
