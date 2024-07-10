@@ -31,7 +31,6 @@ from xdsl.irdl import (
     Operand,
     irdl_attr_definition,
     irdl_op_definition,
-    opt_attr_def,
     prop_def,
     region_def,
     result_def,
@@ -319,7 +318,7 @@ class YieldOp(IRDLOperation):
         args: Sequence[str] | ArrayAttr[StringAttr],
     ):
         if not isinstance(args, ArrayAttr):
-            args = ArrayAttr((StringAttr(arg) for arg in args))
+            args = ArrayAttr(StringAttr(arg) for arg in args)
         super().__init__(
             operands=[operands],
             properties={
