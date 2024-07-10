@@ -125,7 +125,7 @@ class ImportModuleOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.fields) != len(self.ops):
-            raise ValueError("Number of fields does not match number of operands")
+            raise VerifyException("Number of fields does not match number of operands")
 
 
 @irdl_op_definition
