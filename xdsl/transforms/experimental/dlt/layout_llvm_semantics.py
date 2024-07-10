@@ -1639,7 +1639,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
         else:
             ops.append(start_idx := arith.Constant(IntegerAttr(0, IndexType())))
             start_idx = start_idx.result
-            ops.append(step := arith.Constant(IntegerAttr(-1, IndexType())))
+            ops.append(step := arith.Constant(IntegerAttr(1, IndexType())))
             step = step.result
             end_idx_ops, (end_idx,) = extent_resolver.resolve(
                 layout.dimension.extent
