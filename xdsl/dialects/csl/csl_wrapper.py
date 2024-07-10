@@ -58,7 +58,7 @@ class ParamAttribute(ParametrizedAttribute):
     name = "csl_wrapper.param"
 
     key: ParameterDef[StringAttr]
-    value: ParameterDef[IntegerAttr | NoneAttr]
+    value: ParameterDef[IntegerAttr[IntegerType] | NoneAttr]
     type: ParameterDef[IntegerType]
 
     def print_parameters(self, printer: Printer) -> None:
