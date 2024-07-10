@@ -8,6 +8,10 @@ from xdsl.transforms.convert_memref_stream_to_loops import (
 from xdsl.transforms.memref_stream_fold_fill import MemrefStreamFoldFillPass
 from xdsl.transforms.memref_stream_generalize_fill import MemrefStreamGeneralizeFillPass
 from xdsl.transforms.memref_stream_infer_fill import MemrefStreamInferFillPass
+from xdsl.transforms.memref_stream_interleave import MemrefStreamInterleavePass
+from xdsl.transforms.memref_stream_tile_outer_loops import (
+    MemrefStreamTileOuterLoopsPass,
+)
 from xdsl.transforms.memref_stream_unnest_out_parameters import (
     MemrefStreamUnnestOutParametersPass,
 )
@@ -15,10 +19,13 @@ from xdsl.transforms.memref_streamify import MemrefStreamifyPass
 from xdsl.transforms.scf_for_loop_flatten import ScfForLoopFlattenPass
 
 TEST_OPTIMISE_MEMREF_STREAM: tuple[ModulePass, ...] = (
+    CanonicalizePass(),
     MemrefStreamInferFillPass(),
     MemrefStreamUnnestOutParametersPass(),
     MemrefStreamFoldFillPass(),
     MemrefStreamGeneralizeFillPass(),
+    MemrefStreamInterleavePass(),
+    MemrefStreamTileOuterLoopsPass(target_rank=4),
     MemrefStreamifyPass(),
     ConvertMemrefStreamToLoopsPass(),
     CanonicalizePass(),
