@@ -298,7 +298,7 @@ class ModuleOp(IRDLOperation):
 
 
 @irdl_op_definition
-class YieldOp(AbstractYieldOperation[Attribute]):
+class YieldOp(IRDLOperation):
     """
     Layout module `yield` ops should be lowered to `@set_tile_code` and must specify `fields`.
     Program module `yield` ops have no particular meaning and specify `fields` here is permitted but undefined.
@@ -306,25 +306,35 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 
     name = "csl_wrapper.yield"
 
-    fields = opt_attr_def(ArrayAttr[StringAttr])
+    values = var_operand_def(Attribute)
+    fields = prop_def(ArrayAttr[StringAttr])
 
     traits = traits_def(
         lambda: frozenset([IsTerminator(), HasParent(ModuleOp), Pure()])
     )
 
-    def __init__(self, *operands: SSAValue | Operation):
-        super().__init__(*operands)
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation],
+        args: Sequence[str] | ArrayAttr[StringAttr],
+    ):
+        if not isinstance(args, ArrayAttr):
+            args = ArrayAttr((StringAttr(arg) for arg in args))
+        super().__init__(
+            operands=[operands],
+            properties={
+                "fields": args,
+            },
+        )
 
     @staticmethod
-    def from_field_name_mapping(field_name_mapping: dict[str, Operand | SSAValue]):
+    def from_field_name_mapping(field_name_mapping: dict[str, Operation | SSAValue]):
         operands: list[Operand | SSAValue] = []
         attributes: list[StringAttr] = []
         for attr, op in field_name_mapping.items():
             attributes.append(StringAttr(attr))
             operands.append(op)
-        result = YieldOp(*operands)
-        result.attributes.update({"fields": ArrayAttr[StringAttr](attributes)})
-        return result
+        return YieldOp(operands, ArrayAttr[StringAttr](attributes))
 
     def verify_(self) -> None:
         if self.fields is not None and len(self.fields) != len(self.operands):

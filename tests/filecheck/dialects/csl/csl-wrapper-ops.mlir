@@ -27,14 +27,14 @@ builtin.module {
             %11 = arith.ori %10, %8 : i1
             %is_border_region_pe = arith.ori %11, %9 : i1
 
-            csl_wrapper.yield {"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]} %memcpy_params, %compute_all_routes, %is_border_region_pe : !csl.comptime_struct, !csl.comptime_struct, i1
+            "csl_wrapper.yield"(%memcpy_params, %compute_all_routes, %is_border_region_pe) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
     }, {
         ^0(%width: i16, %height: i16, %z_dim: i16, %pattern: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %is_border_region_pe: i1):
 
             func.func @gauss_seidel () {
                 func.return
             }
-            csl_wrapper.yield
+            "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
     }) : () -> ()
 }
 
@@ -59,13 +59,13 @@ builtin.module {
 // CHECK-NEXT:     %10 = arith.ori %6, %7 : i1
 // CHECK-NEXT:     %11 = arith.ori %10, %8 : i1
 // CHECK-NEXT:     %is_border_region_pe = arith.ori %11, %9 : i1
-// CHECK-NEXT:     csl_wrapper.yield  {"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]} %memcpy_params, %compute_all_routes, %is_border_region_pe : !csl.comptime_struct, !csl.comptime_struct, i1
+// CHECK-NEXT:     "csl_wrapper.yield"(%memcpy_params, %compute_all_routes, %is_border_region_pe) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:   }, {
 // CHECK-NEXT:   ^1(%width_1 : i16, %height_1 : i16, %z_dim_1 : i16, %pattern_1 : i16, %memcpy_params_1 : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %is_border_region_pe_1 : i1):
 // CHECK-NEXT:     func.func @gauss_seidel() {
 // CHECK-NEXT:       func.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl_wrapper.yield
+// CHECK-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
 // CHECK-NEXT:   }) : () -> ()
 // CHECK-NEXT: }
 
@@ -90,12 +90,12 @@ builtin.module {
 // CHECK-GENERIC-NEXT:     %10 = "arith.ori"(%6, %7) : (i1, i1) -> i1
 // CHECK-GENERIC-NEXT:     %11 = "arith.ori"(%10, %8) : (i1, i1) -> i1
 // CHECK-GENERIC-NEXT:     %is_border_region_pe = "arith.ori"(%11, %9) : (i1, i1) -> i1
-// CHECK-GENERIC-NEXT:     "csl_wrapper.yield"(%memcpy_params, %compute_all_routes, %is_border_region_pe) {"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]} : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
+// CHECK-GENERIC-NEXT:     "csl_wrapper.yield"(%memcpy_params, %compute_all_routes, %is_border_region_pe) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-GENERIC-NEXT:   }, {
 // CHECK-GENERIC-NEXT:   ^1(%width_1 : i16, %height_1 : i16, %z_dim_1 : i16, %pattern_1 : i16, %memcpy_params_1 : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %is_border_region_pe_1 : i1):
 // CHECK-GENERIC-NEXT:     "func.func"() <{"sym_name" = "gauss_seidel", "function_type" = () -> ()}> ({
 // CHECK-GENERIC-NEXT:       "func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
-// CHECK-GENERIC-NEXT:     "csl_wrapper.yield"() : () -> ()
+// CHECK-GENERIC-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
