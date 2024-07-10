@@ -30,15 +30,15 @@ from xdsl.utils.exceptions import DiagnosticException
 def insert_subview(
     memref_val: SSAValue,
     affine_map: AffineMap,
-    apply_operands: Sequence[SSAValue],
+    dim_offsets: Sequence[SSAValue],
     upper_bounds: Sequence[int],
     location: InsertPoint,
 ):
     """
     A helper method to insert a subview from the input `memref_val` to one with new upper
     bounds, given that it will be accessed with the specified affine map.
-    `apply_operands` are the operands to use to determine the new offset,
-    and `upper_bounds` the new shape.
+    `dim_offsets` are the operands to use to determine the new offset, and `upper_bounds`
+    the new shape.
     Any new operations should be inserted at `location`.
     """
     name_hint_prefix = (
@@ -46,7 +46,7 @@ def insert_subview(
     )
     apply_ops = tuple(
         affine.ApplyOp(
-            apply_operands,
+            dim_offsets,
             AffineMapAttr(
                 AffineMap(affine_map.num_dims, affine_map.num_symbols, (res,))
             ),
@@ -58,11 +58,14 @@ def insert_subview(
         offset_val.name_hint = name_hint_prefix + "offset"
     Rewriter.insert_op(apply_ops, location)
 
-    # New subview shape
-    max_values = tuple(ub - 1 for ub in upper_bounds)
-    sizes = tuple(
-        apply_op.map.data.eval(max_values, ())[0] + 1 for apply_op in apply_ops
-    )
+    # The new upper bounds are determined in the following way:
+    # 1. Take the maximum values each individual index could take (ub - 1)
+    # 2. Apply the access pattern, yielding the new maximum value
+    #   (This assumes that the affine expression is always increasing in the inputs)
+    # 3. Add 1 to yield new upper bound
+    source_max_indices = tuple(ub - 1 for ub in upper_bounds)
+    dest_max_indices = affine_map.eval(source_max_indices, ())
+    dest_shape = tuple(max_index + 1 for max_index in dest_max_indices)
 
     source_type = memref_val.type
     if not isinstance(source_type, memref.MemRefType):
@@ -72,14 +75,14 @@ def insert_subview(
     strides = tuple(source_type.get_strides())
     if isinstance(layout_attr, NoneAttr):
         layout_attr = StridedLayoutAttr(strides, None)
-        dest_type = MemRefType(source_type.element_type, sizes, layout_attr)
+        dest_type = MemRefType(source_type.element_type, dest_shape, layout_attr)
     else:
         dest_type = source_type
 
     subview_op = memref.Subview.get(
         memref_val,
         offset_vals,
-        sizes,
+        dest_shape,
         (1,) * len(strides),
         dest_type,
     )
@@ -92,14 +95,16 @@ def materialize_loop(
     rewriter: PatternRewriter, generic_op: memref_stream.GenericOp, index: int
 ) -> Sequence[Operation]:
     """
-    Replaces a given generic op with a for loop containing an op with the ub at the
-    specified index set to 1.
+    Replaces a given generic op with a for loop containing an op with the upper bound at
+    the specified index set to 1.
     """
     if (
         generic_op.iterator_types.data[index].data
         != memref_stream.IteratorType.PARALLEL
     ):
-        raise DiagnosticException("Cannot ")
+        raise DiagnosticException(
+            "Cannot materialize a loop for a non-parallel iterator"
+        )
 
     ops: list[Operation] = [
         zero_op := arith.Constant(IntegerAttr.from_index_int_value(0)),
