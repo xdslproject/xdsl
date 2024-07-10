@@ -87,11 +87,11 @@ riscv_func.func @xdma() {
 }
 
 riscv_func.func @simd() {
-  // CHECK-LABEL: @simd
   %v = riscv.get_float_register : !riscv.freg
+  // CHECK: %v = riscv.get_float_register : !riscv.freg
   
   %0 = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
-  // CHECK: %0 = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %0 = riscv_snitch.vfmul.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
   %1 = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
   // CHECK-NEXT: %1 = riscv_snitch.vfadd.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
