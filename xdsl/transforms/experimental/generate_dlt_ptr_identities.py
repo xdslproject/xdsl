@@ -22,7 +22,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import UseDefChainTrait
 from xdsl.transforms.experimental.dlt.layout_graph import LayoutGraph
-from xdsl.transforms.experimental.dlt_ptr_type_rewriter import PtrIdentityTypeRewriter
+from xdsl.transforms.experimental.dlt.dlt_ptr_type_rewriter import PtrIdentityTypeRewriter
 
 
 class _Namer:

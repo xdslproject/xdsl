@@ -9,7 +9,7 @@ from xdsl.transforms.experimental.dlt.layout_manipulation import (
     InConsistentLayoutException,
     Manipulator,
 )
-from xdsl.transforms.experimental.dlt_ptr_type_rewriter import (
+from xdsl.transforms.experimental.dlt.dlt_ptr_type_rewriter import (
     PtrIdentityBulkTypeRewriter,
 )
 

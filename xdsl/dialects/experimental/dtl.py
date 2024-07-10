@@ -189,9 +189,9 @@ DeIndexingStruct: TypeAlias = IndexStruct[Index | VectorSpace]
 class IndexBindingOp(IRDLOperation):
     name = "dtl.bind"
 
-    expr: TensorExprType = operand_def(TensorExprType)
+    expr: Operand = operand_def(TensorExprType)
     indices_map: IndexToVectorSpaceMap = attr_def(IndexToVectorSpaceMap)
-    result: TensorExprType = result_def(TensorExprType)
+    result: OpResult = result_def(TensorExprType)
 
     def verify_(self):
         for idx in self.indices_map.indices():
@@ -302,9 +302,9 @@ def matchTensorTupleStructures(
 class IndexOp(IRDLOperation):
     name = "dtl.indexOp"
 
-    expr = operand_def(TensorExprType)
+    expr: Operand = operand_def(TensorExprType)
     indices: IndexingStruct = attr_def(IndexingStruct)
-    result: TensorExprType = result_def(TensorExprType)
+    result: OpResult = result_def(TensorExprType)
 
     def verify_(self):
         self.indices.verify_generic(Index | NoneIndex)
@@ -323,9 +323,9 @@ class IndexOp(IRDLOperation):
 class DeIndexOp(IRDLOperation):
     name = "dtl.deindexOp"
 
-    expr = operand_def(TensorExprType)
+    expr: Operand = operand_def(TensorExprType)
     indices: DeIndexingStruct = attr_def(DeIndexingStruct)
-    result: TensorExprType = result_def(TensorExprType)
+    result: OpResult = result_def(TensorExprType)
 
     @staticmethod
     def _get_indices(struct: DeIndexingStruct) -> [Index]:
@@ -365,9 +365,9 @@ class DeIndexOp(IRDLOperation):
 class SumOp(IRDLOperation):
     name = "dtl.sumOp"
 
-    expr: TensorExprType = operand_def(TensorExprType)
+    expr: Operand = operand_def(TensorExprType)
     indices: ArrayAttr[Index] = attr_def(ArrayAttr[Index])
-    result: TensorExprType = result_def(TensorExprType)
+    result: OpResult = result_def(TensorExprType)
 
     def verify_(self):
         for idx in self.indices:
@@ -497,10 +497,10 @@ class ScalarConstOp(IRDLOperation):
 
 @irdl_op_definition
 class TupleOp(IRDLOperation):
-    name: str = "dtl.tupleOp"
+    name = "dtl.tupleOp"
 
     arguments: VarOperand = var_operand_def(TensorExprType)
-    result: TensorExprType = result_def(TensorExprType)
+    result: OpResult = result_def(TensorExprType)
 
     def verify_(self):
         assert isa(self.result.type, TensorExprType)
@@ -538,11 +538,11 @@ class TupleOp(IRDLOperation):
 
 @irdl_op_definition
 class IndexedTupleOp(IRDLOperation):
-    name: str = "dtl.indexedTupleOp"
+    name = "dtl.indexedTupleOp"
 
-    tuple: TensorExprType = operand_def(TensorExprType)
+    tuple: Operand = operand_def(TensorExprType)
     index: IntAttr = attr_def(IntAttr)
-    result: TensorExprType = result_def(TensorExprType)
+    result: OpResult = result_def(TensorExprType)
 
     def verify_(self):
         assert isa(self.tuple.type, TensorExprType)
@@ -558,11 +558,11 @@ class IndexedTupleOp(IRDLOperation):
 
 @irdl_op_definition
 class ConstTensorOp(IRDLOperation):
-    name: str = "dtl.constTensorOp"
+    name = "dtl.constTensorOp"
 
-    val: builtin.AnyFloat = operand_def(builtin.AnyFloat)
+    val: builtin.AnyFloatAttr = attr_def(builtin.AnyFloatAttr)
     shape: TensorResultType = attr_def(TensorResultType)
-    result: TensorExprType = result_def(TensorExprType)
+    result: OpResult = result_def(TensorExprType)
 
     def verify_(self):
         assert isa(self.val.type, builtin.AnyFloat)
@@ -585,8 +585,8 @@ class ConstTensorOp(IRDLOperation):
 class TensorVariableOp(IRDLOperation):
     name = "dtl.tensorVariableOp"
 
-    val: dlt.PtrType = operand_def(dlt.PtrType)
-    result: TensorExprType = result_def(TensorExprType)
+    val: Operand = operand_def(dlt.PtrType)
+    result: OpResult = result_def(TensorExprType)
 
     def verify_(self):
         # assert isa(self.val.type, builtin.AnyFloat)

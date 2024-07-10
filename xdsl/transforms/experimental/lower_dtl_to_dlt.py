@@ -5,25 +5,20 @@ from typing import Union
 
 import xdsl.dialects.arith as arith
 import xdsl.dialects.builtin as builtin
-import xdsl.dialects.memref as memref
-import xdsl.dialects.scf as scf
-from xdsl import printer, ir
-from xdsl.builder import Builder
+from xdsl import ir
+
 # from xdsl.dialects.builtin import *
 from xdsl.dialects.experimental import dlt, dtl
 from xdsl.ir import (
     Attribute,
     Block,
     BlockArgument,
-    MLContext,
+    OpResult,
     Operation,
-    Region,
     SSAValue,
 )
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
-    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -42,7 +37,8 @@ class ExprResult:
         self, ssa: SSAValue, dims: list[dlt.DimensionAttr], base_type: Attribute
     ):
         if isinstance(ssa.type, dlt.PtrType):
-            assert ssa.type.contents_type.get_single_element() is not None
+            ssa_type = typing.cast(dlt.PtrType, ssa.type)
+            assert ssa_type.contents_type.get_single_element() is not None
         self.ssa = ssa
         self.dims = dims
         self.base_type = base_type
@@ -113,7 +109,7 @@ def _linear(res: TupleStruct, cls) -> list:
 
 
 @dataclass
-class DTLDenseRewriter(RewritePattern):
+class DTLRewriter(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, exe_op: dtl.InPlaceExecuteTensorOp, rewriter: PatternRewriter
@@ -143,7 +139,9 @@ class DTLDenseRewriter(RewritePattern):
         self.elements = {}
 
         self.const_ops = []
-        self.extent_map: dict[dtl.VectorSpace, tuple[dlt.DimensionAttr, ir.SSAValue]] = {}
+        self.extent_map: dict[
+            dtl.VectorSpace, tuple[dlt.Extent, ir.SSAValue]
+        ] = {}
         for output, dims, shapeStruct in zip(
             exe_op.outputs + exe_op.tensor_args,
             list(exe_op.output_indices) + list(exe_op.tensor_arg_indices),
@@ -153,7 +151,9 @@ class DTLDenseRewriter(RewritePattern):
                 if isinstance(vs, dtl.KnownVectorSpace):
                     assert dim.extent.is_static()
                     if vs not in self.extent_map:
-                        const = arith.Constant(builtin.IntegerAttr(vs.dim, builtin.IndexType()))
+                        const = arith.Constant(
+                            builtin.IntegerAttr(vs.dim, builtin.IndexType())
+                        )
                         self.const_ops.append(const)
                         self.extent_map[vs] = (dim.extent, const.result)
                     elif self.extent_map[vs][0] != dim.extent:
@@ -238,21 +238,21 @@ class DTLDenseRewriter(RewritePattern):
 
     @functools.singledispatchmethod
     def _get_expression(
-        self, expr, indexMap: typing.Dict[dtl.Index, SSAValue]
+        self, expr: Operation, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: (Unknown) {expr.name} :===: {expr}")
-        for child in expr.operands:
-            self._get_expression(child.op, indexMap)
+        # print(f"_get_expression: (Unknown) {expr.name} :===: {expr}")
+        # for child in expr.operands:
+        #     self._get_expression(child.op, indexMap)
         raise TypeError(f"expr has unsupported class: {expr.__class__}")
-        return OpsAndResult([], ExprResult(None, None, None))
+        # return OpsAndResult([], ExprResult(None, None, None))
 
     @functools.singledispatchmethod
     def _do_expression(
         self, expr, destination, indexMap: typing.Dict[dtl.Index, SSAValue]
     ):
         print(f"_do_expression: {expr.name} :===: {expr}")
-        for child in expr.operands:
-            self._get_expression(child.op, indexMap)
+        # for child in expr.operands:
+        #     self._get_expression(child.op, indexMap)
         raise TypeError(f"expr has unsupported class: {expr.__class__}")
 
     @_get_expression.register
@@ -260,7 +260,9 @@ class DTLDenseRewriter(RewritePattern):
         self, expr: dtl.TensorVariableOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
         print(f"_get_expression: {expr.name} :===: {expr}")
-        spaces = [space for space in expr.result.type.result.shape]
+        assert isinstance(expr.result.type, dtl.TensorExprType)
+        expr_type: dtl.TensorExprType = typing.cast(dtl.TensorExprType, expr.result.type)
+        spaces = [space for space in expr_type.result.shape]
         block_arg = expr.val
         assert isinstance(block_arg, BlockArgument)
         dlt_dims = self.context.tensor_arg_indices.data[block_arg.index].data
@@ -281,7 +283,9 @@ class DTLDenseRewriter(RewritePattern):
         indexMap: typing.Dict[dtl.Index, SSAValue],
     ):
         print(f"_do_expression: {expr.name} :===: {expr}")
-        spaces = [space for space in expr.result.type.result.shape]
+        assert isinstance(expr.result.type, dtl.TensorExprType)
+        expr_type: dtl.TensorExprType = typing.cast(dtl.TensorExprType, expr.result.type)
+        spaces = [space for space in expr_type.result.shape]
         block_arg = expr.val
         assert isinstance(block_arg, BlockArgument)
         dlt_dims = self.context.tensor_arg_indices.data[block_arg.index].data
@@ -299,7 +303,7 @@ class DTLDenseRewriter(RewritePattern):
         new_map = {
             i: v for i, v in indexMap.items() if i not in expr.indices_map.indices()
         }
-        return self._get_expression(expr.expr.op, new_map)
+        return self._get_expression(_op_for(expr.expr), new_map)
 
     def _match_indices_and_subexprs(
         self, indices, subexpr: TupleStruct[ExprResult], indexMap
@@ -336,7 +340,7 @@ class DTLDenseRewriter(RewritePattern):
         self, expr: dtl.IndexOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
         print(f"_get_expression: {expr.name} :===: {expr}")
-        subexpr = self._get_expression(expr.expr.op, indexMap)
+        subexpr = self._get_expression(_op_for(expr.expr), indexMap)
         ops, results = self._match_indices_and_subexprs(
             expr.indices, subexpr.result, indexMap
         )
@@ -373,11 +377,15 @@ class DTLDenseRewriter(RewritePattern):
             assert isinstance(sub_results, ExprResult)
             sub_result_dim_idx = 0
             member_parts = [
-                dlt.MemberAttr((builtin.StringAttr(f"T_{l}"), builtin.StringAttr(f"{p}")))
+                dlt.MemberAttr(
+                    (builtin.StringAttr(f"T_{l}"), builtin.StringAttr(f"{p}"))
+                )
                 for l, p in enumerate(path)
             ]
             member_parts.append(
-                dlt.MemberAttr((builtin.StringAttr("DeIndex_Temp"), builtin.StringAttr(tempName)))
+                dlt.MemberAttr(
+                    (builtin.StringAttr("DeIndex_Temp"), builtin.StringAttr(tempName))
+                )
             )
             members = dlt.SetAttr(member_parts)
             dims = []
@@ -417,7 +425,7 @@ class DTLDenseRewriter(RewritePattern):
                         )
                 elif isinstance(vector_space, dtl.VectorSpace):
                     dim_name = builtin.StringAttr(
-                        f"{sub_results.dims[sub_result_dim_idx].data}_{self.next_dimension_name()}_"
+                        f"{sub_results.dims[sub_result_dim_idx].dimensionName}_{self.next_dimension_name()}_"
                     )
                     assert isinstance(sub_results.ssa.type, dlt.PtrType)
                     base_dim = sub_results.ssa.type.contents_type.get_single_element().get_dimension(
@@ -494,30 +502,34 @@ class DTLDenseRewriter(RewritePattern):
                     selector_dims.append(dim)
                     dst_dims.remove(dim)
                 dst = dlt.SelectOp(ptr_element, [], selector_dims, selector_operands)
+                assert isinstance(dst.res.type, dlt.PtrType)
+                dst_res_type = typing.cast(dlt.PtrType, dst.res.type)
+                dlt_element = dst_res_type.contents_type.get_single_element()
                 assert (
-                    len(dst.res.type.contents_type.get_single_element().dimensions) == 0
+                    len(dlt_element.dimensions) == 0
                 )
                 assert (
                     len(
-                        dst.res.type.contents_type.get_single_element().member_specifiers
+                        dlt_element.member_specifiers
                     )
                     == 0
                 )
                 assert (
                     res_ssa.type
-                    == dst.res.type.contents_type.get_single_element().base_type
+                    == dlt_element.base_type
                 )
                 assert len(dst_dims) == 0
                 set_op = dlt.SetOp(
-                    dst,
-                    dst.res.type.contents_type.get_single_element().base_type,
+                    dst.res,
+                    dlt_element.base_type,
                     res_ssa,
                 )
                 return [dst, set_op]
             elif isinstance(res_ssa.type, dlt.PtrType):
                 src = res_ssa
+                src_type = typing.cast(dlt.PtrType, src.type)
                 src_dims = [
-                    src.type.contents_type.get_dimension(dim) for dim in result.dims
+                    src_type.contents_type.get_dimension(dim) for dim in result.dims
                 ]
                 dst_dims = list(element.dims)
                 selector_operands = []
@@ -529,12 +541,15 @@ class DTLDenseRewriter(RewritePattern):
                     dst_dims.remove(dim)
                 dst = dlt.SelectOp(ptr_element, [], selector_dims, selector_operands)
                 # dst_dims = [dst.res.type.contents_type.get_dimension(dim) for dim in dst_dims_names]
+                assert isinstance(dst.res.type, dlt.PtrType)
+                dst_res_type = typing.cast(dlt.PtrType, dst.res.type)
+                dlt_element = dst_res_type.contents_type.get_single_element()
                 assert len(
-                    dst.res.type.contents_type.get_single_element().dimensions
+                    dlt_element.dimensions
                 ) == len(dst_dims)
                 assert all(
                     dim in dst_dims
-                    for dim in dst.res.type.contents_type.get_single_element().dimensions
+                    for dim in dlt_element.dimensions
                 )
                 for src_dim, dst_dim in zip(src_dims, dst_dims):
                     assert src_dim.extent == dst_dim.extent
@@ -549,7 +564,7 @@ class DTLDenseRewriter(RewritePattern):
                 return [dst, copy]
 
             else:
-                raise TypeError(f"Unsupported type {result.type}")
+                raise TypeError(f"Unsupported type {res_ssa.type}")
         else:
             raise TypeError(f"Unexpected result type {type(result)}")
 
@@ -598,7 +613,7 @@ class DTLDenseRewriter(RewritePattern):
         newMap = dict(indexMap)
         block = Block()
 
-        extents: list[dlt.ExtentAttr] = []
+        extents: list[dlt.Extent] = []
         extent_args: list[SSAValue] = []
         loop_indices = expr.get_indices()
         for i, dim in enumerate(loop_indices):
@@ -607,7 +622,7 @@ class DTLDenseRewriter(RewritePattern):
             arg = block.insert_arg(builtin.IndexType(), i)
             newMap[dim] = arg
 
-            vs = expr.expr.type.args.vector_space_of(dim)
+            vs = typing.cast(dtl.TensorExprType, expr.expr.type).args.vector_space_of(dim)
             if isinstance(vs, dtl.KnownVectorSpace):
                 extents.append(dlt.StaticExtentAttr(vs.dim))
             elif isinstance(vs, dtl.UnknownVectorSpace):
@@ -619,13 +634,13 @@ class DTLDenseRewriter(RewritePattern):
             else:
                 raise NotImplementedError(f"Vector space {vs} is not implemented")
 
-        subexpr: OpsAndResult = self._get_expression(expr.expr.op, newMap)
+        subexpr: OpsAndResult = self._get_expression(_op_for(expr.expr), newMap)
         # results = subexpr.list_of_ExprResults()
         # for r in results:
         #     r.ssa.op.verify()
 
         elements = self._get_dlt_deindex_typetype(
-            expr.indices, subexpr.result, expr.expr.type, self.next_dimension_name()
+            expr.indices, subexpr.result, typing.cast(dtl.TensorExprType, expr.expr.type), self.next_dimension_name()
         )
 
         def _unknown_extents(
@@ -648,8 +663,8 @@ class DTLDenseRewriter(RewritePattern):
                     e: self.extent_map[dtl.UnknownVectorSpace(e.get_id())][1]
                     for d in element.elem.dimensions
                     if (d.extent.get_stage() >= dlt.Stage.INIT)
-                    for e in d.extent.base_extents()
-                    if isinstance(e, dlt.InitDefinedExtentAttr)
+                    for e_b in d.extent.base_extents()
+                    if isinstance(e := typing.cast(dlt.InitDefinedExtentAttr, e_b), dlt.InitDefinedExtentAttr)
                 }
                 assert all(ssa is not None for ssa in extent_map.values())
                 return extent_map
@@ -674,8 +689,12 @@ class DTLDenseRewriter(RewritePattern):
 
         dlt_type = dlt.TypeType(_elementAttrs(elements))
 
-        alloc = dlt.AllocOp(dlt.PtrType(dlt_type, extents=builtin.ArrayAttr(init_time_extents), base=True),
-                            unknown_extents)
+        alloc = dlt.AllocOp(
+            dlt.PtrType(
+                dlt_type, extents=builtin.ArrayAttr(init_time_extents), base=True
+            ),
+            unknown_extents,
+        )
         ops.append(alloc)
         selector_ops, ptr_elements = self._get_new_element_selector(elements, alloc.res)
         ops.extend(selector_ops)
@@ -712,7 +731,7 @@ class DTLDenseRewriter(RewritePattern):
         newMap = dict(indexMap)
         block = Block()
 
-        extents: list[dlt.ExtentAttr] = []
+        extents: list[dlt.Extent] = []
         extent_args: list[SSAValue] = []
         for i, dim in enumerate(expr.indices):
             assert isinstance(dim, dtl.Index)
@@ -732,7 +751,7 @@ class DTLDenseRewriter(RewritePattern):
             else:
                 raise NotImplementedError(f"Vector space {vs} is not implemented")
 
-        subexpr: OpsAndResult = self._get_expression(expr.expr.op, newMap)
+        subexpr: OpsAndResult = self._get_expression(_op_for(expr.expr), newMap)
         if not subexpr.is_single_result:
             raise NotImplementedError(
                 f"SumOp cannot sum over values that are not a simple scalar, found: {subexpr.result}"
@@ -742,7 +761,7 @@ class DTLDenseRewriter(RewritePattern):
                 f"SumOp cannot sum over values that are not a simple scalar, found: {subexpr.result.dims}"
             )
 
-        accu_type = subexpr.single_result.base_type
+        accu_type = typing.cast(builtin.AnyFloat, subexpr.single_result.base_type)
 
         if isinstance(accu_type, builtin.IntegerType):
             accumulator_op = arith.Constant.from_int_and_width(0, accu_type)
@@ -794,20 +813,23 @@ class DTLDenseRewriter(RewritePattern):
     ) -> OpsAndResult:
         print(f"_get_expression: {expr.name} :===: {expr}")
         const_op = arith.Constant(expr.val)
-        return OpsAndResult([const_op], ExprResult(const_op.result, [], const_op.result.type))
+        return OpsAndResult(
+            [const_op], ExprResult(const_op.result, [], const_op.result.type)
+        )
+
     @_get_expression.register
     def _(
         self, expr: dtl.ScalarAddOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
         print(f"_get_expression: {expr.name} :===: {expr}")
-        lsubexpr: OpsAndResult = self._get_expression(expr.lhs.op, indexMap)
+        lsubexpr: OpsAndResult = self._get_expression(_op_for(expr.lhs), indexMap)
         assert lsubexpr is not None
         assert (
             lsubexpr.is_single_result
         )  # check that lsubexpr is a scalar (not a tuple-tensor, and no dims)
         assert len(lsubexpr.single_result.dims) == 0
 
-        rsubexpr: OpsAndResult = self._get_expression(expr.rhs.op, indexMap)
+        rsubexpr: OpsAndResult = self._get_expression(_op_for(expr.rhs), indexMap)
         assert rsubexpr is not None
         assert (
             rsubexpr.is_single_result
@@ -907,6 +929,14 @@ class DTLDenseRewriter(RewritePattern):
         next = self.next_temp_name_number
         self.next_temp_name_number = next + 1
         return str(next)
+
+
+def _op_for(ssa: SSAValue) -> Operation:
+    if not isinstance(ssa, OpResult):
+        raise ValueError("ssa must be an OpResult")
+    return ssa.op
+
+
 #
 #
 # @dataclass
