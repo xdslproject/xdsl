@@ -15,7 +15,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.dialects.csl import ParameterDef, csl
-from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
     Block,
