@@ -7,7 +7,15 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.csl import csl
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    BlockArgument,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+)
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
@@ -233,7 +241,7 @@ class ModuleOp(IRDLOperation):
         printer.print_region(self.program_module, print_entry_block_args=True)
         printer.print(")")
 
-    def get_layout_arg(self, name: str):
+    def get_layout_arg(self, name: str) -> BlockArgument:
         """Retrieve layout block arg for name that is x, y, or one of the properties"""
         available_arg_names = ["x", "y", "width", "height"] + list(
             self.params.data.keys()
@@ -244,7 +252,7 @@ class ModuleOp(IRDLOperation):
         idx = available_arg_names.index(name)
         return self.layout_module.block.args[idx]
 
-    def get_program_arg(self, name: str):
+    def get_program_arg(self, name: str) -> BlockArgument:
         """Retrieve program block arg for name that is one of the properties or a param set up by layout yield"""
         layout_yield = self.layout_module.block.last_op
         assert isinstance(layout_yield, YieldOp)
