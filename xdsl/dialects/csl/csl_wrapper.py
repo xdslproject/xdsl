@@ -1,11 +1,20 @@
+from __future__ import annotations
+
+import itertools
+from collections.abc import Iterable, Sequence
+from typing import cast
+
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
     ArrayAttr,
     DictionaryAttr,
     IntegerAttr,
     IntegerType,
+    NoneAttr,
     StringAttr,
 )
-from xdsl.dialects.csl import csl
+from xdsl.dialects.csl import ParameterDef, csl
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
@@ -13,12 +22,14 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     Operation,
+    ParametrizedAttribute,
     Region,
     SSAValue,
 )
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
+    irdl_attr_definition,
     irdl_op_definition,
     opt_attr_def,
     prop_def,
@@ -27,10 +38,62 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import HasParent, IsTerminator, Pure
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
+i16 = builtin.IntegerType(16)
+
+
+@irdl_attr_definition
+class ParamAttribute(ParametrizedAttribute):
+    """
+    TODO: better name here
+
+    Represents a module parameter that needs to have a type, and may have a value.
+    """
+
+    name = "csl_wrapper.param"
+
+    key: ParameterDef[StringAttr]
+    value: ParameterDef[IntegerAttr | NoneAttr]
+    type: ParameterDef[IntegerType]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string_literal(self.key.data)
+            if not isinstance(self.value, NoneAttr):
+                printer.print(" default=")
+                printer.print_attribute(self.value)
+            else:
+                printer.print(" : ")
+                printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            key = StringAttr(parser.parse_str_literal())
+            if parser.parse_optional_keyword("default"):
+                parser.parse_punctuation("=")
+                val = parser.parse_attribute()
+                assert isa(val, AnyIntegerAttr)
+                assert isinstance(val.type, IntegerType)
+                type = val.type
+            else:
+                parser.parse_punctuation(":")
+                val = NoneAttr()
+                type = parser.parse_type()
+        return key, val, type
+
+    def verify(self) -> None:
+        super().verify()
+        if not isinstance(self.value, NoneAttr):
+            if self.value.type != self.type:
+                raise VerifyException(
+                    f"Value expected to be of type {self.type}, found {self.value.type}"
+                )
 
 
 @irdl_op_definition
@@ -89,7 +152,7 @@ class ModuleOp(IRDLOperation):
 
     width = prop_def(IntegerAttr)
     height = prop_def(IntegerAttr)
-    params = prop_def(DictionaryAttr)
+    params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
 
     layout_module = region_def("single_block")
     program_module = region_def("single_block")
@@ -145,130 +208,93 @@ class ModuleOp(IRDLOperation):
             arg.name_hint = name.data
 
     def verify_(self):
-        if "x" in self.properties or "y" in self.properties:
-            raise ValueError("'x' and 'y' not allowed as property names")
+        # verify that names are unique
+        names: set[str] = {"x", "y", "width", "height"}
+        for param in self.params.data:
+            if param.key.data in names:
+                raise VerifyException(f"Duplicate name in parameters: {param.key.data}")
+            names.add(param.key.data)
 
-        all_params: dict[str, Attribute] = {"width": self.width, "height": self.height}
-        if len(self.params.data) > 0:
-            all_params.update(self.params.data)
+        # verify that x, y, width, height are i16
+        if not all(arg.type == i16 for arg in self.layout_module.block.args[:4]):
+            raise VerifyException(
+                "The first four arguments of the layout block (x, y, width, height) must be of type i16"
+            )
 
-        expected_layout_args: dict[str, IntegerType] = {
-            "x": IntegerType(16),
-            "y": IntegerType(16),
-        }
-        expected_program_args: dict[str, Attribute] = {}
-        for name, attr in all_params.items():
-            if not isa(attr, IntegerAttr[IntegerType]):
-                raise ValueError(f"property {name} must be IntegerAttr[IntegerType]")
-            expected_layout_args[name] = attr.type
-            expected_program_args[name] = attr.type
+        # verify that block args are of the right type for the provided params
+        for arg, param in zip(
+            [a.type for a in self.layout_module.block.args[4:]],
+            self.params,
+            strict=True,
+        ):
+            if arg != param.type:
+                raise ValueError(
+                    f"Layout module block arg types do not match for arg {param.key} expected: {param.type} but got: "
+                    f"{arg}. Block arg types must correspond to prop types (in order)"
+                )
 
+        # verify that the first two program block args (width, height) are correctly typed
+        if not all(arg.type == i16 for arg in self.program_module.block.args[:2]):
+            raise VerifyException(
+                "The first two arguments of the program block (width, height) must be of type i16"
+            )
+
+        # verify that params and yielded arguments are typed correctly
         for got, (name, exp) in zip(
-            [a.type for a in self.layout_module.block.args],
-            expected_layout_args.items(),
+            [a.type for a in self.program_module.block.args[2:]],
+            itertools.chain(
+                (
+                    (param.key.data, cast(Attribute, param.type))
+                    for param in self.params
+                ),
+                ((key, val.type) for key, val in self.layout_yield_op.items()),
+            ),
             strict=True,
         ):
             if exp != got:
-                raise ValueError(
-                    f"Layout module block arg types do not match for arg {name} expected: {exp} but got: {got}. Block arg types must correspond to prop types (in order)"
+                raise VerifyException(
+                    f"Program module block arg types do not match for arg {name} expected: {exp} but got: {got}. "
+                    f"Block arg types must correspond to prop types and layout yield result types (in order)"
                 )
 
-        yield_op = self.layout_module.block.last_op
-        if not isinstance(yield_op, YieldOp):
-            raise ValueError("layout module must be terminated by csl_wrapper.yield")
+    def get_layout_param(self, name: str) -> BlockArgument:
+        """
+        Retrieve layout block arg for name that is x, y, or one of the properties
+        """
+        # check static params:
+        if name in ("x", "y", "width", "height"):
+            return self.layout_module.block.args[
+                ("x", "y", "width", "height").index(name)
+            ]
+        # check module params
+        for i, param in enumerate(self.params):
+            if param.key.data == name:
+                return self.layout_module.block.args[4 + i]
+        # not found = value error
+        raise ValueError(f"{name} does not refer to a block arg of this layout_module")
 
-        if yield_op.fields is None:
-            raise ValueError("layout module yield must specify fields property")
-        yield_op.verify_()
-        for name, op in zip(yield_op.fields, yield_op.arguments):
-            expected_program_args[name.data] = op.type
-
-        for got, (name, exp) in zip(
-            [a.type for a in self.program_module.block.args],
-            expected_program_args.items(),
-            strict=True,
-        ):
-            if exp != got:
-                raise ValueError(
-                    f"Program module block arg types do not match for arg {name} expected: {exp} but got: {got}. Block arg types must correspond to prop types and layout yield result types (in order)"
-                )
-
-    @classmethod
-    def parse(cls, parser: Parser):
-        args = parser.parse_op_args_list()
-        operands = parser.resolve_operands(args, [], parser.pos)
-
-        props = parser.parse_optional_properties_dict()
-        props_l = list(props.items())
-        assert len(props_l) >= 2
-        name, width = props_l.pop(0)
-        assert name == "width"
-        name, height = props_l.pop(0)
-        assert name == "height"
-        params = dict[str, Attribute]()
-        for name, value in props_l:
-            params[name] = value
-
-        parser.parse_punctuation("(")
-        layout_module = parser.parse_region()
-        parser.parse_punctuation(",")
-        program_module = parser.parse_region()
-        parser.parse_punctuation(")")
-
-        return cls(
-            operands=operands,
-            result_types=[],
-            regions=[layout_module, program_module],
-            properties={
-                "width": width,
-                "height": height,
-                "params": DictionaryAttr(data=params),
-            },
-            attributes={},
-        )
-
-    def print(self, printer: Printer):
-        printer.print("() ")
-
-        params: dict[str, Attribute] = {"width": self.width, "height": self.height}
-        params.update(self.params.data)
-
-        printer.print("<")
-        printer.print_attr_dict(params)
-        printer.print("> (")
-        printer.print_region(self.layout_module, print_entry_block_args=True)
-        printer.print(", ")
-        printer.print_region(self.program_module, print_entry_block_args=True)
-        printer.print(")")
-
-    def get_layout_arg(self, name: str) -> BlockArgument:
-        """Retrieve layout block arg for name that is x, y, or one of the properties"""
-        available_arg_names = ["x", "y", "width", "height"] + list(
-            self.params.data.keys()
-        )
-        assert (
-            name in available_arg_names
-        ), f"{name} does not refer to a block arg of this layout_module"
-        idx = available_arg_names.index(name)
-        return self.layout_module.block.args[idx]
-
-    def get_program_arg(self, name: str) -> BlockArgument:
+    def get_program_param_arg(self, name: str) -> BlockArgument:
         """Retrieve program block arg for name that is one of the properties or a param set up by layout yield"""
-        layout_yield = self.layout_module.block.last_op
-        assert isinstance(layout_yield, YieldOp)
-        yield_args = (
-            []
-            if layout_yield.fields is None
-            else [y.data for y in layout_yield.fields.data]
-        )
-        available_arg_names = (
-            ["width", "height"] + list(self.params.data.keys()) + yield_args
-        )
-        assert (
-            name in available_arg_names
-        ), f"{name} does not refer to a block arg of this program_module"
-        idx = available_arg_names.index(name)
-        return self.program_module.block.args[idx]
+        # check static params
+        if name in ("width", "height"):
+            return self.layout_module.block.args[("width", "height").index(name)]
+        # check module params
+        for i, param in enumerate(self.params):
+            if param.key.data == name:
+                return self.layout_module.block.args[2 + i]
+        # check yielded params:
+        for i, (key, _) in enumerate(self.layout_yield_op.items()):
+            if key == name:
+                return self.layout_module.block.args[2 + len(self.params) + i]
+        # not found = value error
+        raise ValueError(f"{name} does not refer to a block arg of this program_module")
+
+    @property
+    def layout_yield_op(self) -> YieldOp:
+        """
+        Get the yield op from the layout module. Used in various places.
+        """
+        return cast(YieldOp, self.layout_module.block.last_op)
 
 
 @irdl_op_definition
@@ -304,6 +330,10 @@ class YieldOp(AbstractYieldOperation[Attribute]):
         if self.fields is not None and len(self.fields) != len(self.operands):
             raise ValueError("Number of fields must match the number of operands")
 
+    def items(self) -> Iterable[tuple[str, SSAValue]]:
+        assert self.fields is not None
+        return zip((elm.data for elm in self.fields.data), self.operands, strict=True)
+
 
 CSL_WRAPPER = Dialect(
     "csl_wrapper",
@@ -312,5 +342,7 @@ CSL_WRAPPER = Dialect(
         ModuleOp,
         YieldOp,
     ],
-    [],
+    [
+        ParamAttribute,
+    ],
 )
