@@ -8,7 +8,6 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     ArrayAttr,
-    DictionaryAttr,
     IntegerAttr,
     IntegerType,
     NoneAttr,
@@ -17,7 +16,6 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.csl import ParameterDef, csl
 from xdsl.ir import (
     Attribute,
-    Block,
     BlockArgument,
     Dialect,
     Operation,
@@ -27,7 +25,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    Operand,
     irdl_attr_definition,
     irdl_op_definition,
     prop_def,
@@ -108,8 +105,10 @@ class ImportModuleOp(IRDLOperation):
     fields = prop_def(ArrayAttr[StringAttr])
     result = result_def(csl.ImportedModuleType)
 
-    def __init__(self, module: str, field_name_mapping: dict[str, Operand | SSAValue]):
-        ops: list[Operand | SSAValue] = []
+    def __init__(
+        self, module: str, field_name_mapping: dict[str, Operation | SSAValue]
+    ):
+        ops: list[Operation | SSAValue] = []
         fields: list[StringAttr] = []
         for field, op in field_name_mapping.items():
             ops.append(op)
@@ -155,34 +154,35 @@ class ModuleOp(IRDLOperation):
     layout_module = region_def("single_block")
     program_module = region_def("single_block")
 
-    @staticmethod
-    def from_properties(properties: dict[str, Attribute]):
-        layout_module = Region(Block())
-        program_module = Region(Block())
-        x = layout_module.block.insert_arg(IntegerType(16), 0)
-        y = layout_module.block.insert_arg(IntegerType(16), 1)
-        x.name_hint = "x"
-        y.name_hint = "y"
+    def __init__(
+        self,
+        width: int | IntegerAttr[IntegerType],
+        height: int | IntegerAttr[IntegerType],
+        params: (
+            dict[str, IntegerAttr[IntegerType]] | Sequence[ParamAttribute] | None
+        ) = None,
+    ):
+        if not isinstance(width, IntegerAttr):
+            width = IntegerAttr(width, i16)
+        if not isinstance(height, IntegerAttr):
+            height = IntegerAttr(height, i16)
+        if params is None:
+            params = []
+        elif isinstance(params, dict):
+            params = [
+                ParamAttribute([StringAttr(name), val, val.type])
+                for name, val in params.items()
+            ]
+        params_attr = ArrayAttr(params)
 
-        for name, value in properties.items():
-            if not isa(value, IntegerAttr[IntegerType]):
-                raise ValueError("Can only create module from IntegerAttr properties")
-            l_arg = layout_module.block.insert_arg(
-                value.type, len(layout_module.block.args)
-            )
-            l_arg.name_hint = name
-            p_arg = program_module.block.insert_arg(
-                value.type, len(program_module.block.args)
-            )
-            p_arg.name_hint = name
-
-        props = {
-            "width": properties.pop("width"),
-            "height": properties.pop("height"),
-            "params": DictionaryAttr(properties),
-        }
-
-        return ModuleOp(properties=props, regions=[layout_module, program_module])
+        super().__init__(
+            properties={
+                "width": width,
+                "height": height,
+                "params": params_attr,
+            },
+            regions=[Region(), Region()],
+        )
 
     def update_program_block_args_from_layout(self):
         """Update `program_module` BlockArguments by adding yield op fields"""
@@ -192,18 +192,11 @@ class ModuleOp(IRDLOperation):
             # minus two as layout_module has additional x and y args
         ), "program_module block args should only contain args from properties when calling this function"
 
-        yield_op = self.layout_module.block.last_op
-        if not isinstance(yield_op, YieldOp):
-            raise ValueError("layout module must be terminated by csl_wrapper.yield")
-
-        if yield_op.fields is None:
-            raise ValueError("layout module yield must specify fields property")
-        yield_op.verify_()
-        for name, op in zip(yield_op.fields, yield_op.arguments):
+        for name, op in self.layout_yield_op.items():
             arg = self.program_module.block.insert_arg(
                 op.type, len(self.program_module.block.args)
             )
-            arg.name_hint = name.data
+            arg.name_hint = name
 
     def verify_(self):
         # verify that names are unique
@@ -327,7 +320,7 @@ class YieldOp(IRDLOperation):
 
     @staticmethod
     def from_field_name_mapping(field_name_mapping: dict[str, Operation | SSAValue]):
-        operands: list[Operand | SSAValue] = []
+        operands: list[Operation | SSAValue] = []
         attributes: list[StringAttr] = []
         for attr, op in field_name_mapping.items():
             attributes.append(StringAttr(attr))
@@ -335,8 +328,8 @@ class YieldOp(IRDLOperation):
         return YieldOp(operands, ArrayAttr[StringAttr](attributes))
 
     def verify_(self) -> None:
-        if self.fields is not None and len(self.fields) != len(self.operands):
-            raise ValueError("Number of fields must match the number of operands")
+        if len(self.fields) != len(self.operands):
+            raise VerifyException("Number of fields must match the number of operands")
 
     def items(self) -> Iterable[tuple[str, SSAValue]]:
         assert self.fields is not None

@@ -3,7 +3,7 @@
 
 builtin.module {
     "csl_wrapper.module"() <{"width"=10 : i16, "height"=10: i16, "params" = [
-        #csl_wrapper.param<"z_dim" default=4: i16>, #csl_wrapper.param<"pattern" : i16>
+        #csl_wrapper.param<"z_dim" default=4: i16>, #csl_wrapper.param<"pattern" : i16>,
     ]}> ({
         ^0(%x: i16, %y: i16, %width: i16, %height: i16, %z_dim: i16, %pattern: i16):
             %0 = arith.constant 0 : i16
