@@ -2255,9 +2255,9 @@ class SelectOp(DTLLayoutScopedOp):
     def print(self, printer: Printer):
         MemberAttr.internal_print_members(self.members, printer)
 
-        def print_d_v(dv: tuple[StringAttr, SSAValue]):
+        def print_d_v(dv: tuple[DimensionAttr, SSAValue]):
             d, v = dv
-            printer.print(d)
+            d.internal_print_parameters(printer)
             printer.print(":")
             printer.print(v)
 
@@ -2842,10 +2842,21 @@ class AllocOp(DTLLayoutScopedOp):
 class DeallocOp(DTLLayoutScopedOp):
     name = "dlt.dealloc"  # take a dlt layout as a TypeType and do the memory allocations etc to form a ptrType
 
-    # layout: OperandDef = operand_def(TypeType)
-    tree: OperandDef = operand_def(PtrType)
+    tree: Operand = operand_def(PtrType)
+
+    def __init__(
+        self,
+        ptr: SSAValue,
+    ) -> None:
+        super().__init__(
+            operands=[ptr],
+            attributes={},
+            result_types=[],
+        )
 
     def verify_(self) -> None:
+        if not isinstance(self.tree.type, PtrType):
+            raise VerifyException("DeallocOp can only deallocate a dlt.ptr operand")
         if not self.tree.type.is_base:
             raise VerifyException(
                 "PtrType argument of DeallocOp must have 'base' attribute set to \"Y\""
