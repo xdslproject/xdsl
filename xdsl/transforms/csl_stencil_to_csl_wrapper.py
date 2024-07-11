@@ -15,7 +15,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -90,13 +89,22 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         self.initialise_layout_module(module_op)
         module_op.update_program_block_args_from_layout()
 
-        module_op.program_module.block.add_op(csl_wrapper.YieldOp([], []))
+        # module_op.program_module.block.add_op(csl_wrapper.YieldOp([], []))
         assert op.parent is not None
 
-        # insert module op and dump func.func in the program_module
-        rewriter.insert_op(module_op, InsertPoint.before(op))
-        op.parent.detach_op(op)
-        rewriter.insert_op(op, InsertPoint.at_start(module_op.program_module.block))
+        # move func.body into program_module, with combined args
+        for block_arg in reversed(module_op.program_module.block.args):
+            op.body.block.insert_arg(block_arg.type, 0)
+        module_op.program_module.erase_block(0)
+        op.body.move_blocks(module_op.program_module)
+
+        # replace func.return
+        func_return = module_op.program_module.block.last_op
+        assert isinstance(func_return, func.Return)
+        rewriter.replace_op(func_return, csl_wrapper.YieldOp([], []))
+
+        # replace (now empty) func by module wrapper
+        rewriter.replace_matched_op(module_op)
 
     def get_csl_stencil_apply_ops(
         self, op: func.FuncOp

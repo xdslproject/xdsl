@@ -142,6 +142,11 @@ class ModuleOp(IRDLOperation):
 
     The layout module has two additional block args `x` and `y` as part of the `@set_tile_code` loop nest.
     Operations using these args need to be lowered to the correct place in the loop nest.
+
+    The program module has the following args (in order):
+      * general params:        `width` and `height` followed by everything specified in `params`
+      * params from layout:    everything defined by `layout_yield_op.fields`
+      * input-output symbols:  any arg from the function lowered into this op, which are exported symbols supporting host-device transfers
     """
 
     name = "csl_wrapper.module"
@@ -247,6 +252,7 @@ class ModuleOp(IRDLOperation):
             )
 
         # verify that params and yielded arguments are typed correctly
+        # these may be followed by input-output symbols which we cannot verify, therefore setting `strict=False`
         for got, (name, exp) in zip(
             [a.type for a in self.program_module.block.args[2:]],
             itertools.chain(
@@ -256,7 +262,7 @@ class ModuleOp(IRDLOperation):
                 ),
                 ((key, val.type) for key, val in self.layout_yield_op.items()),
             ),
-            strict=True,
+            strict=False,
         ):
             if exp != got:
                 raise VerifyException(
@@ -302,6 +308,15 @@ class ModuleOp(IRDLOperation):
         Get the yield op from the layout module. Used in various places.
         """
         return cast(YieldOp, self.layout_module.block.last_op)
+
+    @property
+    def exported_symbols(self) -> Sequence[BlockArgument]:
+        """
+        Get the exported symbols.
+        """
+        return self.program_module.block.args[
+            2 + len(self.params) + len(self.layout_yield_op.fields) :
+        ]
 
 
 @irdl_op_definition
