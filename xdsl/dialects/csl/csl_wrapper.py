@@ -46,8 +46,6 @@ i16 = builtin.IntegerType(16)
 @irdl_attr_definition
 class ParamAttribute(ParametrizedAttribute):
     """
-    TODO: better name here
-
     Represents a module parameter that needs to have a type, and may have a value.
     """
 
@@ -282,7 +280,7 @@ class ModuleOp(IRDLOperation):
         # not found = value error
         raise ValueError(f"{name} does not refer to a block arg of this layout_module")
 
-    def get_program_param_arg(self, name: str) -> BlockArgument:
+    def get_program_param(self, name: str) -> BlockArgument:
         """Retrieve program block arg for name that is one of the properties or a param set up by layout yield"""
         # check static params
         if name in ("width", "height"):
