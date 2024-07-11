@@ -284,15 +284,15 @@ class ModuleOp(IRDLOperation):
         """Retrieve program block arg for name that is one of the properties or a param set up by layout yield"""
         # check static params
         if name in ("width", "height"):
-            return self.layout_module.block.args[("width", "height").index(name)]
+            return self.program_module.block.args[("width", "height").index(name)]
         # check module params
         for i, param in enumerate(self.params):
             if param.key.data == name:
-                return self.layout_module.block.args[2 + i]
+                return self.program_module.block.args[2 + i]
         # check yielded params:
         for i, (key, _) in enumerate(self.layout_yield_op.items()):
             if key == name:
-                return self.layout_module.block.args[2 + len(self.params) + i]
+                return self.program_module.block.args[2 + len(self.params) + i]
         # not found = value error
         raise ValueError(f"{name} does not refer to a block arg of this program_module")
 
