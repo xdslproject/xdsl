@@ -191,7 +191,10 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
 @dataclass(frozen=True)
 class CslStencilToCslWrapperPass(ModulePass):
-    """Wraps program in the csl_stencil dialect in a csl_wrapper"""
+    """
+    Wraps program in the csl_stencil dialect in a csl_wrapper by translating each
+    top-level function to one module wrapper.
+    """
 
     name = "csl-stencil-to-csl-wrapper"
 
@@ -200,7 +203,6 @@ class CslStencilToCslWrapperPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ConvertStencilFuncToModuleWrappedPattern(),
-                    # ConvertApplyOpPattern(num_chunks=self.num_chunks),
                 ]
             ),
             walk_reverse=False,
