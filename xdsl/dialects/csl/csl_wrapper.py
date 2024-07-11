@@ -28,6 +28,7 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    opt_prop_def,
     prop_def,
     region_def,
     result_def,
@@ -153,6 +154,7 @@ class ModuleOp(IRDLOperation):
 
     width = prop_def(IntegerAttr)
     height = prop_def(IntegerAttr)
+    program_name = opt_prop_def(StringAttr)
     params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
 
     layout_module = region_def("single_block")
@@ -317,6 +319,9 @@ class ModuleOp(IRDLOperation):
         return self.program_module.block.args[
             2 + len(self.params) + len(self.layout_yield_op.fields) :
         ]
+
+    def set_program_name(self, name: StringAttr):
+        self.program_name = name
 
 
 @irdl_op_definition

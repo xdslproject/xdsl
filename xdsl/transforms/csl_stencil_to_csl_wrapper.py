@@ -88,9 +88,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         self.initialise_layout_module(module_op)
         module_op.update_program_block_args_from_layout()
-
-        # module_op.program_module.block.add_op(csl_wrapper.YieldOp([], []))
-        assert op.parent is not None
+        module_op.set_program_name(op.sym_name)
 
         # move func.body into program_module, with combined args
         for block_arg in reversed(module_op.program_module.block.args):

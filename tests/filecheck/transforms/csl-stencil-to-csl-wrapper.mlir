@@ -36,7 +36,7 @@ builtin.module {
 }
 
 // CHECK-NEXT: builtin.module {
-// CHECK-NEXT:   "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>]}> ({
+// CHECK-NEXT:   "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>], "program_name" = "gauss_seidel"}> ({
 // CHECK-NEXT:   ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16):
 // CHECK-NEXT:     %6 = arith.constant 0 : i16
 // CHECK-NEXT:     %7 = "csl.get_color"(%6) : (i16) -> !csl.color
