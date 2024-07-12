@@ -1,6 +1,7 @@
 from xdsl.backend.riscv.register_allocation import gather_allocated
 from xdsl.builder import Builder
 from xdsl.dialects import riscv, riscv_func
+from xdsl.dialects.builtin import SymbolRefAttr
 
 
 def test_gather_allocated():
@@ -56,3 +57,17 @@ def test_gather_allocated():
     )
 
     assert len(pa_regs) == 2
+
+    @Builder.implicit_region
+    def func_call_preallocated_body() -> None:
+        reg1 = riscv.IntRegisterType.unallocated()
+        v1 = riscv.GetRegisterOp(reg1).res
+        v2 = riscv.GetRegisterOp(riscv.Registers.S0).res
+        riscv_func.CallOp(SymbolRefAttr("hello"), (v1, v2), ())
+
+    pa_regs = gather_allocated(
+        riscv_func.FuncOp("foo", func_call_preallocated_body, ((), ()))
+    )
+
+    assert len(pa_regs) == 36
+    assert riscv.Registers.S0 in pa_regs

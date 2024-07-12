@@ -13,15 +13,15 @@ builtin.module {
     riscv.directive ".globl" "main"
     riscv.directive ".p2align" "2"
     riscv_func.func @main() {
-      %A = riscv.li "a" : () -> !riscv.reg
-      %B = riscv.li "b" : () -> !riscv.reg
-      %C = riscv.li "c" : () -> !riscv.reg
+      %A = riscv.li "a" : !riscv.reg
+      %B = riscv.li "b" : !riscv.reg
+      %C = riscv.li "c" : !riscv.reg
       "snitch_stream.streaming_region"(%A, %B, %C) <{
         "stride_patterns" = [#snitch_stream.stride_pattern<ub = [2, 3], strides = [24, 8]>],
         "operandSegmentSizes" = array<i32: 2, 1>
       }> ({
       ^0(%a_stream : !stream.readable<!riscv.freg<ft0>>, %b_stream : !stream.readable<!riscv.freg<ft1>>, %c_stream : !stream.writable<!riscv.freg<ft2>>):
-          %c5 = riscv.li 5 : () -> !riscv.reg
+          %c5 = riscv.li 5 : !riscv.reg
           riscv_snitch.frep_outer %c5 {
               %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>
               %b = riscv_snitch.read from %b_stream : !riscv.freg<ft1>

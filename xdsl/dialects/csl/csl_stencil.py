@@ -116,24 +116,24 @@ class PrefetchOp(IRDLOperation):
         stencil.TempType[Attribute] | memref.MemRefType[Attribute]
     )
 
-    swaps = opt_prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
+    swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
-    topo = opt_prop_def(dmp.RankTopoAttr)
+    topo = prop_def(dmp.RankTopoAttr)
 
     result = result_def(memref.MemRefType)
 
     def __init__(
         self,
         input_stencil: SSAValue | Operation,
-        topo: dmp.RankTopoAttr | None = None,
-        swaps: Sequence[ExchangeDeclarationAttr] | None = None,
+        topo: dmp.RankTopoAttr,
+        swaps: Sequence[ExchangeDeclarationAttr],
         result_type: memref.MemRefType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
             properties={
                 "topo": topo,
-                "swaps": builtin.ArrayAttr(swaps if swaps else []),
+                "swaps": builtin.ArrayAttr(swaps),
             },
             result_types=[result_type],
         )
@@ -215,7 +215,9 @@ class ApplyOp(IRDLOperation):
             zip(args, (a.type for a in args)),
             print_arg,
         )
-        printer.print(") -> (")
+        printer.print(") <")
+        printer.print_attr_dict(self.properties)
+        printer.print("> -> (")
         printer.print_list((r.type for r in self.res), printer.print_attribute)
         printer.print(") ")
         printer.print_op_attributes(self.attributes, print_keyword=True)

@@ -133,6 +133,27 @@ class LowerAffineYield(RewritePattern):
         rewriter.replace_matched_op(scf.Yield(*op.arguments))
 
 
+class LowerAffineApply(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: affine.ApplyOp, rewriter: PatternRewriter, /):
+        affine_map = op.map.data
+        assert len(affine_map.results) == 1
+
+        operands = op.mapOperands
+        assert affine_map.num_dims + affine_map.num_symbols == len(operands)
+
+        dims = operands[: affine_map.num_dims]
+        symbols = operands[affine_map.num_dims :]
+
+        new_ops: list[Operation] = []
+        new_results: list[SSAValue] = []
+
+        ops, val = affine_expr_ops(affine_map.results[0], dims, symbols)
+        new_ops.extend(ops)
+        new_results.append(val)
+        rewriter.replace_matched_op(new_ops, new_results)
+
+
 class LowerAffinePass(ModulePass):
     name = "lower-affine"
 
@@ -144,6 +165,7 @@ class LowerAffinePass(ModulePass):
                     LowerAffineLoad(),
                     LowerAffineFor(),
                     LowerAffineYield(),
+                    LowerAffineApply(),
                 ]
             )
         ).rewrite_module(op)

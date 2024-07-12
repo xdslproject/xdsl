@@ -1,18 +1,18 @@
 // RUN: xdsl-opt -p convert-riscv-scf-for-to-frep %s | filecheck %s
 
-%i0 = riscv.get_register : () -> !riscv.reg
-%i1 = riscv.get_register : () -> !riscv.reg
-%i2 = riscv.get_register : () -> !riscv.reg
+%i0 = riscv.get_register : !riscv.reg
+%i1 = riscv.get_register : !riscv.reg
+%i2 = riscv.get_register : !riscv.reg
 
-%c1 = riscv.li 1 : () -> !riscv.reg
-%c2 = riscv.li 2 : () -> !riscv.reg
+%c1 = riscv.li 1 : !riscv.reg
+%c2 = riscv.li 2 : !riscv.reg
 
 %readable = riscv_snitch.get_stream : !stream.readable<!riscv.freg<ft0>>
 %writable = riscv_snitch.get_stream : !stream.writable<!riscv.freg<ft1>>
 
-%f0 = riscv.get_float_register : () -> !riscv.freg<ft2>
-%f1 = riscv.get_float_register : () -> !riscv.freg<ft3>
-%f2 = riscv.get_float_register : () -> !riscv.freg<ft4>
+%f0 = riscv.get_float_register : !riscv.freg<ft2>
+%f1 = riscv.get_float_register : !riscv.freg<ft3>
+%f2 = riscv.get_float_register : !riscv.freg<ft4>
 
 // Success
 

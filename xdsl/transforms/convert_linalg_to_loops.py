@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from xdsl.context import MLContext
 from xdsl.dialects import linalg, memref
-from xdsl.dialects.builtin import AffineMapAttr, MemRefType, ModuleOp
+from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -19,41 +19,6 @@ from xdsl.transforms.loop_nest_lowering_utils import (
 )
 
 
-def insert_load(
-    value_index: int,
-    value: SSAValue,
-    affine_map_attr: AffineMapAttr,
-    ind_vars: Sequence[SSAValue],
-    rewriter: PatternRewriter,
-    insertion_target: InsertPoint,
-) -> SSAValue:
-    if isinstance(value.type, MemRefType):
-        indices = indices_for_map(
-            rewriter, insertion_target, affine_map_attr.data, ind_vars
-        )
-        op = memref.Load.get(value, indices)
-        rewriter.insert_op(op, insertion_target)
-        return op.res
-    else:
-        return value
-
-
-def insert_store(
-    value: SSAValue,
-    destination: SSAValue,
-    affine_map_attr: AffineMapAttr,
-    ind_vars: Sequence[SSAValue],
-    rewriter: PatternRewriter,
-    insertion_target: InsertPoint,
-):
-    indices = indices_for_map(
-        rewriter, insertion_target, affine_map_attr.data, ind_vars
-    )
-    op = memref.Store.get(value, destination, indices)
-    rewriter.insert_op(op, insertion_target)
-    return op
-
-
 class LowerGenericOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: linalg.Generic, rewriter: PatternRewriter) -> None:
@@ -61,6 +26,43 @@ class LowerGenericOpPattern(RewritePattern):
             raise NotImplementedError(
                 "lowering for linalg.generic with results not yet supported"
             )
+
+        def insert_load(
+            value_index: int,
+            ind_vars: Sequence[SSAValue],
+            rewriter: PatternRewriter,
+            insertion_target: InsertPoint,
+        ) -> SSAValue:
+            value = op.operands[value_index]
+            affine_map_attr = op.indexing_maps.data[value_index]
+            if isinstance(value.type, MemRefType):
+                indices = indices_for_map(
+                    rewriter, insertion_target, affine_map_attr.data, ind_vars
+                )
+                load_op = memref.Load.get(value, indices)
+                rewriter.insert_op(load_op, insertion_target)
+                return load_op.res
+            else:
+                return value
+
+        ins_count = len(op.inputs)
+
+        def insert_store(
+            output_index: int,
+            value: SSAValue,
+            ind_vars: Sequence[SSAValue],
+            rewriter: PatternRewriter,
+            insertion_target: InsertPoint,
+        ):
+            value_index = ins_count + output_index
+            destination = op.operands[value_index]
+            affine_map_attr = op.indexing_maps.data[value_index]
+            indices = indices_for_map(
+                rewriter, insertion_target, affine_map_attr.data, ind_vars
+            )
+            store_op = memref.Store.get(value, destination, indices)
+            rewriter.insert_op(store_op, insertion_target)
+            return store_op
 
         rewrite_generic_to_loops(
             rewriter,

@@ -1610,6 +1610,41 @@ def test_type_conversion():
     )
 
 
+def test_recursive_type_conversion_in_regions():
+
+    prog = """\
+"builtin.module"() ({
+  "func.func"() <{"function_type" = (memref<2x4xui16>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
+  ^bb0(%arg0 : memref<2x4xui16>):
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+"""
+    expected_prog = """\
+"builtin.module"() ({
+  "func.func"() <{"function_type" = (memref<2x4xindex>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
+  ^0(%arg0 : memref<2x4xindex>):
+    "func.return"() : () -> ()
+  }) : () -> ()
+}) : () -> ()
+"""
+
+    class IndexConversion(TypeConversionPattern):
+
+        @attr_type_rewrite_pattern
+        def convert_type(self, typ: IntegerType) -> IndexType:
+            return IndexType()
+
+    rewrite_and_compare(
+        prog,
+        expected_prog,
+        PatternRewriteWalker(IndexConversion(recursive=True)),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+    )
+
+
 def test_no_change():
     """Test that doing nothing successfully does not report doing something."""
 

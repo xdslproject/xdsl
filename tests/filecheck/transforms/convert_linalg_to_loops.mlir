@@ -83,7 +83,7 @@ linalg.generic {
 // CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
 // CHECK-NEXT:    scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
 // CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
-// CHECK-NEXT:        %{{.*}} = "affine.apply"(%{{.*}}, %{{.*}}) <{"map" = affine_map<(d0, d1) -> ((d0 + d1))>}> : (index, index) -> index
+// CHECK-NEXT:        %{{.*}} = affine.apply affine_map<(d0, d1) -> ((d0 + d1))>
 // CHECK-NEXT:        %{{.*}} = memref.load %G[%{{.*}}] : memref<4xf64>
 // CHECK-NEXT:        %{{.*}} = memref.load %H[%{{.*}}] : memref<2xf64>
 // CHECK-NEXT:        %{{.*}} = memref.load %I[%{{.*}}] : memref<3xf64>
