@@ -1,8 +1,11 @@
 import abc
 from itertools import chain
+from typing import cast
 
 from ordered_set import OrderedSet
 
+from xdsl.backend.register_type import RegisterType
+from xdsl.backend.riscv.register_allocation_constraints import OpTieConstraints
 from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv, riscv_func, riscv_scf, riscv_snitch
 from xdsl.dialects.riscv import (
@@ -141,17 +144,47 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         """
         Allocate registers for RISC-V Instruction.
         """
+        constr = OpTieConstraints.from_op(op)
 
-        for result in op.results:
-            # Allocate registers to result if not already allocated
-            self.allocate(result)
+        allocated_results: list[SSAValue] = []
+        for idx, result in enumerate(op.results):
+            if constr.result_has_constraints(idx):
+                is_tied_to: RegisterType | None = constr.result_is_constrained_to(idx)
+                if is_tied_to is None:
+                    self.allocate(result)
+                    # Mark the newly allocated register to be freed later.
+                    # We cannot free it here to avoid having multiple results
+                    # allocated to the same register
+                    allocated_results.append(result)
+                else:
+                    # No need for allocation, we must use the register that
+                    # satisfies the constraint:
+                    result.type = is_tied_to
+                # Mark the constraint as satisfied for the current result
+                reg = cast(RISCVRegisterType, result.type)
+                constr.result_satisfy_constraint(idx, reg)
+            else:
+                # Allocate registers to result if not already allocated
+                self.allocate(result)
+                allocated_results.append(result)
+
+        for result in allocated_results:
             # Free the register since the SSA value is created here
             self._free(result)
 
         # Allocate registers to operands since they are defined further up
         # in the use-def SSA chain
-        for operand in op.operands:
-            self.allocate(operand)
+        for idx, operand in enumerate(op.operands):
+            if constr.operand_has_constraints(idx):
+                is_tied_to: RegisterType | None = constr.operand_is_constrained_to(idx)
+                if is_tied_to is None:
+                    self.allocate(operand)
+                else:
+                    operand.type = is_tied_to
+                reg = cast(RISCVRegisterType, operand.type)
+                constr.operand_satisfy_constraint(idx, reg)
+            else:
+                self.allocate(operand)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         """
