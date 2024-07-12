@@ -15,6 +15,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -90,16 +91,30 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         module_op.update_program_block_args_from_layout()
         module_op.set_program_name(op.sym_name)
 
-        # move func.body into program_module, with combined args
-        for block_arg in reversed(module_op.program_module.block.args):
-            op.body.block.insert_arg(block_arg.type, 0)
-        module_op.program_module.erase_block(0)
-        op.body.move_blocks(module_op.program_module)
+        # add func args to program_module block args
+        for block_arg in op.body.block.args:
+            module_op.program_module.block.insert_arg(
+                block_arg.type, len(module_op.program_module.block.args)
+            )
 
         # replace func.return
-        func_return = module_op.program_module.block.last_op
+        func_return = op.body.block.last_op
         assert isinstance(func_return, func.Return)
-        rewriter.replace_op(func_return, csl_wrapper.YieldOp([], []))
+        assert (
+            len(func_return.arguments) == 0
+        ), "Non-empty returns currently not supported"
+        rewriter.replace_op(func_return, csl.ReturnOp())
+
+        # set up main function and move func.func ops into this csl.func
+        main_func = csl.FuncOp(op.sym_name.data, ((), None))
+        rewriter.inline_block(
+            op.body.block,
+            InsertPoint.at_start(main_func.body.block),
+            module_op.exported_symbols,
+        )
+
+        # add main and empty yield to program_module
+        module_op.program_module.block.add_ops([main_func, csl_wrapper.YieldOp([], [])])
 
         # replace (now empty) func by module wrapper
         rewriter.replace_matched_op(module_op)
