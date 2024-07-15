@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
 from xdsl.builder import Builder
-from xdsl.dialects import builtin, riscv_func, riscv
+from xdsl.dialects import builtin, riscv, riscv_func
 from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
     IntRegisterType,
@@ -14,10 +14,10 @@ from xdsl.ir import OpResult
 from xdsl.irdl import (
     ConstraintVar,
     Operand,
+    irdl_op_definition,
     operand_def,
     result_def,
 )
-from xdsl.irdl.operations import irdl_op_definition
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -45,6 +45,48 @@ class PostIncrementLoad(RISCVInstruction):
 
 
 def test_allocate_2address():
+    # riscv_func.func @function() {
+    #     %0 = riscv.li 1 : !riscv.reg<t1>
+    #     %1 = riscv.li 2 : !riscv.reg<t2>
+    #        tied -------- tied                  tied ---------------------------------------------- tied
+    #         |             |                     |                                                   |
+    #     %2, %3 = postload %0, %1 : (!riscv.reg<t1>, !riscv.reg<t2>) -> (!riscv.reg<t0>, !riscv.reg<t1>)
+    #     %4 = builtin.unrealized_conversion_cast %2 : !riscv.reg<t0> to i32
+    #     %5 = builtin.unrealized_conversion_cast %3 : !riscv.reg<t1> to i32
+    #     riscv_func.return
+    # }
+    @Builder.implicit_region
+    def region():
+        base = riscv.LiOp(1)
+        offset = riscv.LiOp(2)
+        load = PostIncrementLoad(
+            operands=[base.rd, offset.rd],
+            result_types=[
+                IntRegisterType.unallocated(),
+                IntRegisterType.unallocated(),
+            ],
+        )
+        add = riscv.AddOp(load.rd, load.off, rd=IntRegisterType.unallocated())
+        builtin.UnrealizedConversionCastOp.get((add.rd,), (builtin.i32,))
+        riscv_func.ReturnOp()
+
+    func = riscv_func.FuncOp("function", region, ((), ()))
+    func.verify()
+
+    allocator = RegisterAllocatorLivenessBlockNaive()
+    allocator.allocate_func(func)
+    func.verify()
+
+    body = list(func.body.block.ops)
+    # load.rs1 == load.off
+    assert body[2].operands[0].type == body[2].results[1].type
+    # load.rs1 != load.rd
+    assert body[2].operands[0].type != body[2].results[0].type
+    # load.rs1 != load.rs2
+    assert body[2].operands[0].type != body[2].operands[1].type
+
+
+def test_allocate_2address_no_riscv_successor():
     # riscv_func.func @function() {
     #     %0 = riscv.li 1 : !riscv.reg<t1>
     #     %1 = riscv.li 2 : !riscv.reg<t2>

@@ -146,17 +146,23 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         """
         constr = OpTieConstraints.from_op(op)
 
+        # Results that have been allocated without ties:
+        # to be freed when we are done allocating results
         allocated_results: list[SSAValue] = []
+        # Results that have been allocated and are tied:
+        # to be freed at the end of the whole allocation for the current op
+        allocated_results_to_ties: list[SSAValue] = []
+
         for idx, result in enumerate(op.results):
             if constr.result_has_constraints(idx):
                 is_tied_to: RegisterType | None = constr.result_is_constrained_to(idx)
                 if is_tied_to is None:
                     self.allocate(result)
                     # Mark the newly allocated register to be freed later.
-                    # We cannot free it here to avoid having multiple oprand/results
+                    # We cannot free it here to avoid having multiple operand/results
                     # allocated to it: being tied, it could still be
                     # needed until we have allocated the whole operation
-                    allocated_results.append(result)
+                    allocated_results_to_ties.append(result)
                 else:
                     # No need for allocation, we must use the register that
                     # satisfies the constraint:
@@ -168,6 +174,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 # Allocate registers to result if not already allocated
                 self.allocate(result)
                 allocated_results.append(result)
+
+        for result in allocated_results:
+            # Free the register since the SSA value is created here
+            self._free(result)
 
         # Allocate registers to operands since they are defined further up
         # in the use-def SSA chain
@@ -183,8 +193,8 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             else:
                 self.allocate(operand)
 
-        for result in allocated_results:
-            # Free the register since the SSA value is created here
+        for result in allocated_results_to_ties:
+            # Free the registers that were allocated to atied results
             self._free(result)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
