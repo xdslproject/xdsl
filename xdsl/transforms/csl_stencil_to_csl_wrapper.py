@@ -36,22 +36,22 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         apply_ops = self.get_csl_stencil_apply_ops(op)
         if len(apply_ops) == 0:
             return
-        neighbours: int = 1
+        max_distance: int = 1
         width: int = 1
         height: int = 1
         z_dim_no_ghost_cells: int = 1
         z_dim: int = 1
         for apply_op in apply_ops:
-            # loop over accesses to get `neighbour` (from which we build `pattern`)
+            # loop over accesses to get max_distance (from which we build `pattern`)
             for ap in apply_op.get_accesses():
                 if ap.is_diagonal:
                     raise ValueError("Diagonal accesses are currently not supported")
-                # if ap.dims != 2:
-                #     raise ValueError("Stencil accesses must be 2-dimensional at this stage")
                 if len(ap.offsets) > 0:
-                    neighbours = max(
-                        neighbours, max(abs(d) for offset in ap.offsets for d in offset)
-                    )
+                    if ap.dims != 2:
+                        raise ValueError(
+                            "Stencil accesses must be 2-dimensional at this stage"
+                        )
+                    max_distance = max(max_distance, ap.max_distance())
 
             # find max x and y dimensions
             if len(shape := apply_op.topo.shape.data) == 2:
@@ -83,7 +83,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             height=IntegerAttr(height, 16),
             params={
                 "z_dim": IntegerAttr(z_dim, 16),
-                "pattern": IntegerAttr(neighbours + 1, 16),
+                "pattern": IntegerAttr(max_distance + 1, 16),
             },
         )
 

@@ -689,6 +689,8 @@ def test_access_patterns():
     assert t1_acc.is_diagonal
 
     assert len(tuple(t1_acc.get_diagonals())) == 2
+    assert t0_acc.max_distance() == 1
+    assert t1_acc.max_distance() == 1
 
 
 # TODO: Move to a notebook at some point with proper documentation
