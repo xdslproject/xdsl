@@ -207,19 +207,38 @@ class ModuleOp(IRDLOperation):
             ],
         )
 
-    def update_program_block_args_from_layout(self):
-        """Update `program_module` BlockArguments by adding yield op fields"""
+    def update_program_block_args(
+        self,
+        yield_args: Iterable[tuple[str, SSAValue]] | None = None,
+        exported_symbols: Iterable[tuple[str | None, Attribute]] | None = None,
+    ):
+        """
+        Update `program_module` BlockArguments by adding
+        1. yield op fields (pass None to enable automated retrieval, pass empty list to add no yield op fields)
+        2. additional exported symbols
+        """
         assert (
             len(self.program_module.block.args)
             == len(self.layout_module.block.args) - 2
             # minus two as layout_module has additional x and y args
         ), "program_module block args should only contain args from properties when calling this function"
 
-        for name, op in self.layout_yield_op.items():
+        if yield_args is None:
+            yield_args = self.layout_yield_op.items()
+
+        for name, op in yield_args:
             arg = self.program_module.block.insert_arg(
                 op.type, len(self.program_module.block.args)
             )
             arg.name_hint = name
+
+        if exported_symbols is not None:
+            for nam, typ in exported_symbols:
+                arg = self.program_module.block.insert_arg(
+                    typ, len(self.program_module.block.args)
+                )
+                if nam is not None:
+                    arg.name_hint = nam
 
     def verify_(self):
         # verify that names are unique

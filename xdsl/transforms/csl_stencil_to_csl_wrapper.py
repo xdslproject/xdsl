@@ -88,14 +88,14 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         )
 
         self.initialise_layout_module(module_op)
-        module_op.update_program_block_args_from_layout()
         module_op.program_name = op.sym_name
 
-        # add func args to program_module block args
-        for block_arg in op.body.block.args:
-            module_op.program_module.block.insert_arg(
-                block_arg.type, len(module_op.program_module.block.args)
-            )
+        # add yield op args (implicit) and func args (explicit) to program_module block args
+        module_op.update_program_block_args(
+            exported_symbols=[
+                (arg.name_hint, arg.type) for arg in module_op.program_module.block.args
+            ]
+        )
 
         # replace func.return
         func_return = op.body.block.last_op
