@@ -89,7 +89,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         self.initialise_layout_module(module_op)
         module_op.update_program_block_args_from_layout()
-        module_op.set_program_name(op.sym_name)
+        module_op.program_name = op.sym_name
 
         # add func args to program_module block args
         for block_arg in op.body.block.args:

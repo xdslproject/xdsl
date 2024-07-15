@@ -320,9 +320,6 @@ class ModuleOp(IRDLOperation):
             2 + len(self.params) + len(self.layout_yield_op.fields) :
         ]
 
-    def set_program_name(self, name: StringAttr):
-        self.program_name = name
-
 
 @irdl_op_definition
 class YieldOp(IRDLOperation):
