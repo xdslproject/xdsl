@@ -283,7 +283,7 @@ class xDSLOptMain(CommandLineTool):
             chunks_str = [
                 chunk
                 for chunk in re.split(
-                    r"^[^\S\r\n]*// -----",
+                    r"^.*// -----.*$",
                     f.read(),
                     flags=re.MULTILINE,
                 )

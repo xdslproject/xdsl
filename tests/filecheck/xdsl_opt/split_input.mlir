@@ -5,7 +5,7 @@
 // CHECK: "builtin.module"() ({
 }) : () -> ()
 
-// -----
+
 // CHECK: // -----
 
 "builtin.module"() ({
@@ -14,7 +14,7 @@
 // CHECK-NEXT:   "test.op"() : () -> ()
 }) : () -> ()
 
-// -----
+
 // CHECK: // -----
 
 "builtin.module"() ({
@@ -25,7 +25,7 @@
 // CHECK-NOT:   "test.op"() : () -> ()
 }) : () -> ()
 
-// -----
+
 // CHECK: // -----
 
 "builtin.module"() ({
