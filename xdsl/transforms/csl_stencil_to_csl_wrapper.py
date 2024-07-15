@@ -143,7 +143,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             launch = csl.GetColorOp(zero)
 
             # import memcpy/get_params and routes
-            memcpy = csl_wrapper.ImportModuleOp(
+            memcpy = csl_wrapper.ImportOp(
                 "<memcpy/get_params>",
                 {
                     "width": param_width,
@@ -151,7 +151,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     "LAUNCH": launch.res,
                 },
             )
-            routes = csl_wrapper.ImportModuleOp(
+            routes = csl_wrapper.ImportOp(
                 "routes.csl",
                 {
                     "pattern": param_pattern,
