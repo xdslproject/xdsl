@@ -22,7 +22,7 @@ def test_allocate_2address():
     # We use the infamous post-increment load instruction
     # provided by several architectures (ARM, PULP, ...) that presents
     # the classical form of a 2-address instruction: the first operand
-    # is returned as modified in a brand new SSA value as the second result.
+    # is incremented and in a brand new SSA value as the second result.
     # Both SSA values must be allocated on the same register, otherwise the
     # generated code is broken.
 
@@ -72,6 +72,7 @@ def test_allocate_2address():
 
     allocator = RegisterAllocatorLivenessBlockNaive()
     allocator.allocate_func(func)
+    func.verify()
 
     body = list(func.body.block.ops)
     # load.rs1 == load.off
