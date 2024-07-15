@@ -92,9 +92,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # add yield op args (implicit) and func args (explicit) to program_module block args
         module_op.update_program_block_args(
-            exported_symbols=[
-                (arg.name_hint, arg.type) for arg in module_op.program_module.block.args
-            ]
+            exported_symbols=[(arg.name_hint, arg.type) for arg in op.body.block.args]
         )
 
         # replace func.return
