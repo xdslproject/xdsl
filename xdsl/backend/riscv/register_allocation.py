@@ -153,8 +153,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 if is_tied_to is None:
                     self.allocate(result)
                     # Mark the newly allocated register to be freed later.
-                    # We cannot free it here to avoid having multiple results
-                    # allocated to the same register
+                    # We cannot free it here to avoid having multiple oprand/results
+                    # allocated to it: being tied, it could still be
+                    # needed until we have allocated the whole operation
                     allocated_results.append(result)
                 else:
                     # No need for allocation, we must use the register that
@@ -167,10 +168,6 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 # Allocate registers to result if not already allocated
                 self.allocate(result)
                 allocated_results.append(result)
-
-        for result in allocated_results:
-            # Free the register since the SSA value is created here
-            self._free(result)
 
         # Allocate registers to operands since they are defined further up
         # in the use-def SSA chain
@@ -185,6 +182,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 constr.operand_satisfy_constraint(idx, reg)
             else:
                 self.allocate(operand)
+
+        for result in allocated_results:
+            # Free the register since the SSA value is created here
+            self._free(result)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
         """
