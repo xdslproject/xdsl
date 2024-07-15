@@ -675,12 +675,12 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, i20)
+        attributes["immediate"] = parse_immediate_value(parser, i20)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -728,14 +728,14 @@ class RdImmJumpOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, si20)
+        attributes["immediate"] = parse_immediate_value(parser, si20)
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -797,12 +797,12 @@ class RdRsImmIntegerOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, si12)
+        attributes["immediate"] = parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -858,12 +858,12 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, ui5)
+        attributes["immediate"] = parse_immediate_value(parser, ui5)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -922,14 +922,14 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, si12)
+        attributes["immediate"] = parse_immediate_value(parser, si12)
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.rd is not None:
             printer.print(", ")
             printer.print_attribute(self.rd)
@@ -1005,12 +1005,12 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["offset"] = _parse_immediate_value(parser, si12)
+        attributes["offset"] = parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.offset)
+        print_immediate_value(printer, self.offset)
         return {"offset"}
 
 
@@ -1055,12 +1055,12 @@ class RsRsImmIntegerOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, si12)
+        attributes["immediate"] = parse_immediate_value(parser, si12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -1335,7 +1335,7 @@ class CsrReadWriteImmOperation(RISCVInstruction, ABC):
             IntegerType(32),
         )
         parser.parse_punctuation(",")
-        attributes["immediate"] = _parse_immediate_value(parser, IntegerType(32))
+        attributes["immediate"] = parse_immediate_value(parser, IntegerType(32))
         if parser.parse_optional_punctuation(",") is not None:
             if (flag := parser.parse_str_literal("Expected 'w' flag")) != "w":
                 parser.raise_error(f"Expected 'w' flag, got '{flag}'")
@@ -1346,7 +1346,7 @@ class CsrReadWriteImmOperation(RISCVInstruction, ABC):
         printer.print(" ")
         printer.print(self.csr.value.data)
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         if self.writeonly is not None:
             printer.print(', "w"')
         return {"csr", "immediate", "writeonly"}
@@ -1403,14 +1403,14 @@ class CsrBitwiseImmOperation(RISCVInstruction, ABC):
             IntegerType(32),
         )
         parser.parse_punctuation(",")
-        attributes["immediate"] = _parse_immediate_value(parser, IntegerType(32))
+        attributes["immediate"] = parse_immediate_value(parser, IntegerType(32))
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
         printer.print(self.csr.value.data)
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
 
 
@@ -2488,12 +2488,12 @@ class LiOp(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, i32)
+        attributes["immediate"] = parse_immediate_value(parser, i32)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(" ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
     @classmethod
@@ -3017,12 +3017,12 @@ class RsRsImmFloatOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, i12)
+        attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -3071,12 +3071,12 @@ class RdRsImmFloatOperation(RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = _parse_immediate_value(parser, i12)
+        attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> Set[str]:
         printer.print(", ")
-        _print_immediate_value(printer, self.immediate)
+        print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
 
@@ -3811,7 +3811,7 @@ def _parse_optional_immediate_value(
         return LabelAttr(immediate)
 
 
-def _parse_immediate_value(
+def parse_immediate_value(
     parser: Parser, integer_type: IntegerType | IndexType
 ) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
     return parser.expect(
@@ -3820,7 +3820,7 @@ def _parse_immediate_value(
     )
 
 
-def _print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
+def print_immediate_value(printer: Printer, immediate: AnyIntegerAttr | LabelAttr):
     match immediate:
         case IntegerAttr():
             printer.print(immediate.value.data)

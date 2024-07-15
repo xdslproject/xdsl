@@ -409,12 +409,10 @@ class ScfgwOpUsingImmediate(RewritePattern):
         self, op: riscv_snitch.ScfgwOp, rewriter: PatternRewriter
     ) -> None:
         if (rs2 := get_constant_value(op.rs2)) is not None:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
                 riscv_snitch.ScfgwiOp(
                     op.rs1,
                     rs2.value.data,
-                    rd=rd,
                     comment=op.comment,
                 ),
             )
