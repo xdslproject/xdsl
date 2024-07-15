@@ -701,6 +701,25 @@ class SemanticsMapper:
         ops.extend(init_ops)
         return ops, iter_args
 
+    def dealloc_layout(
+        self,
+        layout: dlt.Layout,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+        assert isinstance(
+            input_ptr.type, llvm.LLVMPointerType
+        ), f"Input pointer expected to be LLVMPointerType but found {type(input_ptr.type)}"
+        ops: list[Operation] = []
+
+        init_ops = self.get_direct(layout).dealloc_layout(
+            layout,
+            extent_resolver,
+            input_ptr,
+        )
+        ops.extend(init_ops)
+        return ops
+
     def linear_iterate(
         self,
         layout: dlt.Layout,
@@ -872,6 +891,15 @@ class DirectLayoutNodeSemantics(typing.Generic[T], LayoutNodeSemantics[T], abc.A
         raise NotImplementedError
 
     @abc.abstractmethod
+    def dealloc_layout(
+        self,
+        layout: T,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def ensure_space(
         self,
         layout: T,
@@ -992,6 +1020,14 @@ class PrimitiveSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
 
         return ops, iter_args_out
 
+    def dealloc_layout(
+        self,
+        layout: dlt.PrimitiveLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+        return []
+
     def linear_iterate(
         self,
         layout: T,
@@ -1095,7 +1131,16 @@ class ConstantSemantics(DirectLayoutNodeSemantics[dlt.PrimitiveLayoutAttr]):
         is_last_element: bool | SSAValue,
     ) -> tuple[list[Operation], list[SSAValue]]:
         # There is nothing it init in a constant
+        # return [], callback_args]
         pass
+
+    def dealloc_layout(
+        self,
+        layout: dlt.ConstantLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+        return []
 
     def linear_iterate(
         self,
@@ -1217,6 +1262,14 @@ class MemberSemantics(DirectLayoutNodeSemantics[dlt.MemberLayoutAttr]):
         )
         ops.extend(child_ops)
         return ops, iter_args_out
+
+    def dealloc_layout(
+        self,
+        layout: dlt.MemberLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+        return self.semantics.dealloc_layout(layout.child, extent_resolver, input_ptr)
 
     def linear_iterate(
         self,
@@ -1596,6 +1649,33 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
 
         return ops, list(loop.res)
 
+    def dealloc_layout(
+        self,
+        layout: dlt.DenseLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+
+        ops, (extent,) = extent_resolver.resolve(layout.dimension.extent).output()
+        zero_ops, (zero,) = NumericResult.from_const(0).output()
+        one_ops, (one,) = NumericResult.from_const(1).output()
+        size_ops, (elem_size,) = (
+            self.semantics.get_size(layout, extent_resolver).keep(1).output()
+        )
+        ops.extend(zero_ops + one_ops + size_ops)
+        block = Block()
+        index = block.insert_arg(IndexType(), 0)
+        child_ptr_ops, child_ptr = (
+            NumericResult.from_ssa(index) * NumericResult.from_ssa(elem_size)
+        ).add_to_llvm_pointer(input_ptr)
+        block.add_ops(child_ptr_ops)
+        block.add_ops(
+            self.semantics.dealloc_layout(layout.child, extent_resolver, child_ptr)
+        )
+        block.add_op(scf.Yield())
+        ops.append(scf.For(zero, extent, one, [], block))
+        return ops
+
     def linear_iterate(
         self,
         layout: T,
@@ -1742,7 +1822,7 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
             [block],
         )
         ops.append(while_loop)
-        output_callback_iter_args = list(while_loop.results[2: 2 + len(callback_args)])
+        output_callback_iter_args = list(while_loop.results[2 : 2 + len(callback_args)])
         did_exit_early = while_loop.results[1]
 
         debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
@@ -1981,12 +2061,35 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
                 child_is_last_element,
             )
             ops.extend(child_ops)
-            child_offset = self.semantics.get_size(child, extent_resolver).sum()
-            ptr_ops, current_input_ptr = child_offset.add_to_llvm_pointer(
-                current_input_ptr
-            )
-            ops.extend(ptr_ops)
+            if (i - 1) < len(layout.children):
+                child_offset = self.semantics.get_size(child, extent_resolver).sum()
+                ptr_ops, current_input_ptr = child_offset.add_to_llvm_pointer(
+                    current_input_ptr
+                )
+                ops.extend(ptr_ops)
         return ops, current_callback_args
+
+    def dealloc_layout(
+        self,
+        layout: dlt.StructLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+
+        ops = []
+        current_ptr = input_ptr
+        for i, child in enumerate(layout.children):
+            ops.extend(
+                self.semantics.dealloc_layout(child, extent_resolver, current_ptr)
+            )
+            if (i - 1) < len(layout.children):
+                ptr_ops, current_ptr = (
+                    self.semantics.get_size(child, extent_resolver)
+                    .sum()
+                    .add_to_llvm_pointer(current_ptr)
+                )
+                ops.extend(ptr_ops)
+        return ops
 
     def linear_iterate(
         self,
@@ -2053,7 +2156,7 @@ class StructSemantics(DirectLayoutNodeSemantics[dlt.StructLayoutAttr]):
             ops.append(if_op)
             current_exit = if_op.output[0]
             current_ptr = if_op.output[1]
-            current_callback_args = list(if_op.output[2: 2 + len(callback_args)])
+            current_callback_args = list(if_op.output[2 : 2 + len(callback_args)])
 
         return ops, current_callback_args, current_exit
 
@@ -2179,6 +2282,14 @@ class ArithDropSemantics(DirectLayoutNodeSemantics[dlt.ArithDropLayoutAttr]):
         )
         ops.extend(child_ops)
         return ops, iter_args_out
+
+    def dealloc_layout(
+        self,
+        layout: dlt.ArithDropLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+        return self.semantics.dealloc_layout(layout.child, extent_resolver, input_ptr)
 
     def linear_iterate(
         self,
@@ -3101,6 +3212,63 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
         return ops, []
 
+    def dealloc_layout(
+        self,
+        layout: dlt.IndexingLayoutAttr,
+        extent_resolver: ExtentResolver,
+        input_ptr: SSAValue,
+    ) -> list[Operation]:
+
+        ops = []
+        true_op = arith.Constant(IntegerAttr(1, IntegerType(1)))
+        ops.append(true_op)
+
+        ptr_space = self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
+        ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
+        ops.extend(ptr_ops)
+
+        idx_buffer_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
+        idx_buffer_ptr = idx_buffer_op.dereferenced_value
+        ops.append(idx_buffer_op)
+        data_buffer_ops, data_buffer_ptr = (
+            _get_accepted_type_size(IndexType()).sum().add_to_llvm_pointer(input_ptr)
+        )
+        ops.extend(data_buffer_ops)
+
+        data_elem_size_ops, (data_elem_size,) = (
+            self.semantics.get_size(layout.indexedChild.child, extent_resolver)
+            .keep(1)
+            .output()
+        )
+        ops.extend(data_elem_size_ops)
+
+        dealloc_callback = UnpackCOOSemantics.DeallocCallback(
+            self.semantics,
+            layout.indexedChild,
+            extent_resolver,
+            data_buffer_ptr,
+            data_elem_size,
+        )
+        iter_ops, _, _ = self.semantics.linear_iterate(
+            layout.directChild,
+            extent_resolver,
+            direct_data_ptr,
+            {},
+            dealloc_callback,
+            dealloc_callback.initial_iter_args(),
+            true_op.result,
+            true_op.result,
+            False,
+        )
+        ops.extend(iter_ops)
+
+        dealloc_direct_child = self.semantics.dealloc_layout(
+            layout.directChild, extent_resolver, direct_data_ptr
+        )
+        ops.extend(dealloc_direct_child)
+
+        return ops
+
     def linear_iterate(
         self,
         layout: dlt.IndexingLayoutAttr,
@@ -3378,16 +3546,19 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
         ops.extend(new_post_elem_idx_buffer_ptr_ops)
         # calculate how much data to move, this will be the new last_index (number of elements in the new buffer)
         # minus what was copied already (new_elem_index), minus 1 to account for 1 new element
-        post_elem_idx_buffer_size_ops, (post_elem_idx_buffer_size,) = ((
-            NumericResult.from_ssa(element_size)
-            * (
-                (
-                    NumericResult.from_ssa(last_index)
-                    - NumericResult.from_ssa(new_elem_index)
+        post_elem_idx_buffer_size_ops, (post_elem_idx_buffer_size,) = (
+            (
+                NumericResult.from_ssa(element_size)
+                * (
+                    (
+                        NumericResult.from_ssa(last_index)
+                        - NumericResult.from_ssa(new_elem_index)
+                    )
+                    - NumericResult.from_const(1)
                 )
-                - NumericResult.from_const(1)
             )
-        ) + NumericResult.from_ssa(extra_space)).output()
+            + NumericResult.from_ssa(extra_space)
+        ).output()
         ops.extend(post_elem_idx_buffer_size_ops)
         # Copy the elements after the new element
         pre_elem_idx_copy_op = llvm.CallOp(
@@ -3493,9 +3664,9 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
 
             new_running_total = iter_op.res[0]
             if_has_extra_space_true = []
-            extra_ptr_ops, extra_ptr = _get_accepted_type_size(
-                IndexType()
-            ).keep(1).add_to_llvm_pointer(ptr)
+            extra_ptr_ops, extra_ptr = (
+                _get_accepted_type_size(IndexType()).keep(1).add_to_llvm_pointer(ptr)
+            )
             if_has_extra_space_true.extend(extra_ptr_ops)
             store_idx_op = llvm.StoreOp(new_running_total, extra_ptr)
             store_idx_op.attributes["debug"] = builtin.StringAttr(
@@ -3796,6 +3967,75 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             new_iter_args = iter_op.results
             return ops, new_iter_args, False
 
+    class DeallocCallback(Callback):
+        def __init__(
+            self,
+            semantics: SemanticsMapper,
+            unpack_coo_layout: dlt.UnpackedCOOLayoutAttr,
+            extent_resolver: ExtentResolver,
+            data_buffer_ptr: SSAValue,
+            data_elem_size: SSAValue,
+        ):
+            self.semantics = semantics
+            self.unpack_coo_layout = unpack_coo_layout
+            self.extent_resolver = extent_resolver
+            self.data_buffer_ptr = data_buffer_ptr
+            self.data_elem_size = data_elem_size
+            super().__init__([])
+
+        def callback(
+            self,
+            terminal_layout: dlt.Layout,
+            members: set[dlt.MemberAttr],
+            dim_map: dict[dlt.DimensionAttr, SSAValue],
+            extent_resolver: ExtentResolver,
+            base_type: dlt.AcceptedTypes,
+            ptr: SSAValue,
+            has_extra_space: SSAValue,
+            is_last_element: bool | SSAValue,
+            selected_data: dict[dlt.TypeType, SSAValue],
+            iter_args: list[SSAValue],
+        ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
+
+            ops = []
+
+            getter_ops, index_range, index_range_found = self.semantics.get_getter_for(
+                terminal_layout, dlt.IndexRangeType(), set(), {}, extent_resolver, ptr
+            )
+            ops.extend(getter_ops)
+            extract_ops, start, end = _extract_indices_from_index_range(index_range)
+            ops.extend(extract_ops)
+            ops.append(one_op := arith.Constant(IntegerAttr(1, IndexType())))
+
+            # Loop over sparse buffers
+            start_idx, end_idx, step = start, end, one_op.result
+
+            block = Block()
+            index = block.insert_arg(IndexType(), 0)
+
+            data_buffer_ops, current_data_buffer_ptr = (
+                NumericResult.from_mixed([], index)
+                * NumericResult.from_mixed([], self.data_elem_size)
+            ).add_to_llvm_pointer(self.data_buffer_ptr)
+            block.add_ops(data_buffer_ops)
+
+            child_dealloc_ops = self.semantics.dealloc_layout(
+                self.unpack_coo_layout.child,
+                extent_resolver,
+                current_data_buffer_ptr,
+            )
+            block.add_ops(child_dealloc_ops)
+
+            inc_index_op = arith.Addi(index, step)
+            block.add_op(inc_index_op)
+
+            block.add_op(scf.Yield())
+
+            for_loop = scf.For(start, end, step, [], block)
+            ops.append(for_loop)
+
+            return ops, [], False
+
     class SparseLinearIterCallback(Callback):
         def __init__(
             self,
@@ -4008,7 +4248,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
             ops.append(while_loop)
             output_inner_callback_iter_args = list(
-                while_loop.results[2: 2 + len(iter_args)]
+                while_loop.results[2 : 2 + len(iter_args)]
             )
             did_exit_early = while_loop.results[1]
 

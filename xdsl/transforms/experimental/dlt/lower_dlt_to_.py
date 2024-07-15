@@ -616,6 +616,52 @@ class DLTAllocRewriter(RewritePattern):
         rewriter.replace_matched_op(ops, [dlt_ptr_out])
 
 
+
+@dataclass
+class DLTDeallocRewriter(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, dealloc_op: dlt.DeallocOp, rewriter: PatternRewriter):
+        assert isinstance(dealloc_op.tree.type, dlt.PtrType)
+        ptr_type = cast(dlt.PtrType, dealloc_op.tree.type)
+
+        ops = []
+
+        llvm_in_ptr_type = get_llvm_type_from_dlt_ptr(ptr_type)
+        cast_input_op = UnrealizedConversionCastOp.get(dealloc_op.tree, llvm_in_ptr_type)
+        ops.append(cast_input_op)
+        llvm_in = cast_input_op.outputs[0]
+
+        extent_map = {
+            extent: PtrCarriedExtentGetter(llvm_in, ptr_type, extent=extent)
+            for extent in ptr_type.filled_extents
+        }
+        extent_resolver = ExtentResolver(extent_map)
+
+        get_data_ptr_op = llvm.ExtractValueOp(
+            DenseArrayBase.from_list(i64, [0]),
+            llvm_in,
+            llvm.LLVMPointerType.opaque(),
+        )
+        ops.append(get_data_ptr_op)
+        llvm_data_ptr = get_data_ptr_op.res
+
+        dealloc_ops = Semantic_Map.dealloc_layout(
+            ptr_type.layout,
+            extent_resolver,
+            llvm_data_ptr,
+        )
+
+        ops.extend(dealloc_ops)
+
+        ops.append(
+            free := llvm.CallOp(
+                "free", llvm_data_ptr, return_type=None
+            )
+        )
+
+        rewriter.replace_matched_op(ops, [])
+
 # @functools.singledispatch
 # def init_layout(
 #     layout: dlt.Layout,
