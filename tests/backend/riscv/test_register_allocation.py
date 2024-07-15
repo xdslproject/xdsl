@@ -24,8 +24,8 @@ from xdsl.utils.exceptions import VerifyException
 # We use the infamous post-increment load instruction
 # provided by several architectures (ARM, PULP, ...) that presents
 # the classical form of a 2-address instruction: the first operand
-# is incremented and in a brand new SSA value as the second result.
-# Both SSA values must be allocated on the same register, otherwise the
+# is incremented and returned in a brand new SSA value as the second result.
+# Both tied SSA values must be allocated on the same register, otherwise the
 # generated code is broken.
 @irdl_op_definition
 class PostIncrementLoad(RISCVInstruction):
