@@ -7,7 +7,7 @@ builtin.module {
   %o2 = riscv.mv %i2 : (!riscv.reg) -> !riscv.reg
   "test.op"(%o0, %o1, %o2) : (!riscv.reg<a0>, !riscv.reg<a2>, !riscv.reg) -> ()
 
-  %i3 = riscv.li 100 : () -> !riscv.reg
+  %i3 = riscv.li 100 : !riscv.reg
   %i4 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg
   %i5 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg<j0>
   "test.op"(%i3, %i4, %i5) : (!riscv.reg, !riscv.reg, !riscv.reg<j0>) -> ()
@@ -21,16 +21,16 @@ builtin.module {
   %fo5 = riscv.fmv.d %f2 : (!riscv.freg) -> !riscv.freg
   "test.op"(%fo0, %fo1, %fo2, %fo3, %fo4, %fo5) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg, !riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg) -> ()
 
-  %zero = riscv.get_register : () -> !riscv.reg<zero>
-  %c0 = riscv.li 0 : () -> !riscv.reg
-  %c1 = riscv.li 1 : () -> !riscv.reg
-  %c2 = riscv.li 2 : () -> !riscv.reg
-  %c3 = riscv.li 3 : () -> !riscv.reg
+  %zero = riscv.get_register : !riscv.reg<zero>
+  %c0 = riscv.li 0 : !riscv.reg
+  %c1 = riscv.li 1 : !riscv.reg
+  %c2 = riscv.li 2 : !riscv.reg
+  %c3 = riscv.li 3 : !riscv.reg
 
   // Don't optimise out unused immediates
   "test.op"(%zero, %c0, %c1, %c2, %c3) : (!riscv.reg<zero>, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
 
-  %load_zero_zero = riscv.li 0 : () -> !riscv.reg<zero>
+  %load_zero_zero = riscv.li 0 : !riscv.reg<zero>
   "test.op"(%load_zero_zero) : (!riscv.reg<zero>) -> ()
 
   %add_immediate_zero_reg = riscv.addi %zero, 1 : (!riscv.reg<zero>) -> !riscv.reg<a0>
@@ -109,8 +109,7 @@ builtin.module {
   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
   // scfgw immediates
-  %scfgw = riscv_snitch.scfgw %i1, %c1 : (!riscv.reg<a1>, !riscv.reg) -> !riscv.reg<zero>
-  "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
+  riscv_snitch.scfgw %i1, %c1 : (!riscv.reg<a1>, !riscv.reg) -> ()
 }
 
 // CHECK: builtin.module {
@@ -120,7 +119,7 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   "test.op"(%i0, %o1, %o2) : (!riscv.reg<a0>, !riscv.reg<a2>, !riscv.reg) -> ()
 
-// CHECK-NEXT:   %i3 = riscv.li 100 : () -> !riscv.reg
+// CHECK-NEXT:   %i3 = riscv.li 100 : !riscv.reg
 // CHECK-NEXT:   %i4 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %i5 = riscv.mv %i3 : (!riscv.reg) -> !riscv.reg<j0>
 // CHECK-NEXT:   "test.op"(%i3, %i4, %i5) : (!riscv.reg, !riscv.reg, !riscv.reg<j0>) -> ()
@@ -132,21 +131,21 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg
 // CHECK-NEXT:   "test.op"(%f0, %fo1, %fo2, %f0, %fo4, %fo5) : (!riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg, !riscv.freg<fa0>, !riscv.freg<fa2>, !riscv.freg) -> ()
 
-// CHECK-NEXT:   %zero = riscv.get_register : () -> !riscv.reg<zero>
-// CHECK-NEXT:   %c0 = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT:   %zero = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %c0 = riscv.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %c0_1 = riscv.mv %c0 : (!riscv.reg<zero>) -> !riscv.reg
-// CHECK-NEXT:   %c1 = riscv.li 1 : () -> !riscv.reg
-// CHECK-NEXT:   %c2 = riscv.li 2 : () -> !riscv.reg
-// CHECK-NEXT:   %c3 = riscv.li 3 : () -> !riscv.reg
+// CHECK-NEXT:   %c1 = riscv.li 1 : !riscv.reg
+// CHECK-NEXT:   %c2 = riscv.li 2 : !riscv.reg
+// CHECK-NEXT:   %c3 = riscv.li 3 : !riscv.reg
 // CHECK-NEXT:   "test.op"(%zero, %c0_1, %c1, %c2, %c3) : (!riscv.reg<zero>, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
 
-// CHECK-NEXT:   %load_zero_zero = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT:   %load_zero_zero = riscv.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   "test.op"(%load_zero_zero) : (!riscv.reg<zero>) -> ()
 
-// CHECK-NEXT:   %add_immediate_zero_reg = riscv.li 1 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %add_immediate_zero_reg = riscv.li 1 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_immediate_zero_reg) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %multiply_immediates = riscv.li 6 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %multiply_immediates = riscv.li 6 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%multiply_immediates) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %multiply_immediate_r0 = riscv.mv %c0_1 : (!riscv.reg) -> !riscv.reg<a0>
@@ -161,7 +160,7 @@ builtin.module {
 // CHECK-NEXT:   %add_rhs_immediate = riscv.addi %i2, 2 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_rhs_immediate) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %add_immediates = riscv.li 5 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %add_immediates = riscv.li 5 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_immediates) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %add_vars = riscv.add %i0, %i1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
@@ -170,7 +169,7 @@ builtin.module {
 // CHECK-NEXT:   %add_immediate_zero = riscv.mv %i2 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_immediate_zero) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %add_immediate_constant = riscv.li 3 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %add_immediate_constant = riscv.li 3 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_immediate_constant) : (!riscv.reg<a0>) -> ()
 
   // Unchanged
@@ -181,7 +180,7 @@ builtin.module {
 // CHECK-NEXT:   %sub_rhs_immediate = riscv.addi %i2, -2 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%sub_rhs_immediate) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %sub_immediates = riscv.li -1 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %sub_immediates = riscv.li -1 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%sub_immediates) : (!riscv.reg<a0>) -> ()
 
   // Unchanged
@@ -189,10 +188,10 @@ builtin.module {
 // CHECK-NEXT:   "test.op"(%add_vars) : (!riscv.reg<a0>) -> ()
 
 // Optimise out an arithmetic operation
-// CHECK-NEXT:   %sub_add_immediate = riscv.li 2 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %sub_add_immediate = riscv.li 2 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%sub_add_immediate) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %shift_left_immediate = riscv.li 32 : () -> !riscv.reg<a0>
+// CHECK-NEXT:   %shift_left_immediate = riscv.li 32 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %load_float_known_offset = riscv.flw %i2, 12 : (!riscv.reg) -> !riscv.freg<fa0>
@@ -205,7 +204,7 @@ builtin.module {
 
 // CHECK-NEXT:   riscv.fsd %i2, %f2, 12 : (!riscv.reg, !riscv.freg) -> ()
 
-// CHECK-NEXT:   %add_lhs_rhs = riscv.li 2 : () -> !riscv.reg
+// CHECK-NEXT:   %add_lhs_rhs = riscv.li 2 : !riscv.reg
 // CHECK-NEXT:   %add_lhs_rhs_1 = riscv.mul %i1, %add_lhs_rhs : (!riscv.reg<a1>, !riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_lhs_rhs_1) : (!riscv.reg<a0>) -> ()
 
@@ -215,8 +214,7 @@ builtin.module {
 // CHECK-NEXT:   %and_bitwise_zero_r0 = riscv.mv %c0_1 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %scfgw = riscv_snitch.scfgwi %i1, 1 : (!riscv.reg<a1>) -> !riscv.reg<zero>
-// CHECK-NEXT:   "test.op"(%scfgw) : (!riscv.reg<zero>) -> ()
+// CHECK-NEXT:   riscv_snitch.scfgwi %i1, 1 : (!riscv.reg<a1>) -> ()
 
 // CHECK-NEXT: }
 

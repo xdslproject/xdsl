@@ -171,6 +171,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return memref_stream_infer_fill.MemrefStreamInferFillPass
 
+    def get_memref_stream_interleave():
+        from xdsl.transforms import memref_stream_interleave
+
+        return memref_stream_interleave.MemrefStreamInterleavePass
+
+    def get_memref_stream_tile_outer_loops():
+        from xdsl.transforms import memref_stream_tile_outer_loops
+
+        return memref_stream_tile_outer_loops.MemrefStreamTileOuterLoopsPass
+
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
 
@@ -236,10 +246,12 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_onnx_to_linalg.ConvertOnnxToLinalgPass
 
-    def get_convert_memref_stream_to_snitch():
+    def get_convert_memref_stream_to_snitch_stream():
         from xdsl.transforms import convert_memref_stream_to_snitch_stream
 
-        return convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitch
+        return (
+            convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitchStreamPass
+        )
 
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
@@ -354,7 +366,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-onnx-to-linalg": get_convert_onnx_to_linalg,
-        "convert-memref-stream-to-snitch": get_convert_memref_stream_to_snitch,
+        "convert-memref-stream-to-snitch-stream": get_convert_memref_stream_to_snitch_stream,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-qref-to-qssa": get_convert_qref_to_qssa,
         "convert-qssa-to-qref": get_convert_qssa_to_qref,
@@ -386,6 +398,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "memref-stream-fold-fill": get_memref_stream_fold_fill,
         "memref-stream-generalize-fill": get_memref_stream_generalize_fill,
         "memref-stream-infer-fill": get_memref_stream_infer_fill,
+        "memref-stream-interleave": get_memref_stream_interleave,
+        "memref-stream-tile-outer-loops": get_memref_stream_tile_outer_loops,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,

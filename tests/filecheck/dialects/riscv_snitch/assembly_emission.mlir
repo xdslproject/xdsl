@@ -2,8 +2,8 @@
 
 
 riscv_func.func @main() {
-  %0 = riscv.get_register : () -> !riscv.reg<a0>
-  %1 = riscv.get_register : () -> !riscv.reg<a1>
+  %0 = riscv.get_register : !riscv.reg<a0>
+  %1 = riscv.get_register : !riscv.reg<a1>
 
   %readable = riscv_snitch.get_stream : !stream.readable<!riscv.freg<ft0>>
   %writable = riscv_snitch.get_stream : !stream.writable<!riscv.freg<ft1>>
@@ -22,6 +22,11 @@ riscv_func.func @main() {
   %4 = riscv_snitch.dmstat %3 : (!riscv.reg<a3>) -> !riscv.reg<a4>
   %5 = riscv_snitch.dmstati 22 : () -> !riscv.reg<a5>
 
+  %f0 = riscv.get_float_register : !riscv.freg<ft0>
+  %f1 = riscv_snitch.vfmul.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+  %f2 = riscv_snitch.vfadd.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+  %f3 = riscv_snitch.vfcpka.s.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+
   riscv_func.return
 }
 
@@ -36,4 +41,7 @@ riscv_func.func @main() {
 // CHECK-NEXT:       dmcpy a3, a0, a2
 // CHECK-NEXT:       dmstat a4, a3
 // CHECK-NEXT:       dmstati a5, 22
+// CHECK-NEXT:       vfmul.s ft1, ft0, ft0
+// CHECK-NEXT:       vfadd.s ft1, ft0, ft0
+// CHECK-NEXT:       vfcpka.s.s ft1, ft0, ft0
 // CHECK-NEXT:       ret

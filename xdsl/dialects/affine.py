@@ -36,6 +36,8 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import Parser
+from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 
@@ -64,6 +66,44 @@ class ApplyOp(IRDLOperation):
             )
         if len(self.map.data.results) != 1:
             raise VerifyException("affine.apply expects a unidimensional map.")
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ApplyOp:
+        pos = parser.pos
+        m = parser.parse_attribute()
+        if not isinstance(m, AffineMapAttr):
+            parser.raise_error("Expected affine map attr", at_position=pos)
+        dims = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: parser.parse_operand()
+        )
+        if dims is None:
+            dims = []
+        syms = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
+        )
+        if syms is None:
+            syms = []
+        return ApplyOp(dims + syms, m)
+
+    def print(self, printer: Printer):
+        m = self.map.data
+        operands = tuple(self.mapOperands)
+        assert len(operands) == m.num_dims + m.num_symbols, f"{len(operands)} {m}"
+        printer.print_string_raw(" ")
+        printer.print_attribute(self.map)
+        printer.print_string_raw(" ")
+        if m.num_dims:
+            printer.print_string_raw("(")
+            printer.print_list(
+                operands[: m.num_dims], lambda el: printer.print_operand(el)
+            )
+            printer.print_string_raw(")")
+        if m.num_symbols:
+            printer.print_string_raw("[")
+            printer.print_list(
+                operands[m.num_dims :], lambda el: printer.print_operand(el)
+            )
+            printer.print_string_raw("]")
 
 
 @irdl_op_definition

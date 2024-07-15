@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     MemRefType,
     NoneAttr,
+    ShapedType,
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
@@ -294,3 +295,12 @@ def test_dense_as_tuple():
 
     indices = DenseArrayBase.from_list(IndexType(), [1, 1, 2, 3, 5, 8])
     assert indices.as_tuple() == (1, 1, 2, 3, 5, 8)
+
+
+def test_strides():
+    assert ShapedType.strides_for_shape(()) == ()
+    assert ShapedType.strides_for_shape((), factor=2) == ()
+    assert ShapedType.strides_for_shape((1,)) == (1,)
+    assert ShapedType.strides_for_shape((1,), factor=2) == (2,)
+    assert ShapedType.strides_for_shape((2, 3)) == (3, 1)
+    assert ShapedType.strides_for_shape((4, 5, 6), factor=2) == (60, 12, 2)

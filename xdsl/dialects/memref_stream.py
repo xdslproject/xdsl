@@ -47,7 +47,11 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, NoTerminator
+from xdsl.traits import (
+    HasCanonicalisationPatternsTrait,
+    IsTerminator,
+    NoTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -239,9 +243,20 @@ class StreamingRegionOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print_string(" {patterns = ")
-        printer.print_attribute(self.patterns)
-        printer.print_string("}")
+        with printer.indented():
+            printer.print_string(" {")
+            if self.patterns.data:
+                printer.print_string("\npatterns = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.patterns.data,
+                        lambda attr: printer.print("\n", attr),
+                        delimiter=",",
+                    )
+                printer.print_string("\n]")
+            else:
+                printer.print_string("\npatterns = []")
+        printer.print_string("\n}")
 
         if self.inputs:
             printer.print_string(" ins(")
@@ -332,6 +347,17 @@ class StreamingRegionOp(IRDLOperation):
         return generic
 
 
+class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+
+    @classmethod
+    def get_canonicalization_patterns(cls):
+        from xdsl.transforms.canonicalization_patterns.memref_stream import (
+            RemoveUnusedInitOperandPattern,
+        )
+
+        return (RemoveUnusedInitOperandPattern(),)
+
+
 @irdl_op_definition
 class GenericOp(IRDLOperation):
     name = "memref_stream.generic"
@@ -371,6 +397,8 @@ class GenericOp(IRDLOperation):
 
     body: Region = region_def("single_block")
 
+    traits = frozenset((GenericOpHasCanonicalizationPatternsTrait(),))
+
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
@@ -409,14 +437,36 @@ class GenericOp(IRDLOperation):
         bounds, and the second is empty.
         If there are two, then the first element of the returned tuple has the outer
         bounds, and the second the inner.
+        Interleaved iterators are not returned in either tuple.
         """
         output_maps = self.indexing_maps.data[len(self.inputs) :]
         # min_dims will equal len(self.iterator_types) in the perfect nest case
         min_dims = min(m.data.num_dims for m in output_maps)
-        return (
-            tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
-            tuple(bound.value.data for bound in self.bounds.data[min_dims:]),
+        num_interleaved = sum(
+            it.data == IteratorType.INTERLEAVED for it in self.iterator_types
         )
+        if num_interleaved:
+            res = (
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[: min_dims - num_interleaved]
+                ),
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[
+                        min_dims - num_interleaved : -num_interleaved
+                    ]
+                ),
+            )
+        else:
+            res = (
+                tuple(bound.value.data for bound in self.bounds.data[:min_dims]),
+                tuple(
+                    bound.value.data
+                    for bound in self.bounds.data[min_dims - num_interleaved :]
+                ),
+            )
+        return res
 
     @property
     def is_imperfectly_nested(self) -> bool:
@@ -431,20 +481,37 @@ class GenericOp(IRDLOperation):
             printer.print_attribute(init.type)
 
     def print(self, printer: Printer):
-        printer.print_string(" {bounds = [")
-        printer.print_list(
-            self.bounds.data,
-            lambda bound: printer.print_string(f"{bound.value.data}"),
-        )
-        printer.print_string("], indexing_maps = ")
-        printer.print_attribute(self.indexing_maps)
-        printer.print_string(", iterator_types = [")
-        printer.print_list(
-            self.iterator_types,
-            lambda iterator_type: printer.print_string_literal(iterator_type.data),
-        )
-        printer.print_string("]")
-        printer.print_string("}")
+        printer.print_string(" {")
+        with printer.indented():
+            if self.bounds:
+                printer.print_string("\nbounds = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.bounds.data,
+                        lambda bound: printer.print_string(f"{bound.value.data}"),
+                    )
+                printer.print_string("],")
+            else:
+                printer.print_string("\nbounds = [],")
+
+            if self.indexing_maps:
+                printer.print_string("\nindexing_maps = [")
+                with printer.indented():
+                    printer.print_list(
+                        self.indexing_maps.data,
+                        lambda m: printer.print_string(f"\n{m}"),
+                        delimiter=",",
+                    )
+                printer.print_string("\n],")
+            else:
+                printer.print_string("\nindexing_maps = [].")
+            printer.print_string("\niterator_types = [")
+            printer.print_list(
+                self.iterator_types,
+                lambda iterator_type: printer.print_string_literal(iterator_type.data),
+            )
+            printer.print_string("]")
+        printer.print_string("\n}")
 
         if self.inputs:
             printer.print_string(" ins(")
@@ -676,6 +743,8 @@ class GenericOp(IRDLOperation):
             raise VerifyException(
                 f"Unexpected order of iterator types: {[it.data.value for it in iterator_types]}"
             )
+        if num_interleaved > 1:
+            raise VerifyException(f"Too many interleaved bounds: {num_interleaved}")
         assert num_parallel + num_reduction + num_interleaved == len(iterator_types)
 
         if len(self.inputs) + len(self.outputs) != len(self.indexing_maps):
@@ -695,6 +764,7 @@ class GenericOp(IRDLOperation):
         # If the operation represents an imperfect loop nest, the bounds must match the
         # number of parallel iterators; otherwise they must match the total number of
         # iterators. In either case, they must all be the same.
+        output_count = len(self.outputs)
         output_maps = self.indexing_maps.data[input_count:]
 
         min_dims = min(m.data.num_dims for m in output_maps)
@@ -733,6 +803,21 @@ class GenericOp(IRDLOperation):
                     "Incompatible affine map and initial value for output at index "
                     f"{index}"
                 )
+
+        interleave_factor = self.bounds.data[-1].value.data if num_interleaved else 1
+
+        # If the operation is interleaved, use the interleaving factor to check
+        # the number of arguments
+        init_count = len(self.inits)
+        # Outputs with initial values correspond to accumulators in the presence of
+        # reduction
+        acc_count = output_count if num_reduction else (output_count - init_count)
+        expected_block_arg_count = (input_count + acc_count) * interleave_factor
+
+        if expected_block_arg_count != len(self.body.block.args):
+            raise VerifyException(
+                f"Invalid number of arguments in block ({len(self.body.block.args)}), expected {expected_block_arg_count}"
+            )
 
 
 @irdl_op_definition

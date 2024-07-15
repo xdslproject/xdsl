@@ -6,7 +6,7 @@
 riscv.label ".text"
 
 riscv_func.func @pres_1(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-    %zero = "riscv.get_register"() : () -> !riscv.reg<zero>
+    %zero = riscv.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
     %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
     riscv.label ".loop_body"
@@ -23,7 +23,7 @@ riscv_func.func @pres_1(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
 }
 
 riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-    %zero = "riscv.get_register"() : () -> !riscv.reg<zero>
+    %zero = riscv.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
     %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
     riscv.label ".loop_body"
@@ -40,19 +40,19 @@ riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
 }
 
 riscv_func.func @pres_3(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-    %zero = "riscv.get_register"() : () -> !riscv.reg<zero>
+    %zero = riscv.get_register : !riscv.reg<zero>
     %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
-    %zero_1 = riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> (!riscv.reg<zero>)
+    riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> ()
     %ub = riscv.addi %zero 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>
-    %zero_2 = riscv_snitch.scfgwi %n, 223 : (!riscv.reg<a3>) -> !riscv.reg<zero>
-    %zero_3 = riscv_snitch.scfgwi %X, 768 : (!riscv.reg<a0>) -> !riscv.reg<zero>
-    %zero_4 = riscv_snitch.scfgwi %Y, 769 : (!riscv.reg<a1>) -> !riscv.reg<zero>
-    %zero_5 = riscv_snitch.scfgwi %Z, 898 : (!riscv.reg<a2>) -> !riscv.reg<zero>
+    riscv_snitch.scfgwi %n, 223 : (!riscv.reg<a3>) -> ()
+    riscv_snitch.scfgwi %X, 768 : (!riscv.reg<a0>) -> ()
+    riscv_snitch.scfgwi %Y, 769 : (!riscv.reg<a1>) -> ()
+    riscv_snitch.scfgwi %Z, 898 : (!riscv.reg<a2>) -> ()
     %zero_6 = riscv.csrrsi 1984, 1 : () -> !riscv.reg<zero>
     %i = riscv.addi %zero, 64 : (!riscv.reg<zero>) -> !riscv.reg<a0>
     riscv.label ".loop_body"
-    %x = riscv.get_float_register() : () -> !riscv.freg<ft0>
-    %y = riscv.get_float_register() : () -> !riscv.freg<ft1>
+    %x = riscv.get_float_register : !riscv.freg<ft0>
+    %y = riscv.get_float_register : !riscv.freg<ft1>
     %z = riscv.vfadd.s %x, %y : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
     %i_next = riscv.addi %i, -1 : (!riscv.reg<a0>) -> !riscv.reg<a0>
     riscv.bne %i_next, %zero, ".loop_body" : (!riscv.reg<a0>, !riscv.reg<zero>) -> ()
@@ -61,18 +61,18 @@ riscv_func.func @pres_3(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
 }
 
 riscv_func.func @pres_4(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-    %zero = "riscv.get_register"() : () -> !riscv.reg<zero>
+    %zero = riscv.get_register : !riscv.reg<zero>
     %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
-    %zero_1 = riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> (!riscv.reg<zero>)
+    riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> ()
     %ub = riscv.addi %zero 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>
-    %zero_2 = riscv_snitch.scfgwi %n, 223 : (!riscv.reg<a3>) -> !riscv.reg<zero>
-    %zero_3 = riscv_snitch.scfgwi %X, 768 : (!riscv.reg<a0>) -> !riscv.reg<zero>
-    %zero_4 = riscv_snitch.scfgwi %Y, 769 : (!riscv.reg<a1>) -> !riscv.reg<zero>
-    %zero_5 = riscv_snitch.scfgwi %Z, 898 : (!riscv.reg<a2>) -> !riscv.reg<zero>
+    riscv_snitch.scfgwi %n, 223 : (!riscv.reg<a3>) -> ()
+    riscv_snitch.scfgwi %X, 768 : (!riscv.reg<a0>) -> ()
+    riscv_snitch.scfgwi %Y, 769 : (!riscv.reg<a1>) -> ()
+    riscv_snitch.scfgwi %Z, 898 : (!riscv.reg<a2>) -> ()
     %zero_6 = riscv.csrrsi 1984, 1 : () -> !riscv.reg<zero>
     %i = riscv.addi %zero, 63 : (!riscv.reg<zero>) -> !riscv.reg<a0>
-    %x = riscv.get_float_register() : () -> !riscv.freg<ft0>
-    %y = riscv.get_float_register() : () -> !riscv.freg<ft1>
+    %x = riscv.get_float_register : !riscv.freg<ft0>
+    %y = riscv.get_float_register : !riscv.freg<ft1>
     riscv_snitch.frep_outer %i {
         %z = riscv.vfadd.s %x, %y : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
     }

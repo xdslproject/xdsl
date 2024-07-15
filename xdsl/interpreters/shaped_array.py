@@ -9,6 +9,7 @@ from typing import Generic, TypeVar
 
 from typing_extensions import Self
 
+from xdsl.dialects.builtin import ShapedType
 from xdsl.interpreters.ptr import TypedPtr
 
 _T = TypeVar("_T")
@@ -49,11 +50,8 @@ class ShapedArray(Generic[_T]):
         if len(index) != len(self.shape):
             raise ValueError(f"Invalid indices {index} for shape {self.shape}")
         # For each dimension, the number of elements in the nested arrays
-        prod_dims: list[int] = list(
-            accumulate(reversed(self.shape), operator.mul, initial=1)
-        )[:-1]
-        offsets = map(operator.mul, reversed(index), prod_dims)
-        offset = sum(offsets)
+        strides = ShapedType.strides_for_shape(self.shape)
+        offset = sum(i * stride for i, stride in zip(index, strides, strict=True))
         return offset
 
     def load(self, index: Sequence[int]) -> _T:
