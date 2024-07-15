@@ -297,5 +297,5 @@
   }
 // External
 riscv_func.func @external()
-// CHECK-EMPTY:
+// CHECK-NOT: external
 }) : () -> ()

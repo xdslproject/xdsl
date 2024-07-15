@@ -22,8 +22,8 @@ builtin.module {
   }) {"sym_name" = "main", "function_type" = () -> ()} : () -> ()
 
 // CHECK-NEXT:  "toy.func"() ({
-// CHECK-NEXT:    %0 = "toy.constant"() {"value" = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
-// CHECK-NEXT:    %1 = "toy.constant"() {"value" = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+// CHECK-NEXT{LITERAL}:    %0 = "toy.constant"() {"value" = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
+// CHECK-NEXT{LITERAL}:    %1 = "toy.constant"() {"value" = dense<[[1.000000e+00, 2.000000e+00, 3.000000e+00], [4.000000e+00, 5.000000e+00, 6.000000e+00]]> : tensor<2x3xf64>} : () -> tensor<2x3xf64>
 // CHECK-NEXT:    %2 = "toy.cast"(%1) : (tensor<2x3xf64>) -> tensor<*xf64>
 // CHECK-NEXT:    %3 = "toy.cast"(%0) : (tensor<2x3xf64>) -> tensor<*xf64>
 // CHECK-NEXT:    %4 = "toy.transpose"(%2) : (tensor<*xf64>) -> tensor<*xf64>
