@@ -20,7 +20,7 @@ from xdsl.irdl import (
 
 class RegisterAllocationConstraints(abc.ABC):
     """
-    Base class for register allocation strategies.
+    Base class for register allocation constraints.
     """
 
     @abc.abstractmethod
