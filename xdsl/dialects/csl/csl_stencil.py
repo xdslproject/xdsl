@@ -331,7 +331,7 @@ class ApplyOp(IRDLOperation):
         Return the access patterns of each input.
 
          - An offset is a tuple describing a relative access
-         - An access pattern is a class wrappoing a sequence of offsets
+         - An access pattern is a class wrapping a sequence of offsets
          - This method returns an access pattern for each stencil
            field of the apply operation.
         """

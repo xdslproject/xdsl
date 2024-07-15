@@ -91,6 +91,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return common_subexpression_elimination.CommonSubexpressionElimination
 
+    def get_csl_stencil_to_csl_wrapper():
+        from xdsl.transforms import csl_stencil_to_csl_wrapper
+
+        return csl_stencil_to_csl_wrapper.CslStencilToCslWrapperPass
+
     def get_dce():
         from xdsl.transforms import dead_code_elimination
 
@@ -378,6 +383,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
+        "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_lower_halo_to_mpi,
