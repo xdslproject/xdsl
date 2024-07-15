@@ -47,12 +47,15 @@ class PostIncrementLoad(RISCVInstruction):
 def test_allocate_2address():
     # riscv_func.func @function() {
     #     %0 = riscv.li 1 : !riscv.reg<t1>
-    #     %1 = riscv.li 2 : !riscv.reg<t2>
+    #     %1 = riscv.li 2 : !riscv.reg<t0>
     #        tied -------- tied                  tied ---------------------------------------------- tied
     #         |             |                     |                                                   |
-    #     %2, %3 = postload %0, %1 : (!riscv.reg<t1>, !riscv.reg<t2>) -> (!riscv.reg<t0>, !riscv.reg<t1>)
-    #     %4 = builtin.unrealized_conversion_cast %2 : !riscv.reg<t0> to i32
-    #     %5 = builtin.unrealized_conversion_cast %3 : !riscv.reg<t1> to i32
+    #     %2, %3 = postload %0, %1 : (!riscv.reg<t1>, !riscv.reg<t0>) -> (!riscv.reg<t0>, !riscv.reg<t1>)
+    #
+    #                this add forces all results of the postload to be allocated first
+    #                 |
+    #     %4 = riscv.add %2, %3 : (!riscv.reg<t0>, !riscv.reg<t1>) -> !riscv.reg<t0>
+    #     %5 = builtin.unrealized_conversion_cast %4 : !riscv.reg<t0> to i32
     #     riscv_func.return
     # }
     @Builder.implicit_region
