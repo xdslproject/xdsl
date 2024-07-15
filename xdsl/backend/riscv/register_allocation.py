@@ -194,7 +194,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 self.allocate(operand)
 
         for result in allocated_results_to_ties:
-            # Free the registers that were allocated to atied results
+            # Free the registers that were allocated to tied results
             # FIXME this could be done earlier, e.g. as soon as all the
             # tied operands/results have been allocated. Not sure this
             # would improve register usage though.
