@@ -42,7 +42,7 @@ class TestOp4(Generic[RD1InvT, RD2InvT, RS1InvT, RS2InvT], RISCVInstruction, ABC
 SameIntRegisterType: TypeAlias = Annotated[IntRegisterType, ConstraintVar("T")]
 
 
-def test_constrained_single():
+def test_tie_constrained_single():
     @irdl_op_definition
     class ConstrainedOp(
         TestOp4[SameIntRegisterType, IntRegisterType, IntRegisterType, IntRegisterType]
@@ -82,7 +82,7 @@ def test_constrained_single():
     assert constr.operand_is_constrained_to(3) is None
 
 
-def test_constrained_all_unallocated():
+def test_tie_constrained_all_unallocated():
     @irdl_op_definition
     class ConstrainedOp(
         TestOp4[
@@ -127,7 +127,7 @@ def test_constrained_all_unallocated():
     assert constr.operand_is_constrained_to(1) == Registers.A1
 
 
-def test_constrained_all_allocated():
+def test_tie_constrained():
     @irdl_op_definition
     class ConstrainedOp(
         TestOp4[
@@ -172,5 +172,6 @@ def test_constrained_all_allocated():
     op.rs2.type = Registers.A2
     with pytest.raises(VerifyException):
         op.verify()
+    constr.operand_satisfy_constraint(0, Registers.A1)
     with pytest.raises(ValueError):
         constr.operand_satisfy_constraint(0, Registers.A2)
