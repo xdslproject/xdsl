@@ -195,6 +195,9 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         for result in allocated_results_to_ties:
             # Free the registers that were allocated to atied results
+            # FIXME this could be done earlier, e.g. as soon as all the
+            # tied operands/results have been allocated. Not sure this
+            # would improve register usage though.
             self._free(result)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
