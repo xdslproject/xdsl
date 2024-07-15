@@ -224,7 +224,6 @@ class CslStencilToCslWrapperPass(ModulePass):
                     ConvertStencilFuncToModuleWrappedPattern(),
                 ]
             ),
-            walk_reverse=False,
             apply_recursively=False,
         )
         module_pass.rewrite_module(op)
