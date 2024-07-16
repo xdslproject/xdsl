@@ -6,8 +6,7 @@ from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar
 
-from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute
-from xdsl.ir.core import AttributeInvT
+from xdsl.ir import Attribute, AttributeCovT, AttributeInvT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
