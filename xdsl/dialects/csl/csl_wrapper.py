@@ -323,6 +323,20 @@ class ModuleOp(IRDLOperation):
         # not found = value error
         raise ValueError(f"{name} does not refer to a block arg of this program_module")
 
+    def get_param_value(self, name: str) -> IntegerAttr[IntegerType]:
+        """Retrieve the value of a named op param."""
+        if name == "width":
+            return self.width
+        elif name == "height":
+            return self.height
+        res = NoneAttr()
+        for param in self.params.data:
+            if name == param.key.data:
+                res = param.value
+        if isinstance(res, NoneAttr):
+            raise ValueError(f"Parameter name is unknown or has no value: {name}")
+        return res
+
     @property
     def layout_yield_op(self) -> YieldOp:
         """
