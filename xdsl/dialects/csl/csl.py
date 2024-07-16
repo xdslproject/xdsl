@@ -180,12 +180,16 @@ class InModuleKind(OpTrait):
 
     Optionally specify if the op has to be a direct child of CslModuleOp
     (default is yes).
+
+    Ops with this trait are always allowed inside a csl_wrapper.module
     """
 
     def __init__(self, kind: ModuleKind, *, direct_child: bool = True):
         super().__init__((kind, direct_child))
 
     def verify(self, op: Operation) -> None:
+        from xdsl.dialects.csl import csl_wrapper
+
         kind: ModuleKind = self.parameters[0]
         direct_child: bool = self.parameters[1]
 
@@ -193,9 +197,11 @@ class InModuleKind(OpTrait):
         parent_module = op.parent_op()
         if not direct_child:
             while parent_module is not None and not isinstance(
-                parent_module, CslModuleOp
+                parent_module, CslModuleOp | csl_wrapper.ModuleOp
             ):
                 parent_module = parent_module.parent_op()
+        if isinstance(parent_module, csl_wrapper.ModuleOp):
+            return
         if not isinstance(parent_module, CslModuleOp):
             raise VerifyException(
                 f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name}, got {parent_module}"

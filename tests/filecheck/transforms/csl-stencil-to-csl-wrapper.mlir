@@ -40,8 +40,8 @@ builtin.module {
 // CHECK-NEXT:   ^0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16):
 // CHECK-NEXT:     %6 = arith.constant 0 : i16
 // CHECK-NEXT:     %7 = "csl.get_color"(%6) : (i16) -> !csl.color
-// CHECK-NEXT:     %8 = "csl_wrapper.import_module"(%2, %3, %7) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
-// CHECK-NEXT:     %9 = "csl_wrapper.import_module"(%5, %2, %3) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
+// CHECK-NEXT:     %8 = "csl_wrapper.import"(%2, %3, %7) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
+// CHECK-NEXT:     %9 = "csl_wrapper.import"(%5, %2, %3) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
 // CHECK-NEXT:     %10 = "csl.member_call"(%9, %0, %1, %2, %3, %5) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
 // CHECK-NEXT:     %11 = "csl.member_call"(%8, %0) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
 // CHECK-NEXT:     %12 = arith.constant 1 : i16

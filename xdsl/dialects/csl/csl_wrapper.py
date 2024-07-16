@@ -92,13 +92,13 @@ class ParamAttribute(ParametrizedAttribute):
 
 
 @irdl_op_definition
-class ImportModuleOp(IRDLOperation):
+class ImportOp(IRDLOperation):
     """
     Lightweight wrapper around `csl.import_module` that allows specifying field names directly
     and removes the need for handling structs or setting up struct operands
     """
 
-    name = "csl_wrapper.import_module"
+    name = "csl_wrapper.import"
 
     ops = var_operand_def()
     module = prop_def(StringAttr)
@@ -391,7 +391,7 @@ class YieldOp(IRDLOperation):
 CSL_WRAPPER = Dialect(
     "csl_wrapper",
     [
-        ImportModuleOp,
+        ImportOp,
         ModuleOp,
         YieldOp,
     ],
