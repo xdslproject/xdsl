@@ -48,10 +48,10 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_constr_coercion,
-    constr,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
+    isa_constr,
     opt_attr_def,
     region_def,
     var_operand_def,
@@ -276,7 +276,9 @@ FlatSymbolRefAttrConstraint = MessageConstraint(
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
 """SymbolRef constrained to have an empty `nested_references` property."""
 
-FlatSymbolRefAttrConstr = AllOf((constr(SymbolRefAttr), FlatSymbolRefAttrConstraint))
+FlatSymbolRefAttrConstr = AllOf(
+    (isa_constr(SymbolRefAttr), FlatSymbolRefAttrConstraint)
+)
 
 
 @irdl_attr_definition

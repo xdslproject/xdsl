@@ -43,9 +43,9 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
-    constr,
     irdl_attr_definition,
     irdl_op_definition,
+    isa_constr,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -742,7 +742,7 @@ class ExternalLoadOp(IRDLOperation):
     name = "stencil.external_load"
     field: Operand = operand_def(Attribute)
     result: OpResult = result_def(
-        constr(FieldType[Attribute]) | constr(memref.MemRefType[Attribute])
+        isa_constr(FieldType[Attribute]) | isa_constr(memref.MemRefType[Attribute])
     )
 
     assembly_format = (

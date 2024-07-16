@@ -15,6 +15,7 @@ from typing import NamedTuple, overload
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FlatSymbolRefAttr,
+    FlatSymbolRefAttrConstr,
     IntAttr,
     LocationAttr,
     ParameterDef,
@@ -39,7 +40,6 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
-    constr,
     irdl_attr_definition,
     irdl_op_definition,
     opt_attr_def,
@@ -1026,7 +1026,7 @@ class InstanceOp(IRDLOperation):
 
     instance_name = attr_def(StringAttr, attr_name="instanceName")
     module_name: FlatSymbolRefAttr = attr_def(
-        constr(FlatSymbolRefAttr), attr_name="moduleName"
+        FlatSymbolRefAttrConstr, attr_name="moduleName"
     )
     inputs: VarOperand = var_operand_def()
     outputs: VarOpResult = var_result_def()
