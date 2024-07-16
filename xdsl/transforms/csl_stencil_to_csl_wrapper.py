@@ -6,7 +6,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, stencil
 from xdsl.dialects.builtin import IntegerAttr, TensorType
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -41,6 +41,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         height: int = 1
         z_dim_no_ghost_cells: int = 1
         z_dim: int = 1
+        num_chunks: int = 1
         for apply_op in apply_ops:
             # loop over accesses to get max_distance (from which we build `pattern`)
             for ap in apply_op.get_accesses():
@@ -77,6 +78,12 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 if isa(field_t := arg.type, stencil.FieldType[TensorType[Attribute]]):
                     z_dim = max(z_dim, field_t.get_element_type().get_shape()[0])
 
+            num_chunks = max(num_chunks, apply_op.num_chunks.value.data)
+
+        # some computations we don't need to do in CSL
+        chunk_size: int = (z_dim // num_chunks) + (0 if z_dim % num_chunks == 0 else 1)
+        padded_z_dim: int = chunk_size * num_chunks
+
         # initialise module op
         module_op = csl_wrapper.ModuleOp(
             width=IntegerAttr(width, 16),
@@ -84,6 +91,9 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             params={
                 "z_dim": IntegerAttr(z_dim, 16),
                 "pattern": IntegerAttr(max_distance + 1, 16),
+                "num_chunks": IntegerAttr(num_chunks, 16),
+                "chunk_size": IntegerAttr(chunk_size, 16),
+                "padded_z_dim": IntegerAttr(padded_z_dim, 16),
             },
         )
 
@@ -111,8 +121,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             module_op.exported_symbols,
         )
 
-        # add main and empty yield to program_module
-        module_op.program_module.block.add_ops([main_func, csl_wrapper.YieldOp([], [])])
+        # initialise program_module and add main func and empty yield op
+        self.initialise_program_module(module_op, add_ops=[main_func])
 
         # replace (now empty) func by module wrapper
         rewriter.replace_matched_op(module_op)
@@ -206,6 +216,25 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                     "isBorderRegionPE": is_border_region_pe.result,
                 }
             )
+
+    def initialise_program_module(
+        self, module_op: csl_wrapper.ModuleOp, add_ops: Sequence[Operation]
+    ):
+        with ImplicitBuilder(module_op.program_module.block):
+            csl_wrapper.ImportOp(
+                "<memcpy/memcpy>",
+                field_name_mapping={"": module_op.get_program_param("memcpy_params")},
+            )
+            csl_wrapper.ImportOp(
+                "stencil_comms",
+                field_name_mapping={
+                    "pattern": module_op.get_program_param("pattern"),
+                    "chunkSize": module_op.get_program_param("chunk_size"),
+                    "": module_op.get_program_param("stencil_comms_params"),
+                },
+            )
+        module_op.program_module.block.add_ops(add_ops)
+        module_op.program_module.block.add_op(csl_wrapper.YieldOp([], []))
 
 
 @dataclass(frozen=True)
