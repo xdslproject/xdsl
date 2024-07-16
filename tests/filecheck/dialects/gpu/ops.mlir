@@ -139,10 +139,10 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:             }) : (index) -> index
 
 // CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{"operandSegmentSizes" = array<i32: 0, 1, 1, 1, 1, 1, 1, 0>}> ({
-// CHECK-NEXT:             ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index,
-// CHECK-SAME:                 %{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
+// CHECK-NEXT:             ^{{\S+}}(%{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
+// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{"op" = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:                 }) : (index) -> index
 // CHECK-NEXT:                 %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index

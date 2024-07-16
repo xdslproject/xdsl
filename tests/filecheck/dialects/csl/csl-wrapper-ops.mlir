@@ -9,8 +9,8 @@ builtin.module {
             %0 = arith.constant 0 : i16
             %1 = "csl.get_color"(%0) : (i16) -> !csl.color
 
-            %routes = "csl_wrapper.import_module"(%pattern, %width, %height) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
-            %memcpy = "csl_wrapper.import_module"(%width, %height, %1) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
+            %routes = "csl_wrapper.import"(%pattern, %width, %height) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
+            %memcpy = "csl_wrapper.import"(%width, %height, %1) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
 
             %compute_all_routes = "csl.member_call"(%routes, %x, %y, %height, %width, %pattern) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
             %memcpy_params = "csl.member_call"(%memcpy, %x) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
@@ -44,8 +44,8 @@ builtin.module {
 // CHECK-NEXT:   ^0(%x : i16, %y : i16, %width : i16, %height : i16, %z_dim : i16, %pattern : i16):
 // CHECK-NEXT:     %0 = arith.constant 0 : i16
 // CHECK-NEXT:     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
-// CHECK-NEXT:     %routes = "csl_wrapper.import_module"(%pattern, %width, %height) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
-// CHECK-NEXT:     %memcpy = "csl_wrapper.import_module"(%width, %height, %1) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
+// CHECK-NEXT:     %routes = "csl_wrapper.import"(%pattern, %width, %height) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
+// CHECK-NEXT:     %memcpy = "csl_wrapper.import"(%width, %height, %1) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
 // CHECK-NEXT:     %compute_all_routes = "csl.member_call"(%routes, %x, %y, %height, %width, %pattern) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
 // CHECK-NEXT:     %memcpy_params = "csl.member_call"(%memcpy, %x) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
 // CHECK-NEXT:     %2 = arith.constant 1 : i16
@@ -75,8 +75,8 @@ builtin.module {
 // CHECK-GENERIC-NEXT:   ^0(%x : i16, %y : i16, %width : i16, %height : i16, %z_dim : i16, %pattern : i16):
 // CHECK-GENERIC-NEXT:     %0 = "arith.constant"() <{"value" = 0 : i16}> : () -> i16
 // CHECK-GENERIC-NEXT:     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
-// CHECK-GENERIC-NEXT:     %routes = "csl_wrapper.import_module"(%pattern, %width, %height) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
-// CHECK-GENERIC-NEXT:     %memcpy = "csl_wrapper.import_module"(%width, %height, %1) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
+// CHECK-GENERIC-NEXT:     %routes = "csl_wrapper.import"(%pattern, %width, %height) <{"module" = "routes.csl", "fields" = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
+// CHECK-GENERIC-NEXT:     %memcpy = "csl_wrapper.import"(%width, %height, %1) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
 // CHECK-GENERIC-NEXT:     %compute_all_routes = "csl.member_call"(%routes, %x, %y, %height, %width, %pattern) <{"field" = "computeAllRoutes"}> : (!csl.imported_module, i16, i16, i16, i16, i16) -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:     %memcpy_params = "csl.member_call"(%memcpy, %x) <{"field" = "get_params"}> : (!csl.imported_module, i16) -> !csl.comptime_struct
 // CHECK-GENERIC-NEXT:     %2 = "arith.constant"() <{"value" = 1 : i16}> : () -> i16

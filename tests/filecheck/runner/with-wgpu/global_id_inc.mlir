@@ -45,4 +45,4 @@ builtin.module attributes {gpu.container_module} {
   }
 }
 
-// CHECK-NEXT: Result : [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]
+// CHECK-NEXT{LITERAL}: Result : [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]

@@ -122,11 +122,7 @@ def write_ssr_config_ops(reg: int, dm: int, value: Operand) -> Iterable[Operatio
         address := riscv.LiOp(
             immediate=IntegerAttr(dm | reg << 5, i32),
         ),
-        riscv_snitch.ScfgwOp(
-            rs1=value,
-            rs2=address,
-            rd=riscv.Registers.ZERO,
-        ),
+        riscv_snitch.ScfgwOp(rs1=value, rs2=address),
     ]
 
 
