@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from inspect import isclass
 from typing import Generic, TypeAlias, TypeVar
 
-from xdsl.ir import Attribute, AttributeCovT, AttributeInvT, ParametrizedAttribute
+from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
@@ -25,6 +25,9 @@ class ConstraintContext:
 
     def update(self, other: ConstraintContext):
         self.variables.update(other.variables)
+
+
+_AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
 
 
 @dataclass(frozen=True)
@@ -73,8 +76,8 @@ class GenericAttrConstraint(Generic[AttributeCovT], ABC):
         return None
 
     def __or__(
-        self, value: GenericAttrConstraint[AttributeInvT], /
-    ) -> AnyOf[AttributeCovT | AttributeInvT]:
+        self, value: GenericAttrConstraint[_AttributeCovT], /
+    ) -> AnyOf[AttributeCovT | _AttributeCovT]:
         return AnyOf((self, value))
 
 
@@ -260,8 +263,8 @@ class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
         raise VerifyException(f"Unexpected attribute {attr}")
 
     def __or__(
-        self, value: GenericAttrConstraint[AttributeInvT], /
-    ) -> AnyOf[AttributeCovT | AttributeInvT]:
+        self, value: GenericAttrConstraint[_AttributeCovT], /
+    ) -> AnyOf[AttributeCovT | _AttributeCovT]:
         return AnyOf((*self.attr_constrs, value))
 
     def get_resolved_variables(self) -> set[str]:
