@@ -4,15 +4,15 @@
 // CHECK: func @main
 riscv_func.func @main() {
   // CHECK-NEXT: get_register
-  // CHECK-SAME: -> !riscv.reg<sp>
+  // CHECK-SAME: : !riscv.reg<sp>
   // CHECK-NEXT: addi %{{.*}}, -12
   // CHECK-SAME: (!riscv.reg<sp>) -> !riscv.reg<sp>
   // CHECK-NEXT: get_float_register
-  // CHECK-SAME: -> !riscv.freg<fs2>
+  // CHECK-SAME: : !riscv.freg<fs2>
   // CHECK-NEXT: fsd %{{.*}}, %{{.*}}, 0
   // CHECK-SAME: (!riscv.reg<sp>, !riscv.freg<fs2>) -> ()
   // CHECK-NEXT: get_register
-  // CHECK-SAME: -> !riscv.reg<s5>
+  // CHECK-SAME: : !riscv.reg<s5>
   // CHECK-NEXT: sw %{{.*}}, %{{.*}}, 8
   // CHECK-SAME: (!riscv.reg<sp>, !riscv.reg<s5>) -> ()
 
