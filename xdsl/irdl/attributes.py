@@ -46,6 +46,7 @@ from .constraints import (  # noqa: TID251
     ConstraintContext,
     ConstraintVar,
     EqAttrConstraint,
+    GenericAttrConstraint,
     ParamAttrConstraint,
     VarConstraint,
 )
@@ -311,8 +312,8 @@ def irdl_to_attr_constraint(
     allow_type_var: bool = False,
     type_var_mapping: dict[TypeVar, AttrConstraint] | None = None,
 ) -> AttrConstraint:
-    if isinstance(irdl, AttrConstraint):
-        return irdl
+    if isinstance(irdl, GenericAttrConstraint):
+        return cast(AttrConstraint, irdl)
 
     if isinstance(irdl, Attribute):
         return EqAttrConstraint(irdl)
