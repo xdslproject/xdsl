@@ -525,7 +525,7 @@ class ApplyOp(IRDLOperation):
         Return the access patterns of each input.
 
          - An offset is a tuple describing a relative access
-         - An access pattern is a class wrappoing a sequence of offsets
+         - An access pattern is a class wrapping a sequence of offsets
          - This method returns an access pattern for each stencil
            field of the apply operation.
         """
@@ -1374,6 +1374,15 @@ class AccessPattern:
                 lefts[axis] = min(ax[axis], lefts[axis])
                 rights[axis] = max(ax[axis], rights[axis])
         return tuple(zip(lefts, rights))
+
+    def max_distance(self) -> int:
+        """
+        Returns the maximum absolute accessed distance across all axes.
+        """
+        res = 0
+        for ax in self.offsets:
+            res = max(res, max(abs(a) for a in ax))
+        return res
 
     def visual_pattern(self) -> str:
         """

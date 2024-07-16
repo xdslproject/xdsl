@@ -13,7 +13,7 @@ func.func @test(%dst: i32, %src: i32) -> i32 {
 }
 
 
-// CHECK-NEXT: .text
+// CHECK: .text
 // CHECK-NEXT: .globl test
 // CHECK-NEXT: .p2align 2
 // CHECK-NEXT: test:
