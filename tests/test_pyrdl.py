@@ -8,7 +8,6 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
-    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -16,6 +15,7 @@ from xdsl.irdl import (
     ParamAttrConstraint,
     ParameterDef,
     VarConstraint,
+    constr,
     irdl_attr_definition,
 )
 from xdsl.parser import AttrParser
@@ -165,7 +165,7 @@ def test_anyof_verify():
     Check that an AnyOf constraint verifies if one of the constraints
     verify.
     """
-    constraint = AnyOf([LessThan(0), GreaterThan(10)])
+    constraint = LessThan(0) | GreaterThan(10)
     constraint.verify(IntData(-1), ConstraintContext())
     constraint.verify(IntData(-10), ConstraintContext())
     constraint.verify(IntData(11), ConstraintContext())
@@ -177,7 +177,7 @@ def test_anyof_verify_fail():
     Check that an AnyOf constraint fails to verify if none of the constraints
     verify.
     """
-    constraint = AnyOf([LessThan(0), GreaterThan(10)])
+    constraint = LessThan(0) | GreaterThan(10)
 
     zero = IntData(0)
     ten = IntData(10)
@@ -286,7 +286,7 @@ def test_param_attr_verify_params_fail():
 def test_constraint_vars_success():
     """Test that VarConstraint verifier succeed when given the same attributes."""
 
-    constraint = VarConstraint("T", AnyOf([BoolData(False), IntData(0)]))
+    constraint = VarConstraint("T", constr(BoolData(False)) | constr(IntData(0)))
 
     constraint_context = ConstraintContext()
     constraint.verify(BoolData(False), constraint_context)
@@ -300,7 +300,7 @@ def test_constraint_vars_success():
 def test_constraint_vars_fail_different():
     """Test that VarConstraint verifier fails when given different attributes."""
 
-    constraint = VarConstraint("T", AnyOf([BoolData(False), IntData(0)]))
+    constraint = VarConstraint("T", constr(BoolData(False)) | constr(IntData(0)))
 
     constraint_context = ConstraintContext()
     constraint.verify(IntData(0), constraint_context)
@@ -315,7 +315,7 @@ def test_constraint_vars_fail_underlying_constraint():
     attributes that fail the underlying constraint.
     """
 
-    constraint = VarConstraint("T", AnyOf([BoolData(False), IntData(0)]))
+    constraint = VarConstraint("T", constr(BoolData(False)) | constr(IntData(0)))
 
     with pytest.raises(VerifyException):
         constraint.verify(IntData(1), ConstraintContext())

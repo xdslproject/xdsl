@@ -43,6 +43,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    constr,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -740,7 +741,9 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field: Operand = operand_def(Attribute)
-    result: OpResult = result_def(FieldType[Attribute] | memref.MemRefType[Attribute])
+    result: OpResult = result_def(
+        constr(FieldType[Attribute]) | constr(memref.MemRefType[Attribute])
+    )
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -1127,7 +1130,7 @@ class BufferOp(IRDLOperation):
             )
 
 
-class TensorIgnoreSizeConstraint(VarConstraint):
+class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     def verify(
         self, attr: Attribute, constraint_context: ConstraintContext | None = None
     ) -> None:

@@ -39,6 +39,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    constr,
     irdl_attr_definition,
     irdl_op_definition,
     opt_attr_def,
@@ -110,7 +111,7 @@ class InnerRefAttr(ParametrizedAttribute):
             module = StringAttr(module)
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__([FlatSymbolRefAttr(module), name])
+        super().__init__((SymbolRefAttr(module), name))
 
     @classmethod
     def get_from_operation(
@@ -1024,7 +1025,9 @@ class InstanceOp(IRDLOperation):
     name = "hw.instance"
 
     instance_name = attr_def(StringAttr, attr_name="instanceName")
-    module_name: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr, attr_name="moduleName")
+    module_name: FlatSymbolRefAttr = attr_def(
+        constr(FlatSymbolRefAttr), attr_name="moduleName"
+    )
     inputs: VarOperand = var_operand_def()
     outputs: VarOpResult = var_result_def()
     arg_names: ArrayAttr[StringAttr] = attr_def(

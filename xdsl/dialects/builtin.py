@@ -38,6 +38,7 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     AttrConstraint,
+    BaseAttr,
     ConstraintContext,
     GenericData,
     IRDLOperation,
@@ -47,6 +48,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_constr_coercion,
+    constr,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -273,6 +275,8 @@ FlatSymbolRefAttrConstraint = MessageConstraint(
 
 FlatSymbolRefAttr = Annotated[SymbolRefAttr, FlatSymbolRefAttrConstraint]
 """SymbolRef constrained to have an empty `nested_references` property."""
+
+FlatSymbolRefAttrConstr = AllOf((constr(SymbolRefAttr), FlatSymbolRefAttrConstraint))
 
 
 @irdl_attr_definition
@@ -550,6 +554,14 @@ class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
 
 AnyFloat: TypeAlias = (
     BFloat16Type | Float16Type | Float32Type | Float64Type | Float80Type | Float128Type
+)
+AnyFloatConstr = (
+    BaseAttr(BFloat16Type)
+    | BaseAttr(Float16Type)
+    | BaseAttr(Float32Type)
+    | BaseAttr(Float64Type)
+    | BaseAttr(Float80Type)
+    | BaseAttr(Float128Type)
 )
 
 

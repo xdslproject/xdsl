@@ -52,6 +52,7 @@ from xdsl.irdl import (
     ParameterDef,
     ParametrizedAttribute,
     attr_def,
+    constr,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -228,7 +229,7 @@ class ImportedModuleType(ParametrizedAttribute, TypeAttribute):
     name = "csl.imported_module"
 
 
-StructLike: TypeAlias = ImportedModuleType | ComptimeStructType
+StructLikeConstr = constr(ImportedModuleType) | constr(ComptimeStructType)
 
 
 @irdl_attr_definition
@@ -282,13 +283,13 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
-DsdElementType: TypeAlias = (
-    Float16Type
-    | Float32Type
-    | Annotated[IntegerType, IntegerType(16, Signedness.SIGNED)]
-    | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
-    | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
-    | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
+DsdElementTypeConstr = (
+    constr(Float16Type)
+    | constr(Float32Type)
+    | constr(IntegerType(16, Signedness.SIGNED))
+    | constr(IntegerType(16, Signedness.UNSIGNED))
+    | constr(IntegerType(32, Signedness.SIGNED))
+    | constr(IntegerType(32, Signedness.UNSIGNED))
 )
 
 
@@ -374,7 +375,7 @@ class ImportModuleConstOp(IRDLOperation):
 
     module = prop_def(StringAttr)
 
-    params = opt_operand_def(StructLike)
+    params = opt_operand_def(StructLikeConstr)
 
     result = result_def(ImportedModuleType)
 
@@ -474,7 +475,7 @@ class MemberAccessOp(IRDLOperation):
 
     traits = frozenset([NoMemoryEffect()])
 
-    struct = operand_def(StructLike)
+    struct = operand_def(StructLikeConstr)
 
     field = prop_def(StringAttr)
 
@@ -489,7 +490,7 @@ class MemberCallOp(IRDLOperation):
 
     name = "csl.member_call"
 
-    struct = operand_def(StructLike)
+    struct = operand_def(StructLikeConstr)
 
     field = prop_def(StringAttr)
 
@@ -808,7 +809,9 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(MemRefType | TensorType)
+    base_addr = operand_def(
+        constr(MemRefType[Attribute]) | constr(TensorType[Attribute])
+    )
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
 
@@ -884,7 +887,9 @@ class SetDsdBaseAddrOp(IRDLOperation):
     name = "csl.set_dsd_base_addr"
 
     op = operand_def(DsdType)
-    base_addr = operand_def(MemRefType | TensorType | PtrType)
+    base_addr = operand_def(
+        constr(MemRefType[Attribute]) | constr(TensorType[Attribute]) | constr(PtrType)
+    )
     result = result_def(DsdType)
 
     def verify_(self) -> None:
@@ -922,7 +927,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
 
     op = operand_def(DsdType)
     offset = operand_def(i16_value)
-    elem_type = prop_def(DsdElementType)
+    elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
     def verify_(self) -> None:
@@ -1429,9 +1434,9 @@ class SymbolExportOp(IRDLOperation):
 
     value = opt_operand_def(PtrType)
 
-    var_name = prop_def(StringAttr | SymbolRefAttr)
+    var_name = prop_def(constr(StringAttr) | constr(SymbolRefAttr))
 
-    type = prop_def(PtrType | FunctionType)
+    type = prop_def(constr(PtrType) | constr(FunctionType))
 
     def get_name(self) -> str:
         match self.var_name:
@@ -1559,7 +1564,13 @@ class ParamOp(IRDLOperation):
     """
 
     T = Annotated[
-        Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike,
+        Float16Type
+        | Float32Type
+        | IntegerType
+        | ColorType
+        | FunctionType
+        | ImportedModuleType
+        | ComptimeStructType,
         ConstraintVar("T"),
     ]
 

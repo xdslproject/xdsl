@@ -5,6 +5,7 @@ from typing import Annotated, Generic, Literal, TypeVar, cast, overload
 
 from xdsl.dialects.builtin import (
     AnyFloat,
+    AnyFloatConstr,
     AnyIntegerAttr,
     ContainerOf,
     Float16Type,
@@ -26,6 +27,7 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     Operand,
+    constr,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -43,7 +45,7 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
@@ -150,7 +152,7 @@ class Constant(IRDLOperation):
         p0 = parser.pos
         value = parser.parse_attribute()
 
-        if not isa(value, AnyIntegerAttr | FloatAttr[AnyFloat]):
+        if not isattr(value, constr(AnyIntegerAttr) | constr(FloatAttr[AnyFloat])):
             parser.raise_error("Invalid constant value", p0, parser.pos)
 
         c = Constant(value)
@@ -284,7 +286,7 @@ class AddUIExtended(IRDLOperation):
     rhs: Operand = operand_def(T)
 
     sum: OpResult = result_def(T)
-    overflow: OpResult = result_def(Annotated[Attribute, boolLike])
+    overflow: OpResult = result_def(boolLike)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($sum) `,` type($overflow)"
 
@@ -942,9 +944,9 @@ class Minnumf(FloatingPointLikeBinaryOp):
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
-    input: Operand = operand_def(IntegerType | IndexType)
+    input: Operand = operand_def(constr(IntegerType) | constr(IndexType))
 
-    result: OpResult = result_def(IntegerType | IndexType)
+    result: OpResult = result_def(constr(IntegerType) | constr(IndexType))
 
     traits = frozenset([Pure()])
 
@@ -966,7 +968,7 @@ class IndexCastOp(IRDLOperation):
 class FPToSIOp(IRDLOperation):
     name = "arith.fptosi"
 
-    input: Operand = operand_def(AnyFloat)
+    input: Operand = operand_def(AnyFloatConstr)
     result: OpResult = result_def(IntegerType)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
@@ -982,7 +984,7 @@ class SIToFPOp(IRDLOperation):
     name = "arith.sitofp"
 
     input: Operand = operand_def(IntegerType)
-    result: OpResult = result_def(AnyFloat)
+    result: OpResult = result_def(AnyFloatConstr)
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
@@ -996,8 +998,8 @@ class SIToFPOp(IRDLOperation):
 class ExtFOp(IRDLOperation):
     name = "arith.extf"
 
-    input: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    input: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])
@@ -1011,8 +1013,8 @@ class ExtFOp(IRDLOperation):
 class TruncFOp(IRDLOperation):
     name = "arith.truncf"
 
-    input: Operand = operand_def(AnyFloat)
-    result: OpResult = result_def(AnyFloat)
+    input: Operand = operand_def(AnyFloatConstr)
+    result: OpResult = result_def(AnyFloatConstr)
 
     def __init__(self, op: SSAValue | Operation, target_type: AnyFloat):
         super().__init__(operands=[op], result_types=[target_type])

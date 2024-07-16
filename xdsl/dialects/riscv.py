@@ -38,6 +38,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    constr,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -641,7 +642,7 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(IntRegisterType)
-    immediate: Imm20Attr | LabelAttr = attr_def(Imm20Attr | LabelAttr)
+    immediate: Imm20Attr | LabelAttr = attr_def(constr(Imm20Attr) | constr(LabelAttr))
 
     def __init__(
         self,
@@ -697,7 +698,7 @@ class RdImmJumpOperation(RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(SImm20Attr | LabelAttr)
+    immediate = attr_def(constr(SImm20Attr) | constr(LabelAttr))
 
     def __init__(
         self,
@@ -761,7 +762,7 @@ class RdRsImmIntegerOperation(RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(SImm12Attr | LabelAttr)
+    immediate = attr_def(constr(SImm12Attr) | constr(LabelAttr))
 
     def __init__(
         self,
@@ -886,7 +887,7 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(SImm12Attr | LabelAttr)
+    immediate = attr_def(constr(SImm12Attr) | constr(LabelAttr))
 
     def __init__(
         self,
@@ -974,7 +975,7 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
 
     rs1: Operand = operand_def(IntRegisterType)
     rs2: Operand = operand_def(IntRegisterType)
-    offset = attr_def(SImm12Attr | LabelAttr)
+    offset = attr_def(constr(SImm12Attr) | constr(LabelAttr))
 
     def __init__(
         self,
@@ -2452,7 +2453,7 @@ class LiOp(RISCVInstruction, ABC):
     name = "riscv.li"
 
     rd: OpResult = result_def(IntRegisterType)
-    immediate: Imm32Attr | LabelAttr = attr_def(Imm32Attr | LabelAttr)
+    immediate: Imm32Attr | LabelAttr = attr_def(constr(Imm32Attr) | constr(LabelAttr))
 
     traits = frozenset((Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()))
 
@@ -3035,7 +3036,7 @@ class RdRsImmFloatOperation(RISCVInstruction, ABC):
 
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(Imm12Attr | LabelAttr)
+    immediate = attr_def(constr(Imm12Attr) | constr(LabelAttr))
 
     def __init__(
         self,

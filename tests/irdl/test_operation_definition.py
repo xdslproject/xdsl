@@ -172,7 +172,7 @@ class ConstraintVarOp(IRDLOperation):
 
     operand: Operand = operand_def(T)
     result: OpResult = result_def(T)
-    attribute: T = attr_def(T)
+    attribute = attr_def(T)
 
 
 def test_constraint_var():

@@ -25,6 +25,7 @@ from typing import (
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     Data,
     ParametrizedAttribute,
     TypedAttribute,
@@ -431,3 +432,9 @@ def irdl_to_attr_constraint(
         )
 
     raise ValueError(f"Unexpected irdl constraint: {irdl}")
+
+
+def constr(
+    irdl: GenericAttrConstraint[AttributeInvT] | AttributeInvT | type[AttributeInvT],
+) -> GenericAttrConstraint[AttributeInvT]:
+    return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))
