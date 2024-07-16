@@ -50,6 +50,7 @@ from .constraints import (  # noqa: TID251
     AttrConstraint,
     ConstraintContext,
     ConstraintVar,
+    GenericAttrConstraint,
     RangeConstraint,
     RangeOf,
     attr_constr_coercion,
@@ -283,7 +284,7 @@ class OptionalDef(VariadicDef):
 class OperandDef(OperandOrResultDef):
     """An IRDL operand definition."""
 
-    constr: RangeConstraint
+    constr: RangeConstraint[Attribute]
     """The operand constraint."""
 
     def __init__(self, attr: Attribute | type[Attribute] | AttrConstraint):
@@ -298,7 +299,8 @@ class VarOperandDef(OperandDef, VariadicDef):
     """An IRDL variadic operand definition."""
 
     def __init__(
-        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+        self,
+        attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint[Attribute],
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -318,11 +320,12 @@ OptOperand: TypeAlias = SSAValue | None
 class ResultDef(OperandOrResultDef):
     """An IRDL result definition."""
 
-    constr: RangeConstraint
+    constr: RangeConstraint[Attribute]
     """The result constraint."""
 
     def __init__(
-        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+        self,
+        attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint[Attribute],
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -332,7 +335,8 @@ class VarResultDef(ResultDef, VariadicDef):
     """An IRDL variadic result definition."""
 
     def __init__(
-        self, attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint
+        self,
+        attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint[Attribute],
     ):
         self.constr = range_constr_coercion(attr)
 
@@ -354,7 +358,9 @@ class RegionDef:
     An IRDL region definition.
     """
 
-    entry_args: RangeConstraint = field(default_factory=lambda: RangeOf(AnyAttr()))
+    entry_args: RangeConstraint[Attribute] = field(
+        default_factory=lambda: RangeOf(AnyAttr())
+    )
 
 
 @dataclass
@@ -459,12 +465,12 @@ class _OpDefField(Generic[_ClsT]):
 
 
 class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
-    param: AttrConstraint | Attribute | type[Attribute] | TypeVar
+    param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
 
     def __init__(
         self,
         cls: type[_ClsT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
     ):
         super().__init__(cls)
         self.param = param
@@ -493,7 +499,7 @@ class _AttrOrPropFieldDef(
     def __init__(
         self,
         cls: type[AttrOrPropInvT],
-        param: AttrConstraint | Attribute | type[Attribute] | TypeVar,
+        param: AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar,
         ir_name: str | None = None,
     ):
         super().__init__(cls, param)
@@ -509,13 +515,23 @@ class _PropertyFieldDef(_AttrOrPropFieldDef[PropertyDef]):
 
 
 class _RegionFieldDef(_OpDefField[RegionDef]):
-    entry_args: RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+    entry_args: (
+        RangeConstraint[Attribute]
+        | AttrConstraint
+        | Attribute
+        | type[Attribute]
+        | TypeVar
+    )
 
     def __init__(
         self,
         cls: type[RegionDef],
         entry_args: (
-            RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+            RangeConstraint[Attribute]
+            | AttrConstraint
+            | Attribute
+            | type[Attribute]
+            | TypeVar
         ),
     ):
         super().__init__(cls)
@@ -534,7 +550,9 @@ class _TraitsFieldDef:
 
 
 def result_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -573,7 +591,7 @@ def opt_result_def(
 
 
 def prop_def(
-    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -585,7 +603,7 @@ def prop_def(
 
 
 def opt_prop_def(
-    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    constraint: type[AttributeInvT] | TypeVar | GenericAttrConstraint[AttributeInvT],
     *,
     prop_name: str | None = None,
     default: None = None,
@@ -597,7 +615,12 @@ def opt_prop_def(
 
 
 def attr_def(
-    constraint: type[AttributeInvT] | TypeVar | AttrConstraint,
+    constraint: (
+        type[AttributeInvT]
+        | TypeVar
+        | GenericAttrConstraint[AttributeInvT]
+        | ConstraintVar
+    ),
     *,
     attr_name: str | None = None,
     default: None = None,
@@ -627,7 +650,9 @@ def opt_attr_def(
 
 
 def operand_def(
-    constraint: AttrConstraint | Attribute | type[Attribute] | TypeVar = Attribute,
+    constraint: (
+        AttrConstraint | Attribute | type[Attribute] | TypeVar | ConstraintVar
+    ) = Attribute,
     *,
     default: None = None,
     resolver: None = None,
@@ -669,7 +694,11 @@ def region_def(
     single_block: Literal["single_block"] | None = None,
     *,
     entry_args: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+        RangeConstraint[Attribute]
+        | AttrConstraint
+        | Attribute
+        | type[Attribute]
+        | TypeVar
     ) = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
@@ -686,7 +715,11 @@ def var_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
     entry_args: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+        RangeConstraint[Attribute]
+        | AttrConstraint
+        | Attribute
+        | type[Attribute]
+        | TypeVar
     ) = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
@@ -703,7 +736,11 @@ def opt_region_def(
     single_block: Literal["single_block"] | None = None,
     *,
     entry_args: (
-        RangeConstraint | AttrConstraint | Attribute | type[Attribute] | TypeVar
+        RangeConstraint[Attribute]
+        | AttrConstraint
+        | Attribute
+        | type[Attribute]
+        | TypeVar
     ) = RangeOf(AnyAttr()),
     default: None = None,
     resolver: None = None,
@@ -955,7 +992,11 @@ class OpDef:
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_constraint(
                     pyrdl_constr: (
-                        AttrConstraint | Attribute | type[Attribute] | TypeVar
+                        AttrConstraint
+                        | Attribute
+                        | type[Attribute]
+                        | TypeVar
+                        | ConstraintVar
                     ),
                 ) -> AttrConstraint:
                     return irdl_list_to_attr_constraint(
@@ -967,13 +1008,13 @@ class OpDef:
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_range_constraint(
                     pyrdl_constr: (
-                        RangeConstraint
+                        RangeConstraint[Attribute]
                         | AttrConstraint
                         | Attribute
                         | type[Attribute]
                         | TypeVar
                     ),
-                ) -> RangeConstraint:
+                ) -> RangeConstraint[Attribute]:
                     if isinstance(pyrdl_constr, RangeConstraint):
                         return pyrdl_constr
                     return RangeOf(get_constraint(pyrdl_constr))

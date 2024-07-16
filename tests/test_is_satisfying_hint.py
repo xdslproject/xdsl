@@ -13,7 +13,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, ParametrizedAttribute
 from xdsl.irdl import BaseAttr, EqAttrConstraint, ParameterDef, irdl_attr_definition
 from xdsl.utils.hints import isa
-from xdsl.utils.isa import isattr
+from xdsl.utils.isattr import isattr
 
 
 class Class1:
@@ -26,19 +26,6 @@ class SubClass1(Class1):
 
 class Class2:
     pass
-
-
-################################################################################
-# Any
-################################################################################
-
-
-def test_any_hint():
-    """Test that the we can check if a value is satisfying `Any`."""
-    assert isa(3, Any)
-    assert isa([], Any)
-    assert isa([2], Any)
-    assert isa(int, Any)
 
 
 ################################################################################

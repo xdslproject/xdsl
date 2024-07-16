@@ -7,8 +7,10 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FlatSymbolRefAttr,
+    FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
+    SymbolRefAttr,
 )
 from xdsl.ir import (
     Attribute,
@@ -230,7 +232,7 @@ class TransitionOp(IRDLOperation):
 
     action = region_def()
 
-    nextState = attr_def(FlatSymbolRefAttr)
+    nextState = attr_def(FlatSymbolRefAttrConstr)
 
     traits = frozenset([NoTerminator(), HasParent(StateOp)])
 
@@ -241,7 +243,7 @@ class TransitionOp(IRDLOperation):
         action: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
         if isinstance(nextState, str):
-            nextState = FlatSymbolRefAttr(nextState)
+            nextState = SymbolRefAttr(nextState)
         attributes: dict[str, Attribute] = {
             "nextState": nextState,
         }
