@@ -60,7 +60,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
-from xdsl.irdl import BaseAttr, isa_constr
+from xdsl.irdl import BaseAttr, base
 from xdsl.parser.base_parser import BaseParser
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.isattr import isattr
@@ -497,7 +497,7 @@ class AttrParser(BaseParser):
 
     def _parse_complex_attrs(self) -> ComplexType:
         element_type = self.parse_attribute()
-        if not isattr(element_type, isa_constr(IntegerType) | AnyFloatConstr):
+        if not isattr(element_type, base(IntegerType) | AnyFloatConstr):
             self.raise_error(
                 "Complex type must be parameterized by an integer or float type!"
             )
@@ -771,9 +771,9 @@ class AttrParser(BaseParser):
         # Check that the type is correct.
         if not isattr(
             type,
-            isa_constr(RankedVectorOrTensorOf[IntegerType])
-            | isa_constr(RankedVectorOrTensorOf[IndexType])
-            | isa_constr(RankedVectorOrTensorOf[AnyFloat]),
+            base(RankedVectorOrTensorOf[IntegerType])
+            | base(RankedVectorOrTensorOf[IndexType])
+            | base(RankedVectorOrTensorOf[AnyFloat]),
         ):
             self.raise_error(
                 "Expected vector or tensor type of " "integer, index, or float type"

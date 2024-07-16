@@ -434,7 +434,7 @@ def irdl_to_attr_constraint(
     raise ValueError(f"Unexpected irdl constraint: {irdl}")
 
 
-def isa_constr(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:
+def base(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT]:
     """
     Converts an attribute type into the equivalent constraint, detecting generic
     parameters if present.
@@ -442,7 +442,7 @@ def isa_constr(irdl: type[AttributeInvT]) -> GenericAttrConstraint[AttributeInvT
     return cast(GenericAttrConstraint[AttributeInvT], irdl_to_attr_constraint(irdl))
 
 
-def eq_constr(irdl: AttributeInvT) -> GenericAttrConstraint[AttributeInvT]:
+def eq(irdl: AttributeInvT) -> GenericAttrConstraint[AttributeInvT]:
     """
     Converts an attribute instance into the equivalent constraint.
     """

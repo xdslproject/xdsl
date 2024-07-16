@@ -52,10 +52,10 @@ from xdsl.irdl import (
     ParameterDef,
     ParametrizedAttribute,
     attr_def,
-    eq_constr,
+    base,
+    eq,
     irdl_attr_definition,
     irdl_op_definition,
-    isa_constr,
     operand_def,
     opt_operand_def,
     opt_prop_def,
@@ -236,7 +236,7 @@ class ImportedModuleType(ParametrizedAttribute, TypeAttribute):
     name = "csl.imported_module"
 
 
-StructLikeConstr = isa_constr(ImportedModuleType) | isa_constr(ComptimeStructType)
+StructLikeConstr = base(ImportedModuleType) | base(ComptimeStructType)
 
 
 @irdl_attr_definition
@@ -291,12 +291,12 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
 
 DsdElementTypeConstr = (
-    isa_constr(Float16Type)
-    | isa_constr(Float32Type)
-    | eq_constr(IntegerType(16, Signedness.SIGNED))
-    | eq_constr(IntegerType(16, Signedness.UNSIGNED))
-    | eq_constr(IntegerType(32, Signedness.SIGNED))
-    | eq_constr(IntegerType(32, Signedness.UNSIGNED))
+    base(Float16Type)
+    | base(Float32Type)
+    | eq(IntegerType(16, Signedness.SIGNED))
+    | eq(IntegerType(16, Signedness.UNSIGNED))
+    | eq(IntegerType(32, Signedness.SIGNED))
+    | eq(IntegerType(32, Signedness.UNSIGNED))
 )
 
 
@@ -816,9 +816,7 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(
-        isa_constr(MemRefType[Attribute]) | isa_constr(TensorType[Attribute])
-    )
+    base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
 
@@ -895,9 +893,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
 
     op = operand_def(DsdType)
     base_addr = operand_def(
-        isa_constr(MemRefType[Attribute])
-        | isa_constr(TensorType[Attribute])
-        | isa_constr(PtrType)
+        base(MemRefType[Attribute]) | base(TensorType[Attribute]) | base(PtrType)
     )
     result = result_def(DsdType)
 
@@ -1443,9 +1439,9 @@ class SymbolExportOp(IRDLOperation):
 
     value = opt_operand_def(PtrType)
 
-    var_name = prop_def(isa_constr(StringAttr) | isa_constr(SymbolRefAttr))
+    var_name = prop_def(base(StringAttr) | base(SymbolRefAttr))
 
-    type = prop_def(isa_constr(PtrType) | isa_constr(FunctionType))
+    type = prop_def(base(PtrType) | base(FunctionType))
 
     def get_name(self) -> str:
         match self.var_name:

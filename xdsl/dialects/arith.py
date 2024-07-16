@@ -27,9 +27,9 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     Operand,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
-    isa_constr,
     operand_def,
     opt_prop_def,
     prop_def,
@@ -152,9 +152,7 @@ class Constant(IRDLOperation):
         p0 = parser.pos
         value = parser.parse_attribute()
 
-        if not isattr(
-            value, isa_constr(AnyIntegerAttr) | isa_constr(FloatAttr[AnyFloat])
-        ):
+        if not isattr(value, base(AnyIntegerAttr) | base(FloatAttr[AnyFloat])):
             parser.raise_error("Invalid constant value", p0, parser.pos)
 
         c = Constant(value)
@@ -946,9 +944,9 @@ class Minnumf(FloatingPointLikeBinaryOp):
 class IndexCastOp(IRDLOperation):
     name = "arith.index_cast"
 
-    input: Operand = operand_def(isa_constr(IntegerType) | isa_constr(IndexType))
+    input: Operand = operand_def(base(IntegerType) | base(IndexType))
 
-    result: OpResult = result_def(isa_constr(IntegerType) | isa_constr(IndexType))
+    result: OpResult = result_def(base(IntegerType) | base(IndexType))
 
     traits = frozenset([Pure()])
 

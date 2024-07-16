@@ -31,9 +31,9 @@ from xdsl.irdl import (
     ParameterDef,
     VarOperand,
     VarOpResult,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
-    isa_constr,
     operand_def,
     opt_operand_def,
     opt_prop_def,
@@ -136,10 +136,7 @@ class ValueType(ParametrizedAttribute, TypeAttribute):
 
 AnyPDLType = AttributeType | OperationType | TypeType | ValueType
 AnyPDLTypeConstr = (
-    isa_constr(AttributeType)
-    | isa_constr(OperationType)
-    | isa_constr(TypeType)
-    | isa_constr(ValueType)
+    base(AttributeType) | base(OperationType) | base(TypeType) | base(ValueType)
 )
 
 _RangeT = TypeVar(
@@ -411,11 +408,11 @@ class OperationOp(IRDLOperation):
     attributeValueNames: ArrayAttr[StringAttr] = prop_def(ArrayAttr[StringAttr])
 
     operand_values: VarOperand = var_operand_def(
-        isa_constr(ValueType) | isa_constr(RangeType[ValueType])
+        base(ValueType) | base(RangeType[ValueType])
     )
     attribute_values: VarOperand = var_operand_def(AttributeType)
     type_values: VarOperand = var_operand_def(
-        isa_constr(TypeType) | isa_constr(RangeType[TypeType])
+        base(TypeType) | base(RangeType[TypeType])
     )
     op: OpResult = result_def(OperationType)
 
@@ -654,7 +651,7 @@ class RangeOp(IRDLOperation):
 
     name = "pdl.range"
     arguments: VarOperand = var_operand_def(
-        AnyPDLTypeConstr | isa_constr(RangeType[AnyPDLType])
+        AnyPDLTypeConstr | base(RangeType[AnyPDLType])
     )
     result: OpResult = result_def(RangeType[AnyPDLType])
 
@@ -733,7 +730,7 @@ class ReplaceOp(IRDLOperation):
     op_value: Operand = operand_def(OperationType)
     repl_operation: OptOperand = opt_operand_def(OperationType)
     repl_values: VarOperand = var_operand_def(
-        isa_constr(ValueType) | isa_constr(ArrayAttr[ValueType])
+        base(ValueType) | base(ArrayAttr[ValueType])
     )
 
     irdl_options = [AttrSizedOperandSegments()]
@@ -830,7 +827,7 @@ class ResultsOp(IRDLOperation):
     name = "pdl.results"
     index: IntegerAttr[IntegerType] | None = opt_prop_def(IntegerAttr[IntegerType])
     parent_: Operand = operand_def(OperationType)
-    val: OpResult = result_def(isa_constr(ValueType) | isa_constr(RangeType[ValueType]))
+    val: OpResult = result_def(base(ValueType) | base(RangeType[ValueType]))
 
     def __init__(
         self,

@@ -26,8 +26,8 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    base,
     irdl_op_definition,
-    isa_constr,
     operand_def,
     opt_attr_def,
     opt_operand_def,
@@ -52,7 +52,7 @@ from xdsl.utils.isattr import isattr
 TensorTypeF64: TypeAlias = TensorType[Float64Type]
 UnrankedTensorTypeF64: TypeAlias = UnrankedTensorType[Float64Type]
 AnyTensorTypeF64: TypeAlias = TensorTypeF64 | UnrankedTensorTypeF64
-AnyTensorTypeF64Constr = isa_constr(TensorTypeF64) | isa_constr(UnrankedTensorTypeF64)
+AnyTensorTypeF64Constr = base(TensorTypeF64) | base(UnrankedTensorTypeF64)
 
 
 class ToyShapeInferenceTrait(OpTrait, ABC):
