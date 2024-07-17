@@ -3,7 +3,12 @@ from itertools import pairwise
 from typing import cast
 
 from xdsl.dialects import builtin, memref, stencil
-from xdsl.dialects.builtin import IndexType, IntegerAttr, TensorType
+from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
+    AnyMemRefType,
+    IndexType,
+    TensorType,
+)
 from xdsl.dialects.experimental import dmp
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
@@ -17,6 +22,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     ParameterDef,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -40,6 +46,7 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @irdl_attr_definition
@@ -113,7 +120,7 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        stencil.TempType[Attribute] | memref.MemRefType[Attribute]
+        base(stencil.TempType[Attribute]) | base(memref.MemRefType[Attribute])
     )
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
@@ -180,7 +187,7 @@ class ApplyOp(IRDLOperation):
     name = "csl_stencil.apply"
 
     communicated_stencil = operand_def(
-        stencil.TempType[Attribute] | memref.MemRefType[Attribute]
+        base(stencil.TempType[Attribute]) | base(memref.MemRefType[Attribute])
     )
 
     iter_arg = operand_def(TensorType[Attribute])
@@ -194,7 +201,7 @@ class ApplyOp(IRDLOperation):
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    num_chunks = prop_def(IntegerAttr)
+    num_chunks = prop_def(AnyIntegerAttr)
 
     res = var_result_def(stencil.TempType)
 
@@ -366,7 +373,7 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op = operand_def(memref.MemRefType | stencil.TempType)
+    op = operand_def(base(AnyMemRefType) | base(stencil.AnyTempType))
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType)
@@ -444,9 +451,7 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isa(
-            res_type, memref.MemRefType[Attribute] | stencil.TempType[Attribute]
-        ):
+        if not isattr(res_type, base(AnyMemRefType) | base(stencil.AnyTempType)):
             parser.raise_error("Expected return type to be a memref or stencil.temp")
         return cls.build(
             operands=[temp], result_types=[res_type.element_type], properties=props

@@ -823,7 +823,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate: UImm5Attr | LabelAttr = attr_def(UImm5Attr | LabelAttr)
+    immediate = attr_def(base(UImm5Attr) | base(LabelAttr))
 
     def __init__(
         self,

@@ -1588,6 +1588,9 @@ class MemRefType(
                 return self.layout.get_strides()
 
 
+AnyMemRefType: TypeAlias = MemRefType[Attribute]
+
+
 @irdl_attr_definition
 class UnrankedMemrefType(
     Generic[_UnrankedMemrefTypeElems], ParametrizedAttribute, TypeAttribute

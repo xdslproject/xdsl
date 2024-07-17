@@ -32,6 +32,7 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -470,7 +471,7 @@ class Conv(IRDLOperation):
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     data = operand_def(TensorType[T])
     weight = operand_def(TensorType[T])
-    bias = operand_def(TensorType[T] | NoneType)
+    bias = operand_def(base(TensorType[T]) | base(NoneType))
     res = result_def(TensorType[T])
 
     auto_pad = attr_def(StringAttr)
@@ -727,8 +728,8 @@ class MaxPoolSingleOut(IRDLOperation):
     name = "onnx.MaxPoolSingleOut"
 
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
-    data = operand_def(TensorType[T] | MemRefType[T])
-    output = result_def(TensorType[T] | MemRefType[T])
+    data = operand_def(base(TensorType[T]) | base(MemRefType[T]))
+    output = result_def(base(TensorType[T]) | base(MemRefType[T]))
 
     auto_pad = attr_def(StringAttr)
     ceil_mode = attr_def(AnyIntegerAttr)
@@ -1029,7 +1030,7 @@ class Squeeze(IRDLOperation):
 
     T = Annotated[AnyFloat | IntegerType, ConstraintVar("T")]
     input_tensor = operand_def(TensorType[T])
-    axes = opt_attr_def(IntegerAttr, attr_name="axes")
+    axes = opt_attr_def(base(AnyIntegerAttr), attr_name="axes")
 
     output_tensor = result_def(TensorType[T])
 
