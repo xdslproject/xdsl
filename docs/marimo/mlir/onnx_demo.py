@@ -165,7 +165,7 @@ def __(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(
     ConvertOnnxToLinalgPass,
     MLIROptPass,
@@ -213,7 +213,7 @@ def __(
     return bufferized_module, linalg_accordion
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md("We can take this representation, and lower to RISC-V-specific dialects:")
     return
@@ -320,7 +320,7 @@ def __(mo):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo, riscv_asm_module, riscv_code):
     riscv_asm = riscv_code(riscv_asm_module)
 
