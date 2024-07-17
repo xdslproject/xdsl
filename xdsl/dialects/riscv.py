@@ -3560,6 +3560,8 @@ class FSubDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fsub.d"
 
+    traits = frozenset((Pure(),))
+
 
 @irdl_op_definition
 class FMulDOp(RdRsRsFloatOperationWithFastMath):
