@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import Annotated, Generic, TypeVar, cast
+from typing import Annotated, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
@@ -371,6 +371,9 @@ class TempType(
     """
 
     name = "stencil.temp"
+
+
+AnyTempType: TypeAlias = TempType[Attribute]
 
 
 @irdl_attr_definition
