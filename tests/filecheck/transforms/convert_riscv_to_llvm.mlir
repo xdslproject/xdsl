@@ -1,13 +1,13 @@
 // RUN: xdsl-opt %s -p convert-riscv-to-llvm | filecheck %s
 
-%0 = riscv.get_register : () -> !riscv.reg<zero>
+%0 = riscv.get_register : !riscv.reg<zero>
 // CHECK: builtin.module {
-// CHECK-NEXT: %0 = riscv.get_register : () -> !riscv.reg<zero>
+// CHECK-NEXT: %0 = riscv.get_register : !riscv.reg<zero>
 
 
 // standard risc-v instructions
 
-%1 = riscv.li 0 : () -> !riscv.reg
+%1 = riscv.li 0 : !riscv.reg
 // CHECK-NEXT: %1 = "llvm.inline_asm"() <{"asm_string" = "li $0, 0", "constraints" = "=r", "asm_dialect" = 0 : i64}> : () -> i32
 // CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %1 : i32 to !riscv.reg
 
@@ -25,13 +25,13 @@
 
 // named riscv registers:
 
-%4 = riscv.li 0 : () -> !riscv.reg<a0>
+%4 = riscv.li 0 : !riscv.reg<a0>
 // CHECK-NEXT: %1 = "llvm.inline_asm"() <{"asm_string" = "li a0, 0", "constraints" = "=r", "asm_dialect" = 0 : i64}> : () -> i32
 // CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %1 : i32 to !riscv.reg
 
 // standard risc-v instructions
 
-%5 = riscv.li 0 : () -> !riscv.reg
+%5 = riscv.li 0 : !riscv.reg
 // CHECK-NEXT: %1 = "llvm.inline_asm"() <{"asm_string" = "li $0, 0", "constraints" = "=r", "asm_dialect" = 0 : i64}> : () -> i32
 // CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %1 : i32 to !riscv.reg
 
