@@ -10,7 +10,14 @@ from enum import Enum
 from typing import NoReturn, TypeVar, overload
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Lexer, Position, Span, StringLiteral, Token
+from xdsl.utils.lexer import (
+    Lexer,
+    Position,
+    PunctuationSpelling,
+    Span,
+    StringLiteral,
+    Token,
+)
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -505,11 +512,11 @@ class BaseParser:
         self.raise_error(error_msg)
 
     def parse_optional_punctuation(
-        self, punctuation: Token.PunctuationSpelling
-    ) -> Token.PunctuationSpelling | None:
+        self, punctuation: PunctuationSpelling
+    ) -> PunctuationSpelling | None:
         """
         Parse a punctuation, if it is present. Otherwise, return None.
-        Punctuations are defined by `Token.PunctuationSpelling`.
+        Punctuations are defined by `PunctuationSpelling`.
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.
@@ -522,11 +529,11 @@ class BaseParser:
         return None
 
     def parse_punctuation(
-        self, punctuation: Token.PunctuationSpelling, context_msg: str = ""
-    ) -> Token.PunctuationSpelling:
+        self, punctuation: PunctuationSpelling, context_msg: str = ""
+    ) -> PunctuationSpelling:
         """
         Parse a punctuation. Punctuations are defined by
-        `Token.PunctuationSpelling`.
+        `PunctuationSpelling`.
         """
         # This check is only necessary to catch errors made by users that
         # are not using pyright.

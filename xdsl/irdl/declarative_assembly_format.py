@@ -31,7 +31,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
-from xdsl.utils.lexer import Token
+from xdsl.utils.lexer import PunctuationSpelling
 
 OperandOrResult = Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT]
 
@@ -835,7 +835,7 @@ class PunctuationDirective(OptionallyParsableDirective):
     additionally neither `<`, `(`, `}`, `]`, if the last element was not a punctuation.
     """
 
-    punctuation: Token.PunctuationSpelling
+    punctuation: PunctuationSpelling
     """The punctuation that should be printed/parsed."""
 
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
