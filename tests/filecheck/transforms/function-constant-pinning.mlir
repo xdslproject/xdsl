@@ -109,10 +109,10 @@ func.func @function_args(%arg0: memref<100xf32>) -> i32 {
 // CHECK-NEXT:     }) : (i1) -> i32
 // CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
-// CHECK-NEXT:   func.func @function_args_pinned(%0 : memref<100xf32>) -> i32 {
+// CHECK-NEXT:   func.func @function_args_pinned(%arg0 : memref<100xf32>) -> i32 {
 // CHECK-NEXT:     %v = arith.constant 0 : i64
                    // here the function arg is used
-// CHECK-NEXT:     "test.op"(%v, %0) : (i32, memref<100xf32>) -> ()
+// CHECK-NEXT:     "test.op"(%v, %arg0) : (i32, memref<100xf32>) -> ()
 // CHECK-NEXT:     func.return %v : i32
 // CHECK-NEXT:   }
 
@@ -153,7 +153,7 @@ func.func @control_flow_and_function_args(%arg: i32) -> i32 {
 // CHECK-NEXT:     }) : (i1) -> i32
 // CHECK-NEXT:     func.return %2 : i32
 // CHECK-NEXT:   }
-// CHECK-NEXT:   func.func @control_flow_and_function_args_pinned(%0 : i32) -> i32 {
+// CHECK-NEXT:   func.func @control_flow_and_function_args_pinned(%arg : i32) -> i32 {
 // CHECK-NEXT:     %cond = arith.constant true
 // CHECK-NEXT:     "scf.if"(%cond) ({
 // CHECK-NEXT:       "test.op"() {"inside_if"} : () -> ()
@@ -161,7 +161,7 @@ func.func @control_flow_and_function_args(%arg: i32) -> i32 {
 // CHECK-NEXT:     }, {
 // CHECK-NEXT:       scf.yield
 // CHECK-NEXT:     }) : (i1) -> ()
-// CHECK-NEXT:     %rval = "test.op"(%0) {"after_op"} : (i32) -> i32
+// CHECK-NEXT:     %rval = "test.op"(%arg) {"after_op"} : (i32) -> i32
 // CHECK-NEXT:     func.return %rval : i32
 // CHECK-NEXT:   }
 
