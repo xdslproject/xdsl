@@ -12,26 +12,34 @@ from enum import Enum, auto
 from itertools import pairwise
 from typing import cast
 
-from xdsl.dialects.builtin import Builtin
+from xdsl.dialects.builtin import Builtin, UnitAttr
 from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
     AttrSizedOperandSegments,
+    AttrSizedSegments,
     ConstraintContext,
     OpDef,
     OptionalDef,
     OptOperandDef,
+    OptRegionDef,
     OptResultDef,
+    OptSingleBlockRegionDef,
+    OptSuccessorDef,
     ParamAttrConstraint,
     ParsePropInAttrDict,
     VariadicDef,
     VarOperandDef,
+    VarRegionDef,
     VarResultDef,
+    VarSingleBlockRegionDef,
+    VarSuccessorDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AnchorableDirective,
     AttrDictDirective,
     AttributeVariable,
+    DefaultValuedAttributeVariable,
     FormatDirective,
     FormatProgram,
     KeywordDirective,
@@ -43,19 +51,27 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionallyParsableDirective,
     OptionalOperandTypeDirective,
     OptionalOperandVariable,
+    OptionalRegionVariable,
     OptionalResultTypeDirective,
     OptionalResultVariable,
+    OptionalSuccessorVariable,
+    OptionalUnitAttrVariable,
     PunctuationDirective,
+    RegionDirective,
+    RegionVariable,
     ResultTypeDirective,
     ResultVariable,
+    SuccessorVariable,
     VariableDirective,
     VariadicLikeFormatDirective,
     VariadicLikeTypeDirective,
     VariadicLikeVariable,
     VariadicOperandTypeDirective,
     VariadicOperandVariable,
+    VariadicRegionVariable,
     VariadicResultTypeDirective,
     VariadicResultVariable,
+    VariadicSuccessorVariable,
     WhitespaceDirective,
 )
 from xdsl.parser import BaseParser, ParserState
@@ -122,6 +138,10 @@ class FormatParser(BaseParser):
     """The attributes that are already parsed."""
     seen_properties: set[str]
     """The properties that are already parsed."""
+    seen_regions: list[bool]
+    """The region variables that are already parsed."""
+    seen_successors: list[bool]
+    """The successor variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
@@ -140,6 +160,8 @@ class FormatParser(BaseParser):
         self.seen_result_types = [False] * len(op_def.results)
         self.seen_attributes = set[str]()
         self.seen_properties = set[str]()
+        self.seen_regions = [False] * len(op_def.regions)
+        self.seen_successors = [False] * len(op_def.successors)
         self.type_resolutions = {}
 
     def parse_format(self) -> FormatProgram:
@@ -160,7 +182,9 @@ class FormatParser(BaseParser):
         self.verify_properties()
         self.verify_operands(seen_variables)
         self.verify_results(seen_variables)
-        return FormatProgram(elements)
+        self.verify_regions()
+        self.verify_successors()
+        return FormatProgram(tuple(elements))
 
     def verify_directives(self, elements: list[FormatDirective]):
         """
@@ -177,12 +201,27 @@ class FormatParser(BaseParser):
                     self.raise_error(
                         "A variadic type directive cannot be followed by another variadic type directive."
                     )
-                case VariadicLikeVariable(), VariadicLikeVariable() if not (
-                    isinstance(a, VariadicLikeTypeDirective)
-                    or isinstance(b, VariadicLikeTypeDirective)
-                ):
+                case VariadicLikeVariable(), VariadicLikeVariable():
+                    if not (
+                        isinstance(a, RegionDirective | VariadicLikeTypeDirective)
+                        or isinstance(b, RegionDirective | VariadicLikeTypeDirective)
+                    ):
+                        self.raise_error(
+                            "A variadic operand variable cannot be followed by another variadic operand variable."
+                        )
+                    elif isinstance(a, RegionDirective) and isinstance(
+                        b, RegionDirective
+                    ):
+                        self.raise_error(
+                            "A variadic region variable cannot be followed by another variadic region variable."
+                        )
+                case AttrDictDirective(), RegionDirective() if not (a.with_keyword):
                     self.raise_error(
-                        "A variadic operand variable cannot be followed by another variadic operand variable."
+                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
+                    )
+                case AttrDictDirective(), RegionVariable() if not (a.with_keyword):
+                    self.raise_error(
+                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
                     )
                 case _:
                     pass
@@ -282,13 +321,57 @@ class FormatParser(BaseParser):
                     "parsed from the attribute dictionary."
                 )
             return
+
         missing_properties = set(self.op_def.properties.keys()) - self.seen_properties
+
+        for option in self.op_def.options:
+            if isinstance(option, AttrSizedSegments) and option.as_property:
+                missing_properties.remove(option.attribute_name)
+
         if missing_properties:
             self.raise_error(
                 f"{', '.join(missing_properties)} properties are missing from "
                 "the declarative format. If this is intentional, consider using "
                 "'ParsePropInAttrDict' IRDL option."
             )
+
+    def verify_regions(self):
+        """
+        Check that all regions are present.
+        """
+        for (
+            seen_region,
+            (region_name, _),
+        ) in zip(
+            self.seen_regions,
+            self.op_def.regions,
+            strict=True,
+        ):
+            if not seen_region:
+                self.raise_error(
+                    f"region '{region_name}' "
+                    f"not found, consider adding a '${region_name}' "
+                    "directive to the custom assembly format."
+                )
+
+    def verify_successors(self):
+        """
+        Check that all successors are present.
+        """
+        for (
+            seen_successor,
+            (successor_name, _),
+        ) in zip(
+            self.seen_successors,
+            self.op_def.successors,
+            strict=True,
+        ):
+            if not seen_successor:
+                self.raise_error(
+                    f"successor '{successor_name}' "
+                    f"not found, consider adding a '${successor_name}' "
+                    "directive to the custom assembly format."
+                )
 
     def parse_optional_variable(
         self,
@@ -343,6 +426,32 @@ class FormatParser(BaseParser):
             else:
                 return ResultVariable(variable_name, idx)
 
+        # Check if the variable is a region
+        for idx, (region_name, region_def) in enumerate(self.op_def.regions):
+            if variable_name != region_name:
+                continue
+            self.seen_regions[idx] = True
+            match region_def:
+                case OptRegionDef() | OptSingleBlockRegionDef():
+                    return OptionalRegionVariable(variable_name, idx)
+                case VarRegionDef() | VarSingleBlockRegionDef():
+                    return VariadicRegionVariable(variable_name, idx)
+                case _:
+                    return RegionVariable(variable_name, idx)
+
+        # Check if the variable is a successor
+        for idx, (successor_name, successor_def) in enumerate(self.op_def.successors):
+            if variable_name != successor_name:
+                continue
+            self.seen_successors[idx] = True
+            match successor_def:
+                case OptSuccessorDef():
+                    return OptionalSuccessorVariable(variable_name, idx)
+                case VarSuccessorDef():
+                    return VariadicSuccessorVariable(variable_name, idx)
+                case _:
+                    return SuccessorVariable(variable_name, idx)
+
         attr_or_prop_by_name = {
             attr_name: attr_or_prop
             for attr_name, attr_or_prop in self.op_def.accessor_names.values()
@@ -352,8 +461,9 @@ class FormatParser(BaseParser):
         if variable_name in attr_or_prop_by_name:
             attr_name = variable_name
             attr_or_prop = attr_or_prop_by_name[attr_name]
+            is_property = attr_or_prop == "property"
             if self.context == ParsingContext.TopLevel:
-                if attr_or_prop == "property":
+                if is_property:
                     if attr_name in self.seen_properties:
                         self.raise_error(f"property '{variable_name}' is already bound")
                     self.seen_properties.add(attr_name)
@@ -366,11 +476,16 @@ class FormatParser(BaseParser):
 
             attr_def = (
                 self.op_def.properties.get(attr_name)
-                if attr_or_prop == "property"
+                if is_property
                 else self.op_def.attributes.get(attr_name)
             )
             if isinstance(attr_def, AttrOrPropDef):
                 unique_base = attr_def.constr.get_unique_base()
+                if unique_base == UnitAttr:
+                    return OptionalUnitAttrVariable(
+                        variable_name, is_property, None, None
+                    )
+
                 # Always qualify builtin attributes
                 # This is technically an approximation, but appears to be good enough
                 # for xDSL right now.
@@ -395,12 +510,20 @@ class FormatParser(BaseParser):
                 # Chill pyright with TypedAttribute without parameter
                 unique_base = cast(type[Attribute] | None, unique_base)
 
+                if attr_def.default_value is not None:
+                    return DefaultValuedAttributeVariable(
+                        variable_name,
+                        is_property,
+                        unique_base,
+                        unique_type,
+                        attr_def.default_value,
+                    )
+
                 variable_type = (
                     OptionalAttributeVariable
                     if isinstance(attr_def, OptionalDef)
                     else AttributeVariable
                 )
-                is_property = attr_or_prop == "property"
                 return variable_type(
                     variable_name, is_property, unique_base, unique_type
                 )
@@ -481,29 +604,48 @@ class FormatParser(BaseParser):
                 anchor = then_elements[-1]
         self.parse_punctuation("?")
 
-        if not then_elements:
-            self.raise_error("An optional group cannot be empty")
+        # Pull whitespace element of front, as they are not parsed
+        first_non_whitespace_index = None
+        for i, x in enumerate(then_elements):
+            if not isinstance(x, WhitespaceDirective):
+                first_non_whitespace_index = i
+                break
+
+        if first_non_whitespace_index is None:
+            self.raise_error("An optional group must have a non-whitespace directive")
         if anchor is None:
             self.raise_error("Every optional group must have an anchor.")
         # TODO: allow attribute and region variables when implemented.
-        if not isinstance(then_elements[0], OptionallyParsableDirective):
+        if not isinstance(
+            then_elements[first_non_whitespace_index], OptionallyParsableDirective
+        ):
             self.raise_error(
                 "First element of an optional group must be optionally parsable."
             )
         if not isinstance(anchor, AnchorableDirective):
             self.raise_error(
-                "An optional group's anchor must be an achorable directive."
+                "An optional group's anchor must be an anchorable directive."
             )
 
-        return OptionalGroupDirective(anchor, then_elements[0], then_elements[1:])
+        return OptionalGroupDirective(
+            anchor,
+            cast(
+                tuple[WhitespaceDirective, ...],
+                then_elements[:first_non_whitespace_index],
+            ),
+            cast(
+                OptionallyParsableDirective, then_elements[first_non_whitespace_index]
+            ),
+            then_elements[first_non_whitespace_index + 1 :],
+        )
 
     def parse_keyword_or_punctuation(self) -> FormatDirective:
         """
         Parse a keyword or a punctuation directive, with the following format:
           keyword-or-punctuation-directive ::= `\\`` (bare-ident | punctuation) `\\``
         """
-        self.parse_characters("`")
         start_token = self._current_token
+        self.parse_characters("`")
 
         # New line case
         if self.parse_optional_keyword("\\"):
@@ -512,16 +654,16 @@ class FormatParser(BaseParser):
             return WhitespaceDirective("\n")
 
         # Space case
+        end_token = self._current_token
         if self.parse_optional_characters("`"):
-            end_token = self._current_token
             whitespace = self.lexer.input.content[
                 start_token.span.end : end_token.span.start
             ]
-            if whitespace != " ":
+            if whitespace != " " and whitespace != "":
                 self.raise_error(
-                    "unexpected whitespace in directive, only ` ` whitespace is allowed"
+                    "unexpected whitespace in directive, only ` ` or `` whitespace is allowed"
                 )
-            return WhitespaceDirective(" ")
+            return WhitespaceDirective(whitespace)
 
         # Punctuation case
         if self._current_token.kind.is_punctuation():

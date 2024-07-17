@@ -1,27 +1,65 @@
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from itertools import pairwise
-from typing import cast
+from typing import TypeAlias, cast
 
 from xdsl.dialects import builtin, memref, stencil
-from xdsl.dialects.builtin import TensorType
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    AnyIntegerAttr,
+    AnyMemRefType,
+    AnyMemRefTypeConstr,
+    AnyTensorTypeConstr,
+    Float16Type,
+    Float32Type,
+    FloatAttr,
+    IndexType,
+    MemRefType,
+    TensorType,
+)
 from xdsl.dialects.experimental import dmp
-from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
+from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    Operation,
+    ParametrizedAttribute,
+    SSAValue,
+)
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
     ParameterDef,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
+    region_def,
     result_def,
+    traits_def,
+    var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasAncestor, Pure
+from xdsl.traits import (
+    HasAncestor,
+    HasCanonicalizationPatternsTrait,
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    Pure,
+    RecursiveMemoryEffect,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @irdl_attr_definition
@@ -95,29 +133,311 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        stencil.TempType[Attribute] | memref.MemRefType[Attribute]
+        stencil.StencilTypeConstr | AnyMemRefTypeConstr | AnyTensorTypeConstr
     )
 
-    swaps = opt_prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
+    swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
-    topo = opt_prop_def(dmp.RankTopoAttr)
+    topo = prop_def(dmp.RankTopoAttr)
 
-    result = result_def(memref.MemRefType)
+    result = result_def(AnyMemRefTypeConstr | AnyTensorTypeConstr)
 
     def __init__(
         self,
         input_stencil: SSAValue | Operation,
-        topo: dmp.RankTopoAttr | None = None,
-        swaps: Sequence[ExchangeDeclarationAttr] | None = None,
-        result_type: memref.MemRefType[Attribute] | None = None,
+        topo: dmp.RankTopoAttr,
+        swaps: Sequence[ExchangeDeclarationAttr],
+        result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
             properties={
                 "topo": topo,
-                "swaps": builtin.ArrayAttr(swaps if swaps else []),
+                "swaps": builtin.ArrayAttr(swaps),
             },
             result_types=[result_type],
+        )
+
+
+CslFloat: TypeAlias = Float16Type | Float32Type
+
+
+@irdl_attr_definition
+class CoeffAttr(ParametrizedAttribute):
+    name = "csl_stencil.coeff"
+    offset: ParameterDef[stencil.IndexAttr]
+    coeff: ParameterDef[FloatAttr[AnyFloat]]
+
+    def __init__(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+        super().__init__([offset, coeff])
+
+
+class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl_stencil import (
+            RedundantAccumulatorInitialisation,
+        )
+
+        return (RedundantAccumulatorInitialisation(),)
+
+
+@irdl_op_definition
+class ApplyOp(IRDLOperation):
+    """
+    This operation combines a `csl_stencil.prefetch` (symmetric buffer communication across a given stencil shape)
+    with a `stencil.apply` (a stencil function plus parameters and applies the stencil function to the output temp).
+
+    As communication may be done in chunks, this operation provides two regions for computation:
+      - the `receive_chunk` region to reduce a chunk of data received from several neighbours to one chunk of data.
+        this region is invoked once per communicated chunks and effectively acts as a loop body.
+        It uses `accumulator` to concatenate the chunks
+      - the `done_exchange` region (invoked once when communication has finished) that takes the concatenated
+        chunk of the `receive_chunk` region and applies any further processing here - for instance, it may handle
+        the computation of 'own' (non-communicated) or otherwise prefetched data
+
+    Further fields:
+      - `field`      - the stencil field to communicate (send and receive)
+      - `args_rchunk`  - arguments passed to the `receive_chunk` region, may include other prefetched buffers
+      - `args_dexchng` - arguments passed to the `done_exchange` region, may include other prefetched buffers
+      - `args`       - arguments to the stencil computation, may include other prefetched buffers
+      - `topo`       - as received from `csl_stencil.prefetch`/`dmp.swap`
+      - `num_chunks` - number of chunks into which to slice the communication
+      - `swaps`      - a set of neighbouring points in the stencil, whose value we wish to retain
+                       (note, these are not guaranteed to be lowered as true point-to-point communication, and
+                       redundant communication should be irgnored)
+
+    Function signatures:
+    Before lowering (from `csl_stencil.prefetch` and `stencil.apply`):
+        %pref = csl_stencil.prefetch(%field : stencil.Temp)
+        stencil.apply( ..some args.. , %field, ..some more args.., %pref)
+
+    After lowering:
+        op:             csl_stencil.apply(%field, %accumulator, receive_chunk_args..., done_exchange_args...)
+        receive_chunk:   block_args(slice of type(%pref), %offset, %accumulator, args...)
+        done_exchange:   block_args(%field, %accumulator, args...)
+
+    Note, that %pref can be dropped (as communication is done by the op rather than before the op),
+    and that a new %accumulator is required, an empty tensor which is filled by `receive_chunk` and
+    consumed by `done_exchange`
+    """
+
+    name = "csl_stencil.apply"
+
+    field = operand_def(stencil.StencilTypeConstr | AnyMemRefTypeConstr)
+
+    accumulator = operand_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
+
+    args_rchunk = var_operand_def(Attribute)
+    args_dexchng = var_operand_def(Attribute)
+    dest = var_operand_def(stencil.FieldTypeConstr | AnyMemRefTypeConstr)
+
+    receive_chunk = region_def()
+    done_exchange = region_def()
+
+    swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
+
+    topo = prop_def(dmp.RankTopoAttr)
+
+    num_chunks = prop_def(AnyIntegerAttr)
+
+    bounds = opt_prop_def(stencil.StencilBoundsAttr)
+
+    coeffs = opt_prop_def(builtin.ArrayAttr[CoeffAttr])
+
+    res = var_result_def(stencil.StencilTypeConstr)
+
+    traits = traits_def(
+        IsolatedFromAbove(),
+        ApplyOpHasCanonicalizationPatternsTrait(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+        RecursiveMemoryEffect(),
+    )
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    def print(self, printer: Printer):
+        def print_arg(arg: SSAValue):
+            printer.print(arg)
+            printer.print(" : ")
+            printer.print(arg.type)
+
+        printer.print("(")
+
+        # args required by function signature, plus optional args for regions
+        args = [self.field, self.accumulator, *self.args_rchunk, *self.args_dexchng]
+
+        printer.print_list(args, print_arg)
+        if self.dest:
+            printer.print(") outs (")
+            printer.print_list(self.dest, print_arg)
+        else:
+            printer.print(") -> (")
+            printer.print_list(self.res.types, printer.print_attribute)
+
+        printer.print(") ")
+        printer.print("<")
+        printer.print_attr_dict(self.properties)
+        printer.print("> ")
+        printer.print_op_attributes(self.attributes, print_keyword=True)
+        printer.print("(")
+        printer.print_region(self.receive_chunk, print_entry_block_args=True)
+        printer.print(", ")
+        printer.print_region(self.done_exchange, print_entry_block_args=True)
+        printer.print(")")
+        if self.bounds is not None:
+            printer.print(" to ")
+            self.bounds.print_parameters(printer)
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        def parse_args():
+            value = parser.parse_unresolved_operand()
+            parser.parse_punctuation(":")
+            type = parser.parse_attribute()
+            value = parser.resolve_operand(value, type)
+            return value
+
+        ops = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
+
+        if parser.parse_optional_punctuation("->"):
+            parser.parse_punctuation("(")
+            result_types = parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_attribute, parser.parse_attribute
+            )
+            destinations = []
+        else:
+            parser.parse_keyword("outs")
+            parser.parse_punctuation("(")
+            destinations = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parse_args
+            )
+            result_types = []
+        parser.parse_punctuation(")")
+
+        props = parser.parse_optional_properties_dict()
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        if attrs is not None:
+            attrs = attrs.data
+        parser.parse_punctuation("(")
+        receive_chunk = parser.parse_region()
+        parser.parse_punctuation(",")
+        done_exchange = parser.parse_region()
+        parser.parse_punctuation(")")
+        if parser.parse_optional_keyword("to"):
+            props["bounds"] = stencil.StencilBoundsAttr.new(
+                stencil.StencilBoundsAttr.parse_parameters(parser)
+            )
+        # `-3` fixed block args, `+2` offset for operands with fixed use
+        split = len(receive_chunk.block.args) - 3 + 2
+        return cls(
+            operands=[ops[0], ops[1], ops[2:split], ops[split:], destinations],
+            result_types=[result_types],
+            regions=[receive_chunk, done_exchange],
+            properties=props,
+            attributes=attrs,
+        )
+
+    def verify_(self) -> None:
+        # typecheck op arguments
+        if (
+            len(self.receive_chunk.block.args) < 3
+            or len(self.done_exchange.block.args) < 2
+        ):
+            raise VerifyException("Missing required block args on region")
+        op_args = (
+            self.done_exchange.block.args[0],
+            self.receive_chunk.block.args[2],
+            *self.receive_chunk.block.args[3:],
+            *self.done_exchange.block.args[2:],
+        )
+        for operand, argument in zip(self.operands, op_args):
+            if operand.type != argument.type:
+                raise VerifyException(
+                    f"Expected argument type of {type(self)} to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
+                )
+
+        # typecheck required (only) block arguments
+        assert isattr(
+            self.accumulator.type,
+            AnyTensorTypeConstr | AnyMemRefTypeConstr,
+        )
+        chunk_region_req_types = [
+            type(self.accumulator.type)(
+                self.accumulator.type.get_element_type(),
+                (
+                    len(self.swaps),
+                    self.accumulator.type.get_shape()[0] // self.num_chunks.value.data,
+                ),
+            ),
+            IndexType(),
+            self.accumulator.type,
+        ]
+        done_exchange_req_types = [
+            self.field.type,
+            self.accumulator.type,
+        ]
+        for arg, expected_type in zip(
+            self.receive_chunk.block.args, chunk_region_req_types
+        ):
+            if arg.type != expected_type:
+                raise VerifyException(
+                    f"Unexpected block argument type of receive_chunk, got {arg.type} != {expected_type} at index {arg.index}"
+                )
+        for arg, expected_type in zip(
+            self.done_exchange.block.args, done_exchange_req_types
+        ):
+            if arg.type != expected_type:
+                raise VerifyException(
+                    f"Unexpected block argument type of done_exchange, got {arg.type} != {expected_type} at index {arg.index}"
+                )
+
+        if (len(self.res) == 0) == (len(self.dest) == 0):
+            raise VerifyException(
+                "Expected stencil.apply to have either results or dest specified"
+            )
+
+    def get_rank(self) -> int:
+        if self.dest:
+            res_type = self.dest[0].type
+        else:
+            res_type = self.res[0].type
+        if isattr(res_type, stencil.StencilTypeConstr):
+            return res_type.get_num_dims()
+        elif self.bounds:
+            return len(self.bounds.ub)
+        raise ValueError("Cannot derive rank")
+
+    def get_accesses(self) -> Iterable[stencil.AccessPattern]:
+        """
+        Return the access patterns of each input.
+
+         - An offset is a tuple describing a relative access
+         - An access pattern is a class wrapping a sequence of offsets
+         - This method returns an access pattern for each stencil
+           field of the apply operation.
+        """
+        # iterate over the block arguments
+        for arg in self.receive_chunk.block.args + self.done_exchange.block.args:
+            accesses: list[tuple[int, ...]] = []
+            # walk the uses of the argument
+            for use in arg.uses:
+                # filter out all non access ops
+                if not isinstance(use.operation, AccessOp):
+                    continue
+                access: AccessOp = use.operation
+                # grab the offsets as a tuple[int, ...]
+                offsets = tuple(access.offset)
+                # account for offset_mappings:
+                if access.offset_mapping is not None:
+                    offsets = tuple(offsets[i] for i in access.offset_mapping)
+                accesses.append(offsets)
+            yield stencil.AccessPattern(tuple(accesses))
+
+    def add_coeff(self, offset: stencil.IndexAttr, coeff: FloatAttr[AnyFloat]):
+        self.coeffs = builtin.ArrayAttr(
+            list(self.coeffs or []) + [CoeffAttr(offset, coeff)]
         )
 
 
@@ -134,18 +454,20 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op = operand_def(memref.MemRefType | stencil.TempType)
+    op = operand_def(
+        AnyMemRefTypeConstr | stencil.StencilTypeConstr | AnyTensorTypeConstr
+    )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType)
+    result = result_def(AnyTensorTypeConstr | AnyMemRefTypeConstr)
 
-    traits = frozenset([HasAncestor(stencil.ApplyOp), Pure()])
+    traits = traits_def(HasAncestor(stencil.ApplyOp, ApplyOp), Pure())
 
     def __init__(
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute],
+        result_type: TensorType[Attribute] | MemRefType[Attribute],
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
@@ -212,31 +534,60 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isa(
-            res_type, memref.MemRefType[Attribute] | stencil.TempType[Attribute]
-        ):
-            parser.raise_error("Expected return type to be a memref or stencil.temp")
-        return cls.build(
-            operands=[temp], result_types=[res_type.element_type], properties=props
+        if isattr(res_type, stencil.StencilTypeConstr):
+            return cls.build(
+                operands=[temp],
+                result_types=[res_type.get_element_type()],
+                properties=props,
+            )
+        elif isattr(res_type, base(TensorType[Attribute])):
+            return cls.build(
+                operands=[temp],
+                result_types=[
+                    TensorType(res_type.element_type, res_type.get_shape()[-1:])
+                ],
+                properties=props,
+            )
+        elif isattr(res_type, base(AnyMemRefType)):
+            return cls.build(
+                operands=[temp],
+                result_types=[
+                    memref.MemRefType(res_type.element_type, res_type.get_shape()[-1:])
+                ],
+                properties=props,
+            )
+        parser.raise_error(
+            "Expected return type to be a tensor, memref, or stencil.temp"
         )
 
     def verify_(self) -> None:
         if tuple(self.offset) == (0, 0):
-            if not isa(self.op.type, stencil.TempType[Attribute]):
+            if isa(self.op.type, memref.MemRefType[Attribute]):
+                if not self.result.type == self.op.type:
+                    raise VerifyException(
+                        f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
+                    )
+            elif isattr(self.op.type, stencil.StencilTypeConstr):
+                if not self.result.type == self.op.type.get_element_type():
+                    raise VerifyException(
+                        f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
+                    )
+            else:
                 raise VerifyException(
-                    f"{type(self)} access to own data requires type stencil.TempType but found {self.op.type}"
+                    f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
-            assert self.result.type == self.op.type.get_element_type()
         else:
-            if not isa(self.op.type, memref.MemRefType[Attribute]):
+            if not isattr(self.op.type, AnyTensorTypeConstr | AnyMemRefTypeConstr):
                 raise VerifyException(
-                    f"{type(self)} access to neighbor data requires type memref.MemRefType but found {self.op.type}"
+                    f"{type(self)} access to neighbor data requires type memref.MemRefType or TensorType but found {self.op.type}"
                 )
 
         # As promised by HasAncestor(ApplyOp)
-        trait = cast(HasAncestor, AccessOp.get_trait(HasAncestor, (stencil.ApplyOp,)))
+        trait = cast(
+            HasAncestor, AccessOp.get_trait(HasAncestor(stencil.ApplyOp, ApplyOp))
+        )
         apply = trait.get_ancestor(self)
-        assert isinstance(apply, stencil.ApplyOp)
+        assert isinstance(apply, stencil.ApplyOp | ApplyOp)
 
         # TODO This should be handled by infra, having a way to verify things on ApplyOp
         # **before** its children.
@@ -267,18 +618,29 @@ class AccessOp(IRDLOperation):
                         f"apply, got {offset} >= {apply.get_rank()}"
                     )
 
-    def get_apply(self):
+    def get_apply(self) -> stencil.ApplyOp | ApplyOp:
         """
         Simple helper to get the parent apply and raise otherwise.
         """
-        trait = cast(HasAncestor, self.get_trait(HasAncestor, (stencil.ApplyOp,)))
+        trait = cast(
+            HasAncestor,
+            self.get_trait(HasAncestor(stencil.ApplyOp, ApplyOp)),
+        )
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
             raise ValueError(
                 "stencil.apply not found, this function should be called on"
                 "verified accesses only."
             )
-        return cast(stencil.ApplyOp, ancestor)
+        assert isinstance(ancestor, stencil.ApplyOp | ApplyOp)
+        return ancestor
+
+
+@irdl_op_definition
+class YieldOp(AbstractYieldOperation[Attribute]):
+    name = "csl_stencil.yield"
+
+    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ApplyOp), Pure()))
 
 
 CSL_STENCIL = Dialect(
@@ -286,8 +648,11 @@ CSL_STENCIL = Dialect(
     [
         PrefetchOp,
         AccessOp,
+        ApplyOp,
+        YieldOp,
     ],
     [
         ExchangeDeclarationAttr,
+        CoeffAttr,
     ],
 )

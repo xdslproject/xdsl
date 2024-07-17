@@ -16,30 +16,28 @@ dynamic = ["version"]
 [project.optional-dependencies]
 dev = [
     "pip<25.0",
-    # Update precommit version when black updates
-    "black[jupyter]==24.4.2",
     "toml<0.11",
     "pytest-cov",
     "coverage<8.0.0",
     "ipykernel",
-    "pytest<8.3",
+    "pytest<8.4",
     "nbval<0.12",
-    "filecheck<0.0.25",
+    "filecheck==1.0.1",
     "lit<19.0.0",
-    "marimo==0.6.10",
-    "pre-commit==3.7.1",
-    "ruff==0.4.10",
+    "marimo==0.9.17",
+    "pre-commit==4.0.1",
+    "ruff==0.7.3",
     "asv<0.7",
-    "isort==5.13.2",
     "nbconvert>=7.7.2,<8.0.0",
-    "textual-dev==1.5.1",
-    "pytest-asyncio==0.23.7",
-    "pyright==1.1.345",
+    "textual-dev==1.6.1",
+    "pytest-asyncio==0.24.0",
+    "pyright==1.1.388",
 ]
-gui = ["textual==0.63.2", "pyclip==0.7"]
-onnx = ["onnx==1.16.1"]
-riscv = ["riscemu==2.2.6"]
-wgpu = ["wgpu==0.16.0"]
+gui = ["textual==0.85.2", "pyclip==0.7"]
+jax = ["jax==0.4.35", "numpy==2.1.3"]
+onnx = ["onnx==1.17.0", "numpy==2.1.3"]
+riscv = ["riscemu==2.2.7"]
+wgpu = ["wgpu==0.19.0"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -52,13 +50,14 @@ irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
 xdsl-run = "xdsl.tools.xdsl_run:main"
 xdsl-gui = "xdsl.interactive.app:main"
 xdsl-stubgen = "xdsl.utils.dialect_stub:make_all_stubs"
+xdsl-tblgen = "xdsl.tools.tblgen_to_py:main"
 
 [tool.setuptools]
 platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
 
 [tool.setuptools.package-data]
-xdsl = ["py.typed", "interactive/*.tcss", "_version.py"]
+xdsl = ["**/*.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
@@ -79,7 +78,6 @@ typeCheckingMode = "strict"
     "xdsl/frontend/onnx/ir_builder.py",
     "xdsl/frontend/onnx/type.py",
     "xdsl/interpreters/experimental/wgpu.py",
-    "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
     "docs/marimo",
@@ -91,10 +89,11 @@ typeCheckingMode = "strict"
     "xdsl/_version.py",
 ]
 
-[tool.isort]
-profile = "black"
-
 [tool.ruff]
+target-version = "py310"
+extend-include = ["*.ipynb", "*.pyi"]
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
 ignore = [
     "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
@@ -104,10 +103,14 @@ ignore = [
     "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
     "PT015", # https://beta.ruff.rs/docs/rules/pytest-assert-always-false/
 ]
-line-length = 300
-target-version = "py310"
 
-[tool.ruff.flake8-tidy-imports.banned-api]
+[tool.ruff.lint.pycodestyle]
+# TODO: remove this setting and go to default line length of 88
+# Removing this line length results in a large number of errors for doc strings, ideally
+# these should be ignored separately.
+max-line-length = 300
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
 "xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
@@ -121,25 +124,28 @@ target-version = "py310"
 "xdsl.ir.affine.affine_set".msg = "Use xdsl.ir.affine instead"
 
 
-[tool.ruff.per-file-ignores]
-"__init__.py" = ["F403"]
+[tool.ruff.lint.per-file-ignores]
+"versioneer.py" = ["ALL"]
+"tests/test_declarative_assembly_format.py" = ["F811"]
 "tests/filecheck/frontend/programs/invalid.py" = ["F811", "F841"]
 "tests/filecheck/frontend/dialects/invalid.py" = ["F811"]
-"tests/test_declarative_assembly_format.py" = ["F811"]
-"versioneer.py" = ["ALL"]
+"docs/xdsl-introduction.ipynb" = ["ALL"]
+"docs/tutorial.ipynb" = ["ALL"]
+"docs/Toy/Toy_Ch3.ipynb" = ["E402"]
+"docs/Toy/Toy_Ch2.ipynb" = ["E402"]
+"docs/Toy/Toy_Ch1.ipynb" = ["E402"]
+"docs/mlir_interoperation.ipynb" = ["E402"]
+"docs/irdl.ipynb" = ["ALL"]
+"docs/database_example.ipynb" = ["ALL"]
+"**/{docs/marimo}/*" = ["E501", "I001"]
 "_version.py" = ["ALL"]
+"__init__.py" = ["F403"]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
-[tool.black]
-# When updating this list, please update `.pre-commit-config.yaml`
-exclude = """
-/(__pycache__|.asv|venv|build|tests/filecheck)/
-|versioneer.py$
-|xdsl/_version.py$
-|docs/marimo
-"""
+[tool.ruff.format]
+exclude = ["versioneer.py", "xdsl/_version.py", "docs/marimo/**/*.py"]
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]

@@ -1,6 +1,6 @@
 from xdsl.context import MLContext
 from xdsl.dialects import linalg, memref_stream
-from xdsl.dialects.builtin import ArrayAttr, IntAttr, ModuleOp
+from xdsl.dialects.builtin import ArrayAttr, IndexType, IntAttr, IntegerAttr, ModuleOp
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -34,7 +34,8 @@ class ConvertGenericOpPattern(RewritePattern):
         # the nested loop bounds from the shapes of the inputs, so we need to cache that
         # derived information here, as we may not be able to recover it later.
         ubs = op.get_static_loop_ranges()
-        bounds = ArrayAttr(IntAttr(ub) for ub in ubs)
+        index = IndexType()
+        bounds = ArrayAttr(IntegerAttr(IntAttr(ub), index) for ub in ubs)
 
         iterator_types = ArrayAttr(iterator_type_attr(t) for t in op.iterator_types)
 
@@ -48,6 +49,8 @@ class ConvertGenericOpPattern(RewritePattern):
                 iterator_types,
                 bounds,
                 ArrayAttr(()),
+                op.doc,
+                op.library_call,
             )
         )
 

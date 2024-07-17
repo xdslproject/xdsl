@@ -19,13 +19,11 @@ from xdsl.ir import Attribute, Dialect
 from xdsl.irdl import (
     Block,
     IRDLOperation,
-    Operand,
     Operation,
     Region,
     SSAValue,
-    VarOperand,
-    VarOpResult,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     region_def,
     traits_def,
@@ -47,23 +45,23 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
-    traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(WhileOp, ForRofOperation)])
+    traits = lazy_traits_def(
+        lambda: (IsTerminator(), HasParent(WhileOp, ForRofOperation))
     )
 
 
 class ForRofOperation(IRDLOperation, ABC):
-    lb: Operand = operand_def(IntRegisterType)
-    ub: Operand = operand_def(IntRegisterType)
-    step: Operand = operand_def(IntRegisterType)
+    lb = operand_def(IntRegisterType)
+    ub = operand_def(IntRegisterType)
+    step = operand_def(IntRegisterType)
 
-    iter_args: VarOperand = var_operand_def(RISCVRegisterType)
+    iter_args = var_operand_def(RISCVRegisterType)
 
-    res: VarOpResult = var_result_def(RISCVRegisterType)
+    res = var_result_def(RISCVRegisterType)
 
-    body: Region = region_def("single_block")
+    body = region_def("single_block")
 
-    traits = frozenset([SingleBlockImplicitTerminator(YieldOp)])
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
 
     def __init__(
         self,
@@ -265,11 +263,11 @@ class RofOp(ForRofOperation):
 @irdl_op_definition
 class WhileOp(IRDLOperation):
     name = "riscv_scf.while"
-    arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    arguments = var_operand_def(RISCVRegisterType)
 
-    res: VarOpResult = var_result_def(RISCVRegisterType)
-    before_region: Region = region_def()
-    after_region: Region = region_def()
+    res = var_result_def(RISCVRegisterType)
+    before_region = region_def()
+    after_region = region_def()
 
     def __init__(
         self,
@@ -383,10 +381,10 @@ class WhileOp(IRDLOperation):
 @irdl_op_definition
 class ConditionOp(IRDLOperation):
     name = "riscv_scf.condition"
-    cond: Operand = operand_def(IntRegisterType)
-    arguments: VarOperand = var_operand_def(RISCVRegisterType)
+    cond = operand_def(IntRegisterType)
+    arguments = var_operand_def(RISCVRegisterType)
 
-    traits = frozenset([HasParent(WhileOp), IsTerminator()])
+    traits = traits_def(HasParent(WhileOp), IsTerminator())
 
     def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
         super().__init__(operands=[cond, output_ops])

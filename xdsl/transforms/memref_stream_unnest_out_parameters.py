@@ -17,7 +17,6 @@ from xdsl.pattern_rewriter import (
 
 
 class UnnestOutParametersPattern(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter

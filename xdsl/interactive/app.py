@@ -31,6 +31,7 @@ from textual.widgets import (
 )
 from textual.widgets.tree import TreeNode
 
+from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.get_all_available_passes import get_available_pass_list
@@ -41,16 +42,15 @@ from xdsl.interactive.pass_metrics import (
     get_diff_operation_count,
 )
 from xdsl.interactive.passes import (
-    ALL_PASSES,
     AvailablePass,
     apply_passes_to_module,
     get_new_registered_context,
 )
+from xdsl.ir import Dialect
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PipelinePass, get_pass_argument_names_and_types
 from xdsl.printer import Printer
-from xdsl.tools.command_line_tool import get_all_passes
-from xdsl.transforms import individual_rewrite
+from xdsl.transforms import get_all_passes, individual_rewrite
 from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import PipelinePassSpec, parse_pipeline
 
@@ -91,6 +91,12 @@ class InputApp(App[None]):
           func.return %res : i32
         }
         """
+
+    all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...]
+    """A dictionary of (uninstantiated) dialects."""
+
+    all_passes: tuple[tuple[str, type[ModulePass]], ...]
+    """A dictionary of xDSL passes."""
 
     current_module = reactive[ModuleOp | Exception | None](None)
     """
@@ -142,10 +148,15 @@ class InputApp(App[None]):
 
     def __init__(
         self,
+        all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...],
+        all_passes: tuple[tuple[str, type[ModulePass]], ...],
         file_path: str | None = None,
         input_text: str | None = None,
         pass_pipeline: tuple[tuple[type[ModulePass], PipelinePassSpec], ...] = (),
     ):
+        self.all_dialects = all_dialects
+        self.all_passes = all_passes
+
         if file_path is None:
             self.current_file_path = ""
         else:
@@ -218,7 +229,7 @@ class InputApp(App[None]):
         self.query_one("#output_container").border_title = "Output xDSL IR"
 
         # initialize Tree to contain the pass options
-        for n, module_pass in ALL_PASSES:
+        for n, module_pass in self.all_passes:
             self.passes_tree.root.add(
                 label=n,
                 data=(module_pass, None),
@@ -244,11 +255,13 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                return tuple(AvailablePass(p.name, p, None) for _, p in ALL_PASSES)
+                return tuple(AvailablePass(p.name, p, None) for _, p in self.all_passes)
             case Exception():
                 return ()
             case ModuleOp():
                 return get_available_pass_list(
+                    self.all_dialects,
+                    self.all_passes,
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
@@ -490,6 +503,8 @@ class InputApp(App[None]):
         )
 
         child_pass_list = get_available_pass_list(
+            self.all_dialects,
+            self.all_passes,
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
@@ -519,7 +534,7 @@ class InputApp(App[None]):
             self.update_input_operation_count_tuple(ModuleOp([], None))
             return
         try:
-            ctx = get_new_registered_context()
+            ctx = get_new_registered_context(self.all_dialects)
             parser = Parser(ctx, input_text)
             module = parser.parse_module()
             self.update_input_operation_count_tuple(module)
@@ -685,11 +700,14 @@ class InputApp(App[None]):
         Pushes screen displaying DirectoryTree widget when "Load File" button is pressed.
         """
 
-        def check_load_file(file_path: str) -> None:
+        def check_load_file(file_path: str | None) -> None:
             """
             Called when LoadFile is dismissed. Loads selected file into
             input_text_area.
             """
+            if file_path is None:
+                return
+
             # Clear Input TextArea and Pass Pipeline
             self.pass_pipeline = ()
             self.input_text_area.clear()
@@ -740,7 +758,13 @@ def main():
     pass_list = get_all_passes()
     pipeline = tuple(PipelinePass.build_pipeline_tuples(pass_list, pass_spec_pipeline))
 
-    return InputApp(file_path, file_contents, pipeline).run()
+    return InputApp(
+        tuple(get_all_dialects().items()),
+        tuple((p_name, p()) for p_name, p in sorted(get_all_passes().items())),
+        file_path,
+        file_contents,
+        pipeline,
+    ).run()
 
 
 if __name__ == "__main__":

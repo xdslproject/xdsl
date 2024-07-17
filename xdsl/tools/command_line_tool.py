@@ -8,7 +8,6 @@ from xdsl.context import MLContext
 from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
-from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Span
 

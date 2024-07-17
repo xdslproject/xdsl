@@ -3,12 +3,10 @@ import typing
 from dataclasses import dataclass, field
 from importlib import import_module
 from types import ModuleType
-from typing import Any
+from typing import Any, cast
 
-import xdsl.dialects.builtin
 import xdsl.ir
 import xdsl.irdl
-from xdsl.dialects.builtin import ArrayAttr, ArrayOfConstraint
 from xdsl.ir import Attribute, Dialect, OpResult, ParametrizedAttribute, Region
 from xdsl.irdl import (
     AllOf,
@@ -76,6 +74,10 @@ class DialectStubGenerator:
         Return a type hint for the member constrained by a constraint, by it an attribute
         parameter, or an operation attribute/property.
         """
+        import xdsl.dialects.builtin
+        import xdsl.ir
+        from xdsl.dialects.builtin import ArrayAttr, ArrayOfConstraint
+
         match constraint:
             case BaseAttr(attr_type):
                 if attr_type not in self.dialect.attributes:
@@ -99,7 +101,10 @@ class DialectStubGenerator:
             case AnyAttr():
                 self._import(xdsl.ir, Attribute)
                 return "Attribute"
-            case ParamAttrConstraint(base_type):
+            case ParamAttrConstraint():
+                base_type = cast(
+                    ParamAttrConstraint[ParametrizedAttribute], constraint
+                ).base_attr
                 return base_type.__name__
 
             case _:
@@ -280,6 +285,8 @@ class DialectStubGenerator:
 
 
 def make_all_stubs():
+    import xdsl.dialects
+
     dialects = xdsl.dialects
     directory = "/".join(dialects.__path__)
     for file in os.listdir(directory):

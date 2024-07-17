@@ -403,18 +403,67 @@ class BitwiseAndByZero(RewritePattern):
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
 
+class BitwiseOrByZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
+        """
+        x | 0 = 0
+        """
+
+        # check if the first operand is 0
+        if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
+            # if the first operand is 0, set the destination to the second operand
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+
+        # check if the second operand is 0
+        elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
+            # if the second operand is 0, set the destination to first operand
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+
+class XorBySelf(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.XorOp, rewriter: PatternRewriter):
+        """
+        x ^ x = 0
+        """
+        if op.rs1 == op.rs2:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(
+                (
+                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    riscv.MVOp(zero.res, rd=rd, comment=op.comment),
+                )
+            )
+
+
+class BitwiseXorByZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.XorOp, rewriter: PatternRewriter):
+        """
+        x ^ 0 = x
+        """
+        if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
+
+        if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+
 class ScfgwOpUsingImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: riscv_snitch.ScfgwOp, rewriter: PatternRewriter
     ) -> None:
         if (rs2 := get_constant_value(op.rs2)) is not None:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(
                 riscv_snitch.ScfgwiOp(
                     op.rs1,
                     rs2.value.data,
-                    rd=rd,
                     comment=op.comment,
                 ),
             )
@@ -446,10 +495,11 @@ def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
     if value.type == riscv.Registers.ZERO:
         return IntegerAttr.from_int_and_width(0, 32)
 
-    if isinstance(value.owner, riscv.MVOp):
-        return get_constant_value(value.owner.rs)
+    if not isinstance(value, OpResult):
+        return
 
-    if isinstance(value.owner, riscv.LiOp) and isinstance(
-        value.owner.immediate, IntegerAttr
-    ):
-        return value.owner.immediate
+    if isinstance(value.op, riscv.MVOp):
+        return get_constant_value(value.op.rs)
+
+    if isinstance(value.op, riscv.LiOp) and isinstance(value.op.immediate, IntegerAttr):
+        return value.op.immediate

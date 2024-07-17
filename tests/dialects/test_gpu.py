@@ -261,13 +261,16 @@ def test_launch():
     assert launch.blockSizeX is ten.result
     assert launch.blockSizeY is ten.result
     assert launch.blockSizeZ is ten.result
+    assert launch.clusterSizeX is None
+    assert launch.clusterSizeY is None
+    assert launch.clusterSizeZ is None
     assert launch.asyncToken is None
     assert launch.asyncDependencies == tuple()
     assert launch.dynamicSharedMemorySize is None
 
     body2 = Region()
 
-    nd_launch = LaunchOp(body2, gridSize, blockSize, True, [], ten)
+    nd_launch = LaunchOp(body2, gridSize, blockSize, [], True, [], ten)
 
     assert isinstance(launch, LaunchOp)
     assert nd_launch.body is body2
@@ -277,6 +280,9 @@ def test_launch():
     assert nd_launch.blockSizeX is ten.result
     assert nd_launch.blockSizeY is ten.result
     assert nd_launch.blockSizeZ is ten.result
+    assert nd_launch.clusterSizeX is None
+    assert nd_launch.clusterSizeY is None
+    assert nd_launch.clusterSizeZ is None
     assert nd_launch.asyncToken is not None
     assert nd_launch.asyncToken.type == AsyncTokenType()
     assert nd_launch.asyncDependencies == tuple()

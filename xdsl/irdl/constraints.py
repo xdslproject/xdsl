@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from inspect import isclass
+from typing import Generic, TypeAlias, TypeVar
 
-from xdsl.ir import Attribute, ParametrizedAttribute
+from xdsl.ir import Attribute, AttributeCovT, ParametrizedAttribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
@@ -14,18 +17,45 @@ class ConstraintContext:
     Contains the assignment of constraint variables.
     """
 
-    variables: dict[str, Attribute] = field(default_factory=dict)
+    _variables: dict[str, Attribute] = field(default_factory=dict)
     """The assignment of constraint variables."""
 
-    def copy(self):
-        return ConstraintContext(self.variables.copy())
+    _range_variables: dict[str, tuple[Attribute, ...]] = field(default_factory=dict)
+    """The assignment of constraint range variables."""
 
-    def update(self, other: "ConstraintContext"):
-        self.variables.update(other.variables)
+    def get_variable(self, key: str) -> Attribute:
+        return self._variables[key]
+
+    def get_range_variable(self, key: str) -> tuple[Attribute, ...]:
+        return self._range_variables[key]
+
+    def set_variable(self, key: str, attr: Attribute):
+        self._variables[key] = attr
+
+    def set_range_variable(self, key: str, attr: tuple[Attribute, ...]):
+        self._range_variables[key] = attr
+
+    @property
+    def variables(self) -> Sequence[str]:
+        return tuple(self._variables.keys())
+
+    @property
+    def range_variables(self) -> Sequence[str]:
+        return tuple(self._range_variables.keys())
+
+    def copy(self):
+        return ConstraintContext(self._variables.copy(), self._range_variables.copy())
+
+    def update(self, other: ConstraintContext):
+        self._variables.update(other._variables)
+        self._range_variables.update(other._range_variables)
+
+
+_AttributeCovT = TypeVar("_AttributeCovT", bound=Attribute, covariant=True)
 
 
 @dataclass(frozen=True)
-class AttrConstraint(ABC):
+class GenericAttrConstraint(Generic[AttributeCovT], ABC):
     """Constrain an attribute to a certain value."""
 
     @abstractmethod
@@ -69,20 +99,26 @@ class AttrConstraint(ABC):
         """Get the unique base type that can satisfy the constraint, if any."""
         return None
 
+    def __or__(
+        self, value: GenericAttrConstraint[_AttributeCovT], /
+    ) -> AnyOf[AttributeCovT | _AttributeCovT]:
+        return AnyOf((self, value))
+
+
+AttrConstraint: TypeAlias = GenericAttrConstraint[Attribute]
+
 
 @dataclass(frozen=True)
-class VarConstraint(AttrConstraint):
+class VarConstraint(GenericAttrConstraint[AttributeCovT]):
     """
-    Constraint variable. If the variable is already set, this will constrain
-    the attribute to be equal to the variable. Otherwise, it will first check that the
-    variable satisfies the variable constraint, then set the variable with the
-    attribute.
+    Constrain an attribute with the given constraint, and constrain all occurences
+    of this constraint (i.e, sharing the same name) to be equal.
     """
 
     name: str
     """The variable name. All uses of that name refer to the same variable."""
 
-    constraint: AttrConstraint
+    constraint: GenericAttrConstraint[AttributeCovT]
     """The constraint that the variable must satisfy."""
 
     def verify(
@@ -91,14 +127,14 @@ class VarConstraint(AttrConstraint):
         constraint_context: ConstraintContext,
     ) -> None:
         if self.name in constraint_context.variables:
-            if attr != constraint_context.variables[self.name]:
+            if attr != constraint_context.get_variable(self.name):
                 raise VerifyException(
-                    f"attribute {constraint_context.variables[self.name]} expected from variable "
+                    f"attribute {constraint_context.get_variable(self.name)} expected from variable "
                     f"'{self.name}', but got {attr}"
                 )
         else:
             self.constraint.verify(attr, constraint_context)
-            constraint_context.variables[self.name] = attr
+            constraint_context.set_variable(self.name, attr)
 
     def get_resolved_variables(self) -> set[str]:
         return {self.name, *self.constraint.get_resolved_variables()}
@@ -110,13 +146,13 @@ class VarConstraint(AttrConstraint):
         constraint_context = constraint_context or ConstraintContext()
         if self.name not in constraint_context.variables:
             raise ValueError(f"Cannot infer attribute from constraint {self}")
-        return constraint_context.variables[self.name]
+        return constraint_context.get_variable(self.name)
 
     def get_unique_base(self) -> type[Attribute] | None:
         return self.constraint.get_unique_base()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=True)
 class ConstraintVar:
     """
     Annotation used in PyRDL to define a constraint variable.
@@ -132,10 +168,10 @@ class ConstraintVar:
 
 
 @dataclass(frozen=True)
-class EqAttrConstraint(AttrConstraint):
+class EqAttrConstraint(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     """Constrain an attribute to be equal to another attribute."""
 
-    attr: Attribute
+    attr: AttributeCovT
     """The attribute we want to check equality with."""
 
     def verify(
@@ -157,10 +193,10 @@ class EqAttrConstraint(AttrConstraint):
 
 
 @dataclass(frozen=True)
-class BaseAttr(AttrConstraint):
+class BaseAttr(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     """Constrain an attribute to be of a given base type."""
 
-    attr: type[Attribute]
+    attr: type[AttributeCovT]
     """The expected attribute base type."""
 
     def verify(
@@ -180,13 +216,13 @@ class BaseAttr(AttrConstraint):
 
 
 def attr_constr_coercion(
-    attr: Attribute | type[Attribute] | AttrConstraint,
-) -> AttrConstraint:
+    attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
+) -> GenericAttrConstraint[AttributeCovT]:
     """
     Attributes are coerced into EqAttrConstraints,
     and Attribute types are coerced into BaseAttr.
     """
-    if isinstance(attr, AttrConstraint):
+    if isinstance(attr, GenericAttrConstraint):
         return attr
     if isinstance(attr, Attribute):
         return EqAttrConstraint(attr)
@@ -196,7 +232,7 @@ def attr_constr_coercion(
 
 
 @dataclass(frozen=True)
-class AnyAttr(AttrConstraint):
+class AnyAttr(GenericAttrConstraint[Attribute]):
     """Constraint that is verified by all attributes."""
 
     def verify(
@@ -208,16 +244,19 @@ class AnyAttr(AttrConstraint):
 
 
 @dataclass(frozen=True, init=False)
-class AnyOf(AttrConstraint):
+class AnyOf(Generic[AttributeCovT], GenericAttrConstraint[AttributeCovT]):
     """Ensure that an attribute satisfies one of the given constraints."""
 
-    attr_constrs: tuple[AttrConstraint, ...]
+    attr_constrs: tuple[GenericAttrConstraint[AttributeCovT], ...]
     """The list of constraints that are checked."""
 
     def __init__(
-        self, attr_constrs: Sequence[Attribute | type[Attribute] | AttrConstraint]
+        self,
+        attr_constrs: Sequence[
+            AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT]
+        ],
     ):
-        constrs: tuple[AttrConstraint, ...] = tuple(
+        constrs: tuple[GenericAttrConstraint[AttributeCovT], ...] = tuple(
             attr_constr_coercion(constr) for constr in attr_constrs
         )
         object.__setattr__(
@@ -245,6 +284,11 @@ class AnyOf(AttrConstraint):
                 pass
         raise VerifyException(f"Unexpected attribute {attr}")
 
+    def __or__(
+        self, value: GenericAttrConstraint[_AttributeCovT], /
+    ) -> AnyOf[AttributeCovT | _AttributeCovT]:
+        return AnyOf((*self.attr_constrs, value))
+
     def get_resolved_variables(self) -> set[str]:
         if len(self.attr_constrs) == 0:
             return set()
@@ -262,10 +306,10 @@ class AnyOf(AttrConstraint):
 
 
 @dataclass(frozen=True)
-class AllOf(AttrConstraint):
+class AllOf(GenericAttrConstraint[AttributeCovT]):
     """Ensure that an attribute satisfies all the given constraints."""
 
-    attr_constrs: tuple[AttrConstraint, ...]
+    attr_constrs: tuple[GenericAttrConstraint[AttributeCovT], ...]
     """The list of constraints that are checked."""
 
     def verify(
@@ -301,7 +345,7 @@ class AllOf(AttrConstraint):
     def infer(self, constraint_context: ConstraintContext | None = None) -> Attribute:
         constraint_context = constraint_context or ConstraintContext()
         for constr in self.attr_constrs:
-            if constr.can_infer(set(constraint_context.variables.keys())):
+            if constr.can_infer(set(constraint_context.variables)):
                 return constr.infer(constraint_context)
         raise ValueError("Cannot infer attribute from constraint")
 
@@ -315,25 +359,37 @@ class AllOf(AttrConstraint):
         return None
 
 
+ParametrizedAttributeCovT = TypeVar(
+    "ParametrizedAttributeCovT", bound=ParametrizedAttribute, covariant=True
+)
+
+
 @dataclass(frozen=True, init=False)
-class ParamAttrConstraint(AttrConstraint):
+class ParamAttrConstraint(
+    Generic[ParametrizedAttributeCovT], GenericAttrConstraint[ParametrizedAttributeCovT]
+):
     """
     Constrain an attribute to be of a given type,
     and also constrain its parameters with additional constraints.
     """
 
-    base_attr: type[ParametrizedAttribute]
+    base_attr: type[ParametrizedAttributeCovT]
     """The base attribute type."""
 
-    param_constrs: tuple[AttrConstraint, ...]
+    param_constrs: tuple[GenericAttrConstraint[Attribute], ...]
     """The attribute parameter constraints"""
 
     def __init__(
         self,
-        base_attr: type[ParametrizedAttribute],
-        param_constrs: Sequence[(Attribute | type[Attribute] | AttrConstraint)],
+        base_attr: type[ParametrizedAttributeCovT],
+        param_constrs: Sequence[
+            (Attribute | type[Attribute] | GenericAttrConstraint[Attribute] | None)
+        ],
     ):
-        constrs = tuple(attr_constr_coercion(constr) for constr in param_constrs)
+        constrs = tuple(
+            attr_constr_coercion(constr) if constr is not None else AnyAttr()
+            for constr in param_constrs
+        )
         object.__setattr__(self, "base_attr", base_attr)
         object.__setattr__(self, "param_constrs", constrs)
 
@@ -370,17 +426,21 @@ class ParamAttrConstraint(AttrConstraint):
 
 
 @dataclass(frozen=True, init=False)
-class MessageConstraint(AttrConstraint):
+class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
     """
     Attach a message to a constraint, to provide more context when the constraint
     is not satisfied.
     """
 
-    constr: AttrConstraint
+    constr: GenericAttrConstraint[AttributeCovT]
     message: str
 
     def __init__(
-        self, constr: AttrConstraint | Attribute | type[Attribute], message: str
+        self,
+        constr: (
+            GenericAttrConstraint[AttributeCovT] | AttributeCovT | type[AttributeCovT]
+        ),
+        message: str,
     ):
         object.__setattr__(self, "constr", attr_constr_coercion(constr))
         object.__setattr__(self, "message", message)
@@ -411,7 +471,10 @@ class MessageConstraint(AttrConstraint):
         return self.constr.infer(constraint_context)
 
 
-class RangeConstraint(ABC):
+class GenericRangeConstraint(Generic[AttributeCovT], ABC):
+    """
+    Constrain a range of attributes to a certain value.
+    """
 
     @abstractmethod
     def verify(
@@ -453,13 +516,60 @@ class RangeConstraint(ABC):
         raise ValueError("Cannot infer range from constraint")
 
 
+RangeConstraint: TypeAlias = GenericRangeConstraint[Attribute]
+
+
+@dataclass(frozen=True)
+class RangeVarConstraint(GenericRangeConstraint[AttributeCovT]):
+    """
+    Constrain an attribute range with the given constraint, and constrain all occurences
+    of this constraint (i.e, sharing the same name) to be equal.
+    """
+
+    name: str
+    """The variable name. All uses of that name refer to the same variable."""
+
+    constraint: GenericRangeConstraint[AttributeCovT]
+    """The constraint that the variable must satisfy."""
+
+    def verify(
+        self,
+        attrs: Sequence[Attribute],
+        constraint_context: ConstraintContext | None = None,
+    ) -> None:
+        constraint_context = constraint_context or ConstraintContext()
+        if self.name in constraint_context.range_variables:
+            if tuple(attrs) != constraint_context.get_range_variable(self.name):
+                raise VerifyException(
+                    f"attributes {tuple(str(x) for x in constraint_context.get_range_variable(self.name))} expected from range variable "
+                    f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
+                )
+        else:
+            self.constraint.verify(attrs, constraint_context)
+            constraint_context.set_range_variable(self.name, tuple(attrs))
+
+    def get_resolved_variables(self) -> set[str]:
+        return {self.name, *self.constraint.get_resolved_variables()}
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return self.name in constraint_names
+
+    def infer(
+        self, length: int, constraint_context: ConstraintContext
+    ) -> Sequence[Attribute]:
+        constraint_context = constraint_context or ConstraintContext()
+        if self.name not in constraint_context.range_variables:
+            raise ValueError(f"Cannot infer attribute from constraint {self}")
+        return constraint_context.get_range_variable(self.name)
+
+
 @dataclass
-class RangeOf(RangeConstraint):
+class RangeOf(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain each element in a range to satisfy a given constraint.
     """
 
-    constr: AttrConstraint
+    constr: GenericAttrConstraint[AttributeCovT]
 
     def verify(
         self,
@@ -482,12 +592,12 @@ class RangeOf(RangeConstraint):
 
 
 @dataclass
-class SingleOf(RangeConstraint):
+class SingleOf(GenericRangeConstraint[AttributeCovT]):
     """
     Constrain a range to only contain a single element, which should satisfy a given constraint.
     """
 
-    constr: AttrConstraint
+    constr: GenericAttrConstraint[AttributeCovT]
 
     def verify(
         self,
@@ -511,14 +621,19 @@ class SingleOf(RangeConstraint):
 
 
 def range_constr_coercion(
-    attr: Attribute | type[Attribute] | AttrConstraint | RangeConstraint,
-) -> RangeConstraint:
-    if isinstance(attr, RangeConstraint):
+    attr: (
+        AttributeCovT
+        | type[AttributeCovT]
+        | GenericAttrConstraint[AttributeCovT]
+        | GenericRangeConstraint[AttributeCovT]
+    ),
+) -> GenericRangeConstraint[AttributeCovT]:
+    if isinstance(attr, GenericRangeConstraint):
         return attr
     return RangeOf(attr_constr_coercion(attr))
 
 
 def single_range_constr_coercion(
-    attr: Attribute | type[Attribute] | AttrConstraint,
-) -> RangeConstraint:
+    attr: AttributeCovT | type[AttributeCovT] | GenericAttrConstraint[AttributeCovT],
+) -> GenericRangeConstraint[AttributeCovT]:
     return SingleOf(attr_constr_coercion(attr))

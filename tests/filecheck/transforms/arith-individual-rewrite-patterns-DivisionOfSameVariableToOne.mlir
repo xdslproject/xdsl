@@ -19,4 +19,3 @@ builtin.module {
 // CHECK-NEXT:       func.return %n : i32
 // CHECK-NEXT:     }
 // CHECK-NEXT:  }
-

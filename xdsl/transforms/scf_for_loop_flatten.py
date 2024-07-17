@@ -70,7 +70,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 return
             if not all(
                 lhs is rhs
-                for (lhs, rhs) in zip(op.body.blocks[0].args[1:], inner_loop.iter_args)
+                for (lhs, rhs) in zip(outer_body.args[1:], inner_loop.iter_args)
             ):
                 return
             if not all(
@@ -124,7 +124,6 @@ class FlattenNestedLoopsPattern(RewritePattern):
             new_ub = op.ub
             new_step = inner_loop.step
         else:
-
             if (outer_lb := get_constant_value(op.lb)) is None:
                 return
 

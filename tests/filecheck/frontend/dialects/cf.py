@@ -7,12 +7,12 @@ from xdsl.frontend.program import FrontendProgram
 
 p = FrontendProgram()
 with CodeContext(p):
-    # CHECK: "cf.assert"(%{{.*}}) <{"msg" = ""}> : (i1) -> ()
+    # CHECK: cf.assert %{{.*}}, ""
     def test_assert_I(cond: i1):
         assert cond
         return
 
-    # CHECK: "cf.assert"(%{{.*}}) <{"msg" = "some message"}> : (i1) -> ()
+    # CHECK: cf.assert %{{.*}}, "some message"
     def test_assert_II(cond: i1):
         assert cond, "some message"
         return

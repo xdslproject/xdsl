@@ -23,14 +23,12 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
-    OptOpResult,
-    VarOperand,
-    VarOpResult,
     attr_def,
     irdl_op_definition,
     opt_attr_def,
     opt_result_def,
     region_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -49,9 +47,9 @@ from xdsl.utils.exceptions import VerifyException
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
-    args: VarOperand = var_operand_def(riscv.IntRegisterType)
-    syscall_num: IntegerAttr[IntegerType] = attr_def(IntegerAttr[IntegerType])
-    result: OptOpResult = opt_result_def(riscv.IntRegisterType)
+    args = var_operand_def(riscv.IntRegisterType)
+    syscall_num = attr_def(IntegerAttr[IntegerType])
+    result = opt_result_def(riscv.IntRegisterType)
 
     def __init__(
         self,
@@ -79,13 +77,13 @@ class SyscallOp(IRDLOperation):
 
 
 @irdl_op_definition
-class CallOp(IRDLOperation, riscv.RISCVInstruction):
+class CallOp(riscv.RISCVInstruction):
     """RISC-V function call operation"""
 
     name = "riscv_func.call"
-    args: VarOperand = var_operand_def(riscv.RISCVRegisterType)
-    callee: SymbolRefAttr = attr_def(SymbolRefAttr)
-    ress: VarOpResult = var_result_def(riscv.RISCVRegisterType)
+    args = var_operand_def(riscv.RISCVRegisterType)
+    callee = attr_def(SymbolRefAttr)
+    ress = var_result_def(riscv.RISCVRegisterType)
 
     def __init__(
         self,
@@ -160,21 +158,19 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(IRDLOperation, riscv.RISCVOp):
+class FuncOp(riscv.RISCVAsmOperation):
     """RISC-V function definition operation"""
 
     name = "riscv_func.func"
-    sym_name: StringAttr = attr_def(StringAttr)
-    body: Region = region_def()
-    function_type: FunctionType = attr_def(FunctionType)
-    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
+    sym_name = attr_def(StringAttr)
+    body = region_def()
+    function_type = attr_def(FunctionType)
+    sym_visibility = opt_attr_def(StringAttr)
 
-    traits = frozenset(
-        [
-            SymbolOpInterface(),
-            FuncOpCallableInterface(),
-            IsolatedFromAbove(),
-        ]
+    traits = traits_def(
+        SymbolOpInterface(),
+        FuncOpCallableInterface(),
+        IsolatedFromAbove(),
     )
 
     def __init__(
@@ -231,19 +227,22 @@ class FuncOp(IRDLOperation, riscv.RISCVOp):
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
-    def assembly_line(self) -> str:
-        return f"{self.sym_name.data}:"
+    def assembly_line(self) -> str | None:
+        if self.body.blocks:
+            return f"{self.sym_name.data}:"
+        else:
+            return None
 
 
 @irdl_op_definition
-class ReturnOp(IRDLOperation, riscv.RISCVInstruction):
+class ReturnOp(riscv.RISCVInstruction):
     """RISC-V function return operation"""
 
     name = "riscv_func.return"
-    values: VarOperand = var_operand_def(riscv.RISCVRegisterType)
-    comment: StringAttr | None = opt_attr_def(StringAttr)
+    values = var_operand_def(riscv.RISCVRegisterType)
+    comment = opt_attr_def(StringAttr)
 
-    traits = frozenset([IsTerminator(), HasParent(FuncOp)])
+    traits = traits_def(IsTerminator(), HasParent(FuncOp))
 
     def __init__(
         self,

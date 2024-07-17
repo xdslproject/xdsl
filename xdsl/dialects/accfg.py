@@ -30,6 +30,7 @@ from xdsl.irdl import (
     opt_operand_def,
     prop_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.traits import SymbolOpInterface
@@ -91,13 +92,13 @@ class AcceleratorOp(IRDLOperation):
 
     name = "accfg.accelerator"
 
-    traits = frozenset([AcceleratorSymbolOpTrait()])
+    traits = traits_def(AcceleratorSymbolOpTrait())
 
     name_prop = prop_def(SymbolRefAttr, prop_name="name")
 
     fields = prop_def(DictionaryAttr)
 
-    launch_addr = prop_def(IntegerAttr)
+    launch_addr = prop_def(AnyIntegerAttr)
 
     # TODO: the barrier field will likely be changed in the future
 
@@ -107,7 +108,7 @@ class AcceleratorOp(IRDLOperation):
     # We're looking into ways of generalizing this aspect currently,
     # but this is a thing that actually works for snitch now.
 
-    barrier = prop_def(IntegerAttr)
+    barrier = prop_def(AnyIntegerAttr)
 
     def __init__(
         self,

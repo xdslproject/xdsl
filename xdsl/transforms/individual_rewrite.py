@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.traits import HasCanonicalisationPatternsTrait
+from xdsl.traits import HasCanonicalizationPatternsTrait
 
 
 class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
@@ -60,7 +60,7 @@ CANONICALIZATION_PATTERNS_BY_OP_CLASS: dict[
     op: trait.get_canonicalization_patterns()
     for dialect in get_all_dialects().values()
     for op in dialect().operations
-    if (trait := op.get_trait(HasCanonicalisationPatternsTrait)) is not None
+    if (trait := op.get_trait(HasCanonicalizationPatternsTrait)) is not None
 }
 """
 Dictionary where the key is an Operation and the value is a tuple of rewrite pattern(s) associated with that operation. These are the xdsl canonicalization patterns.
@@ -84,7 +84,7 @@ instances.
 
 
 @dataclass(frozen=True)
-class IndividualRewrite(ModulePass):
+class ApplyIndividualRewritePass(ModulePass):
     """
     Module pass representing the application of an individual rewrite pattern to a module.
 

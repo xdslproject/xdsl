@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import abc
 from collections.abc import Iterable, Sequence
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
-    AnyFloat,
+    I64,
+    AnyFloatConstr,
     AnyIntegerAttr,
-    AnySignlessIntegerType,
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
@@ -20,6 +21,7 @@ from xdsl.dialects.builtin import (
     MemrefLayoutAttr,
     MemRefType,
     NoneAttr,
+    SignlessIntegerConstraint,
     StridedLayoutAttr,
     StringAttr,
     SymbolRefAttr,
@@ -28,22 +30,27 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.dialects.utils import (
+    parse_dynamic_index_list_without_types,
+    print_dynamic_index_list,
+)
+from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
-    AttrSizedResultSegments,
-    ConstraintVar,
     IRDLOperation,
-    Operand,
     ParsePropInAttrDict,
-    VarOperand,
-    VarOpResult,
+    SameVariadicResultSize,
+    VarConstraint,
+    base,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -51,7 +58,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
     NoMemoryEffect,
@@ -64,15 +71,15 @@ from xdsl.utils.hints import isa
 
 @irdl_op_definition
 class Load(IRDLOperation):
-    T = Annotated[Attribute, ConstraintVar("T")]
-
     name = "memref.load"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     nontemporal = opt_prop_def(BoolAttr)
 
-    memref: Operand = operand_def(MemRefType[T])
-    indices: VarOperand = var_operand_def(IndexType())
-    res: OpResult = result_def(T)
+    memref = operand_def(MemRefType.constr(element_type=T))
+    indices = var_operand_def(IndexType())
+    res = result_def(T)
 
     irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
@@ -103,15 +110,15 @@ class Load(IRDLOperation):
 
 @irdl_op_definition
 class Store(IRDLOperation):
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "memref.store"
 
     nontemporal = opt_prop_def(BoolAttr)
 
-    value: Operand = operand_def(T)
-    memref: Operand = operand_def(MemRefType[T])
-    indices: VarOperand = var_operand_def(IndexType())
+    value = operand_def(T)
+    memref = operand_def(MemRefType.constr(element_type=T))
+    indices = var_operand_def(IndexType())
 
     irdl_options = [ParsePropInAttrDict()]
     assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
@@ -135,8 +142,7 @@ class Store(IRDLOperation):
         return cls(operands=[value, ref, indices])
 
 
-class AllocOpHasCanonicalizationPatterns(HasCanonicalisationPatternsTrait):
-
+class AllocOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import ElideUnusedAlloc
@@ -148,17 +154,17 @@ class AllocOpHasCanonicalizationPatterns(HasCanonicalisationPatternsTrait):
 class Alloc(IRDLOperation):
     name = "memref.alloc"
 
-    dynamic_sizes: VarOperand = var_operand_def(IndexType)
-    symbol_operands: VarOperand = var_operand_def(IndexType)
+    dynamic_sizes = var_operand_def(IndexType)
+    symbol_operands = var_operand_def(IndexType)
 
-    memref: OpResult = result_def(MemRefType[Attribute])
+    memref = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(AnyIntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((AllocOpHasCanonicalizationPatterns(),))
+    traits = traits_def(AllocOpHasCanonicalizationPatterns())
 
     def __init__(
         self,
@@ -288,11 +294,11 @@ class AllocaScopeReturnOp(IRDLOperation):
 
     ops = var_operand_def()
 
-    traits = frozenset([IsTerminator(), HasParent(AllocaScopeOp)])
+    traits = traits_def(IsTerminator(), HasParent(AllocaScopeOp))
 
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
-        if any(op.type != res.type for op, res in zip(self.ops, parent.results)):
+        if self.ops.types != parent.result_types:
             raise VerifyException(
                 "Expected operand types to match parent's return types."
             )
@@ -302,13 +308,13 @@ class AllocaScopeReturnOp(IRDLOperation):
 class Alloca(IRDLOperation):
     name = "memref.alloca"
 
-    dynamic_sizes: VarOperand = var_operand_def(IndexType)
-    symbol_operands: VarOperand = var_operand_def(IndexType)
+    dynamic_sizes = var_operand_def(IndexType)
+    symbol_operands = var_operand_def(IndexType)
 
-    memref: OpResult = result_def(MemRefType[Attribute])
+    memref = result_def(MemRefType[Attribute])
 
     # TODO how to constraint the IntegerAttr type?
-    alignment: AnyIntegerAttr | None = opt_prop_def(AnyIntegerAttr)
+    alignment = opt_prop_def(AnyIntegerAttr)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -355,16 +361,13 @@ class Alloca(IRDLOperation):
 class AtomicRMWOp(IRDLOperation):
     name = "memref.atomic_rmw"
 
-    T = Annotated[
-        AnyFloat | AnySignlessIntegerType,
-        ConstraintVar("T"),
-    ]
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | SignlessIntegerConstraint)
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
 
-    kind = prop_def(IntegerAttr[Annotated[IntegerType, i64]])
+    kind = prop_def(IntegerAttr[I64])
 
     result = result_def(T)
 
@@ -372,7 +375,9 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class Dealloc(IRDLOperation):
     name = "memref.dealloc"
-    memref: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    memref = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -384,10 +389,10 @@ class Dealloc(IRDLOperation):
 @irdl_op_definition
 class GetGlobal(IRDLOperation):
     name = "memref.get_global"
-    memref: OpResult = result_def(MemRefType[Attribute])
-    name_: SymbolRefAttr = prop_def(SymbolRefAttr, prop_name="name")
+    memref = result_def(MemRefType[Attribute])
+    name_ = prop_def(SymbolRefAttr, prop_name="name")
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     assembly_format = "$name `:` type($memref) attr-dict"
 
@@ -404,14 +409,14 @@ class GetGlobal(IRDLOperation):
 class Global(IRDLOperation):
     name = "memref.global"
 
-    sym_name: StringAttr = prop_def(StringAttr)
-    sym_visibility: StringAttr = prop_def(StringAttr)
-    type: Attribute = prop_def(Attribute)
-    initial_value: Attribute = prop_def(Attribute)
+    sym_name = prop_def(StringAttr)
+    sym_visibility = prop_def(StringAttr)
+    type = prop_def(Attribute)
+    initial_value = prop_def(Attribute)
     constant = opt_prop_def(UnitAttr)
-    alignment = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
+    alignment = opt_prop_def(IntegerAttr[I64])
 
-    traits = frozenset([SymbolOpInterface()])
+    traits = traits_def(SymbolOpInterface())
 
     def verify_(self) -> None:
         if not isinstance(self.type, MemRefType):
@@ -459,12 +464,14 @@ class Global(IRDLOperation):
 class Dim(IRDLOperation):
     name = "memref.dim"
 
-    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    index: Operand = operand_def(IndexType)
+    source = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    index = operand_def(IndexType)
 
-    result: OpResult = result_def(IndexType)
+    result = result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def from_source_and_index(
@@ -477,11 +484,11 @@ class Dim(IRDLOperation):
 class Rank(IRDLOperation):
     name = "memref.rank"
 
-    source: Operand = operand_def(MemRefType[Attribute])
+    source = operand_def(MemRefType[Attribute])
 
-    rank: OpResult = result_def(IndexType)
+    rank = result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def from_memref(memref: Operation | SSAValue):
@@ -493,33 +500,95 @@ ReassociationAttr = ArrayAttr[
 ]
 
 
-class AlterShapeOp(IRDLOperation):
-    src: Operand = operand_def(MemRefType)
-    result: OpResult = result_def(MemRefType)
+class AlterShapeOperation(IRDLOperation, abc.ABC):
+    result = result_def(MemRefType)
     reassociation = prop_def(ReassociationAttr)
-    assembly_format = (
-        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
-    )
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
 
 @irdl_op_definition
-class CollapseShapeOp(AlterShapeOp):
+class CollapseShapeOp(AlterShapeOperation):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefcollapse_shape-memrefcollapseshapeop
     """
 
     name = "memref.collapse_shape"
 
+    src = operand_def(MemRefType)
+
+    assembly_format = (
+        "$src $reassociation attr-dict `:` type($src) `into` type($result)"
+    )
+
 
 @irdl_op_definition
-class ExpandShapeOp(AlterShapeOp):
+class ExpandShapeOp(AlterShapeOperation):
     """
     https://mlir.llvm.org/docs/Dialects/MemRef/#memrefexpand_shape-memrefexpandshapeop
     """
 
     name = "memref.expand_shape"
+
+    src = operand_def(MemRefType)
+    output_shape = var_operand_def(IndexType)
+
+    static_output_shape = prop_def(DenseArrayBase)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ExpandShapeOp:
+        src = parser.parse_unresolved_operand()
+        reassociation = parser.parse_attribute()
+        parser.parse_keyword("output_shape")
+        parser.parse_punctuation("[")
+        output_shape: list[SSAValue] = []
+        static_output_shape: list[int] = []
+        while (
+            x := parser.parse_optional_operand() or parser.parse_optional_integer()
+        ) is not None:
+            if isinstance(x, int):
+                static_output_shape.append(x)
+            else:
+                output_shape.append(x)
+            parser.parse_optional_punctuation(",")
+        parser.parse_punctuation("]")
+        attr_dict = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        src = parser.resolve_operand(src, parser.parse_type())
+        parser.parse_keyword("into")
+        result_type = parser.parse_type()
+
+        return cls(
+            operands=[src, output_shape],
+            properties={
+                "reassociation": reassociation,
+                "static_output_shape": DenseArrayBase.create_dense_int(
+                    IntegerType(64), static_output_shape
+                ),
+            },
+            attributes=attr_dict,
+            result_types=[result_type],
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.src)
+        printer.print_string(" ")
+        printer.print_attribute(self.reassociation)
+        printer.print_string(" output_shape [")
+        printer.print_list(self.output_shape, printer.print_operand)
+        t = self.static_output_shape.as_tuple()
+        if self.output_shape and t:
+            printer.print_string(", ")
+        printer.print_list(t, lambda x: printer.print_string(str(x)))
+        printer.print_string("]")
+        if self.attributes:
+            printer.print(" ")
+            printer.print_attr_dict(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.src.type)
+        printer.print_string(" into ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -530,14 +599,16 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     name = "memref.extract_strided_metadata"
 
-    source: Operand = operand_def(MemRefType)
+    source = operand_def(MemRefType)
 
-    base_buffer: OpResult = result_def(MemRefType)
-    offset: OpResult = result_def(IndexType)
-    sizes: VarOpResult = var_result_def(IndexType)
-    strides: VarOpResult = var_result_def(IndexType)
+    base_buffer = result_def(MemRefType)
+    offset = result_def(IndexType)
+    sizes = var_result_def(IndexType)
+    strides = var_result_def(IndexType)
 
-    irdl_options = [AttrSizedResultSegments()]
+    traits = traits_def(NoMemoryEffect())
+
+    irdl_options = [SameVariadicResultSize()]
 
     def __init__(self, source: SSAValue | Operation):
         """
@@ -566,11 +637,11 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 class ExtractAlignedPointerAsIndexOp(IRDLOperation):
     name = "memref.extract_aligned_pointer_as_index"
 
-    source: Operand = operand_def(MemRefType)
+    source = operand_def(MemRefType)
 
-    aligned_pointer: OpResult = result_def(IndexType)
+    aligned_pointer = result_def(IndexType)
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(source: SSAValue | Operation):
@@ -579,7 +650,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
         )
 
 
-class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class MemrefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import (
@@ -591,20 +662,100 @@ class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 @irdl_op_definition
 class Subview(IRDLOperation):
+    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
+    """
+    Constant value used to denote dynamic indices in offsets, sizes, and strides.
+    Same constant as in MLIR.
+    """
+
     name = "memref.subview"
 
-    source: Operand = operand_def(MemRefType)
-    offsets: VarOperand = var_operand_def(IndexType)
-    sizes: VarOperand = var_operand_def(IndexType)
-    strides: VarOperand = var_operand_def(IndexType)
-    static_offsets: DenseArrayBase = prop_def(DenseArrayBase)
-    static_sizes: DenseArrayBase = prop_def(DenseArrayBase)
-    static_strides: DenseArrayBase = prop_def(DenseArrayBase)
-    result: OpResult = result_def(MemRefType)
+    source = operand_def(MemRefType)
+    offsets = var_operand_def(IndexType)
+    sizes = var_operand_def(IndexType)
+    strides = var_operand_def(IndexType)
+    static_offsets = prop_def(DenseArrayBase)
+    static_sizes = prop_def(DenseArrayBase)
+    static_strides = prop_def(DenseArrayBase)
+    result = result_def(MemRefType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
-    traits = frozenset((MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect()))
+    traits = lazy_traits_def(
+        lambda: (MemrefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
+    )
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        offsets: Sequence[SSAValue],
+        sizes: Sequence[SSAValue],
+        strides: Sequence[SSAValue],
+        static_offsets: Sequence[int] | DenseArrayBase,
+        static_sizes: Sequence[int] | DenseArrayBase,
+        static_strides: Sequence[int] | DenseArrayBase,
+        result_type: Attribute,
+    ):
+        if not isinstance(static_offsets, DenseArrayBase):
+            static_offsets = DenseArrayBase.create_dense_int(i64, static_offsets)
+        if not isinstance(static_sizes, DenseArrayBase):
+            static_sizes = DenseArrayBase.create_dense_int(i64, static_sizes)
+        if not isinstance(static_strides, DenseArrayBase):
+            static_strides = DenseArrayBase.create_dense_int(i64, static_strides)
+        super().__init__(
+            operands=[source, offsets, sizes, strides],
+            result_types=[result_type],
+            properties={
+                "static_offsets": static_offsets,
+                "static_sizes": static_sizes,
+                "static_strides": static_strides,
+            },
+        )
+
+    @staticmethod
+    def get(
+        source: SSAValue,
+        offsets: Sequence[SSAValue | int],
+        sizes: Sequence[SSAValue | int],
+        strides: Sequence[SSAValue | int],
+        result_type: Attribute,
+    ) -> Subview:
+        dyn_offsets: list[SSAValue] = []
+        dyn_sizes: list[SSAValue] = []
+        dyn_strides: list[SSAValue] = []
+        static_offsets: list[int] = []
+        static_sizes: list[int] = []
+        static_strides: list[int] = []
+
+        for offset in offsets:
+            if isinstance(offset, int):
+                static_offsets.append(offset)
+            else:
+                static_offsets.append(Subview.DYNAMIC_INDEX)
+                dyn_offsets.append(offset)
+        for size in sizes:
+            if isinstance(size, int):
+                static_sizes.append(size)
+            else:
+                static_sizes.append(Subview.DYNAMIC_INDEX)
+                dyn_sizes.append(size)
+        for stride in strides:
+            if isinstance(stride, int):
+                static_strides.append(stride)
+            else:
+                static_strides.append(Subview.DYNAMIC_INDEX)
+                dyn_strides.append(stride)
+
+        return Subview(
+            source,
+            dyn_offsets,
+            dyn_sizes,
+            dyn_strides,
+            static_offsets,
+            static_sizes,
+            static_strides,
+            result_type,
+        )
 
     @staticmethod
     def from_static_parameters(
@@ -658,25 +809,103 @@ class Subview(IRDLOperation):
             source_type.memory_space,
         )
 
-        return Subview.build(
-            operands=[source, [], [], []],
-            result_types=[return_type],
-            properties={
-                "static_offsets": DenseArrayBase.from_list(i64, offsets),
-                "static_sizes": DenseArrayBase.from_list(i64, sizes),
-                "static_strides": DenseArrayBase.from_list(i64, strides),
-            },
+        return Subview(
+            source,
+            (),
+            (),
+            (),
+            DenseArrayBase.from_list(i64, offsets),
+            DenseArrayBase.from_list(i64, sizes),
+            DenseArrayBase.from_list(i64, strides),
+            return_type,
         )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.source)
+        print_dynamic_index_list(
+            printer,
+            self.offsets,
+            (cast(int, offset.data) for offset in self.static_offsets.data.data),
+            dynamic_index=Subview.DYNAMIC_INDEX,
+        )
+        printer.print_string(" ")
+        print_dynamic_index_list(
+            printer,
+            self.sizes,
+            (cast(int, size.data) for size in self.static_sizes.data.data),
+            dynamic_index=Subview.DYNAMIC_INDEX,
+        )
+        printer.print_string(" ")
+        print_dynamic_index_list(
+            printer,
+            self.strides,
+            (cast(int, stride.data) for stride in self.static_strides.data.data),
+            dynamic_index=Subview.DYNAMIC_INDEX,
+        )
+        printer.print_op_attributes(self.attributes, print_keyword=True)
+        printer.print_string(" : ")
+        printer.print_attribute(self.source.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.result.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Subview:
+        index = IndexType()
+        unresolved_source = parser.parse_unresolved_operand()
+        pos = parser.pos
+        dynamic_offsets, static_offsets = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=Subview.DYNAMIC_INDEX
+        )
+        pos = parser.pos
+        dynamic_offsets = parser.resolve_operands(
+            dynamic_offsets, (index,) * len(dynamic_offsets), pos
+        )
+        pos = parser.pos
+        dynamic_sizes, static_sizes = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=Subview.DYNAMIC_INDEX
+        )
+        dynamic_sizes = parser.resolve_operands(
+            dynamic_sizes, (index,) * len(dynamic_sizes), pos
+        )
+        dynamic_strides, static_strides = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=Subview.DYNAMIC_INDEX
+        )
+        dynamic_strides = parser.resolve_operands(
+            dynamic_strides, (index,) * len(dynamic_strides), pos
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        parser.parse_punctuation(":")
+        operand_type = parser.parse_attribute()
+        source = parser.resolve_operand(unresolved_source, operand_type)
+        parser.parse_characters("to")
+        res_type = parser.parse_attribute()
+
+        op = Subview(
+            source,
+            dynamic_offsets,
+            dynamic_sizes,
+            dynamic_strides,
+            static_offsets,
+            static_sizes,
+            static_strides,
+            res_type,
+        )
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
 
 
 @irdl_op_definition
 class Cast(IRDLOperation):
     name = "memref.cast"
 
-    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     @staticmethod
     def get(
@@ -690,10 +919,12 @@ class Cast(IRDLOperation):
 class MemorySpaceCast(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
-    traits = frozenset([NoMemoryEffect()])
+    traits = traits_def(NoMemoryEffect())
 
     def __init__(
         self,
@@ -733,16 +964,16 @@ class MemorySpaceCast(IRDLOperation):
 class DmaStartOp(IRDLOperation):
     name = "memref.dma_start"
 
-    src: Operand = operand_def(MemRefType)
-    src_indices: VarOperand = var_operand_def(IndexType)
+    src = operand_def(MemRefType)
+    src_indices = var_operand_def(IndexType)
 
-    dest: Operand = operand_def(MemRefType)
-    dest_indices: VarOperand = var_operand_def(IndexType)
+    dest = operand_def(MemRefType)
+    dest_indices = var_operand_def(IndexType)
 
-    num_elements: Operand = operand_def(IndexType)
+    num_elements = operand_def(IndexType)
 
-    tag: Operand = operand_def(MemRefType[IntegerType])
-    tag_indices: VarOperand = var_operand_def(IndexType)
+    tag = operand_def(MemRefType[IntegerType])
+    tag_indices = var_operand_def(IndexType)
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -799,10 +1030,10 @@ class DmaStartOp(IRDLOperation):
 class DmaWaitOp(IRDLOperation):
     name = "memref.dma_wait"
 
-    tag: Operand = operand_def(MemRefType)
-    tag_indices: VarOperand = var_operand_def(IndexType)
+    tag = operand_def(MemRefType)
+    tag_indices = var_operand_def(IndexType)
 
-    num_elements: Operand = operand_def(IndexType)
+    num_elements = operand_def(IndexType)
 
     @staticmethod
     def get(
@@ -833,8 +1064,8 @@ class DmaWaitOp(IRDLOperation):
 @irdl_op_definition
 class CopyOp(IRDLOperation):
     name = "memref.copy"
-    source: Operand = operand_def(MemRefType)
-    destination: Operand = operand_def(MemRefType)
+    source = operand_def(MemRefType)
+    destination = operand_def(MemRefType)
 
     def __init__(self, source: SSAValue | Operation, destination: SSAValue | Operation):
         super().__init__(operands=[source, destination])

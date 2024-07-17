@@ -23,6 +23,10 @@ class MemrefStreamFunctions(InterpreterFunctions):
         op: memref_stream.GenericOp,
         args: tuple[Any, ...],
     ) -> PythonValues:
+        if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
+            raise NotImplementedError(
+                "Interpreter for interleaved operations not yet implemented"
+            )
 
         inputs_count = len(op.inputs)
         outputs_count = len(op.outputs)

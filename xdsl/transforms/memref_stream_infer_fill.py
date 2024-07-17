@@ -15,7 +15,6 @@ from xdsl.pattern_rewriter import (
 
 
 class InferFillPattern(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
@@ -44,7 +43,7 @@ class InferFillPattern(RewritePattern):
         output_type = cast(memref.MemRefType[Attribute], output.type)
 
         type_shape = output_type.get_shape()
-        bounds = tuple(attr.data for attr in op.bounds)
+        bounds = tuple(attr.value.data for attr in op.bounds)
 
         if type_shape != bounds:
             return

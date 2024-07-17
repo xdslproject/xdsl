@@ -86,8 +86,8 @@ class CodeGenerationVisitor(ast.NodeVisitor):
     def generic_visit(self, node: ast.AST) -> None:
         raise CodeGenerationException(
             self.file,
-            node.lineno,
-            node.col_offset,
+            getattr(node, "lineno"),
+            getattr(node, "col_offset"),
             f"Unsupported Python AST node {str(node)}",
         )
 
@@ -428,8 +428,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
 
         # Add target vaariable as an entry block argument.
         assert isinstance(node.target, ast.Name)
-        body = Region([Block()])
-        body.blocks[0].insert_arg(builtin.IndexType(), 0)
+        body = Region([Block(arg_types=(builtin.IndexType(),))])
 
         # Process loop bounds.
         if is_affine:

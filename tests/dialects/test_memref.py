@@ -3,6 +3,7 @@ import pytest
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, func, memref, scf
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     ArrayAttr,
     FloatAttr,
     IndexType,
@@ -31,6 +32,7 @@ from xdsl.dialects.memref import (
     Subview,
 )
 from xdsl.ir import Attribute, BlockArgument, OpResult
+from xdsl.ir.affine import AffineMap
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
@@ -486,3 +488,19 @@ def test_memref_copy():
         match="Expected source and destination to have the same element type.",
     ):
         copy.verify()
+
+
+def test_get_strides():
+    strided = StridedLayoutAttr((24, 4, 1), 5)
+    affine = AffineMapAttr(AffineMap.identity(3))
+
+    assert tuple(strided.get_strides()) == (24, 4, 1)
+    assert affine.get_strides() is None
+
+    t_none = MemRefType(i32, (2, 3, 4))
+    assert (strides := t_none.get_strides())
+    assert tuple(strides) == (12, 4, 1)
+
+    t_id = MemRefType(i32, (2, 3, 4), strided)
+    assert (strides := t_id.get_strides())
+    assert tuple(strides) == (24, 4, 1)

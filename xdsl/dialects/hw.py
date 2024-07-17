@@ -15,6 +15,7 @@ from typing import NamedTuple, overload
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FlatSymbolRefAttr,
+    FlatSymbolRefAttrConstr,
     IntAttr,
     LocationAttr,
     ParameterDef,
@@ -33,14 +34,12 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
     SingleBlockRegion,
-    VarOperand,
-    VarOpResult,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
+    lazy_traits_def,
     opt_attr_def,
     region_def,
     traits_def,
@@ -110,7 +109,7 @@ class InnerRefAttr(ParametrizedAttribute):
             module = StringAttr(module)
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__([FlatSymbolRefAttr(module), name])
+        super().__init__((SymbolRefAttr(module), name))
 
     @classmethod
     def get_from_operation(
@@ -135,7 +134,7 @@ class InnerRefAttr(ParametrizedAttribute):
         ):
             parser.raise_error("Expected a module and symbol reference")
         return [
-            FlatSymbolRefAttr(symbol_ref.root_reference),
+            SymbolRefAttr(symbol_ref.root_reference),
             symbol_ref.nested_references.data[0],
         ]
 
@@ -817,21 +816,19 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name: StringAttr = attr_def(StringAttr)
-    module_type: ModuleType = attr_def(ModuleType)
-    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
-    parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = attr_def(StringAttr)
+    module_type = attr_def(ModuleType)
+    sym_visibility = opt_attr_def(StringAttr)
+    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
 
     body: SingleBlockRegion = region_def("single_block")
 
-    traits = traits_def(
-        lambda: frozenset(
-            (
-                SymbolOpInterface(),
-                IsolatedFromAbove(),
-                SingleBlockImplicitTerminator(OutputOp),
-                HWModulesHWModuleLike(),
-            )
+    traits = lazy_traits_def(
+        lambda: (
+            SymbolOpInterface(),
+            IsolatedFromAbove(),
+            SingleBlockImplicitTerminator(OutputOp),
+            HWModulesHWModuleLike(),
         )
     )
 
@@ -936,18 +933,16 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name: StringAttr = attr_def(StringAttr)
-    module_type: ModuleType = attr_def(ModuleType)
-    sym_visibility: StringAttr | None = opt_attr_def(StringAttr)
-    parameters: ArrayAttr[ParamDeclAttr] | None = opt_attr_def(ArrayAttr[ParamDeclAttr])
-    verilog_name: StringAttr | None = opt_attr_def(StringAttr, attr_name="verilogName")
+    sym_name = attr_def(StringAttr)
+    module_type = attr_def(ModuleType)
+    sym_visibility = opt_attr_def(StringAttr)
+    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    verilog_name = opt_attr_def(StringAttr, attr_name="verilogName")
 
-    traits = traits_def(
-        lambda: frozenset(
-            (
-                SymbolOpInterface(),
-                HWModulesHWModuleLike(),
-            )
+    traits = lazy_traits_def(
+        lambda: (
+            SymbolOpInterface(),
+            HWModulesHWModuleLike(),
         )
     )
 
@@ -1024,15 +1019,11 @@ class InstanceOp(IRDLOperation):
     name = "hw.instance"
 
     instance_name = attr_def(StringAttr, attr_name="instanceName")
-    module_name: FlatSymbolRefAttr = attr_def(FlatSymbolRefAttr, attr_name="moduleName")
-    inputs: VarOperand = var_operand_def()
-    outputs: VarOpResult = var_result_def()
-    arg_names: ArrayAttr[StringAttr] = attr_def(
-        ArrayAttr[StringAttr], attr_name="argNames"
-    )
-    result_names: ArrayAttr[StringAttr] = attr_def(
-        ArrayAttr[StringAttr], attr_name="resultNames"
-    )
+    module_name = attr_def(FlatSymbolRefAttrConstr, attr_name="moduleName")
+    inputs = var_operand_def()
+    outputs = var_result_def()
+    arg_names = attr_def(ArrayAttr[StringAttr], attr_name="argNames")
+    result_names = attr_def(ArrayAttr[StringAttr], attr_name="resultNames")
     inner_sym = opt_attr_def(InnerSymAttr)
 
     def __init__(
@@ -1227,7 +1218,7 @@ class InstanceOp(IRDLOperation):
         printer.print_list(
             zip(
                 (name.data for name in self.result_names),
-                (result.type for result in self.results),
+                self.result_types,
             ),
             lambda x: print_output_port(*x),
         )
@@ -1248,9 +1239,9 @@ class InstanceOp(IRDLOperation):
 class OutputOp(IRDLOperation):
     name = "hw.output"
 
-    inputs: VarOperand = var_operand_def(AnyAttr())
+    inputs = var_operand_def()
 
-    traits = frozenset([IsTerminator(), HasParent(HWModuleOp)])
+    traits = traits_def(IsTerminator(), HasParent(HWModuleOp))
 
     def __init__(self, ops: Sequence[SSAValue | Operation]):
         super().__init__(operands=[ops])
@@ -1298,7 +1289,7 @@ class OutputOp(IRDLOperation):
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_operand)
         printer.print(" : ")
-        printer.print_list((x.type for x in self.inputs), printer.print_attribute)
+        printer.print_list(self.inputs.types, printer.print_attribute)
 
 
 HW = Dialect(

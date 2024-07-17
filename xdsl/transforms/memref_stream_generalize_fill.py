@@ -7,7 +7,8 @@ from xdsl.dialects import memref, memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
-    IntAttr,
+    IndexType,
+    IntegerAttr,
     MemRefType,
     ModuleOp,
 )
@@ -23,12 +24,10 @@ from xdsl.pattern_rewriter import (
 
 
 class GeneralizeFillPattern(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: memref_stream.FillOp, rewriter: PatternRewriter
     ) -> None:
-
         block = Block(arg_types=(op.value.type, op.value.type))
 
         with ImplicitBuilder(block) as (arg0, _):
@@ -39,7 +38,8 @@ class GeneralizeFillPattern(RewritePattern):
         memref_type = cast(MemRefType[Attribute], memref_type)
 
         shape = memref_type.get_shape()
-        ubs = ArrayAttr(IntAttr(ub) for ub in shape)
+        index = IndexType()
+        ubs = ArrayAttr(IntegerAttr(ub, index) for ub in shape)
 
         rewriter.replace_matched_op(
             memref_stream.GenericOp(

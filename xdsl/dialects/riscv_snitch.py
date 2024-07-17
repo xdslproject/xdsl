@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from abc import ABC
 from collections.abc import Sequence
-from typing import cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
+from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, stream
 from xdsl.dialects.builtin import (
@@ -12,17 +14,23 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     Signedness,
+    StringAttr,
     UnrealizedConversionCastOp,
 )
 from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
+    FastMathFlagsAttr,
+    FloatRegisterType,
     IntRegisterType,
-    RdRsImmIntegerOperation,
     RdRsRsOperation,
-    Registers,
+    RISCVAsmOperation,
     RISCVInstruction,
-    RISCVOp,
+    RsRsIntegerOperation,
+    SImm12Attr,
     UImm5Attr,
+    parse_immediate_value,
+    print_immediate_value,
+    si12,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -31,10 +39,13 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
-    IRDLOperation,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
+    opt_attr_def,
     prop_def,
     region_def,
     result_def,
@@ -46,7 +57,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
     Pure,
@@ -58,7 +69,7 @@ from xdsl.utils.exceptions import VerifyException
 # region Snitch Extensions
 
 
-class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -69,11 +80,10 @@ class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 @irdl_op_definition
-class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]):
+class ScfgwOp(RsRsIntegerOperation):
     """
     Write the value in rs1 to the Snitch stream configuration
     location pointed by rs2 in the memory-mapped address space.
-    Register rd is always fixed to zero.
 
     This is a RISC-V ISA extension, part of the `Xssr' extension.
     https://pulp-platform.github.io/snitch/rm/custom_instructions/
@@ -81,19 +91,11 @@ class ScfgwOp(RdRsRsOperation[IntRegisterType, IntRegisterType, IntRegisterType]
 
     name = "riscv_snitch.scfgw"
 
-    traits = frozenset((ScfgwOpHasCanonicalizationPatternsTrait(),))
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        # rd is always zero, so we omit it when printing assembly
-        return self.rs1, self.rs2
-
-    def verify_(self) -> None:
-        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
-            raise VerifyException(f"scfgw rd must be ZERO, got {self.rd.type}")
+    traits = traits_def(ScfgwOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
-class ScfgwiOp(RdRsImmIntegerOperation):
+class ScfgwiOp(RISCVInstruction):
     """
     Write the value in rs to the Snitch stream configuration location pointed by
     immediate value in the memory-mapped address space.
@@ -104,29 +106,55 @@ class ScfgwiOp(RdRsImmIntegerOperation):
 
     name = "riscv_snitch.scfgwi"
 
+    rs1 = operand_def(IntRegisterType)
+    immediate = attr_def(SImm12Attr)
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: int | SImm12Attr,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, si12)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[rs1],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        # rd is always zero, so we omit it when printing assembly
         return self.rs1, self.immediate
 
-    def verify_(self) -> None:
-        if cast(IntRegisterType, self.rd.type) != Registers.ZERO:
-            raise VerifyException(f"scfgwi rd must be ZERO, got {self.rd.type}")
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = parse_immediate_value(parser, si12)
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> set[str]:
+        printer.print(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
 
 
 @irdl_op_definition
-class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVOp):
+class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
     name = "riscv_snitch.frep_yield"
 
-    traits = traits_def(
-        lambda: frozenset([IsTerminator(), HasParent(FrepInner, FrepOuter)])
-    )
+    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(FrepInner, FrepOuter)))
 
     def assembly_line(self) -> str | None:
         return None
 
 
 @irdl_op_definition
-class ReadOp(stream.ReadOperation, RISCVOp):
+class ReadOp(stream.ReadOperation, RISCVAsmOperation):
     name = "riscv_snitch.read"
 
     def assembly_line(self) -> str | None:
@@ -134,7 +162,7 @@ class ReadOp(stream.ReadOperation, RISCVOp):
 
 
 @irdl_op_definition
-class WriteOp(stream.WriteOperation, RISCVOp):
+class WriteOp(stream.WriteOperation, RISCVAsmOperation):
     name = "riscv_snitch.write"
 
     def assembly_line(self) -> str | None:
@@ -149,7 +177,7 @@ ALLOWED_FREP_OP_TYPES = (
 )
 
 
-class FRepOperation(IRDLOperation, RISCVInstruction):
+class FRepOperation(RISCVInstruction):
     """
     From the Snitch paper: https://arxiv.org/abs/2002.10143
 
@@ -184,9 +212,7 @@ class FRepOperation(IRDLOperation, RISCVInstruction):
     Loop-carried variable initial values.
     """
 
-    traits = traits_def(
-        lambda: frozenset((SingleBlockImplicitTerminator(FrepYieldOp),))
-    )
+    traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(FrepYieldOp),))
 
     def __init__(
         self,
@@ -427,7 +453,7 @@ class FrepInner(FRepOperation):
 
 
 @irdl_op_definition
-class GetStreamOp(IRDLOperation, RISCVOp):
+class GetStreamOp(RISCVAsmOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(stream.StreamType[riscv.FloatRegisterType])
@@ -457,14 +483,14 @@ class GetStreamOp(IRDLOperation, RISCVOp):
 
 
 @irdl_op_definition
-class DMSourceOp(IRDLOperation, RISCVInstruction):
+class DMSourceOp(RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset(
-        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")]
+    traits = traits_def(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")
     )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
@@ -475,14 +501,14 @@ class DMSourceOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMDestinationOp(IRDLOperation, RISCVInstruction):
+class DMDestinationOp(RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset(
-        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")]
+    traits = traits_def(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")
     )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
@@ -493,14 +519,14 @@ class DMDestinationOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStrideOp(IRDLOperation, RISCVInstruction):
+class DMStrideOp(RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
     srcstrd = operand_def(riscv.IntRegisterType)
     dststrd = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset(
-        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")]
+    traits = traits_def(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")
     )
 
     def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
@@ -511,13 +537,13 @@ class DMStrideOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMRepOp(IRDLOperation, RISCVInstruction):
+class DMRepOp(RISCVInstruction):
     name = "riscv_snitch.dmrep"
 
     reps = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset(
-        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")]
+    traits = traits_def(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")
     )
 
     def __init__(self, reps: SSAValue | Operation):
@@ -528,15 +554,15 @@ class DMRepOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyOp(IRDLOperation, RISCVInstruction):
+class DMCopyOp(RISCVInstruction):
     name = "riscv_snitch.dmcpy"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset(
-        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")]
+    traits = traits_def(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")
     )
 
     def __init__(
@@ -552,14 +578,14 @@ class DMCopyOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatOp(IRDLOperation, RISCVInstruction):
+class DMStatOp(RISCVInstruction):
     name = "riscv_snitch.dmstat"
 
     dest = result_def(riscv.IntRegisterType)
     status = operand_def(riscv.IntRegisterType)
 
-    traits = frozenset(
-        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")]
+    traits = traits_def(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")
     )
 
     def __init__(
@@ -574,15 +600,15 @@ class DMStatOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyImmOp(IRDLOperation, RISCVInstruction):
+class DMCopyImmOp(RISCVInstruction):
     name = "riscv_snitch.dmcpyi"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(UImm5Attr)
 
-    traits = frozenset(
-        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")]
+    traits = traits_def(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")
     )
 
     def __init__(
@@ -629,14 +655,14 @@ class DMCopyImmOp(IRDLOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatImmOp(IRDLOperation, RISCVInstruction):
+class DMStatImmOp(RISCVInstruction):
     name = "riscv_snitch.dmstati"
 
     dest = result_def(riscv.IntRegisterType)
     status = prop_def(UImm5Attr)
 
-    traits = frozenset(
-        [StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")]
+    traits = traits_def(
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")
     )
 
     def __init__(
@@ -678,6 +704,239 @@ class DMStatImmOp(IRDLOperation, RISCVInstruction):
 
 # endregion
 
+# region Snitch Packed SIMD Extension
+
+# Operations that map directly to the packed SIMD ISA provided by Snitch FPU.
+# The implemented ISA is *almost* the one specified here:
+# * https://iis-git.ee.ethz.ch/smach/smallFloat-spec/-/blob/master/smallFloat_isa.pdf
+# Beware of main undocumented differences from the spec:
+# * Additional reductions (e.g.: vfsum.*)
+# * Missing reductions (e.g.: vfdotp.*)
+# * Control of alternative FP formats (e.g.: IEEE fp16 vs BF16) delegated to the
+#   RISC-V float CSR instead of being part of the encoding
+
+
+@irdl_op_definition
+class VFCpkASSOp(
+    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
+):
+    """
+    Packs two scalar f32 values from rs1 and rs2 and packs the result as two adjacent
+    entries into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = f[rs1]
+    f[rd][hi] = f[rs2]
+    """
+
+    name = "riscv_snitch.vfcpka.s.s"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial multiplication of corresponding f32 values from
+    rs1 and rs2 and stores the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = f[rs1][lo] * f[rs2][lo]
+    f[rd][hi] = f[rs1][hi] * f[rs2][hi]
+    """
+
+    name = "riscv_snitch.vfmul.s"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial addition of corresponding f32 values from
+    rs1 and rs2 and stores the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = f[rs1][lo] + f[rs2][lo]
+    f[rd][hi] = f[rs1][hi] + f[rs2][hi]
+    """
+
+    name = "riscv_snitch.vfadd.s"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial addition of corresponding f16 values from
+    rs1 and rs2 and stores the results in the corresponding f16 lanes
+    into the vectorial 4xf16 rd operand, such as:
+
+    f[rd][0] = f[rs1][0] + f[rs2][0]
+    f[rd][1] = f[rs1][1] + f[rs2][1]
+    f[rd][2] = f[rs1][2] + f[rs2][2]
+    f[rd][3] = f[rs1][3] + f[rs2][3]
+    """
+
+    name = "riscv_snitch.vfadd.h"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial maximum of corresponding f32 values from
+    rs1 and rs2 and stores the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = max(f[rs1][lo], f[rs2][lo])
+    f[rd][hi] = max(f[rs1][hi], f[rs2][hi])
+    """
+
+    name = "riscv_snitch.vfmax.s"
+
+    traits = traits_def(Pure())
+
+
+class RdRsRsAccumulatingFloatOperationWithFastMath(RISCVInstruction, ABC):
+    """
+    A base class for RISC-V operations that have one destination floating-point register,
+    that also acts as a source register, and two source floating-point registers and can
+    be annotated with fastmath flags.
+    """
+
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
+        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    )
+
+    rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
+    rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
+    rs1 = operand_def(FloatRegisterType)
+    rs2 = operand_def(FloatRegisterType)
+
+    fastmath = opt_attr_def(FastMathFlagsAttr)
+
+    def __init__(
+        self,
+        rd: Operation | SSAValue,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        *,
+        fastmath: FastMathFlagsAttr | None = None,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(rd, Operation):
+            rd = SSAValue.get(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rd, rs1, rs2],
+            attributes={
+                "fastmath": fastmath,
+                "comment": comment,
+            },
+            result_types=[rd.type],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd_in, self.rs1, self.rs2
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        flags = FastMathFlagsAttr("none")
+        if parser.parse_optional_keyword("fastmath") is not None:
+            flags = FastMathFlagsAttr(FastMathFlagsAttr.parse_parameter(parser))
+        attributes["fastmath"] = flags
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> set[str]:
+        if self.fastmath is not None and self.fastmath != FastMathFlagsAttr("none"):
+            printer.print(" fastmath")
+            self.fastmath.print_parameter(printer)
+        return {"fastmath"}
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.rs1, self.rs2), (), ((self.rd_in, self.rd_out),)
+        )
+
+
+class RdRsAccumulatingFloatOperation(RISCVInstruction, ABC):
+    """
+    A base class for RISC-V operations that have one destination floating-point register,
+    that also acts as a source register, and a source floating-point register.
+    """
+
+    SAME_FLOAT_REGISTER_TYPE: ClassVar = VarConstraint(
+        "SAME_FLOAT_REGISTER_TYPE", base(FloatRegisterType)
+    )
+
+    rd_out = result_def(SAME_FLOAT_REGISTER_TYPE)
+    rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
+    rs = operand_def(FloatRegisterType)
+
+    def __init__(
+        self,
+        rd: Operation | SSAValue,
+        rs: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(rd, Operation):
+            rd = SSAValue.get(rd)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rd, rs],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[rd.type],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd_in, self.rs
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.rs,), (), ((self.rd_in, self.rd_out),))
+
+
+@irdl_op_definition
+class VFMacSOp(RdRsRsAccumulatingFloatOperationWithFastMath):
+    """
+    Performs vectorial multiplication of corresponding f32 values from
+    rs1 and rs2 and accumulates the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = f[rs1][lo] * f[rs2][lo] + f[rd][lo]
+    f[rd][hi] = f[rs1][hi] * f[rs2][hi] + f[rd][hi]
+    """
+
+    name = "riscv_snitch.vfmac.s"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class VFSumSOp(RdRsAccumulatingFloatOperation):
+    """
+    Performs sum of f32 values from rs and accumulates the result in the lower f32 value
+    of the rd operand:
+
+    f[rd][lo] = f[rs][hi] + f[rs][lo] + f[rd][lo]
+    """
+
+    name = "riscv_snitch.vfsum.s"
+
+    traits = traits_def(Pure())
+
+
+# endregion
+
 RISCV_Snitch = Dialect(
     "riscv_snitch",
     [
@@ -697,6 +956,13 @@ RISCV_Snitch = Dialect(
         DMCopyImmOp,
         DMStatOp,
         DMStatImmOp,
+        VFMulSOp,
+        VFAddSOp,
+        VFCpkASSOp,
+        VFMacSOp,
+        VFSumSOp,
+        VFAddHOp,
+        VFMaxSOp,
     ],
     [],
 )

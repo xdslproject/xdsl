@@ -44,7 +44,7 @@ pip install xdsl
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions may result in problems. The supported
-MLIR version is commit `98e674c9f16d677d95c67bc130e267fae331e43c`.
+MLIR version is commit `d401987fe349a87c53fe25829215b080b70c0c1a`.
 
 ### Subprojects With Extra Dependencies
 
@@ -53,7 +53,7 @@ In order to keep the set of dependencies ot a minimum, these extra dependencies 
 specified explicitly. To install these, use:
 
 ``` bash
-pip install xdsl[gui,riscv,wgpu,onnx]
+pip install xdsl[gui,jax,riscv,wgpu,onnx]
 ```
 
 To install the testing/development dependencies, use:
@@ -116,7 +116,7 @@ make tests
 
 ### Formatting and Typechecking
 
-All python code used in xDSL uses [black](https://github.com/psf/black) to
+All python code used in xDSL uses [ruff](https://docs.astral.sh/ruff/formatter/) to
 format the code in a uniform manner.
 
 To automate the formatting, we use pre-commit hooks from the
@@ -127,8 +127,8 @@ To automate the formatting, we use pre-commit hooks from the
 make precommit-install
 # to run the hooks:
 make precommit
-# alternatively, running black on all staged files:
-make black  # or simply black $(git diff --staged --name-only)
+# alternatively, run ruff directly:
+ruff format
 ```
 
 Furthermore, all python code must run through [pyright](https://github.com/microsoft/pyright)

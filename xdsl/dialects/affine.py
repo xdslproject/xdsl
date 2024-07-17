@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Annotated, Any, cast
+from typing import Any, ClassVar, cast
 
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -22,10 +22,8 @@ from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
     AttrSizedOperandSegments,
-    ConstraintVar,
     IRDLOperation,
-    VarOperand,
-    VarOpResult,
+    VarConstraint,
     attr_def,
     irdl_op_definition,
     operand_def,
@@ -33,10 +31,18 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import IsTerminator, Pure
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import (
+    IsTerminator,
+    Pure,
+    RecursivelySpeculatable,
+    RecursiveMemoryEffect,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -48,7 +54,7 @@ class ApplyOp(IRDLOperation):
     map = prop_def(AffineMapAttr)
     result = result_def(IndexType)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
 
     def __init__(self, map_operands: Sequence[SSAValue], affine_map: AffineMapAttr):
         super().__init__(
@@ -65,21 +71,59 @@ class ApplyOp(IRDLOperation):
         if len(self.map.data.results) != 1:
             raise VerifyException("affine.apply expects a unidimensional map.")
 
+    @classmethod
+    def parse(cls, parser: Parser) -> ApplyOp:
+        pos = parser.pos
+        m = parser.parse_attribute()
+        if not isinstance(m, AffineMapAttr):
+            parser.raise_error("Expected affine map attr", at_position=pos)
+        dims = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: parser.parse_operand()
+        )
+        if dims is None:
+            dims = []
+        syms = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: parser.parse_operand()
+        )
+        if syms is None:
+            syms = []
+        return ApplyOp(dims + syms, m)
+
+    def print(self, printer: Printer):
+        m = self.map.data
+        operands = tuple(self.mapOperands)
+        assert len(operands) == m.num_dims + m.num_symbols, f"{len(operands)} {m}"
+        printer.print_string(" ")
+        printer.print_attribute(self.map)
+        printer.print_string(" ")
+        if m.num_dims:
+            printer.print_string("(")
+            printer.print_list(
+                operands[: m.num_dims], lambda el: printer.print_operand(el)
+            )
+            printer.print_string(")")
+        if m.num_symbols:
+            printer.print_string("[")
+            printer.print_list(
+                operands[m.num_dims :], lambda el: printer.print_operand(el)
+            )
+            printer.print_string("]")
+
 
 @irdl_op_definition
 class For(IRDLOperation):
     name = "affine.for"
 
-    lowerBoundOperands: VarOperand = var_operand_def(IndexType)
-    upperBoundOperands: VarOperand = var_operand_def(IndexType)
-    inits: VarOperand = var_operand_def()
-    res: VarOpResult = var_result_def(AnyAttr())
+    lowerBoundOperands = var_operand_def(IndexType)
+    upperBoundOperands = var_operand_def(IndexType)
+    inits = var_operand_def()
+    res = var_result_def()
 
     lowerBoundMap = prop_def(AffineMapAttr)
     upperBoundMap = prop_def(AffineMapAttr)
-    step: AnyIntegerAttr = prop_def(AnyIntegerAttr)
+    step = prop_def(AnyIntegerAttr)
 
-    body: Region = region_def()
+    body = region_def()
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
@@ -102,14 +146,14 @@ class For(IRDLOperation):
             raise VerifyException(
                 "Expected as many upper bound operands as upper bound dimensions and symbols."
             )
-        iter_types = [op.type for op in self.inits]
-        if iter_types != [res.type for res in self.results]:
+        iter_types = self.inits.types
+        if iter_types != self.result_types:
             raise VerifyException(
                 "Expected all operands and result pairs to have matching types"
             )
         entry_block: Block = self.body.blocks[0]
-        block_arg_types = [IndexType()] + iter_types
-        arg_types = [arg.type for arg in entry_block.args]
+        block_arg_types = (IndexType(), *iter_types)
+        arg_types = entry_block.arg_types
         if block_arg_types != arg_types:
             raise VerifyException(
                 "Expected BlockArguments to have the same types as the operands"
@@ -165,6 +209,8 @@ class If(IRDLOperation):
     then_region = region_def("single_block")
     else_region = region_def()
 
+    traits = traits_def(RecursiveMemoryEffect(), RecursivelySpeculatable())
+
 
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
@@ -214,10 +260,10 @@ class ParallelOp(IRDLOperation):
 class Store(IRDLOperation):
     name = "affine.store"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
     value = operand_def(T)
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
     map = opt_prop_def(AffineMapAttr)
 
@@ -247,9 +293,9 @@ class Store(IRDLOperation):
 class Load(IRDLOperation):
     name = "affine.load"
 
-    T = Annotated[Attribute, ConstraintVar("T")]
+    T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(MemRefType[T])
+    memref = operand_def(MemRefType.constr(element_type=T))
     indices = var_operand_def(IndexType)
 
     result = result_def(T)
@@ -261,7 +307,7 @@ class Load(IRDLOperation):
         memref: SSAValue,
         indices: Sequence[SSAValue],
         map: AffineMapAttr | None = None,
-        result_type: T | None = None,
+        result_type: Attribute | None = None,
     ):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
@@ -308,9 +354,9 @@ class MinOp(IRDLOperation):
 @irdl_op_definition
 class Yield(IRDLOperation):
     name = "affine.yield"
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator(), Pure())
 
     @staticmethod
     def get(*operands: SSAValue | Operation) -> Yield:

@@ -14,13 +14,10 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    VarOperand,
-    VarOpResult,
-    VarRegion,
-    VarSuccessor,
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
+    traits_def,
     var_operand_def,
     var_region_def,
     var_result_def,
@@ -28,7 +25,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, Pure
+from xdsl.traits import IsTerminator, MemoryReadEffect, MemoryWriteEffect, Pure
 
 
 @irdl_op_definition
@@ -42,9 +39,9 @@ class TestOp(IRDLOperation):
 
     name = "test.op"
 
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
 
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
@@ -80,16 +77,16 @@ class TestTermOp(IRDLOperation):
 
     name = "test.termop"
 
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
-    successor: VarSuccessor = var_successor_def()
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+    successor = var_successor_def()
 
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([IsTerminator()])
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -123,16 +120,102 @@ class TestPureOp(IRDLOperation):
 
     name = "test.pureop"
 
-    res: VarOpResult = var_result_def()
-    ops: VarOperand = var_operand_def()
-    regs: VarRegion = var_region_def()
-    successor: VarSuccessor = var_successor_def()
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+    successor = var_successor_def()
 
     prop1 = opt_prop_def(Attribute)
     prop2 = opt_prop_def(Attribute)
     prop3 = opt_prop_def(Attribute)
 
-    traits = frozenset([Pure()])
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] = (),
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            properties=properties,
+            successors=(successors,),
+            regions=(regions,),
+        )
+
+
+@irdl_op_definition
+class TestReadOp(IRDLOperation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference from TestOp is that it satisfies the MemoryReadEffect trait,
+    so we can test CSE - this op assumes it always and only reads.
+    """
+
+    name = "test.op_with_memread"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+    successor = var_successor_def()
+
+    prop1 = opt_prop_def(Attribute)
+    prop2 = opt_prop_def(Attribute)
+    prop3 = opt_prop_def(Attribute)
+
+    traits = traits_def(MemoryReadEffect())
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        successors: Sequence[Block] = (),
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            properties=properties,
+            successors=(successors,),
+            regions=(regions,),
+        )
+
+
+@irdl_op_definition
+class TestWriteOp(IRDLOperation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference from TestOp is that it satisfies the MemoryReadEffect trait,
+    so we can test CSE - this op assumes it always and only writes.
+    """
+
+    name = "test.op_with_memwrite"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+    successor = var_successor_def()
+
+    prop1 = opt_prop_def(Attribute)
+    prop2 = opt_prop_def(Attribute)
+    prop3 = opt_prop_def(Attribute)
+
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
@@ -178,7 +261,9 @@ Test = Dialect(
     [
         TestOp,
         TestPureOp,
+        TestReadOp,
         TestTermOp,
+        TestWriteOp,
     ],
     [
         TestType,

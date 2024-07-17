@@ -2,8 +2,8 @@
 
 
 riscv_func.func @main() {
-  %0 = riscv.get_register : () -> !riscv.reg<a0>
-  %1 = riscv.get_register : () -> !riscv.reg<a1>
+  %0 = riscv.get_register : !riscv.reg<a0>
+  %1 = riscv.get_register : !riscv.reg<a1>
 
   %readable = riscv_snitch.get_stream : !stream.readable<!riscv.freg<ft0>>
   %writable = riscv_snitch.get_stream : !stream.writable<!riscv.freg<ft1>>
@@ -22,6 +22,21 @@ riscv_func.func @main() {
   %4 = riscv_snitch.dmstat %3 : (!riscv.reg<a3>) -> !riscv.reg<a4>
   %5 = riscv_snitch.dmstati 22 : () -> !riscv.reg<a5>
 
+  %ft0 = riscv.get_float_register : !riscv.freg<ft0>
+  %ft1 = riscv.get_float_register : !riscv.freg<ft1>
+  %ft2 = riscv.get_float_register : !riscv.freg<ft2>
+
+  // f32
+  %vfmul_s = riscv_snitch.vfmul.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfadd_s = riscv_snitch.vfadd.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfmax_s = riscv_snitch.vfmax.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfcpka_s_s = riscv_snitch.vfcpka.s.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfmac_s = riscv_snitch.vfmac.s %ft2, %ft0, %ft1 : (!riscv.freg<ft2>, !riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfsum_s = riscv_snitch.vfsum.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft0>
+
+  // f16
+  %vfadd_h = riscv_snitch.vfadd.h %ft1, %ft0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft2>
+
   riscv_func.return
 }
 
@@ -36,4 +51,11 @@ riscv_func.func @main() {
 // CHECK-NEXT:       dmcpy a3, a0, a2
 // CHECK-NEXT:       dmstat a4, a3
 // CHECK-NEXT:       dmstati a5, 22
+// CHECK-NEXT:       vfmul.s ft2, ft0, ft1
+// CHECK-NEXT:       vfadd.s ft2, ft0, ft1
+// CHECK-NEXT:       vfmax.s ft2, ft0, ft1
+// CHECK-NEXT:       vfcpka.s.s ft2, ft0, ft1
+// CHECK-NEXT:       vfmac.s ft2, ft0, ft1
+// CHECK-NEXT:       vfsum.s ft0, ft1
+// CHECK-NEXT:       vfadd.h ft2, ft1, ft0
 // CHECK-NEXT:       ret
