@@ -226,7 +226,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                 field_name_mapping={"": module_op.get_program_param("memcpy_params")},
             )
             csl_wrapper.ImportOp(
-                "stencil_comms",
+                "stencil_comms.csl",
                 field_name_mapping={
                     "pattern": module_op.get_program_param("pattern"),
                     "chunkSize": module_op.get_program_param("chunk_size"),
