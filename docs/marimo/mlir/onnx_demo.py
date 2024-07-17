@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.7.0"
+__generated_with = "0.7.5"
 app = marimo.App()
 
 
@@ -315,6 +315,12 @@ def __(mo):
 
 
 @app.cell(hide_code=True)
+def __(mo):
+    mo.md("This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.")
+    return
+
+
+@app.cell(hide_code=True)
 def __(mo, riscv_asm_module, riscv_code):
     riscv_asm = riscv_code(riscv_asm_module)
 
@@ -338,41 +344,22 @@ def __(mo):
 
 @app.cell(hide_code=True)
 def __(
-    CanonicalizePass,
     PipelinePass,
     arith_add_fastmath,
     bufferized_module,
-    convert_arith_to_riscv,
-    convert_func_to_riscv_func,
     convert_linalg_to_memref_stream,
-    convert_memref_stream_to_loops,
-    convert_memref_stream_to_snitch_stream,
-    convert_memref_to_riscv,
     convert_riscv_scf_for_to_frep,
-    convert_scf_to_riscv_scf,
-    dead_code_elimination,
-    loop_hoist_memref,
-    lower_affine,
-    memref_streamify,
     pipeline_accordion,
-    reconcile_unrealized_casts,
 ):
+    from xdsl.transforms.test_lower_memref_stream_to_snitch_stream import TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM
+    from xdsl.transforms.test_optimise_memref_stream import TEST_OPTIMISE_MEMREF_STREAM
+
     convert_linalg_to_snitch = PipelinePass(
         [
             convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
-            memref_streamify.MemrefStreamifyPass(),
-            convert_memref_stream_to_loops.ConvertMemrefStreamToLoopsPass(),
-            convert_memref_stream_to_snitch_stream.ConvertMemrefStreamToSnitchStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
-            loop_hoist_memref.LoopHoistMemrefPass(),
-            lower_affine.LowerAffinePass(),
-            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
-            convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
-            convert_arith_to_riscv.ConvertArithToRiscvPass(),
-            CanonicalizePass(),
-            convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
-            dead_code_elimination.DeadCodeElimination(),
-            reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
+            *TEST_OPTIMISE_MEMREF_STREAM,
+            *TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM,
             convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
         ]
     )
@@ -383,6 +370,8 @@ def __(
 
     snitch_stream_accordion
     return (
+        TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM,
+        TEST_OPTIMISE_MEMREF_STREAM,
         convert_linalg_to_snitch,
         snitch_stream_accordion,
         snitch_stream_module,
@@ -592,9 +581,6 @@ def __(mo, rank, riscv_op_counter, snitch_op_counter):
 
 @app.cell(hide_code=True)
 def __():
-    # As of version 0.6.14, something breaks when importing from xDSL in multiple cells
-    # https://github.com/marimo-team/marimo/issues/1699
-
     from xdsl.backend.riscv.lowering import (
         convert_arith_to_riscv,
         convert_func_to_riscv_func,
@@ -732,19 +718,6 @@ def __(Counter, ModuleOp, ModulePass, PipelinePass, ctx, html, mo):
             ))
         return (res, mo.accordion(d))
     return pipeline_accordion, spec_str
-
-
-@app.cell(disabled=True, hide_code=True)
-def __(mo, riscv_asm, riscv_code, snitch_asm_module):
-    from difflib import Differ, HtmlDiff, unified_diff
-
-    # bla = Differ().compare("hello\nworld".split(), "bla\nworld".split())
-    bla = Differ().compare(riscv_code(snitch_asm_module).splitlines(), riscv_asm.splitlines())
-    bb = HtmlDiff().make_table("hello\nworld".split(), "bla\nworld".split())
-    # bla = Differ().compare(((1, 2), (2)), ((1, 3), (2)))
-    c = "\n".join(unified_diff("hello\nworld".split(), "bla\nworld".split()))
-    mo.ui.code_editor("\n".join(bla), language="diff")
-    return Differ, HtmlDiff, bb, bla, c, unified_diff
 
 
 if __name__ == "__main__":
