@@ -660,6 +660,7 @@ class ExternalBufferOp(IRDLOperation):
         shape: ArrayAttr[IntAttr],
         element_type: Attribute,
     ):
+        memref.MemRefType(element_type, shape)
         super().__init__(
             attributes={"sym_name": StringAttr(sym_name)},
             result_types=[memref.MemRefType(element_type, shape)],

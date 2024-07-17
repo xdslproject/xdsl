@@ -30,7 +30,7 @@ class MemrefFunctions(InterpreterFunctions):
             memref_type.get_element_type(), interpreter.index_bitwidth
         )
 
-        shaped_array = ShapedArray(TypedPtr.zeros(size, xtype=xtype), list(shape))
+        shaped_array = ShapedArray(TypedPtr[Any].zeros(size, xtype=xtype), list(shape))
         return (shaped_array,)
 
     @impl(memref.Dealloc)

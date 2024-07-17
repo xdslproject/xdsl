@@ -52,6 +52,8 @@ from xdsl.irdl import (
     ParameterDef,
     ParametrizedAttribute,
     attr_def,
+    base,
+    eq,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -180,12 +182,16 @@ class InModuleKind(OpTrait):
 
     Optionally specify if the op has to be a direct child of CslModuleOp
     (default is yes).
+
+    Ops with this trait are always allowed inside a csl_wrapper.module
     """
 
     def __init__(self, kind: ModuleKind, *, direct_child: bool = True):
         super().__init__((kind, direct_child))
 
     def verify(self, op: Operation) -> None:
+        from xdsl.dialects.csl import csl_wrapper
+
         kind: ModuleKind = self.parameters[0]
         direct_child: bool = self.parameters[1]
 
@@ -193,9 +199,11 @@ class InModuleKind(OpTrait):
         parent_module = op.parent_op()
         if not direct_child:
             while parent_module is not None and not isinstance(
-                parent_module, CslModuleOp
+                parent_module, CslModuleOp | csl_wrapper.ModuleOp
             ):
                 parent_module = parent_module.parent_op()
+        if isinstance(parent_module, csl_wrapper.ModuleOp):
+            return
         if not isinstance(parent_module, CslModuleOp):
             raise VerifyException(
                 f"'{op.name}' expexts {direct} parent to be {CslModuleOp.name}, got {parent_module}"
@@ -228,7 +236,7 @@ class ImportedModuleType(ParametrizedAttribute, TypeAttribute):
     name = "csl.imported_module"
 
 
-StructLike: TypeAlias = ImportedModuleType | ComptimeStructType
+StructLikeConstr = base(ImportedModuleType) | base(ComptimeStructType)
 
 
 @irdl_attr_definition
@@ -282,13 +290,13 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
         return self.type
 
 
-DsdElementType: TypeAlias = (
-    Float16Type
-    | Float32Type
-    | Annotated[IntegerType, IntegerType(16, Signedness.SIGNED)]
-    | Annotated[IntegerType, IntegerType(16, Signedness.UNSIGNED)]
-    | Annotated[IntegerType, IntegerType(32, Signedness.SIGNED)]
-    | Annotated[IntegerType, IntegerType(32, Signedness.UNSIGNED)]
+DsdElementTypeConstr = (
+    base(Float16Type)
+    | base(Float32Type)
+    | eq(IntegerType(16, Signedness.SIGNED))
+    | eq(IntegerType(16, Signedness.UNSIGNED))
+    | eq(IntegerType(32, Signedness.SIGNED))
+    | eq(IntegerType(32, Signedness.UNSIGNED))
 )
 
 
@@ -374,7 +382,7 @@ class ImportModuleConstOp(IRDLOperation):
 
     module = prop_def(StringAttr)
 
-    params = opt_operand_def(StructLike)
+    params = opt_operand_def(StructLikeConstr)
 
     result = result_def(ImportedModuleType)
 
@@ -474,7 +482,7 @@ class MemberAccessOp(IRDLOperation):
 
     traits = frozenset([NoMemoryEffect()])
 
-    struct = operand_def(StructLike)
+    struct = operand_def(StructLikeConstr)
 
     field = prop_def(StringAttr)
 
@@ -489,7 +497,7 @@ class MemberCallOp(IRDLOperation):
 
     name = "csl.member_call"
 
-    struct = operand_def(StructLike)
+    struct = operand_def(StructLikeConstr)
 
     field = prop_def(StringAttr)
 
@@ -808,7 +816,7 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(MemRefType | TensorType)
+    base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
     offsets = opt_prop_def(ArrayAttr[AnyIntegerAttr])
     strides = opt_prop_def(ArrayAttr[AnyIntegerAttr])
 
@@ -884,7 +892,9 @@ class SetDsdBaseAddrOp(IRDLOperation):
     name = "csl.set_dsd_base_addr"
 
     op = operand_def(DsdType)
-    base_addr = operand_def(MemRefType | TensorType | PtrType)
+    base_addr = operand_def(
+        base(MemRefType[Attribute]) | base(TensorType[Attribute]) | base(PtrType)
+    )
     result = result_def(DsdType)
 
     def verify_(self) -> None:
@@ -922,7 +932,7 @@ class IncrementDsdOffsetOp(IRDLOperation):
 
     op = operand_def(DsdType)
     offset = operand_def(i16_value)
-    elem_type = prop_def(DsdElementType)
+    elem_type = prop_def(DsdElementTypeConstr)
     result = result_def(DsdType)
 
     def verify_(self) -> None:
@@ -1429,9 +1439,9 @@ class SymbolExportOp(IRDLOperation):
 
     value = opt_operand_def(PtrType)
 
-    var_name = prop_def(StringAttr | SymbolRefAttr)
+    var_name = prop_def(base(StringAttr) | base(SymbolRefAttr))
 
-    type = prop_def(PtrType | FunctionType)
+    type = prop_def(base(PtrType) | base(FunctionType))
 
     def get_name(self) -> str:
         match self.var_name:
@@ -1559,7 +1569,13 @@ class ParamOp(IRDLOperation):
     """
 
     T = Annotated[
-        Float16Type | Float32Type | IntegerType | ColorType | FunctionType | StructLike,
+        Float16Type
+        | Float32Type
+        | IntegerType
+        | ColorType
+        | FunctionType
+        | ImportedModuleType
+        | ComptimeStructType,
         ConstraintVar("T"),
     ]
 

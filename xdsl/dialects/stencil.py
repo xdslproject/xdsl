@@ -43,6 +43,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -524,7 +525,7 @@ class ApplyOp(IRDLOperation):
         Return the access patterns of each input.
 
          - An offset is a tuple describing a relative access
-         - An access pattern is a class wrappoing a sequence of offsets
+         - An access pattern is a class wrapping a sequence of offsets
          - This method returns an access pattern for each stencil
            field of the apply operation.
         """
@@ -740,7 +741,9 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field: Operand = operand_def(Attribute)
-    result: OpResult = result_def(FieldType[Attribute] | memref.MemRefType[Attribute])
+    result: OpResult = result_def(
+        base(FieldType[Attribute]) | base(memref.MemRefType[Attribute])
+    )
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -1127,7 +1130,7 @@ class BufferOp(IRDLOperation):
             )
 
 
-class TensorIgnoreSizeConstraint(VarConstraint):
+class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     def verify(
         self, attr: Attribute, constraint_context: ConstraintContext | None = None
     ) -> None:
@@ -1371,6 +1374,15 @@ class AccessPattern:
                 lefts[axis] = min(ax[axis], lefts[axis])
                 rights[axis] = max(ax[axis], rights[axis])
         return tuple(zip(lefts, rights))
+
+    def max_distance(self) -> int:
+        """
+        Returns the maximum absolute accessed distance across all axes.
+        """
+        res = 0
+        for ax in self.offsets:
+            res = max(res, max(abs(a) for a in ax))
+        return res
 
     def visual_pattern(self) -> str:
         """

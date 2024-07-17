@@ -21,7 +21,7 @@ pdl.pattern @typedAttribute : benefit(1) {
 }
 
 // CHECK: @typedAttribute
-// CHECK: %{{.*}} = pdl.attribute : {{.*}}
+// CHECK: %{{.*}} = pdl.attribute : {{\S+}}
 
 pdl.pattern @constantAttribute : benefit(1) {
   // A constant attribute

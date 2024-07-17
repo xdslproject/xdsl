@@ -21,7 +21,7 @@ pdl.pattern @boundedOperand : benefit(1) {
 }
 
 // CHECK: @boundedOperand
-// CHECK: %{{.*}} = pdl.operand : %{{.*}}
+// CHECK: %{{.*}} = pdl.operand : %{{\S+}}
 
 pdl.pattern @unboundedOperands : benefit(1) {
   // Unbounded operands
@@ -44,4 +44,4 @@ pdl.pattern @boundedOperands : benefit(1) {
 }
 
 // CHECK: @boundedOperands
-// CHECK: %{{.*}} = pdl.operands : %{{.*}}
+// CHECK: %{{.*}} = pdl.operands : %{{\S+}}
