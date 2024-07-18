@@ -75,7 +75,7 @@ class RiscvToLLVMPattern(RewritePattern):
                     conversion_op = UnrealizedConversionCastOp.get([arg], [builtin.i32])
                     ops_to_insert.append(conversion_op)
                     inputs.append(conversion_op.outputs[0])
-                    constraints.append("r")
+                    constraints.append("rI")
                     assembly_args_str.append(f"${len(inputs) + num_results - 1}")
 
             # constant value used as an immediate
@@ -89,13 +89,13 @@ class RiscvToLLVMPattern(RewritePattern):
         # construct asm_string
         iname = op.assembly_instruction_name()
 
-        # check if the operation has a custom insn string (for comaptibility reasons)
-        custom_insns = op.get_trait(HasInsnRepresentation)
-        if custom_insns is not None:
+        # check if the operation has a custom insn string (for compatibility reasons)
+        custom_insn = op.get_trait(HasInsnRepresentation)
+        if custom_insn is not None:
             # generate custom insn inline assembly instruction
-            # tahnk you pyright for making my code so much better I truly appreciate your presence
+            # thank you pyright for making my code so much better I truly appreciate your presence
             # put the forbidden ~fruit~ method in a variable with a short name:
-            n = custom_insns.get_insn
+            n = custom_insn.get_insn
             # because if the name is too long, black will force the comment to be not in the same line as the call
             # making pyright not see the comment.
             # this continues to eat my sanity every day.
