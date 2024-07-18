@@ -28,7 +28,12 @@ class RiscvToLLVMPattern(RewritePattern):
         assembly_args_str: list[str] = []
         constraints: list[str] = []
         inputs: list[SSAValue | OpResult] = []
+        # number of results produced from the inline assembly op
+        # all results are considered to be XLEN long integers
         num_results: int = 0
+        # keep track which results are taken from the inline assembly op and which one are "other":
+        #  int      -> index into the inline asm op result list
+        #  ssa val  -> use this ssa value instead (e.g. when the op "returns" the zero register)
         result_map: list[int | SSAValue] = []
 
         # populate assembly_args_str and constraints
@@ -45,14 +50,18 @@ class RiscvToLLVMPattern(RewritePattern):
                 and arg.op is op
             ):
                 # if we are storing to zero, we can't produce a result, so replace result by
-                #
+                # a get_register for the zero registers.
                 if arg.type.is_allocated and arg.type.index == IntAttr(0):
                     assembly_args_str.append("x0")
                     ops_to_insert.append(zero := riscv.GetRegisterOp(arg.type))
+                    # map final result to an existing SSA value
                     result_map.append(zero.res)
                     continue
+                # all other registers are treated as if they were unallocated
+                # meaning we cast them to i32 and pass values to the op
                 assembly_args_str.append(f"${len(inputs) + num_results}")
                 constraints.append("=r")
+                # map final result to a result of the inline asm op
                 result_map.append(num_results)
                 num_results += 1
 
