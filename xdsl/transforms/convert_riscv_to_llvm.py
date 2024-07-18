@@ -38,13 +38,8 @@ class RiscvToLLVMPattern(RewritePattern):
 
         # populate assembly_args_str and constraints
         for arg in op.assembly_line_args():
-
-            # invalid argument
-            if not arg:
-                return
-
             # ssa value used as an output operand
-            elif (
+            if (
                 isinstance(arg, OpResult)
                 and isinstance(arg.type, IntRegisterType)
                 and arg.op is op
