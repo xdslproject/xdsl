@@ -24,12 +24,46 @@ def __(mo):
 
 
 @app.cell
-def __(a_shape, b_shape, c_shape):
+def __():
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects import arith, func, linalg, llvm
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.ir import Block, Region
+    return (
+        AffineMap,
+        AffineMapAttr,
+        Block,
+        ImplicitBuilder,
+        MemRefType,
+        ModuleOp,
+        Region,
+        arith,
+        f64,
+        func,
+        linalg,
+        llvm,
+    )
 
+
+@app.cell
+def __(
+    AffineMap,
+    AffineMapAttr,
+    Block,
+    ImplicitBuilder,
+    MemRefType,
+    ModuleOp,
+    Region,
+    a_shape,
+    arith,
+    b_shape,
+    c_shape,
+    f64,
+    func,
+    html,
+    linalg,
+    llvm,
+):
     a_type = MemRefType(f64, a_shape)
     b_type = MemRefType(f64, b_shape)
     c_type = MemRefType(f64, c_shape)
@@ -70,33 +104,21 @@ def __(a_shape, b_shape, c_shape):
 
     linalg_module = ModuleOp((kernel_op,))
 
-    str(linalg_module)
+    html(linalg_module)
     return (
-        AffineMap,
-        AffineMapAttr,
-        Block,
-        ImplicitBuilder,
-        MemRefType,
-        ModuleOp,
-        Region,
         a,
         a_type,
         a_val,
         acc_new_val,
         acc_old_val,
-        arith,
         b,
         b_type,
         b_val,
         body,
         c,
         c_type,
-        f64,
-        func,
         kernel_op,
-        linalg,
         linalg_module,
-        llvm,
         prod_val,
     )
 
@@ -270,12 +292,6 @@ def __(mo):
 
 
 @app.cell
-def __(mo):
-    mo.md("This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.")
-    return
-
-
-@app.cell
 def __(mo, riscv_asm_module, riscv_code):
     riscv_asm = riscv_code(riscv_asm_module)
 
@@ -425,9 +441,7 @@ def __(
 
     register_implementations(riscv_interpreter, ctx, include_wgpu=False)
 
-    riscv_interpreter.call_op("matmul", (a_ptr, b_ptr, c_ptr))
-
-    c_shaped
+    _ = riscv_interpreter.call_op("matmul", (a_ptr, b_ptr, c_ptr))
     return (
         ShapedArray,
         a_ptr,
@@ -477,7 +491,7 @@ def __(
     snitch_c_ptr = TypedPtr.new_float64([0.0 for i in range(c_len)]).raw
     snitch_c_shaped = ShapedArray(snitch_c_ptr.float64, c_shape)
 
-    snitch_interpreter.call_op("matmul", (a_ptr, b_ptr, snitch_c_ptr))
+    _ = snitch_interpreter.call_op("matmul", (a_ptr, b_ptr, snitch_c_ptr))
     return (
         snitch_c_ptr,
         snitch_c_shaped,
@@ -599,7 +613,6 @@ def __():
     )
     from xdsl.context import MLContext
     from xdsl.dialects.riscv import riscv_code
-    from xdsl.frontend.onnx.ir_builder import build_module
     from xdsl.interpreter import Interpreter, OpCounter
     from xdsl.interpreters import register_implementations
     from xdsl.interpreters.ptr import TypedPtr
@@ -621,7 +634,6 @@ def __():
         test_lower_snitch_stream_to_asm,
     )
     from xdsl.transforms.canonicalize import CanonicalizePass
-    from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
     from xdsl.transforms.lower_snitch import LowerSnitchPass
     from xdsl.transforms.mlir_opt import MLIROptPass
     from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
@@ -632,7 +644,6 @@ def __():
     return (
         Attribute,
         CanonicalizePass,
-        ConvertOnnxToLinalgPass,
         ConvertRiscvScfToRiscvCfPass,
         ConvertSnitchStreamToSnitch,
         Interpreter,
@@ -647,7 +658,6 @@ def __():
         SnitchRegisterAllocation,
         TypedPtr,
         arith_add_fastmath,
-        build_module,
         convert_arith_to_riscv,
         convert_func_to_riscv_func,
         convert_linalg_to_loops,
@@ -669,7 +679,7 @@ def __():
     )
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(ModuleOp, mo):
     import html as htmllib
 
