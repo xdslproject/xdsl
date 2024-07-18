@@ -18,6 +18,8 @@ def __(mo):
         # Compiling `linalg` to Snitch
 
         This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
+
+        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
         """
     )
     return
@@ -42,7 +44,7 @@ def __():
     )
     from xdsl.builder import ImplicitBuilder
     from xdsl.context import MLContext
-    from xdsl.dialects import arith, func, linalg, llvm
+    from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
     from xdsl.ir import Attribute, Block, Region, SSAValue
@@ -106,7 +108,6 @@ def __():
         func,
         get_all_dialects,
         linalg,
-        llvm,
         loop_hoist_memref,
         lower_affine,
         memref_streamify,
@@ -133,7 +134,6 @@ def __(
     func,
     html,
     linalg,
-    llvm,
     mo,
 ):
     a_type = MemRefType(f64, a_shape)
@@ -163,8 +163,8 @@ def __(
             )
         )
         with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
-            prod_val = arith.Mulf(a_val, b_val, llvm.FastMathAttr("fast")).result
-            acc_new_val = arith.Addf(acc_old_val, prod_val, llvm.FastMathAttr("fast")).result
+            prod_val = arith.Mulf(a_val, b_val).result
+            acc_new_val = arith.Addf(acc_old_val, prod_val).result
             linalg.YieldOp(acc_new_val)
             # Add more name hints to make it easier to track how values are lowered
             a_val.name_hint = "a"
@@ -176,7 +176,12 @@ def __(
 
     linalg_module = ModuleOp((kernel_op,))
 
-    mo.md(html(linalg_module))
+    mo.md(f"""
+
+    Here is matrix multiplication defined in the `linalg` dialect, with the iteration space decoupled from the computation:
+
+    {html(linalg_module)}
+    """)
     return (
         a,
         a_type,
@@ -206,10 +211,10 @@ def __(mo):
 
 
 @app.cell
-def __(k, m, max_val, min_val, mo, n):
+def __(k, m, mo, n):
     mo.md(
         f"""
-        For example, here are some sliders, which can take on values from {min_val} to {max_val}.
+        We can parametrize the shapes of the matrices operated on:
 
         {m}{m.value}
 
@@ -229,12 +234,9 @@ def __(k, m, mo, n):
 
     mo.md(
         f"""
-        We use the slider to determine the shape of our inputs and outputs:
 
         ```
-        A: {'x'.join(str(dim) for dim in a_shape)}xf64
-        B: {'x'.join(str(dim) for dim in b_shape)}xf64
-        C: {'x'.join(str(dim) for dim in c_shape)}xf64
+        A: {'x'.join(str(dim) for dim in a_shape)}xf64 B: {'x'.join(str(dim) for dim in b_shape)}xf64 C: {'x'.join(str(dim) for dim in c_shape)}xf64
         ```
         """
     )
@@ -297,13 +299,13 @@ def __(
     return lower_to_riscv, riscv_accordion, riscv_module
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md(
         """
         #### Register allocation
 
-        We implemented a register allocator for our RISC-V representation, that works on functions with structured control flow:
+        xDSL provides a register allocator for our RISC-V representation, that works on functions with structured control flow:
         """
     )
     return
