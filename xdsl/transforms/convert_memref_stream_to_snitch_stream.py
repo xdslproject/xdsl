@@ -191,6 +191,7 @@ class StreamOpLowering(RewritePattern):
             cast_op.operands = (arg,)
             rewriter.modify_block_argument_type(arg, stream_type)
 
+
 def strides_for_affine_map(
     affine_map: AffineMap, memref_type: MemRefType[AttributeCovT]
 ) -> list[int]:

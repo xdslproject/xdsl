@@ -35,9 +35,9 @@ from xdsl.ir import (
 from xdsl.ir.affine import (
     AffineConstantExpr,
     AffineDimExpr,
-    AffineSymExpr,
     AffineMap,
     AffineSet,
+    AffineSymExpr,
 )
 from xdsl.irdl import (
     AllOf,
@@ -69,7 +69,7 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
-from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -1197,6 +1197,10 @@ class MemrefLayoutAttr(Attribute, ABC):
         in linear memory for every dimension in the iteration space of
         this memref layout attribute.
 
+        Note: The dimension of the iteration space may differ from the data
+        it represents. For instance, this can occur in a tiled layout.
+
+        This is only applicable to hyper-rectangular layouts.
         If this is not applicable for a given layout, returns None
         """
         return None
@@ -1244,7 +1248,10 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
         super().__init__([strides, offset])
 
     def get_strides(self) -> Sequence[int | None]:
-        return [None if isinstance(stride, NoneAttr) else stride.data for stride in self.strides]
+        return [
+            None if isinstance(stride, NoneAttr) else stride.data
+            for stride in self.strides
+        ]
 
     def get_offset(self) -> int | None:
         if isinstance(self.offset, NoneAttr):
@@ -1667,9 +1674,11 @@ class MemRefType(
             map = self.layout.get_affine_map()
 
         # account for element width
-        assert isinstance(self.element_type, FixedBitWidthType)
+        assert isinstance(self.element_type, FixedBitwidthType)
 
-        return AffineMap(1, 0, (AffineConstantExpr(self.element_type.size),)).compose(map)
+        return AffineMap(1, 0, (AffineConstantExpr(self.element_type.size),)).compose(
+            map
+        )
 
     def get_strides(self) -> Sequence[int | None] | None:
         """
