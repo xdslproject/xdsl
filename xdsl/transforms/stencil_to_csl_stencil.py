@@ -531,6 +531,9 @@ class ConvertApplyOpPattern(RewritePattern):
             )
         )
 
+        if len(prefetch.uses) == 0:
+            rewriter.erase_op(prefetch.op)
+
 
 @dataclass(frozen=True)
 class StencilToCslStencilPass(ModulePass):
