@@ -531,7 +531,8 @@ class ConvertApplyOpPattern(RewritePattern):
             )
         )
 
-        rewriter.erase_op(prefetch.op)
+        if len(prefetch.uses) == 0:
+            rewriter.erase_op(prefetch.op)
 
 
 @dataclass(frozen=True)
