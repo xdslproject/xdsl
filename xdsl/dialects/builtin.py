@@ -372,7 +372,7 @@ class BitWidthType(TypeAttribute, ABC):
     def get_element_width(self) -> int:
         """
         Returns the width of an element type in bytes, or raises DiagnosticException for
-        unknown inputs, or sizes not divisible by 8.
+        sizes not divisible by 8.
         """
         bitwidth = self.get_bitwidth
         if bitwidth % 8:
