@@ -204,7 +204,7 @@ def strides_map_from_memref_type(memref_type: MemRefType[AttributeCovT]) -> Affi
         )
 
     assert isinstance(memref_type.element_type, FixedBitwidthType)
-    factor = memref_type.element_type.get_element_width
+    factor = memref_type.element_type.size
 
     return AffineMap(
         len(strides),

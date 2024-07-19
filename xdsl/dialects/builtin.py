@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from math import prod
+from math import ceil, prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -362,26 +362,18 @@ class FixedBitwidthType(TypeAttribute, ABC):
 
     @property
     @abstractmethod
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         """
-        Returns the width of an element type in bits.
+        Contiguous memory footprint in bits
         """
         raise NotImplementedError()
 
     @property
-    def get_element_width(self) -> int:
+    def size(self) -> int:
         """
-        Returns the width of an element type in bytes, or raises DiagnosticException for
-        sizes not divisible by 8.
+        Contiguous memory footprint in bytes, defaults to `ceil(bitwidth / 8)`
         """
-        bitwidth = self.get_bitwidth
-        if bitwidth % 8:
-            raise DiagnosticException(
-                f"Cannot determine size for element type {self}"
-                f" with bitwidth {bitwidth}"
-            )
-        bytes_per_element = bitwidth // 8
-        return bytes_per_element
+        return ceil(self.bitwidth / 8)
 
 
 @irdl_attr_definition
@@ -405,7 +397,7 @@ class IntegerType(ParametrizedAttribute, FixedBitwidthType):
         return self.signedness.data.value_range(self.width.data)
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return self.width.data
 
 
@@ -529,7 +521,7 @@ BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 class _FloatType(ABC):
     @property
     @abstractmethod
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         raise NotImplementedError()
 
 
@@ -538,7 +530,7 @@ class BFloat16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "bf16"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 16
 
 
@@ -547,7 +539,7 @@ class Float16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f16"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 16
 
 
@@ -556,7 +548,7 @@ class Float32Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f32"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 32
 
 
@@ -565,7 +557,7 @@ class Float64Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f64"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 64
 
 
@@ -574,7 +566,7 @@ class Float80Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f80"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 80
 
 
@@ -583,7 +575,7 @@ class Float128Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f128"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 128
 
 

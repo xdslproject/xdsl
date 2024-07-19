@@ -11,8 +11,8 @@ from xdsl.context import MLContext
 from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
     AnyFloat,
-    FixedBitwidthType,
     DenseIntOrFPElementsAttr,
+    FixedBitwidthType,
     Float32Type,
     Float64Type,
     IntegerType,
@@ -45,7 +45,7 @@ class ConvertMemrefAllocOp(RewritePattern):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         op_memref_type = cast(memref.MemRefType[Any], op_memref_type)
         assert isinstance(op_memref_type.element_type, FixedBitwidthType)
-        width_in_bytes = op_memref_type.element_type.get_element_width
+        width_in_bytes = op_memref_type.element_type.size
         size = prod(op_memref_type.get_shape()) * width_in_bytes
         rewriter.replace_matched_op(
             (
@@ -91,7 +91,7 @@ def get_strided_pointer(
     """
 
     assert isinstance(memref_type.element_type, FixedBitwidthType)
-    bytes_per_element = memref_type.element_type.get_element_width
+    bytes_per_element = memref_type.element_type.size
 
     match memref_type.layout:
         case NoneAttr():
@@ -369,7 +369,7 @@ class ConvertMemrefSubviewOp(RewritePattern):
         offset = result_layout_attr.get_offset()
 
         assert isinstance(result_type.element_type, FixedBitwidthType)
-        factor = result_type.element_type.get_element_width
+        factor = result_type.element_type.size
 
         if offset == 0:
             rewriter.replace_matched_op(
