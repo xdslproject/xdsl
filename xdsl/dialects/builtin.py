@@ -1492,8 +1492,8 @@ bf16 = BFloat16Type()
 f16 = Float16Type()
 f32 = Float32Type()
 f64 = Float64Type()
-f80 = Float64Type()
-f128 = Float64Type()
+f80 = Float80Type()
+f128 = Float128Type()
 
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)
