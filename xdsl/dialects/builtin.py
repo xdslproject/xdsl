@@ -69,7 +69,7 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -1191,7 +1191,7 @@ class MemrefLayoutAttr(Attribute, ABC):
         """
         return NotImplementedError()
 
-    def get_strides(self) -> Iterable[int | None] | None:
+    def get_strides(self) -> Sequence[int | None] | None:
         """
         (optional) Return the list of strides, representing the element offset
         in linear memory for every dimension in the iteration space of
@@ -1243,12 +1243,8 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
 
         super().__init__([strides, offset])
 
-    def get_strides(self) -> Iterable[int | None]:
-        for stride in self.strides:
-            if isinstance(stride, NoneAttr):
-                yield None
-            else:
-                yield stride.data
+    def get_strides(self) -> Sequence[int | None]:
+        return [None if isinstance(stride, NoneAttr) else stride.data for stride in self.strides]
 
     def get_offset(self) -> int | None:
         if isinstance(self.offset, NoneAttr):
@@ -1656,7 +1652,26 @@ class MemRefType(
             printer.print(", ", self.layout, ", ", self.memory_space)
         printer.print(">")
 
-    def get_strides(self) -> Iterable[int | None] | None:
+    def get_affine_map(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        memref's layout to the byte offset in linear memory.
+
+        Unlike the get_affine_map of `MemrefLayoutAttr`, this
+        function accounts for element width.
+        """
+        if isinstance(self.layout, NoneAttr):
+            strides = self.strides_for_shape(self.get_shape())
+            map = StridedLayoutAttr(strides).get_affine_map()
+        else:
+            map = self.layout.get_affine_map()
+
+        # account for element width
+        assert isinstance(self.element_type, FixedBitWidthType)
+
+        return AffineMap(1, 0, (AffineConstantExpr(self.element_type.size),)).compose(map)
+
+    def get_strides(self) -> Sequence[int | None] | None:
         """
         Yields the strides of the memref for each dimension.
         The stride of a dimension is the number of elements that are skipped when
