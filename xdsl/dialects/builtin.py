@@ -353,8 +353,39 @@ class SignednessAttr(Data[Signedness]):
                 raise ValueError(f"Invalid signedness {data}")
 
 
+class BitWidthType(TypeAttribute, ABC):
+    """
+    A type attribute with a defined bitwidth
+    """
+
+    name = "abstract.bitwidth_type"
+
+    @property
+    @abstractmethod
+    def get_bitwidth(self) -> int:
+        """
+        Returns the width of an element type in bits.
+        """
+        raise NotImplementedError()
+
+    @property
+    def get_element_width(self) -> int:
+        """
+        Returns the width of an element type in bytes, or raises DiagnosticException for
+        unknown inputs, or sizes not divisible by 8.
+        """
+        bitwidth = self.get_bitwidth
+        if bitwidth % 8:
+            raise DiagnosticException(
+                f"Cannot determine size for element type {self}"
+                f" with bitwidth {bitwidth}"
+            )
+        bytes_per_element = bitwidth // 8
+        return bytes_per_element
+
+
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, TypeAttribute):
+class IntegerType(ParametrizedAttribute, BitWidthType):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -372,6 +403,10 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
 
     def value_range(self) -> tuple[int, int]:
         return self.signedness.data.value_range(self.width.data)
+
+    @property
+    def get_bitwidth(self) -> int:
+        return self.width.data
 
 
 i64 = IntegerType(64)
@@ -499,7 +534,7 @@ class _FloatType(ABC):
 
 
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class BFloat16Type(ParametrizedAttribute, BitWidthType, _FloatType):
     name = "bf16"
 
     @property
@@ -508,7 +543,7 @@ class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, BitWidthType, _FloatType):
     name = "f16"
 
     @property
@@ -517,7 +552,7 @@ class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, BitWidthType, _FloatType):
     name = "f32"
 
     @property
@@ -526,7 +561,7 @@ class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, BitWidthType, _FloatType):
     name = "f64"
 
     @property
@@ -535,7 +570,7 @@ class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, BitWidthType, _FloatType):
     name = "f80"
 
     @property
@@ -544,7 +579,7 @@ class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, BitWidthType, _FloatType):
     name = "f128"
 
     @property
