@@ -353,7 +353,7 @@ class SignednessAttr(Data[Signedness]):
                 raise ValueError(f"Invalid signedness {data}")
 
 
-class BitWidthType(TypeAttribute, ABC):
+class FixedBitwidthType(TypeAttribute, ABC):
     """
     A type attribute with a defined bitwidth
     """
@@ -385,7 +385,7 @@ class BitWidthType(TypeAttribute, ABC):
 
 
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, BitWidthType):
+class IntegerType(ParametrizedAttribute, FixedBitwidthType):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -534,7 +534,7 @@ class _FloatType(ABC):
 
 
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, BitWidthType, _FloatType):
+class BFloat16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "bf16"
 
     @property
@@ -543,7 +543,7 @@ class BFloat16Type(ParametrizedAttribute, BitWidthType, _FloatType):
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, BitWidthType, _FloatType):
+class Float16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f16"
 
     @property
@@ -552,7 +552,7 @@ class Float16Type(ParametrizedAttribute, BitWidthType, _FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, BitWidthType, _FloatType):
+class Float32Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f32"
 
     @property
@@ -561,7 +561,7 @@ class Float32Type(ParametrizedAttribute, BitWidthType, _FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, BitWidthType, _FloatType):
+class Float64Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f64"
 
     @property
@@ -570,7 +570,7 @@ class Float64Type(ParametrizedAttribute, BitWidthType, _FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, BitWidthType, _FloatType):
+class Float80Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f80"
 
     @property
@@ -579,7 +579,7 @@ class Float80Type(ParametrizedAttribute, BitWidthType, _FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, BitWidthType, _FloatType):
+class Float128Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f128"
 
     @property

@@ -19,7 +19,7 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    BitWidthType,
+    FixedBitwidthType,
     IntAttr,
     MemRefType,
     ModuleOp,
@@ -203,7 +203,7 @@ def strides_map_from_memref_type(memref_type: MemRefType[AttributeCovT]) -> Affi
             f"Unsupported empty shape in memref of type {memref_type}"
         )
 
-    assert isinstance(memref_type.element_type, BitWidthType)
+    assert isinstance(memref_type.element_type, FixedBitwidthType)
     factor = memref_type.element_type.get_element_width
 
     return AffineMap(
