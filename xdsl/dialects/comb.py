@@ -13,7 +13,7 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import Annotated
 
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, UnitAttr, i32, i64
+from xdsl.dialects.builtin import I32, I64, IntegerAttr, IntegerType, UnitAttr, i32
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue, TypeAttribute
 from xdsl.irdl import (
     ConstraintVar,
@@ -257,9 +257,7 @@ class ICmpOp(IRDLOperation, ABC):
 
     T = Annotated[IntegerType, ConstraintVar("T")]
 
-    predicate: IntegerAttr[IntegerType] = attr_def(
-        IntegerAttr[Annotated[IntegerType, i64]]
-    )
+    predicate: IntegerAttr[IntegerType] = attr_def(IntegerAttr[I64])
     lhs: Operand = operand_def(T)
     rhs: Operand = operand_def(T)
     result: OpResult = result_def(IntegerType(1))
@@ -397,7 +395,7 @@ class ExtractOp(IRDLOperation):
 
     input: Operand = operand_def(IntegerType)
     low_bit: IntegerAttr[Annotated[IntegerType, i32]] = attr_def(
-        IntegerAttr[Annotated[IntegerType, i32]], attr_name="lowBit"
+        IntegerAttr[I32], attr_name="lowBit"
     )
     result: OpResult = result_def(IntegerType)
 
