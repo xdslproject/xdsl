@@ -353,6 +353,13 @@ class ModuleOp(IRDLOperation):
             2 + len(self.params) + len(self.layout_yield_op.fields) :
         ]
 
+    def get_program_import(self, name: str) -> ImportOp:
+        """Get top-level import op in the program_module"""
+        for op in self.program_module.ops:
+            if isinstance(op, ImportOp) and op.module.data == name:
+                return op
+        raise ValueError(f"Cannot get program_module import of {name}")
+
 
 @irdl_op_definition
 class YieldOp(IRDLOperation):
