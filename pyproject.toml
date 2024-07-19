@@ -58,7 +58,7 @@ platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
 
 [tool.setuptools.package-data]
-xdsl = ["dialects/cmath.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
+xdsl = ["**.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
