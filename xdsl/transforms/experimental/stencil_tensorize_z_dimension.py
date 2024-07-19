@@ -1,7 +1,6 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import TypeGuard, cast
-
-from attr import dataclass
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
