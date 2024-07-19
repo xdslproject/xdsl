@@ -42,6 +42,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     VarOperand,
     VarOpResult,
+    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -376,7 +377,9 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class Dealloc(IRDLOperation):
     name = "memref.dealloc"
-    memref: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    memref: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -463,7 +466,9 @@ class Global(IRDLOperation):
 class Dim(IRDLOperation):
     name = "memref.dim"
 
-    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
     index: Operand = operand_def(IndexType)
 
     result: OpResult = result_def(IndexType)
@@ -838,8 +843,12 @@ class Subview(IRDLOperation):
 class Cast(IRDLOperation):
     name = "memref.cast"
 
-    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    dest: OpResult = result_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
 
     traits = frozenset([NoMemoryEffect()])
 
@@ -855,8 +864,10 @@ class Cast(IRDLOperation):
 class MemorySpaceCast(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
     traits = frozenset([NoMemoryEffect()])
 

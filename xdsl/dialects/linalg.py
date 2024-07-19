@@ -10,6 +10,7 @@ from typing_extensions import Self
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
+    AnyMemRefType,
     AnyShapedType,
     AnyTensorType,
     ArrayAttr,
@@ -34,6 +35,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -556,8 +558,8 @@ class TransposeOp(IRDLOperation):
 
     name = "linalg.transpose"
 
-    input = operand_def(MemRefType | AnyTensorType)
-    init = operand_def(MemRefType | AnyTensorType)
+    input = operand_def(base(AnyMemRefType) | base(AnyTensorType))
+    init = operand_def(base(AnyMemRefType) | base(AnyTensorType))
     result = var_result_def(AnyTensorType)
 
     permutation = attr_def(DenseArrayBase)
@@ -806,8 +808,8 @@ class BroadcastOp(IRDLOperation):
 
     name = "linalg.broadcast"
 
-    input = operand_def(MemRefType | AnyTensorType)
-    init = operand_def(MemRefType | AnyTensorType)
+    input = operand_def(base(AnyMemRefType) | base(AnyTensorType))
+    init = operand_def(base(AnyMemRefType) | base(AnyTensorType))
     result = var_result_def(AnyTensorType)
 
     dimensions = attr_def(DenseArrayBase)

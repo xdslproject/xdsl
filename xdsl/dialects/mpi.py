@@ -30,6 +30,7 @@ from xdsl.irdl import (
     OptOpResult,
     ParameterDef,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -111,6 +112,7 @@ class DataType(ParametrizedAttribute, TypeAttribute):
 
 
 VectorWrappable = RequestType | StatusType | DataType
+VectorWrappableConstr = base(RequestType) | base(StatusType) | base(DataType)
 _VectorT = TypeVar("_VectorT", bound=VectorWrappable)
 
 
@@ -563,7 +565,7 @@ class Waitall(MPIBaseOp):
     statuses: OptOpResult = opt_result_def(VectorType[StatusType])
 
     def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType.of(StatusType)]]
+        result_types: list[list[Attribute]] = [[VectorType[StatusType].of(StatusType)]]
         if ignore_status:
             result_types = [[]]
 
@@ -712,7 +714,7 @@ class AllocateTypeOp(MPIBaseOp):
     name = "mpi.allocate"
 
     bindc_name: StringAttr | None = opt_attr_def(StringAttr)
-    dtype: VectorWrappable = attr_def(VectorWrappable)
+    dtype: VectorWrappable = attr_def(VectorWrappableConstr)
     count: Operand = operand_def(i32)
 
     result: OpResult = result_def(VectorType)
@@ -724,7 +726,7 @@ class AllocateTypeOp(MPIBaseOp):
         bindc_name: StringAttr | None = None,
     ):
         return super().__init__(
-            result_types=[VectorType.of(dtype)],
+            result_types=[VectorType[dtype].of(dtype)],
             attributes={
                 "dtype": dtype(),
                 "bindc_name": bindc_name,
@@ -745,7 +747,7 @@ class VectorGetOp(MPIBaseOp):
     vect: Operand = operand_def(VectorType)
     element: Operand = operand_def(i32)
 
-    result: OpResult = result_def(VectorWrappable)
+    result: OpResult = result_def(VectorWrappableConstr)
 
     def __init__(self, vect: SSAValue | Operation, element: SSAValue | Operation):
         ssa_val = SSAValue.get(vect)
