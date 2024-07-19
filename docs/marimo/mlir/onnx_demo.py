@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.7.3"
+__generated_with = "0.7.5"
 app = marimo.App()
 
 
@@ -131,10 +131,10 @@ def __(mo, model_def):
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(html, init_module, mo):
     mo.md(f"""
-    ### Compiling to RISC-V
+    ### Converting to `linalg`
 
     Here is the xDSL representation of the function, it takes two `tensor` values of our chosen shape, passes them as operands to the `onnx.Add` operation, and returns it:
 
@@ -159,13 +159,13 @@ def __(MLContext, get_all_dialects):
     return ctx, dialect_factory, dialect_name
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(mo):
     mo.md("xDSL seamlessly interoperates with MLIR, we the `mlir-opt` tool to compile the input to a form that we want to process:")
     return
 
 
-@app.cell(hide_code=True)
+@app.cell
 def __(
     ConvertOnnxToLinalgPass,
     MLIROptPass,
@@ -213,276 +213,35 @@ def __(
     return bufferized_module, linalg_accordion
 
 
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md("We can take this representation, and lower to RISC-V-specific dialects:")
-    return
-
-
 @app.cell
-def __(
-    PipelinePass,
-    bufferized_module,
-    convert_arith_to_riscv,
-    convert_func_to_riscv_func,
-    convert_linalg_to_loops,
-    convert_memref_to_riscv,
-    convert_scf_to_riscv_scf,
-    pipeline_accordion,
-    reconcile_unrealized_casts,
-):
-    lower_to_riscv = PipelinePass(
-        [
-            convert_linalg_to_loops.ConvertLinalgToLoopsPass(),
-            convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
-            convert_memref_to_riscv.ConvertMemrefToRiscvPass(),
-            convert_arith_to_riscv.ConvertArithToRiscvPass(),
-            convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
-            reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
-        ]
-    )
-
-    riscv_module, riscv_accordion = pipeline_accordion(
-        tuple(("", p) for p in lower_to_riscv.passes), bufferized_module
-    )
-
-    riscv_accordion
-    return lower_to_riscv, riscv_accordion, riscv_module
-
-
-@app.cell(hide_code=True)
 def __(mo):
     mo.md(
         """
-        #### Register allocation
-
-        We implemented a register allocator for our RISC-V representation, that works on functions with structured control flow:
+        From here we can use a number of backends to generate executable code, like LLVM, or RISC-V assembly directly.
+        Please see other notebooks for details
         """
     )
     return
-
-
-@app.cell
-def __(
-    CanonicalizePass,
-    PipelinePass,
-    RISCVRegisterAllocation,
-    pipeline_accordion,
-    riscv_module,
-):
-    allocate_registers = PipelinePass(
-        [
-            RISCVRegisterAllocation(),
-            CanonicalizePass(),
-        ]
-    )
-
-    regalloc_module, regalloc_accordion = pipeline_accordion(
-        tuple(("", p) for p in allocate_registers.passes), riscv_module
-    )
-
-    regalloc_accordion
-    return allocate_registers, regalloc_accordion, regalloc_module
-
-
-@app.cell
-def __(
-    CanonicalizePass,
-    ConvertRiscvScfToRiscvCfPass,
-    PipelinePass,
-    pipeline_accordion,
-    regalloc_module,
-):
-    lower_to_asm = PipelinePass(
-        [
-            ConvertRiscvScfToRiscvCfPass(),
-            CanonicalizePass(),
-        ]
-    )
-
-    riscv_asm_module, assembly_accordion = pipeline_accordion(
-        (("", lower_to_asm),), regalloc_module
-    )
-
-    assembly_accordion
-    return assembly_accordion, lower_to_asm, riscv_asm_module
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md("This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.")
-    return
-
-
-@app.cell(hide_code=True)
-def __(mo, riscv_asm_module, riscv_code):
-    riscv_asm = riscv_code(riscv_asm_module)
-
-    mo.accordion({
-        "RISC-V Assembly": mo.ui.code_editor(riscv_asm, language="python", disabled=True)
-    })
-    return riscv_asm,
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md(
-        """
-        ### Compiling to Snitch
-
-        xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation to represent a high-level, structured, but Snitch-specific representation of the code:
-        """
-    )
-    return
-
-
-@app.cell
-def __(
-    PipelinePass,
-    arith_add_fastmath,
-    bufferized_module,
-    convert_linalg_to_memref_stream,
-    convert_riscv_scf_for_to_frep,
-    pipeline_accordion,
-):
-    from xdsl.transforms.test_lower_memref_stream_to_snitch_stream import TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM
-    from xdsl.transforms.test_optimise_memref_stream import TEST_OPTIMISE_MEMREF_STREAM
-
-    convert_linalg_to_snitch = PipelinePass(
-        [
-            convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
-            arith_add_fastmath.AddArithFastMathFlagsPass(),
-            *TEST_OPTIMISE_MEMREF_STREAM,
-            *TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM,
-            convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
-        ]
-    )
-
-    snitch_stream_module, snitch_stream_accordion = pipeline_accordion(
-        tuple(("", p) for p in convert_linalg_to_snitch.passes), bufferized_module
-    )
-
-    snitch_stream_accordion
-    return (
-        TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM,
-        TEST_OPTIMISE_MEMREF_STREAM,
-        convert_linalg_to_snitch,
-        snitch_stream_accordion,
-        snitch_stream_module,
-    )
-
-
-@app.cell(hide_code=True)
-def __(mo):
-    mo.md("We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:")
-    return
-
-
-@app.cell
-def __(
-    ctx,
-    mo,
-    riscv_code,
-    snitch_stream_module,
-    test_lower_snitch_stream_to_asm,
-):
-    snitch_asm_module = snitch_stream_module.clone()
-
-    test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm().apply(
-        ctx, snitch_asm_module
-    )
-
-    snitch_asm = riscv_code(snitch_asm_module)
-
-    mo.accordion({
-        "Snitch Assembly": mo.ui.code_editor(snitch_asm, language="python", disabled=True)
-    })
-    return snitch_asm, snitch_asm_module
 
 
 @app.cell
 def __():
-    from xdsl.backend.riscv.lowering import (
-        convert_arith_to_riscv,
-        convert_func_to_riscv_func,
-        convert_memref_to_riscv,
-        convert_scf_to_riscv_scf,
-    )
-    from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
-        ConvertRiscvScfToRiscvCfPass,
-    )
-    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
-        ConvertSnitchStreamToSnitch,
-    )
     from xdsl.context import MLContext
-    from xdsl.dialects.riscv import riscv_code
     from xdsl.frontend.onnx.ir_builder import build_module
-    from xdsl.interpreter import Interpreter, OpCounter
-    from xdsl.interpreters import register_implementations
-    from xdsl.interpreters.ptr import TypedPtr
     from xdsl.ir import Attribute, SSAValue
     from xdsl.passes import PipelinePass
     from xdsl.tools.command_line_tool import get_all_dialects
-    from xdsl.transforms import (
-        arith_add_fastmath,
-        convert_linalg_to_loops,
-        convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
-        convert_riscv_scf_for_to_frep,
-        dead_code_elimination,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
-        reconcile_unrealized_casts,
-        test_lower_snitch_stream_to_asm,
-    )
-    from xdsl.transforms.canonicalize import CanonicalizePass
     from xdsl.transforms.convert_onnx_to_linalg import ConvertOnnxToLinalgPass
-    from xdsl.transforms.lower_snitch import LowerSnitchPass
     from xdsl.transforms.mlir_opt import MLIROptPass
-    from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-    from xdsl.transforms.riscv_scf_loop_range_folding import (
-        RiscvScfLoopRangeFoldingPass,
-    )
-    from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
     return (
         Attribute,
-        CanonicalizePass,
         ConvertOnnxToLinalgPass,
-        ConvertRiscvScfToRiscvCfPass,
-        ConvertSnitchStreamToSnitch,
-        Interpreter,
-        LowerSnitchPass,
         MLContext,
         MLIROptPass,
-        OpCounter,
         PipelinePass,
-        RISCVRegisterAllocation,
-        RiscvScfLoopRangeFoldingPass,
         SSAValue,
-        SnitchRegisterAllocation,
-        TypedPtr,
-        arith_add_fastmath,
         build_module,
-        convert_arith_to_riscv,
-        convert_func_to_riscv_func,
-        convert_linalg_to_loops,
-        convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
-        convert_memref_to_riscv,
-        convert_riscv_scf_for_to_frep,
-        convert_scf_to_riscv_scf,
-        dead_code_elimination,
         get_all_dialects,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
-        reconcile_unrealized_casts,
-        register_implementations,
-        riscv_code,
-        test_lower_snitch_stream_to_asm,
     )
 
 
