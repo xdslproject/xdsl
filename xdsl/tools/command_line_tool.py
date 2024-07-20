@@ -231,6 +231,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_arith_to_riscv.ConvertArithToRiscvPass
 
+    def get_convert_arith_to_riscv_snitch():
+        from xdsl.backend.riscv.lowering import convert_arith_to_riscv_snitch
+
+        return convert_arith_to_riscv_snitch.ConvertArithToRiscvSnitchPass
+
     def get_convert_func_to_riscv_func():
         from xdsl.backend.riscv.lowering import convert_func_to_riscv_func
 
@@ -364,6 +369,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
+        "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,

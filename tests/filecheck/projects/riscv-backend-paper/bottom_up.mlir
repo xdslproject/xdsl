@@ -22,7 +22,10 @@ func.func public @ssum(
     riscv_scf.for %5 : !riscv.reg = %2 to %4 step %3 {
       %x_1 = riscv_snitch.read from %x : !riscv.freg
       %y_1 = riscv_snitch.read from %y : !riscv.freg
-      %z = riscv.vfadd.s %x_1, %y_1 : (!riscv.freg, !riscv.freg) -> !riscv.freg
+      %x_vec = builtin.unrealized_conversion_cast %x_1 : !riscv.freg to vector<2xf32>
+      %y_vec = builtin.unrealized_conversion_cast %y_1 : !riscv.freg to vector<2xf32>
+      %z_vec = arith.addf %x_vec, %y_vec : vector<2xf32>
+      %z = builtin.unrealized_conversion_cast %z_vec : vector<2xf32> to !riscv.freg
       riscv_snitch.write %z to %0 : !riscv.freg
     }
   }
