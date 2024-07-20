@@ -8,6 +8,7 @@ from xdsl.interpreter import (
     ReturnedValues,
     TerminatorValue,
     impl,
+    impl_callable,
     impl_terminator,
     register_impls,
 )
@@ -26,3 +27,13 @@ class FuncFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: func.Call, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         return interpreter.call_op(op.callee.string_value(), args)
+
+    @impl_callable(func.FuncOp)
+    def call_func(
+        self, interpreter: Interpreter, op: func.FuncOp, args: tuple[Any, ...]
+    ):
+        if (first_block := op.body.blocks.first) is None or not first_block.ops:
+            results = interpreter.call_external(op.sym_name.data, op, args)
+        else:
+            results = interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
+        return results

@@ -6,6 +6,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import arith, builtin, func, gpu, memref, printf
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
+from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.memref import MemrefFunctions
 from xdsl.interpreters.printf import PrintfFunctions
 from xdsl.parser import Parser
@@ -75,6 +76,7 @@ builtin.module attributes {gpu.container_module} {
     f = StringIO("")
     interpreter = Interpreter(module, file=f)
     interpreter.register_implementations(ArithFunctions())
+    interpreter.register_implementations(FuncFunctions())
     interpreter.register_implementations(MemrefFunctions())
     interpreter.register_implementations(WGPUFunctions())
     interpreter.register_implementations(PrintfFunctions())
