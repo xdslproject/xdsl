@@ -1,5 +1,55 @@
 // RUN: xdsl-opt -p convert-linalg-to-memref-stream,test-optimise-memref-stream,test-lower-memref-stream-to-snitch-stream,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
+
+func.func public @ssum(
+  %X: memref<8x16xf32>,
+  %Y: memref<8x16xf32>,
+  %Z: memref<8x16xf32>
+) {
+  %X_1 = builtin.unrealized_conversion_cast %X : memref<8x16xf32> to !riscv.reg
+  %Y_1 = builtin.unrealized_conversion_cast %Y : memref<8x16xf32> to !riscv.reg
+  %Z_1 = builtin.unrealized_conversion_cast %Z : memref<8x16xf32> to !riscv.reg
+  snitch_stream.streaming_region {
+    patterns = [
+      #snitch_stream.stride_pattern<ub = [64], strides = [8]>
+    ]
+  } ins(%X_1, %Y_1 : !riscv.reg, !riscv.reg) outs(%Z_1 : !riscv.reg) {
+  ^0(%x : !stream.readable<!riscv.freg>, %y : !stream.readable<!riscv.freg>, %0 : !stream.writable<!riscv.freg>):
+    %1 = riscv.li 8 : !riscv.reg
+    %2 = riscv.li 0 : !riscv.reg
+    %3 = riscv.li 1 : !riscv.reg
+    %4 = riscv.li 64 : !riscv.reg
+    riscv_scf.for %5 : !riscv.reg = %2 to %4 step %3 {
+      %x_1 = riscv_snitch.read from %x : !riscv.freg
+      %y_1 = riscv_snitch.read from %y : !riscv.freg
+      %z = riscv.vfadd.s %x_1, %y_1 : (!riscv.freg, !riscv.freg) -> !riscv.freg
+      riscv_snitch.write %z to %0 : !riscv.freg
+    }
+  }
+  func.return
+}
+
+// CHECK:       .text
+// CHECK-NEXT:  .globl ssum
+// CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  ssum:
+// CHECK-NEXT:      mv t2, a0
+// CHECK-NEXT:      mv t1, a1
+// CHECK-NEXT:      mv t0, a2
+// CHECK-NEXT:      li t3, 63
+// CHECK-NEXT:      scfgwi t3, 95
+// CHECK-NEXT:      li t3, 8
+// CHECK-NEXT:      scfgwi t3, 223
+// CHECK-NEXT:      scfgwi t2, 768
+// CHECK-NEXT:      scfgwi t1, 769
+// CHECK-NEXT:      scfgwi t0, 898
+// CHECK-NEXT:      csrrsi zero, 1984, 1
+// CHECK-NEXT:      li t0, 63
+// CHECK-NEXT:      frep.o t0, 1, 0, 0
+// CHECK-NEXT:      vfadd.s ft2, ft0, ft1
+// CHECK-NEXT:      csrrci zero, 1984, 1
+// CHECK-NEXT:      ret
+
 func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     %X: memref<1x1x10x10xf64>,
     %Y: memref<1x1x3x3xf64>,
