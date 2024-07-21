@@ -734,9 +734,7 @@ class VFCpkASSOp(
 
 
 @irdl_op_definition
-class VFMulSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial multiplication of corresponding f32 values from
     rs1 and rs2 and stores the results in the corresponding f32 lanes
@@ -755,9 +753,7 @@ class VFMulSOp(
 
 
 @irdl_op_definition
-class VFAddSOp(
-    RdRsRsOperation[FloatRegisterType, FloatRegisterType, FloatRegisterType]
-):
+class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial addition of corresponding f32 values from
     rs1 and rs2 and stores the results in the corresponding f32 lanes
