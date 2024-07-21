@@ -6,25 +6,18 @@ func.func public @ssum(
   %Y: memref<8x16xf32>,
   %Z: memref<8x16xf32>
 ) {
-  %X_1 = builtin.unrealized_conversion_cast %X : memref<8x16xf32> to !riscv.reg
-  %Y_1 = builtin.unrealized_conversion_cast %Y : memref<8x16xf32> to !riscv.reg
-  %Z_1 = builtin.unrealized_conversion_cast %Z : memref<8x16xf32> to !riscv.reg
-  snitch_stream.streaming_region {
-    patterns = [
-      #snitch_stream.stride_pattern<ub = [64], strides = [8]>
-    ]
-  } ins(%X_1, %Y_1 : !riscv.reg, !riscv.reg) outs(%Z_1 : !riscv.reg) {
-  ^0(%x : !stream.readable<!riscv.freg>, %y : !stream.readable<!riscv.freg>, %0 : !stream.writable<!riscv.freg>):
-    %1 = riscv.li 8 : !riscv.reg
-    %2 = riscv.li 0 : !riscv.reg
-    %3 = riscv.li 1 : !riscv.reg
-    %4 = riscv.li 64 : !riscv.reg
-    riscv_scf.for %5 : !riscv.reg = %2 to %4 step %3 {
-      %x_1 = riscv_snitch.read from %x : !riscv.freg
-      %y_1 = riscv_snitch.read from %y : !riscv.freg
-      %z = riscv.vfadd.s %x_1, %y_1 : (!riscv.freg, !riscv.freg) -> !riscv.freg
-      riscv_snitch.write %z to %0 : !riscv.freg
-    }
+  memref_stream.generic {
+    bounds = [8, 8],
+    indexing_maps = [
+      affine_map<(d0, d1) -> (d0, d1)>,
+      affine_map<(d0, d1) -> (d0, d1)>,
+      affine_map<(d0, d1) -> (d0, d1)>
+    ],
+    iterator_types = ["parallel", "parallel"]
+  } ins(%arg0, %arg1 : memref<8x16xf32>, memref<8x16xf32>) outs(%arg2 : memref<8x16xf32>) {
+  ^1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
+    %3 = arith.addf %in, %in_1 : vector<2xf32>
+    memref_stream.yield %3 : vector<2xf32>
   }
   func.return
 }
