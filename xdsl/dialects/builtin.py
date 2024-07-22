@@ -1267,14 +1267,20 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
 
         For dynamic strides, this results in an affinemap with a number
         of symbols, ordered in the following manner:
-            (1) Symbols for every dynamic stride of the layout
-            (2) Symbol for the dynamic offset of the layout
+            (1) Symbol for the dynamic offset of the layout
+            (2) Symbols for every dynamic stride of the layout
         """
 
         # keep track of number of symbols
         nb_symbols = 0
 
         result = AffineConstantExpr(0)
+
+        # add offset
+        if isinstance(self.offset, IntAttr):
+            result += AffineConstantExpr(self.offset.data)
+        else:  # NoneAttr
+            result += AffineSymExpr(nb_symbols)
 
         for dim, stride in enumerate(self.strides.data):
             if isinstance(stride, IntAttr):
@@ -1283,12 +1289,6 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
                 stride_expr = AffineSymExpr(nb_symbols)
                 nb_symbols += 1
             result += AffineDimExpr(dim) * stride_expr
-
-        # add offset
-        if isinstance(self.offset, IntAttr):
-            result += AffineConstantExpr(self.offset.data)
-        else:  # NoneAttr
-            result += AffineSymExpr(nb_symbols)
 
         return AffineMap(len(self.strides), nb_symbols, (result,))
 
