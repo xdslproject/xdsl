@@ -1074,9 +1074,19 @@ class RsRsIntegerOperation(RISCVInstruction, ABC):
     rs1: Operand = operand_def(IntRegisterType)
     rs2: Operand = operand_def(IntRegisterType)
 
-    def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
             operands=[rs1, rs2],
+            attributes={
+                "comment": comment,
+            },
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
