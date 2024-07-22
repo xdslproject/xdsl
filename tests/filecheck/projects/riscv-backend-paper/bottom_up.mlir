@@ -124,27 +124,26 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      scfgwi a5, 256                               # dm 0 dim 2 stride
 // CHECK-NEXT:      li a5, -168
 // CHECK-NEXT:      scfgwi a5, 288                               # dm 0 dim 3 stride
-// CHECK-NEXT:      li a5, 3
+// CHECK-NEXT:      li a5, 2
 // CHECK-NEXT:      scfgwi a5, 65                                # dm 1 dim 0 bound
 // CHECK-NEXT:      li a5, 2
 // CHECK-NEXT:      scfgwi a5, 97                                # dm 1 dim 1 bound
-// CHECK-NEXT:      li a5, 2
-// CHECK-NEXT:      scfgwi a5, 129                               # dm 1 dim 2 bound
 // CHECK-NEXT:      li a5, 1
-// CHECK-NEXT:      scfgwi a5, 161                               # dm 1 dim 3 bound
-// CHECK-NEXT:      scfgwi zero, 193                             # dm 1 dim 0 stride
+// CHECK-NEXT:      scfgwi a5, 129                               # dm 1 dim 2 bound
+// CHECK-NEXT:      li a5, 8
+// CHECK-NEXT:      scfgwi a5, 193                               # dm 1 dim 0 stride
 // CHECK-NEXT:      li a5, 8
 // CHECK-NEXT:      scfgwi a5, 225                               # dm 1 dim 1 stride
-// CHECK-NEXT:      li a5, 8
-// CHECK-NEXT:      scfgwi a5, 257                               # dm 1 dim 2 stride
 // CHECK-NEXT:      li a5, -64
-// CHECK-NEXT:      scfgwi a5, 289                               # dm 1 dim 3 stride
+// CHECK-NEXT:      scfgwi a5, 257                               # dm 1 dim 2 stride
+// CHECK-NEXT:      li a5, 3
+// CHECK-NEXT:      scfgwi a5, 33                                # dm 1 repeat
 // CHECK-NEXT:      li a5, 7
 // CHECK-NEXT:      scfgwi a5, 66                                # dm 2 dim 0 bound
 // CHECK-NEXT:      li a5, 8
 // CHECK-NEXT:      scfgwi a5, 194                               # dm 2 dim 0 stride
 // CHECK-NEXT:      scfgwi t6, 864                               # dm 0 dim 3 source
-// CHECK-NEXT:      scfgwi a4, 865                               # dm 1 dim 3 source
+// CHECK-NEXT:      scfgwi a4, 833                               # dm 1 dim 2 source
 // CHECK-NEXT:      scfgwi a3, 898                               # dm 2 dim 0 destination
 // CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
 // CHECK-NEXT:      li a3, 2
@@ -356,21 +355,20 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t2, a2
 // CHECK-NEXT:      fcvt.d.w ft3, zero
-// CHECK-NEXT:      li t3, 3
+// CHECK-NEXT:      li t3, 7
 // CHECK-NEXT:      scfgwi t3, 64                                # dm 0 dim 0 bound
-// CHECK-NEXT:      li t3, 7
-// CHECK-NEXT:      scfgwi t3, 96                                # dm 0 dim 1 bound
 // CHECK-NEXT:      li t3, 1
-// CHECK-NEXT:      scfgwi t3, 128                               # dm 0 dim 2 bound
+// CHECK-NEXT:      scfgwi t3, 96                                # dm 0 dim 1 bound
 // CHECK-NEXT:      li t3, 7
-// CHECK-NEXT:      scfgwi t3, 160                               # dm 0 dim 3 bound
-// CHECK-NEXT:      scfgwi zero, 192                             # dm 0 dim 0 stride
+// CHECK-NEXT:      scfgwi t3, 128                               # dm 0 dim 2 bound
 // CHECK-NEXT:      li t3, 8
-// CHECK-NEXT:      scfgwi t3, 224                               # dm 0 dim 1 stride
+// CHECK-NEXT:      scfgwi t3, 192                               # dm 0 dim 0 stride
 // CHECK-NEXT:      li t3, -56
-// CHECK-NEXT:      scfgwi t3, 256                               # dm 0 dim 2 stride
+// CHECK-NEXT:      scfgwi t3, 224                               # dm 0 dim 1 stride
 // CHECK-NEXT:      li t3, 8
-// CHECK-NEXT:      scfgwi t3, 288                               # dm 0 dim 3 stride
+// CHECK-NEXT:      scfgwi t3, 256                               # dm 0 dim 2 stride
+// CHECK-NEXT:      li t3, 3
+// CHECK-NEXT:      scfgwi t3, 32                                # dm 0 repeat
 // CHECK-NEXT:      li t3, 3
 // CHECK-NEXT:      scfgwi t3, 65                                # dm 1 dim 0 bound
 // CHECK-NEXT:      li t3, 7
@@ -391,7 +389,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      scfgwi t3, 66                                # dm 2 dim 0 bound
 // CHECK-NEXT:      li t3, 8
 // CHECK-NEXT:      scfgwi t3, 194                               # dm 2 dim 0 stride
-// CHECK-NEXT:      scfgwi t0, 864                               # dm 0 dim 3 source
+// CHECK-NEXT:      scfgwi t0, 832                               # dm 0 dim 2 source
 // CHECK-NEXT:      scfgwi t1, 865                               # dm 1 dim 3 source
 // CHECK-NEXT:      scfgwi t2, 898                               # dm 2 dim 0 destination
 // CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
