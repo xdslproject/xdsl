@@ -22,7 +22,7 @@ dev = [
     "pytest-cov",
     "coverage<8.0.0",
     "ipykernel",
-    "pytest<8.3",
+    "pytest<8.4",
     "nbval<0.12",
     "filecheck==1.0.0",
     "lit<19.0.0",
