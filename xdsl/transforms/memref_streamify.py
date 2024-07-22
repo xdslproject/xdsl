@@ -31,7 +31,7 @@ class StreamifyGenericOpPattern(RewritePattern):
         # Can only stream memrefs that are not inout
         input_count = len(op.inputs)
         streamable_input_indices = tuple(
-            (index, op.body.block.args[index].type)
+            (index, arg.type)
             for index, (i, arg) in enumerate(
                 zip(op.inputs, op.body.block.args[:input_count])
             )
