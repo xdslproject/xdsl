@@ -1,4 +1,6 @@
 from collections import defaultdict
+from collections.abc import Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import overload
 
@@ -83,6 +85,16 @@ class RegisterQueue:
             reg not in self.reserved_registers
         ), f"Cannot pop a reserved register ({reg.register_name}), it must have been reserved while available."
         return reg
+
+    @contextmanager
+    def reserve_registers(self, regs: Sequence[IntRegisterType | FloatRegisterType]):
+        for reg in regs:
+            self.reserve_register(reg)
+
+        yield
+
+        for reg in regs:
+            self.unreserve_register(reg)
 
     def reserve_register(self, reg: IntRegisterType | FloatRegisterType) -> None:
         """
