@@ -21,7 +21,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.llvm import FastMathAttrBase, FastMathFlag
-from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, BlockArgument, Dialect, Operation, OpResult, SSAValue, Use
 from xdsl.irdl import (
     AnyOf,
     ConstraintVar,
@@ -37,7 +37,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import ConstantLike, HasCanonicalisationPatternsTrait, Pure
+from xdsl.traits import ConstantLike, HasCanonicalisationPatternsTrait, Pure, UseDefChainTrait
 from xdsl.utils.deprecation import deprecated
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -701,6 +701,32 @@ class Cmpf(IRDLOperation, ComparisonOperation):
         printer.print_attribute(self.lhs.type)
 
 
+class SelectUseDefChainTrait(UseDefChainTrait):
+
+    @classmethod
+    def get_defs_following_from_operand_for(
+        cls, op: Operation, index: int
+    ) -> set[SSAValue]:
+        if isinstance(op, Select):
+            if index in [1,2]:
+                return {op.result}
+        return set()
+
+    @classmethod
+    def get_operands_leading_to_op_result_for(
+        cls, op: Operation, index: int
+    ) -> set[Use]:
+        if isinstance(op, Select):
+            return {Use(op, 1), Use(op, 2)}
+        return set()
+
+    @classmethod
+    def get_operands_leading_to_block_argument_for(
+        cls, op: Operation, arg: BlockArgument
+    ) -> set[Use]:
+        return set()
+
+
 @irdl_op_definition
 class Select(IRDLOperation):
     """
@@ -715,6 +741,8 @@ class Select(IRDLOperation):
     lhs: Operand = operand_def(Attribute)
     rhs: Operand = operand_def(Attribute)
     result: OpResult = result_def(Attribute)
+
+    traits = frozenset([SelectUseDefChainTrait()])
 
     # TODO replace with trait
     def verify_(self) -> None:
