@@ -2,7 +2,6 @@ import operator
 from functools import reduce
 from typing import Any, cast
 
-from xdsl.backend.riscv.lowering.convert_memref_to_riscv import element_size_for_type
 from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
@@ -19,6 +18,7 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    FixedBitwidthType,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -235,7 +235,8 @@ def strides_map_from_memref_type(memref_type: MemRefType[AttributeCovT]) -> Affi
             f"Unsupported empty shape in memref of type {memref_type}"
         )
 
-    factor = element_size_for_type(memref_type.element_type)
+    assert isinstance(memref_type.element_type, FixedBitwidthType)
+    factor = memref_type.element_type.size
 
     return AffineMap(
         len(strides),
