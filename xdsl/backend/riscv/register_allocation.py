@@ -1,4 +1,5 @@
 import abc
+from collections.abc import Sequence
 from itertools import chain
 from typing import cast
 
@@ -16,6 +17,7 @@ from xdsl.dialects.riscv import (
 from xdsl.ir import Block, Operation, SSAValue
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
+from xdsl.utils.exceptions import DiagnosticException
 
 
 def gather_allocated(func: riscv_func.FuncOp) -> set[RISCVRegisterType]:
@@ -96,8 +98,10 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
     exclude_preallocated: bool = True
     exclude_snitch_reserved: bool = True
 
-    def __init__(self) -> None:
-        self.available_registers = RegisterQueue()
+    def __init__(self, available_registers: RegisterQueue | None = None) -> None:
+        if available_registers is None:
+            available_registers = RegisterQueue()
+        self.available_registers = available_registers
         self.live_ins_per_block = {}
 
     def allocate(self, reg: SSAValue) -> bool:
@@ -115,6 +119,52 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             return True
 
         return False
+
+    def allocate_same(self, vals: Sequence[SSAValue]) -> bool:
+        reg_types = set(val.type for val in vals)
+        assert all(isinstance(reg_type, RISCVRegisterType) for reg_type in reg_types)
+        reg_types = cast(set[IntRegisterType | FloatRegisterType], reg_types)
+
+        match len(reg_types):
+            case 0:
+                # No inputs, nothing to do
+                return False
+            case 1:
+                # Single input, may already be allocated
+                reg_type = next(iter(reg_types))
+                if reg_type.is_allocated:
+                    return False
+                else:
+                    reg_type = self.available_registers.pop(type(reg_type))
+            case 2:
+                # Two inputs, either one is allocated or two
+                reg_type_0, reg_type_1 = reg_types
+                if reg_type_0.is_allocated:
+                    if reg_type_1.is_allocated:
+                        reg_names = [f"{reg_type}" for reg_type in reg_types]
+                        raise DiagnosticException(
+                            f"Cannot allocate registers to the same register {reg_names}"
+                        )
+                    else:
+                        reg_type = reg_type_0
+                else:
+                    reg_type = reg_type_1
+            case _:
+                # More than one input is allocated, meaning we can't allocate them to be
+                # the same, error.
+                reg_names = [f"{reg_type}" for reg_type in reg_types]
+                raise DiagnosticException(
+                    f"Cannot allocate registers to the same register {reg_names}"
+                )
+
+        did_allocate = False
+
+        for val in vals:
+            if val.type != reg_type:
+                val.type = reg_type
+                did_allocate = True
+
+        return did_allocate
 
     def _free(self, reg: SSAValue) -> None:
         if (
@@ -176,23 +226,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         for block_arg, operand, yield_operand, op_result in zip(
             block_args[1:], loop.iter_args, yield_op.operands, loop.results
         ):
-            # If some allocated then assign all to that type, otherwise get new reg
-            assert isinstance(block_arg.type, RISCVRegisterType)
-            assert isinstance(operand.type, RISCVRegisterType)
-            assert isinstance(yield_operand.type, RISCVRegisterType)
-            assert isinstance(op_result.type, RISCVRegisterType)
-
-            # Because we are walking backwards, the result of the operation may have been
-            # allocated already. If it isn't it's because it's not used below.
-            if not op_result.type.is_allocated:
-                # We only need to check one of the four since they're constrained to be
-                # the same
-                self.allocate(op_result)
-
-            shared_type = op_result.type
-            block_arg.type = shared_type
-            yield_operand.type = shared_type
-            operand.type = shared_type
+            self.allocate_same((block_arg, operand, yield_operand, op_result))
 
         # Induction variable
         assert isinstance(block_args[0].type, IntRegisterType)
@@ -238,23 +272,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         for block_arg, operand, yield_operand, op_result in zip(
             block_args, loop.iter_args, yield_op.operands, loop.results
         ):
-            # If some allocated then assign all to that type, otherwise get new reg
-            assert isinstance(block_arg.type, RISCVRegisterType)
-            assert isinstance(operand.type, RISCVRegisterType)
-            assert isinstance(yield_operand.type, RISCVRegisterType)
-            assert isinstance(op_result.type, RISCVRegisterType)
-
-            # Because we are walking backwards, the result of the operation may have been
-            # allocated already. If it isn't it's because it's not used below.
-            if not op_result.type.is_allocated:
-                # We only need to check one of the four since they're constrained to be
-                # the same
-                self.allocate(op_result)
-
-            shared_type = op_result.type
-            block_arg.type = shared_type
-            yield_operand.type = shared_type
-            operand.type = shared_type
+            self.allocate_same((block_arg, operand, yield_operand, op_result))
 
         self.allocate(loop.max_rep)
 
