@@ -2,19 +2,64 @@
 
 // CHECK:       builtin.module {
 
-%readable, %writable = "test.op"() : () -> (!stream.readable<f32>, !stream.writable<f32>)
+// CHECK-NEXT:    %f64_readable, %f64_writable = "test.op"() : () -> (!stream.readable<f64>, !stream.writable<f64>)
+%f64_readable, %f64_writable = "test.op"() : () -> (!stream.readable<f64>, !stream.writable<f64>)
 
-%val = memref_stream.read from %readable : f32
-memref_stream.write %val to %writable : f32
+// CHECK-NEXT:    %val_f64 = builtin.unrealized_conversion_cast %f64_readable : !stream.readable<f64> to !stream.readable<!riscv.freg>
+// CHECK-NEXT:    %{{.*}} = riscv_snitch.read from %val_f64 : !riscv.freg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f64
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %f64_writable : !stream.writable<f64> to !stream.writable<!riscv.freg>
+%val_f64 = memref_stream.read from %f64_readable : f64
 
-// CHECK-NEXT:    %readable, %writable = "test.op"() : () -> (!stream.readable<f32>, !stream.writable<f32>)
-// CHECK-NEXT:    %val = builtin.unrealized_conversion_cast %readable : !stream.readable<f32> to !stream.readable<!riscv.freg>
-// CHECK-NEXT:    %{{.*}} = riscv_snitch.read from %val : !riscv.freg
-// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f32
-// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %writable : !stream.writable<f32> to !stream.writable<!riscv.freg>
-// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f32 to !riscv.freg
-// CHECK-NEXT:    %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f64 to !riscv.freg
+// CHECK-NEXT:    %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg
 // CHECK-NEXT:    riscv_snitch.write %{{.*}} to %{{.*}} : !riscv.freg
+memref_stream.write %val_f64 to %f64_writable : f64
+
+
+// CHECK-NEXT:    %vf64_readable, %vf64_writable = "test.op"() : () -> (!stream.readable<vector<1xf64>>, !stream.writable<vector<1xf64>>)
+%vf64_readable, %vf64_writable = "test.op"() : () -> (!stream.readable<vector<1xf64>>, !stream.writable<vector<1xf64>>)
+
+// CHECK-NEXT:    %val_vf64 = builtin.unrealized_conversion_cast %vf64_readable : !stream.readable<vector<1xf64>> to !stream.readable<!riscv.freg>
+// CHECK-NEXT:    %{{.*}} = riscv_snitch.read from %val_vf64 : !riscv.freg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to vector<1xf64>
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %vf64_writable : !stream.writable<vector<1xf64>> to !stream.writable<!riscv.freg>
+%val_vf64 = memref_stream.read from %vf64_readable : vector<1xf64>
+
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : vector<1xf64> to !riscv.freg
+// CHECK-NEXT:    %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:    riscv_snitch.write %{{.*}} to %{{.*}} : !riscv.freg
+memref_stream.write %val_vf64 to %vf64_writable : vector<1xf64>
+
+// CHECK-NEXT:    %vf32_readable, %vf32_writable = "test.op"() : () -> (!stream.readable<vector<2xf32>>, !stream.writable<vector<2xf32>>)
+%vf32_readable, %vf32_writable = "test.op"() : () -> (!stream.readable<vector<2xf32>>, !stream.writable<vector<2xf32>>)
+
+// CHECK-NEXT:    %val_vf32 = builtin.unrealized_conversion_cast %vf32_readable : !stream.readable<vector<2xf32>> to !stream.readable<!riscv.freg>
+// CHECK-NEXT:    %{{.*}} = riscv_snitch.read from %val_vf32 : !riscv.freg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to vector<2xf32>
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %vf32_writable : !stream.writable<vector<2xf32>> to !stream.writable<!riscv.freg>
+%val_vf32 = memref_stream.read from %vf32_readable : vector<2xf32>
+
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : vector<2xf32> to !riscv.freg
+// CHECK-NEXT:    %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:    riscv_snitch.write %{{.*}} to %{{.*}} : !riscv.freg
+memref_stream.write %val_vf32 to %vf32_writable : vector<2xf32>
+
+
+// CHECK-NEXT:    %vf16_readable, %vf16_writable = "test.op"() : () -> (!stream.readable<vector<4xf16>>, !stream.writable<vector<4xf16>>)
+%vf16_readable, %vf16_writable = "test.op"() : () -> (!stream.readable<vector<4xf16>>, !stream.writable<vector<4xf16>>)
+
+// CHECK-NEXT:    %val_vf16 = builtin.unrealized_conversion_cast %vf16_readable : !stream.readable<vector<4xf16>> to !stream.readable<!riscv.freg>
+// CHECK-NEXT:    %{{.*}} = riscv_snitch.read from %val_vf16 : !riscv.freg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to vector<4xf16>
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %vf16_writable : !stream.writable<vector<4xf16>> to !stream.writable<!riscv.freg>
+%val_vf16 = memref_stream.read from %vf16_readable : vector<4xf16>
+
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : vector<4xf16> to !riscv.freg
+// CHECK-NEXT:    %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:    riscv_snitch.write %{{.*}} to %{{.*}} : !riscv.freg
+memref_stream.write %val_vf16 to %vf16_writable : vector<4xf16>
+
 
 %A, %B, %C = "test.op"() : () -> (memref<2xf64>, memref<3xf64>, memref<3x2xf64>)
 
