@@ -21,6 +21,7 @@ def insert_stride_pattern_ops(
     target_op: Operation,
     ub: builtin.ArrayAttr[builtin.IntAttr],
     strides: builtin.ArrayAttr[builtin.IntAttr],
+    repeat: builtin.IntAttr,
     dm: builtin.IntAttr,
 ):
     """
@@ -96,6 +97,14 @@ def insert_stride_pattern_ops(
         new_ops.extend((a_inc_op, new_a_op, stride_op, set_stride_op))
         a_op = new_a_op
 
+    # Always reset the repetition count, even if it's the default
+    new_ops.extend(
+        (
+            repeat_op := riscv.LiOp(repeat.data - 1),
+            snitch.SsrSetStreamRepetitionOp(repeat_op.rd, dm),
+        )
+    )
+
     rewriter.insert_op(new_ops, InsertPoint.before(target_op))
 
 
@@ -119,14 +128,24 @@ class LowerStreamingRegionOp(RewritePattern):
             patterns = (pattern,) * stream_count
             # Set same pattern for all data movers
             insert_stride_pattern_ops(
-                rewriter, op, pattern.ub, pattern.strides, builtin.IntAttr(31)
+                rewriter,
+                op,
+                pattern.ub,
+                pattern.strides,
+                pattern.repeat,
+                builtin.IntAttr(31),
             )
         else:
             patterns = op.stride_patterns.data
             # Set separate pattern per data mover
             for dm, pattern in enumerate(patterns):
                 insert_stride_pattern_ops(
-                    rewriter, op, pattern.ub, pattern.strides, builtin.IntAttr(dm)
+                    rewriter,
+                    op,
+                    pattern.ub,
+                    pattern.strides,
+                    pattern.repeat,
+                    builtin.IntAttr(dm),
                 )
 
         dms = tuple(range(stream_count))

@@ -353,8 +353,31 @@ class SignednessAttr(Data[Signedness]):
                 raise ValueError(f"Invalid signedness {data}")
 
 
+class FixedBitwidthType(TypeAttribute, ABC):
+    """
+    A type attribute with a defined bitwidth
+    """
+
+    name = "abstract.bitwidth_type"
+
+    @property
+    @abstractmethod
+    def bitwidth(self) -> int:
+        """
+        Contiguous memory footprint in bits
+        """
+        raise NotImplementedError()
+
+    @property
+    def size(self) -> int:
+        """
+        Contiguous memory footprint in bytes, defaults to `ceil(bitwidth / 8)`
+        """
+        return self.bitwidth >> 3 + bool(self.bitwidth % 8)
+
+
 @irdl_attr_definition
-class IntegerType(ParametrizedAttribute, TypeAttribute):
+class IntegerType(ParametrizedAttribute, FixedBitwidthType):
     name = "integer_type"
     width: ParameterDef[IntAttr]
     signedness: ParameterDef[SignednessAttr]
@@ -372,6 +395,10 @@ class IntegerType(ParametrizedAttribute, TypeAttribute):
 
     def value_range(self) -> tuple[int, int]:
         return self.signedness.data.value_range(self.width.data)
+
+    @property
+    def bitwidth(self) -> int:
+        return self.width.data
 
 
 i64 = IntegerType(64)
@@ -496,61 +523,61 @@ BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 class _FloatType(ABC):
     @property
     @abstractmethod
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         raise NotImplementedError()
 
 
 @irdl_attr_definition
-class BFloat16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class BFloat16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "bf16"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 16
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f16"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 16
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f32"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 32
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f64"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 64
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f80"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 80
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, TypeAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, FixedBitwidthType, _FloatType):
     name = "f128"
 
     @property
-    def get_bitwidth(self) -> int:
+    def bitwidth(self) -> int:
         return 128
 
 
@@ -1494,8 +1521,8 @@ bf16 = BFloat16Type()
 f16 = Float16Type()
 f32 = Float32Type()
 f64 = Float64Type()
-f80 = Float64Type()
-f128 = Float64Type()
+f80 = Float80Type()
+f128 = Float128Type()
 
 
 _MemRefTypeElement = TypeVar("_MemRefTypeElement", bound=Attribute)

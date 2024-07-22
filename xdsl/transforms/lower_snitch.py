@@ -97,7 +97,9 @@ class SnitchStreamerMemoryMap:
     )
 
 
-def write_ssr_config_ops(reg: int, dm: int, value: Operand) -> Iterable[Operation]:
+def write_ssr_config_ops(
+    reg: int, dm: int, value: Operand, comment: str | None = None
+) -> Iterable[Operation]:
     """
     Return the list of riscv operations needed to set a specific SSR configuration
     parameter located at 'reg' to a specific 'value' for a specific data mover
@@ -119,10 +121,8 @@ def write_ssr_config_ops(reg: int, dm: int, value: Operand) -> Iterable[Operatio
     ```
     """
     return [
-        address := riscv.LiOp(
-            immediate=IntegerAttr(dm | reg << 5, i32),
-        ),
-        riscv_snitch.ScfgwOp(rs1=value, rs2=address),
+        address := riscv.LiOp(immediate=IntegerAttr(dm | reg << 5, i32)),
+        riscv_snitch.ScfgwOp(rs1=value, rs2=address, comment=comment),
     ]
 
 
@@ -136,6 +136,7 @@ class LowerSsrSetDimensionBoundOp(RewritePattern):
             dm=op.dm.data,
             reg=SnitchStreamerMemoryMap.dimension[dim].bound,
             value=op.value,
+            comment=f"dm {op.dm.data} dim {dim} bound",
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -153,6 +154,7 @@ class LowerSsrSetDimensionStrideOp(RewritePattern):
             dm=op.dm.data,
             reg=SnitchStreamerMemoryMap.dimension[dim].stride,
             value=op.value,
+            comment=f"dm {op.dm.data} dim {dim} stride",
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -170,6 +172,7 @@ class LowerSsrSetDimensionSourceOp(RewritePattern):
             dm=op.dm.data,
             reg=SnitchStreamerMemoryMap.dimension[dim].source,
             value=op.value,
+            comment=f"dm {op.dm.data} dim {dim} source",
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -187,6 +190,7 @@ class LowerSsrSetDimensionDestinationOp(RewritePattern):
             dm=op.dm.data,
             reg=SnitchStreamerMemoryMap.dimension[dim].destination,
             value=op.value,
+            comment=f"dm {op.dm.data} dim {dim} destination",
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -203,6 +207,7 @@ class LowerSsrSetStreamRepetitionOp(RewritePattern):
             dm=op.dm.data,
             reg=SnitchStreamerMemoryMap.repeat,
             value=op.value,
+            comment=f"dm {op.dm.data} repeat",
         )
         rewriter.replace_matched_op(
             [*ops],
@@ -220,6 +225,7 @@ class LowerSsrEnable(RewritePattern):
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
                     immediate=IntegerAttr(1, i32),
                     rd=riscv.Registers.ZERO,
+                    comment="SSR enable",
                 ),
                 *get_stream_ops,
             ],
@@ -236,6 +242,7 @@ class LowerSsrDisable(RewritePattern):
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
                     immediate=IntegerAttr(1, i32),
                     rd=riscv.Registers.ZERO,
+                    comment="SSR disable",
                 )
             ],
             [],
