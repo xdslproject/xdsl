@@ -6,18 +6,27 @@ func.func public @ssum(
   %Y: memref<8x16xf32>,
   %Z: memref<8x16xf32>
 ) {
-  memref_stream.generic {
-    bounds = [8, 8],
-    indexing_maps = [
-      affine_map<(d0, d1) -> (d0, d1)>,
-      affine_map<(d0, d1) -> (d0, d1)>,
-      affine_map<(d0, d1) -> (d0, d1)>
-    ],
-    iterator_types = ["parallel", "parallel"]
-  } ins(%arg0, %arg1 : memref<8x16xf32>, memref<8x16xf32>) outs(%arg2 : memref<8x16xf32>) {
-  ^1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
-    %3 = arith.addf %in, %in_1 : vector<2xf32>
-    memref_stream.yield %3 : vector<2xf32>
+  memref_stream.streaming_region {
+    patterns = [
+      #memref_stream.stride_pattern<ub = [8, 8], index_map = (d0, d1) -> (d0, 2 * d1)>,
+      #memref_stream.stride_pattern<ub = [8, 8], index_map = (d0, d1) -> (d0, 2 * d1)>,
+      #memref_stream.stride_pattern<ub = [8, 8], index_map = (d0, d1) -> (d0, 2 * d1)>
+    ]
+  } ins(%X, %Y : memref<8x16xf32>, memref<8x16xf32>) outs(%Z : memref<8x16xf32>) {
+  ^0(%x_stream : !stream.readable<vector<2xf32>>, %y_stream : !stream.readable<vector<2xf32>>, %z_stream : !stream.writable<vector<2xf32>>):
+    memref_stream.generic {
+      bounds = [8, 8],
+      indexing_maps = [
+        affine_map<(d0, d1) -> (d0, 2 * d1)>,
+        affine_map<(d0, d1) -> (d0, 2 * d1)>,
+        affine_map<(d0, d1) -> (d0, 2 * d1)>
+      ],
+      iterator_types = ["parallel", "parallel"]
+    } ins(%x_stream, %y_stream : !stream.readable<vector<2xf32>>, !stream.readable<vector<2xf32>>) outs(%z_stream : !stream.writable<vector<2xf32>>) {
+    ^1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
+      %3 = arith.addf %in, %in_1 : vector<2xf32>
+      memref_stream.yield %3 : vector<2xf32>
+    }
   }
   func.return
 }

@@ -148,10 +148,6 @@ class StreamOpLowering(RewritePattern):
             for value in op.operands
             if isinstance(value_type := value.type, memref.MemRefType)
         )
-        el_types = tuple(operand_type.element_type for operand_type in operand_types)
-        if not all(el_type == builtin.f64 for el_type in el_types):
-            # Only support f64 streams for now
-            return
         stride_patterns = tuple(
             snitch_stream.StridePattern(
                 ArrayAttr(ub.value for ub in pattern.ub),
