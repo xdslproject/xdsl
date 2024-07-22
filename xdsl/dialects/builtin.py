@@ -1197,8 +1197,8 @@ class MemrefLayoutAttr(Attribute, ABC):
         in linear memory for every dimension in the iteration space of
         this memref layout attribute.
 
-        Note: The dimension of the iteration space may differ from the data
-        it represents. For instance, this can occur in a tiled layout.
+        Note: The dimension of the iteration space may differ from the dimension
+        of the data it represents. For instance, this can occur in a tiled layout.
 
         This is only applicable to hyper-rectangular layouts.
         If this is not applicable for a given layout, returns None
