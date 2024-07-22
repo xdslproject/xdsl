@@ -142,6 +142,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 if reg_type_0.is_allocated:
                     if reg_type_1.is_allocated:
                         reg_names = [f"{reg_type}" for reg_type in reg_types]
+                        reg_names.sort()
                         raise DiagnosticException(
                             f"Cannot allocate registers to the same register {reg_names}"
                         )
@@ -153,6 +154,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
                 # More than one input is allocated, meaning we can't allocate them to be
                 # the same, error.
                 reg_names = [f"{reg_type}" for reg_type in reg_types]
+                reg_names.sort()
                 raise DiagnosticException(
                     f"Cannot allocate registers to the same register {reg_names}"
                 )
