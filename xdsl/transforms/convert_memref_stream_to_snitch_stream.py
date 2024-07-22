@@ -1,12 +1,10 @@
 import operator
 from functools import reduce
-from typing import cast
+from typing import Any, cast
 
-from xdsl.backend.riscv.lowering.convert_memref_to_riscv import element_size_for_type
 from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
     move_to_unallocated_regs,
-    register_type_for_type,
 )
 from xdsl.context import MLContext
 from xdsl.dialects import (
@@ -20,10 +18,15 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    FixedBitwidthType,
+    Float16Type,
+    Float32Type,
+    Float64Type,
     IntAttr,
     MemRefType,
     ModuleOp,
     UnrealizedConversionCastOp,
+    VectorType,
 )
 from xdsl.ir import Attribute, AttributeCovT, Operation
 from xdsl.ir.affine import AffineExpr, AffineMap
@@ -39,6 +42,26 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 
 
+def snitch_stream_element_type_is_valid(attr: Attribute) -> bool:
+    """
+    An override of the helper to account for Snitch packed SIMD.
+    """
+    if isinstance(attr, VectorType):
+        attr = cast(VectorType[Any], attr)
+        match attr.element_type, attr.element_count():
+            case Float64Type(), 1:
+                return True
+            case Float32Type(), 2:
+                return True
+            case Float16Type(), 4:
+                return True
+            case _:
+                # TODO: handle fp8
+                return False
+    else:
+        return isinstance(attr, Float64Type)
+
+
 class ReadOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -49,7 +72,11 @@ class ReadOpLowering(RewritePattern):
         value_type = cast(
             stream.ReadableStreamType[Attribute], stream_type
         ).element_type
-        register_type = register_type_for_type(value_type).unallocated()
+        if not snitch_stream_element_type_is_valid(value_type):
+            raise DiagnosticException(
+                f"Invalid snitch stream element type {value_type}"
+            )
+        register_type = riscv.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
             (op.stream,), (stream.ReadableStreamType(register_type),)
@@ -83,7 +110,11 @@ class WriteOpLowering(RewritePattern):
         value_type = cast(
             stream.WritableStreamType[Attribute], stream_type
         ).element_type
-        register_type = register_type_for_type(value_type).unallocated()
+        if not snitch_stream_element_type_is_valid(value_type):
+            raise DiagnosticException(
+                f"Invalid snitch stream element type {value_type}"
+            )
+        register_type = riscv.Registers.UNALLOCATED_FLOAT
 
         new_stream = UnrealizedConversionCastOp.get(
             (op.stream,), (stream.WritableStreamType(register_type),)
@@ -96,9 +127,10 @@ class WriteOpLowering(RewritePattern):
             move_ops = ()
             new_values = cast_op.results
         else:
-            move_ops, new_values = move_to_unallocated_regs(
-                cast_op.results, (value_type,)
+            move_ops = (
+                riscv.FMvDOp(cast_op.results[0], rd=riscv.Registers.UNALLOCATED_FLOAT),
             )
+            new_values = move_ops[0].results
         new_write = riscv_snitch.WriteOp(new_values[0], new_stream.results[0])
 
         rewriter.replace_matched_op(
@@ -203,7 +235,8 @@ def strides_map_from_memref_type(memref_type: MemRefType[AttributeCovT]) -> Affi
             f"Unsupported empty shape in memref of type {memref_type}"
         )
 
-    factor = element_size_for_type(memref_type.element_type)
+    assert isinstance(memref_type.element_type, FixedBitwidthType)
+    factor = memref_type.element_type.size
 
     return AffineMap(
         len(strides),
