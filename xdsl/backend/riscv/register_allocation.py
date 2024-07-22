@@ -121,6 +121,13 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         return False
 
     def allocate_same(self, vals: Sequence[SSAValue]) -> bool:
+        """
+        Allocates the values passed in to the same register.
+        If some of the values are already allocated, they must be allocated to the same
+        register, and unallocated values are then allocated to this register.
+        If the values passed in are already allocated to differing registers, a
+        `DiagnosticException` is raised.
+        """
         reg_types = set(val.type for val in vals)
         assert all(isinstance(reg_type, RISCVRegisterType) for reg_type in reg_types)
         reg_types = cast(set[IntRegisterType | FloatRegisterType], reg_types)
