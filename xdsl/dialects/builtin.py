@@ -1281,6 +1281,7 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
             result += AffineConstantExpr(self.offset.data)
         else:  # NoneAttr
             result += AffineSymExpr(nb_symbols)
+            nb_symbols += 1
 
         for dim, stride in enumerate(self.strides.data):
             if isinstance(stride, IntAttr):
