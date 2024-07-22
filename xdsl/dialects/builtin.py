@@ -1248,10 +1248,10 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
         super().__init__([strides, offset])
 
     def get_strides(self) -> Sequence[int | None]:
-        return [
+        return tuple(
             None if isinstance(stride, NoneAttr) else stride.data
             for stride in self.strides
-        ]
+        )
 
     def get_offset(self) -> int | None:
         if isinstance(self.offset, NoneAttr):
@@ -1663,10 +1663,7 @@ class MemRefType(
     def get_affine_map(self) -> AffineMap:
         """
         Return the affine mapping from the iteration space of this
-        memref's layout to the byte offset in linear memory.
-
-        Unlike the get_affine_map of `MemrefLayoutAttr`, this
-        function accounts for element width.
+        memref's layout to the element offset in linear memory.
         """
         if isinstance(self.layout, NoneAttr):
             # empty shape not supported
@@ -1679,6 +1676,18 @@ class MemRefType(
             map = StridedLayoutAttr(strides).get_affine_map()
         else:
             map = self.layout.get_affine_map()
+
+        return map
+
+    def get_affine_map_bytes(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        memref's layout to the byte offset in linear memory.
+
+        Unlike the get_affine_map, this function accounts for element width.
+        """
+
+        map = self.get_affine_map()
 
         # account for element width
         assert isinstance(self.element_type, FixedBitwidthType)

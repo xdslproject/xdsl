@@ -203,19 +203,17 @@ def strides_for_affine_map(
     """
     if affine_map.num_symbols:
         raise ValueError("Cannot create strides for affine map with symbols")
-    offset_map = memref_type.get_affine_map()
-    if offset_map.num_symbols:
-        # only allowed for dynamic offsets, since we can ignore this here
-        # in that case, there would be one symbol, and all shapes are static
-        if not (
-            all(x != -1 for x in memref_type.get_shape())
-            and offset_map.num_symbols == 1
-        ):
-            raise ValueError("Cannot create strides for offset map with symbols")
 
+    # only static memref shapes are supported for now:
+    static_shapes = (shape != -1 for shape in memref_type.get_shape())
+    if not all(static_shapes):
+        raise ValueError("Cannot create strides for a memref with dynamic shapes")
+
+    offset_map = memref_type.get_affine_map_bytes()
     composed = offset_map.compose(affine_map)
 
     zeros = [0] * composed.num_dims
+    # composed map can have symbols for dynamic offset, just set them to 0
     symbols = [0] * composed.num_symbols
 
     result: list[int] = []
