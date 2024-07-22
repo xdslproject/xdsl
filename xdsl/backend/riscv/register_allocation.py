@@ -1,5 +1,6 @@
 import abc
 from itertools import chain
+from typing import cast
 
 from ordered_set import OrderedSet
 
@@ -202,17 +203,12 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         self.allocate(loop.step)
 
         # Reserve the loop carried variables for allocation within the body
-        for iter_arg in loop.iter_args:
-            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
-            self.available_registers.reserve_register(iter_arg.type)
-
-        for op in reversed(loop.body.block.ops):
-            self.process_operation(op)
-
-        # Unreserve the loop carried variables for allocation outside of the body
-        for iter_arg in loop.iter_args:
-            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
-            self.available_registers.unreserve_register(iter_arg.type)
+        regs = tuple(arg.type for arg in loop.iter_args)
+        assert all(isinstance(reg, IntRegisterType | FloatRegisterType) for reg in regs)
+        regs = cast(tuple[IntRegisterType | FloatRegisterType], regs)
+        with self.available_registers.reserve_registers(regs):
+            for op in reversed(loop.body.block.ops):
+                self.process_operation(op)
 
         # lb is only used as an input to the loop, so free induction variable before
         # allocating lb to it in case it's not yet allocated
@@ -260,22 +256,15 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             yield_operand.type = shared_type
             operand.type = shared_type
 
-        # Operands
-        for operand in loop.operands:
-            self.allocate(operand)
+        self.allocate(loop.max_rep)
 
         # Reserve the loop carried variables for allocation within the body
-        for iter_arg in loop.iter_args:
-            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
-            self.available_registers.reserve_register(iter_arg.type)
-
-        for op in reversed(loop.body.block.ops):
-            self.process_operation(op)
-
-        # Unreserve the loop carried variables for allocation outside of the body
-        for iter_arg in loop.iter_args:
-            assert isinstance(iter_arg.type, IntRegisterType | FloatRegisterType)
-            self.available_registers.unreserve_register(iter_arg.type)
+        regs = tuple(arg.type for arg in loop.iter_args)
+        assert all(isinstance(reg, IntRegisterType | FloatRegisterType) for reg in regs)
+        regs = cast(tuple[IntRegisterType | FloatRegisterType], regs)
+        with self.available_registers.reserve_registers(regs):
+            for op in reversed(loop.body.block.ops):
+                self.process_operation(op)
 
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         if not func.body.blocks:
