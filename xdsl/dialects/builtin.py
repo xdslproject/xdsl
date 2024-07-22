@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from math import ceil, prod
+from math import prod
 from typing import (
     TYPE_CHECKING,
     Annotated,
