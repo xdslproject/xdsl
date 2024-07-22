@@ -80,7 +80,7 @@ memref_stream.streaming_region {
 // CHECK-NEXT:    %C_1 = builtin.unrealized_conversion_cast %C : memref<3x2xf64> to !riscv.reg
 // CHECK-NEXT:    snitch_stream.streaming_region {
 // CHECK-NEXT:      patterns = [
-// CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [3, 2], strides = [8, 0]>,
+// CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [3], strides = [8], repeat = 2>,
 // CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [3, 2], strides = [0, 8]>,
 // CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [6], strides = [8]>
 // CHECK-NEXT:      ]
@@ -229,7 +229,7 @@ memref_stream.streaming_region {
 }
 // CHECK-NEXT:    snitch_stream.streaming_region {
 // CHECK-NEXT:      patterns = [
-// CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [3, 2, 5, 4], strides = [40, 0, 8, 0]>,
+// CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [3, 2, 5], strides = [40, 0, 8], repeat = 4>,
 // CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [3, 2, 5, 4], strides = [0, 32, 64, 8]>,
 // CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [24], strides = [8]>
 // CHECK-NEXT:      ]
