@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field
-from typing import cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref, memref_stream, stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Block, Region
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -29,19 +28,22 @@ class StreamifyGenericOpPattern(RewritePattern):
 
         init_indices = set(index.data for index in op.init_indices)
 
-        # Currently can only stream memrefs that are not inout
-        streamable_input_indices = tuple(
-            (index, cast(memref.MemRefType[Attribute], value_type).element_type)
-            for index, value in enumerate(op.inputs)
-            if isinstance(value_type := value.type, memref.MemRefType)
-            and op.body.block.args[index].uses
-        )
+        # Can only stream memrefs that are not inout
         input_count = len(op.inputs)
+        streamable_input_indices = tuple(
+            (index, arg.type)
+            for index, (i, arg) in enumerate(
+                zip(op.inputs, op.body.block.args[:input_count])
+            )
+            if isinstance(i.type, memref.MemRefType) and arg.uses
+        )
         streamable_output_indices = tuple(
-            (index, cast(memref.MemRefType[Attribute], value_type).element_type)
-            for index, value in enumerate(op.outputs)
-            if isinstance(value_type := value.type, memref.MemRefType)
-            if index in init_indices or not op.body.block.args[index + input_count].uses
+            (index, arg.type)
+            for index, (o, arg) in enumerate(
+                zip(op.outputs, op.body.block.args[input_count:])
+            )
+            if isinstance(o.type, memref.MemRefType)
+            if index in init_indices or not arg.uses
         )
         if not streamable_input_indices and not streamable_output_indices:
             # No memrefs to convert to streams
