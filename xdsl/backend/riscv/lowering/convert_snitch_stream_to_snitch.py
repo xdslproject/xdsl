@@ -97,13 +97,13 @@ def insert_stride_pattern_ops(
         new_ops.extend((a_inc_op, new_a_op, stride_op, set_stride_op))
         a_op = new_a_op
 
-    if repeat.data != 1:
-        new_ops.extend(
-            (
-                repeat_op := riscv.LiOp(repeat.data - 1),
-                snitch.SsrSetStreamRepetitionOp(repeat_op.rd, dm),
-            )
+    # Always reset the repetition count, even if it's the default
+    new_ops.extend(
+        (
+            repeat_op := riscv.LiOp(repeat.data - 1),
+            snitch.SsrSetStreamRepetitionOp(repeat_op.rd, dm),
         )
+    )
 
     rewriter.insert_op(new_ops, InsertPoint.before(target_op))
 
