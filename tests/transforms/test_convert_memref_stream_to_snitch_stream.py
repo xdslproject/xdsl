@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import Float64Type, MemRefType, f64
 from xdsl.ir.affine import AffineMap
 from xdsl.transforms.convert_memref_stream_to_snitch_stream import (
     strides_for_affine_map,
-    strides_map_from_memref_type,
 )
 from xdsl.utils.exceptions import DiagnosticException
 
@@ -20,9 +19,9 @@ def test_strides_map_from_memref_type():
         DiagnosticException,
         match="Unsupported empty shape in memref of type memref<f64>",
     ):
-        strides_map_from_memref_type(mem_type([]))
+        mem_type([]).get_affine_map()
 
-    assert strides_map_from_memref_type(mem_type([2, 3])) == AffineMap.from_callable(
+    assert mem_type([2, 3]).get_affine_map() == AffineMap.from_callable(
         lambda i, j: (i * 24 + j * 8,)
     )
 

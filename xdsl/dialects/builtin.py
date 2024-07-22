@@ -69,7 +69,7 @@ from xdsl.traits import (
     OptionalSymbolOpInterface,
     SymbolTable,
 )
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -1668,6 +1668,12 @@ class MemRefType(
         function accounts for element width.
         """
         if isinstance(self.layout, NoneAttr):
+            # empty shape not supported
+            if self.get_shape() == ():
+                raise DiagnosticException(
+                    f"Unsupported empty shape in memref of type {self}"
+                )
+
             strides = self.strides_for_shape(self.get_shape())
             map = StridedLayoutAttr(strides).get_affine_map()
         else:
@@ -1676,8 +1682,10 @@ class MemRefType(
         # account for element width
         assert isinstance(self.element_type, FixedBitwidthType)
 
-        return AffineMap(1, 0, (AffineConstantExpr(self.element_type.size),)).compose(
-            map
+        return AffineMap(
+            map.num_dims,
+            map.num_symbols,
+            tuple(result * self.element_type.size for result in map.results),
         )
 
     def get_strides(self) -> Sequence[int | None] | None:
