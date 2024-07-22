@@ -16,7 +16,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.experimental import dlt
 from xdsl.dialects.experimental.dlt import DLTCompatibleElementBaseType, IndexRangeType
-from xdsl.ir import Attribute, Block, MLContext, Operation, SSAValue
+from xdsl.ir import Attribute, Block, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -27,6 +27,7 @@ from xdsl.pattern_rewriter import (
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.experimental.dlt import layout_llvm_semantics
 from xdsl.transforms.experimental.dlt.layout_llvm_semantics import (
     ArgIndexGetter,
@@ -37,7 +38,7 @@ from xdsl.transforms.experimental.dlt.layout_llvm_semantics import (
     PtrCarriedIndexGetter,
     SSAExtentGetter,
     Semantic_Map,
-    StaticExtentGetter,
+    StaticExtentGetter, ValueMapInitialiser,
 )
 from xdsl.transforms.experimental.dlt.layout_manipulation import Manipulator
 
@@ -301,55 +302,6 @@ def get_as_i64(value: SSAValue) -> tuple[list[Operation], SSAValue]:
 #     return [op := UnrealizedConversionCastOp.get([value], [IndexType()])], op.outputs[0]
 
 
-def get_llvm_type_from_dlt_ptr(ptr_type: dlt.PtrType) -> llvm.LLVMStructType:
-    return llvm.LLVMStructType.from_type_list(
-        [llvm.LLVMPointerType.opaque()]
-        + len(ptr_type.filled_dimensions.data) * [i64]
-        + len(ptr_type.filled_extents.data) * [i64]
-    )
-
-
-def generate_ptr_struct_in_llvm(
-    output_type: dlt.PtrType,
-    allocated_ptr: SSAValue,
-    dim_map: dict[dlt.DimensionAttr, IndexGetter],
-    extent_resolver: ExtentResolver,
-) -> tuple[list[Operation], SSAValue]:
-    ops = [undef_op := llvm.UndefOp(get_llvm_type_from_dlt_ptr(output_type))]
-    ptr_struct_result = undef_op.res
-    ops.append(
-        set_ptr_op := llvm.InsertValueOp(
-            DenseArrayBase.from_list(i64, [0]), ptr_struct_result, allocated_ptr
-        )
-    )
-    ptr_struct_result = set_ptr_op.res
-    idx = 1
-    for dim in output_type.filled_dimensions:
-        dim_ops, (dim_result,) = dim_map[dim].get().output()
-        ops.extend(dim_ops)
-        as_i64_ops, dim_result = get_as_i64(dim_result)
-        ops.extend(as_i64_ops)
-        ops.append(
-            insert_op := llvm.InsertValueOp(
-                DenseArrayBase.from_list(i64, [idx]), ptr_struct_result, dim_result
-            )
-        )
-        idx += 1
-        ptr_struct_result = insert_op.res
-    for extent in output_type.filled_extents:
-        extent_ops, (extent_result,) = extent_resolver.resolve(extent).output()
-        ops.extend(extent_ops)
-        as_i64_ops, extent_result = get_as_i64(extent_result)
-        ops.extend(as_i64_ops)
-        ops.append(
-            insert_op := llvm.InsertValueOp(
-                DenseArrayBase.from_list(i64, [idx]), ptr_struct_result, extent_result
-            )
-        )
-        idx += 1
-        ptr_struct_result = insert_op.res
-    return ops, ptr_struct_result
-
 
 @dataclass
 class DLTSelectRewriter(RewritePattern):
@@ -364,7 +316,7 @@ class DLTSelectRewriter(RewritePattern):
         output_layout = output_type.layout
         print(input_layout, output_layout)
 
-        llvm_in_ptr_type = get_llvm_type_from_dlt_ptr(input_type)
+        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
         ops = []
         cast_input_op = UnrealizedConversionCastOp.get(select.tree, llvm_in_ptr_type)
         ops.append(cast_input_op)
@@ -412,7 +364,7 @@ class DLTSelectRewriter(RewritePattern):
             ops.append(set_ptr_op)
             ptr_struct_result = set_ptr_op.res
         else:
-            gen_ops, ptr_struct_result = generate_ptr_struct_in_llvm(
+            gen_ops, ptr_struct_result = Semantic_Map.generate_ptr_struct(
                 output_type, select_result, dim_map, extent_resolver
             )
             ops.extend(gen_ops)
@@ -441,7 +393,7 @@ class DLTGetRewriter(RewritePattern):
         assert isinstance(get_type, dlt.AcceptedTypes)
 
         ops = []
-        llvm_in_ptr_type = get_llvm_type_from_dlt_ptr(input_type)
+        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
         cast_input_op = UnrealizedConversionCastOp.get(get_op.tree, llvm_in_ptr_type)
         ops.append(cast_input_op)
         llvm_dlt_ptr_in = cast_input_op.outputs[0]
@@ -499,7 +451,7 @@ class DLTSetRewriter(RewritePattern):
         assert isinstance(set_type, dlt.AcceptedTypes)
 
         ops = []
-        llvm_in_ptr_type = get_llvm_type_from_dlt_ptr(input_type)
+        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
         cast_input_op = UnrealizedConversionCastOp.get(set_op.tree, llvm_in_ptr_type)
         ops.append(cast_input_op)
         llvm_dlt_ptr_in = cast_input_op.outputs[0]
@@ -582,7 +534,7 @@ class DLTAllocRewriter(RewritePattern):
         )
         buffer = malloc.returned
 
-        gen_ops, ptr_struct = generate_ptr_struct_in_llvm(
+        gen_ops, ptr_struct = Semantic_Map.generate_ptr_struct(
             ptr_type, buffer, {}, extent_resolver
         )
         ops.extend(gen_ops)
@@ -593,6 +545,7 @@ class DLTAllocRewriter(RewritePattern):
             ).contents_type: init_arg
             for init_arg in alloc_op.initialValues
         }
+        value_map_initialiser = ValueMapInitialiser(Semantic_Map, extent_resolver, init_values_map)
 
         # init_ops = init_layout(
         #     ptr_type.layout, extent_resolver, buffer, init_values_map
@@ -601,7 +554,7 @@ class DLTAllocRewriter(RewritePattern):
             ptr_type.layout,
             extent_resolver,
             buffer,
-            init_values_map,
+            value_map_initialiser,
             NoCallback(),
             [],
             True,
@@ -627,7 +580,7 @@ class DLTDeallocRewriter(RewritePattern):
 
         ops = []
 
-        llvm_in_ptr_type = get_llvm_type_from_dlt_ptr(ptr_type)
+        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(ptr_type)
         cast_input_op = UnrealizedConversionCastOp.get(dealloc_op.tree, llvm_in_ptr_type)
         ops.append(cast_input_op)
         llvm_in = cast_input_op.outputs[0]
@@ -842,7 +795,7 @@ class DLTIterateRewriter(RewritePattern):
             )
             ops.append(
                 cast_op := builtin.UnrealizedConversionCastOp.get(
-                    tensor_arg, get_llvm_type_from_dlt_ptr(tensor_arg.type)
+                    tensor_arg, Semantic_Map.get_data_type_from_dlt_ptr(tensor_arg.type)
                 )
             )
             llvm_tensor_arg = cast_op.outputs[0]
@@ -882,65 +835,110 @@ class DLTIterateRewriter(RewritePattern):
         ops.append(lb := arith.Constant(IntegerAttr(0, IndexType())))
         ops.append(step := arith.Constant(IntegerAttr(1, IndexType())))
 
-        loop_body = Block(
-            arg_types=[IndexType()] + [arg.type for arg in iterate_op.iter_args]
-        )
-        loop_body.add_op(scf.Yield(*loop_body.args[1:]))
-        loop_bodies = [loop_body]
-        outer_loop_op = None
-        for i, extent in reversed(list(enumerate(iterate_op.extents))):
-            extent_ops, (ext_ssa,) = extent_resolver.resolve(extent).output()
-            ops.extend(extent_ops)
-            loop_op = scf.For(lb, ext_ssa, step, iterate_op.iter_args, loop_body)
-            if i > 0:
-                block = Block(
-                    arg_types=[IndexType()] + [arg.type for arg in iterate_op.iter_args]
+        def _make_inner_body(indices_map: dict[int, BlockArgument], iter_args: list[SSAValue], insert_point: InsertPoint) -> list[SSAValue]:
+            _inner_body_ops = []
+
+            selected_tensors = []
+            block_arg_tensor_types = [arg.type for arg in iterate_op.get_block_args_for_tensor_args()]
+            indices = [indices_map[i] for i in range(len(iterate_op.extents))]
+
+            for tensor_arg, tensor_dims, tensor_type in zip(
+                    iterate_op.tensors, iterate_op.dimensions, block_arg_tensor_types
+            ):
+                tensor_dims = cast(
+                    builtin.ArrayAttr[dlt.SetAttr[dlt.DimensionAttr]], tensor_dims
                 )
-                block.add_op(loop_op)
-                block.add_op(scf.Yield(*loop_op.res))
-                loop_body = block
-                loop_bodies.append(loop_body)
+                dims = []
+                values = []
+                for index, extent_dims in zip(indices, tensor_dims):
+                    for dim in extent_dims:
+                        dims.append(dim)
+                        values.append(index)
+                select = dlt.SelectOp(tensor_arg, [], dims, values, tensor_type)
+                selected_tensors.append(select.res)
+                _inner_body_ops.append(select)
+
+            iterate_op_body_arg_vals = indices + selected_tensors + iter_args
+            dlt_yield_op = iterate_op.get_yield_op()
+            yielded = dlt_yield_op.arguments
+            dlt_yield_op.detach()
+            dlt_yield_op.erase()
+            Rewriter.insert_ops_at_location(_inner_body_ops, insert_point)
+            Rewriter.inline_block_at_location(iterate_op.body.block, insert_point, iterate_op_body_arg_vals)
+
+            return yielded
+
+        def _make_for_loop(iteration_order: dlt.IterationOrder, iter_args: list[SSAValue], indices_map: dict[int, BlockArgument], insert_point: InsertPoint) -> list[SSAValue]:
+            if isinstance(iteration_order, dlt.BodyIterationOrderAttr):
+                resulting_iter_args = _make_inner_body(indices_map, iter_args, insert_point)
+                return resulting_iter_args
+            elif isinstance(iteration_order, dlt.NestedIterationOrderAttr):
+                extent_idx = iteration_order.extent_index.data
+                extent = iterate_op.extents.data[extent_idx]
+                extent_ops, (ext_ssa,) = extent_resolver.resolve(extent).output()
+                ops.extend(extent_ops)
+                loop_body = Block(
+                    arg_types=[IndexType()] + [arg.type for arg in iter_args]
+                )
+                sub_iter_args = list(loop_body.args[1:])
+                sub_indices_map = indices_map | {extent_idx: loop_body.args[0]}
+                sub_insert_point = InsertPoint.at_end(loop_body)
+                resulting_iter_args = _make_for_loop(iteration_order.child, sub_iter_args, sub_indices_map, sub_insert_point)
+                loop_body.add_op(scf.Yield(*resulting_iter_args))
+                for_op = scf.For(lb, ext_ssa, step, iter_args, loop_body)
+                Rewriter.insert_ops_at_location([for_op], insert_point)
+                return for_op.res
             else:
-                outer_loop_op = loop_op
+                raise NotImplementedError(f"We do not currently support {iteration_order}")
 
-        indices = list(reversed([body.args[0] for body in loop_bodies]))
-        assert len(indices) == len(iterate_op.extents)
-        inner_body = loop_bodies[0]
+        resulting_iter_args = _make_for_loop(iterate_op.order, iterate_op.iter_args, {}, InsertPoint.after(iterate_op))
+        rewriter.replace_matched_op(ops, resulting_iter_args)
 
-        selectors = []
-        block_arg_tensor_types = [
-            arg.type
-            for arg in iterate_op.body.block.args[
-                len(iterate_op.extents) : len(iterate_op.extents)
-                + len(iterate_op.tensors)
-            ]
-        ]
-        for tensor_arg, tensor_dims, tensor_type in zip(
-            iterate_op.tensors, iterate_op.dimensions, block_arg_tensor_types
-        ):
-            tensor_dims = cast(
-                builtin.ArrayAttr[dlt.SetAttr[dlt.DimensionAttr]], tensor_dims
-            )
-            dims = []
-            values = []
-            for index, extent_dims in zip(indices, tensor_dims):
-                for dim in extent_dims:
-                    dims.append(dim)
-                    values.append(index)
-            select = dlt.SelectOp(tensor_arg, [], dims, values, tensor_type)
-            selectors.append(select)
-            rewriter.insert_op_at_start(select, inner_body)
-
-        arg_vals = indices + [s.res for s in selectors] + list(inner_body.args[1:])
-        dlt_yield_op = iterate_op.get_yield_op()
-        rewriter.inline_block_before(
-            iterate_op.body.block, inner_body.last_op, arg_vals
-        )
-        rewriter.replace_op(inner_body.last_op, scf.Yield(*dlt_yield_op.operands))
-        rewriter.erase_op(dlt_yield_op)
-
-        ops.append(outer_loop_op)
-        rewriter.replace_matched_op(ops, outer_loop_op.results)
+        #
+        # for extent_idx, extent in reversed(list(zip(extent_idx_map, extent_loops_order))):
+        #     extent_ops, (ext_ssa,) = extent_resolver.resolve(extent).output()
+        #     ops.extend(extent_ops)
+        #     current_loop_body = Block(
+        #         arg_types=[IndexType()] + [arg.type for arg in iter_args]
+        #     )
+        #     current_loop_body.add_op(scf.Yield(*current_loop_body.args[1:]))
+        #     loop_bodies.insert(0, current_loop_body)
+        #     indices[extent_idx] = current_loop_body.args[0]
+        #     iter_args = current_loop_body.args[1:1 + len(iter_args)]
+        #
+        #     current_loop_op = scf.For(lb, ext_ssa, step, iter_args, current_loop_body)
+        #
+        #     if loop_body is not None:
+        #         loop_body.add_op(current_loop_op)
+        #         loop_body.add_op(scf.Yield(*current_loop_op.res))
+        #     else:
+        #         loop_outer = current_loop_op
+        #     loop_body = current_loop_body
+        #
+        #
+        #
+        # for i, extent in reversed(list(enumerate(iterate_op.extents))):
+        #     extent_ops, (ext_ssa,) = extent_resolver.resolve(extent).output()
+        #     ops.extend(extent_ops)
+        #     loop_op = scf.For(lb, ext_ssa, step, iterate_op.iter_args, loop_body)
+        #     if i > 0:
+        #         block = Block(
+        #             arg_types=[IndexType()] + [arg.type for arg in iterate_op.iter_args]
+        #         )
+        #         block.add_op(loop_op)
+        #         block.add_op(scf.Yield(*loop_op.res))
+        #         loop_body = block
+        #         loop_bodies.append(loop_body)
+        #     else:
+        #         outer_loop_op = loop_op
+        #
+        # indices = list(reversed([body.args[0] for body in loop_bodies]))
+        # assert len(indices) == len(iterate_op.extents)
+        # inner_body = loop_bodies[0]
+        #
+        #
+        # ops.append(outer_loop_op)
+        # rewriter.replace_matched_op(ops, outer_loop_op.results)
 
 
 @dataclass
@@ -971,7 +969,7 @@ class DLTCopyRewriter(RewritePattern):
             ],
             [copy_op.src, copy_op.dst],
             [],
-            builtin.StringAttr("nested"),
+            dlt.NestedIterationOrderAttr.generate_for(list(range(len(src_extents))))
         )
         ops.append(iterate_op)
         body = iterate_op.body.block
@@ -996,7 +994,7 @@ class DLTExtractExtentRewriter(RewritePattern):
         # dlt_ptr = cast(dlt.PtrType, dlt_ptr)
         ops = []
 
-        llvm_type = get_llvm_type_from_dlt_ptr(dlt_ptr)
+        llvm_type = Semantic_Map.get_data_type_from_dlt_ptr(dlt_ptr)
         ops.append(
             cast_op := builtin.UnrealizedConversionCastOp.get(
                 extract_op.tree, llvm_type
@@ -1026,7 +1024,7 @@ class DLTScopeRewriter(RewritePattern):
 class DLTPtrTypeRewriter(TypeConversionPattern):
     @attr_type_rewrite_pattern
     def convert_type(self, typ: dlt.PtrType, /) -> Attribute | None:
-        return get_llvm_type_from_dlt_ptr(typ)
+        return Semantic_Map.get_data_type_from_dlt_ptr(typ)
 
 
 @dataclass
@@ -1042,18 +1040,18 @@ class DLTIndexRangeTypeRewriter(TypeConversionPattern):
         return llvm.LLVMStructType.from_type_list([IndexType(), IndexType()])
 
 
-def add_to_llvm_pointer(
-    ptr: SSAValue, value: SSAValue
-) -> tuple[list[Operation], SSAValue]:
-    assert isinstance(ptr.type, llvm.LLVMPointerType)
-    ops = []
-    if isinstance(value.type, IndexType):
-        cast_ops, value = get_as_i64(value)
-        ops.extend(cast_ops)
-    ops.append(ptr_to_int_op := llvm.PtrToIntOp(ptr))
-    ops.append(add_op := arith.Addi(ptr_to_int_op.output, value))
-    ops.append(int_to_ptr_op := llvm.IntToPtrOp(add_op.result))
-    return ops, int_to_ptr_op.output
+# def add_to_llvm_pointer(
+#     ptr: SSAValue, value: SSAValue
+# ) -> tuple[list[Operation], SSAValue]:
+#     assert isinstance(ptr.type, llvm.LLVMPointerType)
+#     ops = []
+#     if isinstance(value.type, IndexType):
+#         cast_ops, value = get_as_i64(value)
+#         ops.extend(cast_ops)
+#     ops.append(ptr_to_int_op := llvm.PtrToIntOp(ptr))
+#     ops.append(add_op := arith.Addi(ptr_to_int_op.output, value))
+#     ops.append(int_to_ptr_op := llvm.IntToPtrOp(add_op.result))
+#     return ops, int_to_ptr_op.output
 
 
 class LowerDLTPass(ModulePass):

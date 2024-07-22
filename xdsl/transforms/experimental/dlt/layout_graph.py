@@ -3,7 +3,7 @@ from typing import Iterable, cast
 
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.dialects.experimental import dlt
-from xdsl.ir import SSAValue
+from xdsl.ir import SSAValue, Use
 from xdsl.pattern_rewriter import PatternRewriteWalker
 from xdsl.transforms.experimental.dlt.layout_manipulation import (
     InConsistentLayoutException,
@@ -30,7 +30,7 @@ class ExtentConstraint:
     extent: dlt.InitDefinedExtentAttr
 
 
-class ConsistencyError(Exception):
+class DLTPtrConsistencyError(Exception):
     pass
 
 
@@ -148,7 +148,32 @@ class LayoutGraph:
     def get_type_map(self) -> dict[StringAttr, dlt.PtrType]:
         return {i: self.get_type_for(i) for i in self.ident_count}
 
-    def consistent_check(self, new_types: dict[StringAttr, dlt.PtrType] = None):
+    def get_idents(self) -> Iterable[StringAttr]:
+        return self.ident_count.keys()
+
+    def get_uses(self, ident: StringAttr) -> set[Use]:
+        assert ident in self.ident_count
+        ssa_vals = self.ident_count[ident]
+        return {u for ssa in ssa_vals for u in ssa.uses}
+
+    def get_transitive_closure(self, ident: StringAttr) -> set[StringAttr]:
+        idents = {ident}
+        changed = True
+        active_edges = set(self.edges)
+        while changed:
+            changed = False
+            for edge in active_edges:
+                if edge.start in idents:
+                    if edge.end not in idents:
+                        idents.add(edge.end)
+                        changed = True
+        return idents
+
+    def get_transitive_uses(self, ident: StringAttr) -> set[Use]:
+        idents = self.get_transitive_closure(ident)
+        return {u for id in idents for u in self.get_uses(id)}
+
+    def check_consistency(self, new_types: dict[StringAttr, dlt.PtrType] = None):
         if new_types is None:
             new_types = {}
             for identity in self.ident_count:
@@ -171,7 +196,7 @@ class LayoutGraph:
                 edge.members
             ).select_dimensions(edge.dimensions)
             if output != ending_type.contents_type:
-                raise ConsistencyError(
+                raise DLTPtrConsistencyError(
                     f"Edge not satisfied - input type with edge selected has different contents type than output.\n"
                     f"start {edge.start}: {starting_type.contents_type}\n"
                     f"members: {edge.members}\n"
@@ -181,7 +206,7 @@ class LayoutGraph:
                 )
             for extent in ending_type.filled_extents:
                 if extent not in starting_type.filled_extents:
-                    raise ConsistencyError(
+                    raise DLTPtrConsistencyError(
                         f"Edge not satisfied - output has gained extent from nowhere: {extent}.\n"
                         f"start {edge.start} extents: {starting_type.filled_extents}\n"
                         f"end {edge.end} extents: {ending_type.filled_extents}\n"
@@ -193,7 +218,7 @@ class LayoutGraph:
                 ptr_can_derive_to(
                     starting_type, ending_type, edge.members, edge.dimensions
                 )
-                raise ConsistencyError(
+                raise DLTPtrConsistencyError(
                     f"Edge not satisfied - Cannot derive ending type from starting type\n"
                     f"start {edge.start}: {starting_type}\n"
                     f"end {edge.end} extents: {ending_type}\n"
@@ -207,9 +232,9 @@ class LayoutGraph:
 
     def is_consistent(self, new_types: dict[StringAttr, dlt.PtrType] = None):
         try:
-            check = self.consistent_check(new_types)
+            check = self.check_consistency(new_types)
             return check
-        except ConsistencyError as e:
+        except DLTPtrConsistencyError as e:
             return False
 
     def use_types(self, new_types: dict[StringAttr, dlt.PtrType]):

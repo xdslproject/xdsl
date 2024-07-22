@@ -876,7 +876,7 @@ class DTLRewriter(RewritePattern):
         block.add_op(iter_yield)
 
         iterateOp = dlt.IterateOp(
-            extents, extent_args, dimension_specifiers, ptr_elements, [], builtin.StringAttr("nested"), block
+            extents, extent_args, dimension_specifiers, ptr_elements, [], None, None, block
         )
 
         ops.append(iterateOp)
@@ -957,7 +957,7 @@ class DTLRewriter(RewritePattern):
         block.add_op(dlt.IterateYieldOp())
 
         iterateOp = dlt.IterateOp(
-            extents, extent_args, dimension_specifiers, tensor_inputs, [], builtin.StringAttr("nested"), block
+            extents, extent_args, dimension_specifiers, tensor_inputs, [], None, None, block
         )
 
         return [iterateOp]
@@ -1047,7 +1047,8 @@ class DTLRewriter(RewritePattern):
             [[[]]],
             [],
             [accumulator_op],
-            builtin.StringAttr("nested"),
+            None,
+            None,
             block,
         )
         ops.append(iterateOp)

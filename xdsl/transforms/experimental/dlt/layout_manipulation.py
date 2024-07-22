@@ -935,6 +935,141 @@ class ArithDropManipulator(LayoutNodeManipulator[dlt.ArithDropLayoutAttr]):
         )
 
 
+class ArithReplaceManipulator(LayoutNodeManipulator[dlt.ArithReplaceLayoutAttr]):
+
+    def minimal_reduction(
+        self,
+        layout: dlt.ArithReplaceLayoutAttr,
+        members: set[dlt.MemberAttr],
+        dimensions: set[dlt.DimensionAttr],
+        extents: set[dlt.InitDefinedExtentAttr],
+        allowable_members: set[dlt.MemberAttr],
+        allowable_dimensions: set[dlt.DimensionAttr],
+        allowable_extents: set[dlt.InitDefinedExtentAttr],
+    ) -> tuple[dlt.Layout, set[dlt.MemberAttr], set[dlt.DimensionAttr]]:
+
+        replacements = []
+        for dim in dimensions:
+            replacement_for = layout.replacement_for(dim)
+            if replacement_for is not None:
+                replacements.append(replacement_for)
+
+        if len(replacements) != 1:
+            raise InConsistentLayoutException()
+        replacement = replacements[0]
+
+        new_dimensions = (dimensions - {replacement.outer_dimension}) | {replacement.inner_dimension}
+
+        if replacement.inner_member in members:
+            raise InConsistentLayoutException()
+
+        new_members = members | {replacement.inner_member}
+
+        return self.manipulator.minimal_reduction(
+            layout.child,
+            new_members,
+            new_dimensions,
+            extents,
+            allowable_members,
+            allowable_dimensions,
+            allowable_extents,
+        )
+
+    def structural_reduction(
+        self, layout: dlt.ArithReplaceLayoutAttr, dlt_type: dlt.TypeType
+    ) -> None | dlt.Layout:
+        return None
+
+    def reduce_to_terminal(
+        self,
+        layout: dlt.ArithReplaceLayoutAttr,
+        members_to_select: set[dlt.MemberAttr],
+        dimensions_to_select: set[dlt.DimensionAttr],
+        base_type: dlt.AcceptedTypes,
+    ) -> None | dlt.Layout:
+        dims_to_select = layout.outer_dimensions() & dimensions_to_select
+        if len(dims_to_select) != 1:
+            raise InConsistentLayoutException()
+        replacement = layout.replacement_for(dims_to_select.pop())
+
+        return self.manipulator.reduce_to_terminal(
+            layout.child,
+            members_to_select | {replacement.inner_member},
+            (dimensions_to_select - {replacement.outer_dimension}) | {replacement.inner_dimension},
+            base_type,
+        )
+
+    def can_layout_derive_to(
+        self,
+        layout: dlt.ArithReplaceLayoutAttr,
+        starting_point: dlt.PtrType,
+        end_layout: dlt.Layout,
+        end_point: dlt.PtrType,
+        selectable_members: set[dlt.MemberAttr],
+        selectable_dimensions: set[dlt.DimensionAttr],
+        usable_extents: set[dlt.InitDefinedExtentAttr],
+        enclosing_knowledge: set[dlt.KnowledgeLayout],
+    ) -> bool:
+        selectable_dims = layout.outer_dimensions() & selectable_dimensions
+        if len(selectable_dims) != 1:
+            return False
+        replacement = layout.replacement_for(selectable_dims.pop())
+
+        return self.manipulator.can_layout_derive_to(
+            layout.child,
+            starting_point,
+            end_layout,
+            end_point,
+            selectable_members | {replacement.inner_member},
+            (selectable_dimensions - {replacement.outer_dimension}) | {replacement.inner_dimension},
+            usable_extents,
+            enclosing_knowledge,
+        )
+
+    def embed_layout_in(
+        self,
+        child_layout: dlt.Layout,
+        parent_layout: dlt.ArithReplaceLayoutAttr,
+        members: set[dlt.MemberAttr],
+        dimensions: set[dlt.DimensionAttr],
+        extents: set[dlt.InitDefinedExtentAttr],
+    ) -> dlt.Layout:
+        dims = parent_layout.outer_dimensions() & dimensions
+        if len(dims) != 1:
+            raise InConsistentLayoutException()
+        replacement = parent_layout.replacement_for(dims.pop())
+        child_content_type = child_layout.contents_type
+
+        # if the child layout type provides the inner dim and member then we should embed it directly here
+        # but if it doesn't then it must have been reduced and so we must embed at those reduced sub-tree positions
+        if child_content_type.has_selectable([replacement.inner_member], [replacement.inner_dimension]):
+            new_members = members
+            new_dimensions = dimensions
+        elif child_content_type.has_selectable([replacement.inner_member], []):
+            new_members = members
+            new_dimensions = dimensions | {replacement.inner_dimension}
+        elif child_content_type.has_selectable([], [replacement.inner_dimension]):
+            new_members = members | {replacement.inner_member}
+            new_dimensions = dimensions
+        else:
+            new_members = members | {replacement.inner_member}
+            new_dimensions = dimensions | {replacement.inner_dimension}
+
+
+        return parent_layout.from_new_children(
+
+            [
+                self.manipulator.embed_layout_in(
+                    child_layout,
+                    parent_layout.child,
+                    new_members,
+                    new_dimensions,
+                    extents,
+                )
+            ]
+        )
+
+
 class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
 
     def minimal_reduction(
@@ -1005,6 +1140,7 @@ class IndexingManipulator(LayoutNodeManipulator[dlt.IndexingLayoutAttr]):
             index_dimensions = dimensions - direct_type.all_dimension_attributes()
             new_index_child = self.manipulator.embed_layout_in(child_layout, parent_layout.indexedChild, index_members, index_dimensions, extents)
             return parent_layout.from_new_children([parent_layout.directChild, new_index_child])
+
 
 class UnpackedCOOManipulator(LayoutNodeManipulator[dlt.UnpackedCOOLayoutAttr]):
 

@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.experimental import dlt
 from xdsl.dialects.experimental.dlt import SelectOp
 from xdsl.ir import (
-    SSAValue, Use, Operation, Attribute,
+    Block, SSAValue, Use, Operation, Attribute,
 )
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -21,6 +21,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
 )
 from xdsl.traits import UseDefChainTrait
+from xdsl.transforms.experimental.dlt.iteration_map import IterationMap
 from xdsl.transforms.experimental.dlt.layout_graph import LayoutGraph
 from xdsl.transforms.experimental.dlt.dlt_ptr_type_rewriter import PtrIdentityTypeRewriter
 
@@ -29,11 +30,47 @@ class _Namer:
     def __init__(self, prefix: str = "_Ident_", start: int = 0):
         self.prefix = prefix
         self.counter = start
+        self.used = set()
 
     def get_next(self) -> StringAttr:
         ident = f"{self.prefix}{self.counter}"
         self.counter += 1
-        return StringAttr(ident)
+        name = StringAttr(ident)
+        while name in self.used:
+            ident = f"{self.prefix}{self.counter}"
+            self.counter += 1
+            name = StringAttr(ident)
+        self.used.add(name)
+        return name
+
+    def set_used(self, name: StringAttr):
+        self.used.add(name)
+
+
+
+@dataclass
+class DLTGenerateIterateOpIdentitiesRewriter(RewritePattern):
+
+    prefix: str = "_Ident_"
+    iteration_maps: dict[dlt.LayoutScopeOp, IterationMap] = field(default_factory=dict)
+    namers: dict[dlt.LayoutScopeOp, _Namer] = field(default_factory=dict)
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, iter_op: dlt.IterateOp, rewriter: PatternRewriter):
+        scope = iter_op.get_scope()
+        if scope not in self.iteration_maps:
+            self.iteration_maps[scope] = IterationMap({})
+        if scope not in self.namers:
+            self.namers[scope] = _Namer(prefix=self.prefix)
+
+        if iter_op.has_identity:
+            self.namers[scope].set_used(iter_op.identification)
+        else:
+            new_name = self.namers[scope].get_next()
+            iter_op.set_identity(new_name)
+            rewriter.handle_operation_modification(iter_op)
+
+        self.iteration_maps[scope].add(iter_op)
 
 
 
@@ -62,6 +99,9 @@ class DLTGeneratePtrIdentitiesRewriter(RewritePattern):
             for arg in [arg for region in op.regions for block in region.blocks for arg in block.args if isinstance(arg.type, dlt.PtrType) and arg.type.has_identity]:
                 initial_identities_set.add(arg.type.identification)
                 layout_graph.add_ssa_value(arg)
+
+        for name in initial_identities_set:
+            namer.set_used(name)
 
         # give everything else that doesn't already have an identity, an identity, propagating them as we go
         for op in scope.walk():
@@ -113,6 +153,8 @@ class DLTGeneratePtrIdentitiesRewriter(RewritePattern):
             ident = namer.get_next()
             new_ptr = current_ptr.with_identification(ident)
             result.type = new_ptr
+            modified_op = result.owner if isinstance(result.owner, Operation) else result.owner.parent_op()
+            rewriter.handle_operation_modification(modified_op)
             layout_graph.add_ssa_value(result)
             self.propagate_ident(result, current_ptr, ident, layout_graph, rewriter)
         else:

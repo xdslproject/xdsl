@@ -9,10 +9,11 @@ from xdsl.pattern_rewriter import TypeConversionPattern, attr_type_rewrite_patte
 @dataclass
 class PtrIdentityTypeRewriter(TypeConversionPattern):
 
-    def __init__(self, ptr, group):
+    def __init__(self, ptr: [dlt.PtrType], group: set[StringAttr]):
         self.ptr = ptr
         self.group = group
         super().__init__(recursive=True)
+
     @attr_type_rewrite_pattern
     def convert_type(self, typ: dlt.PtrType, /) -> Attribute | None:
         if typ.identification in self.group:
@@ -22,10 +23,11 @@ class PtrIdentityTypeRewriter(TypeConversionPattern):
 @dataclass
 class PtrIdentityBulkTypeRewriter(TypeConversionPattern):
 
-    def __init__(self, map: dict[StringAttr, dlt.PtrType]):
-        self.map = map
+    def __init__(self, ptr_map: dict[StringAttr, dlt.PtrType]):
+        self.ptr_map = ptr_map
         super().__init__(recursive=True)
+
     @attr_type_rewrite_pattern
     def convert_type(self, typ: dlt.PtrType, /) -> Attribute | None:
-        if typ.identification in self.map:
-            return self.map[typ.identification]
+        if typ.identification in self.ptr_map:
+            return self.ptr_map[typ.identification]
