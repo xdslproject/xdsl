@@ -17,13 +17,12 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t0, a2
-// CHECK-NEXT:      li t3, 4
-// CHECK-NEXT:      scfgwi t3, 64
 // CHECK-NEXT:      li t3, 160
-// CHECK-NEXT:      scfgwi t3, 96
-// CHECK-NEXT:      scfgwi zero, 192
+// CHECK-NEXT:      scfgwi t3, 64
 // CHECK-NEXT:      li t3, 8
-// CHECK-NEXT:      scfgwi t3, 224
+// CHECK-NEXT:      scfgwi t3, 192
+// CHECK-NEXT:      li t3, 4
+// CHECK-NEXT:      scfgwi t3, 32
 // CHECK-NEXT:      li t3, 4
 // CHECK-NEXT:      scfgwi t3, 65
 // CHECK-NEXT:      li t3, 160
@@ -32,7 +31,8 @@ func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%
 // CHECK-NEXT:      scfgwi t3, 193
 // CHECK-NEXT:      li t3, -5144
 // CHECK-NEXT:      scfgwi t3, 225
-// CHECK-NEXT:      scfgwi t2, 800
+// CHECK-NEXT:      scfgwi zero, 33                              # dm 1 repeat
+// CHECK-NEXT:      scfgwi t2, 768
 // CHECK-NEXT:      scfgwi t1, 801
 // CHECK-NEXT:      csrrsi zero, 1984, 1
 // CHECK-NEXT:      mv t1, t0
