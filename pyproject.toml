@@ -22,21 +22,21 @@ dev = [
     "pytest-cov",
     "coverage<8.0.0",
     "ipykernel",
-    "pytest<8.3",
+    "pytest<8.4",
     "nbval<0.12",
     "filecheck==1.0.0",
     "lit<19.0.0",
-    "marimo==0.7.5",
+    "marimo==0.7.9",
     "pre-commit==3.7.1",
-    "ruff==0.5.2",
+    "ruff==0.5.4",
     "asv<0.7",
     "isort==5.13.2",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.5.1",
-    "pytest-asyncio==0.23.7",
+    "pytest-asyncio==0.23.8",
     "pyright==1.1.345",
 ]
-gui = ["textual==0.72.0", "pyclip==0.7"]
+gui = ["textual==0.73.0", "pyclip==0.7"]
 onnx = ["onnx==1.16.1"]
 riscv = ["riscemu==2.2.7"]
 wgpu = ["wgpu==0.16.0"]
@@ -58,7 +58,7 @@ platforms = ["Linux", "Mac OS-X", "Unix"]
 zip-safe = false
 
 [tool.setuptools.package-data]
-xdsl = ["py.typed", "interactive/*.tcss", "_version.py"]
+xdsl = ["**/*.irdl", "py.typed", "interactive/*.tcss", "_version.py"]
 
 [build-system]
 requires = ["setuptools>=42", "wheel", "versioneer[toml]"]

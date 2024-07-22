@@ -141,7 +141,7 @@ class CNotGateOp(QRefBase):
     def __init__(self, in1: SSAValue, in2: SSAValue):
         super().__init__(
             operands=(in1, in2),
-            result_types=(qubit, qubit),
+            result_types=(),
         )
 
     def ssa_op(self) -> qssa.CNotGateOp:
