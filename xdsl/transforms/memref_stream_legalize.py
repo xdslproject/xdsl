@@ -91,8 +91,11 @@ def _legalize_block(block: Block, rewriter: PatternRewriter) -> None:
             attributes=op.attributes,
         )
         rewriter.replace_op(op, new_op)
-        for idx in illegal_results:
-            to_be_legalized.update(use.operation for use in new_op.results[idx].uses)
+        to_be_legalized.update(
+            use.operation 
+            for idx in illegal_results
+            for use in new_op.results[idx].uses
+        )
 
 
 @dataclass(frozen=True)
