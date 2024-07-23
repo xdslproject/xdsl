@@ -15,8 +15,7 @@ from xdsl.dialects.builtin import (
     f32,
 )
 from xdsl.dialects.linalg import IteratorType
-from xdsl.ir import Attribute
-from xdsl.ir.core import Use
+from xdsl.ir import Attribute, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -66,12 +65,11 @@ def _legalize_attr(attr: Attribute) -> StreamingLegalType:
         raise DiagnosticException(f"Cannot legalize {attr} for streaming")
 
 
-def _legalize_results(uses: set[Use], rewriter: PatternRewriter) -> None:
-    if len(uses) == 0:
+def _legalize_results(ops: set[Operation], rewriter: PatternRewriter) -> None:
+    if len(ops) == 0:
         return
-    new_uses: set[Use] = set()
-    for use in uses:
-        use_op = use.operation
+    new_ops: set[Operation] = set()
+    for use_op in ops:
         illegal_results: list[int] = [
             result.index for result in use_op.results if not _is_legal_attr(result)
         ]
@@ -82,8 +80,9 @@ def _legalize_results(uses: set[Use], rewriter: PatternRewriter) -> None:
         )
         rewriter.replace_op(use_op, new_op)
         for idx in illegal_results:
-            new_uses.update(new_op.results[idx].uses)
-    _legalize_results(new_uses, rewriter)
+            new_ops.update(use.operation for use in new_op.results[idx].uses)
+    _legalize_results(new_ops.difference(ops), rewriter)
+
 
 @dataclass(frozen=True)
 class MemrefStreamGenericLegalize(RewritePattern):
@@ -133,7 +132,7 @@ class MemrefStreamGenericLegalize(RewritePattern):
             if i not in legalizations:
                 continue
             rewriter.modify_block_argument_type(arg, legalizations[i])
-            _legalize_results(arg.uses, rewriter)
+            _legalize_results({use.operation for use in arg.uses}, rewriter)
 
         rewriter.replace_matched_op(
             memref_stream.GenericOp(
