@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.7.5"
+__generated_with = "0.7.9"
 app = marimo.App(width="medium")
 
 
@@ -47,6 +47,7 @@ def __():
     from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
+    from xdsl.interpreters.ptr import TypedPtr
     from xdsl.ir import Attribute, Block, Region, SSAValue
     from xdsl.passes import PipelinePass
     from xdsl.tools.command_line_tool import get_all_dialects
@@ -92,6 +93,7 @@ def __():
         RiscvScfLoopRangeFoldingPass,
         SSAValue,
         SnitchRegisterAllocation,
+        TypedPtr,
         arith,
         arith_add_fastmath,
         convert_arith_to_riscv,
@@ -145,7 +147,7 @@ def __(
         # Add name hints to make it easier to track how values are lowered
         a.name_hint = "A"
         b.name_hint = "B"
-        c.name_hing = "C"
+        c.name_hint = "C"
         body = Region(Block(arg_types = (f64, f64, f64)))
         linalg.Generic(
             inputs=(a, b),
@@ -471,6 +473,201 @@ def __(mo, riscv_code, snitch_asm_module):
         }
     )
     return snitch_asm,
+
+
+@app.cell
+def __(mo):
+    mo.md(
+        """
+        ### Interpreting the assembly using xDSL
+
+        One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
+        """
+    )
+    return
+
+
+@app.cell
+def __(TypedPtr, a_shape, b_shape, c_shape, ctx, mo, riscv_module):
+    from math import prod
+
+    from xdsl.interpreter import Interpreter, OpCounter
+    from xdsl.interpreters import register_implementations
+    from xdsl.interpreters.shaped_array import ShapedArray
+
+    a_len = prod(a_shape)
+    b_len = prod(b_shape)
+    c_len = prod(c_shape)
+
+    a_shaped = ShapedArray(TypedPtr.new_float64([i + 1 for i in range(a_len)]), a_shape)
+    b_shaped = ShapedArray(TypedPtr.new_float64([(i + 1) / 100 for i in range(b_len)]), b_shape)
+    riscv_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
+
+    riscv_op_counter = OpCounter()
+    riscv_interpreter = Interpreter(riscv_module, listener=riscv_op_counter)
+
+    register_implementations(riscv_interpreter, ctx, include_wgpu=False, include_onnx=False)
+
+    riscv_interpreter.call_op("matmul", (a_shaped.data_ptr.raw, b_shaped.data_ptr.raw, riscv_c_shaped.data_ptr.raw))
+
+    mo.md(f"""
+    **RISC-V Results:**
+
+    A: {a_shaped}
+
+    B: {b_shaped}
+
+    C: {riscv_c_shaped}
+    """)
+    return (
+        Interpreter,
+        OpCounter,
+        ShapedArray,
+        a_len,
+        a_shaped,
+        b_len,
+        b_shaped,
+        c_len,
+        prod,
+        register_implementations,
+        riscv_c_shaped,
+        riscv_interpreter,
+        riscv_op_counter,
+    )
+
+
+@app.cell
+def __(
+    Interpreter,
+    OpCounter,
+    ShapedArray,
+    TypedPtr,
+    a_shaped,
+    b_shaped,
+    c_len,
+    c_shape,
+    ctx,
+    mo,
+    register_implementations,
+    riscv_c_shaped,
+    snitch_stream_module,
+):
+    snitch_op_counter = OpCounter()
+    snitch_interpreter = Interpreter(
+        snitch_stream_module, listener=snitch_op_counter
+    )
+
+    snitch_c_shaped = ShapedArray(TypedPtr.new_float64([0.0] * c_len), c_shape)
+
+    register_implementations(snitch_interpreter, ctx, include_wgpu=False)
+
+    snitch_interpreter.call_op(
+        "matmul",
+        (
+            a_shaped.data_ptr.raw,
+            b_shaped.data_ptr.raw,
+            snitch_c_shaped.data_ptr.raw,
+        ),
+    )
+
+    mo.md(f"""
+
+    **Snitch Results:**
+
+    A: {a_shaped}
+
+    B: {b_shaped}
+
+    C: {riscv_c_shaped}
+    """)
+    return snitch_c_shaped, snitch_interpreter, snitch_op_counter
+
+
+@app.cell
+def __(k, m, mo, n, riscv_op_counter, snitch_op_counter):
+    rv_dict = dict(riscv_op_counter.ops)
+    sn_dict = dict(snitch_op_counter.ops)
+
+    all_keys = sorted(set(rv_dict) | set(sn_dict))
+    max_len_key = max(len(k) for k in all_keys)
+    max_len_value = max(len(str(val)) for val in (*rv_dict.values(), *sn_dict.values()))
+
+    def format_row(key: str, *values: str):
+        paddings = tuple(" " * (max_len_value - len(val)) for val in values)
+        vals = "".join(f"\t{padding}{val}" for padding, val in zip(paddings, values))
+        return f"{key}{' ' * (max_len_key - len(key))}{vals}\n"
+
+    rows = " " * max_len_key + "\trv\tsn\tdiff\n"
+
+    ZERO_VAL = "."
+
+    for key in all_keys:
+        rv_val = rv_dict.get(key, 0)
+        sn_val = sn_dict.get(key, 0)
+        diff_val = sn_val - rv_val
+
+        rv_str = str(rv_val) if rv_val else ZERO_VAL
+        sn_str = str(sn_val) if sn_val else ZERO_VAL
+        diff_str = (
+            (f"+{diff_val}" if diff_val > 0 else f"{diff_val}") if diff_val else "="
+        )
+
+        rows += key
+        rows += " " * (max_len_key - len(key))
+        rows += "\t"
+        rows += " " * (max_len_value - len(rv_str))
+        rows += rv_str
+        rows += "\t"
+        rows += " " * (max_len_value - len(sn_str))
+        rows += sn_str
+        rows += "\t"
+        rows += " " * (max_len_value - len(diff_str))
+        rows += diff_str
+        rows += "\n"
+
+    rv_sum = sum(rv_dict.values())
+    sn_sum = sum(sn_dict.values())
+    total_diff = sn_sum - rv_sum
+
+    rows += format_row("total", str(rv_sum), str(sn_sum), str(total_diff))
+
+    mo.md(
+        f"""
+    The interpreter kept track of the number of times an operation was executed, which we can use as a proxy for performance.
+
+    For example, we can see that one version has many more instructions executed overall ({rv_sum} vs {sn_sum}), and that one version uses explicit load and store instructions, while the other uses the streaming equivalents:
+
+    {m}{m.value}
+
+    {n}{n.value}
+
+    {k}{k.value}
+
+    ```
+    {rows}
+    ```
+    """
+    )
+    return (
+        ZERO_VAL,
+        all_keys,
+        diff_str,
+        diff_val,
+        format_row,
+        key,
+        max_len_key,
+        max_len_value,
+        rows,
+        rv_dict,
+        rv_str,
+        rv_sum,
+        rv_val,
+        sn_dict,
+        sn_str,
+        sn_sum,
+        sn_val,
+        total_diff,
+    )
 
 
 @app.cell
