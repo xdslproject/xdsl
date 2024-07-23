@@ -32,7 +32,13 @@ from xdsl.ir import (
     TypeAttribute,
     TypedAttribute,
 )
-from xdsl.ir.affine import AffineMap, AffineSet
+from xdsl.ir.affine import (
+    AffineConstantExpr,
+    AffineDimExpr,
+    AffineMap,
+    AffineSet,
+    AffineSymExpr,
+)
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
@@ -1177,8 +1183,27 @@ class MemrefLayoutAttr(Attribute, ABC):
     name = "abstract.memref_layout_att"
 
     @abstractmethod
-    def get_strides(self) -> Iterable[int | None]:
-        raise NotImplementedError()
+    def get_affine_map(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        layout to the element offset in linear memory. The resulting
+        affine map thus has only one result.
+        """
+        return NotImplementedError()
+
+    def get_strides(self) -> Sequence[int | None] | None:
+        """
+        (optional) Return the list of strides, representing the element offset
+        in linear memory for every dimension in the iteration space of
+        this memref layout attribute.
+
+        Note: The dimension of the iteration space may differ from the dimension
+        of the data it represents. For instance, this can occur in a tiled layout.
+
+        This is only applicable to hyper-rectangular layouts.
+        If this is not applicable for a given layout, returns None
+        """
+        return None
 
 
 @irdl_attr_definition
@@ -1222,18 +1247,51 @@ class StridedLayoutAttr(MemrefLayoutAttr, ParametrizedAttribute):
 
         super().__init__([strides, offset])
 
-    def get_strides(self) -> Iterable[int | None]:
-        for stride in self.strides:
-            if isinstance(stride, NoneAttr):
-                yield None
-            else:
-                yield stride.data
+    def get_strides(self) -> Sequence[int | None]:
+        return tuple(
+            None if isinstance(stride, NoneAttr) else stride.data
+            for stride in self.strides
+        )
 
     def get_offset(self) -> int | None:
         if isinstance(self.offset, NoneAttr):
             return None
         else:
             return self.offset.data
+
+    def get_affine_map(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        layout to the element offset in linear memory. The resulting
+        affine map thus has only one result.
+
+        For dynamic strides, this results in an affinemap with a number
+        of symbols, ordered in the following manner:
+            (1) Symbol for the dynamic offset of the layout
+            (2) Symbols for every dynamic stride of the layout
+        """
+
+        # keep track of number of symbols
+        nb_symbols = 0
+
+        result = AffineConstantExpr(0)
+
+        # add offset
+        if isinstance(self.offset, IntAttr):
+            result += AffineConstantExpr(self.offset.data)
+        else:  # NoneAttr
+            result += AffineSymExpr(nb_symbols)
+            nb_symbols += 1
+
+        for dim, stride in enumerate(self.strides.data):
+            if isinstance(stride, IntAttr):
+                stride_expr = AffineConstantExpr(stride.data)
+            else:  # NoneAttr
+                stride_expr = AffineSymExpr(nb_symbols)
+                nb_symbols += 1
+            result += AffineDimExpr(dim) * stride_expr
+
+        return AffineMap(len(self.strides), nb_symbols, (result,))
 
 
 @irdl_attr_definition
@@ -1255,8 +1313,8 @@ class AffineMapAttr(MemrefLayoutAttr, Data[AffineMap]):
     def constant_map(value: int) -> AffineMapAttr:
         return AffineMapAttr(AffineMap.constant_map(value))
 
-    def get_strides(self) -> Iterable[int | None]:
-        raise DiagnosticException("Cannot yet extract strides from affine map")
+    def get_affine_map(self) -> AffineMap:
+        return self.data
 
 
 @irdl_attr_definition
@@ -1602,7 +1660,45 @@ class MemRefType(
             printer.print(", ", self.layout, ", ", self.memory_space)
         printer.print(">")
 
-    def get_strides(self) -> Iterable[int | None]:
+    def get_affine_map(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        memref's layout to the element offset in linear memory.
+        """
+        if isinstance(self.layout, NoneAttr):
+            # empty shape not supported
+            if self.get_shape() == ():
+                raise DiagnosticException(
+                    f"Unsupported empty shape in memref of type {self}"
+                )
+
+            strides = self.strides_for_shape(self.get_shape())
+            map = StridedLayoutAttr(strides).get_affine_map()
+        else:
+            map = self.layout.get_affine_map()
+
+        return map
+
+    def get_affine_map_in_bytes(self) -> AffineMap:
+        """
+        Return the affine mapping from the iteration space of this
+        memref's layout to the byte offset in linear memory.
+
+        Unlike the get_affine_map, this function accounts for element width.
+        """
+
+        map = self.get_affine_map()
+
+        # account for element width
+        assert isinstance(self.element_type, FixedBitwidthType)
+
+        return AffineMap(
+            map.num_dims,
+            map.num_symbols,
+            tuple(result * self.element_type.size for result in map.results),
+        )
+
+    def get_strides(self) -> Sequence[int | None] | None:
         """
         Yields the strides of the memref for each dimension.
         The stride of a dimension is the number of elements that are skipped when
