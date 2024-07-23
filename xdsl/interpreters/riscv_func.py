@@ -38,7 +38,7 @@ class RiscvFuncFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: riscv_func.FuncOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         if (first_block := op.body.blocks.first) is None or not first_block.ops:
-            results = interpreter.call_external(op.sym_name.data, op, args)
+            return interpreter.call_external(op.sym_name.data, op, args)
         else:
             # Either this is the entry function, and the register values are not set,
             # or this is a result of a call impl, and the registers have already been
@@ -46,5 +46,4 @@ class RiscvFuncFunctions(InterpreterFunctions):
             args = RiscvFunctions.set_reg_values_for_types(
                 interpreter, op.function_type.inputs.data, args
             )
-            results = interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
-        return results
+            return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)

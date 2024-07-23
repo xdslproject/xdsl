@@ -33,7 +33,6 @@ class FuncFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: func.FuncOp, args: tuple[Any, ...]
     ):
         if (first_block := op.body.blocks.first) is None or not first_block.ops:
-            results = interpreter.call_external(op.sym_name.data, op, args)
+            return interpreter.call_external(op.sym_name.data, op, args)
         else:
-            results = interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
-        return results
+            return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
