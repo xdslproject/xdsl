@@ -92,9 +92,7 @@ def _legalize_block(block: Block, rewriter: PatternRewriter) -> None:
         )
         rewriter.replace_op(op, new_op)
         to_be_legalized.update(
-            use.operation 
-            for idx in illegal_results
-            for use in new_op.results[idx].uses
+            use.operation for idx in illegal_results for use in new_op.results[idx].uses
         )
 
 
