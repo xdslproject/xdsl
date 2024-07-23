@@ -71,7 +71,7 @@ def _legalize_results(ops: set[Operation], rewriter: PatternRewriter) -> None:
     new_ops: set[Operation] = set()
     for use_op in ops:
         illegal_results: list[int] = [
-            result.index for result in use_op.results if not _is_legal_attr(result)
+            result.index for result in use_op.results if not _is_legal_attr(result.type)
         ]
         new_op = use_op.create(
             operands=use_op.operands,
