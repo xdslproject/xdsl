@@ -108,14 +108,8 @@ class RestructureSymmetricReductionPattern(RewritePattern):
             return
         elif self.move_back(a) and self.move_back(b):
             return
-        elif self.move_fwd(a) and self.move_fwd(c):
+        elif self.move_fwd(c) and self.move_back(b):
             rewrite(a_op, c_op, b_op)
-        elif self.move_fwd(b) and self.move_fwd(c):
-            rewrite(b_op, c_op, a_op)
-        elif self.move_back(a) and not self.move_back(c):
-            rewrite(c_op, b_op, a_op)
-        elif self.move_back(b) and not self.move_back(c):
-            rewrite(c_op, a_op, b_op)
 
     def move_fwd(self, accs: set[Operand]) -> bool:
         return self.buf in accs and len(accs) == 1
@@ -394,7 +388,8 @@ class ConvertApplyOpPattern(RewritePattern):
 
         # run pass (on this apply's region only) to consume data from `prefetch` accesses first
         nested_rewriter = PatternRewriteWalker(
-            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx])
+            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx]),
+            walk_reverse=True,
         )
         nested_rewriter.rewrite_op(op)
 

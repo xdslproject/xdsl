@@ -43,9 +43,9 @@ builtin.module {
 // CHECK-NEXT:       %7 = csl_stencil.access %3[-1, 0] : memref<4xtensor<255xf32>>
 // CHECK-NEXT:       %8 = csl_stencil.access %3[0, 1] : memref<4xtensor<255xf32>>
 // CHECK-NEXT:       %9 = csl_stencil.access %3[0, -1] : memref<4xtensor<255xf32>>
-// CHECK-NEXT:       %10 = arith.addf %7, %6 : tensor<255xf32>
-// CHECK-NEXT:       %11 = arith.addf %9, %8 : tensor<255xf32>
-// CHECK-NEXT:       %12 = arith.addf %11, %10 : tensor<255xf32>
+// CHECK-NEXT:       %10 = arith.addf %9, %8 : tensor<255xf32>
+// CHECK-NEXT:       %11 = arith.addf %10, %7 : tensor<255xf32>
+// CHECK-NEXT:       %12 = arith.addf %11, %6 : tensor<255xf32>
 // CHECK-NEXT:       %13 = "tensor.insert_slice"(%12, %5, %4) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
 // CHECK-NEXT:       csl_stencil.yield %13 : tensor<510xf32>
 // CHECK-NEXT:     }, {
