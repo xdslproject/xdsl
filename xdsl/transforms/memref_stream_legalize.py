@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TypeAlias
 
 from xdsl.context import MLContext
-from xdsl.dialects import memref_stream
+from xdsl.dialects import arith, memref_stream
 from xdsl.dialects.builtin import (
     ArrayAttr,
     Float16Type,
@@ -69,6 +69,23 @@ def _legalize_attr(
         raise DiagnosticException(f"Cannot legalize {attr} for streaming")
 
 
+def _is_safe_legalizion(op: Operation) -> bool:
+    # We want to legalize just operations we know are safe to
+    return isinstance(
+        op,
+        memref_stream.YieldOp
+        | arith.Minimumf
+        | arith.Minnumf
+        | arith.Maximumf
+        | arith.Maxnumf
+        | arith.Addf
+        | arith.Subf
+        | arith.Mulf
+        | arith.Divf
+        | arith.Negf,
+    )
+
+
 def _legalize_block(
     block: Block, to_be_legalized: set[Operation], rewriter: PatternRewriter
 ) -> None:
@@ -78,6 +95,8 @@ def _legalize_block(
         if op not in to_be_legalized:
             continue
         to_be_legalized.remove(op)
+        if not _is_safe_legalizion(op):
+            continue
         illegal_results: list[int] = [
             result.index for result in op.results if not _is_legal_attr(result.type)
         ]
