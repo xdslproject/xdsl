@@ -69,11 +69,9 @@ def _legalize_attr(
         raise DiagnosticException(f"Cannot legalize {attr} for streaming")
 
 
-def _legalize_block(block: Block, rewriter: PatternRewriter) -> None:
-    # Start from all uses of all block arguments
-    to_be_legalized: set[Operation] = {
-        use.operation for arg in block.args for use in arg.uses
-    }
+def _legalize_block(
+    block: Block, to_be_legalized: set[Operation], rewriter: PatternRewriter
+) -> None:
     # Linearly scan the block and update the set of ops that we need to look into
     # by following uses
     for op in block.ops:
@@ -139,12 +137,15 @@ class MemrefStreamGenericLegalize(RewritePattern):
         new_bounds.append(IntegerAttr.from_index_int_value(innermost_bound // vlen))
         # Legalize block arguments
         new_body = op.body.clone()
+        # Starting point for block legalization
+        to_be_legalized: set[Operation] = set()
         for i, arg in enumerate(new_body.block.args):
             if i not in legalizations:
                 continue
             rewriter.modify_block_argument_type(arg, legalizations[i])
+            to_be_legalized.update(use.operation for use in arg.uses)
         # Legalize payload
-        _legalize_block(new_body.block, rewriter)
+        _legalize_block(new_body.block, to_be_legalized, rewriter)
 
         rewriter.replace_matched_op(
             memref_stream.GenericOp(
