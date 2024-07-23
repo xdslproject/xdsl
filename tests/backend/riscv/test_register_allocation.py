@@ -1,10 +1,13 @@
 import re
 
 import pytest
+from typing_extensions import Self
 
+from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
 from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv
+from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.test_value import TestSSAValue
 
@@ -72,3 +75,56 @@ def test_default_reserved_registers():
         ),
     ):
         register_allocator.allocate_same((e0, e1, e2))
+
+
+def test_allocate_with_inout_constraints():
+
+    @irdl_op_definition
+    class MyInstruction(riscv.RISCVAsmOperation, IRDLOperation):
+
+        name = "riscv.my_instruction"
+
+        rs0 = operand_def()
+        rs1 = operand_def()
+        rd0 = result_def()
+        rd1 = result_def()
+
+        @classmethod
+        def get(cls, rs0: str, rs1: str, rd0: str, rd1: str) -> Self:
+            return cls.build(
+                operands=(
+                    TestSSAValue(riscv.IntRegisterType(rs0)),
+                    TestSSAValue(riscv.IntRegisterType(rs1)),
+                ),
+                result_types=(
+                    riscv.IntRegisterType(rd0),
+                    riscv.IntRegisterType(rd1),
+                ),
+            )
+
+        def get_register_constraints(self) -> RegisterConstraints:
+            return RegisterConstraints(
+                (self.rs0,), (self.rd0,), ((self.rs1, self.rd1),)
+            )
+
+    register_queue = RegisterQueue(
+        available_int_registers=[], available_float_registers=[]
+    )
+    register_allocator = RegisterAllocatorLivenessBlockNaive(register_queue)
+
+    # All new registers. The result register is reused by the allocator for the operand.
+    op0 = MyInstruction.get("", "", "", "")
+    register_allocator.process_riscv_op(op0)
+    assert op0.rs0.type == riscv.IntRegisterType("j1")
+    assert op0.rs1.type == riscv.IntRegisterType("j0")
+    assert op0.rd0.type == riscv.IntRegisterType("j1")
+    assert op0.rd1.type == riscv.IntRegisterType("j0")
+
+    # One register reserved for inout parameter, the allocator should allocate the output
+    # to the same register.
+    op1 = MyInstruction.get("", "", "", "a0")
+    register_allocator.process_riscv_op(op1)
+    assert op1.rs0.type == riscv.IntRegisterType("j2")
+    assert op1.rs1.type == riscv.IntRegisterType("a0")
+    assert op1.rd0.type == riscv.IntRegisterType("j2")
+    assert op1.rd1.type == riscv.IntRegisterType("a0")

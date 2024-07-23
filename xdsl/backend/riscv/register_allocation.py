@@ -201,8 +201,14 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         """
         Allocate registers for RISC-V Instruction.
         """
+        ins, outs, inouts = op.get_register_constraints()
 
-        for result in op.results:
+        # Allocate registers to inout operand groups since they are defined further up
+        # in the use-def SSA chain
+        for operand_group in inouts:
+            self.allocate_same(operand_group)
+
+        for result in outs:
             # Allocate registers to result if not already allocated
             self.allocate(result)
             # Free the register since the SSA value is created here
@@ -210,7 +216,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
 
         # Allocate registers to operands since they are defined further up
         # in the use-def SSA chain
-        for operand in op.operands:
+        for operand in ins:
             self.allocate(operand)
 
     def allocate_for_loop(self, loop: riscv_scf.ForOp) -> None:
