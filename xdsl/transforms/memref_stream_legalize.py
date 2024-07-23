@@ -4,6 +4,7 @@ from typing import TypeAlias
 from xdsl.context import MLContext
 from xdsl.dialects import arith, memref_stream
 from xdsl.dialects.builtin import (
+    AffineMapAttr,
     ArrayAttr,
     Float16Type,
     Float32Type,
@@ -16,6 +17,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.linalg import IteratorType
 from xdsl.ir import Attribute, Block, Operation
+from xdsl.ir.affine.affine_expr import AffineExpr
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -150,10 +152,19 @@ class MemrefStreamGenericLegalize(RewritePattern):
                 "cannot legalize heterogeneous block arguments yet"
             )
         vlen = next(iter(vector_lengths))
-        # Legalize iteration bounds
+        # Fix iteration bounds accordingly
         new_bounds = list(op.bounds)
         new_bounds.pop()
         new_bounds.append(IntegerAttr.from_index_int_value(innermost_bound // vlen))
+        # Fix access maps accordingly
+        new_dims = [AffineExpr.dimension(i) for i in range(len(op.bounds))]
+        new_dims[-1] = new_dims[-1] * vlen
+        new_maps = tuple(
+            AffineMapAttr(
+                m.data.replace_dims_and_symbols(new_dims, (), len(new_dims), 0)
+            )
+            for m in op.indexing_maps
+        )
         # Legalize block arguments
         new_body = op.body.clone()
         # Starting point for block legalization
@@ -172,7 +183,7 @@ class MemrefStreamGenericLegalize(RewritePattern):
                 op.outputs,
                 op.inits,
                 new_body,
-                op.indexing_maps,
+                ArrayAttr(new_maps),
                 op.iterator_types,
                 ArrayAttr(new_bounds),
                 op.init_indices,
