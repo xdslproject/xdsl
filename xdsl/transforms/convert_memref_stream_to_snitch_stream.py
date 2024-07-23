@@ -1,5 +1,3 @@
-import operator
-from functools import reduce
 from typing import Any, cast
 
 from xdsl.backend.riscv.lowering.utils import (
@@ -18,7 +16,6 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    FixedBitwidthType,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -29,7 +26,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.ir import Attribute, AttributeCovT, Operation
-from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -193,62 +190,6 @@ class StreamOpLowering(RewritePattern):
             rewriter.modify_block_argument_type(arg, stream_type)
 
 
-def strides_map_from_memref_type(memref_type: MemRefType[AttributeCovT]) -> AffineMap:
-    """
-    Given a memref returns the map from indices to an offset in bytes in memory. The
-    resulting map has one result expression.
-
-    e.g.:
-    ```
-    my_list = [1, 2, 3, 4, 5, 6]
-    shape = [2, 3]
-    for i in range(2):
-        for j in range(3):
-            k = i * 3 + j
-            el = my_list[k]
-            print(el) # -> 1, 2, 3, 4, 5, 6
-
-    map = strides_map_from_memref_type(MemRefType(f64, [3, 1]))
-
-    for i in range(2):
-        for j in range(3):
-            k = map.eval(i, j) // 8 # factor of 8 since 8 bytes in f64
-            el = my_list[k]
-            print(el) # -> 1, 2, 3, 4, 5, 6
-    ```
-    """
-    maybe_strides = tuple(memref_type.get_strides())
-    for stride in maybe_strides:
-        if stride is None:
-            raise DiagnosticException(
-                f"Cannot get strides from dynamic layout {memref_type}"
-            )
-
-    strides = cast(tuple[int, ...], maybe_strides)
-
-    if not strides:
-        raise DiagnosticException(
-            f"Unsupported empty shape in memref of type {memref_type}"
-        )
-
-    assert isinstance(memref_type.element_type, FixedBitwidthType)
-    factor = memref_type.element_type.size
-
-    return AffineMap(
-        len(strides),
-        0,
-        (
-            reduce(
-                operator.add,
-                (
-                    AffineExpr.dimension(i) * stride * factor
-                    for i, stride in enumerate(strides)
-                ),
-            ),
-        ),
-    )
-
-
 def strides_for_affine_map(
     affine_map: AffineMap, memref_type: MemRefType[AttributeCovT]
 ) -> list[int]:
@@ -260,16 +201,27 @@ def strides_for_affine_map(
     """
     if affine_map.num_symbols:
         raise ValueError("Cannot create strides for affine map with symbols")
-    offset_map = strides_map_from_memref_type(memref_type)
+
+    # only static memref shapes are supported for now:
+    static_shapes = (shape != -1 for shape in memref_type.get_shape())
+    if not all(static_shapes):
+        raise ValueError("Cannot create strides for a memref with dynamic shapes")
+
+    offset_map = memref_type.get_affine_map_in_bytes()
     composed = offset_map.compose(affine_map)
 
     zeros = [0] * composed.num_dims
+    # composed map can have symbols for dynamic offset, just set them to 0
+    symbols = [0] * composed.num_symbols
 
     result: list[int] = []
 
+    # subtract the static offset from each result
+    offset = composed.eval(zeros, symbols)[0]
+
     for i in range(composed.num_dims):
         zeros[i] = 1
-        result.append(composed.eval(zeros, ())[0])
+        result.append(composed.eval(zeros, symbols)[0] - offset)
         zeros[i] = 0
 
     return result

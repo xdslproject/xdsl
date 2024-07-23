@@ -1995,7 +1995,10 @@ class Region(IRNode):
         for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
                 new_block.insert_arg(block_arg.type, idx)
-                value_mapper[block_arg] = new_block.args[idx]
+                new_arg = new_block.args[idx]
+                value_mapper[block_arg] = new_arg
+                if clone_name_hints:
+                    new_arg.name_hint = block_arg.name_hint
             for op in block.ops:
                 new_block.add_op(
                     op.clone(

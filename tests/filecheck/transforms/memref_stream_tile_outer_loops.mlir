@@ -31,7 +31,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x1x18x18xf64> {"llvm.n
 // CHECK-NEXT:        %X_offset = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0)> (%c0, %c0, %i, %c0, %c0, %c0, %c0)
 // CHECK-NEXT:        %X_offset_1 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1)> (%c0, %c0, %i, %c0, %c0, %c0, %c0)
 // CHECK-NEXT:        %X_offset_2 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (((d2 * 2) + d4))> (%c0, %c0, %i, %c0, %c0, %c0, %c0)
-// CHECK-NEXT:        %X_offset_3 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (((((d3 * 4) + d6) * 2) + d5))> (%c0, %c0, %i, %c0, %c0, %c0, %c0)
+// CHECK-NEXT:        %X_offset_3 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> ((((d3 * 8) + (d6 * 2)) + d5))> (%c0, %c0, %i, %c0, %c0, %c0, %c0)
 // CHECK-NEXT:        %X_subview = memref.subview %X[%X_offset, %X_offset_1, %X_offset_2, %X_offset_3] [1, 1, 3, 17] [1, 1, 1, 1] : memref<1x1x18x18xf64> to memref<1x1x3x17xf64, strided<[324, 324, 18, 1], offset: ?>>
 // CHECK-NEXT:        %Y_offset = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0)> (%c0, %c0, %i, %c0, %c0)
 // CHECK-NEXT:        %Y_offset_1 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d1)> (%c0, %c0, %i, %c0, %c0)
@@ -41,7 +41,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x1x18x18xf64> {"llvm.n
 // CHECK-NEXT:        memref_stream.generic {
 // CHECK-NEXT:          bounds = [1, 1, 1, 2, 3, 3, 4],
 // CHECK-NEXT:          indexing_maps = [
-// CHECK-NEXT:            affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d1, ((d2 * 2) + d4), ((((d3 * 4) + d6) * 2) + d5))>,
+// CHECK-NEXT:            affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d1, ((d2 * 2) + d4), (((d3 * 8) + (d6 * 2)) + d5))>
 // CHECK-NEXT:            affine_map<(d0, d1, d2, d3, d4) -> (d0, d1, d2, ((d3 * 4) + d4))>
 // CHECK-NEXT:          ],
 // CHECK-NEXT:          iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "interleaved"]
@@ -90,7 +90,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x2x18x18xf64> {"llvm.n
 // CHECK-NEXT:        %X_offset = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0)> (%c0, %i, %c0, %c0, %c0, %c0, %c0)
 // CHECK-NEXT:        %X_offset_1 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1)> (%c0, %i, %c0, %c0, %c0, %c0, %c0)
 // CHECK-NEXT:        %X_offset_2 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (((d2 * 2) + d4))> (%c0, %i, %c0, %c0, %c0, %c0, %c0)
-// CHECK-NEXT:        %X_offset_3 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (((((d3 * 4) + d6) * 2) + d5))> (%c0, %i, %c0, %c0, %c0, %c0, %c0)
+// CHECK-NEXT:        %X_offset_3 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> ((((d3 * 8) + (d6 * 2)) + d5))> (%c0, %i, %c0, %c0, %c0, %c0, %c0)
 // CHECK-NEXT:        %X_subview = memref.subview %X[%X_offset, %X_offset_1, %X_offset_2, %X_offset_3] [1, 1, 17, 17] [1, 1, 1, 1] : memref<1x2x18x18xf64> to memref<1x1x17x17xf64, strided<[648, 324, 18, 1], offset: ?>>
 // CHECK-NEXT:        %Y_offset = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0)> (%c0, %i, %c0, %c0, %c0)
 // CHECK-NEXT:        %Y_offset_1 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d1)> (%c0, %i, %c0, %c0, %c0)
@@ -104,7 +104,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x2x18x18xf64> {"llvm.n
 // CHECK-NEXT:          %X_subview_offset = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0)> (%c0_1, %c0_1, %i_1, %c0_1, %c0_1, %c0_1, %c0_1)
 // CHECK-NEXT:          %X_subview_offset_1 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d1)> (%c0_1, %c0_1, %i_1, %c0_1, %c0_1, %c0_1, %c0_1)
 // CHECK-NEXT:          %X_subview_offset_2 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (((d2 * 2) + d4))> (%c0_1, %c0_1, %i_1, %c0_1, %c0_1, %c0_1, %c0_1)
-// CHECK-NEXT:          %X_subview_offset_3 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (((((d3 * 4) + d6) * 2) + d5))> (%c0_1, %c0_1, %i_1, %c0_1, %c0_1, %c0_1, %c0_1)
+// CHECK-NEXT:          %X_subview_offset_3 = affine.apply affine_map<(d0, d1, d2, d3, d4, d5, d6) -> ((((d3 * 8) + (d6 * 2)) + d5))> (%c0_1, %c0_1, %i_1, %c0_1, %c0_1, %c0_1, %c0_1)
 // CHECK-NEXT:          %X_subview_subview = memref.subview %X_subview[%X_subview_offset, %X_subview_offset_1, %X_subview_offset_2, %X_subview_offset_3] [1, 1, 3, 17] [1, 1, 1, 1] : memref<1x1x17x17xf64, strided<[648, 324, 18, 1], offset: ?>> to memref<1x1x17x17xf64, strided<[648, 324, 18, 1], offset: ?>>
 // CHECK-NEXT:          %Y_subview_offset = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d0)> (%c0_1, %c0_1, %i_1, %c0_1, %c0_1)
 // CHECK-NEXT:          %Y_subview_offset_1 = affine.apply affine_map<(d0, d1, d2, d3, d4) -> (d1)> (%c0_1, %c0_1, %i_1, %c0_1, %c0_1)
@@ -114,7 +114,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x2x18x18xf64> {"llvm.n
 // CHECK-NEXT:          memref_stream.generic {
 // CHECK-NEXT:            bounds = [1, 1, 1, 2, 3, 3, 4],
 // CHECK-NEXT:            indexing_maps = [
-// CHECK-NEXT:              affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d1, ((d2 * 2) + d4), ((((d3 * 4) + d6) * 2) + d5))>,
+// CHECK-NEXT:              affine_map<(d0, d1, d2, d3, d4, d5, d6) -> (d0, d1, ((d2 * 2) + d4), (((d3 * 8) + (d6 * 2)) + d5))>,
 // CHECK-NEXT:              affine_map<(d0, d1, d2, d3, d4) -> (d0, d1, d2, ((d3 * 4) + d4))>
 // CHECK-NEXT:            ],
 // CHECK-NEXT:            iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "interleaved"]
