@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.linalg import IteratorType
 from xdsl.ir import Attribute, Block, Operation
-from xdsl.ir.affine.affine_expr import AffineExpr
+from xdsl.ir.affine import AffineExpr
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
