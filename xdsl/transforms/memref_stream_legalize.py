@@ -15,7 +15,7 @@ from xdsl.dialects.builtin import (
     f32,
 )
 from xdsl.dialects.linalg import IteratorType
-from xdsl.ir import Attribute, Operation
+from xdsl.ir import Attribute, Block, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -69,23 +69,30 @@ def _legalize_attr(
         raise DiagnosticException(f"Cannot legalize {attr} for streaming")
 
 
-def _legalize_results(ops: set[Operation], rewriter: PatternRewriter) -> None:
-    if not ops:
-        return
-    new_ops: set[Operation] = set()
-    for use_op in ops:
+def _legalize_block(block: Block, rewriter: PatternRewriter) -> None:
+    # Start from all uses of all block arguments
+    to_be_legalized: set[Operation] = {
+        use.operation for arg in block.args for use in arg.uses
+    }
+    # Linearly scan the block and update the set of ops that we need to look into
+    # by following uses
+    for op in block.ops:
+        if op not in to_be_legalized:
+            continue
+        to_be_legalized.remove(op)
         illegal_results: list[int] = [
-            result.index for result in use_op.results if not _is_legal_attr(result.type)
+            result.index for result in op.results if not _is_legal_attr(result.type)
         ]
-        new_op = use_op.create(
-            operands=use_op.operands,
-            result_types=[_legalize_attr(res.type) for res in use_op.results],
-            attributes=use_op.attributes,
+        if not illegal_results:
+            continue
+        new_op = op.create(
+            operands=op.operands,
+            result_types=[_legalize_attr(res.type) for res in op.results],
+            attributes=op.attributes,
         )
-        rewriter.replace_op(use_op, new_op)
+        rewriter.replace_op(op, new_op)
         for idx in illegal_results:
-            new_ops.update(use.operation for use in new_op.results[idx].uses)
-    _legalize_results(new_ops.difference(ops), rewriter)
+            to_be_legalized.update(use.operation for use in new_op.results[idx].uses)
 
 
 @dataclass(frozen=True)
@@ -129,13 +136,14 @@ class MemrefStreamGenericLegalize(RewritePattern):
         new_bounds = list(op.bounds)
         new_bounds.pop()
         new_bounds.append(IntegerAttr.from_index_int_value(innermost_bound // vlen))
-        # Legalize payload
+        # Legalize block arguments
         new_body = op.body.clone()
         for i, arg in enumerate(new_body.block.args):
             if i not in legalizations:
                 continue
             rewriter.modify_block_argument_type(arg, legalizations[i])
-            _legalize_results({use.operation for use in arg.uses}, rewriter)
+        # Legalize payload
+        _legalize_block(new_body.block, rewriter)
 
         rewriter.replace_matched_op(
             memref_stream.GenericOp(
