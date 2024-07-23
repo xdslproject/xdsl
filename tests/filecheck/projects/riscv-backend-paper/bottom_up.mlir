@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-linalg-to-memref-stream,test-optimise-memref-stream,test-lower-memref-stream-to-snitch-stream,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-stream-legalize,test-optimise-memref-stream,test-lower-memref-stream-to-snitch-stream,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 
 func.func public @ssum(
@@ -15,9 +15,9 @@ func.func public @ssum(
     ],
     iterator_types = ["parallel", "parallel"]
   } ins(%X, %Y : memref<8x16xf32>, memref<8x16xf32>) outs(%Z : memref<8x16xf32>) {
-  ^1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
-    %3 = arith.addf %in, %in_1 : vector<2xf32>
-    memref_stream.yield %3 : vector<2xf32>
+  ^1(%in : f32, %in_1 : f32, %out : f32):
+    %3 = arith.addf %in, %in_1 : f32
+    memref_stream.yield %3 : f32
   }
   func.return
 }
@@ -29,16 +29,20 @@ func.func public @ssum(
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t0, a2
-// CHECK-NEXT:      li t3, 63
+// CHECK-NEXT:      li t3, 3
 // CHECK-NEXT:      scfgwi t3, 95                                # dm 31 dim 0 bound
+// CHECK-NEXT:      li t3, 7
+// CHECK-NEXT:      scfgwi t3, 127                               # dm 31 dim 1 bound
 // CHECK-NEXT:      li t3, 8
 // CHECK-NEXT:      scfgwi t3, 223                               # dm 31 dim 0 stride
+// CHECK-NEXT:      li t3, 40
+// CHECK-NEXT:      scfgwi t3, 255                               # dm 31 dim 1 stride
 // CHECK-NEXT:      scfgwi zero, 63                              # dm 31 repeat
-// CHECK-NEXT:      scfgwi t2, 768                               # dm 0 dim 0 source
-// CHECK-NEXT:      scfgwi t1, 769                               # dm 1 dim 0 source
-// CHECK-NEXT:      scfgwi t0, 898                               # dm 2 dim 0 destination
+// CHECK-NEXT:      scfgwi t2, 800                               # dm 0 dim 1 source
+// CHECK-NEXT:      scfgwi t1, 801                               # dm 1 dim 1 source
+// CHECK-NEXT:      scfgwi t0, 930                               # dm 2 dim 1 destination
 // CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
-// CHECK-NEXT:      li t0, 63
+// CHECK-NEXT:      li t0, 31
 // CHECK-NEXT:      frep.o t0, 1, 0, 0
 // CHECK-NEXT:      vfadd.s ft2, ft0, ft1
 // CHECK-NEXT:      csrrci zero, 1984, 1                         # SSR disable
