@@ -3,9 +3,7 @@ import re
 import pytest
 from typing_extensions import Self
 
-from xdsl.backend.register_allocatable import (
-    RegisterConstraints,
-)
+from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
 from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv
