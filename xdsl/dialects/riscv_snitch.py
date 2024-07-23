@@ -776,6 +776,27 @@ class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
     traits = frozenset((Pure(),))
 
 
+@irdl_op_definition
+class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial addition of corresponding f16 values from
+    rs1 and rs2 and stores the results in the corresponding f16 lanes
+    into the vectorial 4xf16 rd operand, such as:
+
+    f[rd][0] = f[rs1][0] + f[rs2][0]
+    f[rd][1] = f[rs1][1] + f[rs2][1]
+    f[rd][2] = f[rs1][2] + f[rs2][2]
+    f[rd][3] = f[rs1][3] + f[rs2][3]
+    """
+
+    name = "riscv_snitch.vfadd.h"
+
+    def assembly_instruction_name(self) -> str:
+        return "vfadd.h"
+
+    traits = frozenset((Pure(),))
+
+
 RdRsFloatInvT = TypeVar("RdRsFloatInvT", bound=FloatRegisterType)
 
 
@@ -937,6 +958,7 @@ RISCV_Snitch = Dialect(
         VFCpkASSOp,
         VFMacSOp,
         VFSumSOp,
+        VFAddHOp,
     ],
     [],
 )
