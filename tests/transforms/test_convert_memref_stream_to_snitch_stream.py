@@ -19,9 +19,9 @@ def test_strides_map_from_memref_type():
         DiagnosticException,
         match="Unsupported empty shape in memref of type memref<f64>",
     ):
-        mem_type([]).get_affine_map_bytes()
+        mem_type([]).get_affine_map_in_bytes()
 
-    assert mem_type([2, 3]).get_affine_map_bytes() == AffineMap.from_callable(
+    assert mem_type([2, 3]).get_affine_map_in_bytes() == AffineMap.from_callable(
         lambda i, j: (i * 24 + j * 8,)
     )
 

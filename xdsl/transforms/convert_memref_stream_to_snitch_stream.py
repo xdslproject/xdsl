@@ -207,7 +207,7 @@ def strides_for_affine_map(
     if not all(static_shapes):
         raise ValueError("Cannot create strides for a memref with dynamic shapes")
 
-    offset_map = memref_type.get_affine_map_bytes()
+    offset_map = memref_type.get_affine_map_in_bytes()
     composed = offset_map.compose(affine_map)
 
     zeros = [0] * composed.num_dims

@@ -1679,7 +1679,7 @@ class MemRefType(
 
         return map
 
-    def get_affine_map_bytes(self) -> AffineMap:
+    def get_affine_map_in_bytes(self) -> AffineMap:
         """
         Return the affine mapping from the iteration space of this
         memref's layout to the byte offset in linear memory.
