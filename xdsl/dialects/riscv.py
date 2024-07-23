@@ -8,6 +8,10 @@ from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
+from xdsl.backend.register_allocatable import (
+    HasRegisterConstraints,
+    RegisterConstraints,
+)
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -347,10 +351,13 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVAsmOperation(IRDLOperation, ABC):
+class RISCVAsmOperation(HasRegisterConstraints, IRDLOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(self.operands, self.results, ())
 
     @abstractmethod
     def assembly_line(self) -> str | None:
