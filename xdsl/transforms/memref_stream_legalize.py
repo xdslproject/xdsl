@@ -69,7 +69,7 @@ def _legalize_attr(
         raise DiagnosticException(f"Cannot legalize {attr} for streaming")
 
 
-def _is_safe_legalizion(op: Operation) -> bool:
+def _is_safe_to_legalize(op: Operation) -> bool:
     # We want to legalize just operations we know are safe to
     return isinstance(
         op,
@@ -95,7 +95,7 @@ def _legalize_block(
         if op not in to_be_legalized:
             continue
         to_be_legalized.remove(op)
-        if not _is_safe_legalizion(op):
+        if not _is_safe_to_legalize(op):
             continue
         illegal_results: list[int] = [
             result.index for result in op.results if not _is_legal_attr(result.type)
