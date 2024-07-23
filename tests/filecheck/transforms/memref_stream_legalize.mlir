@@ -1,5 +1,41 @@
 // RUN: xdsl-opt %s -p memref-stream-legalize | filecheck %s
 
+// f64 with reduce iterator(s): the pass should not complain and leave the whole
+// function unchanged as it is already legal.
+func.func public @reducef64(%arg0 : memref<8x16xf64>, %arg1 : memref<8x16xf64>, %arg2 : memref<8xf64>) -> memref<8xf64> {
+  memref_stream.generic {
+      bounds = [8, 16],
+      indexing_maps = [
+          affine_map<(d0, d1) -> (d0, d1)>,
+          affine_map<(d0, d1) -> (d0, d1)>,
+          affine_map<(d0) -> (d0)>
+      ],
+      iterator_types = ["parallel", "reduction"]
+  } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8xf64>) {
+  ^0(%in : f64, %in_1 : f64, %out : f64):
+      %add = arith.addf %in, %in_1 : f64
+      memref_stream.yield %add : f64
+  }
+  func.return %arg2 : memref<8xf64>
+}
+
+// CHECK:        func.func public @reducef64(%arg0 : memref<8x16xf64>, %arg1 : memref<8x16xf64>, %arg2 : memref<8xf64>) -> memref<8xf64> {
+// CHECK-NEXT:   memref_stream.generic {
+// CHECK-NEXT:     bounds = [8, 16],
+// CHECK-NEXT:     indexing_maps = [
+// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, d1)>,
+// CHECK-NEXT:       affine_map<(d0) -> (d0)>
+// CHECK-NEXT:     ],
+// CHECK-NEXT:     iterator_types = ["parallel", "reduction"]
+// CHECK-NEXT:   } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8xf64>) {
+// CHECK-NEXT:   ^0(%in : f64, %in_1 : f64, %out : f64):
+// CHECK-NEXT:     %add = arith.addf %in, %in_1 : f64
+// CHECK-NEXT:     memref_stream.yield %add : f64
+// CHECK-NEXT:   }
+// CHECK-NEXT:   func.return %arg2 : memref<8xf64>
+// CHECK-NEXT: }
+
 func.func public @sumvf64(%arg0 : memref<8x16xf64>, %arg1 : memref<8x16xf64>, %arg2 : memref<8x16xf64>) -> memref<8x16xf64> {
   memref_stream.generic {
     bounds = [8, 16],
