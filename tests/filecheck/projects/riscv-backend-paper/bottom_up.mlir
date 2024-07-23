@@ -28,18 +28,14 @@ func.func public @ssum(
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
 // CHECK-NEXT:      mv t0, a2
-// CHECK-NEXT:      li t3, 7
+// CHECK-NEXT:      li t3, 63
 // CHECK-NEXT:      scfgwi t3, 95                                # dm 31 dim 0 bound
-// CHECK-NEXT:      li t3, 7
-// CHECK-NEXT:      scfgwi t3, 127                               # dm 31 dim 1 bound
-// CHECK-NEXT:      li t3, 4
+// CHECK-NEXT:      li t3, 8
 // CHECK-NEXT:      scfgwi t3, 223                               # dm 31 dim 0 stride
-// CHECK-NEXT:      li t3, 36
-// CHECK-NEXT:      scfgwi t3, 255                               # dm 31 dim 1 stride
 // CHECK-NEXT:      scfgwi zero, 63                              # dm 31 repeat
-// CHECK-NEXT:      scfgwi t2, 800                               # dm 0 dim 1 source
-// CHECK-NEXT:      scfgwi t1, 801                               # dm 1 dim 1 source
-// CHECK-NEXT:      scfgwi t0, 930                               # dm 2 dim 1 destination
+// CHECK-NEXT:      scfgwi t2, 768                               # dm 0 dim 0 source
+// CHECK-NEXT:      scfgwi t1, 769                               # dm 1 dim 0 source
+// CHECK-NEXT:      scfgwi t0, 898                               # dm 2 dim 0 destination
 // CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
 // CHECK-NEXT:      li t0, 63
 // CHECK-NEXT:      frep.o t0, 1, 0, 0
