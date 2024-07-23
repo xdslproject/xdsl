@@ -104,3 +104,27 @@ func.func public @sumf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %ar
 // CHECK-NEXT:    func.return %arg2 : memref<8x16xf16>
 // CHECK-NEXT:  }
 // CHECK-NEXT:}
+
+func.func public @chainf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %arg2 : memref<8x16xf16>) -> memref<8x16xf16> {
+  memref_stream.generic {
+    bounds = [8, 16],
+    indexing_maps = [
+      affine_map<(d0, d1) -> (d0, d1)>,
+      affine_map<(d0, d1) -> (d0, d1)>,
+      affine_map<(d0, d1) -> (d0, d1)>
+    ],
+    iterator_types = ["parallel", "parallel"]
+  } ins(%arg0, %arg1 : memref<8x16xf16>, memref<8x16xf16>) outs(%arg2 : memref<8x16xf16>) {
+  ^0(%in : f16, %in_1 : f16, %out : f16):
+    %0 = arith.addf %in, %in_1 : f16
+    %1 = arith.mulf %0, %in_1 : f16
+    %2 = arith.divf %0, %1 : f16
+    %3 = arith.mulf %2, %1 : f16
+    %4 = arith.divf %3, %2 : f16
+    %5 = arith.mulf %4, %3 : f16
+    %6 = arith.divf %4, %5 : f16
+    %7 = arith.mulf %5, %6 : f16
+    memref_stream.yield %7 : f16
+  }
+  func.return %arg2 : memref<8x16xf16>
+}
