@@ -105,6 +105,9 @@ riscv_func.func @simd() {
   %4 = riscv_snitch.vfsum.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
   // CHECK-NEXT: %4 = riscv_snitch.vfsum.s %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
 
+  %5 = riscv_snitch.vfadd.h %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+  // CHECK-NEXT: %5 = riscv_snitch.vfadd.h %v, %v : (!riscv.freg, !riscv.freg) -> !riscv.freg
+
   riscv_func.return
 }
 
@@ -158,6 +161,7 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:       %2 = "riscv_snitch.vfcpka.s.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %3 = "riscv_snitch.vfmac.s"(%v, %v, %v) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       %4 = "riscv_snitch.vfsum.s"(%v, %v) : (!riscv.freg, !riscv.freg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:       %5 = "riscv_snitch.vfadd.h"(%v, %v) {"fastmath" = #riscv.fastmath<none>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:       "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) {"sym_name" = "simd", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
