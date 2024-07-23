@@ -66,7 +66,7 @@ def _legalize_attr(attr: Attribute) -> StreamingLegalType:
 
 
 def _legalize_results(ops: set[Operation], rewriter: PatternRewriter) -> None:
-    if len(ops) == 0:
+    if not ops:
         return
     new_ops: set[Operation] = set()
     for use_op in ops:
@@ -101,7 +101,7 @@ class MemrefStreamGenericLegalize(RewritePattern):
             for i, arg in enumerate(op.body.block.args)
             if not _is_legal_attr(arg.type)
         }
-        if len(legalizations) == 0:
+        if not legalizations:
             return
         # Check that vectorized bounds are compatible with all no. of lanes
         # involved in legalizations
