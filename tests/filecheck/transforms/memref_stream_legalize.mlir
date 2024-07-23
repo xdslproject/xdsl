@@ -103,7 +103,6 @@ func.func public @sumf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %ar
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.return %arg2 : memref<8x16xf16>
 // CHECK-NEXT:  }
-// CHECK-NEXT:}
 
 func.func public @chainf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %arg2 : memref<8x16xf16>) -> memref<8x16xf16> {
   memref_stream.generic {
