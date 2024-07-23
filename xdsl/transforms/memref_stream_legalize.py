@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import TypeAlias, cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref_stream
@@ -86,9 +86,10 @@ class MemrefStreamGenericLegalize(RewritePattern):
         # Check that vectorized bounds are compatible with all no. of lanes
         # involved in legalizations
         innermost_bound = op.bounds.data[-1].value.data
-        vector_lengths = set()
+        vector_lengths: set[int] = set()
         for i, v in legalizations.items():
-            n_lanes = v.get_shape()[0]
+            v = cast(StreamingVectorType, v)
+            n_lanes: int = v.get_shape()[0]
             if innermost_bound % n_lanes != 0:
                 raise ValueError(
                     f"no. of vector lanes ({n_lanes}) introduced to legalize argument #{i} "
