@@ -72,7 +72,8 @@ def insert_subview(
         raise DiagnosticException("Cannot create subview from non-memref type")
     source_type = cast(MemRefType[Attribute], source_type)
     layout_attr = source_type.layout
-    strides = tuple(source_type.get_strides())
+    assert (strides := source_type.get_strides())
+    strides = tuple(strides)
     match layout_attr:
         case NoneAttr():
             layout_attr = StridedLayoutAttr(strides, None)

@@ -33,7 +33,7 @@ from xdsl.dialects.memref import (
 )
 from xdsl.ir import Attribute, BlockArgument, OpResult
 from xdsl.ir.affine import AffineMap
-from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.test_value import TestSSAValue
 
@@ -495,13 +495,12 @@ def test_get_strides():
     affine = AffineMapAttr(AffineMap.identity(3))
 
     assert tuple(strided.get_strides()) == (24, 4, 1)
-    with pytest.raises(
-        DiagnosticException, match="Cannot yet extract strides from affine map"
-    ):
-        affine.get_strides()
+    assert affine.get_strides() is None
 
     t_none = MemRefType(i32, (2, 3, 4))
-    assert tuple(t_none.get_strides()) == (12, 4, 1)
+    assert (strides := t_none.get_strides())
+    assert tuple(strides) == (12, 4, 1)
 
     t_id = MemRefType(i32, (2, 3, 4), strided)
-    assert tuple(t_id.get_strides()) == (24, 4, 1)
+    assert (strides := t_id.get_strides())
+    assert tuple(strides) == (24, 4, 1)
