@@ -1,5 +1,3 @@
-import operator
-from functools import reduce
 from typing import Any, cast
 
 from xdsl.backend.riscv.lowering.utils import (
@@ -18,7 +16,6 @@ from xdsl.dialects import (
 )
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    FixedBitwidthType,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -39,6 +36,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import DiagnosticException
 
 
 def snitch_stream_element_type_is_valid(attr: Attribute) -> bool:
