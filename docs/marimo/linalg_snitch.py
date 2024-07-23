@@ -134,9 +134,9 @@ def __(
     c_shape,
     f64,
     func,
-    html,
     linalg,
     mo,
+    module_html,
 ):
     a_type = MemRefType(f64, a_shape)
     b_type = MemRefType(f64, b_shape)
@@ -182,7 +182,7 @@ def __(
 
     Here is matrix multiplication defined in the `linalg` dialect, with the iteration space decoupled from the computation:
 
-    {html(linalg_module)}
+    {module_html(linalg_module)}
     """)
     return (
         a,
@@ -362,15 +362,14 @@ def __(mo):
 
 
 @app.cell
-def __(mo, riscv_asm_module, riscv_code):
+def __(asm_html, mo, riscv_asm_module, riscv_code):
     riscv_asm = riscv_code(riscv_asm_module)
 
-    mo.accordion(
-        {
-            "RISC-V Assembly": mo.ui.code_editor(
-                riscv_asm, language="python", disabled=True
-            )
-        }
+    mo.md(f"""\
+    **RISC-V Assembly:**
+
+    {asm_html(riscv_asm)}
+    """
     )
     return riscv_asm,
 
@@ -462,15 +461,14 @@ def __(k, m, mo, n):
 
 
 @app.cell
-def __(mo, riscv_code, snitch_asm_module):
+def __(asm_html, mo, riscv_code, snitch_asm_module):
     snitch_asm = riscv_code(snitch_asm_module)
 
-    mo.accordion(
-        {
-            "Snitch Assembly": mo.ui.code_editor(
-                snitch_asm, language="python", disabled=True
-            )
-        }
+    mo.md(f"""\
+    **Snitch Assembly:**
+
+    {asm_html(snitch_asm)}
+    """
     )
     return snitch_asm,
 
@@ -674,12 +672,18 @@ def __(k, m, mo, n, riscv_op_counter, snitch_op_counter):
 def __(ModuleOp, mo):
     import html as htmllib
 
-    def html(module: ModuleOp) -> mo.Html:
+    def module_html(module: ModuleOp) -> str:
         return f"""\
-        <small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small>
+        <div style="overflow-y: scroll; height:400px;"><small><code style="white-space: pre-wrap;">{htmllib.escape(str(module))}</code></small></div>
         """
-        # return mo.as_html(str(module))
-    return html, htmllib
+
+    def asm_html(asm: str) -> str:
+        return f"""\
+        <div style="overflow-y: scroll; height:400px;">{mo.as_html(mo.ui.code_editor(
+                asm, language="python", disabled=True
+            ))}</div>
+        """
+    return asm_html, htmllib, module_html
 
 
 @app.cell
@@ -689,7 +693,7 @@ def __():
 
 
 @app.cell
-def __(Counter, ModuleOp, ModulePass, PipelinePass, ctx, html, mo):
+def __(Counter, ModuleOp, ModulePass, PipelinePass, ctx, mo, module_html):
     def spec_str(p: ModulePass) -> str:
         if isinstance(p, PipelinePass):
             return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
@@ -700,7 +704,7 @@ def __(Counter, ModuleOp, ModulePass, PipelinePass, ctx, html, mo):
         passes: tuple[tuple[mo.Html, ModulePass], ...], module: ModuleOp
     ) -> tuple[ModuleOp, mo.Html]:
         res = module.clone()
-        d = {}
+        d = []
         total_key_count = Counter(spec_str(p) for _, p in passes)
         d_key_count = Counter()
         for text, p in passes:
@@ -711,14 +715,15 @@ def __(Counter, ModuleOp, ModulePass, PipelinePass, ctx, html, mo):
                 header = f"{spec} ({d_key_count[spec]})"
             else:
                 header = spec
-            html_res = html(res)
-            d[header] = mo.vstack(
+            html_res = module_html(res)
+            d.append(mo.vstack(
                 (
+                    header,
                     text,
                     mo.md(html_res),
                 )
-            )
-        return (res, mo.accordion(d))
+            ))
+        return (res, mo.carousel(d))
     return pipeline_accordion, spec_str
 
 
