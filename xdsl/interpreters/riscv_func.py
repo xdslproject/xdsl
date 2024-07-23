@@ -8,6 +8,7 @@ from xdsl.interpreter import (
     ReturnedValues,
     TerminatorValue,
     impl,
+    impl_callable,
     impl_terminator,
     register_impls,
 )
@@ -31,3 +32,18 @@ class RiscvFuncFunctions(InterpreterFunctions):
         results = interpreter.call_op(op.callee.string_value(), args)
         results = RiscvFunctions.set_reg_values(interpreter, op.results, results)
         return results
+
+    @impl_callable(riscv_func.FuncOp)
+    def run_func(
+        self, interpreter: Interpreter, op: riscv_func.FuncOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        if (first_block := op.body.blocks.first) is None or not first_block.ops:
+            return interpreter.call_external(op.sym_name.data, op, args)
+        else:
+            # Either this is the entry function, and the register values are not set,
+            # or this is a result of a call impl, and the registers have already been
+            # validated, so it is safe to set them again.
+            args = RiscvFunctions.set_reg_values_for_types(
+                interpreter, op.function_type.inputs.data, args
+            )
+            return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
