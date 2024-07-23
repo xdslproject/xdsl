@@ -91,10 +91,6 @@ class MemrefStreamGenericLegalize(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
-        if op.iterator_types.data[-1].data != IteratorType.PARALLEL:
-            raise DiagnosticException(
-                "iterators other than 'parallel' are not supported yet"
-            )
         # Collect block arguments that need to be legalized
         legalizations: dict[int, Attribute] = {
             i: _legalize_attr(arg.type)
@@ -103,6 +99,10 @@ class MemrefStreamGenericLegalize(RewritePattern):
         }
         if not legalizations:
             return
+        if op.iterator_types.data[-1].data != IteratorType.PARALLEL:
+            raise DiagnosticException(
+                "iterators other than 'parallel' are not supported yet"
+            )
         # Check that vectorized bounds are compatible with all no. of lanes
         # involved in legalizations
         innermost_bound = op.bounds.data[-1].value.data
