@@ -92,9 +92,9 @@ func.func public @sumf32(%arg0 : memref<8x16xf32>, %arg1 : memref<8x16xf32>, %ar
 // CHECK-NEXT:   memref_stream.generic {
 // CHECK-NEXT:     bounds = [8, 8],
 // CHECK-NEXT:     indexing_maps = [
-// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, d1)>,
-// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, d1)>,
-// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, d1)>
+// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, (d1 * 2))>,
+// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, (d1 * 2))>,
+// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, (d1 * 2))>
 // CHECK-NEXT:     ],
 // CHECK-NEXT:     iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:   } ins(%arg0, %arg1 : memref<8x16xf32>, memref<8x16xf32>) outs(%arg2 : memref<8x16xf32>) {
@@ -126,9 +126,9 @@ func.func public @sumf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %ar
 // CHECK-NEXT:   memref_stream.generic {
 // CHECK-NEXT:     bounds = [8, 4],
 // CHECK-NEXT:     indexing_maps = [
-// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, d1)>,
-// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, d1)>,
-// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, d1)>
+// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, (d1 * 4))>,
+// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, (d1 * 4))>,
+// CHECK-NEXT:       affine_map<(d0, d1) -> (d0, (d1 * 4))>
 // CHECK-NEXT:     ],
 // CHECK-NEXT:     iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:   } ins(%arg0, %arg1 : memref<8x16xf16>, memref<8x16xf16>) outs(%arg2 : memref<8x16xf16>) {
@@ -167,9 +167,9 @@ func.func public @chainf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %
 // CHECK-NEXT:  memref_stream.generic {
 // CHECK-NEXT:    bounds = [8, 4],
 // CHECK-NEXT:    indexing_maps = [
-// CHECK-NEXT:      affine_map<(d0, d1) -> (d0, d1)>,
-// CHECK-NEXT:      affine_map<(d0, d1) -> (d0, d1)>,
-// CHECK-NEXT:      affine_map<(d0, d1) -> (d0, d1)>
+// CHECK-NEXT:      affine_map<(d0, d1) -> (d0, (d1 * 4))>,
+// CHECK-NEXT:      affine_map<(d0, d1) -> (d0, (d1 * 4))>,
+// CHECK-NEXT:      affine_map<(d0, d1) -> (d0, (d1 * 4))>
 // CHECK-NEXT:    ],
 // CHECK-NEXT:    iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:  } ins(%arg0, %arg1 : memref<8x16xf16>, memref<8x16xf16>) outs(%arg2 : memref<8x16xf16>) {
