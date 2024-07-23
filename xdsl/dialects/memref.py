@@ -6,6 +6,7 @@ from typing import Annotated, ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    I64,
     AnyFloat,
     AnyIntegerAttr,
     AnySignlessIntegerType,
@@ -369,7 +370,7 @@ class AtomicRMWOp(IRDLOperation):
     memref = operand_def(MemRefType[T])
     indices = var_operand_def(IndexType)
 
-    kind = prop_def(IntegerAttr[Annotated[IntegerType, i64]])
+    kind = prop_def(IntegerAttr[I64])
 
     result = result_def(T)
 
@@ -416,7 +417,7 @@ class Global(IRDLOperation):
     type: Attribute = prop_def(Attribute)
     initial_value: Attribute = prop_def(Attribute)
     constant = opt_prop_def(UnitAttr)
-    alignment = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
+    alignment = opt_prop_def(IntegerAttr[I64])
 
     traits = frozenset([SymbolOpInterface()])
 

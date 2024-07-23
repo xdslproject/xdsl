@@ -8,7 +8,7 @@ from typing import Annotated, Generic, TypeVar
 import pytest
 
 from xdsl.context import MLContext
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, ModuleOp, i32
+from xdsl.dialects.builtin import I32, IntegerAttr, ModuleOp
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
@@ -501,9 +501,7 @@ def test_typed_attribute_variable(program: str, generic_program: str):
     @irdl_op_definition
     class TypedAttributeOp(IRDLOperation):
         name = "test.typed_attr"
-        attr: IntegerAttr[IntegerType] = attr_def(
-            IntegerAttr[Annotated[IntegerType, i32]]
-        )
+        attr = attr_def(IntegerAttr[I32])
 
         assembly_format = "$attr attr-dict"
 
