@@ -92,9 +92,10 @@ class MemrefStreamGenericLegalize(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
-        # FIXME add reduction support
         if op.iterator_types.data[-1].data != IteratorType.PARALLEL:
-            return
+            raise DiagnosticException(
+                "iterators other than 'parallel' are not supported yet"
+            )
         # Collect block arguments that need to be legalized
         legalizations: dict[int, Attribute] = {
             i: _legalize_attr(arg.type)
