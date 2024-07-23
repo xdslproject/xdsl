@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeAlias, cast
+from typing import TypeAlias
 
 from xdsl.context import MLContext
 from xdsl.dialects import memref_stream
@@ -27,12 +27,14 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
-StreamingVectorType: TypeAlias = VectorType[Float64Type | Float32Type | Float16Type]
-StreamingLegalType: TypeAlias = StreamingVectorType | Float64Type
+StreamingVectorLegalizationType: TypeAlias = VectorType[
+    Float64Type | Float32Type | Float16Type
+]
+StreamingAlreadyLegalType: TypeAlias = Float64Type
 
 
 def _is_legal_vector(attr: Attribute) -> bool:
-    if isa(attr, StreamingVectorType):
+    if isa(attr, StreamingVectorLegalizationType):
         match attr.element_type, attr.element_count():
             case Float64Type(), 1:
                 return True
@@ -46,11 +48,13 @@ def _is_legal_vector(attr: Attribute) -> bool:
 
 
 def _is_legal_attr(attr: Attribute) -> bool:
-    return _is_legal_vector(attr) or isa(attr, StreamingLegalType)
+    return _is_legal_vector(attr) or isinstance(attr, StreamingAlreadyLegalType)
 
 
-def _legalize_attr(attr: Attribute) -> StreamingLegalType:
-    if isa(attr, StreamingVectorType):
+def _legalize_attr(
+    attr: Attribute,
+) -> StreamingVectorLegalizationType | StreamingAlreadyLegalType:
+    if isa(attr, StreamingVectorLegalizationType):
         # Either already a legal vector or impossible to legalize
         if not _is_legal_vector(attr):
             raise DiagnosticException(f"Cannot legalize {attr} for streaming")
@@ -92,11 +96,11 @@ class MemrefStreamGenericLegalize(RewritePattern):
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
         # Collect block arguments that need to be legalized
-        legalizations: dict[int, Attribute] = {
-            i: _legalize_attr(arg.type)
-            for i, arg in enumerate(op.body.block.args)
-            if not _is_legal_attr(arg.type)
-        }
+        legalizations: dict[int, StreamingVectorLegalizationType] = {}
+        for i, arg in enumerate(op.body.block.args):
+            legal = _legalize_attr(arg.type)
+            if not isinstance(legal, StreamingAlreadyLegalType):
+                legalizations[i] = legal
         if not legalizations:
             return
         if op.iterator_types.data[-1].data != IteratorType.PARALLEL:
@@ -108,7 +112,6 @@ class MemrefStreamGenericLegalize(RewritePattern):
         innermost_bound = op.bounds.data[-1].value.data
         vector_lengths: set[int] = set()
         for i, v in legalizations.items():
-            v = cast(StreamingVectorType, v)
             n_lanes: int = v.get_shape()[0]
             if innermost_bound % n_lanes != 0:
                 raise ValueError(
