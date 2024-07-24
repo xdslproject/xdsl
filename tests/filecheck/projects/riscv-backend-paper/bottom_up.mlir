@@ -6,18 +6,17 @@ func.func public @ssum(
   %Y: memref<8x16xf32>,
   %Z: memref<8x16xf32>
 ) {
-  memref_stream.generic {
-    bounds = [8, 8],
+  linalg.generic {
     indexing_maps = [
-      affine_map<(d0, d1) -> (d0, 2 * d1)>,
-      affine_map<(d0, d1) -> (d0, 2 * d1)>,
-      affine_map<(d0, d1) -> (d0, 2 * d1)>
+      affine_map<(d0, d1) -> (d0, d1)>,
+      affine_map<(d0, d1) -> (d0, d1)>,
+      affine_map<(d0, d1) -> (d0, d1)>
     ],
     iterator_types = ["parallel", "parallel"]
   } ins(%X, %Y : memref<8x16xf32>, memref<8x16xf32>) outs(%Z : memref<8x16xf32>) {
-  ^1(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
-    %3 = arith.addf %in, %in_1 : vector<2xf32>
-    memref_stream.yield %3 : vector<2xf32>
+  ^1(%in : f32, %in_1 : f32, %out : f32):
+    %3 = arith.addf %in, %in_1 : f32
+    linalg.yield %3 : f32
   }
   func.return
 }
