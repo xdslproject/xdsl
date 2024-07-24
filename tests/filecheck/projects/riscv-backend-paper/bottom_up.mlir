@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-linalg-to-memref-stream,memref-stream-legalize,test-optimise-memref-stream,test-lower-memref-stream-to-snitch-stream,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-memref-stream,test-optimise-memref-stream,test-lower-memref-stream-to-snitch-stream,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
 
 
 func.func public @ssum(
