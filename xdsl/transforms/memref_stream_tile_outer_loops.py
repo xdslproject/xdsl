@@ -190,7 +190,7 @@ def materialize_loop(
         ArrayAttr(new_bounds),
         generic_op.init_indices,
         generic_op.doc,
-        generic_op.library_call
+        generic_op.library_call,
     )
 
     Rewriter.insert_op(new_generic_op, loc)

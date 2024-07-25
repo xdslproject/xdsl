@@ -145,7 +145,7 @@ class PipelineGenericPattern(RewritePattern):
                 ArrayAttr(new_bounds),
                 op.init_indices,
                 op.doc,
-                op.library_call
+                op.library_call,
             )
         )
 

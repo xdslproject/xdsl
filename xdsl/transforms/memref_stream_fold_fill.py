@@ -43,7 +43,7 @@ def fold_fills_in_module(module_op: ModuleOp):
                         op.bounds,
                         init_indices,
                         op.doc,
-                        op.library_call
+                        op.library_call,
                     ),
                 )
                 for fill_op in set(value for value in fill_ops if value is not None):
