@@ -43,6 +43,7 @@ from xdsl.irdl import (
     ParameterDef,
     irdl_attr_definition,
     irdl_to_attr_constraint,
+    param_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -808,6 +809,26 @@ def test_irdl_definition():
     """Test that we can get the IRDL definition of a parametrized attribute."""
 
     assert ParamAttrDefAttr.get_irdl_definition() == ParamAttrDef(
+        "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
+    )
+
+
+@irdl_attr_definition
+class ParamAttrDefAttr2(ParametrizedAttribute):
+    name = "test.param_attr_def_attr"
+
+    arg1 = param_def(Attribute)
+    arg2 = param_def(BoolData)
+
+    # Check that we can define methods in attribute definition
+    def test(self):
+        pass
+
+
+def test_irdl_definition2():
+    """Test that we can get the IRDL definition of a parametrized attribute."""
+
+    assert ParamAttrDefAttr2.get_irdl_definition() == ParamAttrDef(
         "test.param_attr_def_attr", [("arg1", AnyAttr()), ("arg2", BaseAttr(BoolData))]
     )
 
