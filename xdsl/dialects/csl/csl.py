@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass, field
 from typing import Annotated, ClassVar, TypeAlias
 
 from xdsl.dialects import builtin
@@ -186,14 +186,15 @@ class InModuleKind(OpTrait):
     Ops with this trait are always allowed inside a csl_wrapper.module
     """
 
-    def __init__(self, kind: ModuleKind, *, direct_child: bool = True):
-        super().__init__((kind, direct_child))
+    kind: ModuleKind = field()
+    _: KW_ONLY
+    direct_child: bool = field(default=True)
 
     def verify(self, op: Operation) -> None:
         from xdsl.dialects.csl import csl_wrapper
 
-        kind: ModuleKind = self.parameters[0]
-        direct_child: bool = self.parameters[1]
+        kind: ModuleKind = self.kind
+        direct_child: bool = self.direct_child
 
         direct = "direct" if direct_child else "indirect"
         parent_module = op.parent_op()
