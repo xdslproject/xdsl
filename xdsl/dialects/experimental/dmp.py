@@ -14,12 +14,13 @@ from collections.abc import Sequence
 from math import prod
 from typing import Literal
 
-from xdsl.dialects import builtin, memref, stencil
+from xdsl.dialects import builtin, stencil
 from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
     ParameterDef,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -434,7 +435,7 @@ class SwapOp(IRDLOperation):
     name = "dmp.swap"
 
     input_stencil: Operand = operand_def(
-        stencil.TempType[Attribute] | memref.MemRefType[Attribute]
+        base(stencil.AnyTempType) | base(builtin.AnyMemRefType)
     )
 
     swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] | None = opt_attr_def(

@@ -20,6 +20,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     opt_operand_def,
@@ -68,9 +69,9 @@ class OrderKindAttr(EnumAttribute[OrderKind], SpacedOpaqueSyntaxAttribute):
 class WsLoopOp(IRDLOperation):
     name = "omp.wsloop"
 
-    lowerBound = var_operand_def(IntegerType | IndexType)
-    upperBound = var_operand_def(IntegerType | IndexType)
-    step = var_operand_def(IntegerType | IndexType)
+    lowerBound = var_operand_def(base(IntegerType) | base(IndexType))
+    upperBound = var_operand_def(base(IntegerType) | base(IndexType))
+    step = var_operand_def(base(IntegerType) | base(IndexType))
     linear_vars = var_operand_def()
     linear_step_vars = var_operand_def(i32)
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
@@ -108,7 +109,7 @@ class ParallelOp(IRDLOperation):
     name = "omp.parallel"
 
     if_expr_var = opt_operand_def(IntegerType(1))
-    num_threads_var = opt_operand_def(IntegerType | IndexType)
+    num_threads_var = opt_operand_def(base(IntegerType) | base(IndexType))
     allocate_vars = var_operand_def()
     allocators_vars = var_operand_def()
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream

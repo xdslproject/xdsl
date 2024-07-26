@@ -124,10 +124,20 @@ class RiscvFunctions(InterpreterFunctions):
     def set_reg_values(
         interpreter: Interpreter, results: Sequence[SSAValue], values: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        assert len(results) == len(values)
         return tuple(
             RiscvFunctions.set_reg_value(interpreter, result.type, value)
-            for result, value in zip(results, values)
+            for result, value in zip(results, values, strict=True)
+        )
+
+    @staticmethod
+    def set_reg_values_for_types(
+        interpreter: Interpreter,
+        result_types: Sequence[Attribute],
+        values: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        return tuple(
+            RiscvFunctions.set_reg_value(interpreter, result_type, value)
+            for result_type, value in zip(result_types, values, strict=True)
         )
 
     @staticmethod

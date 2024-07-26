@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Annotated, Generic, TypeVar, cast
+from typing import Annotated, Generic, TypeAlias, TypeVar, cast
 
 from typing_extensions import Self
 
@@ -55,6 +55,9 @@ class ReadableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElem
 @irdl_attr_definition
 class WritableStreamType(Generic[_StreamTypeElement], StreamType[_StreamTypeElement]):
     name = "stream.writable"
+
+
+AnyWritableStreamType: TypeAlias = WritableStreamType[Attribute]
 
 
 class ReadOperation(IRDLOperation, abc.ABC):

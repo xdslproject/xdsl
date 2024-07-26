@@ -49,6 +49,8 @@ class ConvertGenericOpPattern(RewritePattern):
                 iterator_types,
                 bounds,
                 ArrayAttr(()),
+                op.doc,
+                op.library_call,
             )
         )
 

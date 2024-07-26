@@ -132,9 +132,9 @@ class AffineMap:
         """
         Returns the `AffineMap` resulting from composing `self` with `other`.
 
-        The resulting `AffineMap` has as many `AffineDimExpr` as `other` and as many `AffineSymbolExpr` as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
+        The resulting `AffineMap` has as many dimensions as `other` and as many symbols as the concatenation of `self` and `other` (in which case the symbols of `self` come first).
 
-        Prerequisites: The maps are composable, i.e. that the number of `AffineDimExpr` of `self` matches the number of results of `map`.
+        Prerequisites: The maps are composable, i.e. that the number of dimensions of `self` matches the number of results of `other`.
 
         Example:
         ```

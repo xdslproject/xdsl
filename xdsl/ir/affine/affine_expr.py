@@ -180,6 +180,13 @@ class AffineExpr:
         if isinstance(self, AffineBinaryOpExpr) and self.kind == AffineBinaryOpKind.Mul:
             if fold := self.rhs._try_fold_constant(other, AffineBinaryOpKind.Mul):
                 return self.lhs * fold
+        # Fold (expr + expr) * constant.
+        if (
+            isinstance(self, AffineBinaryOpExpr)
+            and self.kind == AffineBinaryOpKind.Add
+            and isinstance(other, AffineConstantExpr)
+        ):
+            return self.lhs * other + self.rhs * other
         return None
 
     def __mul__(self, other: AffineExpr | int) -> AffineExpr:
@@ -201,7 +208,7 @@ class AffineExpr:
     def __rmul__(self, other: AffineExpr | int) -> AffineExpr:
         return self.__mul__(other)
 
-    def floor_div(self, other: AffineExpr | int) -> AffineExpr:
+    def __floordiv__(self, other: AffineExpr | int) -> AffineExpr:
         if isinstance(other, int):
             other = AffineExpr.constant(other)
 

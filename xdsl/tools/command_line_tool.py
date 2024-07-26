@@ -186,6 +186,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return memref_stream_tile_outer_loops.MemrefStreamTileOuterLoopsPass
 
+    def get_memref_stream_legalize():
+        from xdsl.transforms import memref_stream_legalize
+
+        return memref_stream_legalize.MemrefStreamLegalizePass
+
     def get_mlir_opt():
         from xdsl.transforms import mlir_opt
 
@@ -230,6 +235,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.backend.riscv.lowering import convert_arith_to_riscv
 
         return convert_arith_to_riscv.ConvertArithToRiscvPass
+
+    def get_convert_arith_to_riscv_snitch():
+        from xdsl.backend.riscv.lowering import convert_arith_to_riscv_snitch
+
+        return convert_arith_to_riscv_snitch.ConvertArithToRiscvSnitchPass
 
     def get_convert_func_to_riscv_func():
         from xdsl.backend.riscv.lowering import convert_func_to_riscv_func
@@ -364,6 +374,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
         "convert-arith-to-riscv": get_convert_arith_to_riscv,
+        "convert-arith-to-riscv-snitch": get_convert_arith_to_riscv_snitch,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
@@ -406,6 +417,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "memref-stream-infer-fill": get_memref_stream_infer_fill,
         "memref-stream-interleave": get_memref_stream_interleave,
         "memref-stream-tile-outer-loops": get_memref_stream_tile_outer_loops,
+        "memref-stream-legalize": get_memref_stream_legalize,
         "mlir-opt": get_mlir_opt,
         "printf-to-llvm": get_printf_to_llvm,
         "printf-to-putchar": get_printf_to_putchar,

@@ -5,6 +5,8 @@ from math import prod
 from xdsl.context import MLContext
 from xdsl.dialects import arith, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    AnyMemRefType,
+    AnyTensorType,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -14,7 +16,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, OpResult, Region
-from xdsl.irdl import Operand
+from xdsl.irdl import Operand, base
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -28,6 +30,7 @@ from xdsl.transforms.experimental.stencil_tensorize_z_dimension import (
     BackpropagateStencilShapes,
 )
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 def get_stencil_access_operands(op: Operand) -> set[Operand]:
@@ -105,14 +108,8 @@ class RestructureSymmetricReductionPattern(RewritePattern):
             return
         elif self.move_back(a) and self.move_back(b):
             return
-        elif self.move_fwd(a) and self.move_fwd(c):
+        elif self.move_fwd(c) and self.move_back(b):
             rewrite(a_op, c_op, b_op)
-        elif self.move_fwd(b) and self.move_fwd(c):
-            rewrite(b_op, c_op, a_op)
-        elif self.move_back(a) and not self.move_back(c):
-            rewrite(c_op, b_op, a_op)
-        elif self.move_back(b) and not self.move_back(c):
-            rewrite(c_op, a_op, b_op)
 
     def move_fwd(self, accs: set[Operand]) -> bool:
         return self.buf in accs and len(accs) == 1
@@ -142,7 +139,7 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
 
         # translate access to own data, which operates on stencil.TempType
         if tuple(op.offset) == (0, 0):
-            assert isa(op.res.type, stencil.TensorType)
+            assert isattr(op.res.type, base(AnyTensorType))
             rewriter.replace_matched_op(
                 csl_stencil.AccessOp(
                     op=op.temp,
@@ -211,9 +208,9 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         ), "all swaps need to be of uniform size"
 
         assert isinstance(op.input_stencil, OpResult)
-        assert isa(
+        assert isattr(
             op.input_stencil.type,
-            memref.MemRefType[Attribute] | stencil.TempType[Attribute],
+            base(AnyMemRefType) | base(stencil.AnyTempType),
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
@@ -391,7 +388,8 @@ class ConvertApplyOpPattern(RewritePattern):
 
         # run pass (on this apply's region only) to consume data from `prefetch` accesses first
         nested_rewriter = PatternRewriteWalker(
-            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx])
+            RestructureSymmetricReductionPattern(op.region.block.args[prefetch_idx]),
+            walk_reverse=True,
         )
         nested_rewriter.rewrite_op(op)
 
@@ -527,6 +525,9 @@ class ConvertApplyOpPattern(RewritePattern):
                 result_types=[r.type for r in op.results],
             )
         )
+
+        if len(prefetch.uses) == 0:
+            rewriter.erase_op(prefetch.op)
 
 
 @dataclass(frozen=True)

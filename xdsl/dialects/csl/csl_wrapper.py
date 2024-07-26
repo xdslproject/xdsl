@@ -152,8 +152,8 @@ class ModuleOp(IRDLOperation):
 
     name = "csl_wrapper.module"
 
-    width = prop_def(IntegerAttr)
-    height = prop_def(IntegerAttr)
+    width = prop_def(AnyIntegerAttr)
+    height = prop_def(AnyIntegerAttr)
     program_name = opt_prop_def(StringAttr)
     params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
 

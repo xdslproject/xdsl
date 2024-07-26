@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.lowering.convert_arith_to_riscv import ConvertArithToRiscvPass
+from xdsl.backend.riscv.lowering.convert_arith_to_riscv_snitch import (
+    ConvertArithToRiscvSnitchPass,
+)
 from xdsl.backend.riscv.lowering.convert_func_to_riscv_func import (
     ConvertFuncToRiscvFuncPass,
 )
@@ -19,6 +22,7 @@ TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM: tuple[ModulePass, ...] = (
     ConvertMemrefToRiscvPass(),
     LowerAffinePass(),
     ConvertScfToRiscvPass(),
+    ConvertArithToRiscvSnitchPass(),
     ConvertArithToRiscvPass(),
     ConvertFuncToRiscvFuncPass(),
     ConvertMemrefStreamToSnitchStreamPass(),

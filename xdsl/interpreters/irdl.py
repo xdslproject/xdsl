@@ -123,7 +123,7 @@ class IRDLFunctions(InterpreterFunctions):
     def run_any_of(
         self, interpreter: Interpreter, op: irdl.AnyOfOp, args: PythonValues
     ):
-        constr = AnyOf(args)
+        constr = AnyOf[Attribute](args)
         if len(op.output.uses) > 1:
             constr = self.variable_wrap(interpreter, constr)
         return (constr,)

@@ -8,6 +8,10 @@ from typing import IO, Annotated, Generic, Literal, TypeAlias, TypeVar
 
 from typing_extensions import Self
 
+from xdsl.backend.register_allocatable import (
+    HasRegisterConstraints,
+    RegisterConstraints,
+)
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -38,6 +42,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -346,10 +351,13 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVAsmOperation(IRDLOperation, ABC):
+class RISCVAsmOperation(HasRegisterConstraints, IRDLOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(self.operands, self.results, ())
 
     @abstractmethod
     def assembly_line(self) -> str | None:
@@ -641,7 +649,7 @@ class RdImmIntegerOperation(RISCVInstruction, ABC):
     """
 
     rd: OpResult = result_def(IntRegisterType)
-    immediate: Imm20Attr | LabelAttr = attr_def(Imm20Attr | LabelAttr)
+    immediate: Imm20Attr | LabelAttr = attr_def(base(Imm20Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -697,7 +705,7 @@ class RdImmJumpOperation(RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(SImm20Attr | LabelAttr)
+    immediate = attr_def(base(SImm20Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -761,7 +769,7 @@ class RdRsImmIntegerOperation(RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(SImm12Attr | LabelAttr)
+    immediate = attr_def(base(SImm12Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -822,7 +830,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate: UImm5Attr | LabelAttr = attr_def(UImm5Attr | LabelAttr)
+    immediate = attr_def(base(UImm5Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -886,7 +894,7 @@ class RdRsImmJumpOperation(RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(SImm12Attr | LabelAttr)
+    immediate = attr_def(base(SImm12Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -974,7 +982,7 @@ class RsRsOffIntegerOperation(RISCVInstruction, ABC):
 
     rs1: Operand = operand_def(IntRegisterType)
     rs2: Operand = operand_def(IntRegisterType)
-    offset = attr_def(SImm12Attr | LabelAttr)
+    offset = attr_def(base(SImm12Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -1073,9 +1081,19 @@ class RsRsIntegerOperation(RISCVInstruction, ABC):
     rs1: Operand = operand_def(IntRegisterType)
     rs2: Operand = operand_def(IntRegisterType)
 
-    def __init__(self, rs1: Operation | SSAValue, rs2: Operation | SSAValue):
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        rs2: Operation | SSAValue,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
         super().__init__(
             operands=[rs1, rs2],
+            attributes={
+                "comment": comment,
+            },
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -2452,7 +2470,7 @@ class LiOp(RISCVInstruction, ABC):
     name = "riscv.li"
 
     rd: OpResult = result_def(IntRegisterType)
-    immediate: Imm32Attr | LabelAttr = attr_def(Imm32Attr | LabelAttr)
+    immediate: Imm32Attr | LabelAttr = attr_def(base(Imm32Attr) | base(LabelAttr))
 
     traits = frozenset((Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()))
 
@@ -3035,7 +3053,7 @@ class RdRsImmFloatOperation(RISCVInstruction, ABC):
 
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(Imm12Attr | LabelAttr)
+    immediate = attr_def(base(Imm12Attr) | base(LabelAttr))
 
     def __init__(
         self,
@@ -3558,6 +3576,8 @@ class FSubDOp(RdRsRsFloatOperationWithFastMath):
     """
 
     name = "riscv.fsub.d"
+
+    traits = frozenset((Pure(),))
 
 
 @irdl_op_definition

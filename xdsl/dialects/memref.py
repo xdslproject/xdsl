@@ -6,6 +6,7 @@ from typing import Annotated, ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    I64,
     AnyFloat,
     AnyIntegerAttr,
     AnySignlessIntegerType,
@@ -42,6 +43,7 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     VarOperand,
     VarOpResult,
+    base,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -368,7 +370,7 @@ class AtomicRMWOp(IRDLOperation):
     memref = operand_def(MemRefType[T])
     indices = var_operand_def(IndexType)
 
-    kind = prop_def(IntegerAttr[Annotated[IntegerType, i64]])
+    kind = prop_def(IntegerAttr[I64])
 
     result = result_def(T)
 
@@ -376,7 +378,9 @@ class AtomicRMWOp(IRDLOperation):
 @irdl_op_definition
 class Dealloc(IRDLOperation):
     name = "memref.dealloc"
-    memref: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    memref: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
 
     @staticmethod
     def get(operand: Operation | SSAValue) -> Dealloc:
@@ -413,7 +417,7 @@ class Global(IRDLOperation):
     type: Attribute = prop_def(Attribute)
     initial_value: Attribute = prop_def(Attribute)
     constant = opt_prop_def(UnitAttr)
-    alignment = opt_prop_def(IntegerAttr[Annotated[IntegerType, IntegerType(64)]])
+    alignment = opt_prop_def(IntegerAttr[I64])
 
     traits = frozenset([SymbolOpInterface()])
 
@@ -463,7 +467,9 @@ class Global(IRDLOperation):
 class Dim(IRDLOperation):
     name = "memref.dim"
 
-    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
     index: Operand = operand_def(IndexType)
 
     result: OpResult = result_def(IndexType)
@@ -838,8 +844,12 @@ class Subview(IRDLOperation):
 class Cast(IRDLOperation):
     name = "memref.cast"
 
-    source: Operand = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    dest: OpResult = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source: Operand = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    dest: OpResult = result_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
 
     traits = frozenset([NoMemoryEffect()])
 
@@ -855,8 +865,10 @@ class Cast(IRDLOperation):
 class MemorySpaceCast(IRDLOperation):
     name = "memref.memory_space_cast"
 
-    source = operand_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
-    dest = result_def(MemRefType[Attribute] | UnrankedMemrefType[Attribute])
+    source = operand_def(
+        base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute])
+    )
+    dest = result_def(base(MemRefType[Attribute]) | base(UnrankedMemrefType[Attribute]))
 
     traits = frozenset([NoMemoryEffect()])
 

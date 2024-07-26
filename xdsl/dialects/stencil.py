@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import Annotated, Generic, TypeVar, cast
+from typing import Annotated, Generic, TypeAlias, TypeVar, cast
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
@@ -43,6 +43,7 @@ from xdsl.irdl import (
     VarOperand,
     VarOpResult,
     attr_def,
+    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -370,6 +371,9 @@ class TempType(
     """
 
     name = "stencil.temp"
+
+
+AnyTempType: TypeAlias = TempType[Attribute]
 
 
 @irdl_attr_definition
@@ -740,7 +744,9 @@ class ExternalLoadOp(IRDLOperation):
 
     name = "stencil.external_load"
     field: Operand = operand_def(Attribute)
-    result: OpResult = result_def(FieldType[Attribute] | memref.MemRefType[Attribute])
+    result: OpResult = result_def(
+        base(FieldType[Attribute]) | base(memref.MemRefType[Attribute])
+    )
 
     assembly_format = (
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
@@ -1127,7 +1133,7 @@ class BufferOp(IRDLOperation):
             )
 
 
-class TensorIgnoreSizeConstraint(VarConstraint):
+class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
     def verify(
         self, attr: Attribute, constraint_context: ConstraintContext | None = None
     ) -> None:

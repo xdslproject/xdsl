@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from io import StringIO
 from string import hexdigits
-from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast, overload
+from typing import Literal, TypeAlias, TypeGuard, cast, overload
 
 from xdsl.utils.exceptions import ParseError
 
@@ -202,6 +202,30 @@ class StringLiteral(Span):
         return bytes(bytes_contents)
 
 
+PunctuationSpelling: TypeAlias = Literal[
+    "->",
+    ":",
+    ",",
+    "...",
+    "=",
+    ">",
+    "{",
+    "(",
+    "[",
+    "<",
+    "-",
+    "+",
+    "?",
+    "}",
+    ")",
+    "]",
+    "*",
+    "|",
+    "{-#",
+    "#-}",
+]
+
+
 @dataclass
 class Token:
     class Kind(Enum):
@@ -282,42 +306,19 @@ class Token:
         @staticmethod
         def is_spelling_of_punctuation(
             spelling: str,
-        ) -> TypeGuard[Token.PunctuationSpelling]:
+        ) -> TypeGuard[PunctuationSpelling]:
             punctuation_dict = Token.Kind.get_punctuation_spelling_to_kind_dict()
             return spelling in punctuation_dict.keys()
 
         @staticmethod
         def get_punctuation_kind_from_spelling(
-            spelling: Token.PunctuationSpelling,
+            spelling: PunctuationSpelling,
         ) -> Token.Kind:
             assert Token.Kind.is_spelling_of_punctuation(spelling), (
                 "Kind.get_punctuation_kind_from_spelling: spelling is not a "
                 "valid punctuation spelling!"
             )
             return Token.Kind.get_punctuation_spelling_to_kind_dict()[spelling]
-
-    PunctuationSpelling: ClassVar[TypeAlias] = Literal[
-        "->",
-        ":",
-        ",",
-        "...",
-        "=",
-        ">",
-        "{",
-        "(",
-        "[",
-        "<",
-        "-",
-        "+",
-        "?",
-        "}",
-        ")",
-        "]",
-        "*",
-        "|",
-        "{-#",
-        "#-}",
-    ]
 
     kind: Kind
 
