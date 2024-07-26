@@ -7,8 +7,8 @@ func.func @dup_operand(%f : !stencil.field<[0,64]xf64>, %of1 : !stencil.field<[0
         %2 = stencil.access %two[0] : !stencil.temp<?xf64>
         stencil.return %1, %2 : f64, f64
     }
-    stencil.store %o1 to %of1([0] : [64]) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
-    stencil.store %o2 to %of2([0] : [64]) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
+    stencil.store %o1 to %of1(<[0], [64]>) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
+    stencil.store %o2 to %of2(<[0], [64]>) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
     return
 }
 
@@ -18,8 +18,8 @@ func.func @dup_operand(%f : !stencil.field<[0,64]xf64>, %of1 : !stencil.field<[0
 // CHECK-NEXT:        %0 = stencil.access %one[0] : !stencil.temp<?xf64>
 // CHECK-NEXT:        stencil.return %0, %0 : f64, f64
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %o1 to %of1 ([0] : [64]) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
-// CHECK-NEXT:      stencil.store %o2 to %of2 ([0] : [64]) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
+// CHECK-NEXT:      stencil.store %o1 to %of1 (<[0], [64]>) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
+// CHECK-NEXT:      stencil.store %o2 to %of2 (<[0], [64]>) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -33,7 +33,7 @@ func.func @unused_res(%f1 : !stencil.field<[0,64]xf64>, %f2 : !stencil.field<[0,
         %2 = stencil.access %two[0] : !stencil.temp<?xf64>
         stencil.return %1, %2 : f64, f64
     }
-    stencil.store %o1 to %of([0] : [64]) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
+    stencil.store %o1 to %of(<[0], [64]>) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
     return
 }
 
@@ -44,6 +44,6 @@ func.func @unused_res(%f1 : !stencil.field<[0,64]xf64>, %f2 : !stencil.field<[0,
 // CHECK-NEXT:        %0 = stencil.access %one[0] : !stencil.temp<?xf64>
 // CHECK-NEXT:        stencil.return %0 : f64
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %o1 to %of ([0] : [64]) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
+// CHECK-NEXT:      stencil.store %o1 to %of (<[0], [64]>) : !stencil.temp<?xf64> to !stencil.field<[0,64]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
