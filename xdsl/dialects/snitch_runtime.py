@@ -2,7 +2,16 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Annotated, Generic, TypeVar
 
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, i1, i32, i64
+from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    i1,
+    i32,
+    i64,
+)
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -358,7 +367,7 @@ class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
 
 
 @irdl_op_definition
-class DmaStart1DOp(DmaStart1DBaseOperation[Annotated[Attribute, i32]]):
+class DmaStart1DOp(DmaStart1DBaseOperation[I32]):
     """
     Initiate an asynchronous 1D DMA transfer with 32-bits pointers
     """
@@ -367,7 +376,7 @@ class DmaStart1DOp(DmaStart1DBaseOperation[Annotated[Attribute, i32]]):
 
 
 @irdl_op_definition
-class DmaStart1DWideptrOp(DmaStart1DBaseOperation[Annotated[Attribute, i64]]):
+class DmaStart1DWideptrOp(DmaStart1DBaseOperation[I64]):
     """
     Initiate an asynchronous 1D DMA transfer with 64-bits wide pointers
     """
@@ -376,7 +385,7 @@ class DmaStart1DWideptrOp(DmaStart1DBaseOperation[Annotated[Attribute, i64]]):
 
 
 @irdl_op_definition
-class DmaStart2DOp(DmaStart2DBaseOperation[Annotated[Attribute, i32]]):
+class DmaStart2DOp(DmaStart2DBaseOperation[I32]):
     """
     Initiate an asynchronous 2D DMA transfer with 32-bits pointers
     """
@@ -385,7 +394,7 @@ class DmaStart2DOp(DmaStart2DBaseOperation[Annotated[Attribute, i32]]):
 
 
 @irdl_op_definition
-class DmaStart2DWideptrOp(DmaStart2DBaseOperation[Annotated[Attribute, i64]]):
+class DmaStart2DWideptrOp(DmaStart2DBaseOperation[I64]):
     """
     Initiate an asynchronous 2D DMA transfer with 64-bits wide pointers
     """

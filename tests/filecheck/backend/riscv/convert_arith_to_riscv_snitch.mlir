@@ -3,15 +3,21 @@
 // CHECK:   builtin.module
 // CHECK-NEXT:    %l, %r = "test.op"() : () -> (!riscv.freg, !riscv.freg)
 %l, %r = "test.op"() : () -> (!riscv.freg, !riscv.freg)
+%l16 = builtin.unrealized_conversion_cast %l : !riscv.freg to vector<4xf16>
+%r16 = builtin.unrealized_conversion_cast %r : !riscv.freg to vector<4xf16>
 %l32 = builtin.unrealized_conversion_cast %l : !riscv.freg to vector<2xf32>
 %r32 = builtin.unrealized_conversion_cast %r : !riscv.freg to vector<2xf32>
 %lhsvf64 = builtin.unrealized_conversion_cast %l : !riscv.freg to vector<1xf64>
 %rhsvf64 = builtin.unrealized_conversion_cast %r : !riscv.freg to vector<1xf64>
 
+// CHECK-NEXT:    %addf16 = riscv_snitch.vfadd.h %l, %r : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%addf16 = arith.addf %l16, %r16 : vector<4xf16>
 // CHECK-NEXT:    %addf32 = riscv_snitch.vfadd.s %l, %r : (!riscv.freg, !riscv.freg) -> !riscv.freg
 %addf32 = arith.addf %l32, %r32 : vector<2xf32>
 
 // tests with fastmath flags when set to "fast"
+// CHECK-NEXT:    %addf16_fm = riscv_snitch.vfadd.h %l, %r fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%addf16_fm = arith.addf %l16, %r16 fastmath<fast> : vector<4xf16>
 // CHECK-NEXT:    %addf32_fm = riscv_snitch.vfadd.s %l, %r fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 %addf32_fm = arith.addf %l32, %r32 fastmath<fast> : vector<2xf32>
 

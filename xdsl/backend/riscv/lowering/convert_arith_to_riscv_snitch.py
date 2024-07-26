@@ -5,6 +5,7 @@ from typing import Any, cast
 from xdsl.context import MLContext
 from xdsl.dialects import arith, riscv, riscv_snitch
 from xdsl.dialects.builtin import (
+    Float16Type,
     Float32Type,
     Float64Type,
     ModuleOp,
@@ -27,7 +28,8 @@ _FLOAT_REGISTER_TYPE = riscv.FloatRegisterType.unallocated()
 class LowerBinaryFloatVectorOp(RewritePattern):
     arith_op_cls: type[arith.FloatingPointLikeBinaryOp]
     riscv_d_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
-    riscv_snitch_v_f_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
+    riscv_snitch_v_f32_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
+    riscv_snitch_v_f16_op_cls: type[riscv.RdRsRsFloatOperationWithFastMath]
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         if not isinstance(op, self.arith_op_cls):
@@ -53,7 +55,11 @@ class LowerBinaryFloatVectorOp(RewritePattern):
             case Float32Type():
                 if count != 2:
                     return
-                cls = self.riscv_snitch_v_f_op_cls
+                cls = self.riscv_snitch_v_f32_op_cls
+            case Float16Type():
+                if count != 4:
+                    return
+                cls = self.riscv_snitch_v_f16_op_cls
             case _:
                 assert False, f"Unexpected float type {op.lhs.type}"
 
@@ -68,7 +74,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
 
 
 lower_arith_addf = LowerBinaryFloatVectorOp(
-    arith.Addf, riscv.FAddDOp, riscv_snitch.VFAddSOp
+    arith.Addf, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
 )
 
 

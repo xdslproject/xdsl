@@ -26,6 +26,10 @@ riscv_func.func @main() {
   %f1 = riscv_snitch.vfmul.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
   %f2 = riscv_snitch.vfadd.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
   %f3 = riscv_snitch.vfcpka.s.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+  %f4 = riscv_snitch.vfmac.s %f3, %f0, %f0 : (!riscv.freg<ft1>, !riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+  %f5 = riscv_snitch.vfsum.s %f4, %f0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+
+  %f6 = riscv_snitch.vfadd.h %f4, %f0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft3>
 
   riscv_func.return
 }
@@ -44,4 +48,7 @@ riscv_func.func @main() {
 // CHECK-NEXT:       vfmul.s ft1, ft0, ft0
 // CHECK-NEXT:       vfadd.s ft1, ft0, ft0
 // CHECK-NEXT:       vfcpka.s.s ft1, ft0, ft0
+// CHECK-NEXT:       vfmac.s ft1, ft0, ft0
+// CHECK-NEXT:       vfsum.s ft1, ft0
+// CHECK-NEXT:       vfadd.h ft3, ft1, ft0
 // CHECK-NEXT:       ret

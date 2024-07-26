@@ -444,10 +444,11 @@ def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
     if value.type == riscv.Registers.ZERO:
         return IntegerAttr.from_int_and_width(0, 32)
 
-    if isinstance(value.owner, riscv.MVOp):
-        return get_constant_value(value.owner.rs)
+    if not isinstance(value, OpResult):
+        return
 
-    if isinstance(value.owner, riscv.LiOp) and isinstance(
-        value.owner.immediate, IntegerAttr
-    ):
-        return value.owner.immediate
+    if isinstance(value.op, riscv.MVOp):
+        return get_constant_value(value.op.rs)
+
+    if isinstance(value.op, riscv.LiOp) and isinstance(value.op.immediate, IntegerAttr):
+        return value.op.immediate

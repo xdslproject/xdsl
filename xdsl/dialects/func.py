@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
-    FlatSymbolRefAttr,
+    FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
     SymbolRefAttr,
@@ -28,10 +28,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
-    AnyAttr,
     IRDLOperation,
-    VarOperand,
-    VarOpResult,
     irdl_op_definition,
     opt_prop_def,
     prop_def,
@@ -274,11 +271,9 @@ class FuncOp(IRDLOperation):
 @irdl_op_definition
 class Call(IRDLOperation):
     name = "func.call"
-    arguments: VarOperand = var_operand_def(AnyAttr())
-    callee: FlatSymbolRefAttr = prop_def(FlatSymbolRefAttr)
-
-    # Note: naming this results triggers an ArgumentError
-    res: VarOpResult = var_result_def(AnyAttr())
+    arguments = var_operand_def()
+    callee = prop_def(FlatSymbolRefAttrConstr)
+    res = var_result_def()
 
     # TODO how do we verify that the types are correct?
     def __init__(
@@ -319,7 +314,7 @@ class Call(IRDLOperation):
 @irdl_op_definition
 class Return(IRDLOperation):
     name = "func.return"
-    arguments: VarOperand = var_operand_def(AnyAttr())
+    arguments = var_operand_def()
 
     traits = frozenset([HasParent(FuncOp), IsTerminator()])
 
