@@ -7,7 +7,6 @@ from io import StringIO
 from itertools import accumulate
 from typing import IO
 
-from xdsl.backend.csl.print_csl import print_to_csl
 from xdsl.context import MLContext
 from xdsl.dialects import riscv, x86
 from xdsl.dialects.builtin import ModuleOp
@@ -231,12 +230,17 @@ class xDSLOptMain(CommandLineTool):
             with redirect_stdout(output):
                 run_riscv(code, unlimited_regs=True, verbosity=0)
 
+        def _print_to_csl(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.csl.print_csl import print_to_csl
+
+            print_to_csl(prog, output)
+
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["riscemu"] = _emulate_riscv
         self.available_targets["wat"] = _output_wat
-        self.available_targets["csl"] = print_to_csl
+        self.available_targets["csl"] = _print_to_csl
 
     def setup_pipeline(self):
         """
