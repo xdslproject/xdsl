@@ -152,8 +152,8 @@ class ModuleOp(IRDLOperation):
 
     name = "csl_wrapper.module"
 
-    width = prop_def(AnyIntegerAttr)
-    height = prop_def(AnyIntegerAttr)
+    width = prop_def(IntegerAttr[IntegerType])
+    height = prop_def(IntegerAttr[IntegerType])
     program_name = opt_prop_def(StringAttr)
     params: ArrayAttr[ParamAttribute] = prop_def(ArrayAttr[ParamAttribute])
 
@@ -323,6 +323,20 @@ class ModuleOp(IRDLOperation):
         # not found = value error
         raise ValueError(f"{name} does not refer to a block arg of this program_module")
 
+    def get_param_value(self, name: str) -> IntegerAttr[IntegerType]:
+        """Retrieve the value of a named op param."""
+        if name == "width":
+            return self.width
+        elif name == "height":
+            return self.height
+        res = NoneAttr()
+        for param in self.params.data:
+            if name == param.key.data:
+                res = param.value
+        if isinstance(res, NoneAttr):
+            raise ValueError(f"Parameter name is unknown or has no value: {name}")
+        return res
+
     @property
     def layout_yield_op(self) -> YieldOp:
         """
@@ -338,6 +352,13 @@ class ModuleOp(IRDLOperation):
         return self.program_module.block.args[
             2 + len(self.params) + len(self.layout_yield_op.fields) :
         ]
+
+    def get_program_import(self, name: str) -> ImportOp:
+        """Get top-level import op in the program_module"""
+        for op in self.program_module.ops:
+            if isinstance(op, ImportOp) and op.module.data == name:
+                return op
+        raise ValueError(f"Cannot get program_module import of {name}")
 
 
 @irdl_op_definition
