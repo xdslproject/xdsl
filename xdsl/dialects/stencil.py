@@ -83,12 +83,25 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
+        parser.parse_characters("<")
+        result = cls.parse_nested_parameters(parser)
+        parser.parse_characters(">")
+        return result
+
+    @classmethod
+    def parse_nested_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        """Parse only the attribute parameters without enclosing angle brackets."""
         ints = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE, lambda: parser.parse_integer(allow_boolean=False)
         )
         return [ArrayAttr(IntAttr(i) for i in ints)]
 
     def print_parameters(self, printer: Printer) -> None:
+        printer.print("<")
+        self.print_nested_parameters(printer)
+        printer.print(">")
+
+    def print_nested_parameters(self, printer: Printer) -> None:
         printer.print(f'[{", ".join(str(e) for e in self)}]')
 
     def verify(self) -> None:
@@ -181,15 +194,19 @@ class StencilBoundsAttr(ParametrizedAttribute):
         )
 
     def print_parameters(self, printer: Printer) -> None:
-        self.lb.print_parameters(printer)
-        printer.print(" : ")
-        self.ub.print_parameters(printer)
+        printer.print("<")
+        self.lb.print_nested_parameters(printer)
+        printer.print(", ")
+        self.ub.print_nested_parameters(printer)
+        printer.print(">")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        lb = IndexAttr(IndexAttr.parse_parameters(parser))
-        parser.parse_punctuation(":")
-        ub = IndexAttr(IndexAttr.parse_parameters(parser))
+        parser.parse_punctuation("<")
+        lb = IndexAttr(IndexAttr.parse_nested_parameters(parser))
+        parser.parse_punctuation(",")
+        ub = IndexAttr(IndexAttr.parse_nested_parameters(parser))
+        parser.parse_punctuation(">")
         return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
