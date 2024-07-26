@@ -685,11 +685,14 @@ class InputApp(App[None]):
         Pushes screen displaying DirectoryTree widget when "Load File" button is pressed.
         """
 
-        def check_load_file(file_path: str) -> None:
+        def check_load_file(file_path: str | None) -> None:
             """
             Called when LoadFile is dismissed. Loads selected file into
             input_text_area.
             """
+            if file_path is None:
+                return
+
             # Clear Input TextArea and Pass Pipeline
             self.pass_pipeline = ()
             self.input_text_area.clear()
