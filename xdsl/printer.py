@@ -159,7 +159,7 @@ class Printer:
         This function takes into account indentation level when
         printing new lines.
         If the indentation level is specified as 0, the string is printed as-is, if `None`
-        then the printer instance's indentation level is used.
+        then the `Printer` instance's indentation level is used.
         """
 
         num_newlines = text.count("\n")
@@ -172,7 +172,9 @@ class Printer:
         indent = self._indent if indent is None else indent
         lines = text.split("\n")
 
-        if indent == 0:
+        if indent == 0 and not self._next_line_callback:
+            # No indent and no callback to print after the next newline, the text
+            # can be printed directly.
             self._current_line += num_newlines
             self._current_column = len(lines[-1])
             print(text, end="", file=self.stream)
@@ -181,14 +183,12 @@ class Printer:
         # Line and column information is not computed ahead of time
         # as indent-aware newline printing may use it as part of
         # callbacks.
-        indent_len = indent * indentNumSpaces
         print(lines[0], end="", file=self.stream)
         self._current_column += len(lines[0])
         for line in lines[1:]:
             self._print_new_line(indent=indent)
             print(line, end="", file=self.stream)
-            self._current_line += 1
-            self._current_column = len(line) + indent_len
+            self._current_column += len(line)
 
     @contextmanager
     def indented(self, amount: int = 1):
@@ -270,12 +270,18 @@ class Printer:
         self, indent: int | None = None, print_message: bool = True
     ) -> None:
         indent = self._indent if indent is None else indent
-        self.print_string("\n", indent=0)
         if print_message:
-            for callback in self._next_line_callback:
-                callback()
+            callbacks = self._next_line_callback
             self._next_line_callback = []
-        self.print_string(" " * indent * indentNumSpaces)
+        else:
+            callbacks = ()
+        print("\n", end="", file=self.stream)
+        self._current_line += 1
+        for callback in callbacks:
+            callback()
+        num_spaces = indent * indentNumSpaces
+        print(" " * num_spaces, end="", file=self.stream)
+        self._current_column = num_spaces
 
     def _get_new_valid_name_id(self) -> str:
         self._next_valid_name_id[-1] += 1
