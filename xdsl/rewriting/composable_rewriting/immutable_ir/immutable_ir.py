@@ -56,9 +56,9 @@ class IOpResult(ISSAValue):
     def __hash__(self) -> int:
         return hash(id(self.op)) + hash(self.index)
 
-    def __eq__(self, __o: object) -> bool:
-        if isinstance(__o, IOpResult):
-            return self.op == __o.op and self.index == __o.index
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, IOpResult):
+            return self.op == other.op and self.index == other.index
         return False
 
 
@@ -72,8 +72,8 @@ class IBlockArg(ISSAValue):
     def __hash__(self) -> int:
         return hash(id(self.block)) + hash(self.index)
 
-    def __eq__(self, __o: IBlockArg) -> bool:
-        return self is __o
+    def __eq__(self, other: object) -> bool:
+        return self is other
 
     def __repr__(self) -> str:
         return "BlockArg(type:" + self.type.name + ("attached") + ")"
