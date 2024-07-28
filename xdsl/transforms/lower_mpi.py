@@ -24,6 +24,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 
 
 @dataclass(frozen=True)
@@ -677,7 +678,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
         location before going back to a pointer and setting this as the result
         """
 
-        assert isa(op.result.type, mpi.VectorWrappable)
+        assert isattr(op.result.type, mpi.VectorWrappableConstr)
         assert isa(op.vect.type, llvm.LLVMPointerType)
         datatype_size = self._get_mpi_dtype_size(op.result.type)
 
