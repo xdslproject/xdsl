@@ -121,7 +121,7 @@ class StridePattern(ParametrizedAttribute):
             printer.print_list(self.strides, lambda attr: printer.print(attr.data))
             printer.print_string("]")
             if self.repeat.data != 1:
-                printer.print_string_raw(f", repeat = {self.repeat.data}")
+                printer.print_string(f", repeat = {self.repeat.data}")
 
     @staticmethod
     def from_bounds_and_strides(

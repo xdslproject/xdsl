@@ -89,21 +89,21 @@ class ApplyOp(IRDLOperation):
         m = self.map.data
         operands = tuple(self.mapOperands)
         assert len(operands) == m.num_dims + m.num_symbols, f"{len(operands)} {m}"
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         printer.print_attribute(self.map)
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         if m.num_dims:
-            printer.print_string_raw("(")
+            printer.print_string("(")
             printer.print_list(
                 operands[: m.num_dims], lambda el: printer.print_operand(el)
             )
-            printer.print_string_raw(")")
+            printer.print_string(")")
         if m.num_symbols:
-            printer.print_string_raw("[")
+            printer.print_string("[")
             printer.print_list(
                 operands[m.num_dims :], lambda el: printer.print_operand(el)
             )
-            printer.print_string_raw("]")
+            printer.print_string("]")
 
 
 @irdl_op_definition
