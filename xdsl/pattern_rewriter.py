@@ -168,15 +168,22 @@ class PatternRewriter(PatternRewriterListener):
         new_ops: Operation | Sequence[Operation],
         new_results: Sequence[SSAValue | None] | None = None,
         safe_erase: bool = True,
+        insertion_point: InsertPoint | None = None,
     ):
         """
         Replace the matched operation with new operations.
         Also, optionally specify SSA values to replace the operation results.
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
+        If no insertion point is specified, the new operations are inserted
+        at the same place as the matched operation.
         """
         self.replace_op(
-            self.current_operation, new_ops, new_results, safe_erase=safe_erase
+            self.current_operation,
+            new_ops,
+            new_results,
+            safe_erase=safe_erase,
+            insertion_point=insertion_point,
         )
 
     def replace_op(
@@ -185,12 +192,15 @@ class PatternRewriter(PatternRewriterListener):
         new_ops: Operation | Sequence[Operation],
         new_results: Sequence[SSAValue | None] | None = None,
         safe_erase: bool = True,
+        insertion_point: InsertPoint | None = None,
     ):
         """
         Replace an operation with new operations.
         Also, optionally specify SSA values to replace the operation results.
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
+        If no insertion point is specified, the new operations are inserted
+        at the same place as the given operation.
         """
         self.has_done_action = True
 
@@ -198,7 +208,9 @@ class PatternRewriter(PatternRewriterListener):
             new_ops = (new_ops,)
 
         # First, insert the new operations before the matched operation
-        self.insert_op(new_ops, InsertPoint.before(op))
+        if not insertion_point:
+            insertion_point = InsertPoint.before(op)
+        self.insert_op(new_ops, insertion_point)
 
         if new_results is None:
             new_results = new_ops[-1].results if new_ops else []
