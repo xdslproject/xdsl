@@ -559,7 +559,6 @@ class AddOp(NamedOpBase):
         else:
             result_types = res
 
-        assert len(inputs) == 2
         assert len(outputs) == 1
         assert isa(outputs[0].type, TensorType[Attribute] | MemRefType[Attribute])
         element_t = outputs[0].type.get_element_type()
@@ -606,7 +605,6 @@ class SubOp(NamedOpBase):
         else:
             result_types = res
 
-        assert len(inputs) == 2
         assert len(outputs) == 1
         assert isa(outputs[0].type, TensorType[Attribute] | MemRefType[Attribute])
         element_t = outputs[0].type.get_element_type()
@@ -705,7 +703,6 @@ class MulOp(NamedOpBase):
         else:
             result_types = res
 
-        assert len(inputs) == 2
         assert len(outputs) == 1
         assert isa(outputs[0].type, TensorType[Attribute] | MemRefType[Attribute])
         element_t = outputs[0].type.get_element_type()
