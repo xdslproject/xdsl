@@ -1,3 +1,7 @@
+import importlib.abc
+import importlib.util
+import os
+import sys
 from collections.abc import Sequence
 from itertools import chain
 from types import ModuleType
@@ -7,14 +11,25 @@ from xdsl.dialects import get_all_dialects
 from xdsl.traits import SymbolTable
 from xdsl.utils.dialect_stub import DialectStubGenerator
 
-from . import _version
 
-__version__ = _version.get_versions()["version"]
+class LazyVersion:
+    """
+    Resolving the version dynamically is slow, hence this lazy wrapper to get the version
+    only when needed.
+    """
 
-import importlib.abc
-import importlib.util
-import os
-import sys
+    def __init__(self):
+        self._version = None
+
+    def __str__(self):
+        if self._version is None:
+            from . import _version
+
+            self._version = _version.get_versions()["version"]
+        return self._version
+
+
+__version__ = LazyVersion()
 
 
 class IRDLDialectLoader(importlib.abc.Loader):
