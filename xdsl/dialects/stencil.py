@@ -819,7 +819,8 @@ class IndexOp(IRDLOperation):
         """
         Simple helper to get the parent apply and raise otherwise.
         """
-        trait = cast(HasAncestor, self.get_trait(HasAncestor, (ApplyOp,)))
+        trait = self.get_trait(HasAncestor(ApplyOp))
+        assert trait is not None
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
             raise ValueError(
@@ -878,8 +879,9 @@ class AccessOp(IRDLOperation):
             print_keyword=True,
         )
 
-        # IRDL-enforced, not supposed to use custom syntax if not veriied
-        trait = cast(HasAncestor, AccessOp.get_trait(HasAncestor, (ApplyOp,)))
+        # IRDL-enforced, not supposed to use custom syntax if not verified
+        trait = AccessOp.get_trait(HasAncestor(ApplyOp))
+        assert trait is not None
         apply = cast(ApplyOp, trait.get_ancestor(self))
 
         mapping = self.offset_mapping
@@ -966,7 +968,8 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         # As promised by HasAncestor(ApplyOp)
-        trait = cast(HasAncestor, AccessOp.get_trait(HasAncestor, (ApplyOp,)))
+        trait = AccessOp.get_trait(HasAncestor(ApplyOp))
+        assert trait is not None
         apply = trait.get_ancestor(self)
         assert isinstance(apply, ApplyOp)
 
@@ -1019,7 +1022,8 @@ class AccessOp(IRDLOperation):
         """
         Simple helper to get the parent apply and raise otherwise.
         """
-        trait = cast(HasAncestor, self.get_trait(HasAncestor, (ApplyOp,)))
+        trait = self.get_trait(HasAncestor(ApplyOp))
+        assert trait is not None
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
             raise ValueError(
