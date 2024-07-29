@@ -118,8 +118,8 @@ def test_has_trait_object():
     """
     assert TestOp.has_trait(LargerOperandTrait)
     assert not TestOp.has_trait(LargerResultTrait)
-    assert not TestOp.has_trait(BitwidthSumLessThanTrait, 0)
-    assert TestOp.has_trait(BitwidthSumLessThanTrait, 64)
+    assert not TestOp.has_trait(BitwidthSumLessThanTrait(0))
+    assert TestOp.has_trait(BitwidthSumLessThanTrait(64))
 
 
 def test_get_traits_of_type():
@@ -445,8 +445,8 @@ def test_lazy_parent():
     """Test the trait infrastructure for an operation that defines a trait "lazily"."""
     op = HasLazyParentOp.create()
     assert len(op.get_traits_of_type(HasParent)) != 0
-    assert op.get_traits_of_type(HasParent)[0].parameters == (TestOp,)
-    assert op.has_trait(HasParent, (TestOp,))
+    assert op.get_traits_of_type(HasParent)[0].op_types == (TestOp,)
+    assert op.has_trait(HasParent(TestOp))
     assert op.traits == frozenset([HasParent(TestOp)])
 
 
@@ -461,7 +461,7 @@ def test_has_ancestor():
     op = AncestorOp()
 
     assert op.get_traits_of_type(HasAncestor) == [HasAncestor(TestOp)]
-    assert op.has_trait(HasAncestor, (TestOp,))
+    assert op.has_trait(HasAncestor(TestOp))
 
     with pytest.raises(
         VerifyException, match="'test.ancestor' expects ancestor op 'test.test'"

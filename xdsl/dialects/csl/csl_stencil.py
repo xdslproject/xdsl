@@ -490,7 +490,7 @@ class AccessOp(IRDLOperation):
 
         # As promised by HasAncestor(ApplyOp)
         trait = cast(
-            HasAncestor, AccessOp.get_trait(HasAncestor, (stencil.ApplyOp, ApplyOp))
+            HasAncestor, AccessOp.get_trait(HasAncestor(stencil.ApplyOp, ApplyOp))
         )
         apply = trait.get_ancestor(self)
         assert isinstance(apply, stencil.ApplyOp | ApplyOp)
@@ -529,7 +529,8 @@ class AccessOp(IRDLOperation):
         Simple helper to get the parent apply and raise otherwise.
         """
         trait = cast(
-            HasAncestor, self.get_trait(HasAncestor, (stencil.ApplyOp, ApplyOp))
+            HasAncestor,
+            self.get_trait(HasAncestor(stencil.ApplyOp, ApplyOp)),
         )
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
