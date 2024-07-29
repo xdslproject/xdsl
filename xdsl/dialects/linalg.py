@@ -494,16 +494,6 @@ class NamedOpBase(IRDLOperation):
         else:
             res_types = ()
 
-        # if parser.parse_optional_punctuation("->"):
-        #     is_bracketed = parser.parse_optional_punctuation("(")
-        #     res_types = parser.parse_optional_undelimited_comma_separated_list(
-        #         parser.parse_optional_attribute, parser.parse_attribute
-        #     )
-        #     if is_bracketed:
-        #         parser.parse_punctuation(")")
-        # else:
-        #     res_types = ()
-
         return cls(ins, outs, res_types, attrs)
 
     def print(self, printer: Printer):
