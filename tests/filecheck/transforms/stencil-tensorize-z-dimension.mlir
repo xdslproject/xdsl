@@ -10,12 +10,12 @@ builtin.module {
     %3 = "stencil.apply"(%1) ({
     ^0(%4 : !stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>):
       %5 = arith.constant 1.666600e-01 : f32
-      %6 = "stencil.access"(%4) {"offset" = #stencil.index[1, 0, 0]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %7 = "stencil.access"(%4) {"offset" = #stencil.index[-1, 0, 0]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %8 = "stencil.access"(%4) {"offset" = #stencil.index[0, 0, 1]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %9 = "stencil.access"(%4) {"offset" = #stencil.index[0, 0, -1]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %10 = "stencil.access"(%4) {"offset" = #stencil.index[0, 1, 0]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %11 = "stencil.access"(%4) {"offset" = #stencil.index[0, -1, 0]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %6 = "stencil.access"(%4) {"offset" = #stencil.index<[1, 0, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %7 = "stencil.access"(%4) {"offset" = #stencil.index<[-1, 0, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %8 = "stencil.access"(%4) {"offset" = #stencil.index<[0, 0, 1]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %9 = "stencil.access"(%4) {"offset" = #stencil.index<[0, 0, -1]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %10 = "stencil.access"(%4) {"offset" = #stencil.index<[0, 1, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %11 = "stencil.access"(%4) {"offset" = #stencil.index<[0, -1, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
       %12 = arith.addf %11, %10 : f32
       %13 = arith.addf %12, %9 : f32
       %14 = arith.addf %13, %8 : f32
@@ -24,7 +24,7 @@ builtin.module {
       %17 = arith.mulf %16, %5 : f32
       "stencil.return"(%17) : (f32) -> ()
     }) : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> !stencil.temp<[0,1022]x[0,510]x[0,510]xf32>
-    "stencil.store"(%3, %2) {"bounds" = #stencil.bounds[0, 0, 0] : [1022, 510, 510]} : (!stencil.temp<[0,1022]x[0,510]x[0,510]xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> ()
+    "stencil.store"(%3, %2) {"bounds" = #stencil.bounds<[0, 0, 0], [1022, 510, 510]>} : (!stencil.temp<[0,1022]x[0,510]x[0,510]xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> ()
     func.return
   }
 
@@ -56,7 +56,7 @@ builtin.module {
 // CHECK-NEXT:          %25 = arith.mulf %22, %24 : tensor<510xf32>
 // CHECK-NEXT:          stencil.return %25 : tensor<510xf32>
 // CHECK-NEXT:        }
-// CHECK-NEXT:        stencil.store %3 to %2 ([0, 0] : [1022, 510]) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:        stencil.store %3 to %2 (<[0, 0], [1022, 510]>) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:        func.return
 // CHECK-NEXT:      }
 
@@ -65,12 +65,12 @@ builtin.module {
     %1 = "stencil.apply"(%0) ({
     ^0(%2 : !stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>):
       %3 = arith.constant 1.666600e-01 : f32
-      %4 = "stencil.access"(%2) {"offset" = #stencil.index[1, 0, 0]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %5 = "stencil.access"(%2) {"offset" = #stencil.index[-1, 0, 0]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %6 = "stencil.access"(%2) {"offset" = #stencil.index[0, 0, 1]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %7 = "stencil.access"(%2) {"offset" = #stencil.index[0, 0, -1]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %8 = "stencil.access"(%2) {"offset" = #stencil.index[0, 1, 0]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
-      %9 = "stencil.access"(%2) {"offset" = #stencil.index[0, -1, 0]} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %4 = "stencil.access"(%2) {"offset" = #stencil.index<[1, 0, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %5 = "stencil.access"(%2) {"offset" = #stencil.index<[-1, 0, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %6 = "stencil.access"(%2) {"offset" = #stencil.index<[0, 0, 1]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %7 = "stencil.access"(%2) {"offset" = #stencil.index<[0, 0, -1]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %8 = "stencil.access"(%2) {"offset" = #stencil.index<[0, 1, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
+      %9 = "stencil.access"(%2) {"offset" = #stencil.index<[0, -1, 0]>} : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> f32
       %10 = arith.addf %9, %8 : f32
       %11 = arith.addf %10, %7 : f32
       %12 = arith.addf %11, %6 : f32
@@ -79,7 +79,7 @@ builtin.module {
       %15 = arith.mulf %14, %3 : f32
       "stencil.return"(%15) : (f32) -> ()
     }) : (!stencil.temp<[-1,1023]x[-1,511]x[-1,511]xf32>) -> !stencil.temp<[0,1022]x[0,510]x[0,510]xf32>
-    "stencil.store"(%1, %b) {"bounds" = #stencil.bounds[0, 0, 0] : [1022, 510, 510]} : (!stencil.temp<[0,1022]x[0,510]x[0,510]xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> ()
+    "stencil.store"(%1, %b) {"bounds" = #stencil.bounds<[0, 0, 0], [1022, 510, 510]>} : (!stencil.temp<[0,1022]x[0,510]x[0,510]xf32>, !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> ()
     func.return
   }
 
@@ -109,7 +109,7 @@ builtin.module {
 // CHECK-NEXT:         %23 = arith.mulf %20, %22 : tensor<510xf32>
 // CHECK-NEXT:         stencil.return %23 : tensor<510xf32>
 // CHECK-NEXT:       }
-// CHECK-NEXT:       stencil.store %1 to %b ([0, 0] : [1022, 510]) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:       stencil.store %1 to %b (<[0, 0], [1022, 510]>) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:       func.return
 // CHECK-NEXT:     }
 
