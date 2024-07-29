@@ -71,5 +71,7 @@ class RemoveUnusedInitOperandPattern(RewritePattern):
                 op.iterator_types,
                 op.bounds,
                 op.init_indices,
+                op.doc,
+                op.library_call,
             )
         )
