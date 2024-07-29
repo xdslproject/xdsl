@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p arith-add-fastmath,convert-linalg-to-memref-stream,test-optimise-memref-stream,test-lower-memref-stream-to-snitch-stream,test-lower-snitch-stream-to-asm -t riscv-asm %s | filecheck %s
+// RUN: xdsl-opt -p arith-add-fastmath,test-lower-linalg-to-snitch -t riscv-asm %s | filecheck %s
 
 func.func @main$async_dispatch_0_matmul_transpose_b_1x400x161_f64$xdsl_kernel1(%arg0: memref<1x161xf64>, %arg1: memref<5x161xf64, strided<[161, 1]>>, %arg2: memref<1x5xf64, strided<[40, 1]>>) {
   linalg.generic {indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d1, d2)>, affine_map<(d0, d1, d2) -> (d0, d1)>], iterator_types = ["parallel", "parallel", "reduction"]} ins(%arg0, %arg1 : memref<1x161xf64>, memref<5x161xf64, strided<[161, 1]>>) outs(%arg2 : memref<1x5xf64, strided<[40, 1]>>) {

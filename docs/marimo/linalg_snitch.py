@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.7.9"
+__generated_with = "0.7.11"
 app = marimo.App(width="medium")
 
 
@@ -63,7 +63,6 @@ def __():
         lower_affine,
         memref_streamify,
         reconcile_unrealized_casts,
-        test_lower_snitch_stream_to_asm,
     )
     from xdsl.transforms.canonicalize import CanonicalizePass
     from xdsl.transforms.lower_snitch import LowerSnitchPass
@@ -115,7 +114,6 @@ def __():
         memref_streamify,
         reconcile_unrealized_casts,
         riscv_code,
-        test_lower_snitch_stream_to_asm,
     )
 
 
@@ -247,7 +245,7 @@ def __(k, m, mo, n):
 
 @app.cell
 def __(mo):
-    mo.md("### Compiling to RISC-V")
+    mo.md("""### Compiling to RISC-V""")
     return
 
 
@@ -262,7 +260,7 @@ def __(MLContext, get_all_dialects):
 
 @app.cell
 def __(mo):
-    mo.md("We can take this representation, and lower to RISC-V-specific dialects:")
+    mo.md("""We can take this representation, and lower to RISC-V-specific dialects:""")
     return
 
 
@@ -357,7 +355,7 @@ def __(
 
 @app.cell
 def __(mo):
-    mo.md("This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.")
+    mo.md("""This representation of the program in xDSL corresponds ~1:1 to RISC-V assembly, and we can use a helper function to print that out.""")
     return
 
 
@@ -395,17 +393,14 @@ def __(
     linalg_module,
     pipeline_accordion,
 ):
-    from xdsl.transforms.test_lower_memref_stream_to_snitch_stream import (
-        TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM,
-    )
-    from xdsl.transforms.test_optimise_memref_stream import TEST_OPTIMISE_MEMREF_STREAM
+    from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES, OPTIMISE_MEMREF_STREAM_PASSES
 
     convert_linalg_to_snitch = PipelinePass(
         [
             convert_linalg_to_memref_stream.ConvertLinalgToMemrefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
-            *TEST_OPTIMISE_MEMREF_STREAM,
-            *TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM,
+            *OPTIMISE_MEMREF_STREAM_PASSES,
+            *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
             convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
         ]
     )
@@ -416,8 +411,8 @@ def __(
 
     snitch_stream_accordion
     return (
-        TEST_LOWER_MEMREF_STREAM_TO_SNITCH_STREAM,
-        TEST_OPTIMISE_MEMREF_STREAM,
+        LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
+        OPTIMISE_MEMREF_STREAM_PASSES,
         convert_linalg_to_snitch,
         snitch_stream_accordion,
         snitch_stream_module,
@@ -426,22 +421,24 @@ def __(
 
 @app.cell
 def __(mo):
-    mo.md("We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:")
+    mo.md("""We can then lower this to assembly that includes assembly instructions from the Snitch-extended ISA:""")
     return
 
 
 @app.cell
-def __(
-    pipeline_accordion,
-    snitch_stream_module,
-    test_lower_snitch_stream_to_asm,
-):
+def __(pipeline_accordion, snitch_stream_module):
+    from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_SNITCH_STREAM_TO_ASM_PASSES
+
     snitch_asm_module, snitch_asm_accordion = pipeline_accordion(
-        tuple(("", p) for p in test_lower_snitch_stream_to_asm.TEST_LOWER_SNITCH_STREAM_TO_ASM_PASSES), snitch_stream_module
+        tuple(("", p) for p in LOWER_SNITCH_STREAM_TO_ASM_PASSES), snitch_stream_module
     )
 
     snitch_asm_accordion
-    return snitch_asm_accordion, snitch_asm_module
+    return (
+        LOWER_SNITCH_STREAM_TO_ASM_PASSES,
+        snitch_asm_accordion,
+        snitch_asm_module,
+    )
 
 
 @app.cell
