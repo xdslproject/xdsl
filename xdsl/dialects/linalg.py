@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from enum import auto
 from typing import cast
 
 from typing_extensions import Self
 
+from xdsl.dialects import arith
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
@@ -26,7 +27,15 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
 )
-from xdsl.ir import Attribute, Dialect, EnumAttribute, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    EnumAttribute,
+    Operation,
+    Region,
+    SSAValue,
+)
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -382,8 +391,164 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = frozenset([IsTerminator()])
 
 
+class NamedOpBase(IRDLOperation):
+    """
+    Base class for named ops with hidden region.
+    """
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    hidden_region = region_def("single_block")
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        ins: Sequence[SSAValue],
+        outs: Sequence[SSAValue],
+        result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        hidden_region: Region | None = None,
+        arith_op: type[Operation] | None = None,
+    ):
+        if (hidden_region is None) == (arith_op is None):
+            raise ValueError("Specify either hidden_region or arith_op but not both")
+
+        if hidden_region is None:
+            assert arith_op is not None
+            hidden_region = Region(Block(arg_types=[t.type for t in ins]))
+            hidden_region.block.add_ops(
+                (
+                    op := arith_op(
+                        operands=[arg for arg in ins],
+                        result_types=[t.type for t in outs],
+                    ),
+                    YieldOp(*op.results),
+                )
+            )
+
+        super().__init__(
+            operands=[ins, outs],
+            result_types=(
+                result_types
+                if result_types is not None and len(result_types) > 0
+                else [[]]
+            ),
+            properties=properties,
+            attributes=attributes,
+            regions=[hidden_region],
+        )
+
+    @classmethod
+    def parse(
+        cls, parser: Parser
+    ):  # -> tuple[Sequence[Operand], Sequence[Operand], Sequence[Attribute], dict[str, Attribute]]:
+        pos = parser.pos
+        if parser.parse_optional_characters("ins"):
+            parser.parse_punctuation("(")
+            unresolved_ins = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            ins_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
+        else:
+            ins = ()
+
+        pos = parser.pos
+        if parser.parse_optional_characters("outs"):
+            parser.parse_punctuation("(")
+            unresolved_outs = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            outs_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
+        else:
+            outs = ()
+
+        if parser.parse_optional_keyword("attrs"):
+            parser.parse_punctuation("=")
+            attrs = parser.expect(
+                parser.parse_optional_attr_dict, "expect extra attributes"
+            )
+        else:
+            attrs = {}
+
+        if parser.parse_optional_punctuation("->"):
+            res_types = parser.parse_optional_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_attribute
+            )
+            if res_types is None:
+                res_types = [[parser.parse_attribute()]]
+        else:
+            res_types = ()
+
+        # if parser.parse_optional_punctuation("->"):
+        #     is_bracketed = parser.parse_optional_punctuation("(")
+        #     res_types = parser.parse_optional_undelimited_comma_separated_list(
+        #         parser.parse_optional_attribute, parser.parse_attribute
+        #     )
+        #     if is_bracketed:
+        #         parser.parse_punctuation(")")
+        # else:
+        #     res_types = ()
+
+        return cls(ins, outs, res_types, attrs)
+
+    def print(self, printer: Printer):
+        if self.inputs:
+            printer.print_string(" ins(")
+            printer.print_list(self.inputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_string(")")
+
+        if self.outputs:
+            printer.print_string(" outs(")
+            printer.print_list(self.outputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_string(")")
+
+        extra_attrs = self.attributes.copy()
+        if "indexing_maps" in extra_attrs:
+            del extra_attrs["indexing_maps"]
+        if "iterator_types" in extra_attrs:
+            del extra_attrs["iterator_types"]
+        if "doc" in extra_attrs:
+            del extra_attrs["doc"]
+        if "library_call" in extra_attrs:
+            del extra_attrs["library_call"]
+
+        if extra_attrs:
+            printer.print(" attrs = ")
+            printer.print_op_attributes(extra_attrs)
+
+        if self.res:
+            printer.print_string(" -> ")
+            if len(self.res) == 1:
+                printer.print_attribute(self.res[0].type)
+            else:
+                printer.print("(")
+                printer.print_list(
+                    self.res, lambda res: printer.print_attribute(res.type)
+                )
+                printer.print(")")
+
+
 @irdl_op_definition
-class AddOp(IRDLOperation):
+class AddOp(NamedOpBase):
     """
     Adds two tensors elementwise.
 
@@ -392,36 +557,45 @@ class AddOp(IRDLOperation):
 
     name = "linalg.add"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
-    )
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
             result_types = tuple(output.type for output in outputs)
         else:
             result_types = res
+
+        assert len(inputs) == 2
+        assert len(outputs) == 1
+        assert isa(outputs[0].type, TensorType[Attribute] | MemRefType[Attribute])
+        element_t = outputs[0].type.get_element_type()
+        hidden_region = Region(Block(arg_types=(element_t, element_t, element_t)))
+        hidden_region.block.add_ops(
+            (
+                op := arith.Addf(
+                    hidden_region.block.args[0],
+                    hidden_region.block.args[1],
+                    result_type=element_t,
+                ),
+                YieldOp(*op.results),
+            )
+        )
+
         super().__init__(
-            operands=(inputs, outputs),
+            ins=inputs,
+            outs=outputs,
             result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
         )
 
 
 @irdl_op_definition
-class SubOp(IRDLOperation):
+class SubOp(NamedOpBase):
     """
     Subtracts two tensors elementwise.
 
@@ -430,31 +604,40 @@ class SubOp(IRDLOperation):
 
     name = "linalg.sub"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
-    )
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
             result_types = tuple(output.type for output in outputs)
         else:
             result_types = res
+
+        assert len(inputs) == 2
+        assert len(outputs) == 1
+        assert isa(outputs[0].type, TensorType[Attribute] | MemRefType[Attribute])
+        element_t = outputs[0].type.get_element_type()
+        hidden_region = Region(Block(arg_types=(element_t, element_t, element_t)))
+        hidden_region.block.add_ops(
+            (
+                op := arith.Subf(
+                    hidden_region.block.args[0],
+                    hidden_region.block.args[1],
+                    result_type=element_t,
+                ),
+                YieldOp(*op.results),
+            )
+        )
+
         super().__init__(
-            operands=(inputs, outputs),
+            ins=inputs,
+            outs=outputs,
             result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
         )
 
 
@@ -511,7 +694,7 @@ class FillOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MulOp(IRDLOperation):
+class MulOp(NamedOpBase):
     """
     Multiplies two tensors elementwise.
 
@@ -520,31 +703,40 @@ class MulOp(IRDLOperation):
 
     name = "linalg.mul"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
-    )
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
             result_types = tuple(output.type for output in outputs)
         else:
             result_types = res
+
+        assert len(inputs) == 2
+        assert len(outputs) == 1
+        assert isa(outputs[0].type, TensorType[Attribute] | MemRefType[Attribute])
+        element_t = outputs[0].type.get_element_type()
+        hidden_region = Region(Block(arg_types=(element_t, element_t, element_t)))
+        hidden_region.block.add_ops(
+            (
+                op := arith.Mulf(
+                    hidden_region.block.args[0],
+                    hidden_region.block.args[1],
+                    result_type=element_t,
+                ),
+                YieldOp(*op.results),
+            )
+        )
+
         super().__init__(
-            operands=(inputs, outputs),
+            ins=inputs,
+            outs=outputs,
             result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
         )
 
 
