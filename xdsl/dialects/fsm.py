@@ -379,7 +379,7 @@ class InstanceOp(IRDLOperation):
 
     sym_name = attr_def(StringAttr)
 
-    machine = attr_def(FlatSymbolRefAttr)
+    machine = attr_def(FlatSymbolRefAttrConstr)
 
     res = result_def(InstanceType)
 
@@ -387,7 +387,7 @@ class InstanceOp(IRDLOperation):
         self, sym_name: str, machine: FlatSymbolRefAttr, instance: InstanceType
     ):
         if isinstance(machine, str):
-            machine = FlatSymbolRefAttr(machine)
+            machine = SymbolRefAttr(machine)
         attributes: dict[str, Attribute] = {
             "sym_name": StringAttr(sym_name),
             "machine": machine,
@@ -475,7 +475,7 @@ class HWInstanceOp(IRDLOperation):
     name = "fsm.hw_instance"
 
     sym_name = attr_def(StringAttr)
-    machine = attr_def(FlatSymbolRefAttr)
+    machine = attr_def(FlatSymbolRefAttrConstr)
     inputs = var_operand_def(AnyAttr())
     clock = operand_def(signlessIntegerLike)
     reset = operand_def(signlessIntegerLike)
@@ -492,7 +492,7 @@ class HWInstanceOp(IRDLOperation):
         outputs: Sequence[Attribute],
     ):
         if isinstance(machine, str):
-            machine = FlatSymbolRefAttr(machine)
+            machine = SymbolRefAttr(machine)
         clock = SSAValue.get(clock)
         reset = SSAValue.get(reset)
         if isinstance(sym_name, str):

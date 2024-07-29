@@ -35,9 +35,11 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.parser import AttrParser, Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasAncestor,
+    HasCanonicalisationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -146,6 +148,16 @@ class PrefetchOp(IRDLOperation):
         )
 
 
+class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.csl_stencil import (
+            RedundantIterArgInitialisation,
+        )
+
+        return (RedundantIterArgInitialisation(),)
+
+
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
@@ -205,7 +217,13 @@ class ApplyOp(IRDLOperation):
 
     res = var_result_def(stencil.TempType)
 
-    traits = frozenset([IsolatedFromAbove(), RecursiveMemoryEffect()])
+    traits = frozenset(
+        [
+            IsolatedFromAbove(),
+            ApplyOpHasCanonicalizationPatternsTrait(),
+            RecursiveMemoryEffect(),
+        ]
+    )
 
     def print(self, printer: Printer):
         def print_arg(arg: tuple[SSAValue, Attribute]):
@@ -506,18 +524,21 @@ class AccessOp(IRDLOperation):
                         f"apply, got {offset} >= {apply.get_rank()}"
                     )
 
-    def get_apply(self):
+    def get_apply(self) -> stencil.ApplyOp | ApplyOp:
         """
         Simple helper to get the parent apply and raise otherwise.
         """
-        trait = cast(HasAncestor, self.get_trait(HasAncestor, (stencil.ApplyOp,)))
+        trait = cast(
+            HasAncestor, self.get_trait(HasAncestor, (stencil.ApplyOp, ApplyOp))
+        )
         ancestor = trait.get_ancestor(self)
         if ancestor is None:
             raise ValueError(
                 "stencil.apply not found, this function should be called on"
                 "verified accesses only."
             )
-        return cast(stencil.ApplyOp, ancestor)
+        assert isinstance(ancestor, stencil.ApplyOp | ApplyOp)
+        return ancestor
 
 
 @irdl_op_definition
