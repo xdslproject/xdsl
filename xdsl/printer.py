@@ -270,15 +270,12 @@ class Printer:
         self, indent: int | None = None, print_message: bool = True
     ) -> None:
         indent = self._indent if indent is None else indent
-        if print_message:
-            callbacks = self._next_line_callback
-            self._next_line_callback = []
-        else:
-            callbacks = ()
         print("\n", end="", file=self.stream)
         self._current_line += 1
-        for callback in callbacks:
-            callback()
+        if print_message:
+            for callback in self._next_line_callback:
+                callback()
+            self._next_line_callback = []
         num_spaces = indent * indentNumSpaces
         print(" " * num_spaces, end="", file=self.stream)
         self._current_column = num_spaces
