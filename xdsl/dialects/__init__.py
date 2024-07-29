@@ -1,6 +1,8 @@
+import sys
 from collections.abc import Callable
 
 from xdsl.ir import Dialect
+from xdsl.utils.dialect_loader import IRDLDialectFinder
 
 
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
@@ -350,3 +352,8 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "x86": get_x86,
         "transform": get_transform,
     }
+
+
+# Add the IRDLDialectFinder to the meta path as last resort, i.e, it will look for a
+# .irdl implementation if no .py implementation is found.
+sys.meta_path.append(IRDLDialectFinder(get_all_dialects))
