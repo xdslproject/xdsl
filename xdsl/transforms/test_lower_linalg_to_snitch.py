@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
@@ -9,7 +9,9 @@ from xdsl.backend.riscv.lowering import (
     convert_scf_to_riscv_scf,
     convert_snitch_stream_to_snitch,
 )
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.context import MLContext
+from xdsl.dialects import builtin
+from xdsl.passes import ModulePass
 from xdsl.transforms import (
     canonicalize,
     convert_linalg_to_memref_stream,
@@ -83,14 +85,80 @@ TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[ModulePass, ...] = (
     *LOWER_SNITCH_STREAM_TO_ASM_PASSES,
 )
 
+LINALG_SNITCH_OPTIMIZATION_PASSES: tuple[ModulePass, ...] = (
+    memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
+    memref_stream_interleave.MemrefStreamInterleavePass(),
+    memref_streamify.MemrefStreamifyPass(),
+    convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
+)
+
+MAX_OPT_LEVEL = len(LINALG_SNITCH_OPTIMIZATION_PASSES)
+
+
+def get_excluded_passes(
+    optimization_level: int = MAX_OPT_LEVEL,
+) -> tuple[ModulePass, ...]:
+    """
+    This function determines which optimization passes should be excluded from the
+    lowering pipeline based on the specified optimization level. A higher optimization
+    level includes more passes.
+
+    Args:
+        optimization_level (int): The desired optimization level, ranging from 0 to
+            4 (inclusive). Defaults to 4.
+
+    Returns:
+        tuple[ModulePass, ...]: A tuple containing the ModulePass objects to be excluded
+        from the lowering pipeline.
+    """
+
+    if optimization_level == MAX_OPT_LEVEL:
+        return ()
+
+    return (
+        LINALG_SNITCH_OPTIMIZATION_PASSES[:-optimization_level]
+        if optimization_level
+        else LINALG_SNITCH_OPTIMIZATION_PASSES
+    )
+
+
+def get_passes(optimization_level: int = MAX_OPT_LEVEL) -> tuple[ModulePass, ...]:
+    """
+    This function returns a tuple of ModulePass objects to be applied in the lowering
+    pipeline, based on the specified optimization level.
+
+    Args:
+        optimization_level (int): The desired optimization level, ranging from 0 to
+            4 (inclusive). Defaults to 4.
+
+    Returns:
+        tuple[ModulePass, ...]: A tuple containing the ModulePass objects to be applied
+        in the lowering pipeline.
+    """
+
+    excluded_passes = get_excluded_passes(optimization_level)
+    return tuple(
+        p for p in TEST_LOWER_LINALG_TO_SNITCH_PASSES if p not in excluded_passes
+    )
+
 
 @dataclass(frozen=True)
-class TestLowerLinalgToSnitchPass(PipelinePass):
+class TestLowerLinalgToSnitchPass(ModulePass):
     """
     A compiler pass used for testing lowering microkernels from linalg generic to snitch
     assembly.
+
+    Args:
+        optimization_level (int): The desired optimization level, ranging from 0 to
+            4 (inclusive). Defaults to 4.
     """
 
     name = "test-lower-linalg-to-snitch"
 
-    passes: tuple[ModulePass, ...] = TEST_LOWER_LINALG_TO_SNITCH_PASSES
+    optimization_level: int = field(default=MAX_OPT_LEVEL)
+
+    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
+        passes = get_passes(self.optimization_level)
+
+        for p in passes:
+            p.apply(ctx, op)
