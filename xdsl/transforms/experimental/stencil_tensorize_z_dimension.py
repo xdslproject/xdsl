@@ -48,8 +48,6 @@ from xdsl.pattern_rewriter import (
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
-    TypeConversionPattern,
-    attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
@@ -112,31 +110,6 @@ def stencil_temp_to_tensor(field: TempType[Attribute]) -> TempType[Attribute]:
     assert isinstance(field.bounds.ub, IndexAttr)
     bounds = list(zip(field.bounds.lb, field.bounds.ub))[:-1]
     return TempType[Attribute](bounds, typ)
-
-
-def stencil_memref_to_tensor(field: MemRefType[Attribute]) -> MemRefType[Attribute]:
-    if field.get_num_dims() != 3:
-        return field
-    typ = TensorType(field.get_element_type(), [field.get_shape()[-1]])
-    return MemRefType[Attribute](typ, field.get_shape()[:-1])
-
-
-class StencilFieldConversion(TypeConversionPattern):
-    @attr_type_rewrite_pattern
-    def convert_type(self, typ: FieldType[Attribute]) -> FieldType[Attribute]:
-        return stencil_field_to_tensor(typ)
-
-
-class StencilTempConversion(TypeConversionPattern):
-    @attr_type_rewrite_pattern
-    def convert_type(self, typ: TempType[Attribute]) -> TempType[Attribute]:
-        return stencil_temp_to_tensor(typ)
-
-
-class StencilMemRefConversion(TypeConversionPattern):
-    @attr_type_rewrite_pattern
-    def convert_type(self, typ: MemRefType[Attribute]) -> MemRefType[Attribute]:
-        return stencil_memref_to_tensor(typ)
 
 
 @dataclass(frozen=True)
@@ -231,9 +204,7 @@ class FuncOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: FuncOp, rewriter: PatternRewriter, /):
         for arg in op.args:
-            if isa(arg.type, MemRefType[Attribute]):
-                op.replace_argument_type(arg, stencil_memref_to_tensor(arg.type))
-            elif isa(arg.type, FieldType[Attribute]):
+            if isa(arg.type, FieldType[Attribute]):
                 op.replace_argument_type(arg, stencil_field_to_tensor(arg.type))
 
 
@@ -256,7 +227,7 @@ def is_scalar(typ: Attribute) -> TypeGuard[AnyFloat]:
 class ExternalLoadOpTensorize(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalLoadOp, rewriter: PatternRewriter, /):
-        if is_tensorized(op.field.type) and not is_tensorized(op.result.type):
+        if not is_tensorized(op.result.type):
             assert isa(op.result.type, FieldType[Attribute])
             rewriter.replace_matched_op(
                 ExternalLoadOp.get(op.field, stencil_field_to_tensor(op.result.type))
