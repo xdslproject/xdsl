@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     IntAttr,
-    MemRefType,
     ModuleOp,
     ShapedType,
     TensorType,
@@ -290,13 +289,17 @@ class CslStencilAccessOpUpdateShape(RewritePattern):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ) and (
                 isa(op.op.type, TempType[TensorType[Attribute]])
-                or isa(op.op.type, MemRefType[TensorType[Attribute]])
+                or isa(op.op.type, TensorType[Attribute])
             ):
                 rewriter.replace_matched_op(
                     csl_stencil.AccessOp(
                         op.op,
                         op.offset,
-                        op.op.type.get_element_type(),
+                        (
+                            op.op.type.get_element_type()
+                            if isa(op.op.type, TempType[TensorType[Attribute]])
+                            else typ
+                        ),
                         op.offset_mapping,
                     )
                 )
@@ -307,7 +310,6 @@ class ExtractSliceOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
-                # offsets = op.static_offsets.data.data
                 if isa(offsets := op.static_offsets.data.data, Sequence[IntAttr]):
                     new_offsets = [o.data for o in offsets]
                 else:

@@ -136,7 +136,7 @@ class PrefetchOp(IRDLOperation):
         input_stencil: SSAValue | Operation,
         topo: dmp.RankTopoAttr,
         swaps: Sequence[ExchangeDeclarationAttr],
-        result_type: memref.MemRefType[Attribute] | None = None,
+        result_type: memref.MemRefType[Attribute] | TensorType[Attribute] | None = None,
     ):
         super().__init__(
             operands=[input_stencil],
@@ -307,12 +307,12 @@ class ApplyOp(IRDLOperation):
         # typecheck required (only) block arguments
         assert isa(self.iter_arg.type, TensorType[Attribute])
         chunk_reduce_req_types = [
-            memref.MemRefType(
-                TensorType(
-                    self.iter_arg.type.get_element_type(),
-                    (self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,),
+            TensorType(
+                self.iter_arg.type.get_element_type(),
+                (
+                    len(self.swaps),
+                    self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,
                 ),
-                (len(self.swaps),),
             ),
             IndexType(),
             self.iter_arg.type,
@@ -391,7 +391,9 @@ class AccessOp(IRDLOperation):
     """
 
     name = "csl_stencil.access"
-    op = operand_def(base(AnyMemRefType) | base(stencil.AnyTempType))
+    op = operand_def(
+        base(AnyMemRefType) | base(stencil.AnyTempType) | base(TensorType[Attribute])
+    )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
     result = result_def(TensorType)
@@ -483,9 +485,11 @@ class AccessOp(IRDLOperation):
                 )
             assert self.result.type == self.op.type.get_element_type()
         else:
-            if not isa(self.op.type, memref.MemRefType[Attribute]):
+            if not isa(
+                self.op.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+            ):
                 raise VerifyException(
-                    f"{type(self)} access to neighbor data requires type memref.MemRefType but found {self.op.type}"
+                    f"{type(self)} access to neighbor data requires type memref.MemRefType or TensorType but found {self.op.type}"
                 )
 
         # As promised by HasAncestor(ApplyOp)
