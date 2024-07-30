@@ -136,7 +136,7 @@ class InnerRefAttr(ParametrizedAttribute):
         ):
             parser.raise_error("Expected a module and symbol reference")
         return [
-            FlatSymbolRefAttr(symbol_ref.root_reference),
+            SymbolRefAttr(symbol_ref.root_reference),
             symbol_ref.nested_references.data[0],
         ]
 

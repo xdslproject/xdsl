@@ -533,7 +533,7 @@ class ApplyOpToHLS(RewritePattern):
             current_stream = 0
 
             new_operands_lst: list[OpResult] = []
-            apply_clone: ApplyOp = apply_clones_lst[k]
+            apply_clone = apply_clones_lst[k]
 
             for i in range(len(apply_clone.operands)):
                 operand: OpResult = typing.cast(OpResult, apply_clone.operands[i])
@@ -561,7 +561,7 @@ class ApplyOpToHLS(RewritePattern):
         indices_stream_to_read: list[int] = []
         indices_stream_to_write: list[int] = []
         i = 0
-        apply_clone: ApplyOp = apply_clones_lst[-1]
+        apply_clone = apply_clones_lst[-1]
         for _operand in apply_clone.operands:
             assert isinstance(_operand, BlockArgument) or isinstance(_operand, OpResult)
             if isinstance(_operand, OpResult) and isinstance(_operand.op, HLSStream):
@@ -597,7 +597,7 @@ class ApplyOpToHLS(RewritePattern):
         new_apply: ApplyOp
         for component in return_op.arg:
             assert isinstance(component, OpResult)
-            new_apply: ApplyOp = apply_clones_lst[k]
+            new_apply = apply_clones_lst[k]
             k += 1
 
             component_operations: dict[int, Operation] = dict()

@@ -870,12 +870,14 @@ def test_get_printed_name():
     val = TestSSAValue(i32)
 
     # Test printing without constraints
-    printer.stream = StringIO()
+    stream = StringIO()
+    printer.stream = stream
     picked_name = printer.print_ssa_value(val)
     assert f"%{picked_name}" == printer.stream.getvalue()
 
     # Test printing when name has already been picked
-    printer.stream = StringIO()
+    stream = StringIO()
+    printer.stream = stream
     picked_name = printer.print_ssa_value(val)
     assert f"%{picked_name}" == printer.stream.getvalue()
 

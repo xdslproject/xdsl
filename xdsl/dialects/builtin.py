@@ -70,6 +70,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -1003,18 +1004,14 @@ class DenseIntOrFPElementsAttr(
             new_type = cast(RankedVectorOrTensorOf[AnyFloat], type)
             new_data = cast(Sequence[int | float] | Sequence[FloatAttr[AnyFloat]], data)
             return DenseIntOrFPElementsAttr.create_dense_float(new_type, new_data)
-
-        match type.element_type:
-            case IntegerType():
-                new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
-                new_data = cast(
-                    Sequence[int] | Sequence[IntegerAttr[IntegerType]], data
-                )
-                return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
-            case IndexType():
-                new_type = cast(RankedVectorOrTensorOf[IndexType], type)
-                new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
-                return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
+        elif isinstance(type.element_type, IntegerType):
+            new_type = cast(RankedVectorOrTensorOf[IntegerType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IntegerType]], data)
+            return DenseIntOrFPElementsAttr.create_dense_int(new_type, new_data)
+        else:
+            new_type = cast(RankedVectorOrTensorOf[IndexType], type)
+            new_data = cast(Sequence[int] | Sequence[IntegerAttr[IndexType]], data)
+            return DenseIntOrFPElementsAttr.create_dense_index(new_type, new_data)
 
     @staticmethod
     def vector_from_list(
@@ -1126,7 +1123,7 @@ class DenseArrayBase(ParametrizedAttribute):
         if isinstance(data_type, IndexType | IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
             return DenseArrayBase.create_dense_int_or_index(data_type, _data)
-        elif isinstance(data_type, AnyFloat):
+        elif isattr(data_type, AnyFloatConstr):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
             return DenseArrayBase.create_dense_float(data_type, _data)
         else:

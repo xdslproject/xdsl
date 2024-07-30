@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, TypeVar, final
+from typing import TYPE_CHECKING, TypeVar, final
 
 from xdsl.utils.exceptions import VerifyException
 
@@ -20,12 +20,8 @@ class OpTrait:
     A trait attached to an operation definition.
     Traits can be used to define operation invariants, additional semantic information,
     or to group operations that have similar properties.
-    Traits have parameters, which by default is just the `None` value. Parameters should
-    always be comparable and hashable.
     Note that traits are the merge of traits and interfaces in MLIR.
     """
-
-    parameters: Any = field(default=None)
 
     def verify(self, op: Operation) -> None:
         """Check that the operation satisfies the trait requirements."""
@@ -47,22 +43,20 @@ class ConstantLike(OpTrait):
 class HasParent(OpTrait):
     """Constraint the operation to have a specific parent operation."""
 
-    parameters: tuple[type[Operation], ...]
+    op_types: tuple[type[Operation], ...]
 
-    def __init__(self, *parameters: type[Operation]):
-        if not parameters:
-            raise ValueError("parameters must not be empty")
-        super().__init__(parameters)
+    def __init__(self, head_param: type[Operation], *tail_params: type[Operation]):
+        object.__setattr__(self, "op_types", (head_param, *tail_params))
 
     def verify(self, op: Operation) -> None:
         parent = op.parent_op()
-        if isinstance(parent, self.parameters):
+        if isinstance(parent, self.op_types):
             return
-        if len(self.parameters) == 1:
+        if len(self.op_types) == 1:
             raise VerifyException(
-                f"'{op.name}' expects parent op '{self.parameters[0].name}'"
+                f"'{op.name}' expects parent op '{self.op_types[0].name}'"
             )
-        names = ", ".join(f"'{p.name}'" for p in self.parameters)
+        names = ", ".join(f"'{p.name}'" for p in self.op_types)
         raise VerifyException(f"'{op.name}' expects parent op to be one of {names}")
 
 
@@ -73,18 +67,18 @@ class HasAncestor(OpTrait):
     parent.
     """
 
-    parameters: tuple[type[Operation], ...]
+    op_types: tuple[type[Operation], ...]
 
     def __init__(self, head_param: type[Operation], *tail_params: type[Operation]):
-        super().__init__((head_param, *tail_params))
+        object.__setattr__(self, "op_types", (head_param, *tail_params))
 
     def verify(self, op: Operation) -> None:
         if self.get_ancestor(op) is None:
-            if len(self.parameters) == 1:
+            if len(self.op_types) == 1:
                 raise VerifyException(
-                    f"'{op.name}' expects ancestor op '{self.parameters[0].name}'"
+                    f"'{op.name}' expects ancestor op '{self.op_types[0].name}'"
                 )
-            names = ", ".join(f"'{p.name}'" for p in self.parameters)
+            names = ", ".join(f"'{p.name}'" for p in self.op_types)
             raise VerifyException(
                 f"'{op.name}' expects ancestor op to be one of {names}"
             )
@@ -98,7 +92,7 @@ class HasAncestor(OpTrait):
 
     def get_ancestor(self, op: Operation) -> Operation | None:
         ancestors = self.walk_ancestors(op)
-        matching_ancestors = (a for a in ancestors if isinstance(a, self.parameters))
+        matching_ancestors = (a for a in ancestors if isinstance(a, self.op_types))
         return next(matching_ancestors, None)
 
 
@@ -133,6 +127,7 @@ class NoTerminator(OpTrait):
                 )
 
 
+@dataclass(frozen=True)
 class SingleBlockImplicitTerminator(OpTrait):
     """
     Checks the existence of the specified terminator to an operation which has
@@ -144,7 +139,7 @@ class SingleBlockImplicitTerminator(OpTrait):
     https://mlir.llvm.org/docs/Traits/#single-block-with-implicit-terminator
     """
 
-    parameters: type[Operation]
+    op_type: type[Operation]
 
     def verify(self, op: Operation) -> None:
         for region in op.regions:
@@ -156,13 +151,13 @@ class SingleBlockImplicitTerminator(OpTrait):
                 if (last_op := block.last_op) is None:
                     raise VerifyException(
                         f"'{op.name}' contains empty block instead of at least "
-                        f"terminating with {self.parameters.name}"
+                        f"terminating with {self.op_type.name}"
                     )
 
-                if not isinstance(last_op, self.parameters):
+                if not isinstance(last_op, self.op_type):
                     raise VerifyException(
                         f"'{op.name}' terminates with operation {last_op.name} "
-                        f"instead of {self.parameters.name}"
+                        f"instead of {self.op_type.name}"
                     )
 
 
@@ -181,11 +176,11 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
             if (
                 (last_op := block.last_op) is not None
                 and last_op.has_trait(IsTerminator)
-                and not isinstance(last_op, trait.parameters)
+                and not isinstance(last_op, trait.op_type)
             ):
                 raise VerifyException(
                     f"'{op.name}' terminates with operation {last_op.name} "
-                    f"instead of {trait.parameters.name}"
+                    f"instead of {trait.op_type.name}"
                 )
 
     from xdsl.builder import ImplicitBuilder
@@ -200,7 +195,7 @@ def ensure_terminator(op: Operation, trait: SingleBlockImplicitTerminator) -> No
                 IsTerminator
             ):
                 with ImplicitBuilder(block):
-                    trait.parameters.create()
+                    trait.op_type.create()
 
 
 class IsolatedFromAbove(OpTrait):
