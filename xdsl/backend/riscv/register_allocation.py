@@ -70,12 +70,16 @@ def count_reg_types(regs: Iterable[Attribute]) -> tuple[int, int]:
     """
     Returns a tuple containing the count of IntRegister and FloatRegister in the iterable.
     """
-    num_complex = sum(
-        isinstance(reg, IntRegisterType) + 1j * isinstance(reg, FloatRegisterType)
-        for reg in regs
-    )
+    int_regs: set[str] = set()
+    float_regs: set[str] = set()
 
-    return int(num_complex.real), int(num_complex.imag)
+    for reg in regs:
+        if isinstance(reg, IntRegisterType):
+            int_regs.add(reg.spelling.data)
+        elif isinstance(reg, FloatRegisterType):
+            float_regs.add(reg.spelling.data)
+
+    return len(int_regs), len(float_regs)
 
 
 class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
