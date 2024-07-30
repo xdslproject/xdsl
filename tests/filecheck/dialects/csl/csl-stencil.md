@@ -107,13 +107,12 @@ the remainder of the stencil code 2-dimensional after the transformation (reques
 
 # Strategy
 
-The `dmp.swap` ops describe the data movement required, but unfortunately cannot be translated
-directly, as the router has very limited configurations. The currently chosen communication
-strategy enables one-shot distribution of data across a fixed stencil star shape. In other words,
-this implies a commitment to always communicate in a fixed stencil pattern, using router-managed
-forwarding of data in the router, thus removing the need to manage data forwarding in software.
-This might in some cases lead to redundant transfers - however, as stencil on cs-2 are reported
-to be compute-bound, the impact of some limited overhead may go unnoticed.
+The `dmp.swap` ops describe the data movement required, expressing a point-to-point send and receive
+exchange between us and a specified neighbour. Unfortunately, this cannot be translated
+directly on CS-2, as the router has limited configurations. The currently chosen communication
+strategy enables one-shot distribution of data across a fixed stencil shape. This might occasionally
+lead to redundant transfers in cases where specific data points are not needed for the computation -
+however, as such stencils on cs-2 are reported to be compute-bound, this may have limited impact.
 
 We propose `csl_stencil.prefetch` as an op that communicates a given buffer across the stencil shape,
 as a pure data transfer op without performing any compute.
@@ -144,9 +143,9 @@ This would reduce the need for intermediate buffers, and could be achieved by a 
 
 ## Step 1: Buffer prefetching
 
-In this step, `dmp.swap` is lowered to `csl_stencil.prefetch`. The op returns a `memref<4xtensor<510xf32>>`,
+In this step, `dmp.swap` is lowered to `csl_stencil.prefetch`. The op returns a `tensor<4x510xf32>`,
 indicating that we have received data from 4 neighbours (any redundant exchange can be omitted here).
-The `memref` is passed as an additional argument to `stencil.apply` and is accessed via `csl_stencil.access`.
+The `tensor` is passed as an additional argument to `stencil.apply` and is accessed via `csl_stencil.access`.
 This op is like `stencil.access`, but operates on prefetched buffers and does not require an offset,
 as ghost cells have not been communicated. This also means that some `tensor.extract_slice` ops
 can be dropped, as they are no longer needed to remove any ghost cells.
@@ -164,17 +163,17 @@ builtin.module {
             #csl_stencil.exchange<to [-1, 0]>,
             #csl_stencil.exchange<to [0, 1]>,
             #csl_stencil.exchange<to [0, -1]>
-        ]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> (memref<4xtensor<510xf32>>)
-    %1 = stencil.apply(%2 = %0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %3 = %pref : memref<4xtensor<510xf32>>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) {
+        ]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> (tensor<4x510xf32>)
+    %1 = stencil.apply(%2 = %0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %3 = %pref : tensor<4x255xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) {
       %4 = arith.constant 1.666600e-01 : f32
-      %5 = csl_stencil.access %3[1, 0] : memref<4xtensor<510xf32>>
-      %6 = csl_stencil.access %3[-1, 0] : memref<4xtensor<510xf32>>
+      %5 = csl_stencil.access %3[1, 0] : tensor<4x255xf32>
+      %6 = csl_stencil.access %3[-1, 0] : tensor<4x255xf32>
       %7 = stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
       %8 = stencil.access %2[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
       %9 = "tensor.extract_slice"(%7) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
       %10 = "tensor.extract_slice"(%8) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-      %11 = csl_stencil.access %3[0, 1] : memref<4xtensor<510xf32>>
-      %12 = csl_stencil.access %3[0, -1] : memref<4xtensor<510xf32>>
+      %11 = csl_stencil.access %3[0, 1] : tensor<4x255xf32>
+      %12 = csl_stencil.access %3[0, -1] : tensor<4x255xf32>
       %13 = arith.addf %12, %11 : tensor<510xf32>
       %14 = arith.addf %13, %10 : tensor<510xf32>
       %15 = arith.addf %14, %9 : tensor<510xf32>
@@ -191,7 +190,7 @@ builtin.module {
 }
 ```
 
-## Interlude: The CSL stencil comms library we are targeting
+## Interlude: The CSL stencil comms library targeted
 
 This is a basic example of what the proposed dialect aims to accomplish. The actual underlying
 CSL library is slightly more complex, specifically in two ways:
