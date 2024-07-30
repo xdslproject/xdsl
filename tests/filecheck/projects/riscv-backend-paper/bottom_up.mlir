@@ -24,6 +24,7 @@ func.func public @ssum(
 // CHECK:       .text
 // CHECK-NEXT:  .globl ssum
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 6, "allocated_int": 21}
 // CHECK-NEXT:  ssum:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -80,6 +81,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl conv_2d_nchw_fchw_d1_s1_3x3
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 57, "allocated_int": 109}
 // CHECK-NEXT:  conv_2d_nchw_fchw_d1_s1_3x3:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -203,6 +205,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl ddot
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 15, "allocated_int": 25}
 // CHECK-NEXT:  ddot:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -249,6 +252,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl dsum
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 6, "allocated_int": 21}
 // CHECK-NEXT:  dsum:
 // CHECK-NEXT:      mv t2, a0
 // CHECK-NEXT:      mv t1, a1
@@ -292,6 +296,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl fill
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 4, "preallocated_int": 2, "allocated_float": 5, "allocated_int": 15}
 // CHECK-NEXT:  fill:
 // CHECK-NEXT:      fmv.d ft3, fa0
 // CHECK-NEXT:      mv t0, a0
@@ -348,6 +353,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl matmul
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 4, "allocated_float": 57, "allocated_int": 67}
 // CHECK-NEXT:  matmul:
 // CHECK-NEXT:      mv t0, a0
 // CHECK-NEXT:      mv t1, a1
@@ -457,6 +463,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl pooling_nchw_max_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 3, "allocated_float": 49, "allocated_int": 92}
 // CHECK-NEXT:  pooling_nchw_max_d1_s2_3x3:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
@@ -552,6 +559,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK:       .text
 // CHECK-NEXT:  .globl relu
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 3, "allocated_float": 6, "allocated_int": 22}
 // CHECK-NEXT:  relu:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
@@ -610,6 +618,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl pooling_nchw_sum_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": 3, "preallocated_int": 3, "allocated_float": 49, "allocated_int": 94}
 // CHECK-NEXT:  pooling_nchw_sum_d1_s2_3x3:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
