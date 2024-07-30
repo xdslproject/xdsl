@@ -446,7 +446,7 @@ class NamedOpBase(IRDLOperation):
     @classmethod
     def parse(
         cls, parser: Parser
-    ):  # -> tuple[Sequence[Operand], Sequence[Operand], Sequence[Attribute], dict[str, Attribute]]:
+    ):
         pos = parser.pos
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
