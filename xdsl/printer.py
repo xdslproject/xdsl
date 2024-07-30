@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, TypeVar, cast
 
+from typing_extensions import deprecated
+
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AffineSetAttr,
@@ -142,44 +144,51 @@ class Printer:
             text = str(arg)
             self.print_string(text)
 
+    @deprecated("Please use `printer.print_strint(text, indent=0)`")
     def print_string_raw(self, text: str) -> None:
         """
         Prints a string to the printer's output, without taking
         indentation into account.
         """
-        lines = text.split("\n")
-        if len(lines) != 1:
-            self._current_line += len(lines) - 1
-            self._current_column = len(lines[-1])
-        else:
-            self._current_column += len(lines[-1])
-        print(text, end="", file=self.stream)
+        self.print_string(text, indent=0)
 
-    def print_string(self, text: str, indent: int | None = None) -> None:
+    def print_string(self, text: str, *, indent: int | None = None) -> None:
         """
         Prints a string to the printer's output.
 
         This function takes into account indentation level when
         printing new lines.
-
-        Indentation level for newlines within the printed string
-        can be overriden by specifying the `indent` argument.
+        If the indentation level is specified as 0, the string is printed as-is, if `None`
+        then the `Printer` instance's indentation level is used.
         """
 
+        num_newlines = text.count("\n")
+
+        if not num_newlines:
+            self._current_column += len(text)
+            print(text, end="", file=self.stream)
+            return
+
+        indent = self._indent if indent is None else indent
         lines = text.split("\n")
+
+        if indent == 0 and not self._next_line_callback:
+            # No indent and no callback to print after the next newline, the text
+            # can be printed directly.
+            self._current_line += num_newlines
+            self._current_column = len(lines[-1])
+            print(text, end="", file=self.stream)
+            return
 
         # Line and column information is not computed ahead of time
         # as indent-aware newline printing may use it as part of
         # callbacks.
-        indent = indent or self._indent
-        indent_len = indent * indentNumSpaces
         print(lines[0], end="", file=self.stream)
         self._current_column += len(lines[0])
         for line in lines[1:]:
             self._print_new_line(indent=indent)
             print(line, end="", file=self.stream)
-            self._current_line += 1
-            self._current_column = len(line) + indent_len
+            self._current_column += len(line)
 
     @contextmanager
     def indented(self, amount: int = 1):
@@ -261,12 +270,17 @@ class Printer:
         self, indent: int | None = None, print_message: bool = True
     ) -> None:
         indent = self._indent if indent is None else indent
-        self.print_string_raw("\n")
+        # Prints a newline, bypassing the `print_string` method
+        print(file=self.stream)
+        self._current_line += 1
         if print_message:
             for callback in self._next_line_callback:
                 callback()
             self._next_line_callback = []
-        self.print_string_raw(" " * indent * indentNumSpaces)
+        num_spaces = indent * indentNumSpaces
+        # Prints indentation, bypassing the `print_string` method
+        print(" " * num_spaces, end="", file=self.stream)
+        self._current_column = num_spaces
 
     def _get_new_valid_name_id(self) -> str:
         self._next_valid_name_id[-1] += 1
