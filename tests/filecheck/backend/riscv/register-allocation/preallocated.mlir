@@ -11,7 +11,7 @@ riscv_func.func @main() {
 }
 
 // LIVE-BNAIVE:       builtin.module {
-// LIVE-BNAIVE-NEXT:    riscv.comment {"comment" = "Regalloc stats: {\"preallocated_float\": 1, \"preallocated_int\": 1, \"allocated_float\": 5, \"allocated_int\": 7}"} : () -> ()
+// LIVE-BNAIVE-NEXT:    riscv.comment {"comment" = "Regalloc stats: {\"preallocated_float\": 1, \"preallocated_int\": 1, \"allocated_float\": 2, \"allocated_int\": 2}"} : () -> ()
 // LIVE-BNAIVE-NEXT:    riscv_func.func @main() {
 // LIVE-BNAIVE-NEXT:      %0 = riscv.li 6 : !riscv.reg<t1>
 // LIVE-BNAIVE-NEXT:      %1 = riscv.li 5 : !riscv.reg<t0>
