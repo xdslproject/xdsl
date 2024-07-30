@@ -109,10 +109,10 @@ We replace *all* value-semantics results of an apply by an allocation, compute d
 %ut = stencil.load %u : !stencil.field<[-4,68]xf64> -> !stencil.temp<[0,64]xf64>
 
 %vt_b = stencil.alloc() : !stencil.field<[0,64]xf64>
-stencil.apply(%uarg = %ut : !stencil.temp<[0,64]xf64>) -> (!stencil.temp<[0,64]xf64>, %vt_b : !stencil.field<[0,64]xf64>) {
+stencil.apply(%uarg = %ut : !stencil.temp<[0,64]xf64>) -> (%vt_b : !stencil.field<[0,64]xf64>) {
     %center = stencil.access %uarg[0] : !stencil.temp<[0,64]xf64>
     %value = func.call @compute(%center) : (f64) -> f64
-    stencil.return %value, %value : f64
+    stencil.return %value : f64
 }
 %vt = stencil.load %vt_b : !stencil.field<[0,64]xf64> -> !stencil.temp<[0,64]xf64>
 
@@ -129,10 +129,10 @@ We can thus replace the destination:
 %ut = stencil.load %u : !stencil.field<[-4,68]xf64> -> !stencil.temp<[0,64]xf64>
 
 %vt_b = stencil.alloc() : !stencil.field<[0,64]xf64>
-stencil.apply(%uarg = %ut : !stencil.temp<[0,64]xf64>) -> (!stencil.temp<[0,64]xf64>, %v : !stencil.field<[-4,68]xf64>) {
+stencil.apply(%uarg = %ut : !stencil.temp<[0,64]xf64>) -> (%v : !stencil.field<[-4,68]xf64>) {
     %center = stencil.access %uarg[0] : !stencil.temp<[0,64]xf64>
     %value = func.call @compute(%center) : (f64) -> f64
-    stencil.return %value, %value : f64
+    stencil.return %value : f64
 }
 ```
 
@@ -144,10 +144,10 @@ And we can simply remove unused allocations.
 %ut = stencil.load %u : !stencil.field<[-4,68]xf64> -> !stencil.temp<[0,64]xf64>
 %ut_b = stencil.buffer(%ut) : !stencil.temp<[0,64]xf64> -> !stencil.field<[0,64]xf64>
 
-stencil.apply(%uarg = %ut_b : !stencil.field<[0,64]xf64>) -> (!stencil.temp<[0,64]xf64>, %v : !stencil.field<[-4,68]xf64>) {
+stencil.apply(%uarg = %ut_b : !stencil.field<[0,64]xf64>) -> (%v : !stencil.field<[-4,68]xf64>) {
     %center = stencil.access %uarg[0] : !stencil.temp<[0,64]xf64>
     %value = func.call @compute(%center) : (f64) -> f64
-    stencil.return %value, %value : f64
+    stencil.return %value : f64
 }
 ```
 
@@ -156,10 +156,10 @@ stencil.apply(%uarg = %ut_b : !stencil.field<[0,64]xf64>) -> (!stencil.temp<[0,6
 If the field is not modified between the `stencil.load` and the last use of the underlying buffer, inclusive.
 
 ```mlir
-stencil.apply(%uarg = %u : !stencil.field<[-4,68]xf64>) -> (!stencil.temp<[0,64]xf64>, %v : !stencil.field<[-4,68]xf64>) {
+stencil.apply(%uarg = %u : !stencil.field<[-4,68]xf64>) -> (%v : !stencil.field<[-4,68]xf64>) {
     %center = stencil.access %uarg[0] : !stencil.temp<[0,64]xf64>
     %value = func.call @compute(%center) : (f64) -> f64
-    stencil.return %value, %value : f64
+    stencil.return %valuex : f64
 }
 ```
 

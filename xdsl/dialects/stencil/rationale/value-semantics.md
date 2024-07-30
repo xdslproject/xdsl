@@ -37,7 +37,7 @@ This is self-contained and work well with shape inference illustrated below, whi
 scf.for %time = %0 to %T step %1 iter_args(%u = %u_init, %v = %v_init) -> (!stencil.field<[-4,68]xf64>, !stencil.field<[-4,68]xf64>) {
 
     // 3. Okay, buffer %u big enough, job done.
-    %ut = stencil.load %u : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
+    %ut = stencil.load %u : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,65]xf64>
 
     // 2. Pull [-1,65] from %ut, as that's the accessed portion to compute the requested %vt
     %vt = stencil.apply(%uarg = %ut : !stencil.temp<[-1,65]xf64>) -> stencil.temps<[0,64]xf64> {
