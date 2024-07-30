@@ -270,7 +270,7 @@ class Printer:
         self, indent: int | None = None, print_message: bool = True
     ) -> None:
         indent = self._indent if indent is None else indent
-        print("\n", end="", file=self.stream)
+        print(file=self.stream)
         self._current_line += 1
         if print_message:
             for callback in self._next_line_callback:
