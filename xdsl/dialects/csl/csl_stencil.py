@@ -122,14 +122,16 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        base(stencil.TempType[Attribute]) | base(memref.MemRefType[Attribute])
+        base(stencil.TempType[Attribute])
+        | base(memref.MemRefType[Attribute])
+        | base(TensorType[Attribute])
     )
 
     swaps = prop_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
     topo = prop_def(dmp.RankTopoAttr)
 
-    result = result_def(memref.MemRefType)
+    result = result_def(memref.MemRefType | TensorType)
 
     def __init__(
         self,
@@ -471,7 +473,7 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if isattr(res_type, base(AnyMemRefType)):
+        if isattr(res_type, base(stencil.AnyTempType)):
             return cls.build(
                 operands=[temp], result_types=[res_type.element_type], properties=props
             )
