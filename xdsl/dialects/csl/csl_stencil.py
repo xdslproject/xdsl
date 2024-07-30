@@ -471,10 +471,28 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isattr(res_type, base(AnyMemRefType) | base(stencil.AnyTempType)):
-            parser.raise_error("Expected return type to be a memref or stencil.temp")
-        return cls.build(
-            operands=[temp], result_types=[res_type.element_type], properties=props
+        if isattr(res_type, base(AnyMemRefType)):
+            return cls.build(
+                operands=[temp], result_types=[res_type.element_type], properties=props
+            )
+        elif isattr(res_type, base(TensorType[Attribute])):
+            return cls.build(
+                operands=[temp],
+                result_types=[
+                    TensorType(res_type.element_type, res_type.get_shape()[1:])
+                ],
+                properties=props,
+            )
+        elif isattr(res_type, base(AnyMemRefType)):
+            return cls.build(
+                operands=[temp],
+                result_types=[
+                    memref.MemRefType(res_type.element_type, res_type.get_shape()[1:])
+                ],
+                properties=props,
+            )
+        parser.raise_error(
+            "Expected return type to be a tensor, memref, or stencil.temp"
         )
 
     def verify_(self) -> None:
