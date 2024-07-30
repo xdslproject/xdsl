@@ -444,9 +444,7 @@ class NamedOpBase(IRDLOperation):
         )
 
     @classmethod
-    def parse(
-        cls, parser: Parser
-    ):
+    def parse(cls, parser: Parser):
         pos = parser.pos
         if parser.parse_optional_characters("ins"):
             parser.parse_punctuation("(")
