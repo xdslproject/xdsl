@@ -270,6 +270,7 @@ class Printer:
         self, indent: int | None = None, print_message: bool = True
     ) -> None:
         indent = self._indent if indent is None else indent
+        # Prints a newline, bypassing the `print_string` method
         print(file=self.stream)
         self._current_line += 1
         if print_message:
@@ -277,6 +278,7 @@ class Printer:
                 callback()
             self._next_line_callback = []
         num_spaces = indent * indentNumSpaces
+        # Prints indentation, bypassing the `print_string` method
         print(" " * num_spaces, end="", file=self.stream)
         self._current_column = num_spaces
 
