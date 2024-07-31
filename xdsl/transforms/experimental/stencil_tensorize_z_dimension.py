@@ -380,12 +380,13 @@ class FillOpUpdateShape(RewritePattern):
 class ConstOpUpdateShape(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter, /):
-        if typ := get_required_result_type(op):
-            if needs_update_shape(op.result.type, typ):
-                assert isinstance(op.value, DenseIntOrFPElementsAttr)
-                rewriter.replace_matched_op(
-                    Constant(DenseIntOrFPElementsAttr([typ, op.value.data]))
-                )
+        if is_tensor(op.result.type):
+            if typ := get_required_result_type(op):
+                if needs_update_shape(op.result.type, typ):
+                    assert isinstance(op.value, DenseIntOrFPElementsAttr)
+                    rewriter.replace_matched_op(
+                        Constant(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                    )
 
 
 @dataclass(frozen=True)
