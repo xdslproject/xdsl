@@ -1676,7 +1676,12 @@ class DenseIntOrFPElementsAttr(
     @overload
     @staticmethod
     def from_list(
-        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
+        type: (
+            RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType]
+            | RankedVectorOrTensorOf[AnyFloat]
+            | RankedVectorOrTensorOf[IntegerType]
+            | RankedVectorOrTensorOf[IndexType]
+        ),
         data: (
             Sequence[int]
             | Sequence[IntegerAttr[IndexType]]
@@ -1687,13 +1692,23 @@ class DenseIntOrFPElementsAttr(
     @overload
     @staticmethod
     def from_list(
-        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
+        type: (
+            RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType]
+            | RankedVectorOrTensorOf[AnyFloat]
+            | RankedVectorOrTensorOf[IntegerType]
+            | RankedVectorOrTensorOf[IndexType]
+        ),
         data: Sequence[int | float] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr: ...
 
     @staticmethod
     def from_list(
-        type: RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType],
+        type: (
+            RankedVectorOrTensorOf[AnyFloat | IntegerType | IndexType]
+            | RankedVectorOrTensorOf[AnyFloat]
+            | RankedVectorOrTensorOf[IntegerType]
+            | RankedVectorOrTensorOf[IndexType]
+        ),
         data: Sequence[int | float] | Sequence[AnyIntegerAttr] | Sequence[AnyFloatAttr],
     ) -> DenseIntOrFPElementsAttr:
         if isinstance(type.element_type, AnyFloat):
