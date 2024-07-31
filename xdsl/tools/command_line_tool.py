@@ -360,6 +360,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_stencil_bufferize():
+        from xdsl.transforms import stencil_bufferize
+
+        return stencil_bufferize.StencilBufferize
+
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
         "loop-hoist-memref": get_loop_hoist_memref,
@@ -428,6 +433,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-to-csl-stencil": get_stencil_to_csl_stencil,
         "stencil-unroll": get_stencil_unroll,
+        "stencil-bufferize": get_stencil_bufferize,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
     }
 

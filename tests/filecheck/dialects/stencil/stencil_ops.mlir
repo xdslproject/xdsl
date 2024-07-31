@@ -127,7 +127,7 @@ builtin.module {
       %5 = stencil.access %4[0] : !stencil.temp<?xf64>
       stencil.return %5 : f64
     }
-    %6 = stencil.buffer %3 : !stencil.temp<?xf64>
+    %6 = stencil.buffer %3 : !stencil.temp<?xf64> -> !stencil.temp<?xf64>
     %7 = stencil.apply(%8 = %6 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
       %9 = stencil.access %8[0] : !stencil.temp<?xf64>
       stencil.return %9 : f64

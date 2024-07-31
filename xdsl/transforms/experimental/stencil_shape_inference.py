@@ -188,7 +188,8 @@ class AccessOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter):
         apply = op.get_apply()
-        assert isa(op.temp.type, TempType[Attribute])
+        if not isa(op.temp.type, TempType[Attribute]):
+            return
         assert isa(apply.res[0].type, TempType[Attribute])
 
         temp_type = op.temp.type
@@ -204,7 +205,8 @@ class DynAccessOpShapeInference(RewritePattern):
     def match_and_rewrite(self, op: DynAccessOp, rewriter: PatternRewriter):
         apply = op.parent_op()
         assert isinstance(apply, ApplyOp)
-        assert isa(op.temp.type, TempType[Attribute])
+        if not isa(op.temp.type, TempType[Attribute]):
+            return
         assert isa(apply.res[0].type, TempType[Attribute]), f"{apply.res[0]}"
 
         temp_type = op.temp.type
@@ -219,6 +221,8 @@ class DynAccessOpShapeInference(RewritePattern):
 class ApplyOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
+        if not op.res:
+            return
         for i, arg in enumerate(op.region.block.args):
             if isa(arg.type, TempType[Attribute]) and isinstance(
                 arg.type.bounds, StencilBoundsAttr

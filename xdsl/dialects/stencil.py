@@ -31,7 +31,6 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     AttrSizedOperandSegments,
-    BaseAttr,
     ConstraintContext,
     ConstraintVar,
     IRDLOperation,
@@ -630,6 +629,13 @@ class ApplyOp(IRDLOperation):
 
 
 @irdl_op_definition
+class AllocOp(IRDLOperation):
+    name = "stencil.alloc"
+
+    field = result_def(FieldType[Attribute])
+
+
+@irdl_op_definition
 class CastOp(IRDLOperation):
     """
     This operation casts dynamically shaped input fields to statically shaped fields.
@@ -769,7 +775,7 @@ class DynAccessOp(IRDLOperation):
 
     temp = operand_def(
         ParamAttrConstraint(
-            TempType,
+            StencilType,
             [
                 Attribute,
                 MessageConstraint(
@@ -1185,19 +1191,37 @@ class BufferOp(IRDLOperation):
     T = Annotated[TempType[_FieldTypeElement], ConstraintVar("T")]
 
     temp: Operand = operand_def(
-        MessageConstraint(
-            VarConstraint("T", BaseAttr(TempType)),
-            "Expected operand and result type to be equal.",
+        ParamAttrConstraint(
+            TempType,
+            [
+                MessageConstraint(
+                    VarConstraint("B", AnyAttr()),
+                    "Expected input and output to have the same bounds",
+                ),
+                MessageConstraint(
+                    VarConstraint("E", AnyAttr()),
+                    "Expected input and output to have the same element type",
+                ),
+            ],
         )
     )
     res: OpResult = result_def(
-        MessageConstraint(
-            VarConstraint("T", BaseAttr(TempType)),
-            "Expected operand and result type to be equal.",
+        ParamAttrConstraint(
+            StencilType,
+            [
+                MessageConstraint(
+                    VarConstraint("B", AnyAttr()),
+                    "Expected input and output to have the same bounds",
+                ),
+                MessageConstraint(
+                    VarConstraint("E", AnyAttr()),
+                    "Expected input and output to have the same element type",
+                ),
+            ],
         )
     )
 
-    assembly_format = "$temp attr-dict-with-keyword `:` type($temp)"
+    assembly_format = "$temp attr-dict-with-keyword `:` type($temp) `->` type($res)"
 
     traits = frozenset([Pure()])
 
@@ -1205,17 +1229,17 @@ class BufferOp(IRDLOperation):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
 
-    def verify_(self) -> None:
-        if not isinstance(self.temp.owner, ApplyOp | CombineOp):
-            raise VerifyException(
-                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
-                f"{self.temp.owner}"
-            )
-        if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
-            raise VerifyException(
-                "A stencil.buffer's operand temp should only be buffered. You can use "
-                "stencil.buffer's output instead!"
-            )
+    # def verify_(self) -> None:
+    #     # if not isinstance(self.temp.owner, ApplyOp | CombineOp):
+    #     #     raise VerifyException(
+    #     #         f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
+    #     #         f"{self.temp.owner}"
+    #     #     )
+    #     if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
+    #         raise VerifyException(
+    #             "A stencil.buffer's operand temp should only be buffered. You can use "
+    #             "stencil.buffer's output instead!"
+    #         )
 
 
 class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
@@ -1519,6 +1543,7 @@ class AccessPattern:
 Stencil = Dialect(
     "stencil",
     [
+        AllocOp,
         CastOp,
         CombineOp,
         DynAccessOp,
