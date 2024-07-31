@@ -33,7 +33,6 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     EnumAttribute,
-    Operation,
     Region,
     SSAValue,
 )
@@ -540,13 +539,12 @@ class NamedOpBase(IRDLOperation, ABC):
 
         result: Sequence[AnyFloat | IntegerType] = []
 
-        for op_type in (op.type for op in operands):
+        for op in operands:
+            op_type = op.type
             if isa(op_type, MemRefType[Attribute]):
                 element_type = op_type.get_element_type()
             elif isa(op_type, TensorType[Attribute]):
                 element_type = op_type.get_element_type()
-            elif isinstance(op_type, Operation):
-                element_type = op_type.results[0].type
             else:  # int or float
                 element_type = op_type
             assert isinstance(element_type, AnyFloat | IntegerType)
@@ -884,7 +882,7 @@ class MatmulOp(NamedOpBase):
         super().__init__(
             ins=inputs,
             outs=outputs,
-            result_types=(result_types,),
+            result_types=result_types,
             attributes=attributes,
             hidden_region=hidden_region,
         )
