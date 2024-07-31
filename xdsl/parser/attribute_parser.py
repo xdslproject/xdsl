@@ -776,7 +776,8 @@ class AttrParser(BaseParser):
             | base(RankedVectorOrTensorOf[AnyFloat]),
         ):
             self.raise_error(
-                "Expected vector or tensor type of " "integer, index, or float type"
+                "Expected memref, vector or tensor type of "
+                "integer, index, or float type"
             )
 
         # Check for static shapes in type
