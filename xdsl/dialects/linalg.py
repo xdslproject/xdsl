@@ -540,7 +540,6 @@ class NamedOpBase(IRDLOperation, ABC):
 
         result: Sequence[AnyFloat | IntegerType] = []
 
-
         for op_type in (op.type for op in operands):
             if isa(op_type, MemRefType[Attribute]):
                 element_type = op_type.get_element_type()
