@@ -86,10 +86,14 @@ TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[ModulePass, ...] = (
 )
 
 LINALG_SNITCH_OPTIMIZATION_PASSES: tuple[ModulePass, ...] = (
-    memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
+    # + Unroll and Jam (O4)
     memref_stream_interleave.MemrefStreamInterleavePass(),
-    memref_streamify.MemrefStreamifyPass(),
+    # + FRep (O3)
     convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
+    # + Scalar Replacement (O2)
+    memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
+    # + Streams (O1)
+    memref_streamify.MemrefStreamifyPass(),
 )
 
 MAX_OPT_LEVEL = len(LINALG_SNITCH_OPTIMIZATION_PASSES)
