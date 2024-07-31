@@ -55,7 +55,7 @@ class DimOp(IRDLOperation):
         printer.print_string(", ")
         printer.print_ssa_value(self.index)
         printer.print_string(" : ")
-        printer.print_attribute(self.result.type)
+        printer.print_attribute(self.source.type)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:

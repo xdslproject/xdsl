@@ -6,7 +6,7 @@
 
 // CHECK: builtin.module {
 // CHECK-NEXT:   %index, %tensor = "test.op"() : () -> (index, tensor<?x?xf32>)
-// CHECK-NEXT:   %dim = tensor.dim %tensor, %index : index
+// CHECK-NEXT:   %dim = tensor.dim %tensor, %index : tensor<?x?xf32>
 // CHECK-NEXT: }
 
 // CHECK-GENERIC: "builtin.module"() ({
