@@ -81,9 +81,12 @@ builtin.module {
 // CHECK-GENERIC-NEXT:       %16 = "arith.addf"(%15, %6) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %17 = "arith.addf"(%16, %5) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %18 = "tensor.empty"() : () -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       %19 = "linalg.fill"(%4, %18) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (f32, tensor<510xf32>) -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       %20 = "arith.mulf"(%17, %19) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       "stencil.return"(%20) : (tensor<510xf32>) -> ()
+// CHECK-GENERIC-NEXT:       %19 = "linalg.fill"(%4, %18) <{"operandSegmentSizes" = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:       ^2(%20 : f32, %21 : f32):
+// CHECK-GENERIC-NEXT:         "linalg.yield"(%20) : (f32) -> ()
+// CHECK-GENERIC-NEXT:       }) : (f32, tensor<510xf32>) -> tensor<510xf32>
+// CHECK-GENERIC-NEXT:       %22 = "arith.mulf"(%17, %19) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
+// CHECK-GENERIC-NEXT:       "stencil.return"(%22) : (tensor<510xf32>) -> ()
 // CHECK-GENERIC-NEXT:     }) : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, tensor<4x510xf32>) -> !stencil.temp<[0,1]x[0,1]xtensor<510xf32>>
 // CHECK-GENERIC-NEXT:     "stencil.store"(%1, %b) {"bounds" = #stencil.bounds<[0, 0], [1, 1]>} : (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
 // CHECK-GENERIC-NEXT:     "func.return"() : () -> ()
@@ -195,9 +198,12 @@ builtin.module {
 // CHECK-GENERIC-NEXT:       %17 = "arith.addf"(%16, %15) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
 // CHECK-GENERIC-NEXT:       %18 = "arith.constant"() <{"value" = 1.666600e-01 : f32}> : () -> f32
 // CHECK-GENERIC-NEXT:       %19 = "tensor.empty"() : () -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       %20 = "linalg.fill"(%18, %19) <{"operandSegmentSizes" = array<i32: 1, 1>}> : (f32, tensor<510xf32>) -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       %21 = "arith.mulf"(%17, %20) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
-// CHECK-GENERIC-NEXT:       "csl_stencil.yield"(%21) : (tensor<510xf32>) -> ()
+// CHECK-GENERIC-NEXT:       %20 = "linalg.fill"(%18, %19) <{"operandSegmentSizes" = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:       ^3(%21 : f32, %22 : f32):
+// CHECK-GENERIC-NEXT:         "linalg.yield"(%21) : (f32) -> ()
+// CHECK-GENERIC-NEXT:       }) : (f32, tensor<510xf32>) -> tensor<510xf32>
+// CHECK-GENERIC-NEXT:       %23 = "arith.mulf"(%17, %20) <{"fastmath" = #arith.fastmath<none>}> : (tensor<510xf32>, tensor<510xf32>) -> tensor<510xf32>
+// CHECK-GENERIC-NEXT:       "csl_stencil.yield"(%23) : (tensor<510xf32>) -> ()
 // CHECK-GENERIC-NEXT:     }) : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, tensor<510xf32>) -> !stencil.temp<[0,1]x[0,1]xtensor<510xf32>>
 // CHECK-GENERIC-NEXT:     "stencil.store"(%2, %b) {"bounds" = #stencil.bounds<[0, 0], [1, 1]>} : (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>, !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) -> ()
 // CHECK-GENERIC-NEXT:     "func.return"() : () -> ()
