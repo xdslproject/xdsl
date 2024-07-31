@@ -228,7 +228,7 @@ builtin.module {
       %7 = stencil.access %6[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
       %8 = stencil.store_result %7 : !stencil.result<f64>
       stencil.return %8 : !stencil.result<f64>
-    } to [0, 0, 0] : [64, 64, 64]
+    } to <[0, 0, 0], [64, 64, 64]>
     func.return
   }
 }
@@ -239,7 +239,7 @@ builtin.module {
 // CHECK-NEXT:        %3 = stencil.access %2[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:        %4 = stencil.store_result %3 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %4 : !stencil.result<f64>
-// CHECK-NEXT:      }
+// CHECK-NEXT:      } to <[0, 0, 0], [64, 64, 64]>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }

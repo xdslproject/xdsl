@@ -481,6 +481,9 @@ class ApplyOp(IRDLOperation):
         printer.print(") ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_region(self.region, print_entry_block_args=False)
+        if self.bounds is not None:
+            printer.print(" to ")
+            self.bounds.print_parameters(printer)
 
     @classmethod
     def parse(cls: type[ApplyOp], parser: Parser):
