@@ -33,6 +33,41 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
+class DimOp(IRDLOperation):
+    """
+    The tensor.dim operation takes a tensor and a dimension operand of type index.
+    It returns the size of the requested dimension of the given tensor.
+    If the dimension index is out of bounds, the behavior is undefined
+    """
+
+    name = "tensor.dim"
+
+    source = operand_def(TensorType[Attribute])
+    index = operand_def(IndexType)
+    result = result_def(IndexType)
+
+    def __init__(self, source: SSAValue | Operation, index: SSAValue | Operation):
+        super().__init__(operands=(source, index), result_types=(IndexType(),))
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.source)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.index)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        source = parser.parse_operand()
+        parser.parse_punctuation(",")
+        index = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        return cls(source, index)
+
+
+@irdl_op_definition
 class EmptyOp(IRDLOperation):
     name = "tensor.empty"
 
@@ -306,6 +341,7 @@ class InsertSliceOp(IRDLOperation):
 Tensor = Dialect(
     "tensor",
     [
+        DimOp,
         EmptyOp,
         ExtractSliceOp,
         InsertSliceOp,
