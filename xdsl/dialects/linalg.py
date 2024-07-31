@@ -33,11 +33,11 @@ from xdsl.ir import (
     BlockArgument,
     Dialect,
     EnumAttribute,
+    Operation,
     Region,
     SSAValue,
 )
 from xdsl.ir.affine import AffineMap
-from xdsl.ir.core import Operation
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
