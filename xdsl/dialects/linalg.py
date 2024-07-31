@@ -478,7 +478,7 @@ class NamedOpBase(IRDLOperation, ABC):
                 parser.Delimiter.PAREN, parser.parse_attribute
             )
             if res_types is None:
-                res_types = [parser.parse_attribute()]
+                res_types = [[parser.parse_attribute()]]
         else:
             res_types = ()
 
