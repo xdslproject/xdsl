@@ -1,3 +1,5 @@
+from typing import Self
+
 from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.experimental import dlt
 from xdsl.pattern_rewriter import PatternRewriteWalker, PatternRewriter, RewritePattern, attr_type_rewrite_pattern, \
@@ -19,12 +21,25 @@ class IterationMap:
             if "iter_order" not in iter_op.attributes:
                 raise ValueError("Iteration ops must have iter_order attribute")
 
+    def matches(self, other: Self) -> bool:
+        if set(self.iteration_ops.keys()) != set(other.iteration_ops.keys()):
+            return False
+        for name in self.iteration_ops:
+            op = self.iteration_ops[name]
+            other_op = other.iteration_ops[name]
+            if op.attributes != other_op.attributes:
+                return False
+        return True
+
     def add(self, iteration_op: dlt.IterateOp):
         assert iteration_op.identification != StringAttr("")
         self.iteration_ops[iteration_op.identification] = iteration_op
 
     def get_map(self) -> dict[StringAttr, dlt.IterationOrder]:
         return {name: op.order for name, op in self.iteration_ops.items()}
+
+    def get_ops(self) -> set[dlt.IterateOp]:
+        return set(self.iteration_ops.values())
 
     def check_consistency(self, map: dict[StringAttr, dlt.IterationOrder] = None):
         if map is None:

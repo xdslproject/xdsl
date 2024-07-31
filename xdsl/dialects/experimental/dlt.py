@@ -137,6 +137,8 @@ class SetAttr(GenericData[frozenset[AttributeCovT, ...]], Iterable[AttributeCovT
         return next(iter(self.data))
 
     def without(self, val: AttributeCovT) -> SetAttr[AttributeCovT]:
+        if val not in self.data:
+            raise ValueError("Cannot remove elements that do not exist in the set. If this is expected, use difference() instead of without()")
         return SetAttr(self.data.difference([val]))
 
     def difference(self, val: Iterable[AttributeCovT]) -> SetAttr[AttributeCovT]:
@@ -2606,6 +2608,18 @@ class IterationOrderBase(ParametrizedAttribute, abc.ABC):
     def get_tensor_indices(self) -> set[int]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def get_children(self) -> list[IterationOrder]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def from_children(self, children: list[IterationOrder]) -> Self:
+        raise NotImplementedError
+
+    def is_abstract(self) -> bool:
+        return any(child.is_abstract for child in self.get_children())
+
+
 class AnyIterationOrder(AttrConstraint):
     def verify(self, attr: Attribute, constraint_vars: dict[str, Attribute]) -> None:
         if not isinstance(attr, IterationOrderBase):
@@ -2641,6 +2655,16 @@ class AbstractIterationOrderAttr(IterationOrderBase):
     def get_tensor_indices(self) -> set[int]:
         return self.child.get_tensor_indices()
 
+    def get_children(self) -> list[IterationOrder]:
+        return [self.child]
+
+    def from_children(self, children: list[IterationOrder]) -> Self:
+        assert len(children) == 1
+        return AbstractIterationOrderAttr(self.extent_indices, children[0])
+
+    def is_abstract(self) -> bool:
+        return True
+
     def verify(self) -> None:
         super().verify()
         if duplicates := (set(self.extent_indices) & self.child.get_extent_indices()):
@@ -2665,6 +2689,13 @@ class BodyIterationOrderAttr(IterationOrderBase):
     def get_tensor_indices(self) -> set[int]:
         return set()
 
+    def get_children(self) -> list[IterationOrder]:
+        return []
+
+    def from_children(self, children: list[IterationOrder]) -> Self:
+        assert len(children) == 0
+        return BodyIterationOrderAttr()
+
 
 @irdl_attr_definition
 class NestedIterationOrderAttr(IterationOrderBase):
@@ -2687,17 +2718,24 @@ class NestedIterationOrderAttr(IterationOrderBase):
     def get_tensor_indices(self) -> set[int]:
         return self.child.get_tensor_indices()
 
+    def get_children(self) -> list[IterationOrder]:
+        return [self.child]
+
+    def from_children(self, children: list[IterationOrder]) -> Self:
+        assert len(children) == 1
+        return NestedIterationOrderAttr(self.extent_index, children[0])
+
     def verify(self) -> None:
         super().verify()
         if self.extent_index in self.child.get_extent_indices():
             raise VerifyException(f"Child produces extent index {self.extent_index} that is also present in this parent {self.name}")
 
     @staticmethod
-    def generate_for(num_extents: list[int] | list[Extent]) -> IterationOrder:
+    def generate_for(num_extents: list[int] | list[IntAttr], body: IterationOrder = None) -> IterationOrder:
         if len(num_extents) == 0:
-            return BodyIterationOrderAttr()
+            return BodyIterationOrderAttr() if body is None else body
         idx = num_extents.pop(0)
-        return NestedIterationOrderAttr(idx, NestedIterationOrderAttr.generate_for(num_extents))
+        return NestedIterationOrderAttr(idx, NestedIterationOrderAttr.generate_for(num_extents, body=body))
 
 
 @irdl_attr_definition
@@ -2708,7 +2746,7 @@ class NonZeroIterationOrderAttr(IterationOrderBase):
     tensor_index: ParameterDef[IntAttr]
     child: ParameterDef[IterationOrder]
 
-    def __init__(self, extent_index: int | IntAttr, tensor_index: int | IntAttr, child: Layout):
+    def __init__(self, extent_index: int | IntAttr, tensor_index: int | IntAttr, child: IterationOrder):
         if isinstance(extent_index, int):
             extent_index = IntAttr(extent_index)
         if isinstance(tensor_index, int):
@@ -2726,6 +2764,13 @@ class NonZeroIterationOrderAttr(IterationOrderBase):
         if self.tensor_index.data in child:
             raise ValueError()
         return {self.tensor_index.data} | child
+
+    def get_children(self) -> list[IterationOrder]:
+        return [self.child]
+
+    def from_children(self, children: list[IterationOrder]) -> Self:
+        assert len(children) == 1
+        return NonZeroIterationOrderAttr(self.extent_index, self.tensor_index, children[0])
 
     def verify(self) -> None:
         super().verify()
@@ -3036,7 +3081,7 @@ class IterateOp(DTLLayoutScopedOp):
     #     indices = [block.args[i] for i in range(len(self.dimensions))]
     #     iter_args = [block.args[i] for i in range(len(self.dimensions), len(block.args))]
     #     printer.print_string(" ")
-    #     printer.print_list(
+    #     printer.print_list(label =
     #         zip(indices, self.iter_args),
     #         lambda pair: print_assignment(printer, *pair),
     #     )

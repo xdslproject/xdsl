@@ -314,7 +314,7 @@ class DLTSelectRewriter(RewritePattern):
         assert isinstance(output_type, dlt.PtrType)
         output_type = cast(dlt.PtrType, output_type)
         output_layout = output_type.layout
-        print(input_layout, output_layout)
+        # print(input_layout, output_layout)
 
         llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
         ops = []

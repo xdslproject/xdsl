@@ -1,3 +1,4 @@
+import dataclasses
 import functools
 import typing
 from dataclasses import dataclass
@@ -133,6 +134,7 @@ def _delinear(input: list[_T], structure: TupleStruct[_K], cls: typing.Type[_K],
 
 @dataclass
 class DTLRewriter(RewritePattern):
+    verbose: int = 0
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, exe_op: dtl.InPlaceExecuteTensorOp, rewriter: PatternRewriter
@@ -266,7 +268,7 @@ class DTLRewriter(RewritePattern):
 
 
 
-        print(f"Lowering  {exe_op.name} down to dlt:")
+        # print(f"Lowering  {exe_op.name} down to dlt:")
 
         # ssa_out: OpsAndResult = self._get_expression(exit_point, {})
         expression_ops = self._do_expression(exit_point, destination, {})
@@ -292,7 +294,8 @@ class DTLRewriter(RewritePattern):
     def _get_expression(
         self, expr: Operation, index_map: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: (Unknown) {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: (Unknown) {expr.name} :===: {expr}")
         # for child in expr.operands:
         #     self._get_expression(child.op, indexMap)
         raise TypeError(f"expr has unsupported class: {expr.__class__}")
@@ -302,7 +305,8 @@ class DTLRewriter(RewritePattern):
     def _do_expression(
         self, expr: Operation, destination: TupleStruct[Destination | None], index_map: typing.Dict[dtl.Index, SSAValue]
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         # for child in expr.operands:
         #     self._get_expression(child.op, indexMap)
         raise TypeError(f"expr has unsupported class: {expr.__class__}")
@@ -311,7 +315,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.TensorVariableOp, index_map: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         assert isinstance(expr.result.type, dtl.TensorExprType)
         expr_type: dtl.TensorExprType = typing.cast(dtl.TensorExprType, expr.result.type)
         spaces = [space for space in expr_type.result.shape]
@@ -335,10 +340,12 @@ class DTLRewriter(RewritePattern):
         destination: TupleStruct[Destination],
         index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         assert len(index_map) == 0
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
         assert isinstance(expr.result.type, dtl.TensorExprType)
         expr_type = typing.cast(dtl.TensorExprType, expr.result.type)
@@ -365,7 +372,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.IndexBindingOp, index_map: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         new_map = {
             i: v for i, v in index_map.items() if i not in expr.indices_map.indices()
         }
@@ -378,9 +386,11 @@ class DTLRewriter(RewritePattern):
         destination: TupleStruct[Destination | None],
         index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
         new_map = {
             i: v for i, v in index_map.items() if i not in expr.indices_map.indices()
@@ -421,7 +431,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.IndexOp, indexMap: dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         subexpr: OpsAndResult = self._get_expression(_op_for(expr.expr), indexMap)
         ops, results = self._match_indices_and_subexprs(
             expr.indices, subexpr.result, indexMap
@@ -468,9 +479,11 @@ class DTLRewriter(RewritePattern):
         destination: TupleStruct[Destination | None],
         index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
         ops, new_destination = self._match_indices_and_subDestinations(expr.indices, destination, index_map)
         child_ops = self._do_expression(_op_for(expr.expr), new_destination, index_map)
@@ -778,7 +791,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.DeIndexOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
 
         ops = []
 
@@ -815,7 +829,7 @@ class DTLRewriter(RewritePattern):
 
         extents: list[dlt.Extent] = []
         extent_args: list[SSAValue] = []
-        loop_indices = list(expr.get_indices())
+        loop_indices = sorted(list(expr.get_indices()), key=lambda i: i.id.data)
         for i, dim in enumerate(loop_indices):
             assert isinstance(dim, dtl.Index)
             assert dim not in new_map
@@ -891,16 +905,18 @@ class DTLRewriter(RewritePattern):
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
         new_map = dict(index_map)
         block = Block()
 
         extents: list[dlt.Extent] = []
         extent_args: list[SSAValue] = []
-        loop_indices = list(expr.get_indices())
+        loop_indices = sorted(list(expr.get_indices()), key=lambda i: i.id.data)
         for i, dim in enumerate(loop_indices):
             assert isinstance(dim, dtl.Index)
             assert dim not in new_map
@@ -977,7 +993,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.SumOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
 
         ops = []
 
@@ -1066,9 +1083,11 @@ class DTLRewriter(RewritePattern):
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
         opresults: OpsAndResult = self._get_expression(expr, index_map)
 
@@ -1086,7 +1105,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.ScalarConstOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         assert len(indexMap) == 0
         const_op = arith.Constant(expr.val)
         return OpsAndResult(
@@ -1100,10 +1120,12 @@ class DTLRewriter(RewritePattern):
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         assert len(index_map) == 0
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
         assert isinstance(destination, Destination)
         assert len(destination.spaces) == 0
@@ -1116,7 +1138,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.ScalarAddOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         lsubexpr: OpsAndResult = self._get_expression(_op_for(expr.lhs), indexMap)
         assert lsubexpr is not None
         assert (
@@ -1148,9 +1171,11 @@ class DTLRewriter(RewritePattern):
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
 
         opresults: OpsAndResult = self._get_expression(expr, index_map)
@@ -1169,7 +1194,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.ScalarSubOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         lsubexpr: OpsAndResult = self._get_expression(_op_for(expr.lhs), indexMap)
         assert lsubexpr is not None
         assert (
@@ -1200,9 +1226,11 @@ class DTLRewriter(RewritePattern):
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
 
         opresults: OpsAndResult = self._get_expression(expr, index_map)
@@ -1221,7 +1249,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.ScalarMulOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         lsubexpr: OpsAndResult = self._get_expression(_op_for(expr.lhs), indexMap)
         assert lsubexpr is not None
         assert (
@@ -1252,9 +1281,11 @@ class DTLRewriter(RewritePattern):
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
 
         opresults: OpsAndResult = self._get_expression(expr, index_map)
@@ -1298,7 +1329,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.TupleOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         subs: list[OpsAndResult] = [
             self._get_expression(_op_for(e), indexMap) for e in expr.arguments
         ]
@@ -1319,9 +1351,11 @@ class DTLRewriter(RewritePattern):
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
         assert isinstance(destination, tuple)
         assert len(destination) == len(expr.arguments)
@@ -1336,7 +1370,8 @@ class DTLRewriter(RewritePattern):
     def _(
         self, expr: dtl.IndexedTupleOp, indexMap: typing.Dict[dtl.Index, SSAValue]
     ) -> OpsAndResult:
-        print(f"_get_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_get_expression: {expr.name} :===: {expr}")
         res: OpsAndResult = self._get_expression(_op_for(expr.tuple), indexMap)
         return OpsAndResult(res.ops, res.result[expr.index.data], res.allocated)
 
@@ -1347,9 +1382,11 @@ class DTLRewriter(RewritePattern):
             destination: TupleStruct[Destination | None],
             index_map: typing.Dict[dtl.Index, SSAValue],
     ) -> list[Operation]:
-        print(f"_do_expression: {expr.name} :===: {expr}")
+        if self.verbose > 0:
+            print(f"_do_expression: {expr.name} :===: {expr}")
         if destination is None:
-            print(f"\t\t\t\t\t Skipped since destination is None")
+            if self.verbose > 1:
+                print(f"\t\t\t\t\t Skipped since destination is None")
             return []
 
         child_type = expr.tuple.type

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Iterable, cast
+from typing import Iterable, Self, cast
 
 from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.dialects.experimental import dlt
@@ -46,6 +46,22 @@ class LayoutGraph:
         self.extent_constraints = (
             set() if extent_constraints is None else set(extent_constraints)
         )
+
+    def matches(self, other: Self):
+        if not isinstance(other, LayoutGraph):
+            return False
+        if self.ident_count != other.ident_count:
+            if set(self.ident_count.keys()) != set(other.ident_count.keys()):
+                return False
+            for ident, ssa_set in self.ident_count.items():
+                if len(ssa_set) != len(other.ident_count[ident]):
+                    return False
+
+        if self.edges != other.edges:
+            return False
+        if self.extent_constraints != other.extent_constraints:
+            return False
+        return True
 
     def add_ssa_value(self, ssa: SSAValue):
         typ = ssa.type

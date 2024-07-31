@@ -564,12 +564,14 @@ class NoCallback(Callback):
         is_last_element: bool | SSAValue,
         iter_args: list[SSAValue],
     ) -> tuple[list[Operation], list[SSAValue], bool | SSAValue]:
-        print("DEBUG CALL BACK!")
-        debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
-        debug_const.attributes["debug"] = builtin.StringAttr(
-            "          NoCallBack here"
-        )
-        return [debug_const], [], False
+        # print("DEBUG CALL BACK!")
+        # debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
+        # debug_const.attributes["debug"] = builtin.StringAttr(
+        #     "          NoCallBack here"
+        # )
+        # return [debug_const], [], False
+        return [], [], False
+
 
 
 class DerivedCallback(Callback):
@@ -1707,9 +1709,9 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
         ).keep(1)
         ops: list[Operation] = []
         false_const = arith.Constant(IntegerAttr(0, IntegerType(1)))
-        false_const.attributes["debug"] = builtin.StringAttr(
-            "                              Dense Init/iter Layout Start"
-        )
+        # false_const.attributes["debug"] = builtin.StringAttr(
+        #     "                              Dense Init/iter Layout Start"
+        # )
         ops.append(false_const)
 
         child_size_ops, child_size = child_size.split()
@@ -1782,11 +1784,11 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
         loop = scf.For(lb, ub, step, callback_args, block)
         ops.append(loop)
 
-        debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
-        debug_const.attributes["debug"] = builtin.StringAttr(
-            "Dense Semantics Init/iter Layout end"
-        )
-        ops.append(debug_const)
+        # debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
+        # debug_const.attributes["debug"] = builtin.StringAttr(
+        #     "Dense Semantics Init/iter Layout end"
+        # )
+        # ops.append(debug_const)
 
         return ops, list(loop.res)
 
@@ -1833,9 +1835,9 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
         ).keep(1)
         ops: list[Operation] = []
         false_const = arith.Constant(IntegerAttr(0, IntegerType(1)))
-        false_const.attributes["debug"] = builtin.StringAttr(
-            "                              Dense Init/iter Layout Start"
-        )
+        # false_const.attributes["debug"] = builtin.StringAttr(
+        #     "                              Dense Init/iter Layout Start"
+        # )
         ops.append(false_const)
 
         child_size_ops, child_size = child_size.split()
@@ -1959,11 +1961,11 @@ class DenseSemantics(DirectLayoutNodeSemantics[dlt.DenseLayoutAttr]):
         output_callback_iter_args = list(while_loop.results[2 : 2 + len(callback_args)])
         did_exit_early = while_loop.results[1]
 
-        debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
-        debug_const.attributes["debug"] = builtin.StringAttr(
-            "Dense Semantics Init/iter Layout end"
-        )
-        ops.append(debug_const)
+        # debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
+        # debug_const.attributes["debug"] = builtin.StringAttr(
+        #     "Dense Semantics Init/iter Layout end"
+        # )
+        # ops.append(debug_const)
 
         return ops, output_callback_iter_args, did_exit_early
 
@@ -3543,9 +3545,9 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
 
         ops: list[Operation] = []
         true_const = arith.Constant(IntegerAttr(1, IntegerType(1)))
-        true_const.attributes["debug"] = builtin.StringAttr(
-            "Indexing Semantics Init Layout start"
-        )
+        # true_const.attributes["debug"] = builtin.StringAttr(
+        #     "Indexing Semantics Init Layout start"
+        # )
         ops.append(true_const)
         ptr_space = self.semantics.get_size(layout.indexedChild, extent_resolver).sum()
         ptr_ops, direct_data_ptr = ptr_space.add_to_llvm_pointer(input_ptr)
@@ -3618,11 +3620,11 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         )
         ops.extend(set_data_ops)
 
-        debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
-        debug_const.attributes["debug"] = builtin.StringAttr(
-            "Indexing Semantics Init Layout end"
-        )
-        ops.append(debug_const)
+        # debug_const = arith.Constant(IntegerAttr(100, IntegerType(20)))
+        # debug_const.attributes["debug"] = builtin.StringAttr(
+        #     "Indexing Semantics Init Layout end"
+        # )
+        # ops.append(debug_const)
 
         return ops, []
 
@@ -4020,9 +4022,9 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
 
             # first store the current running total as the index
             store_idx_op = llvm.StoreOp(running_total, ptr)
-            store_idx_op.attributes["debug"] = builtin.StringAttr(
-                "                 Debug Sparse index writting Callback"
-            )
+            # store_idx_op.attributes["debug"] = builtin.StringAttr(
+            #     "                 Debug Sparse index writting Callback"
+            # )
             ops.append(store_idx_op)
 
             # next we must loop over the sparse dimensions of the indexed node, to do this we set up the extents and
@@ -4096,9 +4098,9 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             )
             if_has_extra_space_true.extend(extra_ptr_ops)
             store_idx_op = llvm.StoreOp(new_running_total, extra_ptr)
-            store_idx_op.attributes["debug"] = builtin.StringAttr(
-                "                 Debug Sparse index writing Callback for extra space"
-            )
+            # store_idx_op.attributes["debug"] = builtin.StringAttr(
+            #     "                 Debug Sparse index writing Callback for extra space"
+            # )
             if_has_extra_space_true.append(store_idx_op)
             if_has_extra_space_true.append(scf.Yield())
             ops.append(scf.If(has_extra_space, [], if_has_extra_space_true))
@@ -5040,9 +5042,9 @@ class SingletonInitialiser(Initialiser):
         ops.append(true_op)
         found = true_op.result
         for dim in dim_map:
-            other_get_ops, (other_index,) = dim_map[dim].get()
+            other_get_ops, (other_index,) = dim_map[dim].get().output()
             ops.extend(other_get_ops)
-            self_get_ops, (self_index,) = self.dim_map[dim].get()
+            self_get_ops, (self_index,) = self.dim_map[dim].get().output()
             ops.extend(self_get_ops)
             compare = arith.Cmpi(other_index, self_index, "eq")
             ops.append(compare)

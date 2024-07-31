@@ -1,5 +1,5 @@
 # Write the benchmarking functions here.
-# See "Writing benchmarks" in the asv docs for more information.
+# See "Writing benchmarking" in the asv docs for more information.
 
 
 def timeraw_import_inspect():
