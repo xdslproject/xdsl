@@ -479,7 +479,7 @@ class NamedOpBase(IRDLOperation, ABC):
                 parser.Delimiter.PAREN, parser.parse_attribute
             )
             if res_types is None:
-                res_types = [[parser.parse_attribute()]]
+                res_types = [parser.parse_attribute()]
         else:
             res_types = ()
 
@@ -539,6 +539,7 @@ class NamedOpBase(IRDLOperation, ABC):
         """
 
         result: Sequence[AnyFloat | IntegerType] = []
+
 
         for op_type in (op.type for op in operands):
             if isa(op_type, MemRefType[Attribute]):
