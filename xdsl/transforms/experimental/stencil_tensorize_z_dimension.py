@@ -149,7 +149,7 @@ def arithBinaryOpTensorize(
         )
     elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
         emptyop = EmptyOp((), op.lhs.type)
-        fillop = FillOp((op.rhs,), (emptyop,), (op.lhs.type,))
+        fillop = FillOp((op.rhs,), (emptyop.results[0],), (op.lhs.type,))
         rewriter.insert_op(emptyop, InsertPoint.before(op))
         rewriter.insert_op(fillop, InsertPoint.before(op))
         rewriter.replace_matched_op(
@@ -157,7 +157,7 @@ def arithBinaryOpTensorize(
         )
     elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
         emptyop = EmptyOp((), op.rhs.type)
-        fillop = FillOp((op.lhs,), (emptyop,), (op.rhs.type,))
+        fillop = FillOp((op.lhs,), (emptyop.results[0],), (op.rhs.type,))
         rewriter.insert_op(emptyop, InsertPoint.before(op))
         rewriter.insert_op(fillop, InsertPoint.before(op))
         rewriter.replace_matched_op(
