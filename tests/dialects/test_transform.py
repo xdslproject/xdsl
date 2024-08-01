@@ -38,14 +38,6 @@ def test_transform_affine_map_type():
     assert affineMapType.name == "transform.affine_map"
 
 
-test_transform_op_type()
-test_transform_param_type()
-test_transform_any_op_type()
-test_transform_any_param_type()
-test_transform_any_value_type()
-test_transform_affine_map_type()
-
-
 def test_sequence_init():
     failurePropagationMode = IntegerAttr(1, IntegerType(32))
     root: list[SSAValue] = []
@@ -96,7 +88,3 @@ def test_tileop_init():
 """
     assert_print_op(tile_op, expected, None)
     assert isinstance(tile_op.results[0], SSAValue)
-
-
-test_sequence_init()
-test_tileop_init()
