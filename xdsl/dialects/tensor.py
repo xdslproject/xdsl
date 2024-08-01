@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from typing_extensions import Self
@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     TensorType,
+    UnrankedTensorType,
     i64,
 )
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
@@ -20,6 +21,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarOperand,
+    base,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -43,13 +45,29 @@ class CastOp(IRDLOperation):
 
     name = "tensor.cast"
 
-    source = operand_def(TensorType[Attribute])
-    dest = result_def(TensorType[Attribute])
+    source = operand_def(
+        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
+    )
+    dest = result_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
     def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
+
+    def verify_(self):
+        source_type = self.source.type
+        dest_type = self.dest.type
+
+        if isinstance(source_type, TensorType) and isinstance(dest_type, TensorType):
+            # rank should be the same + constant shapes equal
+            if len(source_type.get_shape()) != (len(dest_type.get_shape())):
+                raise VerifyException("source and destination rank should be the same")
+            for a, b in zip(source_type.get_shape(), dest_type.get_shape()):
+                if a > 0 and b > 0 and a != b:
+                    raise VerifyException(
+                        "source and destination constant dimensions should match"
+                    )
 
 
 @irdl_op_definition
@@ -66,8 +84,15 @@ class DimOp(IRDLOperation):
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
-    def __init__(self, source: SSAValue | Operation, index: SSAValue | Operation):
-        super().__init__(operands=(source, index), result_types=(IndexType(),))
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        index: SSAValue | Operation,
+        attributes: Mapping[str, Attribute] | None = None,
+    ):
+        super().__init__(
+            operands=(source, index), result_types=(IndexType(),), attributes=attributes
+        )
 
     def print(self, printer: Printer):
         printer.print_op_attributes(self.attributes)
@@ -80,12 +105,13 @@ class DimOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
+        attributes = parser.parse_optional_attr_dict()
         source = parser.parse_operand()
         parser.parse_punctuation(",")
         index = parser.parse_operand()
         parser.parse_punctuation(":")
         parser.parse_type()
-        return cls(source, index)
+        return cls(source, index, attributes)
 
 
 @irdl_op_definition
