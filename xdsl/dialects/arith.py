@@ -110,9 +110,7 @@ class Constant(IRDLOperation):
 
     @overload
     def __init__(
-        self,
-        value: AnyIntegerAttr | FloatAttr[AnyFloat] | Attribute,
-        value_type: None = None,
+        self, value: AnyIntegerAttr | FloatAttr[AnyFloat], value_type: None = None
     ) -> None: ...
 
     @overload
