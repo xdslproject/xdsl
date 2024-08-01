@@ -80,7 +80,9 @@ class DimOp(IRDLOperation):
 
     name = "tensor.dim"
 
-    source = operand_def(TensorType[Attribute])
+    source = operand_def(
+        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
+    )
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
@@ -112,6 +114,11 @@ class DimOp(IRDLOperation):
         parser.parse_punctuation(":")
         parser.parse_type()
         return cls(source, index, attributes)
+
+    def verify_(self):
+        if isinstance((source_type := self.source.type), TensorType):
+            if not len(source_type.get_shape()):
+                raise VerifyException("cannot get dim of 0-rank tensor")
 
 
 @irdl_op_definition

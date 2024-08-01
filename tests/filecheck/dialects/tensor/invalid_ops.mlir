@@ -62,3 +62,11 @@ builtin.module {
   // CHECK:  Operation does not verify: source and destination constant dimensions should match
   %1 = "tensor.cast"(%0) : (tensor<1x?xf32>) -> tensor<2x?xf32>
 }
+
+// -----
+
+builtin.module {
+  %t, %i = "test.op"() : () -> (tensor<f32>, index)
+  // CHECK:  Operation does not verify: cannot get dim of 0-rank tensor
+  %1 = tensor.dim %t, %i : tensor<f32>
+}
