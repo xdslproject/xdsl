@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     AnyFloatConstr,
     AnyIntegerAttr,
     ContainerOf,
+    DenseIntOrFPElementsAttr,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -110,7 +111,9 @@ class Constant(IRDLOperation):
 
     @overload
     def __init__(
-        self, value: AnyIntegerAttr | FloatAttr[AnyFloat], value_type: None = None
+        self,
+        value: AnyIntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value_type: None = None,
     ) -> None: ...
 
     @overload
@@ -152,7 +155,12 @@ class Constant(IRDLOperation):
         p0 = parser.pos
         value = parser.parse_attribute()
 
-        if not isattr(value, base(AnyIntegerAttr) | base(FloatAttr[AnyFloat])):
+        if not isattr(
+            value,
+            base(AnyIntegerAttr)
+            | base(FloatAttr[AnyFloat])
+            | base(DenseIntOrFPElementsAttr),
+        ):
             parser.raise_error("Invalid constant value", p0, parser.pos)
 
         c = Constant(value)
