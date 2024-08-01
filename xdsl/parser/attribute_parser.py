@@ -45,7 +45,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     NoneType,
     OpaqueAttr,
-    RankedVectorOrTensorOf,
+    RankedStructure,
     Signedness,
     StridedLayoutAttr,
     StringAttr,
@@ -694,9 +694,9 @@ class AttrParser(BaseParser):
         self,
         hex_string: str,
         type: (
-            RankedVectorOrTensorOf[IntegerType]
-            | RankedVectorOrTensorOf[IndexType]
-            | RankedVectorOrTensorOf[AnyFloat]
+            RankedStructure[IntegerType]
+            | RankedStructure[IndexType]
+            | RankedStructure[AnyFloat]
         ),
     ) -> tuple[list[int] | list[float], list[int]]:
         """
@@ -763,17 +763,17 @@ class AttrParser(BaseParser):
     def _parse_dense_literal_type(
         self,
     ) -> (
-        RankedVectorOrTensorOf[IntegerType]
-        | RankedVectorOrTensorOf[IndexType]
-        | RankedVectorOrTensorOf[AnyFloat]
+        RankedStructure[IntegerType]
+        | RankedStructure[IndexType]
+        | RankedStructure[AnyFloat]
     ):
         type = self.expect(self.parse_optional_type, "Dense attribute must be typed!")
         # Check that the type is correct.
         if not isattr(
             type,
-            base(RankedVectorOrTensorOf[IntegerType])
-            | base(RankedVectorOrTensorOf[IndexType])
-            | base(RankedVectorOrTensorOf[AnyFloat]),
+            base(RankedStructure[IntegerType])
+            | base(RankedStructure[IndexType])
+            | base(RankedStructure[AnyFloat]),
         ):
             self.raise_error(
                 "Expected memref, vector or tensor type of "
