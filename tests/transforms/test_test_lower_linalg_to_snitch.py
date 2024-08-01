@@ -16,32 +16,30 @@ from xdsl.transforms.test_lower_linalg_to_snitch import get_excluded_passes
         (
             0,
             (
-                memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
                 memref_stream_interleave.MemrefStreamInterleavePass(),
-                memref_streamify.MemrefStreamifyPass(),
                 convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
+                memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
+                memref_streamify.MemrefStreamifyPass(),
             ),
         ),
         (
             1,
             (
-                memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
                 memref_stream_interleave.MemrefStreamInterleavePass(),
-                memref_streamify.MemrefStreamifyPass(),
+                convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
+                memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
             ),
         ),
         (
             2,
             (
-                memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
                 memref_stream_interleave.MemrefStreamInterleavePass(),
+                convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
             ),
         ),
         (
             3,
-            (
-                memref_stream_unnest_out_parameters.MemrefStreamUnnestOutParametersPass(),
-            ),
+            (memref_stream_interleave.MemrefStreamInterleavePass(),),
         ),
         (4, ()),
     ],
