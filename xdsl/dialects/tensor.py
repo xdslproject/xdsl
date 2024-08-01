@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from typing_extensions import Self
 
+from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     AnySignlessIntegerOrIndexType,
     ContainerType,
@@ -255,24 +256,37 @@ class InsertSliceOp(IRDLOperation):
     ) -> InsertSliceOp:
 
         dims = len(static_sizes)
+        offsets = [] if offsets is None else offsets
+        sizes = [] if sizes is None else sizes
+        strides = [] if strides is None else strides
+        if not static_offsets:
+            static_offsets = [memref.Subview.DYNAMIC_INDEX] * len(offsets) + (
+                [0] * (dims - len(offsets))
+            )
+        if not static_strides:
+            static_strides = [memref.Subview.DYNAMIC_INDEX] * len(strides) + (
+                [1] * (dims - len(strides))
+            )
         return InsertSliceOp.build(
             operands=[
                 source,
                 dest,
-                offsets if offsets else [],
-                sizes if sizes else [],
-                strides if strides else [],
+                offsets,
+                sizes,
+                strides,
             ],
             properties={
                 "static_offsets": DenseArrayBase.from_list(
-                    i64, static_offsets if static_offsets else [0] * dims
+                    i64,
+                    static_offsets,
                 ),
                 "static_sizes": DenseArrayBase.from_list(
                     i64,
                     static_sizes,
                 ),
                 "static_strides": DenseArrayBase.from_list(
-                    i64, static_strides if static_strides else [1] * dims
+                    i64,
+                    static_strides,
                 ),
             },
             result_types=[result_type if result_type else dest.type],
