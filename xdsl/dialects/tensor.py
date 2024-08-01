@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from typing_extensions import Self
@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     TensorType,
+    UnrankedTensorType,
     i64,
 )
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
@@ -20,6 +21,7 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     VarOperand,
+    base,
     irdl_op_definition,
     operand_def,
     prop_def,
@@ -30,6 +32,94 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
+
+
+@irdl_op_definition
+class CastOp(IRDLOperation):
+    """
+    Convert a tensor from one type to an equivalent type without changing any data elements.
+    The source and destination types must both be tensor types with the same element type.
+    If both are ranked, then the rank should be the same and static dimensions should match.
+    The operation is invalid if converting to a mismatching constant dimension.
+    """
+
+    name = "tensor.cast"
+
+    source = operand_def(
+        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
+    )
+    dest = result_def(base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute]))
+
+    assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
+
+    def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
+        super().__init__(operands=(source,), result_types=(dest,))
+
+    def verify_(self):
+        source_type = self.source.type
+        dest_type = self.dest.type
+
+        if isinstance(source_type, TensorType) and isinstance(dest_type, TensorType):
+            # rank should be the same + constant shapes equal
+            if len(source_type.get_shape()) != (len(dest_type.get_shape())):
+                raise VerifyException("source and destination rank should be the same")
+            for a, b in zip(source_type.get_shape(), dest_type.get_shape()):
+                if a >= 0 and b >= 0 and a != b:
+                    raise VerifyException(
+                        "source and destination constant dimensions should match"
+                    )
+
+
+@irdl_op_definition
+class DimOp(IRDLOperation):
+    """
+    The tensor.dim operation takes a tensor and a dimension operand of type index.
+    It returns the size of the requested dimension of the given tensor.
+    If the dimension index is out of bounds, the behavior is undefined
+    """
+
+    name = "tensor.dim"
+
+    source = operand_def(
+        base(TensorType[Attribute]) | base(UnrankedTensorType[Attribute])
+    )
+    index = operand_def(IndexType)
+    result = result_def(IndexType)
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        index: SSAValue | Operation,
+        attributes: Mapping[str, Attribute] | None = None,
+    ):
+        super().__init__(
+            operands=(source, index), result_types=(IndexType(),), attributes=attributes
+        )
+
+    def print(self, printer: Printer):
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.source)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.index)
+        printer.print_string(" : ")
+        printer.print_attribute(self.source.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        attributes = parser.parse_optional_attr_dict()
+        source = parser.parse_operand()
+        parser.parse_punctuation(",")
+        index = parser.parse_operand()
+        parser.parse_punctuation(":")
+        parser.parse_type()
+        return cls(source, index, attributes)
+
+    def verify_(self):
+
+        if isinstance((source_type := self.source.type), TensorType):
+            if not len(source_type.get_shape()):
+                raise VerifyException("cannot get dim of 0-rank tensor")
 
 
 @irdl_op_definition
@@ -306,6 +396,8 @@ class InsertSliceOp(IRDLOperation):
 Tensor = Dialect(
     "tensor",
     [
+        CastOp,
+        DimOp,
         EmptyOp,
         ExtractSliceOp,
         InsertSliceOp,
