@@ -47,3 +47,18 @@ builtin.module {
 
 }
 
+// -----
+
+builtin.module {
+  %0 = "test.op"() : () -> (tensor<?x?x?xf32>)
+  // CHECK:  Operation does not verify: source and destination rank should be the same
+  %1 = "tensor.cast"(%0) : (tensor<?x?x?xf32>) -> tensor<?x?xf32>
+}
+
+// -----
+
+builtin.module {
+  %0 = "test.op"() : () -> (tensor<1x?xf32>)
+  // CHECK:  Operation does not verify: source and destination constant dimensions should match
+  %1 = "tensor.cast"(%0) : (tensor<1x?xf32>) -> tensor<2x?xf32>
+}
