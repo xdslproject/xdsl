@@ -33,6 +33,26 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
+class CastOp(IRDLOperation):
+    """
+    Convert a tensor from one type to an equivalent type without changing any data elements.
+    The source and destination types must both be tensor types with the same element type.
+    If both are ranked, then the rank should be the same and static dimensions should match.
+    The operation is invalid if converting to a mismatching constant dimension.
+    """
+
+    name = "tensor.cast"
+
+    source = operand_def(TensorType[Attribute])
+    dest = result_def(TensorType[Attribute])
+
+    assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
+
+    def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
+        super().__init__(operands=(source,), result_types=(dest,))
+
+
+@irdl_op_definition
 class DimOp(IRDLOperation):
     """
     The tensor.dim operation takes a tensor and a dimension operand of type index.
@@ -50,6 +70,7 @@ class DimOp(IRDLOperation):
         super().__init__(operands=(source, index), result_types=(IndexType(),))
 
     def print(self, printer: Printer):
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" ")
         printer.print_ssa_value(self.source)
         printer.print_string(", ")
@@ -341,6 +362,7 @@ class InsertSliceOp(IRDLOperation):
 Tensor = Dialect(
     "tensor",
     [
+        CastOp,
         DimOp,
         EmptyOp,
         ExtractSliceOp,
