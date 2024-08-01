@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    EnumAttribute,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -38,6 +39,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.utils.str_enum import StrEnum
 
 
 class TransformHandleType(ParametrizedAttribute, TypeAttribute, ABC):
@@ -46,26 +48,46 @@ class TransformHandleType(ParametrizedAttribute, TypeAttribute, ABC):
 
 @irdl_attr_definition
 class AffineMapType(TransformHandleType):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#affinemapparamtype
+    """
+
     name = "transform.affine_map"
 
 
 @irdl_attr_definition
 class AnyOpType(TransformHandleType):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#anyoptype
+    """
+
     name = "transform.any_op"
 
 
 @irdl_attr_definition
 class AnyParamType(TransformHandleType):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#anyparamtype
+    """
+
     name = "transform.any_param"
 
 
 @irdl_attr_definition
 class AnyValueType(TransformHandleType):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#anyvaluetype
+    """
+
     name = "transform.any_value"
 
 
 @irdl_attr_definition
 class OperationType(TransformHandleType):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#operationtype
+    """
+
     name = "transform.op"
     operation: ParameterDef[StringAttr]
 
@@ -75,6 +97,10 @@ class OperationType(TransformHandleType):
 
 @irdl_attr_definition
 class ParamType(TransformHandleType):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#paramtype
+    """
+
     name = "transform.param"
     type: ParameterDef[TypeAttribute]
 
@@ -84,16 +110,29 @@ class ParamType(TransformHandleType):
 
 @irdl_attr_definition
 class TypeParamType(TransformHandleType):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#typeparamtype
+    """
+
     name = "transform.type"
 
 
+class FailurePropagationModeType(StrEnum):
+    PROPAGATE = "propagate"
+    SUPPRESS = "suppress"
+
+
 @irdl_attr_definition
-class FailurePropagationModeAttr(ParametrizedAttribute):
-    name = "failures"
+class FailurePropagationModeAttr(EnumAttribute[FailurePropagationModeType]):
+    name = "transform.failures"
 
 
 @irdl_op_definition
 class YieldOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformyield-transformyieldop
+    """
+
     name = "transform.yield"
 
     traits = frozenset([IsTerminator()])
@@ -101,6 +140,10 @@ class YieldOp(IRDLOperation):
 
 @irdl_op_definition
 class SequenceOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformsequence-transformsequenceop
+    """
+
     name = "transform.sequence"
 
     # TODO: Find out how to also use the enum FailurePropagationModeAttr as well as AnyIntegerAttr
@@ -132,6 +175,10 @@ class SequenceOp(IRDLOperation):
 
 @irdl_op_definition
 class TileOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
+    """
+
     name = "transform.structured.tile"  # "transform.structured.tile_using_for" as of mlir 18.0
 
     target = operand_def(TransformHandleType)
@@ -158,13 +205,16 @@ class TileOp(IRDLOperation):
                 "interchange": interchange,
                 "scalable_sizes": scalable_sizes,
             },
-            # TODO: Figure out how to handle the result types with var_result_def()
             result_types=[AnyOpType(), [AnyOpType()]],
         )
 
 
 @irdl_op_definition
 class TileToForallOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
+    """
+
     name = "transform.structured.tile_to_forall_op"  # "transform.structured.tile_using_forall" as of mlir 18.0
 
     target = operand_def(TransformHandleType)
@@ -213,6 +263,10 @@ class TileToForallOp(IRDLOperation):
 
 @irdl_op_definition
 class SelectOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformselect-transformselectop
+    """
+
     name = "transform.select"
 
     op_name = prop_def(StringAttr)
@@ -224,6 +278,10 @@ class SelectOp(IRDLOperation):
 
 @irdl_op_definition
 class NamedSequenceOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformnamed_sequence-transformnamedsequenceop
+    """
+
     name = "transform.named_sequence"
 
     sym_name = prop_def(StringAttr)
@@ -236,6 +294,10 @@ class NamedSequenceOp(IRDLOperation):
 
 @irdl_op_definition
 class CastOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformcast-transformcastop
+    """
+
     name = "transform.cast"
 
     input = operand_def(TransformHandleType)
