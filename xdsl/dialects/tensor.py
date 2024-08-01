@@ -64,7 +64,7 @@ class CastOp(IRDLOperation):
             if len(source_type.get_shape()) != (len(dest_type.get_shape())):
                 raise VerifyException("source and destination rank should be the same")
             for a, b in zip(source_type.get_shape(), dest_type.get_shape()):
-                if a > 0 and b > 0 and a != b:
+                if a >= 0 and b >= 0 and a != b:
                     raise VerifyException(
                         "source and destination constant dimensions should match"
                     )
@@ -116,6 +116,7 @@ class DimOp(IRDLOperation):
         return cls(source, index, attributes)
 
     def verify_(self):
+
         if isinstance((source_type := self.source.type), TensorType):
             if not len(source_type.get_shape()):
                 raise VerifyException("cannot get dim of 0-rank tensor")
