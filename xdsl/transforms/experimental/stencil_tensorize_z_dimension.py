@@ -157,7 +157,7 @@ def arithBinaryOpTensorize(
                 rewriter.replace_op(scalar_op.op, tens_const)
             return tens_const.result
         emptyop = EmptyOp((), dest_typ)
-        fillop = FillOp((scalar_op,), (emptyop,), (dest_typ,))
+        fillop = FillOp((scalar_op,), (emptyop.tensor,), (dest_typ,))
         rewriter.insert_op(emptyop, InsertPoint.before(op))
         rewriter.insert_op(fillop, InsertPoint.before(op))
         return fillop.res[0]
