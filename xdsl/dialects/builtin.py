@@ -70,6 +70,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
     from xdsl.parser import AttrParser, Parser
@@ -1122,7 +1123,7 @@ class DenseArrayBase(ParametrizedAttribute):
         if isinstance(data_type, IndexType | IntegerType):
             _data = cast(Sequence[int] | Sequence[IntAttr], data)
             return DenseArrayBase.create_dense_int_or_index(data_type, _data)
-        elif isinstance(data_type, AnyFloat):
+        elif isattr(data_type, AnyFloatConstr):
             _data = cast(Sequence[int | float] | Sequence[FloatData], data)
             return DenseArrayBase.create_dense_float(data_type, _data)
         else:

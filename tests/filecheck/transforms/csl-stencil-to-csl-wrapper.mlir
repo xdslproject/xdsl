@@ -5,11 +5,11 @@ builtin.module {
     %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
     %1 = tensor.empty() : tensor<510xf32>
     %2 = csl_stencil.apply(%0 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %1 : tensor<510xf32>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64}> -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) ({
-    ^0(%3 : memref<4xtensor<255xf32>>, %4 : index, %5 : tensor<510xf32>):
-      %6 = csl_stencil.access %3[1, 0] : memref<4xtensor<255xf32>>
-      %7 = csl_stencil.access %3[-1, 0] : memref<4xtensor<255xf32>>
-      %8 = csl_stencil.access %3[0, 1] : memref<4xtensor<255xf32>>
-      %9 = csl_stencil.access %3[0, -1] : memref<4xtensor<255xf32>>
+    ^0(%3 : tensor<4x255xf32>, %4 : index, %5 : tensor<510xf32>):
+      %6 = csl_stencil.access %3[1, 0] : tensor<4x255xf32>
+      %7 = csl_stencil.access %3[-1, 0] : tensor<4x255xf32>
+      %8 = csl_stencil.access %3[0, 1] : tensor<4x255xf32>
+      %9 = csl_stencil.access %3[0, -1] : tensor<4x255xf32>
       %10 = arith.addf %9, %8 : tensor<255xf32>
       %11 = arith.addf %10, %7 : tensor<255xf32>
       %12 = arith.addf %11, %6 : tensor<255xf32>
@@ -29,7 +29,7 @@ builtin.module {
       %25 = arith.mulf %22, %24 : tensor<510xf32>
       csl_stencil.yield %25 : tensor<510xf32>
     })
-    stencil.store %2 to %b ([0, 0] : [1, 1]) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+    stencil.store %2 to %b (<[0, 0], [1, 1]>) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
     func.return
   }
 }
@@ -63,11 +63,11 @@ builtin.module {
 // CHECK-NEXT:       %35 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
 // CHECK-NEXT:       %36 = tensor.empty() : tensor<510xf32>
 // CHECK-NEXT:       %37 = csl_stencil.apply(%35 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %36 : tensor<510xf32>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64}> -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) ({
-// CHECK-NEXT:       ^2(%38 : memref<4xtensor<255xf32>>, %39 : index, %40 : tensor<510xf32>):
-// CHECK-NEXT:         %41 = csl_stencil.access %38[1, 0] : memref<4xtensor<255xf32>>
-// CHECK-NEXT:         %42 = csl_stencil.access %38[-1, 0] : memref<4xtensor<255xf32>>
-// CHECK-NEXT:         %43 = csl_stencil.access %38[0, 1] : memref<4xtensor<255xf32>>
-// CHECK-NEXT:         %44 = csl_stencil.access %38[0, -1] : memref<4xtensor<255xf32>>
+// CHECK-NEXT:       ^2(%38 : tensor<4x255xf32>, %39 : index, %40 : tensor<510xf32>):
+// CHECK-NEXT:         %41 = csl_stencil.access %38[1, 0] : tensor<4x255xf32>
+// CHECK-NEXT:         %42 = csl_stencil.access %38[-1, 0] : tensor<4x255xf32>
+// CHECK-NEXT:         %43 = csl_stencil.access %38[0, 1] : tensor<4x255xf32>
+// CHECK-NEXT:         %44 = csl_stencil.access %38[0, -1] : tensor<4x255xf32>
 // CHECK-NEXT:         %45 = arith.addf %44, %43 : tensor<255xf32>
 // CHECK-NEXT:         %46 = arith.addf %45, %42 : tensor<255xf32>
 // CHECK-NEXT:         %47 = arith.addf %46, %41 : tensor<255xf32>
@@ -87,7 +87,7 @@ builtin.module {
 // CHECK-NEXT:         %60 = arith.mulf %57, %59 : tensor<510xf32>
 // CHECK-NEXT:         csl_stencil.yield %60 : tensor<510xf32>
 // CHECK-NEXT:       })
-// CHECK-NEXT:       stencil.store %37 to %b ([0, 0] : [1, 1]) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:       stencil.store %37 to %b (<[0, 0], [1, 1]>) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()

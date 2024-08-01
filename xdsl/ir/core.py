@@ -939,8 +939,8 @@ class Operation(IRNode):
     @classmethod
     def has_trait(
         cls,
-        trait: type[OpTrait],
-        parameters: Any = None,
+        trait: type[OpTrait] | OpTrait,
+        *,
         value_if_unregistered: bool = True,
     ) -> bool:
         """
@@ -953,18 +953,21 @@ class Operation(IRNode):
         if issubclass(cls, UnregisteredOp):
             return value_if_unregistered
 
-        return cls.get_trait(trait, parameters) is not None
+        return cls.get_trait(trait) is not None
 
     @classmethod
-    def get_trait(
-        cls, trait: type[OpTraitInvT], parameters: Any = None
-    ) -> OpTraitInvT | None:
+    def get_trait(cls, trait: type[OpTraitInvT] | OpTraitInvT) -> OpTraitInvT | None:
         """
         Return a trait with the given type and parameters, if it exists.
         """
-        for t in cls.traits:
-            if isinstance(t, trait) and t.parameters == parameters:
-                return t
+        if isinstance(trait, type):
+            for t in cls.traits:
+                if isinstance(t, trait):
+                    return t
+        else:
+            for t in cls.traits:
+                if t == trait:
+                    return cast(OpTraitInvT, t)
         return None
 
     @classmethod

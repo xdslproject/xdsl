@@ -1,5 +1,6 @@
 import abc
-from collections.abc import Sequence
+import json
+from collections.abc import Iterable, Sequence
 from itertools import chain
 from typing import cast
 
@@ -14,7 +15,8 @@ from xdsl.dialects.riscv import (
     RISCVAsmOperation,
     RISCVRegisterType,
 )
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir import Attribute, Block, Operation, SSAValue
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.transforms.snitch_register_allocation import get_snitch_reserved
 from xdsl.utils.exceptions import DiagnosticException
@@ -62,6 +64,22 @@ class RegisterAllocator(abc.ABC):
     @abc.abstractmethod
     def allocate_func(self, func: riscv_func.FuncOp) -> None:
         raise NotImplementedError()
+
+
+def count_reg_types(regs: Iterable[Attribute]) -> tuple[int, int]:
+    """
+    Returns a tuple containing the count of IntRegister and FloatRegister in the iterable.
+    """
+    int_regs: set[str] = set()
+    float_regs: set[str] = set()
+
+    for reg in regs:
+        if isinstance(reg, IntRegisterType):
+            int_regs.add(reg.spelling.data)
+        elif isinstance(reg, FloatRegisterType):
+            float_regs.add(reg.spelling.data)
+
+    return len(int_regs), len(float_regs)
 
 
 class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
@@ -299,7 +317,16 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
             for op in reversed(loop.body.block.ops):
                 self.process_operation(op)
 
-    def allocate_func(self, func: riscv_func.FuncOp) -> None:
+    def allocate_func(
+        self, func: riscv_func.FuncOp, *, add_regalloc_stats: bool = False
+    ) -> None:
+        """
+        Allocates values in function passed in to registers.
+        The whole function must have been lowered to the relevant riscv dialects
+        and it must contain no unrealized casts.
+        If `add_regalloc_stats` is set to `True`, then a comment op will be inserted
+        before the function op passed in with a json containing the relevant data.
+        """
         if not func.body.blocks:
             # External function declaration
             return
@@ -332,6 +359,28 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         assert not self.live_ins_per_block[block]
         for op in reversed(block.ops):
             self.process_operation(op)
+
+        if add_regalloc_stats:
+            num_preallocated_int, num_preallocated_float = count_reg_types(preallocated)
+            num_allocated_int, num_allocated_float = count_reg_types(
+                val.type
+                for op in block.walk()
+                for vals in (op.results, op.operands)
+                for val in vals
+            )
+            stats = {
+                "preallocated_float": num_preallocated_float,
+                "preallocated_int": num_preallocated_int,
+                "allocated_float": num_allocated_float,
+                "allocated_int": num_allocated_int,
+            }
+
+            stats_str = json.dumps(stats)
+
+            Rewriter.insert_op(
+                riscv.CommentOp(f"Regalloc stats: {stats_str}"),
+                InsertPoint.before(func),
+            )
 
 
 def _live_ins_per_block(

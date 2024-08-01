@@ -131,6 +131,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return IndividualRewrite
 
+    def get_lift_arith_to_linalg():
+        from xdsl.transforms.lift_arith_to_linalg import LiftArithToLinalg
+
+        return LiftArithToLinalg
+
     def get_lower_affine():
         from xdsl.transforms import lower_affine
 
@@ -350,22 +355,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_unroll.StencilUnrollPass
 
-    def get_test_lower_snitch_stream_to_asm():
-        from xdsl.transforms import test_lower_snitch_stream_to_asm
+    def get_test_lower_linalg_to_snitch():
+        from xdsl.transforms import test_lower_linalg_to_snitch
 
-        return test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm
-
-    def get_test_lower_memref_stream_to_snitch_stream():
-        from xdsl.transforms import test_lower_memref_stream_to_snitch_stream
-
-        return (
-            test_lower_memref_stream_to_snitch_stream.TestLowerMemrefStreamToSnitchStream
-        )
-
-    def get_test_optimise_memref_stream():
-        from xdsl.transforms import test_optimise_memref_stream
-
-        return test_optimise_memref_stream.TestOptimiseMemrefStream
+        return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
     return {
         "arith-add-fastmath": get_arith_add_fastmath,
@@ -404,6 +397,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "gpu-map-parallel-loops": get_gpu_map_parallel_loops,
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
+        "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "lower-affine": get_lower_affine,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
@@ -434,9 +428,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-to-csl-stencil": get_stencil_to_csl_stencil,
         "stencil-unroll": get_stencil_unroll,
-        "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
-        "test-lower-memref-stream-to-snitch-stream": get_test_lower_memref_stream_to_snitch_stream,
-        "test-optimise-memref-stream": get_test_optimise_memref_stream,
+        "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
     }
 
 

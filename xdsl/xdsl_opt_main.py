@@ -8,7 +8,6 @@ from itertools import accumulate
 from typing import IO
 
 from xdsl.context import MLContext
-from xdsl.dialects import riscv, x86
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass, PipelinePass
 from xdsl.printer import Printer
@@ -203,10 +202,14 @@ class xDSLOptMain(CommandLineTool):
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
-            riscv.print_assembly(prog, output)
+            from xdsl.dialects.riscv import print_assembly
+
+            print_assembly(prog, output)
 
         def _output_x86_asm(prog: ModuleOp, output: IO[str]):
-            x86.ops.print_assembly(prog, output)
+            from xdsl.dialects.x86.ops import print_assembly
+
+            print_assembly(prog, output)
 
         def _output_wat(prog: ModuleOp, output: IO[str]):
             from xdsl.dialects.wasm import WasmModule
@@ -226,7 +229,9 @@ class xDSLOptMain(CommandLineTool):
                 print("Please install optional dependencies to run riscv emulation")
                 return
 
-            code = riscv.riscv_code(prog)
+            from xdsl.dialects.riscv import riscv_code
+
+            code = riscv_code(prog)
             with redirect_stdout(output):
                 run_riscv(code, unlimited_regs=True, verbosity=0)
 

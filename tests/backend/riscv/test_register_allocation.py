@@ -4,7 +4,10 @@ import pytest
 from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterConstraints
-from xdsl.backend.riscv.register_allocation import RegisterAllocatorLivenessBlockNaive
+from xdsl.backend.riscv.register_allocation import (
+    RegisterAllocatorLivenessBlockNaive,
+    count_reg_types,
+)
 from xdsl.backend.riscv.register_queue import RegisterQueue
 from xdsl.dialects import riscv
 from xdsl.irdl import IRDLOperation, irdl_op_definition, operand_def, result_def
@@ -128,3 +131,12 @@ def test_allocate_with_inout_constraints():
     assert op1.rs1.type == riscv.IntRegisterType("a0")
     assert op1.rd0.type == riscv.IntRegisterType("j2")
     assert op1.rd1.type == riscv.IntRegisterType("a0")
+
+
+def test_count_reg_types():
+    a0 = riscv.Registers.A0
+    a1 = riscv.Registers.A1
+
+    fa0 = riscv.Registers.FA0
+
+    assert count_reg_types([a0, a0, a1, fa0, fa0]) == (2, 1)

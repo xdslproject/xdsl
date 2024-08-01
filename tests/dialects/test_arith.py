@@ -63,8 +63,9 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
+from xdsl.irdl import base
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
+from xdsl.utils.isattr import isattr
 from xdsl.utils.test_value import TestSSAValue
 
 _BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
@@ -164,7 +165,10 @@ def test_addui_extend(
         if sum_type:
             assert op.sum.type == sum_type
         assert op.overflow.type == AddUIExtended.infer_overflow_type(lhs_type)
-        if isa(container_type := op.overflow.type, AnyVectorType | AnyTensorType):
+        if isattr(
+            container_type := op.overflow.type,
+            base(AnyVectorType) | base(AnyTensorType),
+        ):
             assert container_type.element_type == i1
         else:
             assert op.overflow.type == i1

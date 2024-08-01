@@ -14,7 +14,7 @@ builtin.module {
       %6 = arith.addf %4, %5 : f64
       stencil.return %6 : f64
     }
-    stencil.store %3 to %2 ([1, 2, 3] : [65, 66, 63]) : !stencil.temp<[1,65]x[2,66]x[3,63]xf64> to !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
+    stencil.store %3 to %2 (<[1, 2, 3], [65, 66, 63]>) : !stencil.temp<[1,65]x[2,66]x[3,63]xf64> to !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
     func.return
   }
 
@@ -50,7 +50,7 @@ builtin.module {
         %i = stencil.access %tim1_b[0, 0] : !stencil.temp<[0,2000]x[0,2000]xf32>
         stencil.return %i : f32
       }
-      stencil.store %ti to %fi ([0, 0] : [2000, 2000]) : !stencil.temp<[0,2000]x[0,2000]xf32> to !stencil.field<[-2,2002]x[-2,2002]xf32>
+      stencil.store %ti to %fi (<[0, 0], [2000, 2000]>) : !stencil.temp<[0,2000]x[0,2000]xf32> to !stencil.field<[-2,2002]x[-2,2002]xf32>
       scf.yield %fi, %fim1 : !stencil.field<[-2,2002]x[-2,2002]xf32>, !stencil.field<[-2,2002]x[-2,2002]xf32>
     }
     func.return %t1_out : !stencil.field<[-2,2002]x[-2,2002]xf32>
@@ -88,7 +88,7 @@ builtin.module {
       %12 = stencil.access %11[-1] : !stencil.temp<[-1,68]xf64>
       stencil.return %12 : f64
     }
-    stencil.store %10 to %outc ([0] : [68]) : !stencil.temp<[0,68]xf64> to !stencil.field<[0,1024]xf64>
+    stencil.store %10 to %outc (<[0], [68]>) : !stencil.temp<[0,68]xf64> to !stencil.field<[0,1024]xf64>
     func.return
   }
 
@@ -207,7 +207,7 @@ builtin.module {
       %46 = arith.addf %45, %44 : f64
       stencil.return %46, %45 : f64, f64
     }
-    stencil.store %34 to %31 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    stencil.store %34 to %31 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     func.return
   }
 
@@ -273,7 +273,7 @@ builtin.module {
       %val = stencil.access %tinb[0] : !stencil.temp<[-16,16]xf64>
       stencil.return %val : f64
     }
-    stencil.store %outt to %out_1 ([-16] : [16]) : !stencil.temp<[-16,16]xf64> to !stencil.field<[-32,32]xf64>
+    stencil.store %outt to %out_1 (<[-16], [16]>) : !stencil.temp<[-16,16]xf64> to !stencil.field<[-32,32]xf64>
     func.return
   }
 
@@ -303,7 +303,7 @@ builtin.module {
       %58 = stencil.access %57[1] : !stencil.temp<[1,65]xf64>
       stencil.return %58 : f64
     }
-    stencil.store %56 to %50 ([0] : [64]) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64>
+    stencil.store %56 to %50 (<[0], [64]>) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64>
     func.return
   }
 
@@ -343,12 +343,12 @@ builtin.module {
       %65 = stencil.access %64[-1] : !stencil.temp<[0,64]xf64>
       stencil.return %65 : f64
     }
-    stencil.store %63 to %61 ([1] : [65]) : !stencil.temp<[1,65]xf64> to !stencil.field<[-4,68]xf64>
+    stencil.store %63 to %61 (<[1], [65]>) : !stencil.temp<[1,65]xf64> to !stencil.field<[-4,68]xf64>
     %66 = stencil.apply(%67 = %63 : !stencil.temp<[1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
       %68 = stencil.access %67[1] : !stencil.temp<[1,65]xf64>
       stencil.return %68 : f64
     }
-    stencil.store %66 to %60 ([0] : [64]) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64>
+    stencil.store %66 to %60 (<[0], [64]>) : !stencil.temp<[0,64]xf64> to !stencil.field<[-4,68]xf64>
     func.return
   }
 
@@ -399,7 +399,7 @@ builtin.module {
         %77 = stencil.access %t0_buff[0, 0] : !stencil.temp<[0,11]x[0,11]xf32>
         stencil.return %77 : f32
       }
-      stencil.store %t1_result to %t1 ([0, 0] : [11, 11]) : !stencil.temp<[0,11]x[0,11]xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
+      stencil.store %t1_result to %t1 (<[0, 0], [11, 11]>) : !stencil.temp<[0,11]x[0,11]xf32> to !stencil.field<[-2,13]x[-2,13]xf32>
       scf.yield %t1, %t0 : !stencil.field<[-2,13]x[-2,13]xf32>, !stencil.field<[-2,13]x[-2,13]xf32>
     }
     func.return
@@ -448,9 +448,9 @@ builtin.module {
       %88 = arith.constant 6.000000e+00 : f64
       %89 = arith.constant 7.000000e+00 : f64
       %90 = arith.constant 8.000000e+00 : f64
-      stencil.return %83, %84, %85, %86, %87, %88, %89, %90 unroll [2, 2, 2] : f64, f64, f64, f64, f64, f64, f64, f64
+      stencil.return %83, %84, %85, %86, %87, %88, %89, %90 unroll <[2, 2, 2]> : f64, f64, f64, f64, f64, f64, f64, f64
     }
-    stencil.store %81 to %80 ([1, 2, 3] : [65, 66, 63]) : !stencil.temp<[1,65]x[2,66]x[3,63]xf64> to !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
+    stencil.store %81 to %80 (<[1, 2, 3], [65, 66, 63]>) : !stencil.temp<[1,65]x[2,66]x[3,63]xf64> to !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
     func.return
   }
 
@@ -515,14 +515,14 @@ builtin.module {
 
   func.func @stencil_init_index(%91 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %92 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-      %x = stencil.index 0 [0, 0, 0]
-      %y = stencil.index 1 [0, 0, 0]
-      %z = stencil.index 2 [0, 0, 0]
+      %x = stencil.index 0 <[0, 0, 0]>
+      %y = stencil.index 1 <[0, 0, 0]>
+      %z = stencil.index 2 <[0, 0, 0]>
       %xy = arith.addi %x, %y : index
       %xyz = arith.addi %xy, %z : index
       stencil.return %xyz : index
     }
-    stencil.store %92 to %91 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    stencil.store %92 to %91 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
     func.return
   }
 
@@ -549,14 +549,14 @@ builtin.module {
 
   func.func @stencil_init_index_offset(%93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-      %x_1 = stencil.index 0 [1, 1, 1]
-      %y_1 = stencil.index 1 [-1, -1, -1]
-      %z_1 = stencil.index 2 [0, 0, 0]
+      %x_1 = stencil.index 0 <[1, 1, 1]>
+      %y_1 = stencil.index 1 <[-1, -1, -1]>
+      %z_1 = stencil.index 2 <[0, 0, 0]>
       %xy_1 = arith.addi %x_1, %y_1 : index
       %xyz_1 = arith.addi %xy_1, %z_1 : index
       stencil.return %xyz_1 : index
     }
-    stencil.store %94 to %93 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
     func.return
   }
 
@@ -632,8 +632,8 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64
       %107 = stencil.store_result %104 : !stencil.result<f64>
       stencil.return %103, %107 : !stencil.result<f64>, !stencil.result<f64>
     }
-    stencil.store %101 to %b0 ([0, 0, 0] : [7, 7, 7]) : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> to !stencil.field<[0,7]x[0,7]x[0,7]xf64>
-    stencil.store %102 to %b1 ([0, 0, 0] : [7, 7, 7]) : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> to !stencil.field<[0,7]x[0,7]x[0,7]xf64>
+    stencil.store %101 to %b0 (<[0, 0, 0], [7, 7, 7]>) : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> to !stencil.field<[0,7]x[0,7]x[0,7]xf64>
+    stencil.store %102 to %b1 (<[0, 0, 0], [7, 7, 7]>) : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> to !stencil.field<[0,7]x[0,7]x[0,7]xf64>
     func.return
   }
 
@@ -676,7 +676,7 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64
       stencil.return %113 : f64
     }
     %114 = stencil.combine 0 at 33 lower = (%110 : !stencil.temp<[1,33]x[2,66]xf64>) upper = (%112 : !stencil.temp<[33,65]x[2,66]xf64>) : !stencil.temp<[1,65]x[2,66]xf64>
-    stencil.store %114 to %109 ([1, 2] : [65, 66]) : !stencil.temp<[1,65]x[2,66]xf64> to !stencil.field<[-3,67]x[-3,67]xf64>
+    stencil.store %114 to %109 (<[1, 2], [65, 66]>) : !stencil.temp<[1,65]x[2,66]xf64> to !stencil.field<[-3,67]x[-3,67]xf64>
     func.return
   }
 
@@ -728,7 +728,7 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
       %127 = arith.addf %125, %126 : f64
       stencil.return %127 : f64
     }
-    stencil.store %123 to %116 ([1, 2] : [65, 66]) : !stencil.temp<[1,65]x[2,66]xf64> to !stencil.field<[-3,67]x[-3,67]xf64>
+    stencil.store %123 to %116 (<[1, 2], [65, 66]>) : !stencil.temp<[1,65]x[2,66]xf64> to !stencil.field<[-3,67]x[-3,67]xf64>
     func.return
   }
 
@@ -787,7 +787,7 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
       %138 = arith.mulf %136, %137 : f64
       stencil.return %138 : f64
     }
-    stencil.store %133 to %130 ([0] : [8]) : !stencil.temp<[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]xf64>
+    stencil.store %133 to %130 (<[0], [8]>) : !stencil.temp<[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]xf64>
     func.return
   }
 

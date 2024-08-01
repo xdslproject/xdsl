@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from enum import auto
-from typing import cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
+from xdsl.builder import Builder
+from xdsl.dialects import arith
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
@@ -26,7 +28,14 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
 )
-from xdsl.ir import Attribute, Dialect, EnumAttribute, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    BlockArgument,
+    Dialect,
+    EnumAttribute,
+    Region,
+    SSAValue,
+)
 from xdsl.ir.affine import AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -382,8 +391,170 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = frozenset([IsTerminator()])
 
 
+class NamedOpBase(IRDLOperation, ABC):
+    """
+    Abstract base class for named ops with hidden region.
+    """
+
+    inputs = var_operand_def()
+    outputs = var_operand_def(AnyShapedType())
+
+    res = var_result_def(AnyTensorType)
+
+    hidden_region = region_def("single_block")
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = False
+
+    def __init__(
+        self,
+        ins: Sequence[SSAValue],
+        outs: Sequence[SSAValue],
+        result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        hidden_region: Region | None = None,
+    ):
+        super().__init__(
+            operands=[ins, outs],
+            result_types=(
+                result_types
+                if result_types is not None and len(result_types) > 0
+                else [[]]
+            ),
+            properties=properties,
+            attributes=attributes,
+            regions=[hidden_region],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        pos = parser.pos
+        if cls.PRINT_ATTRS_IN_FRONT:
+            attrs = parser.parse_optional_attr_dict()
+        else:
+            attrs = {}
+        if parser.parse_optional_characters("ins"):
+            parser.parse_punctuation("(")
+            unresolved_ins = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            ins_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            ins = parser.resolve_operands(unresolved_ins, ins_types, pos)
+        else:
+            ins = ()
+
+        pos = parser.pos
+        if parser.parse_optional_characters("outs"):
+            parser.parse_punctuation("(")
+            unresolved_outs = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+            parser.parse_punctuation(":")
+            outs_types = parser.parse_comma_separated_list(
+                Parser.Delimiter.NONE, parser.parse_type
+            )
+            parser.parse_punctuation(")")
+            outs = parser.resolve_operands(unresolved_outs, outs_types, pos)
+        else:
+            outs = ()
+
+        if not cls.PRINT_ATTRS_IN_FRONT:
+            if parser.parse_optional_keyword("attrs"):
+                parser.parse_punctuation("=")
+                attrs = parser.expect(
+                    parser.parse_optional_attr_dict, "expect extra attributes"
+                )
+            else:
+                attrs = {}
+
+        if parser.parse_optional_punctuation("->"):
+            res_types = parser.parse_optional_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_attribute
+            )
+            if res_types is None:
+                res_types = [[parser.parse_attribute()]]
+        else:
+            res_types = ()
+
+        return cls(ins, outs, res_types, attrs)
+
+    def print(self, printer: Printer):
+
+        extra_attrs = self.attributes.copy()
+        if "indexing_maps" in extra_attrs:
+            del extra_attrs["indexing_maps"]
+        if "linalg.memoized_indexing_maps" in extra_attrs:
+            del extra_attrs["linalg.memoized_indexing_maps"]
+        if "iterator_types" in extra_attrs:
+            del extra_attrs["iterator_types"]
+        if "doc" in extra_attrs:
+            del extra_attrs["doc"]
+        if "library_call" in extra_attrs:
+            del extra_attrs["library_call"]
+
+        if extra_attrs and self.PRINT_ATTRS_IN_FRONT:
+            printer.print_op_attributes(extra_attrs)
+        if self.inputs:
+            printer.print_string(" ins(")
+            printer.print_list(self.inputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_string(")")
+
+        if self.outputs:
+            printer.print_string(" outs(")
+            printer.print_list(self.outputs, printer.print_ssa_value)
+            printer.print_string(" : ")
+            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_string(")")
+
+        if extra_attrs and not self.PRINT_ATTRS_IN_FRONT:
+            printer.print(" attrs = ")
+            printer.print_op_attributes(extra_attrs)
+
+        if self.res:
+            printer.print_string(" -> ")
+            if len(self.res) == 1:
+                printer.print_attribute(self.res[0].type)
+            else:
+                printer.print("(")
+                printer.print_list(
+                    self.res, lambda res: printer.print_attribute(res.type)
+                )
+                printer.print(")")
+
+    @staticmethod
+    def body_arg_types(
+        operands: Sequence[SSAValue],
+    ) -> Sequence[AnyFloat | IntegerType]:
+        """
+        Return the element types of the arguments of the body of this operation
+        """
+
+        result: Sequence[AnyFloat | IntegerType] = []
+
+        for op in operands:
+            op_type = op.type
+            if isa(op_type, MemRefType[Attribute]):
+                element_type = op_type.get_element_type()
+            elif isa(op_type, TensorType[Attribute]):
+                element_type = op_type.get_element_type()
+            else:  # int or float
+                element_type = op_type
+            assert isinstance(element_type, AnyFloat | IntegerType)
+            result.append(element_type)
+
+        return result
+
+
 @irdl_op_definition
-class AddOp(IRDLOperation):
+class AddOp(NamedOpBase):
     """
     Adds two tensors elementwise.
 
@@ -392,36 +563,37 @@ class AddOp(IRDLOperation):
 
     name = "linalg.add"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
-    )
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
             result_types = tuple(output.type for output in outputs)
         else:
             result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        add = arith.Addf if isinstance(arg_types[-1], AnyFloat) else arith.Addi
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = add(args[0], args[1])
+            YieldOp(result)
+
         super().__init__(
-            operands=(inputs, outputs),
+            ins=inputs,
+            outs=outputs,
             result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
         )
 
 
 @irdl_op_definition
-class SubOp(IRDLOperation):
+class SubOp(NamedOpBase):
     """
     Subtracts two tensors elementwise.
 
@@ -430,36 +602,37 @@ class SubOp(IRDLOperation):
 
     name = "linalg.sub"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
-    )
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
             result_types = tuple(output.type for output in outputs)
         else:
             result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        sub = arith.Subf if isinstance(arg_types[-1], AnyFloat) else arith.Subi
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = sub(args[0], args[1])
+            YieldOp(result)
+
         super().__init__(
-            operands=(inputs, outputs),
+            ins=inputs,
+            outs=outputs,
             result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
         )
 
 
 @irdl_op_definition
-class FillOp(IRDLOperation):
+class FillOp(NamedOpBase):
     """
     Fills the output tensor with the given value.
 
@@ -472,23 +645,12 @@ class FillOp(IRDLOperation):
 
     name = "linalg.fill"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` (`->` type($res)^)? attr-dict"
-    )
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
     def __init__(
         self,
-        inputs: Sequence[SSAValue | Operation],
-        outputs: Sequence[SSAValue | Operation] = (),
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
             assert isa(outputs, Sequence[SSAValue]), "cannot infer result_types"
@@ -496,9 +658,18 @@ class FillOp(IRDLOperation):
         else:
             result_types = res
 
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
         super().__init__(
-            operands=(inputs, outputs),
+            ins=inputs,
+            outs=outputs,
             result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
         )
 
     def verify_(self) -> None:
@@ -511,7 +682,7 @@ class FillOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MulOp(IRDLOperation):
+class MulOp(NamedOpBase):
     """
     Multiplies two tensors elementwise.
 
@@ -520,31 +691,32 @@ class MulOp(IRDLOperation):
 
     name = "linalg.mul"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "`ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` `->` type($res) attr-dict"
-    )
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
-
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
             result_types = tuple(output.type for output in outputs)
         else:
             result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        mul = arith.Mulf if isinstance(arg_types[-1], AnyFloat) else arith.Muli
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = mul(args[0], args[1])
+            YieldOp(result)
+
         super().__init__(
-            operands=(inputs, outputs),
+            ins=inputs,
+            outs=outputs,
             result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
         )
 
 
@@ -654,7 +826,7 @@ class TransposeOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MatmulOp(IRDLOperation):
+class MatmulOp(NamedOpBase):
     """
     Performs a matrix multiplication of two 2D inputs.
 
@@ -664,23 +836,14 @@ class MatmulOp(IRDLOperation):
 
     name = "linalg.matmul"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(AnyShapedType())
-
-    res = var_result_def(AnyTensorType)
-
-    assembly_format = (
-        "attr-dict `ins` `(` $inputs `:` type($inputs) `)` ` ` "
-        "`outs` `(` $outputs `:` type($outputs) `)` (`->` type($res)^)?"
-    )
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
     ):
         if res is None:
             result_types = tuple(
@@ -690,9 +853,38 @@ class MatmulOp(IRDLOperation):
             )
         else:
             result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+        add, mul = (
+            (arith.Addf, arith.Mulf)
+            if isinstance(arg_types[-1], AnyFloat)
+            else (arith.Addi, arith.Mulf)
+        )
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = mul(args[0], args[1])
+            mac = add(result, args[2])
+            YieldOp(mac)
+
+        # add linalg.memoized_indexing_maps attribute
+        if not attributes:
+            attributes = {}
+        if "linalg.memoized_indexing_maps" not in attributes:
+            attributes["linalg.memoized_indexing_maps"] = ArrayAttr(
+                [
+                    AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
+                    AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
+                    AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
+                ]
+            )
+
         super().__init__(
-            operands=(inputs, outputs),
-            result_types=(result_types,),
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
         )
 
 

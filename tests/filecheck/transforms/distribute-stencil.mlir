@@ -19,8 +19,8 @@ builtin.module {
       %46 = arith.addf %45, %44 : f64
       stencil.return %46, %45 : f64, f64
     }
-    stencil.store %34 to %28 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<?x?x?xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-    stencil.store %35 to %29 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<?x?x?xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    stencil.store %34 to %28 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<?x?x?xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+    stencil.store %35 to %29 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<?x?x?xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     func.return
   }
 
@@ -41,8 +41,8 @@ builtin.module {
 // CHECK-NEXT:        %16 = arith.addf %15, %14 : f64
 // CHECK-NEXT:        stencil.return %16, %15 : f64, f64
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %4 to %1 ([0, 0, 0] : [32, 32, 32]) : !stencil.temp<[0,32]x[0,32]x[0,32]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
-// CHECK-NEXT:      stencil.store %5 to %2 ([0, 0, 0] : [32, 32, 32]) : !stencil.temp<[0,32]x[0,32]x[0,32]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:      stencil.store %4 to %1 (<[0, 0, 0], [32, 32, 32]>) : !stencil.temp<[0,32]x[0,32]x[0,32]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:      stencil.store %5 to %2 (<[0, 0, 0], [32, 32, 32]>) : !stencil.temp<[0,32]x[0,32]x[0,32]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -66,53 +66,53 @@ builtin.module {
 
   func.func @stencil_init_index(%91 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %92 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-      %x = stencil.index 0 [0, 0, 0]
-      %y = stencil.index 1 [0, 0, 0]
-      %z = stencil.index 2 [0, 0, 0]
+      %x = stencil.index 0 <[0, 0, 0]>
+      %y = stencil.index 1 <[0, 0, 0]>
+      %z = stencil.index 2 <[0, 0, 0]>
       %xy = arith.addi %x, %y : index
       %xyz = arith.addi %xy, %z : index
       stencil.return %xyz : index
     }
-    stencil.store %92 to %91 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    stencil.store %92 to %91 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
     func.return
   }
 
 // CHECK:         func.func @stencil_init_index(%0 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
 // CHECK-NEXT:      %1 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-// CHECK-NEXT:        %x = stencil.index 0 [0, 0, 0]
-// CHECK-NEXT:        %y = stencil.index 1 [0, 0, 0]
-// CHECK-NEXT:        %z = stencil.index 2 [0, 0, 0]
+// CHECK-NEXT:        %x = stencil.index 0 <[0, 0, 0]>
+// CHECK-NEXT:        %y = stencil.index 1 <[0, 0, 0]>
+// CHECK-NEXT:        %z = stencil.index 2 <[0, 0, 0]>
 // CHECK-NEXT:        %xy = arith.addi %x, %y : index
 // CHECK-NEXT:        %xyz = arith.addi %xy, %z : index
 // CHECK-NEXT:        stencil.return %xyz : index
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %1 to %0 ([0, 0, 0] : [32, 32, 32]) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+// CHECK-NEXT:      stencil.store %1 to %0 (<[0, 0, 0], [32, 32, 32]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
   func.func @stencil_init_index_offset(%93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-      %x_1 = stencil.index 0 [1, 1, 1]
-      %y_1 = stencil.index 1 [-1, -1, -1]
-      %z_1 = stencil.index 2 [0, 0, 0]
+      %x_1 = stencil.index 0 <[1, 1, 1]>
+      %y_1 = stencil.index 1 <[-1, -1, -1]>
+      %z_1 = stencil.index 2 <[0, 0, 0]>
       %xy_1 = arith.addi %x_1, %y_1 : index
       %xyz_1 = arith.addi %xy_1, %z_1 : index
       stencil.return %xyz_1 : index
     }
-    stencil.store %94 to %93 ([0, 0, 0] : [64, 64, 64]) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
     func.return
   }
 
 // CHECK:         func.func @stencil_init_index_offset(%0 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
 // CHECK-NEXT:      %1 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
-// CHECK-NEXT:        %x = stencil.index 0 [1, 1, 1]
-// CHECK-NEXT:        %y = stencil.index 1 [-1, -1, -1]
-// CHECK-NEXT:        %z = stencil.index 2 [0, 0, 0]
+// CHECK-NEXT:        %x = stencil.index 0 <[1, 1, 1]>
+// CHECK-NEXT:        %y = stencil.index 1 <[-1, -1, -1]>
+// CHECK-NEXT:        %z = stencil.index 2 <[0, 0, 0]>
 // CHECK-NEXT:        %xy = arith.addi %x, %y : index
 // CHECK-NEXT:        %xyz = arith.addi %xy, %z : index
 // CHECK-NEXT:        stencil.return %xyz : index
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %1 to %0 ([0, 0, 0] : [32, 32, 32]) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+// CHECK-NEXT:      stencil.store %1 to %0 (<[0, 0, 0], [32, 32, 32]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -151,8 +151,8 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64
       %107 = stencil.store_result %104 : !stencil.result<f64>
       stencil.return %103, %107 : !stencil.result<f64>, !stencil.result<f64>
     }
-    stencil.store %101 to %b0 ([0, 0, 0] : [8, 8, 8]) : !stencil.temp<[0,8]x[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]x[0,8]xf64>
-    stencil.store %102 to %b1 ([0, 0, 0] : [8, 8, 8]) : !stencil.temp<[0,8]x[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]x[0,8]xf64>
+    stencil.store %101 to %b0 (<[0, 0, 0], [8, 8, 8]>) : !stencil.temp<[0,8]x[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]x[0,8]xf64>
+    stencil.store %102 to %b1 (<[0, 0, 0], [8, 8, 8]>) : !stencil.temp<[0,8]x[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]x[0,8]xf64>
     func.return
   }
 
@@ -169,8 +169,8 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64
 // CHECK-NEXT:        %6 = stencil.store_result %3 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %2, %6 : !stencil.result<f64>, !stencil.result<f64>
 // CHECK-NEXT:      }
-// CHECK-NEXT:      stencil.store %0 to %b0 ([0, 0, 0] : [4, 4, 4]) : !stencil.temp<[0,8]x[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]x[0,8]xf64>
-// CHECK-NEXT:      stencil.store %1 to %b1 ([0, 0, 0] : [4, 4, 4]) : !stencil.temp<[0,8]x[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]x[0,8]xf64>
+// CHECK-NEXT:      stencil.store %0 to %b0 (<[0, 0, 0], [4, 4, 4]>) : !stencil.temp<[0,8]x[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]x[0,8]xf64>
+// CHECK-NEXT:      stencil.store %1 to %b1 (<[0, 0, 0], [4, 4, 4]>) : !stencil.temp<[0,8]x[0,8]x[0,8]xf64> to !stencil.field<[0,8]x[0,8]x[0,8]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
   

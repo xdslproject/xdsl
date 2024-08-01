@@ -765,7 +765,7 @@ class Subview(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.source)
         print_dynamic_index_list(
             printer,
@@ -773,14 +773,14 @@ class Subview(IRDLOperation):
             (cast(int, offset.data) for offset in self.static_offsets.data.data),
             dynamic_index=Subview.DYNAMIC_INDEX,
         )
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         print_dynamic_index_list(
             printer,
             self.sizes,
             (cast(int, size.data) for size in self.static_sizes.data.data),
             dynamic_index=Subview.DYNAMIC_INDEX,
         )
-        printer.print_string_raw(" ")
+        printer.print_string(" ")
         print_dynamic_index_list(
             printer,
             self.strides,
