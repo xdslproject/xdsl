@@ -1,5 +1,3 @@
-from typing import cast
-
 import pytest
 
 from xdsl.builder import ImplicitBuilder
@@ -22,7 +20,7 @@ from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.linalg import LinalgFunctions
 from xdsl.interpreters.ptr import TypedPtr
 from xdsl.interpreters.shaped_array import ShapedArray
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.utils.test_value import TestSSAValue
 
@@ -199,9 +197,8 @@ def test_fill_op():
     interpreter.register_implementations(ArithFunctions())
     interpreter.register_implementations(LinalgFunctions())
     constant = arith.Constant(FloatAttr(1.0, f32))
-    constant = cast(Attribute, constant)
     op = linalg.FillOp(
-        (TestSSAValue(constant),),
+        (TestSSAValue(constant.result.type),),
         (TestSSAValue(TensorType(f32, [2, 3])),),
         (TensorType(f32, [2, 3]),),
     )
