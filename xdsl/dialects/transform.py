@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar
-
-from attr import field
+from dataclasses import field
+from typing import Annotated, ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
-    AnyIntegerAttr,
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
+    IntegerType,
     StringAttr,
 )
+from xdsl.dialects.ltl import Property
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -23,7 +23,9 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyOf,
     AttrSizedOperandSegments,
+    ConstraintVar,
     IRDLOperation,
     ParameterDef,
     irdl_attr_definition,
@@ -39,6 +41,7 @@ from xdsl.irdl import (
     var_result_def,
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.str_enum import StrEnum
 
 
@@ -123,8 +126,15 @@ class FailurePropagationModeType(StrEnum):
 
 
 @irdl_attr_definition
-class FailurePropagationModeAttr(EnumAttribute[FailurePropagationModeType]):
+class FailurePropagationModeAttr(
+    EnumAttribute[FailurePropagationModeType], TypeAttribute
+):
     name = "transform.failures"
+
+
+AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
+    Attribute, AnyOf([IntegerType, FailurePropagationModeAttr])
+]
 
 
 @irdl_op_definition
@@ -146,10 +156,10 @@ class SequenceOp(IRDLOperation):
 
     name = "transform.sequence"
 
-    # TODO: Find out how to also use the enum FailurePropagationModeAttr as well as AnyIntegerAttr
+    T = Annotated[AnyIntegerOrFailurePropagationModeAttr, ConstraintVar("T")]
 
     body = region_def("single_block")
-    failure_propagation_mode = prop_def(AnyIntegerAttr)
+    failure_propagation_mode: Property = prop_def(T)
 
     root = var_operand_def(AnyOpType)
     extra_bindings = var_operand_def(TransformHandleType)
@@ -172,6 +182,14 @@ class SequenceOp(IRDLOperation):
             operands=[root, extra_bindings],
         )
 
+    def verify_(self):
+        if not isinstance(
+            self.failure_propagation_mode, FailurePropagationModeAttr
+        ) and not isinstance(self.failure_propagation_mode, IntegerType):
+            raise VerifyException(
+                f"Expected failure_propagation_mode to be of type FailurePropagationModeAttr, got {type(self.failure_propagation_mode)}"
+            )
+
 
 @irdl_op_definition
 class TileOp(IRDLOperation):
@@ -179,7 +197,7 @@ class TileOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
     """
 
-    name = "transform.structured.tile"  # "transform.structured.tile_using_for" as of mlir 18.0
+    name = "transform.structured.tile"
 
     target = operand_def(TransformHandleType)
     dynamic_sizes = var_operand_def(TransformHandleType)
@@ -215,7 +233,7 @@ class TileToForallOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
     """
 
-    name = "transform.structured.tile_to_forall_op"  # "transform.structured.tile_using_forall" as of mlir 18.0
+    name = "transform.structured.tile_to_forall_op"
 
     target = operand_def(TransformHandleType)
     num_threads = var_operand_def(DenseArrayBase)
@@ -230,8 +248,6 @@ class TileToForallOp(IRDLOperation):
     tiled_op = result_def(TransformHandleType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
-
-    traits = frozenset([])
 
     def __init__(
         self,
@@ -273,8 +289,6 @@ class SelectOp(IRDLOperation):
     target = operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
 
-    traits = frozenset([])
-
 
 @irdl_op_definition
 class NamedSequenceOp(IRDLOperation):
@@ -303,12 +317,18 @@ class CastOp(IRDLOperation):
     input = operand_def(TransformHandleType)
     output = result_def(TransformHandleType)
 
-    traits = frozenset([])
-
 
 Transform = Dialect(
     "transform",
-    [SequenceOp, YieldOp, TileOp, TileToForallOp, SelectOp, NamedSequenceOp, CastOp],
+    [
+        SequenceOp,
+        YieldOp,
+        TileOp,
+        TileToForallOp,
+        SelectOp,
+        NamedSequenceOp,
+        CastOp,
+    ],
     [
         # Types
         TransformHandleType,

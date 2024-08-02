@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect --mlir-print-op-generic | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
 
 builtin.module attributes  {"transform.with_named_sequence", "transform.sequence"} {
   %0 = "test.op"() : () -> !transform.affine_map
