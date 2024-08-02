@@ -143,7 +143,7 @@ class ArithOpTensorize(RewritePattern):
     """
     Tensorises arith binary ops.
     If both operands are tensor types, rebuilds the op with matching result type.
-    If one operand is scalar and an `arith.constant`, change it to produce a tensor value directly.
+    If one operand is scalar and an `arith.constant`, create a tensor constant directly.
     If one operand is scalar and not an `arith.constant`, create an empty tensor and fill it with the scalar value.
     """
 
@@ -182,17 +182,14 @@ class ArithOpTensorize(RewritePattern):
     ) -> SSAValue:
         """
         Rewrites a scalar operand into a tensor.
-        If it is a constant, modify the constant op directly.
+        If it is a constant, create a corresponding tensor constant.
         If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
         """
         if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, Constant):
             tens_const = Constant(
                 DenseIntOrFPElementsAttr([dest_typ, ArrayAttr([scalar_op.op.value])])
             )
-            if len(scalar_op.uses) > 1:
-                rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
-            else:
-                rewriter.replace_op(scalar_op.op, tens_const)
+            rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
             return tens_const.result
         emptyop = EmptyOp((), dest_typ)
         fillop = FillOp((scalar_op,), (emptyop.tensor,), (dest_typ,))
