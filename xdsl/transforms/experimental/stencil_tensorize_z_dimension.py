@@ -7,6 +7,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.arith import (
     Addf,
     BinaryOperation,
+    Constant,
     Divf,
     FloatingPointLikeBinaryOp,
     Mulf,
@@ -16,6 +17,7 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
     ContainerType,
+    DenseIntOrFPElementsAttr,
     IntAttr,
     ModuleOp,
     ShapedType,
@@ -40,6 +42,8 @@ from xdsl.dialects.tensor import EmptyOp, ExtractSliceOp, InsertSliceOp
 from xdsl.ir import (
     Attribute,
     Operation,
+    OpResult,
+    SSAValue,
 )
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -135,42 +139,63 @@ class AccessOpTensorize(RewritePattern):
         rewriter.replace_matched_op(extract)
 
 
-def arithBinaryOpTensorize(
-    op: FloatingPointLikeBinaryOp,
-    rewriter: PatternRewriter,
-    /,
-):
-    type_constructor = type(op)
-    if is_tensor(op.result.type):
-        return
-    if is_tensor(op.lhs.type) and is_tensor(op.rhs.type):
-        rewriter.replace_matched_op(
-            type_constructor(op.lhs, op.rhs, flags=None, result_type=op.lhs.type)
-        )
-    elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
-        emptyop = EmptyOp((), op.lhs.type)
-        fillop = FillOp((op.rhs,), (emptyop.results[0],), (op.lhs.type,))
-        rewriter.insert_op(emptyop, InsertPoint.before(op))
-        rewriter.insert_op(fillop, InsertPoint.before(op))
-        rewriter.replace_matched_op(
-            type_constructor(op.lhs, fillop, flags=None, result_type=op.lhs.type)
-        )
-    elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
-        emptyop = EmptyOp((), op.rhs.type)
-        fillop = FillOp((op.lhs,), (emptyop.results[0],), (op.rhs.type,))
-        rewriter.insert_op(emptyop, InsertPoint.before(op))
-        rewriter.insert_op(fillop, InsertPoint.before(op))
-        rewriter.replace_matched_op(
-            type_constructor(fillop, op.rhs, flags=None, result_type=op.rhs.type)
-        )
-
-
 class ArithOpTensorize(RewritePattern):
+    """
+    Tensorises arith binary ops.
+    If both operands are tensor types, rebuilds the op with matching result type.
+    If one operand is scalar and an `arith.constant`, create a tensor constant directly.
+    If one operand is scalar and not an `arith.constant`, create an empty tensor and fill it with the scalar value.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
     ):
-        arithBinaryOpTensorize(op, rewriter)
+        type_constructor = type(op)
+        if is_tensor(op.result.type):
+            return
+        if is_tensor(op.lhs.type) and is_tensor(op.rhs.type):
+            rewriter.replace_matched_op(
+                type_constructor(op.lhs, op.rhs, flags=None, result_type=op.lhs.type)
+            )
+        elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
+            new_rhs = ArithOpTensorize._rewrite_scalar_operand(
+                op.rhs, op.lhs.type, op, rewriter
+            )
+            rewriter.replace_matched_op(
+                type_constructor(op.lhs, new_rhs, flags=None, result_type=op.lhs.type)
+            )
+        elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
+            new_lhs = ArithOpTensorize._rewrite_scalar_operand(
+                op.lhs, op.rhs.type, op, rewriter
+            )
+            rewriter.replace_matched_op(
+                type_constructor(new_lhs, op.rhs, flags=None, result_type=op.rhs.type)
+            )
+
+    @staticmethod
+    def _rewrite_scalar_operand(
+        scalar_op: SSAValue,
+        dest_typ: TensorType[Attribute],
+        op: FloatingPointLikeBinaryOp,
+        rewriter: PatternRewriter,
+    ) -> SSAValue:
+        """
+        Rewrites a scalar operand into a tensor.
+        If it is a constant, create a corresponding tensor constant.
+        If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
+        """
+        if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, Constant):
+            tens_const = Constant(
+                DenseIntOrFPElementsAttr([dest_typ, ArrayAttr([scalar_op.op.value])])
+            )
+            rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
+            return tens_const.result
+        emptyop = EmptyOp((), dest_typ)
+        fillop = FillOp((scalar_op,), (emptyop.tensor,), (dest_typ,))
+        rewriter.insert_op(emptyop, InsertPoint.before(op))
+        rewriter.insert_op(fillop, InsertPoint.before(op))
+        return fillop.res[0]
 
 
 @dataclass(frozen=True)
@@ -361,6 +386,18 @@ class FillOpUpdateShape(RewritePattern):
                 )
 
 
+class ConstOpUpdateShape(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: Constant, rewriter: PatternRewriter, /):
+        if is_tensor(op.result.type):
+            if typ := get_required_result_type(op):
+                if needs_update_shape(op.result.type, typ):
+                    assert isinstance(op.value, DenseIntOrFPElementsAttr)
+                    rewriter.replace_matched_op(
+                        Constant(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                    )
+
+
 @dataclass(frozen=True)
 class BackpropagateStencilShapes(ModulePass):
     """
@@ -379,6 +416,7 @@ class BackpropagateStencilShapes(ModulePass):
                     EmptyOpUpdateShape(),
                     FillOpUpdateShape(),
                     ArithOpUpdateShape(),
+                    ConstOpUpdateShape(),
                 ]
             ),
             walk_reverse=True,
