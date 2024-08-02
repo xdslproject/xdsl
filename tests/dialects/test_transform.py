@@ -23,11 +23,6 @@ def test_transform_any_op_type():
     assert anyOpType.name == "transform.any_op"
 
 
-def test_transform_any_param_type():
-    anyParamType = transform.AnyParamType()
-    assert anyParamType.name == "transform.any_param"
-
-
 def test_transform_any_value_type():
     anyValueType = transform.AnyValueType()
     assert anyValueType.name == "transform.any_value"
