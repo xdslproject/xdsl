@@ -162,8 +162,9 @@ class SequenceOp(IRDLOperation):
     T = Annotated[AnyIntegerOrFailurePropagationModeAttr, ConstraintVar("T")]
 
     body = region_def("single_block")
-    failure_propagation_mode: Property = prop_def(T)
-
+    failure_propagation_mode: Property = prop_def(
+        T  # pyright: ignore[reportArgumentType]
+    )
     root = var_operand_def(AnyOpType)
     extra_bindings = var_operand_def(TransformHandleType)
 
