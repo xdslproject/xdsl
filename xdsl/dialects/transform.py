@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
+    IndexType,
     IntegerType,
     StringAttr,
 )
@@ -212,10 +213,22 @@ class TileOp(IRDLOperation):
         self,
         target: SSAValue,
         dynamic_sizes: Sequence[SSAValue],
-        static_sizes: DenseArrayBase | None = None,
-        interchange: DenseArrayBase | None = None,
-        scalable_sizes: DenseArrayBase | None = None,
+        static_sizes: DenseArrayBase | list[int] | None = None,
+        interchange: DenseArrayBase | list[int] | None = None,
+        scalable_sizes: DenseArrayBase | list[int] | None = None,
     ):
+        if isinstance(static_sizes, list):
+            static_sizes = DenseArrayBase.create_dense_int_or_index(
+                IndexType(), static_sizes
+            )
+        if isinstance(interchange, list):
+            interchange = DenseArrayBase.create_dense_int_or_index(
+                IndexType(), interchange
+            )
+        if isinstance(scalable_sizes, list):
+            scalable_sizes = DenseArrayBase.create_dense_int_or_index(
+                IndexType(), scalable_sizes
+            )
         super().__init__(
             operands=(target, dynamic_sizes),
             properties={
@@ -256,10 +269,21 @@ class TileToForallOp(IRDLOperation):
         tile_sizes: Sequence[SSAValue],
         packed_num_threads: SSAValue | None,
         packed_tile_sizes: SSAValue | None,
-        static_num_threads: DenseArrayBase | None,
-        static_tile_sizes: DenseArrayBase | None,
-        mapping: DenseArrayBase | None,
+        static_num_threads: DenseArrayBase | list[int] | None,
+        static_tile_sizes: DenseArrayBase | list[int] | None,
+        mapping: DenseArrayBase | list[int] | None,
     ):
+        if isinstance(static_num_threads, list):
+            static_num_threads = DenseArrayBase.create_dense_int_or_index(
+                IndexType(), static_num_threads
+            )
+        if isinstance(static_tile_sizes, list):
+            static_tile_sizes = DenseArrayBase.create_dense_int_or_index(
+                IndexType(), static_tile_sizes
+            )
+        if isinstance(mapping, list):
+            mapping = DenseArrayBase.create_dense_int_or_index(IndexType(), mapping)
+
         super().__init__(
             operands=[
                 target,
