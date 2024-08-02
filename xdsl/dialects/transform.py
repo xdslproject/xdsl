@@ -6,10 +6,12 @@ from dataclasses import field
 from typing import Annotated, ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
+    AnyIntegerAttr,
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
     IndexType,
+    IntegerAttr,
     IntegerType,
     StringAttr,
 )
@@ -170,11 +172,15 @@ class SequenceOp(IRDLOperation):
 
     def __init__(
         self,
-        failure_propagation_mode: FailurePropagationModeAttr | Attribute,
+        failure_propagation_mode: FailurePropagationModeAttr | AnyIntegerAttr | int,
         root: Sequence[SSAValue],
         extra_bindings: Sequence[SSAValue],
         body: Region,
     ):
+        if isinstance(failure_propagation_mode, int):
+            failure_propagation_mode = IntegerAttr(
+                failure_propagation_mode, IntegerType(32)
+            )
         super().__init__(
             properties={
                 "failure_propagation_mode": failure_propagation_mode,
