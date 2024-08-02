@@ -139,14 +139,52 @@ class AccessOpTensorize(RewritePattern):
         rewriter.replace_matched_op(extract)
 
 
-def arithBinaryOpTensorize(
-    op: FloatingPointLikeBinaryOp,
-    rewriter: PatternRewriter,
-    /,
-):
-    def rewrite_scalar_operand(
-        scalar_op: SSAValue, dest_typ: TensorType[Attribute]
+class ArithOpTensorize(RewritePattern):
+    """
+    Tensorises arith binary ops.
+    If both operands are tensor types, rebuilds the op with matching result type.
+    If one operand is scalar and an `arith.constant`, change it to produce a tensor value directly.
+    If one operand is scalar and not an `arith.constant`, create an empty tensor and fill it with the scalar value.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
+    ):
+        type_constructor = type(op)
+        if is_tensor(op.result.type):
+            return
+        if is_tensor(op.lhs.type) and is_tensor(op.rhs.type):
+            rewriter.replace_matched_op(
+                type_constructor(op.lhs, op.rhs, flags=None, result_type=op.lhs.type)
+            )
+        elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
+            new_rhs = ArithOpTensorize._rewrite_scalar_operand(
+                op.rhs, op.lhs.type, op, rewriter
+            )
+            rewriter.replace_matched_op(
+                type_constructor(op.lhs, new_rhs, flags=None, result_type=op.lhs.type)
+            )
+        elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
+            new_lhs = ArithOpTensorize._rewrite_scalar_operand(
+                op.lhs, op.rhs.type, op, rewriter
+            )
+            rewriter.replace_matched_op(
+                type_constructor(new_lhs, op.rhs, flags=None, result_type=op.rhs.type)
+            )
+
+    @staticmethod
+    def _rewrite_scalar_operand(
+        scalar_op: SSAValue,
+        dest_typ: TensorType[Attribute],
+        op: FloatingPointLikeBinaryOp,
+        rewriter: PatternRewriter,
     ) -> SSAValue:
+        """
+        Rewrites a scalar operand into a tensor.
+        If it is a constant, modify the constant op directly.
+        If it is not a constant, create an empty tensor and `linalg.fill` it with the scalar value.
+        """
         if isinstance(scalar_op, OpResult) and isinstance(scalar_op.op, Constant):
             tens_const = Constant(
                 DenseIntOrFPElementsAttr([dest_typ, ArrayAttr([scalar_op.op.value])])
@@ -161,32 +199,6 @@ def arithBinaryOpTensorize(
         rewriter.insert_op(emptyop, InsertPoint.before(op))
         rewriter.insert_op(fillop, InsertPoint.before(op))
         return fillop.res[0]
-
-    type_constructor = type(op)
-    if is_tensor(op.result.type):
-        return
-    if is_tensor(op.lhs.type) and is_tensor(op.rhs.type):
-        rewriter.replace_matched_op(
-            type_constructor(op.lhs, op.rhs, flags=None, result_type=op.lhs.type)
-        )
-    elif is_tensor(op.lhs.type) and is_scalar(op.rhs.type):
-        new_rhs = rewrite_scalar_operand(op.rhs, op.lhs.type)
-        rewriter.replace_matched_op(
-            type_constructor(op.lhs, new_rhs, flags=None, result_type=op.lhs.type)
-        )
-    elif is_scalar(op.lhs.type) and is_tensor(op.rhs.type):
-        new_lhs = rewrite_scalar_operand(op.lhs, op.rhs.type)
-        rewriter.replace_matched_op(
-            type_constructor(new_lhs, op.rhs, flags=None, result_type=op.rhs.type)
-        )
-
-
-class ArithOpTensorize(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: Addf | Subf | Mulf | Divf, rewriter: PatternRewriter, /
-    ):
-        arithBinaryOpTensorize(op, rewriter)
 
 
 @dataclass(frozen=True)
