@@ -15,7 +15,6 @@ from xdsl.dialects.builtin import (
     IntegerType,
     StringAttr,
 )
-from xdsl.dialects.ltl import Property
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -153,9 +152,7 @@ class SequenceOp(IRDLOperation):
     T = Annotated[AnyIntegerOrFailurePropagationModeAttr, ConstraintVar("T")]
 
     body = region_def("single_block")
-    failure_propagation_mode: Property = prop_def(
-        AnyIntegerAttr  # pyright: ignore[reportArgumentType]
-    )
+    failure_propagation_mode = prop_def(Attribute)
     root = var_operand_def(AnyOpType)
     extra_bindings = var_operand_def(TransformHandleType)
 
@@ -353,7 +350,6 @@ Transform = Dialect(
     ],
     [
         # Types
-        TransformHandleType,
         AffineMapType,
         AnyOpType,
         AnyValueType,
