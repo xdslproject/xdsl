@@ -71,15 +71,6 @@ class AnyOpType(TransformHandleType):
 
 
 @irdl_attr_definition
-class AnyParamType(TransformHandleType):
-    """
-    https://mlir.llvm.org/docs/Dialects/Transform/#anyparamtype
-    """
-
-    name = "transform.any_param"
-
-
-@irdl_attr_definition
 class AnyValueType(TransformHandleType):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#anyvaluetype
@@ -163,7 +154,7 @@ class SequenceOp(IRDLOperation):
 
     body = region_def("single_block")
     failure_propagation_mode: Property = prop_def(
-        T  # pyright: ignore[reportArgumentType]
+        AnyIntegerAttr  # pyright: ignore[reportArgumentType]
     )
     root = var_operand_def(AnyOpType)
     extra_bindings = var_operand_def(TransformHandleType)
@@ -193,7 +184,7 @@ class SequenceOp(IRDLOperation):
     def verify_(self):
         if not isinstance(
             self.failure_propagation_mode, FailurePropagationModeAttr
-        ) and not isinstance(self.failure_propagation_mode, IntegerType):
+        ) and not isinstance(self.failure_propagation_mode, IntegerAttr):
             raise VerifyException(
                 f"Expected failure_propagation_mode to be of type FailurePropagationModeAttr, got {type(self.failure_propagation_mode)}"
             )
@@ -365,7 +356,6 @@ Transform = Dialect(
         TransformHandleType,
         AffineMapType,
         AnyOpType,
-        AnyParamType,
         AnyValueType,
         OperationType,
         ParamType,
