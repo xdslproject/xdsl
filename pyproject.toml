@@ -37,7 +37,7 @@ dev = [
     "pyright==1.1.345",
 ]
 gui = ["textual==0.74.0", "pyclip==0.7"]
-onnx = ["onnx==1.16.1"]
+onnx = ["onnx==1.16.2"]
 riscv = ["riscemu==2.2.7"]
 wgpu = ["wgpu==0.16.0"]
 
