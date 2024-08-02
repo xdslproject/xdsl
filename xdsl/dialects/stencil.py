@@ -63,6 +63,9 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryAllocEffect,
+    MemoryEffectKind,
+    MemoryReadEffect,
     NoMemoryEffect,
     Pure,
     RecursiveMemoryEffect,
@@ -405,23 +408,29 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.stencil import (
-            RedundantOperands,
-            UnusedOperands,
-            UnusedResults,
+            ApplyRedundantOperands,
+            ApplyUnusedOperands,
+            ApplyUnusedResults,
         )
 
         return (
-            RedundantOperands(),
-            UnusedResults(),
-            UnusedOperands(),
+            ApplyRedundantOperands(),
+            ApplyUnusedResults(),
+            ApplyUnusedOperands(),
         )
 
 
 class ApplyMemoryEffect(RecursiveMemoryEffect):
 
     @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        return (len(cast(ApplyOp, op).dest) > 0) or super().has_effects(op)
+    def get_effects(cls, op: Operation):
+        effects = super().get_effects(op)
+        if effects is not None:
+            if len(cast(ApplyOp, op).dest) > 0:
+                effects.add(MemoryEffectKind.WRITE)
+            if any(isinstance(o.type, FieldType) for o in op.operands):
+                effects.add(MemoryEffectKind.READ)
+        return effects
 
 
 @irdl_op_definition
@@ -635,11 +644,23 @@ class ApplyOp(IRDLOperation):
             yield AccessPattern(tuple(accesses))
 
 
+class AllocOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.stencil import AllocUnused
+
+        return (AllocUnused(),)
+
+
 @irdl_op_definition
 class AllocOp(IRDLOperation):
     name = "stencil.alloc"
 
     field = result_def(FieldType[Attribute])
+
+    assembly_format = "attr-dict `:` type($field)"
+
+    traits = frozenset([MemoryAllocEffect(), AllocOpHasCanonicalizationPatternsTrait()])
 
 
 @irdl_op_definition
@@ -1147,6 +1168,8 @@ class LoadOp(IRDLOperation):
     )
 
     assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
+
+    traits = frozenset([MemoryReadEffect()])
 
     @staticmethod
     def get(

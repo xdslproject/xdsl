@@ -145,7 +145,7 @@ builtin.module {
 // CHECK-NEXT:        %5 = stencil.access %4[0] : !stencil.temp<?xf64>
 // CHECK-NEXT:        stencil.return %5 : f64
 // CHECK-NEXT:      }
-// CHECK-NEXT:      %4 = stencil.buffer %3 : !stencil.temp<?xf64>
+// CHECK-NEXT:      %4 = stencil.buffer %3 : !stencil.temp<?xf64> -> !stencil.temp<?xf64>
 // CHECK-NEXT:      %5 = stencil.apply(%6 = %4 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
 // CHECK-NEXT:        %7 = stencil.access %6[0] : !stencil.temp<?xf64>
 // CHECK-NEXT:        stencil.return %7 : f64

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir | filecheck %s
+// RUN: xdsl-opt %s -p stencil-bufferize | filecheck %s
 
 builtin.module {
 // CHECK: builtin.module {
