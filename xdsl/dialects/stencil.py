@@ -439,8 +439,11 @@ class ApplyOp(IRDLOperation):
     B = Annotated[Attribute, ConstraintVar("B")]
 
     args: VarOperand = var_operand_def(Attribute)
+    dest = var_operand_def(FieldType)
     region: Region = region_def()
     res: VarOpResult = var_result_def(TempType)
+
+    bounds = opt_prop_def(StencilBoundsAttr)
 
     traits = frozenset(
         [
@@ -450,6 +453,8 @@ class ApplyOp(IRDLOperation):
         ]
     )
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def print(self, printer: Printer):
         def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
             printer.print(args[0])
@@ -458,16 +463,28 @@ class ApplyOp(IRDLOperation):
             printer.print(" : ")
             printer.print(args[2])
 
+        def print_destination_operand(dest: SSAValue):
+            printer.print(dest)
+            printer.print(" : ")
+            printer.print(dest.type)
+
         printer.print("(")
         printer.print_list(
             zip(self.region.block.args, self.args, (a.type for a in self.args)),
             print_assign_argument,
         )
-        printer.print(") -> (")
-        printer.print_list((r.type for r in self.res), printer.print_attribute)
+        if self.dest:
+            printer.print(") outs (")
+            printer.print_list(self.dest, print_destination_operand)
+        else:
+            printer.print(") -> (")
+            printer.print_list((r.type for r in self.res), printer.print_attribute)
         printer.print(") ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_region(self.region, print_entry_block_args=False)
+        if self.bounds is not None:
+            printer.print(" to ")
+            self.bounds.print_parameters(printer)
 
     @classmethod
     def parse(cls: type[ApplyOp], parser: Parser):
@@ -480,6 +497,12 @@ class ApplyOp(IRDLOperation):
             arg = arg.resolve(type)
             return arg, value
 
+        def parse_operand():
+            op = parser.parse_unresolved_operand()
+            parser.parse_punctuation(":")
+            type = parser.parse_attribute()
+            return parser.resolve_operand(op, type)
+
         assign_args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, parse_assign_args
         )
@@ -487,19 +510,36 @@ class ApplyOp(IRDLOperation):
         operands: list[SSAValue]
         args, operands = zip(*assign_args) if assign_args else ([], [])
 
-        parser.parse_punctuation("->")
-        result_types = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_attribute
-        )
+        if parser.parse_optional_punctuation("->"):
+            parser.parse_punctuation("(")
+            result_types = parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_attribute, parser.parse_attribute
+            )
+            destinations = []
+        else:
+            parser.parse_keyword("outs")
+            parser.parse_punctuation("(")
+            destinations = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parse_operand
+            )
+            result_types = []
+        parser.parse_punctuation(")")
         attrs = parser.parse_optional_attr_dict_with_keyword()
         if attrs is not None:
             attrs = attrs.data
+        else:
+            attrs = {}
         region = parser.parse_region(args)
+        if parser.parse_optional_keyword("to"):
+            bounds = StencilBoundsAttr.new(StencilBoundsAttr.parse_parameters(parser))
+        else:
+            bounds = None
         return cls(
-            operands=[operands],
-            result_types=[result_types],
+            operands=[operands, destinations or []],
+            result_types=[result_types or []],
             regions=[region],
             attributes=attrs,
+            properties={"bounds": bounds},
         )
 
     @staticmethod
@@ -514,7 +554,7 @@ class ApplyOp(IRDLOperation):
             body = Region(body)
 
         return ApplyOp.build(
-            operands=[list(args)],
+            operands=[list(args), []],
             regions=[body],
             result_types=[result_types],
         )
@@ -525,20 +565,45 @@ class ApplyOp(IRDLOperation):
                 raise VerifyException(
                     f"Expected argument type to match operand type, got {argument.type} != {operand.type} at index {argument.index}"
                 )
-        if len(self.res) < 1:
+        if len(self.res) > 0 and len(self.dest) > 0:
+            raise VerifyException(
+                "Expected stencil.apply to have all value-semantics result or buffer-semantic destination operands."
+            )
+        if len(self.res) > 0:
+            res_type = cast(TempType[Attribute], self.res[0].type)
+            for other in self.res[1:]:
+                other = cast(TempType[Attribute], other.type)
+                if res_type.bounds != other.bounds:
+                    raise VerifyException(
+                        "Expected all output types bounds to be equals."
+                    )
+        if len(self.dest) > 0:
+            if self.bounds is None:
+                raise VerifyException(
+                    "Expected stencil.apply to have bounds when having destination operands."
+                )
+
+        nres = max(len(self.res), len(self.dest))
+        if nres < 1:
             raise VerifyException(
                 f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
             )
-        res_type = cast(TempType[Attribute], self.res[0].type)
-        for other in self.res[1:]:
-            other = cast(TempType[Attribute], other.type)
-            if res_type.bounds != other.bounds:
-                raise VerifyException("Expected all output types bounds to be equals.")
 
     def get_rank(self) -> int:
-        res_type = self.res[0].type
-        assert isa(res_type, TempType[Attribute])
-        return res_type.get_num_dims()
+        if len(self.res) > 0:
+            res_type = self.res[0].type
+            assert isa(res_type, TempType[Attribute])
+            return res_type.get_num_dims()
+        else:
+            assert self.bounds is not None
+            return len(self.bounds.lb)
+
+    def get_num_results(self) -> int:
+        res = len(self.res)
+        if res > 0:
+            return res
+        else:
+            return len(self.dest)
 
     def get_accesses(self) -> Iterable[AccessPattern]:
         """
@@ -707,7 +772,7 @@ class DynAccessOp(IRDLOperation):
 
     temp = operand_def(
         ParamAttrConstraint(
-            TempType,
+            StencilType,
             [
                 Attribute,
                 MessageConstraint(
@@ -849,7 +914,7 @@ class AccessOp(IRDLOperation):
     name = "stencil.access"
     temp: Operand = operand_def(
         ParamAttrConstraint(
-            TempType,
+            StencilType,
             [
                 Attribute,
                 MessageConstraint(
@@ -933,8 +998,10 @@ class AccessOp(IRDLOperation):
             attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if not isa(res_type, TempType[Attribute]):
-            parser.raise_error("Expected return type to be a stencil.temp")
+        if not isa(res_type, StencilType[Attribute]):
+            parser.raise_error(
+                "Expected return type to be a stencil.temp or stencil.field"
+            )
         return cls.build(
             operands=[temp], result_types=[res_type.element_type], attributes=attrs
         )
@@ -979,7 +1046,7 @@ class AccessOp(IRDLOperation):
         apply.verify_()
 
         temp_type = self.temp.type
-        assert isa(temp_type, TempType[Attribute])
+        assert isa(temp_type, StencilType[Attribute])
         if temp_type.get_num_dims() != apply.get_rank():
             if self.offset_mapping is None:
                 raise VerifyException(
@@ -1315,7 +1382,14 @@ class ReturnOp(IRDLOperation):
             o.type.elem if isinstance(o.type, ResultType) else o.type for o in self.arg
         ]
         apply = cast(ApplyOp, self.parent_op())
-        res_types = [cast(TempType[Attribute], r.type).element_type for r in apply.res]
+        if len(apply.res) > 0:
+            res_types = [
+                cast(TempType[Attribute], r.type).element_type for r in apply.res
+            ]
+        else:
+            res_types = [
+                cast(FieldType[Attribute], o.type).element_type for o in apply.dest
+            ]
         if len(types) != len(res_types) * unroll_factor:
             raise VerifyException(
                 f"stencil.return expected {len(res_types) * unroll_factor} operands to match the parent "
