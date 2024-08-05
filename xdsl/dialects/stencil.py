@@ -488,10 +488,11 @@ class ApplyOp(IRDLOperation):
             zip(self.region.block.args, self.args, (a.type for a in self.args)),
             print_assign_argument,
         )
-        printer.print(") -> (")
         if self.dest:
+            printer.print(") outs (")
             printer.print_list(self.dest, print_destination_operand)
         else:
+            printer.print(") -> (")
             printer.print_list((r.type for r in self.res), printer.print_attribute)
         printer.print(") ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
@@ -524,17 +525,19 @@ class ApplyOp(IRDLOperation):
         operands: list[SSAValue]
         args, operands = zip(*assign_args) if assign_args else ([], [])
 
-        parser.parse_punctuation("->")
-        parser.parse_punctuation("(")
-        result_types = parser.parse_optional_undelimited_comma_separated_list(
-            parser.parse_optional_attribute, parser.parse_attribute
-        )
-        if not result_types:
+        if parser.parse_optional_punctuation("->"):
+            parser.parse_punctuation("(")
+            result_types = parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_attribute, parser.parse_attribute
+            )
+            destinations = []
+        else:
+            parser.parse_keyword("outs")
+            parser.parse_punctuation("(")
             destinations = parser.parse_comma_separated_list(
                 parser.Delimiter.NONE, parse_operand
             )
-        else:
-            destinations = []
+            result_types = []
         parser.parse_punctuation(")")
         attrs = parser.parse_optional_attr_dict_with_keyword()
         if attrs is not None:

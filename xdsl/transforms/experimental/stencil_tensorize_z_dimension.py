@@ -28,6 +28,7 @@ from xdsl.dialects.func import FuncOp
 from xdsl.dialects.linalg import FillOp
 from xdsl.dialects.stencil import (
     AccessOp,
+    AccessPattern,
     ApplyOp,
     ExternalLoadOp,
     FieldType,
@@ -45,6 +46,7 @@ from xdsl.ir import (
     OpResult,
     SSAValue,
 )
+from xdsl.irdl import Operand
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -206,6 +208,17 @@ class ApplyOpTensorize(RewritePattern):
             not is_tensorized(r.type) for r in op.res
         ):
             b = op.region.block
+            access_patterns = dict[Operand, AccessPattern](
+                zip(op.region.block.args, op.get_accesses())
+            )
+            for access_op in op.region.walk():
+                if isinstance(access_op, AccessOp):
+                    z_shift = -access_patterns[access_op.temp].halo_in_axis(2)[0]
+                    access_op.offset = IndexAttr.get(
+                        *access_op.offset.array.data[:-1],
+                        access_op.offset.array.data[-1].data + z_shift,
+                    )
+
             # TODO check if block args need updating
             for _ in range(len(b.args)):
                 assert isa(arg_type := b.args[0].type, TempType[Attribute])
