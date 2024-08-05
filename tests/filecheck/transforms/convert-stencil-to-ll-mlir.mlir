@@ -812,6 +812,33 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
+  func.func @stencil_copy_bufferized(%0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+    stencil.apply(%6 = %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) outs (%1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+      %7 = stencil.access %6[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+      %8 = stencil.store_result %7 : !stencil.result<f64>
+      stencil.return %8 : !stencil.result<f64>
+    } to <[0, 0, 0], [64, 64, 64]>
+    func.return
+  }
+
+// CHECK:         func.func @stencil_copy_bufferized(%0 : memref<72x72x72xf64>, %1 : memref<72x72x72xf64>) {
+// CHECK-NEXT:      %2 = arith.constant 0 : index
+// CHECK-NEXT:      %3 = arith.constant 0 : index
+// CHECK-NEXT:      %4 = arith.constant 0 : index
+// CHECK-NEXT:      %5 = arith.constant 1 : index
+// CHECK-NEXT:      %6 = arith.constant 1 : index
+// CHECK-NEXT:      %7 = arith.constant 1 : index
+// CHECK-NEXT:      %8 = arith.constant 64 : index
+// CHECK-NEXT:      %9 = arith.constant 64 : index
+// CHECK-NEXT:      %10 = arith.constant 64 : index
+// CHECK-NEXT:      "scf.parallel"(%2, %3, %4, %8, %9, %10, %5, %6, %7) <{"operandSegmentSizes" = array<i32: 3, 3, 3, 0>}> ({
+// CHECK-NEXT:      ^0(%11 : index, %12 : index, %13 : index):
+// CHECK-NEXT:        %14 = memref.load %0[%11, %12, %13] : memref<72x72x72xf64>
+// CHECK-NEXT:        memref.store %14, %1[%11, %12, %13] : memref<72x72x72xf64>
+// CHECK-NEXT:        scf.yield
+// CHECK-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
 
 }
 // CHECK-NEXT: }

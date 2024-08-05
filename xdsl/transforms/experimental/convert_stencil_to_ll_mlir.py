@@ -147,7 +147,10 @@ class ReturnOpToMemref(RewritePattern):
         n_dims = apply.get_rank()
 
         for j in range(n_res):
-            target = self.return_target[apply][j]
+            if len(apply.res) > 0:
+                target = self.return_target[apply][j]
+            else:
+                target = apply.dest[j]
 
             unroll = op.unroll
             if unroll is None:
@@ -318,9 +321,16 @@ class ApplyOpToParallel(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        res_type = op.res[0].type
-        assert isa(res_type, TempType[Attribute])
-        assert isinstance(res_type.bounds, StencilBoundsAttr)
+        if len(op.res) > 0:
+            res_type = op.res[0].type
+            assert isa(res_type, TempType[Attribute])
+            assert isinstance(res_type.bounds, StencilBoundsAttr)
+            lb = res_type.bounds.lb
+            ub = res_type.bounds.ub
+        else:
+            assert op.bounds is not None
+            lb = op.bounds.lb
+            ub = op.bounds.ub
 
         # Get this apply's ReturnOp
         unroll = op.attributes.get("__unroll__", None)
@@ -340,7 +350,7 @@ class ApplyOpToParallel(RewritePattern):
             *(
                 lowerBounds := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
-                    for x in res_type.bounds.lb
+                    for x in lb
                 ]
             ),
             *(
@@ -352,7 +362,7 @@ class ApplyOpToParallel(RewritePattern):
             *(
                 upperBounds := [
                     arith.Constant.from_int_and_width(x, builtin.IndexType())
-                    for x in res_type.bounds.ub
+                    for x in ub
                 ]
             ),
         ]
@@ -395,7 +405,7 @@ class AccessOpToMemref(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         temp = op.temp.type
-        assert isa(temp, TempType[Attribute])
+        assert isa(temp, StencilType[Attribute])
         assert isinstance(temp.bounds, StencilBoundsAttr)
 
         memref_offset = op.offset
