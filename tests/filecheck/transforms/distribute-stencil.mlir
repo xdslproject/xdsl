@@ -122,8 +122,8 @@ func.func @store_result_lowering(%arg0 : f64) {
       %98 = stencil.store_result %arg1 : !stencil.result<f64>
       stencil.return %97, %98 : !stencil.result<f64>, !stencil.result<f64>
     }
-    %99 = stencil.buffer %96 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
-    %100 = stencil.buffer %95 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
+    %99 = stencil.buffer %96 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
+    %100 = stencil.buffer %95 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
     func.return
   }
 
@@ -133,8 +133,8 @@ func.func @store_result_lowering(%arg0 : f64) {
 // CHECK-NEXT:        %3 = stencil.store_result %arg1 : !stencil.result<f64>
 // CHECK-NEXT:        stencil.return %2, %3 : !stencil.result<f64>, !stencil.result<f64>
 // CHECK-NEXT:      }
-// CHECK-NEXT:      %2 = stencil.buffer %1 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
-// CHECK-NEXT:      %3 = stencil.buffer %0 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
+// CHECK-NEXT:      %2 = stencil.buffer %1 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
+// CHECK-NEXT:      %3 = stencil.buffer %0 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
