@@ -167,8 +167,6 @@ class ConvertAccessOpFromPrefetchPattern(RewritePattern):
             len(op.res.uses) == 1
             and isinstance(use := list(op.res.uses)[0].operation, tensor.ExtractSliceOp)
             and tuple(d.data for d in use.static_sizes.data) == t_type.get_shape()[1:]
-            and tuple(d.data for d in use.static_offsets.data) == (0,)
-            and tuple(d.data for d in use.static_strides.data) == (1,)
             and len(use.offsets) == 0
             and len(use.sizes) == 0
             and len(use.strides) == 0
