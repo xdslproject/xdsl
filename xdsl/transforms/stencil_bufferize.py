@@ -167,6 +167,11 @@ class LoadBufferFoldPattern(RewritePattern):
 
 
 class ApplyLoadStoreFoldPattern(RewritePattern):
+    """
+    If an apply is acting on a buffer, that is *only* used to be copied in another
+    buffer, just make the apply work on the latter directly.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter):
         temp = op.temp
