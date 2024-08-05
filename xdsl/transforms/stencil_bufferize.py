@@ -89,9 +89,6 @@ class ApplyBufferizePattern(RewritePattern):
             [*(o for o in operands if isinstance(o, Operation)), *dests, new, *loads],
             [SSAValue.get(l) for l in loads],
         )
-        # print("Apply bufferize:")
-        # print(new.get_toplevel_object())
-        # print("// -----")
 
 
 def walk_from(a: Operation) -> Generator[Operation, Any, None]:
@@ -145,9 +142,6 @@ class LoadBufferFoldPattern(RewritePattern):
             return
 
         rewriter.replace_matched_op(new_ops=[], new_results=[underlying])
-        # print("Load buffer fold:")
-        # print(load.get_toplevel_object())
-        # print("// -----")
 
 
 class ApplyLoadStoreFoldPattern(RewritePattern):
@@ -222,9 +216,6 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
         rewriter.replace_op(apply, new_apply)
         rewriter.replace_op(load, new_load)
         rewriter.erase_op(op)
-        # print("Apply load store fold:")
-        # print(new_load.get_toplevel_object())
-        # print("// -----")
 
 
 @dataclass(frozen=True)
@@ -255,9 +246,6 @@ class UpdateApplyArgs(RewritePattern):
         )
 
         rewriter.replace_matched_op(new_apply)
-        # print("Update apply args:")
-        # print(new_apply.get_toplevel_object())
-        # print("// -----")
 
 
 @dataclass(frozen=True)
@@ -287,9 +275,6 @@ class BufferAlloc(RewritePattern):
                 LoadOp.get(alloc.field, temp_t.bounds.lb, temp_t.bounds.ub),
             ]
         )
-        # print("Buffer alloc:")
-        # print(alloc.get_toplevel_object())
-        # print("// -----")
 
 
 @dataclass(frozen=True)
@@ -397,9 +382,6 @@ class CombineStoreFold(RewritePattern):
                 new_combine,
                 new_results=new_combine.results[:i] + (None,) + new_combine.results[i:],
             )
-            # print("Combine store fold:")
-            # print(new_combine.get_toplevel_object())
-            # print("// -----")
             return
 
 
