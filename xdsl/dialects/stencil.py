@@ -31,7 +31,6 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     AttrSizedOperandSegments,
-    BaseAttr,
     ConstraintContext,
     ConstraintVar,
     IRDLOperation,
