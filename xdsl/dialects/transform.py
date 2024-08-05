@@ -192,7 +192,7 @@ class TileOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
     """
 
-    name = "transform.structured.tile"
+    name = "transform.structured.tile_using_for"
 
     target = operand_def(TransformHandleType)
     dynamic_sizes = var_operand_def(TransformHandleType)
@@ -240,7 +240,7 @@ class TileToForallOp(IRDLOperation):
     https://mlir.llvm.org/docs/Dialects/Transform/#transformstructuredtile_using_for-transformtileusingforop
     """
 
-    name = "transform.structured.tile_to_forall_op"
+    name = "transform.structured.tile_using_forall"
 
     target = operand_def(TransformHandleType)
     num_threads = var_operand_def(DenseArrayBase)
