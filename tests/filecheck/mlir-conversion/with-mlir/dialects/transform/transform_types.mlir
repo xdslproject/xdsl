@@ -15,8 +15,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
     "transform.yield"() : () -> ()
   }) : () -> ()
   "transform.sequence"() <{"failure_propagation_mode" = 1 : i32, "operandSegmentSizes" = array<i32: 0, 0>}> ({
-  ^1(%arg0_1 : !transform.any_op):
-    %arg1_1 = "transform.select"(%arg0_1) <{"op_name" = "linalg.quantized_matmul"}> : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
+  ^1(%arg0_1 : !transform.any_op, %arg1_1 : !transform.op<"linalg.quantized_matmul">):
     %13, %14, %15 = "transform.structured.tile"(%arg1_1) <{"scalable_sizes" = array<i1: false, false>, "static_sizes" = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
     "transform.yield"() : () -> ()
   }) : () -> ()
@@ -38,8 +37,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:    transform.yield 
 //CHECK-NEXT:  }
 //CHECK-NEXT:  transform.sequence  failures(propagate) {
-//CHECK-NEXT:  ^bb0(%arg0: !transform.any_op):
-//CHECK-NEXT:    %6 = select "linalg.quantized_matmul" in %arg0 : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
-//CHECK-NEXT:    %tiled_linalg_op, %loops:2 = transform.structured.tile %6[8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
+//CHECK-NEXT:  ^bb0(%arg0: !transform.any_op, %arg1: !transform.op<"linalg.quantized_matmul">):
+//CHECK-NEXT:    %tiled_linalg_op, %loops:2 = transform.structured.tile %arg1[8, 8] : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
 //CHECK-NEXT:  }
 //CHECK-NEXT:}
