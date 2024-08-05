@@ -46,6 +46,14 @@ def field_from_temp(temp: TempType[_TypeElement]) -> FieldType[_TypeElement]:
 
 
 class ApplyBufferizePattern(RewritePattern):
+    """
+    Naive partial stencil.apply bufferization.
+
+    Just replace all operands with the field result of a stencil.buffer on them, meaning
+    "The buffer those value are allocated to"; and allocate buffers for every result,
+    loading them back after the apply, to keep the pattern local.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
         if not op.res:
@@ -92,6 +100,9 @@ class ApplyBufferizePattern(RewritePattern):
 
 
 def walk_from(a: Operation) -> Generator[Operation, Any, None]:
+    """
+    Walk through all operations recursively inside a or its block.
+    """
     while True:
         yield from a.walk()
         if a.next_op is None:
@@ -100,6 +111,10 @@ def walk_from(a: Operation) -> Generator[Operation, Any, None]:
 
 
 def walk_from_to(a: Operation, b: Operation):
+    """
+    Walk through all operations recursively inside a or its block, until b is met, if
+    ever.
+    """
     for o in walk_from(a):
         if o == b:
             return
