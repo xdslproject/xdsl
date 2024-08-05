@@ -122,6 +122,13 @@ def walk_from_to(a: Operation, b: Operation):
 
 
 class LoadBufferFoldPattern(RewritePattern):
+    """
+    The underlying buffer of values resulting from a load of a buffer is the buffer
+    loaded from. That is, if nobody annoyed the said buffer in-between.
+
+    If someone did, we should probably insert a copy there. Right now, we just bail out.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
 
