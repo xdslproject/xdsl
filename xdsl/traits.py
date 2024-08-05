@@ -556,7 +556,7 @@ class NoMemoryEffect(MemoryEffect):
 
 class MemoryReadEffect(MemoryEffect):
     """
-    A trait that signals that an operation has read side effects.
+    A trait that signals that an operation always has read side effects.
     """
 
     @classmethod
@@ -576,7 +576,7 @@ class MemoryWriteEffect(MemoryEffect):
 
 class MemoryAllocEffect(MemoryEffect):
     """
-    A trait that signals that an operation has read side effects.
+    A trait that signals that an operation always has alloc side effects.
     """
 
     @classmethod
@@ -586,7 +586,7 @@ class MemoryAllocEffect(MemoryEffect):
 
 class MemoryFreeEffect(MemoryEffect):
     """
-    A trait that signals that an operation always has write side effects.
+    A trait that signals that an operation always has deallocation side effects.
     """
 
     @classmethod
