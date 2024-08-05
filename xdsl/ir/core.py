@@ -25,7 +25,7 @@ from typing_extensions import Self, deprecated
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils import lexer
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.str_enum import StrEnum
+from xdsl.utils.str_enum import StrEnum, StrFlag
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
@@ -336,6 +336,58 @@ class Data(Generic[DataElement], Attribute, ABC):
     @abstractmethod
     def print_parameter(self, printer: Printer) -> None:
         """Print the attribute parameter."""
+
+
+FlagType = TypeVar("FlagType", bound=StrFlag)
+
+
+class FlagAttribute(Data[FlagType]):
+    """
+    Core helper for Flag Attributes. Takes a StrFlag type parameter, and defines
+    parsing/printing automatically from its values, restricted to be parsable as
+    identifiers.
+
+    TODO smoother docstring
+    """
+
+    flag_type: ClassVar[type[StrFlag]]
+
+    def __init_subclass__(cls) -> None:
+        """
+        This hook first checks two constraints, enforced to keep the implementation
+        reasonable, until more complex use cases appear. It then stores the Enum type
+        used by the subclass to use in parsing/printing.
+
+        The constraints are:
+
+        - Only direct, specialized inheritance is allowed. That is, using a subclass
+        of EnumAttribute as a base class is *not supported*.
+          This simplifies type-hacking code and I don't see it being too restrictive
+          anytime soon.
+        - The StrFlag values must all be parsable as identifiers. This is to keep the
+        parsing code simple and efficient. This restriction is easier to lift, but I
+        haven't yet met an example use case where it matters, so I'm keeping it simple.
+        """
+        orig_bases = getattr(cls, "__orig_bases__")
+        enumattr = next(b for b in orig_bases if get_origin(b) is FlagAttribute)
+        flag_type = get_args(enumattr)[0]
+        if not isinstance(flag_type, type) or not issubclass(flag_type, StrFlag):
+            raise TypeError("Only direct inheritance from FlagAttribute is allowed.")
+
+        for v in flag_type.__members__.values():
+            if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v.label) is None:
+                raise ValueError(
+                    "All StrFlag labels of an FlagAttribute must be parsable as an identifer."
+                )
+
+        cls.flag_type = flag_type
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> FlagType:
+        return cast(FlagType, parser.parse_str_flag(cls.flag_type))
 
 
 EnumType = TypeVar("EnumType", bound=StrEnum)

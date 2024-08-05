@@ -24,6 +24,7 @@ from xdsl.ir import (
     Attribute,
     Data,
     EnumAttribute,
+    FlagAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
     StrEnum,
@@ -45,6 +46,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, VerifyException
+from xdsl.utils.str_enum import StrFlag
 
 
 def test_wrong_attribute_type():
@@ -204,6 +206,61 @@ def test_identifier_enum_guard():
             EnumAttribute[TestNonIdentifierEnum]
         ):
             name = "test.non_identifier_enum"
+
+
+class TestFlag(StrFlag):
+    Yes = auto()
+    No = auto()
+
+
+class TestNonIdentifierFlag(StrFlag):
+    """
+    The value defined by this StrFlag is not parsable as an identifier, because of the
+    contained space.
+    While valid as a StrFlag, it is thus invalid to use it in an FlagAttribute.
+    """
+
+    Spaced = 0, "left right"
+
+
+@irdl_attr_definition
+class FlagData(FlagAttribute[TestFlag], SpacedOpaqueSyntaxAttribute):
+    name = "test.flag"
+
+
+def test_flag_attribute():
+    """Test the definition of an FlagAttribute."""
+    attr = FlagData(TestFlag.No | TestFlag.Yes)
+    stream = StringIO()
+    p = Printer(stream=stream)
+    p.print_attribute(attr)
+    assert TestFlag.Yes.value == 1
+    assert TestFlag.No.value == 2
+    assert stream.getvalue() == "#test<flag yes,no>"
+
+
+def test_indirect_flag_guard():
+    FlagType = TypeVar("FlagType", bound=StrFlag)
+    with pytest.raises(
+        TypeError, match="Only direct inheritance from FlagAttribute is allowed."
+    ):
+
+        class IndirectFlagData(  # pyright: ignore[reportUnusedClass]
+            FlagAttribute[FlagType]
+        ):
+            name = "test.indirect_flag"
+
+
+def test_identifier_flag_guard():
+    with pytest.raises(
+        ValueError,
+        match="All StrFlag labels of an FlagAttribute must be parsable as an identifer.",
+    ):
+
+        class IndirectFlagData(  # pyright: ignore[reportUnusedClass]
+            FlagAttribute[TestNonIdentifierFlag]
+        ):
+            name = "test.non_identifier_flag"
 
 
 ################################################################################

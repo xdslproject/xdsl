@@ -18,7 +18,7 @@ from xdsl.utils.lexer import (
     StringLiteral,
     Token,
 )
-from xdsl.utils.str_enum import StrEnum
+from xdsl.utils.str_enum import StrEnum, StrFlag
 
 
 @dataclass(init=False)
@@ -43,6 +43,7 @@ class ParserState:
 
 _AnyInvT = TypeVar("_AnyInvT")
 _EnumType = TypeVar("_EnumType", bound=StrEnum)
+_FlagType = TypeVar("_FlagType", bound=StrFlag)
 
 
 @dataclass
@@ -568,3 +569,34 @@ class BaseParser:
 
         self._consume_token(Token.Kind.BARE_IDENT)
         return enum_type(val)
+
+    def parse_str_flag(self, flag_type: type[_FlagType]) -> _FlagType:
+        """Parse a string flag value."""
+        result = self.parse_optional_str_flag(flag_type)
+        if result is not None:
+            return result
+        flag_values = tuple(flag_type)
+        if len(flag_values) == 1:
+            self.raise_error(f"Expected `{flag_values[0]}`.")
+        self.raise_error(
+            f"Expected `{'`, `'.join(str(f) for f in flag_values[:-1])}`, or `{flag_values[-1]}`."
+        )
+
+    def parse_optional_str_flag(self, flag_type: type[_FlagType]) -> _FlagType | None:
+        """Parse a string flag value, if present."""
+
+        if self._current_token.kind != Token.Kind.BARE_IDENT:
+            return None
+
+        val = self._current_token.text
+        if val not in flag_type.__members__.values():
+            return None
+
+        parsed = flag_type(0)
+        while self._current_token.kind == Token.Kind.BARE_IDENT:
+            val = self._current_token.text
+            parsed |= flag_type.from_label(val)
+            self._consume_token(Token.Kind.BARE_IDENT)
+            if not self.parse_optional_punctuation(","):
+                break
+        return parsed
