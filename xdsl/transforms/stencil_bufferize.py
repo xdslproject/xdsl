@@ -1,6 +1,7 @@
+from collections.abc import Generator
 from dataclasses import dataclass
 from itertools import chain
-from typing import TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
@@ -93,7 +94,7 @@ class ApplyBufferizePattern(RewritePattern):
         # print("// -----")
 
 
-def walk_from(a: Operation):
+def walk_from(a: Operation) -> Generator[Operation, Any, None]:
     while True:
         yield from a.walk()
         if a.next_op is None:
