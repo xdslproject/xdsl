@@ -28,7 +28,7 @@ dev = [
     "lit<19.0.0",
     "marimo==0.7.14",
     "pre-commit==3.8.0",
-    "ruff==0.5.5",
+    "ruff==0.5.6",
     "asv<0.7",
     "isort==5.13.2",
     "nbconvert>=7.7.2,<8.0.0",
