@@ -769,7 +769,7 @@ class DynAccessOp(IRDLOperation):
 
     temp = operand_def(
         ParamAttrConstraint(
-            TempType,
+            StencilType,
             [
                 Attribute,
                 MessageConstraint(
