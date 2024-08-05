@@ -383,11 +383,13 @@ class FlagAttribute(Data[FlagType]):
         cls.flag_type = flag_type
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(self.data)
+        with printer.in_angle_brackets():
+            printer.print(self.data)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> FlagType:
-        return cast(FlagType, parser.parse_str_flag(cls.flag_type))
+        with parser.in_angle_brackets():
+            return cast(FlagType, parser.parse_str_flag(cls.flag_type))
 
 
 EnumType = TypeVar("EnumType", bound=StrEnum)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import Enum
+from enum import auto
 from types import EllipsisType
 from typing import Annotated, Generic, Literal, TypeVar
 
@@ -26,8 +26,8 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    Data,
     Dialect,
+    FlagAttribute,
     Operation,
     OpResult,
     ParametrizedAttribute,
@@ -61,6 +61,7 @@ from xdsl.printer import Printer
 from xdsl.traits import IsTerminator, SymbolOpInterface
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+from xdsl.utils.str_enum import StrFlag
 
 GEP_USE_SSA_VAL = -2147483648
 """
@@ -1158,79 +1159,30 @@ class ConstantOp(IRDLOperation):
         super().__init__(properties={"value": value}, result_types=[value_type])
 
 
-class FastMathFlag(Enum):
-    REASSOC = "reassoc"
-    NO_NANS = "nnan"
-    NO_INFS = "ninf"
-    NO_SIGNED_ZEROS = "nsz"
-    ALLOW_RECIP = "arcp"
-    ALLOW_CONTRACT = "contract"
-    APPROX_FUNC = "afn"
-
-    @staticmethod
-    def try_parse(parser: AttrParser) -> set[FastMathFlag] | None:
-        if parser.parse_optional_characters("none") is not None:
-            return set[FastMathFlag]()
-        if parser.parse_optional_characters("fast") is not None:
-            return set(FastMathFlag)
-
-        for option in FastMathFlag:
-            if parser.parse_optional_characters(option.value) is not None:
-                return {option}
-
-        return None
+class FastMathFlag(StrFlag):
+    REASSOC = auto(), "reassoc"
+    NO_NANS = auto(), "nnan"
+    NO_INFS = auto(), "ninf"
+    NO_SIGNED_ZEROS = auto(), "nsz"
+    ALLOW_RECIP = auto(), "arcp"
+    ALLOW_CONTRACT = auto(), "contract"
+    APPROX_FUNC = auto(), "afn"
+    FAST = (
+        REASSOC[0]
+        | NO_NANS[0]
+        | NO_INFS[0]
+        | NO_SIGNED_ZEROS[0]
+        | ALLOW_RECIP[0]
+        | ALLOW_CONTRACT[0]
+        | APPROX_FUNC[0],
+        "fast",
+    )
+    NONE = 0, "none"
 
 
 @dataclass(frozen=True)
-class FastMathAttrBase(Data[tuple[FastMathFlag, ...]]):
+class FastMathAttrBase(FlagAttribute[FastMathFlag]):
     name = "llvm.fastmath"
-
-    @property
-    def flags(self) -> set[FastMathFlag]:
-        """
-        Returns a copy of the fast math flags.
-        """
-        return set(self.data)
-
-    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
-        flags_: set[FastMathFlag]
-        match flags:
-            case "none" | None:
-                flags_ = set()
-            case "fast":
-                flags_ = set(FastMathFlag)
-            case other:
-                flags_ = set(other)
-
-        super().__init__(tuple(flags_))
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[FastMathFlag, ...]:
-        with parser.in_angle_brackets():
-            flags = FastMathFlag.try_parse(parser)
-            if flags is None:
-                return tuple()
-
-            while parser.parse_optional_punctuation(",") is not None:
-                flag = parser.expect(
-                    lambda: FastMathFlag.try_parse(parser), "fastmath flag expected"
-                )
-                flags.update(flag)
-
-            return tuple(flags)
-
-    def print_parameter(self, printer: Printer):
-        with printer.in_angle_brackets():
-            flags = self.data
-            if len(flags) == 0:
-                printer.print("none")
-            elif len(flags) == len(FastMathFlag):
-                printer.print("fast")
-            else:
-                # make sure we emit flags in a consistent order
-                printer.print(
-                    ",".join(flag.value for flag in FastMathFlag if flag in flags)
-                )
 
 
 @irdl_attr_definition

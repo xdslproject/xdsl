@@ -25,7 +25,7 @@ class StrFlag(Flag):
 
     @classmethod
     def from_label(cls, label: str) -> Self:
-        for member in cls:
+        for member in cls.__members__.values():
             if member.label == label:
                 return member
         raise ValueError(f"No member with label '{label}' in {cls.__name__}")

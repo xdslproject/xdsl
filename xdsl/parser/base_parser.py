@@ -575,11 +575,11 @@ class BaseParser:
         result = self.parse_optional_str_flag(flag_type)
         if result is not None:
             return result
-        flag_values = tuple(flag_type)
-        if len(flag_values) == 1:
-            self.raise_error(f"Expected `{flag_values[0]}`.")
+        flag_labels = tuple(f.label for f in flag_type.__members__.values())
+        if len(flag_labels) == 1:
+            self.raise_error(f"Expected `{flag_labels[0]}`.")
         self.raise_error(
-            f"Expected `{'`, `'.join(str(f) for f in flag_values[:-1])}`, or `{flag_values[-1]}`."
+            f"Expected `{'`, `'.join(str(f) for f in flag_labels[:-1])}`, or `{flag_labels[-1]}`."
         )
 
     def parse_optional_str_flag(self, flag_type: type[_FlagType]) -> _FlagType | None:
@@ -589,7 +589,7 @@ class BaseParser:
             return None
 
         val = self._current_token.text
-        if val not in flag_type.__members__.values():
+        if val not in tuple(f.label for f in flag_type.__members__.values()):
             return None
 
         parsed = flag_type(0)
