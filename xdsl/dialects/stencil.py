@@ -31,7 +31,6 @@ from xdsl.irdl import (
     AnyAttr,
     AnyOf,
     AttrSizedOperandSegments,
-    BaseAttr,
     ConstraintContext,
     ConstraintVar,
     IRDLOperation,
@@ -64,6 +63,9 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryAllocEffect,
+    MemoryEffectKind,
+    MemoryReadEffect,
     NoMemoryEffect,
     Pure,
     RecursiveMemoryEffect,
@@ -406,16 +408,29 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.stencil import (
-            RedundantOperands,
-            UnusedOperands,
-            UnusedResults,
+            ApplyRedundantOperands,
+            ApplyUnusedOperands,
+            ApplyUnusedResults,
         )
 
         return (
-            RedundantOperands(),
-            UnusedResults(),
-            UnusedOperands(),
+            ApplyRedundantOperands(),
+            ApplyUnusedResults(),
+            ApplyUnusedOperands(),
         )
+
+
+class ApplyMemoryEffect(RecursiveMemoryEffect):
+
+    @classmethod
+    def get_effects(cls, op: Operation):
+        effects = super().get_effects(op)
+        if effects is not None:
+            if len(cast(ApplyOp, op).dest) > 0:
+                effects.add(MemoryEffectKind.WRITE)
+            if any(isinstance(o.type, FieldType) for o in op.operands):
+                effects.add(MemoryEffectKind.READ)
+        return effects
 
 
 @irdl_op_definition
@@ -449,7 +464,7 @@ class ApplyOp(IRDLOperation):
         [
             IsolatedFromAbove(),
             ApplyOpHasCanonicalizationPatternsTrait(),
-            RecursiveMemoryEffect(),
+            ApplyMemoryEffect(),
         ]
     )
 
@@ -630,6 +645,25 @@ class ApplyOp(IRDLOperation):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
+
+
+class AllocOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.stencil import AllocUnused
+
+        return (AllocUnused(),)
+
+
+@irdl_op_definition
+class AllocOp(IRDLOperation):
+    name = "stencil.alloc"
+
+    field = result_def(FieldType[Attribute])
+
+    assembly_format = "attr-dict `:` type($field)"
+
+    traits = frozenset([MemoryAllocEffect(), AllocOpHasCanonicalizationPatternsTrait()])
 
 
 @irdl_op_definition
@@ -1138,6 +1172,8 @@ class LoadOp(IRDLOperation):
 
     assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
 
+    traits = frozenset([MemoryReadEffect()])
+
     @staticmethod
     def get(
         field: SSAValue | Operation,
@@ -1188,19 +1224,37 @@ class BufferOp(IRDLOperation):
     T = Annotated[TempType[_FieldTypeElement], ConstraintVar("T")]
 
     temp: Operand = operand_def(
-        MessageConstraint(
-            VarConstraint("T", BaseAttr(TempType)),
-            "Expected operand and result type to be equal.",
+        ParamAttrConstraint(
+            TempType,
+            [
+                MessageConstraint(
+                    VarConstraint("B", AnyAttr()),
+                    "Expected input and output to have the same bounds",
+                ),
+                MessageConstraint(
+                    VarConstraint("E", AnyAttr()),
+                    "Expected input and output to have the same element type",
+                ),
+            ],
         )
     )
     res: OpResult = result_def(
-        MessageConstraint(
-            VarConstraint("T", BaseAttr(TempType)),
-            "Expected operand and result type to be equal.",
+        ParamAttrConstraint(
+            StencilType,
+            [
+                MessageConstraint(
+                    VarConstraint("B", AnyAttr()),
+                    "Expected input and output to have the same bounds",
+                ),
+                MessageConstraint(
+                    VarConstraint("E", AnyAttr()),
+                    "Expected input and output to have the same element type",
+                ),
+            ],
         )
     )
 
-    assembly_format = "$temp attr-dict-with-keyword `:` type($temp)"
+    assembly_format = "$temp attr-dict-with-keyword `:` type($temp) `->` type($res)"
 
     traits = frozenset([Pure()])
 
@@ -1522,6 +1576,7 @@ class AccessPattern:
 Stencil = Dialect(
     "stencil",
     [
+        AllocOp,
         CastOp,
         CombineOp,
         DynAccessOp,

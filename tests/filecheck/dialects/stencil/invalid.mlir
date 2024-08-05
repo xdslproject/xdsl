@@ -41,7 +41,7 @@ builtin.module {
   }
 }
 
-// CHECK: Expected operand and result type to be equal
+// CHECK: Expected input and output to have the same bounds
 
 // -----
 
