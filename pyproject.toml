@@ -17,7 +17,7 @@ dynamic = ["version"]
 dev = [
     "pip<25.0",
     # Update precommit version when black updates
-    "black[jupyter]==24.4.2",
+    "black[jupyter]==24.8.0",
     "toml<0.11",
     "pytest-cov",
     "coverage<8.0.0",
