@@ -1259,17 +1259,17 @@ class BufferOp(IRDLOperation):
         temp = SSAValue.get(temp)
         super().__init__(operands=[temp], result_types=[temp.type])
 
-    # def verify_(self) -> None:
-    #     # if not isinstance(self.temp.owner, ApplyOp | CombineOp):
-    #     #     raise VerifyException(
-    #     #         f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
-    #     #         f"{self.temp.owner}"
-    #     #     )
-    #     if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
-    #         raise VerifyException(
-    #             "A stencil.buffer's operand temp should only be buffered. You can use "
-    #             "stencil.buffer's output instead!"
-    #         )
+    def verify_(self) -> None:
+        if not isinstance(self.temp.owner, ApplyOp | CombineOp):
+            raise VerifyException(
+                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
+                f"{self.temp.owner}"
+            )
+        if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
+            raise VerifyException(
+                "A stencil.buffer's operand temp should only be buffered. You can use "
+                "stencil.buffer's output instead!"
+            )
 
 
 class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
