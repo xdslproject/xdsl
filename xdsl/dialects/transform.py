@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from dataclasses import field
-from typing import Annotated, ClassVar, TypeAlias
+from typing import Annotated, TypeAlias
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
@@ -48,7 +47,7 @@ from xdsl.utils.str_enum import StrEnum
 
 
 class TransformHandleType(ParametrizedAttribute, TypeAttribute, ABC):
-    name: ClassVar[str] = field(init=False, repr=False)
+    pass
 
 
 @irdl_attr_definition
