@@ -132,7 +132,6 @@ class LoadBufferFoldPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
 
-        handle = op.res
         # If this is a value-semantic buffer, we can't fold it
         if not isinstance(op.res.type, FieldType):
             return
