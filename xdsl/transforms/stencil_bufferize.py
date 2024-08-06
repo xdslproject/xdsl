@@ -78,7 +78,7 @@ class ApplyBufferizePattern(RewritePattern):
         ]
 
         loads = [
-            LoadOp(operands=[d], result_types=[r.type]) for r, d in zip(op.res, dests)
+            LoadOp(operands=[d], result_types=[r.type]) for d, r in zip(dests, op.res)
         ]
 
         new = ApplyOp(
