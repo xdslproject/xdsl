@@ -148,7 +148,7 @@ class LoadBufferFoldPattern(RewritePattern):
         # TODO: propery analysis of effects in between
         # For illustration, only fold a single use of the handle
         # (Requires more boilerplate to analyse the whole live range otherwise)
-        uses = handle.uses.copy()
+        uses = op.res.uses.copy()
         if len(uses) > 1:
             return
         user = uses.pop().operation
