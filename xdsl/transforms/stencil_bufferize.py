@@ -34,7 +34,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import is_side_effect_free
-from xdsl.transforms.canonicalization_patterns.stencil import AllocUnused
 from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.utils.hints import isa
 
@@ -518,7 +517,6 @@ class StencilBufferize(ModulePass):
                     LoadBufferFoldPattern(),
                     ApplyLoadStoreFoldPattern(),
                     RemoveUnusedOperations(),
-                    AllocUnused(),
                 ]
             )
         )

@@ -64,7 +64,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
-    MemoryAllocEffect,
+    MemoryEffect,
     MemoryEffectKind,
     MemoryReadEffect,
     NoMemoryEffect,
@@ -648,12 +648,10 @@ class ApplyOp(IRDLOperation):
             yield AccessPattern(tuple(accesses))
 
 
-class AllocOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class AllocOpEffect(MemoryEffect):
     @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.stencil import AllocUnused
-
-        return (AllocUnused(),)
+    def get_effects(cls, op: Operation):
+        return {EffectInstance(MemoryEffectKind.ALLOC, cast(AllocOp, op).field)}
 
 
 @irdl_op_definition
@@ -664,7 +662,7 @@ class AllocOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($field)"
 
-    traits = frozenset([MemoryAllocEffect(), AllocOpHasCanonicalizationPatternsTrait()])
+    traits = frozenset([AllocOpEffect()])
 
 
 @irdl_op_definition

@@ -1,6 +1,6 @@
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import (
@@ -32,7 +32,15 @@ def result_only_effects(rootOp: Operation) -> bool:
     https://mlir.llvm.org/doxygen/namespacemlir.html#a655db45ed8c23d04d5ed5ee0abe041ad
     """
     effects = get_effects(rootOp)
-    return effects is not None and all(e.kind == MemoryEffectKind.READ for e in effects)
+    return effects is not None and all(
+        e.kind == MemoryEffectKind.READ
+        or (
+            e.kind == MemoryEffectKind.ALLOC
+            and isinstance(v := e.value, SSAValue)
+            and rootOp.is_ancestor(v.owner)
+        )
+        for e in effects
+    )
 
 
 class RemoveUnusedOperations(RewritePattern):
