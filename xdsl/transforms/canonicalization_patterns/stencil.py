@@ -12,6 +12,11 @@ from xdsl.transforms.common_subexpression_elimination import cse
 
 
 class AllocUnused(RewritePattern):
+    """
+    Erase unsused `stencil.alloc`.
+
+    NB: This should be handled by main DCE, but requires value side-effects.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.AllocOp, rewriter: PatternRewriter) -> None:
@@ -20,6 +25,9 @@ class AllocUnused(RewritePattern):
 
 
 class ApplyRedundantOperands(RewritePattern):
+    """
+    Merge duplicate operands of a `stencil.apply`.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
@@ -50,6 +58,9 @@ class ApplyRedundantOperands(RewritePattern):
 
 
 class ApplyUnusedOperands(RewritePattern):
+    """
+    Remove unused operands of a `stencil.apply`.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
@@ -75,6 +86,9 @@ class ApplyUnusedOperands(RewritePattern):
 
 
 class ApplyUnusedResults(RewritePattern):
+    """
+    Remove unused results of a `stencil.apply`.
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:

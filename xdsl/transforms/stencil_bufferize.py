@@ -47,11 +47,29 @@ def field_from_temp(temp: TempType[_TypeElement]) -> FieldType[_TypeElement]:
 
 class ApplyBufferizePattern(RewritePattern):
     """
-    Naive partial stencil.apply bufferization.
+    Naive partial `stencil.apply` bufferization.
 
     Just replace all operands with the field result of a stencil.buffer on them, meaning
     "The buffer those value are allocated to"; and allocate buffers for every result,
-    loading them back after the apply, to keep the pattern local.
+    loading them back after the apply, to keep types fine with users.
+
+    Point is to fold as much as possible all the allocations and loads.
+
+    Example:
+    ```mlir
+    %out = stencil.apply(%0 = %in : !stencil.temp<[0,32]xf64>) -> (!stencil.temp<[0,32]>xf64) {
+        // [...]
+    }
+    ```
+    yields:
+    ```mlir
+    %in_buf = stencil.buffer %in : !stencil.temp<[0,32]xf64> -> !stencil.field<[0,32]xf64>
+    %out_buf = stencil.alloc : !stencil.field<[0,32]>xf64
+    stencil.apply(%0 = %in_buf : !stencil.field<[0,32]>xf64) outs (%out_buf : !stencil.field<[0,32]>xf64) {
+        // [...]
+    }
+    %out = stencil.load %out_buf : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>xf64
+    ```
     """
 
     @op_type_rewrite_pattern
@@ -123,10 +141,22 @@ def walk_from_to(a: Operation, b: Operation):
 
 class LoadBufferFoldPattern(RewritePattern):
     """
-    The underlying buffer of values resulting from a load of a buffer is the buffer
-    loaded from. That is, if nobody annoyed the said buffer in-between.
+    Fold a reference-semantic `stencil.buffer` of a `stencil.load` to the underlying
+    field if safe.
 
-    If someone did, we should probably insert a copy there. Right now, we just bail out.
+    Example:
+    ```mlir
+    %temp = stencil.load %field : !stencil.field<[-2,34]> -> !stencil.temp<[0,32]>
+    // [... No changes on %field]
+    %temp_f = stencil.buffer %temp : !stencil.temp<[0,32]> -> !stencil.field<[0,32]>
+    // [... No changes on %field]
+    // Last use of temp_f
+    ```
+    yields:
+    ```mlir
+    // Will be simplified away or folded again
+    %temp = stencil.load %field : !stencil.field<[-2,34]> -> !stencil.temp<[0,32]>
+    // [... %temp_f replaced by %field]
     """
 
     @op_type_rewrite_pattern
@@ -167,8 +197,31 @@ class LoadBufferFoldPattern(RewritePattern):
 
 class ApplyLoadStoreFoldPattern(RewritePattern):
     """
-    If an apply is acting on a buffer, that is *only* used to be copied in another
-    buffer, just make the apply work on the latter directly.
+    If an allocated field is only used by an apply to write its output and loaded
+    to be stored in a destination field, make the apply work on the destination directly.
+
+    Example:
+    ```mlir
+    %temp = stencil.alloc : !stencil.field<[0,32]>
+    stencil.apply() outs (%temp : !stencil.field<[0,32]>) {
+        // [...]
+    }
+    // [... %temp, %dest not affected]
+    %loaded = stencil.load %temp : !stencil.field<[0,32]> -> !stencil.temp<[0,32]>
+    // [... %dest not affected]
+    stencil.store %loaded to %dest (<[0], [32]>) : !stencil.temp<[0,32]> to !stencil.field<[-2,34]>
+    ```
+    yields:
+    ```mlir
+    // Will be simplified away by the canonicalizer
+    %temp = stencil.alloc : !stencil.field<[0,32]>
+    // Outputs on dest
+    stencil.apply() outs (%dest : !stencil.field<[0,32]>) {
+        // [...]
+    }
+    // Load same values from %dest instead for next operations
+    %loaded = stencil.load %dest : !stencil.field<[0,32]> -> !stencil.temp<[0,32]>
+    ```
     """
 
     @op_type_rewrite_pattern
@@ -277,8 +330,27 @@ class UpdateApplyArgs(RewritePattern):
 @dataclass(frozen=True)
 class BufferAlloc(RewritePattern):
     """
-    A value-semantics stencil.buffer is meant to simply pass along an underlying buffer.
-    Just pass along the value and let bufferization do the rest.
+    Replace a value semantic `stencil.buffer` by a load from an allocated field, after
+    a store of the input values on it.
+
+    This matches the orginal dialect's lowering for this operation.
+
+    Example:
+    ```mlir
+    // [...]
+    %forward = stencil.buffer %in : !stencil.temp<[0,32]> -> !stencil.temp<[0,32]>
+    // [...]
+    ```
+    yields:
+    ```mlir
+    %alloc = stencil.alloc : !stencil.field<[0,32]>xf64
+    // [...]
+    // This should be folded in the above computation
+    stencil.store %in to %alloc (<[0], [32]>) : !stencil.temp<[0,32]> to !stencil.field<[0,32]>
+    // This should be folded in the below computation
+    %forward = stencil.load %alloc : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>
+    // [...]
+    ```
     """
 
     @op_type_rewrite_pattern
@@ -308,6 +380,19 @@ class CombineStoreFold(RewritePattern):
     """
     A stored combine result is folded into stores of the matching operand in the
     destination field.
+
+    Example:
+    ```mlir
+    %res1, %res2 = stencil.combine 1 at 11 lower = (%0 : !stencil.temp<[0,16]xf64>) upper = (%1 : !stencil.temp<[16,32]xf64>) lowerext = (%2 : !stencil.temp<[0,16]xf64>): !stencil.temp<[0,32]xf64>, !stencil.temp<[0,32]xf64>
+    stencil.store %res1 to %dest1 (<[0], [32]>) : !stencil.temp<[0,32]xf64> to !stencil.field<[-2,34]xf64>
+    stencil.store %res2 to %dest2 (<[0], [32]>) : !stencil.temp<[0,32]xf64> to !stencil.field<[-2,34]xf64>
+    ```
+    yields:
+    ```mlir
+    stencil.store %0 to %dest1 (<[0], [16]>) : !stencil.temp<[0,16]xf64> to !stencil.field<[-2,34]xf64>
+    stencil.store %1 to %dest1 (<[16], [32]>) : !stencil.temp<[16,32]xf64> to !stencil.field<[-2,34]xf64>
+    stencil.store %2 to %dest2 (<[0], [16]>) : !stencil.temp<[0,16]xf64> to !stencil.field<[-2,34]xf64>
+    ```
     """
 
     @op_type_rewrite_pattern
@@ -413,6 +498,12 @@ class CombineStoreFold(RewritePattern):
 
 @dataclass(frozen=True)
 class StencilBufferize(ModulePass):
+    """
+    Bufferize the stencil dialect, i.e., try to fold all loads, sotres, buffer and
+    combines, and to output stencils working directly on buffers (fields) with
+    hopefully few allocations.
+    """
+
     name = "stencil-bufferize"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
