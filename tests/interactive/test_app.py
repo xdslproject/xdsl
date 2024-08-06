@@ -299,11 +299,11 @@ async def test_rewrites():
         await pilot.click("#condense_button")
 
         addi_pass = AvailablePass(
-            display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediateZero",
+            display_name="Addi(%res = arith.addi %two, %n : i32):arith.addi:AddImmediates",
             module_pass=individual_rewrite.IndividualRewrite,
             pass_spec=list(
                 parse_pipeline(
-                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                    'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediates"}'
                 )
             )[0],
         )
@@ -322,7 +322,7 @@ async def test_rewrites():
                 individual_rewrite.IndividualRewrite,
                 list(
                     parse_pipeline(
-                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediateZero"}'
+                        'apply-individual-rewrite{matched_operation_index=3 operation_name="arith.addi" pattern_name="AddImmediates"}'
                     )
                 )[0],
             ),
