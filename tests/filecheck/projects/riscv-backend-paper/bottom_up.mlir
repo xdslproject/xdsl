@@ -91,9 +91,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t3, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d}}_for:
-// CHECK-NEXT:      mv t6, t3
-// CHECK-NEXT:      li a4, 10
-// CHECK-NEXT:      mul t6, t6, a4
+// CHECK-NEXT:      li t6, 10
+// CHECK-NEXT:      mul t6, t3, t6
 // CHECK-NEXT:      li a4, 8
 // CHECK-NEXT:      mul t6, t6, a4                               # multiply by element size
 // CHECK-NEXT:      add t6, t2, t6

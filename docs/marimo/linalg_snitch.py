@@ -124,7 +124,6 @@ def __(
     Block,
     ImplicitBuilder,
     MemRefType,
-    ModuleOp,
     Region,
     a_shape,
     arith,
@@ -133,8 +132,6 @@ def __(
     f64,
     func,
     linalg,
-    mo,
-    module_html,
 ):
     a_type = MemRefType(f64, a_shape)
     b_type = MemRefType(f64, b_shape)
@@ -174,14 +171,14 @@ def __(
             acc_new_val.name_hint = "acc_new"
         func.Return()
 
-    linalg_module = ModuleOp((kernel_op,))
+    # linalg_module = ModuleOp((kernel_op,))
 
-    mo.md(f"""
+    # mo.md(f"""
 
-    Here is matrix multiplication defined in the `linalg` dialect, with the iteration space decoupled from the computation:
+    # Here is matrix multiplication defined in the `linalg` dialect, with the iteration space decoupled from the computation:
 
-    {module_html(linalg_module)}
-    """)
+    # {module_html(linalg_module)}
+    # """)
     return (
         a,
         a_type,
@@ -195,9 +192,49 @@ def __(
         c,
         c_type,
         kernel_op,
-        linalg_module,
         prod_val,
     )
+
+
+@app.cell
+def __():
+    import numpy as np
+    return np,
+
+
+@app.cell
+def __(np):
+    np.random.uniform(0, 10, (2, 3))
+    return
+
+
+@app.cell
+def __(ctx):
+    bla = """
+    builtin.module {
+      func.func public @matmul(%arg0 : memref<1x1x42x42xf64> {"llvm.noalias"}, %arg1 : memref<1x1x20x20xf64> {"llvm.noalias"}) -> memref<1x1x20x20xf64> {
+        %cst = arith.constant 0.000000e+00 : f64
+        linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3) -> ()>, affine_map<(d0, d1, d2, d3) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel"]} ins(%cst : f64) outs(%arg1 : memref<1x1x20x20xf64>) {
+        ^0(%in : f64, %out : f64):
+          linalg.yield %in : f64
+        }
+        %alloc = memref.alloc() {"alignment" = 64 : i64} : memref<3x3xf64>
+        linalg.generic {indexing_maps = [affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, ((d2 * 2) + d4), ((d3 * 2) + d5))>, affine_map<(d0, d1, d2, d3, d4, d5) -> (d4, d5)>, affine_map<(d0, d1, d2, d3, d4, d5) -> (d0, d1, d2, d3)>], iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]} ins(%arg0, %alloc : memref<1x1x42x42xf64>, memref<3x3xf64>) outs(%arg1 : memref<1x1x20x20xf64>) {
+        ^1(%in_1 : f64, %in_2 : f64, %out_1 : f64):
+          %0 = arith.addf %out_1, %in_1 fastmath<fast> : f64
+          linalg.yield %0 : f64
+        }
+        memref.dealloc %alloc : memref<3x3xf64>
+        func.return %arg1 : memref<1x1x20x20xf64>
+      }
+    }
+
+    """
+
+    from xdsl.parser import Parser
+    parser = Parser(ctx, bla)
+    linalg_module = parser.parse_module()
+    return Parser, bla, linalg_module, parser
 
 
 @app.cell
