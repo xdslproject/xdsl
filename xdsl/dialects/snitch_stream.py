@@ -108,6 +108,8 @@ class StridePattern(ParametrizedAttribute):
                 )
             )
             if parser.parse_optional_punctuation(","):
+                parser.parse_identifier("repeat")
+                parser.parse_punctuation("=")
                 repeat = parser.parse_integer(allow_boolean=False, allow_negative=False)
             else:
                 repeat = 1
