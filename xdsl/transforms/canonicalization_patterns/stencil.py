@@ -11,7 +11,15 @@ from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import cse
 
 
-class RedundantOperands(RewritePattern):
+class AllocUnused(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: stencil.AllocOp, rewriter: PatternRewriter) -> None:
+        if not op.field.uses:
+            rewriter.erase_op(op)
+
+
+class ApplyRedundantOperands(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
@@ -41,7 +49,7 @@ class RedundantOperands(RewritePattern):
         cse(op.region.block)
 
 
-class UnusedOperands(RewritePattern):
+class ApplyUnusedOperands(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:
@@ -66,7 +74,7 @@ class UnusedOperands(RewritePattern):
         rewriter.replace_matched_op(new)
 
 
-class UnusedResults(RewritePattern):
+class ApplyUnusedResults(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.ApplyOp, rewriter: PatternRewriter) -> None:

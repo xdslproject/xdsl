@@ -556,7 +556,7 @@ class NoMemoryEffect(MemoryEffect):
 
 class MemoryReadEffect(MemoryEffect):
     """
-    A trait that signals that an operation has read side effects.
+    A trait that signals that an operation always has read side effects.
     """
 
     @classmethod
@@ -572,6 +572,26 @@ class MemoryWriteEffect(MemoryEffect):
     @classmethod
     def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
         return {MemoryEffectKind.WRITE}
+
+
+class MemoryAllocEffect(MemoryEffect):
+    """
+    A trait that signals that an operation always has alloc side effects.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        return {MemoryEffectKind.ALLOC}
+
+
+class MemoryFreeEffect(MemoryEffect):
+    """
+    A trait that signals that an operation always has deallocation side effects.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+        return {MemoryEffectKind.FREE}
 
 
 class RecursiveMemoryEffect(MemoryEffect):

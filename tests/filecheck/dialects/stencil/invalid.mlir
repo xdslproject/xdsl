@@ -13,7 +13,7 @@ builtin.module {
 builtin.module {
   func.func @buffered_and_stored_1d(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[0,1024]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<[-1,68]xf64>
-    %outt = "stencil.apply"(%int) ({
+    %outt = "stencil.apply"(%int) <{"operandSegmentSizes" = array<i32: 1, 0>}> ({
     ^0(%intb : !stencil.temp<[-1,68]xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<[-1]>} : (!stencil.temp<[-1,68]xf64>) -> f64
       "stencil.return"(%v) : (f64) -> ()
@@ -31,7 +31,7 @@ builtin.module {
 builtin.module {
   func.func @buffer_types_mismatch_1d(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[0,1024]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<[-1,68]xf64>
-    %outt = "stencil.apply"(%int) ({
+    %outt = "stencil.apply"(%int) <{"operandSegmentSizes" = array<i32: 1, 0>}> ({
     ^0(%intb : !stencil.temp<[-1,68]xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<[-1]>} : (!stencil.temp<[-1,68]xf64>) -> f64
       "stencil.return"(%v) : (f64) -> ()
@@ -41,7 +41,7 @@ builtin.module {
   }
 }
 
-// CHECK: Expected operand and result type to be equal
+// CHECK: Expected input and output to have the same bounds
 
 // -----
 
@@ -59,7 +59,7 @@ builtin.module {
 builtin.module {
   func.func @apply_no_return_1d(%in : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
-    "stencil.apply"(%int) ({
+    "stencil.apply"(%int) <{"operandSegmentSizes" = array<i32: 1, 0>}> ({
     ^0(%intb : !stencil.temp<?xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<[-1]>} : (!stencil.temp<?xf64>) -> f64
       "stencil.return"() : () -> ()
@@ -76,7 +76,7 @@ builtin.module {
   func.func @access_bad_temp_1d(%in : !stencil.field<[-4,68]xf64>, %bigin : !stencil.field<[-4,68]x[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
     %bigint = "stencil.load"(%bigin) : (!stencil.field<[-4,68]x[-4,68]xf64>) -> !stencil.temp<?x?xf64>
-    %outt = "stencil.apply"(%int, %bigint) ({
+    %outt = "stencil.apply"(%int, %bigint) <{"operandSegmentSizes" = array<i32: 2, 0>}> ({
     ^0(%intb : !stencil.temp<?xf64>, %bigintb : !stencil.temp<?x?xf64>):
       %v = "stencil.access"(%bigintb) {"offset" = #stencil.index<[-1]>} : (!stencil.temp<?x?xf64>) -> f64
       "stencil.return"(%v) : (f64) -> ()
@@ -93,7 +93,7 @@ builtin.module {
 builtin.module {
   func.func @access_bad_offset_1d(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
-    %outt = "stencil.apply"(%int) ({
+    %outt = "stencil.apply"(%int) <{"operandSegmentSizes" = array<i32: 1, 0>}> ({
     ^0(%intb : !stencil.temp<?xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<[-1, 1]>} : (!stencil.temp<?xf64>) -> f64
       "stencil.return"(%v) : (f64) -> ()
@@ -122,7 +122,7 @@ builtin.module {
 builtin.module {
   func.func @wrong_return_arity_1d(%in : !stencil.field<[-4,68]xf64>, %bigin : !stencil.field<[-4,68]x[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
-    %outt1, %outt2 = "stencil.apply"(%int) ({
+    %outt1, %outt2 = "stencil.apply"(%int) <{"operandSegmentSizes" = array<i32: 1, 0>}> ({
     ^0(%intb : !stencil.temp<?xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<[-1]>} : (!stencil.temp<?xf64>) -> f64
       "stencil.return"(%v) : (f64) -> ()
@@ -139,7 +139,7 @@ builtin.module {
 builtin.module {
   func.func @wrong_return_types_1d(%in : !stencil.field<[-4,68]xf64>, %bigin : !stencil.field<[-4,68]x[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
-    %outt1, %outt2 = "stencil.apply"(%int) ({
+    %outt1, %outt2 = "stencil.apply"(%int) <{"operandSegmentSizes" = array<i32: 1, 0>}> ({
     ^0(%intb : !stencil.temp<?xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<[-1]>} : (!stencil.temp<?xf64>) -> f64
       "stencil.return"(%v, %v) : (f64, f64) -> ()
@@ -157,7 +157,7 @@ builtin.module {
 builtin.module {
   func.func @different_apply_bounds(%in : !stencil.field<[-4,68]xf64>, %bigin : !stencil.field<[-4,68]x[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
-    %outt1, %outt2 = "stencil.apply"(%int) ({
+    %outt1, %outt2 = "stencil.apply"(%int) <{"operandSegmentSizes" = array<i32: 1, 0>}> ({
     ^0(%intb : !stencil.temp<?xf64>):
       %v = "stencil.access"(%intb) {"offset" = #stencil.index<[-1]>} : (!stencil.temp<?xf64>) -> f64
       "stencil.return"(%v, %v) : (f64, f64) -> ()
