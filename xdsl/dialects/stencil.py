@@ -1047,8 +1047,8 @@ class AccessOp(IRDLOperation):
         offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
         temp_type = SSAValue.get(temp).type
-        assert isinstance(temp_type, TempType)
-        temp_type = cast(TempType[Attribute], temp_type)
+        assert isinstance(temp_type, StencilType)
+        temp_type = cast(StencilType[Attribute], temp_type)
 
         attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
