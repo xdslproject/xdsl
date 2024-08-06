@@ -134,7 +134,7 @@ class LoadBufferFoldPattern(RewritePattern):
 
         handle = op.res
         # If this is a value-semantic buffer, we can't fold it
-        if not isinstance(handle.type, FieldType):
+        if not isinstance(op.res.type, FieldType):
             return
 
         temp = op.temp
