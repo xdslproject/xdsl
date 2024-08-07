@@ -13,6 +13,7 @@ from xdsl.dialects.stencil import (
     FieldType,
     IndexAttr,
     LoadOp,
+    ReturnOp,
     StencilBoundsAttr,
     StoreOp,
     TempType,
@@ -34,6 +35,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import MemoryEffectKind, get_effects
+from xdsl.transforms.canonicalization_patterns.stencil import ApplyUnusedResults
 from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.utils.hints import isa
 
@@ -90,16 +92,16 @@ class ApplyBufferizePattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
-        if not op.res:
+        if all(not isinstance(o.type, TempType) for o in op.args):
             return
 
-        bounds = cast(TempType[Attribute], op.res[0].type).bounds
+        bounds = op.get_bounds()
 
-        dests = [
-            AllocOp(result_types=[field_from_temp(cast(TempType[Attribute], r.type))])
-            for r in op.res
-        ]
-        operands = [
+        # dests = [
+        #     AllocOp(result_types=[field_from_temp(cast(TempType[Attribute], r.type))])
+        #     for r in op.res
+        # ]
+        args = [
             (
                 BufferOp.create(
                     operands=[o],
@@ -108,17 +110,17 @@ class ApplyBufferizePattern(RewritePattern):
                 if isa(o.type, TempType[Attribute])
                 else o
             )
-            for o in op.operands
+            for o in op.args
         ]
 
-        loads = [
-            LoadOp(operands=[d], result_types=[r.type]) for d, r in zip(dests, op.res)
-        ]
+        # loads = [
+        #     LoadOp(operands=[d], result_types=[r.type]) for d, r in zip(dests, op.res)
+        # ]
 
         new = ApplyOp(
-            operands=[operands, dests],
-            regions=[Region(Block(arg_types=[SSAValue.get(a).type for a in operands]))],
-            result_types=[[]],
+            operands=[args, op.dest],
+            regions=[Region(Block(arg_types=[SSAValue.get(a).type for a in op.args]))],
+            result_types=[[r.type for r in op.res]],
             properties={"bounds": bounds},
         )
         rewriter.inline_block(
@@ -128,8 +130,7 @@ class ApplyBufferizePattern(RewritePattern):
         )
 
         rewriter.replace_matched_op(
-            [*(o for o in operands if isinstance(o, Operation)), *dests, new, *loads],
-            [SSAValue.get(l) for l in loads],
+            [*(o for o in args if isinstance(o, Operation)), new]
         )
 
 
@@ -240,49 +241,43 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter):
-        temp = op.temp
+        stored = op.temp
 
         # We are looking for a loaded destination of an apply
-        if not isinstance(load := temp.owner, LoadOp):
+        if not isinstance(apply := stored.owner, ApplyOp):
             return
 
-        infield = load.field
-
-        other_uses = [u for u in infield.uses if u.operation is not load]
-
-        if len(other_uses) != 1:
-            return
-
-        # we restrict to the case where the apply and load are the only users of %temp
-        # for now
-        other_use = other_uses.pop()
-        if not isinstance(
-            apply := other_use.operation, ApplyOp
-        ) or other_use.index < len(apply.args):
-            print(other_use)
-            print()
-            return
-
-        # Get first occurence of the destination field, to walk from it
+        # Check that the destination is not used between the apply and store.
         dest = op.field
         start = dest.owner
         if isinstance(start, Block):
             start = cast(Operation, start.first_op)
         effecting = [
             o
-            for o in walk_from_to(start, op)
-            if might_effect(o, {MemoryEffectKind.READ}, dest)
+            for o in walk_from_to(apply, op)
+            if might_effect(o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest)
         ]
         if effecting:
             return
 
-        new_operands = list(apply.operands)
-        new_operands[other_use.index] = dest
+        temp_index = apply.results.index(stored)
 
-        new_apply = ApplyOp.create(
-            operands=new_operands,
-            result_types=[],
-            properties=apply.properties.copy(),
+        bounds = apply.get_bounds()
+        if not isinstance(bounds, StencilBoundsAttr):
+            raise ValueError(
+                "Stencil shape inference must be ran before bufferization."
+            )
+
+        new_apply = ApplyOp.build(
+            operands=[apply.args, [*apply.dest, dest]],
+            result_types=[
+                [
+                    r.type
+                    for r in apply.results[:temp_index]
+                    + apply.results[temp_index + 1 :]
+                ]
+            ],
+            properties=apply.properties.copy() | {"bounds": bounds},
             attributes=apply.attributes.copy(),
             regions=[
                 Region(Block(arg_types=[SSAValue.get(a).type for a in apply.args])),
@@ -295,16 +290,32 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
             new_apply.region.block.args,
         )
 
-        new_load = LoadOp.create(
-            operands=[dest],
-            result_types=[r.type for r in load.results],
-            attributes=load.attributes.copy(),
-            properties=load.properties.copy(),
+        old_return = new_apply.region.block.last_op
+        assert isinstance(old_return, ReturnOp)
+        uf = old_return.unroll_factor
+        new_return_args = list(
+            old_return.arg[: uf * temp_index]
+            + old_return.arg[uf * (temp_index + 1) :]
+            + old_return.arg[uf * temp_index : uf * (temp_index + 1)]
+        )
+        new_return = ReturnOp.create(
+            operands=new_return_args,
+            properties=old_return.properties.copy(),
+            attributes=old_return.attributes.copy(),
         )
 
-        rewriter.replace_op(apply, new_apply)
-        rewriter.replace_op(load, new_load)
-        rewriter.erase_op(op)
+        rewriter.replace_op(old_return, new_return)
+
+        load = LoadOp.get(dest, bounds.lb, bounds.ub)
+
+        rewriter.replace_op(
+            apply,
+            [new_apply, load],
+            new_apply.results[:temp_index]
+            + (load.res,)
+            + new_apply.results[temp_index:],
+        )
+        rewriter.erase_matched_op()
 
 
 @dataclass(frozen=True)
@@ -528,6 +539,7 @@ class StencilBufferize(ModulePass):
                     LoadBufferFoldPattern(),
                     ApplyLoadStoreFoldPattern(),
                     RemoveUnusedOperations(),
+                    ApplyUnusedResults(),
                 ]
             )
         )

@@ -564,7 +564,6 @@ class ApplyOp(IRDLOperation):
         body: Block | Region,
         result_types: Sequence[TempType[Attribute]],
     ):
-        assert len(result_types) > 0
 
         if isinstance(body, Block):
             body = Region(body)
@@ -646,6 +645,14 @@ class ApplyOp(IRDLOperation):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
+
+    def get_bounds(self):
+        if self.bounds is not None:
+            return self.bounds
+        else:
+            assert len(self.res) > 0
+            res_type = cast(TempType[Attribute], self.res[0].type)
+            return res_type.bounds
 
 
 class AllocOpEffect(MemoryEffect):
