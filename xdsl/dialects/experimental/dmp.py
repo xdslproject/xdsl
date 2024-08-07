@@ -435,7 +435,7 @@ class SwapOp(IRDLOperation):
     name = "dmp.swap"
 
     input_stencil: Operand = operand_def(
-        base(stencil.AnyTempType) | base(builtin.AnyMemRefType)
+        base(stencil.StencilType) | base(builtin.AnyMemRefType)
     )
 
     swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] | None = opt_attr_def(
