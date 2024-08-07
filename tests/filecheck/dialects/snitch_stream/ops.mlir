@@ -18,6 +18,7 @@ snitch_stream.streaming_region {
     }
 }
 
+"test.op"() {with_repeat = #snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8], repeat = 8>} : () -> ()
 
 // CHECK:       %X, %Y, %Z = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg)
 // CHECK-NEXT:    snitch_stream.streaming_region {
