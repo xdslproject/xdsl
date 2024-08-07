@@ -22,14 +22,20 @@ riscv_func.func @main() {
   %4 = riscv_snitch.dmstat %3 : (!riscv.reg<a3>) -> !riscv.reg<a4>
   %5 = riscv_snitch.dmstati 22 : () -> !riscv.reg<a5>
 
-  %f0 = riscv.get_float_register : !riscv.freg<ft0>
-  %f1 = riscv_snitch.vfmul.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
-  %f2 = riscv_snitch.vfadd.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
-  %f3 = riscv_snitch.vfcpka.s.s %f0, %f0 : (!riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
-  %f4 = riscv_snitch.vfmac.s %f3, %f0, %f0 : (!riscv.freg<ft1>, !riscv.freg<ft0>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
-  %f5 = riscv_snitch.vfsum.s %f4, %f0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft1>
+  %ft0 = riscv.get_float_register : !riscv.freg<ft0>
+  %ft1 = riscv.get_float_register : !riscv.freg<ft1>
+  %ft2 = riscv.get_float_register : !riscv.freg<ft2>
 
-  %f6 = riscv_snitch.vfadd.h %f4, %f0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft3>
+  // f32
+  %vfmul_s = riscv_snitch.vfmul.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfadd_s = riscv_snitch.vfadd.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfmax_s = riscv_snitch.vfmax.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfcpka_s_s = riscv_snitch.vfcpka.s.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfmac_s = riscv_snitch.vfmac.s %ft2, %ft0, %ft1 : (!riscv.freg<ft2>, !riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfsum_s = riscv_snitch.vfsum.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft0>
+
+  // f16
+  %vfadd_h = riscv_snitch.vfadd.h %ft1, %ft0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft2>
 
   riscv_func.return
 }
@@ -45,10 +51,11 @@ riscv_func.func @main() {
 // CHECK-NEXT:       dmcpy a3, a0, a2
 // CHECK-NEXT:       dmstat a4, a3
 // CHECK-NEXT:       dmstati a5, 22
-// CHECK-NEXT:       vfmul.s ft1, ft0, ft0
-// CHECK-NEXT:       vfadd.s ft1, ft0, ft0
-// CHECK-NEXT:       vfcpka.s.s ft1, ft0, ft0
-// CHECK-NEXT:       vfmac.s ft1, ft0, ft0
-// CHECK-NEXT:       vfsum.s ft1, ft0
-// CHECK-NEXT:       vfadd.h ft3, ft1, ft0
+// CHECK-NEXT:       vfmul.s ft2, ft0, ft1
+// CHECK-NEXT:       vfadd.s ft2, ft0, ft1
+// CHECK-NEXT:       vfmax.s ft2, ft0, ft1
+// CHECK-NEXT:       vfcpka.s.s ft2, ft0, ft1
+// CHECK-NEXT:       vfmac.s ft2, ft0, ft1
+// CHECK-NEXT:       vfsum.s ft0, ft1
+// CHECK-NEXT:       vfadd.h ft2, ft1, ft0
 // CHECK-NEXT:       ret
