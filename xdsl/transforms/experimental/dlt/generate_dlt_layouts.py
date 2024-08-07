@@ -580,11 +580,12 @@ class LayoutGenerator:
                     for sparse in self._subsets(list(rest)):
                         # print(f"sparse: {[d.dimensionName for d in sparse]}")
                         if len(sparse) > 0 and (must_use is None or must_use.issubset(set(sparse)|set(direct))):
-                            abstract_dims = rest.difference(sparse)
-                            # print(f"abstract_dims: {[d.dimensionName for d in abstract_dims]}")
-                            for abstract_child_dims in self._subsets(list(abstract_dims)):
-                                # print(f"abstract_child_dims: {[d.dimensionName for d in abstract_child_dims]}")
-                                layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse), list(abstract_child_dims)))
+                            for sparse_perm in self._permutations(sparse):
+                                abstract_dims = rest.difference(sparse)
+                                # print(f"abstract_dims: {[d.dimensionName for d in abstract_dims]}")
+                                for abstract_child_dims in self._subsets(list(abstract_dims)):
+                                    # print(f"abstract_child_dims: {[d.dimensionName for d in abstract_child_dims]}")
+                                    layouts.append(_make_sparse_layout(abstract_layout, list(direct), list(sparse_perm), list(abstract_child_dims)))
         return layouts
 
     def _try_dense(self, abstract_layout: dlt.AbstractLayoutAttr, must_use: dlt.DimensionAttr = None) -> list[dlt.Layout]:
@@ -741,7 +742,7 @@ class LayoutGenerator:
             layouts.append(index_replace_node)
         return layouts
 
-    def _permutations(self, children: list[dlt.AbstractChildAttr]):
+    def _permutations(self, children: list):
         if len(children) > 3 :
             yield from itertools.permutations(children)
             return
