@@ -1,9 +1,7 @@
-import abc
-import functools
 from dataclasses import dataclass
-from typing import Optional, assert_type, cast
+from typing import assert_type, cast
 
-from xdsl.dialects import arith, builtin, llvm, memref, printf, scf
+from xdsl.dialects import arith, builtin, llvm, printf, scf
 from xdsl.dialects.builtin import (
     AnyFloat,
     DenseArrayBase,
@@ -15,7 +13,6 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.experimental import dlt
-from xdsl.dialects.experimental.dlt import DLTCompatibleElementBaseType, IndexRangeType
 from xdsl.ir import Attribute, Block, BlockArgument, MLContext, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -38,250 +35,8 @@ from xdsl.transforms.experimental.dlt.layout_llvm_semantics import (
     PtrCarriedIndexGetter,
     SSAExtentGetter,
     Semantic_Map,
-    StaticExtentGetter, ValueMapInitialiser,
+    ValueMapInitialiser,
 )
-from xdsl.transforms.experimental.dlt.layout_manipulation import Manipulator
-
-
-#
-# class IndexGetter(abc.ABC):
-#     @abc.abstractmethod
-#     def get(self) -> tuple[list[Operation], SSAValue]:
-#         pass
-#
-#
-# class ArgIndexGetter(IndexGetter):
-#     def __init__(self, arg: SSAValue):
-#         self.arg = arg
-#
-#     def get(self) -> tuple[list[Operation], SSAValue]:
-#         return [], self.arg
-#
-#
-# class ExtentGetter(abc.ABC):
-#     @abc.abstractmethod
-#     def get(self) -> tuple[list[Operation], SSAValue] | tuple[None, int]:
-#         pass
-#
-#
-# class StaticExtentGetter(ExtentGetter):
-#     def __init__(self, arg: dlt.StaticExtentAttr):
-#         assert arg.get_stage() <= dlt.Stage.STATIC
-#         if isinstance(arg, dlt.StaticExtentAttr):
-#             self.extent = arg.value.value.data
-#         else:
-#             raise NotImplementedError()
-#
-#     def get(self) -> tuple[None, int]:
-#         return None, self.extent
-#
-#
-# class SSAExtentGetter(ExtentGetter):
-#     def __init__(self, arg: SSAValue):
-#         self.arg = arg
-#
-#     def get(self) -> tuple[list[Operation], SSAValue]:
-#         return [], self.arg
-#
-#
-# class PtrCarriedGetter(IndexGetter, ExtentGetter):
-#     def __init__(
-#         self,
-#         input: SSAValue,
-#         ptr_type: dlt.PtrType,
-#         *,
-#         dim: dlt.DimensionAttr = None,
-#         extent: dlt.Extent = None,
-#     ):
-#         self.input = input
-#         self.ptr_type = ptr_type
-#         self.dim = dim
-#         self.extent = extent
-#         assert (self.dim is None) ^ (self.extent is None)
-#
-#     def get(self) -> tuple[list[Operation], SSAValue]:
-#         if self.dim is not None:
-#             index = 1 + self.ptr_type.filled_dimensions.data.index(self.dim)
-#         elif self.extent is not None:
-#             index = (
-#                 1
-#                 + len(self.ptr_type.filled_dimensions)
-#                 + self.ptr_type.filled_extents.data.index(self.extent)
-#             )
-#         else:
-#             assert False
-#         pos = DenseArrayBase.from_list(i64, [index])
-#         op = llvm.ExtractValueOp(pos, self.input, i64)
-#         # cast_ops, res = get_as_i64(op.res)
-#         cast_ops, res = get_as_index(op.res)
-#         return [op] + cast_ops, res
-#
-#
-# class ExtentResolver:
-#
-#     def __init__(self, map: dict[dlt.Extent, ExtentGetter]):
-#         self.map: dict[dlt.Extent, ExtentGetter] = map
-#
-#     # def add_bases(self, extent: dlt.Extent, value: int | ExtentGetter):
-#     #     if isinstance(value, int):
-#     #         value = SystemExit(extent)
-#     #     self.map[extent] = value
-#
-#     def resolve(
-#         self, extent: dlt.Extent
-#     ) -> tuple[list[Operation], SSAValue] | tuple[None, int]:
-#         if extent.is_static():
-#             if isinstance(extent, dlt.StaticExtentAttr):
-#                 extent = cast(dlt.StaticExtentAttr, extent)
-#                 return None, extent.as_int()
-#         if extent in self.map:
-#             getter = self.map[extent]
-#             return getter.get()
-#         else:
-#             raise KeyError(
-#                 f"Cannot resolve Extent {extent} in ExtentResolver map {self.map}"
-#             )
-
-
-# @functools.singledispatch
-# def get_size_from_layout(
-#     layout: dlt.Layout, extent_resolver: ExtentResolver
-# ) -> tuple[None, int, int] | tuple[list[Operation], SSAValue, SSAValue]:
-#     # Returns (Ops, Packed_size, Extra_size)
-#     # returns the 'Ops' needed to calculate the 'Packed_size' and 'Extra_Size' of the layout
-#     # This packed size is in general the size of the element assuming it can be tightly packed - contiguously
-#     # This enables bounded indexing where a pair of indices are used as a start and end of range, and each end is also
-#     # the next start - the Extra_size then is normally the last end index such that the pointer access
-#     # range(A[i], A[i+1]) doesn't access unallocated memory
-#     # all in Bytes
-#     # Packed_size is int IFF Extra_size is int
-#     # Packed_size is int IFF Ops is None
-#     assert isinstance(layout, dlt.Layout)
-#     raise NotImplementedError(f"Cannot get static llvm type for layout {layout}")
-# #
-#
-# @get_size_from_layout.register
-# def _(
-#     layout: dlt.PrimitiveLayoutAttr, extent_resolver: ExtentResolver
-# ) -> tuple[None, int, int] | tuple[list[Operation], SSAValue, SSAValue]:
-#     if isinstance(layout.base_type, DLTCompatibleElementBaseType):
-#         p, e = layout.base_type.get_size()
-#         return None, p, e
-#
-#     if isinstance(layout.base_type, IntegerType):
-#         bit_width = layout.base_type.width.data
-#     elif isinstance(layout.base_type, AnyFloat):
-#         bit_width = layout.base_type.get_bitwidth
-#     elif isinstance(layout.base_type, IndexType):
-#         bit_width = i64.width.data
-#     else:
-#         raise ValueError(f"Cannot get size of base element: {layout.base_type}")
-#     bytes = -(bit_width // -8)
-#     return None, bytes, 0
-#
-#
-# @get_size_from_layout.register
-# def _(
-#     layout: dlt.DenseLayoutAttr, extent_resolver: ExtentResolver
-# ) -> tuple[None, int, int] | tuple[list[Operation], SSAValue, SSAValue]:
-#     child_ops, child_size, child_extra = get_size_from_layout(
-#         layout.child, extent_resolver
-#     )
-#     extent_ops, extent = extent_resolver.resolve(layout.dimension.extent)
-#
-#     if child_ops is None and extent_ops is None:
-#         return None, child_size * extent, child_extra
-#     child_ops, child_size, child_extra = from_int_to_ssa(
-#         (child_ops, child_size, child_extra)
-#     )
-#     if extent_ops is None:
-#         extent_ops = [extent_op := arith.Constant(IntegerAttr(extent, IndexType()))]
-#         extent = extent_op.result
-#         # cast_ops, extent = get_as_i64(extent_op.result)
-#         # extent_ops.extend(cast_ops)
-#
-#     return (
-#         child_ops + extent_ops + [product := arith.Muli(child_size, extent)],
-#         product.result,
-#         child_extra,
-#     )
-#
-#
-# # @get_size_from_layout.register
-# # def _(
-# #     layout: dlt.NamedLayoutAttr, extent_resolver: ExtentResolver
-# # ) -> tuple[None, int, int] | tuple[list[Operation], SSAValue, SSAValue]:
-# #     return get_size_from_layout(layout.child, extent_resolver)
-#
-#
-# @get_size_from_layout.register
-# def _(
-#     layout: dlt.MemberLayoutAttr, extent_resolver: ExtentResolver
-# ) -> tuple[None, int, int] | tuple[list[Operation], SSAValue, SSAValue]:
-#     return get_size_from_layout(layout.child, extent_resolver)
-#
-# @get_size_from_layout.register
-# def _(
-#     layout: dlt.StructLayoutAttr, extent_resolver: ExtentResolver
-# ) -> tuple[None, int, int] | tuple[list[Operation], SSAValue, SSAValue]:
-#     ops = []
-#     parts = []
-#     static_sizes = 0
-#     for child in layout.children:
-#         c_ops, c_size, c_extra = get_size_from_layout(child, extent_resolver)
-#         if c_ops is None:
-#             static_sizes += c_size + c_extra
-#         else:
-#             ops.extend(c_ops)
-#             parts.extend([c_size, c_extra])
-#     if len(ops) == 0:
-#         return None, static_sizes, 0
-#     else:
-#         static_ops, static_size = from_int_to_ssa((None, static_sizes))
-#         ops.extend(static_ops)
-#         parts.append(static_size)
-#         ops, size =  from_int_to_ssa((ops, *parts), sum=True)
-#         return ops + [extra := arith.Constant(IntegerAttr(0, IndexType()))], size, extra.result
-
-#
-# def from_int_to_ssa(args: tuple, sum: bool = False) -> tuple:
-#     """
-#     This has the type:
-#     from_int_to_ssa(args: tuple[None, int, ...] | tuple[list[Operation], SSAValue, ...], sum: bool = False) ->
-#         tuple[list[Operation], SSAValue, ...]
-#
-#     While this is not standard or easily typable in python the meaning is that the outputs is a tuple, with its first
-#     element being a list of Operation and all subsequent elements being SSAValue
-#     """
-#     ops, *parts = args
-#     if not isinstance(ops, list | None):
-#         raise ValueError()
-#     if not (ops is None or all(isinstance(op, Operation) for op in ops)):
-#         raise ValueError()
-#     if not (ops is None or all(isinstance(part, SSAValue) for part in parts)):
-#         raise ValueError()
-#     if not (ops is not None or all(isinstance(part, int) for part in parts)):
-#         raise ValueError()
-#
-#     if ops is None:
-#         assert all(isinstance(part, int) for part in parts)
-#         ops = [arith.Constant(IntegerAttr(part, IndexType())) for part in parts]
-#         parts = tuple([op.result for op in ops])
-#     # cast_ops, size = get_as_i64(size)
-#     # ops.extend(cast_ops)
-#     # cast_ops, extra = get_as_i64(extra)
-#     # ops.extend(cast_ops)
-#     if sum:
-#         while len(parts) > 1:
-#             new_parts = []
-#             for i in range(0, len(parts) - 1, 2):
-#                 ops.append(add_op := arith.Addi(parts[i], parts[i + 1]))
-#                 new_parts.append(add_op.result)
-#             parts = tuple(new_parts)
-#
-#     ops = cast(list[Operation], ops)
-#     parts = cast(tuple[SSAValue], parts)
-#     return ops, *parts
 
 
 def get_as_i64(value: SSAValue) -> tuple[list[Operation], SSAValue]:
@@ -291,16 +46,6 @@ def get_as_i64(value: SSAValue) -> tuple[list[Operation], SSAValue]:
             value.type.width.data <= i64.width.data
         ), f"Expected {i64.width.data} got {value.type.width.data}"
     return [op := UnrealizedConversionCastOp.get([value], [i64])], op.outputs[0]
-
-
-# def get_as_index(value: SSAValue) -> tuple[list[Operation], SSAValue]:
-#     assert isinstance(value.type, IndexType | IntegerType)
-#     if isinstance(value.type, IntegerType):
-#         assert (
-#             value.type.width.data <= i64.width.data
-#         ), f"Expected {i64.width.data} got {value.type.width.data}"
-#     return [op := UnrealizedConversionCastOp.get([value], [IndexType()])], op.outputs[0]
-
 
 
 @dataclass
@@ -336,7 +81,7 @@ class DLTSelectRewriter(RewritePattern):
             extent: PtrCarriedExtentGetter(llvm_in, input_type, extent=extent)
             for extent in input_type.filled_extents
         }
-        extent_resolver = ExtentResolver(extent_map)
+        extent_resolver = ExtentResolver(extent_map, select.get_scope())
 
         get_ptr_op = llvm.ExtractValueOp(
             DenseArrayBase.from_list(i64, [0]), llvm_in, llvm.LLVMPointerType.opaque()
@@ -420,7 +165,8 @@ class DLTGetRewriter(RewritePattern):
                         llvm_dlt_ptr_in, input_type, extent=extent
                     )
                     for extent in input_type.filled_extents
-                }
+                },
+                get_op.get_scope()
             ),
             llvm_data_ptr,
         )
@@ -478,7 +224,8 @@ class DLTSetRewriter(RewritePattern):
                         llvm_dlt_ptr_in, input_type, extent=extent
                     )
                     for extent in input_type.filled_extents
-                }
+                },
+                set_op.get_scope()
             ),
             llvm_data_ptr,
         )
@@ -511,7 +258,7 @@ class DLTAllocRewriter(RewritePattern):
             extent: SSAExtentGetter(ssa)
             for extent, ssa in zip(alloc_op.init_extents, alloc_op.init_extent_sizes)
         }
-        extent_resolver = ExtentResolver(extent_map)
+        extent_resolver = ExtentResolver(extent_map, alloc_op.get_scope())
 
         # size_ops, alloc_bytes = from_int_to_ssa(
         #     get_size_from_layout(ptr_type.layout, extent_resolver), sum=True
@@ -589,7 +336,7 @@ class DLTDeallocRewriter(RewritePattern):
             extent: PtrCarriedExtentGetter(llvm_in, ptr_type, extent=extent)
             for extent in ptr_type.filled_extents
         }
-        extent_resolver = ExtentResolver(extent_map)
+        extent_resolver = ExtentResolver(extent_map, dealloc_op.get_scope())
 
         get_data_ptr_op = llvm.ExtractValueOp(
             DenseArrayBase.from_list(i64, [0]),
@@ -778,16 +525,16 @@ class DLTIterateRewriter(RewritePattern):
         extent_map = {
             extent: SSAExtentGetter(arg)
             for extent, arg in zip(
-                [e for e in iterate_op.extents if not e.is_static()],
+                [e for e in iterate_op.extents if e.get_stage() >= dlt.Stage.INIT],
                 iterate_op.extent_args,
             )
         }
-        extent_map |= {
-            extent: StaticExtentGetter(extent)
-            for extent in iterate_op.extents
-            if extent.is_static() and isinstance(extent, dlt.StaticExtentAttr)
-        }
-        extent_resolver = ExtentResolver(extent_map)
+        # extent_map |= {
+        #     extent: StaticExtentGetter(extent)
+        #     for extent in iterate_op.extents
+        #     if extent.is_static() and isinstance(extent, dlt.StaticExtentAttr)
+        # }
+        extent_resolver = ExtentResolver(extent_map, iterate_op.get_scope())
 
         for tensor_arg, tensor_dims in zip(iterate_op.tensors, iterate_op.dimensions):
             tensor_dims = cast(
@@ -805,10 +552,12 @@ class DLTIterateRewriter(RewritePattern):
                 )
                 for extent in tensor_arg.type.filled_extents
             }
-            tensor_arg_extent_resolver = ExtentResolver(e_map)
+            tensor_arg_extent_resolver = ExtentResolver(e_map, iterate_op.get_scope())
             for extent, ext_dims in zip(iterate_op.extents, tensor_dims):
                 ext_dims = cast(dlt.SetAttr[dlt.DimensionAttr], ext_dims)
                 if extent.is_static():
+                    assert all(dim.extent == extent for dim in ext_dims)
+                elif extent.is_scope_time():
                     assert all(dim.extent == extent for dim in ext_dims)
                 else:
                     get_tensor_extent_ops, (tensor_extent,) = (
@@ -823,7 +572,7 @@ class DLTIterateRewriter(RewritePattern):
                     ops.append(cond := arith.Cmpi(iterate_extent, tensor_extent, "ne"))
                     fail = [
                         printf.PrintFormatOp(
-                            "Failed Extent Assertion: {} != {}",
+                            f"Failed Extent Assertion for {extent}: {{}} != {{}} in Iterate {iterate_op.identification.data} over {[e for e in iterate_op.extents]}",
                             iterate_extent,
                             tensor_extent,
                         ),
@@ -1005,7 +754,7 @@ class DLTExtractExtentRewriter(RewritePattern):
             extent: PtrCarriedExtentGetter(cast_op.outputs[0], dlt_ptr, extent=extent)
             for extent in dlt_ptr.filled_extents
         }
-        extent_resolver = ExtentResolver(e_map)
+        extent_resolver = ExtentResolver(e_map, extract_op.get_scope())
 
         resolve_ops, (extent_ssa,) = extent_resolver.resolve(extract_op.extent).output()
         ops.extend(resolve_ops)

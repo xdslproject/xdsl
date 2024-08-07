@@ -195,12 +195,25 @@ class DTLRewriter(RewritePattern):
                             raise ValueError(
                                 "multiple Extents for a single Unknown Vector Space have been found"
                             )
+                    elif dim.extent.is_scope_time():
+                        pass
                     elif dim.extent.is_dynamic():
                         if vs not in self.extent_map:
                             index = exe_op.context_vector_spaces.data.index(vs)
                             ssa = exe_op.context_values[index]
                             self.extent_map[vs] = (dim.extent, ssa)
+                    else:
+                        raise NotImplementedError
+                else:
+                    raise NotImplementedError
 
+        scope_op = dlt.DTLLayoutScopedOp.get_scope_for(exe_op)
+        assert scope_op is not None
+        for i, extent in enumerate(scope_op.extent_names):
+            value = scope_op.extent_values.data[i]
+            extent_const = arith.Constant(value)
+            self.const_ops.append(extent_const)
+            self.extent_map[dtl.UnknownVectorSpace(extent.value)] = (extent, extent_const.result)
         # self.vector_space_dim_map = {}
         # for block_arg, dims  in zip(exe_op.expr_region.block.args, exe_op.tensor_arg_indices):
         #     print(block_arg, dims)
@@ -839,7 +852,7 @@ class DTLRewriter(RewritePattern):
             vs = typing.cast(dtl.TensorExprType, expr.expr.type).args.vector_space_of(dim)
             e, e_a = self._get_extent(vs)
             extents.append(e)
-            if e_a:
+            if e.get_stage() >= dlt.Stage.INIT:
                 extent_args.append(e_a)
 
         l_ptr_elements = _linear(ptr_elements, SSAValue)
@@ -926,7 +939,7 @@ class DTLRewriter(RewritePattern):
             vs = typing.cast(dtl.TensorExprType, expr.expr.type).args.vector_space_of(dim)
             e, e_a = self._get_extent(vs)
             extents.append(e)
-            if e_a:
+            if e.get_stage() >= dlt.Stage.INIT:
                 extent_args.append(e_a)
 
         destinations: list[Destination] = _linear(destination, Destination)
@@ -1012,7 +1025,7 @@ class DTLRewriter(RewritePattern):
             vs = typing.cast(dtl.TensorExprType, expr.expr.type).args.vector_space_of(dim)
             extent, extent_ssa = self._get_extent(vs)
             extents.append(extent)
-            if extent_ssa is not None:
+            if extent.get_stage() >= dlt.Stage.INIT:
                 extent_args.append(extent_ssa)
 
         subexpr: OpsAndResult = self._get_expression(_op_for(expr.expr), newMap)

@@ -371,11 +371,22 @@ class ExtentGetter(abc.ABC):
         pass
 
 
-class StaticExtentGetter(ExtentGetter):
-    def __init__(self, arg: dlt.StaticExtentAttr):
-        assert arg.get_stage() <= dlt.Stage.STATIC
-        if isinstance(arg, dlt.StaticExtentAttr):
-            self.extent = arg.value.value.data
+# class StaticExtentGetter(ExtentGetter):
+#     def __init__(self, arg: dlt.StaticExtentAttr):
+#         assert arg.get_stage() <= dlt.Stage.STATIC
+#         if isinstance(arg, dlt.StaticExtentAttr):
+#             self.extent = arg.value.value.data
+#         else:
+#             raise NotImplementedError()
+#
+#     def get(self) -> NumericResult1:
+#         return NumericResult.from_mixed([], self.extent)
+
+
+class ScopeExtentGetter(ExtentGetter):
+    def __init__(self, arg: IntegerAttr):
+        if isinstance(arg.type, IndexType):
+            self.extent = arg.value.data
         else:
             raise NotImplementedError()
 
@@ -435,8 +446,13 @@ class PtrCarriedExtentGetter(ExtentGetter):
 
 class ExtentResolver:
 
-    def __init__(self, extent_map: dict[dlt.Extent, ExtentGetter]):
-        self.map: dict[dlt.Extent, ExtentGetter] = extent_map
+    def __init__(self, extent_map: dict[dlt.Extent, ExtentGetter], scope_op: dlt.LayoutScopeOp):
+        self.scope_op = scope_op
+        map: dict[dlt.Extent, ExtentGetter] = {}
+        for i, scope_extent in enumerate(scope_op.extent_names):
+            map[scope_extent] = ScopeExtentGetter(scope_op.extent_values.data[i])
+        map.update(extent_map)
+        self.map: dict[dlt.Extent, ExtentGetter] = map
 
     def resolve(self, extent: dlt.Extent) -> NumericResult1:
         if extent.is_static():
@@ -452,6 +468,9 @@ class ExtentResolver:
             raise KeyError(
                 f"Cannot resolve Extent {extent} in ExtentResolver map {self.map}"
             )
+
+    def with_new(self, new_extent_mappings: dict[dlt.Extent, ExtentGetter]) -> typing.Self:
+        return ExtentResolver(self.map | new_extent_mappings, self.scope_op)
 
 
 class Initialiser(abc.ABC):
@@ -4242,7 +4261,7 @@ class UnpackCOOSemantics(IndexedLayoutNodeSemantics[dlt.UnpackedCOOLayoutAttr]):
             extents = [d.extent for d in self.unpack_coo_layout.dimensions]
             extent_args = []
             for e in extents:
-                if not e.is_static():
+                if e.get_stage() >= dlt.Stage.INIT:
                     nr = extent_resolver.resolve(e)
                     ext_ops, ext = nr.output()
                     ops.extend(ext_ops)
@@ -4911,7 +4930,7 @@ class ValueMapInitialiser(Initialiser):
                 ops.extend(extract_ops)
                 inner_members = set(dlt_ptr_type.filled_members) | members
                 inner_dim_map = ptr_dim_map | dim_map
-                inner_extent_resolver = ExtentResolver(ptr_extent_map | self.extent_resolver.map)
+                inner_extent_resolver = self.extent_resolver.with_new(ptr_extent_map)
 
                 getter_ops, value, found = self.semantics.get_getter_for(
                     dlt_ptr_type.layout,
@@ -4968,7 +4987,7 @@ class ValueMapInitialiser(Initialiser):
                         extract_ops, data_ptr, selected_dim_map, selected_extent_map = self.semantics.extract_from_ptr_struct(selected_ptr_type, select_op.res)
                         if_not_found_ops.extend(extract_ops)
                         inner_dims = list(elem.dimensions)
-                        make_inner_iter_ops, inner_iter_op = _make_iterate(inner_dims, ExtentResolver(selected_extent_map), [select_op.res], [outer_dim_if_found])
+                        make_inner_iter_ops, inner_iter_op = _make_iterate(inner_dims, self.extent_resolver.with_new(selected_extent_map), [select_op.res], [outer_dim_if_found])
                         if_not_found_ops.extend(make_inner_iter_ops)
 
                         inner_loop_block = inner_iter_op.body.block
@@ -5179,7 +5198,7 @@ def _make_iterate(
     extents = [d.extent for d in dimensions]
     extent_args = []
     for e in extents:
-        if not e.is_static():
+        if e.get_stage() >= dlt.Stage.INIT:
             nr = extent_resolver.resolve(e)
             ext_ops, ext = nr.output()
             ops.extend(ext_ops)

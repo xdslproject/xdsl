@@ -280,7 +280,7 @@ class Extent(ParametrizedAttribute, abc.ABC):
         if not any(
             [
                 self.is_static(),
-                self.is_compile_time(),
+                self.is_scope_time(),
                 self.is_init_time(),
                 self.is_dynamic(),
             ]
@@ -2216,24 +2216,26 @@ class LayoutScopeOp(IRDLOperation):
             raise VerifyException(
                 f"{self.name}: lengths of extent names and extent values must match"
             )
-        if len(self.body.block.args) != len(self.extent_values):
+        if len(self.body.block.args) != 0:
             raise VerifyException(
-                f"{self.name}: lengths of extents and number of body block arguments must match"
+                f"{self.name}: lengths of body block arguments must be 0"
             )
-        for arg, value in zip(self.body.block.args, self.extent_values):
-            if arg.type != value.type:
-                raise VerifyException(
-                    f"{self.name}: arg {arg.index} of body does not have the same type as Integer extent {value}"
-                )
 
 
 class DTLLayoutScopedOp(IRDLOperation):
     traits = traits_def(lambda: frozenset([HasAncestor(LayoutScopeOp)]))
 
     def get_scope(self) -> LayoutScopeOp:
-        parent = self.parent
+        parent = self.parent_op()
         while not isinstance(parent, LayoutScopeOp):
-            parent = parent.parent
+            parent = parent.parent_op()
+        return parent
+
+    @staticmethod
+    def get_scope_for(op: Operation) -> LayoutScopeOp | None:
+        parent = op.parent_op()
+        while not isinstance(parent, LayoutScopeOp):
+            parent = parent.parent_op()
         return parent
 
 
@@ -2890,13 +2892,16 @@ class IterateOp(DTLLayoutScopedOp):
                         f"The first {len(self.extents)} block arguments are expected to be of type "
                         f"IndexType(), but {induction_var} was found at index {i}."
                     )
-                if not extent.is_static():
+                if extent.get_stage() >= Stage.INIT:
                     if len(self.extent_args) <= extent_arg_idx:
                         raise VerifyException(
                             f"There are not enough extent_args for the extents provided. extent {extent} "
                             f"expects to use extent_arg at index {i} but this is out of bounds."
                         )
                     extent_arg_idx += 1
+
+            if extent_arg_idx != len(self.extent_args):
+                raise VerifyException(f"Extent args expected {extent_arg_idx} but {len(self.extent_args)} were supplied")
 
             tensor_vars = [
                 (i, i - len(self.extents), self.body.block.args[i])
