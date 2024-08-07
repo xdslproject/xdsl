@@ -19,12 +19,6 @@ def __():
 
 @app.cell
 def __():
-    return
-
-
-@app.cell
-def __():
-
     from jax import random
     return random,
 
@@ -62,39 +56,29 @@ def __(matmul, matmul_data):
 
 @app.cell
 def __():
+    from jax._src.interpreters import mlir
     from jaxlib.mlir.dialects import mhlo
     from jaxlib.mlir.passmanager import PassManager
-    from jax._src.interpreters import mlir
 
     def get_linalg_module_str(func, args):
         lowered = func.lower(*args)
 
         mhlo_module = lowered.compiler_ir(dialect="mhlo")
-        
+
         # print(mhlo_module)
-        
+
         with lowered.compiler_ir(dialect="stablehlo").context as ctx:
             ctx.append_dialect_registry(mlir.upstream_dialects)
             # ctx.load_all_available_dialects()
             # mhlo.register_mhlo_dialect(ctx)
             mhlo.register_mhlo_passes()
-            pipeline = PassManager.parse(f"builtin.module(func.func(hlo-legalize-to-linalg))")
+            pipeline = PassManager.parse("builtin.module(func.func(hlo-legalize-to-linalg))")
             pipeline.run(mhlo_module.operation)
-        
+
         mhlo_module_str = f"{mhlo_module}"
 
         return mhlo_module_str
     return PassManager, get_linalg_module_str, mhlo, mlir
-
-
-@app.cell
-def __():
-    return
-
-
-@app.cell
-def __():
-    return
 
 
 if __name__ == "__main__":
