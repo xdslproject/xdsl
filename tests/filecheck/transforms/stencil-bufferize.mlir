@@ -366,7 +366,7 @@ func.func @store_result_lowering(%arg0 : f64) {
 
 func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {"stencil.program"}{
   %0, %1 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
-    %true = "test.op"() : () -> i1
+    %true = "test.pureop"() : () -> i1
     %2, %3 = "scf.if"(%true) ({
       %4 = stencil.store_result %arg1 : !stencil.result<f64>
       scf.yield %4, %arg1 : !stencil.result<f64>, f64
@@ -384,7 +384,7 @@ func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>,
 
 // CHECK:         func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>)  attributes {"stencil.program"}{
 // CHECK-NEXT:      stencil.apply(%arg1 = %arg0 : f64) outs (%b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>, %b1 : !stencil.field<[0,7]x[0,7]x[0,7]xf64>) {
-// CHECK-NEXT:        %true = "test.op"() : () -> i1
+// CHECK-NEXT:        %true = "test.pureop"() : () -> i1
 // CHECK-NEXT:        %0, %1 = "scf.if"(%true) ({
 // CHECK-NEXT:          %2 = stencil.store_result %arg1 : !stencil.result<f64>
 // CHECK-NEXT:          scf.yield %2, %arg1 : !stencil.result<f64>, f64

@@ -66,7 +66,6 @@ from xdsl.traits import (
     IsTerminator,
     MemoryEffect,
     MemoryEffectKind,
-    MemoryReadEffect,
     NoMemoryEffect,
     Pure,
     RecursiveMemoryEffect,
@@ -427,10 +426,11 @@ class ApplyMemoryEffect(RecursiveMemoryEffect):
     def get_effects(cls, op: Operation):
         effects = super().get_effects(op)
         if effects is not None:
-            if len(cast(ApplyOp, op).dest) > 0:
-                effects.add(EffectInstance(MemoryEffectKind.WRITE))
-            if any(isinstance(o.type, FieldType) for o in op.operands):
-                effects.add(EffectInstance(MemoryEffectKind.READ))
+            for d in cast(ApplyOp, op).dest:
+                effects.add(EffectInstance(MemoryEffectKind.WRITE, d))
+            for o in cast(ApplyOp, op).args:
+                if isinstance(o.type, FieldType):
+                    effects.add(EffectInstance(MemoryEffectKind.READ, o))
         return effects
 
 
@@ -1133,6 +1133,12 @@ class AccessOp(IRDLOperation):
         return cast(ApplyOp, ancestor)
 
 
+class LoadOpMemoryEffect(MemoryEffect):
+    @classmethod
+    def get_effects(cls, op: Operation):
+        return {EffectInstance(MemoryEffectKind.READ, cast(LoadOp, op).field)}
+
+
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     """
@@ -1171,7 +1177,7 @@ class LoadOp(IRDLOperation):
 
     assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
 
-    traits = frozenset([MemoryReadEffect()])
+    traits = frozenset([LoadOpMemoryEffect()])
 
     @staticmethod
     def get(
@@ -1296,6 +1302,12 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
         super().verify(attr, constraint_context)
 
 
+class StoreOpMemoryEffect(MemoryEffect):
+    @classmethod
+    def get_effects(cls, op: Operation):
+        return {EffectInstance(MemoryEffectKind.WRITE, cast(StoreOp, op).field)}
+
+
 @irdl_op_definition
 class StoreOp(IRDLOperation):
     """
@@ -1347,6 +1359,8 @@ class StoreOp(IRDLOperation):
     bounds: StencilBoundsAttr = attr_def(StencilBoundsAttr)
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
+
+    traits = frozenset([StoreOpMemoryEffect()])
 
     @staticmethod
     def get(

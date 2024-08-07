@@ -33,7 +33,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.traits import is_side_effect_free
+from xdsl.traits import MemoryEffectKind, get_effects
 from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.utils.hints import isa
 
@@ -42,6 +42,23 @@ _TypeElement = TypeVar("_TypeElement", bound=Attribute)
 
 def field_from_temp(temp: TempType[_TypeElement]) -> FieldType[_TypeElement]:
     return FieldType[_TypeElement].new(temp.parameters)
+
+
+def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
+    """
+    Returns if the operation has the given side effects and no others.
+    """
+    effects = get_effects(op)
+    return effects is not None and all(e.kind == effect for e in effects)
+
+
+def might_effect(
+    operation: Operation, effects: set[MemoryEffectKind], value: SSAValue
+) -> bool:
+    op_effects = get_effects(operation)
+    return op_effects is None or any(
+        e.kind in effects and e.value in (None, value) for e in op_effects
+    )
 
 
 class ApplyBufferizePattern(RewritePattern):
@@ -184,9 +201,7 @@ class LoadBufferFoldPattern(RewritePattern):
         effecting = [
             o
             for o in walk_from_to(load, user)
-            if underlying in o.operands
-            and (not is_side_effect_free(o))
-            and (o not in (load, op, user))
+            if might_effect(o, {MemoryEffectKind.WRITE}, underlying)
         ]
         if effecting:
             return
@@ -205,9 +220,9 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
     stencil.apply() outs (%temp : !stencil.field<[0,32]>) {
         // [...]
     }
-    // [... %temp, %dest not affected]
+    // [...  %dest not read]
     %loaded = stencil.load %temp : !stencil.field<[0,32]> -> !stencil.temp<[0,32]>
-    // [... %dest not affected]
+    // [... %dest not read]
     stencil.store %loaded to %dest (<[0], [32]>) : !stencil.temp<[0,32]> to !stencil.field<[-2,34]>
     ```
     yields:
@@ -238,8 +253,9 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
         if len(other_uses) != 1:
             return
 
+        # we restrict to the case where the apply and load are the only users of %temp
+        # for now
         other_use = other_uses.pop()
-
         if not isinstance(
             apply := other_use.operation, ApplyOp
         ) or other_use.index < len(apply.args):
@@ -247,26 +263,21 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
             print()
             return
 
-        # Get first occurence of the field, to walk from it
-        start = op.field.owner
+        # Get first occurence of the destination field, to walk from it
+        dest = op.field
+        start = dest.owner
         if isinstance(start, Block):
-            if start is not op.parent:
-                return
             start = cast(Operation, start.first_op)
         effecting = [
             o
             for o in walk_from_to(start, op)
-            if infield in o.operands
-            and (not is_side_effect_free(o))
-            and (o not in (load, apply))
+            if might_effect(o, {MemoryEffectKind.READ}, dest)
         ]
         if effecting:
-            print("effecting: ", effecting)
-            print(load)
             return
 
         new_operands = list(apply.operands)
-        new_operands[other_use.index] = op.field
+        new_operands[other_use.index] = dest
 
         new_apply = ApplyOp.create(
             operands=new_operands,
@@ -285,7 +296,7 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
         )
 
         new_load = LoadOp.create(
-            operands=[op.field],
+            operands=[dest],
             result_types=[r.type for r in load.results],
             attributes=load.attributes.copy(),
             properties=load.properties.copy(),
