@@ -32,8 +32,12 @@ def result_only_effects(rootOp: Operation) -> bool:
     https://mlir.llvm.org/doxygen/namespacemlir.html#a655db45ed8c23d04d5ed5ee0abe041ad
     """
     effects = get_effects(rootOp)
+    # If the operation has unknown effect, we safely assume it has observable ones
     return effects is not None and all(
+        # Read-only effect will not affect other operations
         e.kind == MemoryEffectKind.READ
+        # Allocation of values defined by this operation or its children will not
+        # affect other operations
         or (
             e.kind == MemoryEffectKind.ALLOC
             and isinstance(v := e.value, SSAValue)
