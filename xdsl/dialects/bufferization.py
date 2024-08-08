@@ -14,7 +14,9 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
+    ConstraintContext,
     IRDLOperation,
+    VarConstraint,
     irdl_op_definition,
     operand_def,
     opt_operand_def,
@@ -22,6 +24,31 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.utils.hints import isa
+
+
+class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
+    """
+    Constraint to infer tensor shapes from memref shapes. Use `T` and `M` variable names for tensors and memrefs.
+    """
+
+    def can_infer(self, constraint_names: set[str]) -> bool:
+        return (
+            self.name == "T"
+            and "M" in constraint_names
+            or super().can_infer(constraint_names)
+        )
+
+    def infer(self, constraint_context: ConstraintContext) -> Attribute:
+        if self.name in constraint_context.variables:
+            return constraint_context.variables[self.name]
+        if self.name == "T" and "M" in constraint_context.variables:
+            m_type = constraint_context.variables["M"]
+            if isa(m_type, MemRefType[Attribute]):
+                return TensorType(m_type.get_element_type(), m_type.get_shape())
+            if isa(m_type, UnrankedMemrefType[Attribute]):
+                return UnrankedTensorType(m_type.element_type)
+        raise ValueError(f"Unexpected {self.name} - cannot infer attribute")
 
 
 @irdl_op_definition
@@ -53,10 +80,16 @@ class AllocTensorOp(IRDLOperation):
 class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
-    memref = operand_def(AnyOf((MemRefType, UnrankedMemrefType)))
-    tensor = result_def(AnyOf((TensorType, UnrankedTensorType)))
+    memref = operand_def(
+        TensorMemrefInferenceConstraint("M", AnyOf([MemRefType, UnrankedMemrefType]))
+    )
+    tensor = result_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+    )
     writable = opt_prop_def(UnitAttr)
     restrict = opt_prop_def(UnitAttr)
+
+    assembly_format = "$memref (`restrict` $restrict^)? (`writable` $writable^)? attr-dict `:` type($memref)"
 
     def __init__(
         self,
@@ -84,11 +117,27 @@ class ToTensorOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ToMemrefOp(IRDLOperation):
+    name = "bufferization.to_memref"
+
+    tensor = operand_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+    )
+    memref = result_def(
+        TensorMemrefInferenceConstraint("M", AnyOf([MemRefType, UnrankedMemrefType]))
+    )
+    read_only = opt_prop_def(UnitAttr)
+
+    assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($memref)"
+
+
 Bufferization = Dialect(
     "bufferization",
     [
         AllocTensorOp,
         ToTensorOp,
+        ToMemrefOp,
     ],
     [],
 )
