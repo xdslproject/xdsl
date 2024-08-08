@@ -732,9 +732,6 @@ class VFCpkASSOp(
 
     name = "riscv_snitch.vfcpka.s.s"
 
-    def assembly_instruction_name(self) -> str:
-        return "vfcpka.s.s"
-
     traits = frozenset((Pure(),))
 
 
@@ -751,9 +748,6 @@ class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmul.s"
 
-    def assembly_instruction_name(self) -> str:
-        return "vfmul.s"
-
     traits = frozenset((Pure(),))
 
 
@@ -769,9 +763,6 @@ class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
     """
 
     name = "riscv_snitch.vfadd.s"
-
-    def assembly_instruction_name(self) -> str:
-        return "vfadd.s"
 
     traits = frozenset((Pure(),))
 
@@ -791,8 +782,21 @@ class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfadd.h"
 
-    def assembly_instruction_name(self) -> str:
-        return "vfadd.h"
+    traits = frozenset((Pure(),))
+
+
+@irdl_op_definition
+class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial maximum of corresponding f32 values from
+    rs1 and rs2 and stores the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    f[rd][lo] = max(f[rs1][lo], f[rs2][lo])
+    f[rd][hi] = max(f[rs1][hi], f[rs2][hi])
+    """
+
+    name = "riscv_snitch.vfmax.s"
 
     traits = frozenset((Pure(),))
 
@@ -959,6 +963,7 @@ RISCV_Snitch = Dialect(
         VFMacSOp,
         VFSumSOp,
         VFAddHOp,
+        VFMaxSOp,
     ],
     [],
 )
