@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from xdsl.dialects.builtin import (
     ContainerType,
@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
+    AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
     IRDLOperation,
@@ -31,6 +32,9 @@ class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
     """
     Constraint to infer tensor shapes from memref shapes. Use `T` and `M` variable names for tensors and memrefs.
     """
+
+    def __init__(self, name: Literal["T", "M"], constraint: AttrConstraint):
+        super().__init__(name, constraint)
 
     def can_infer(self, constraint_names: set[str]) -> bool:
         return (
