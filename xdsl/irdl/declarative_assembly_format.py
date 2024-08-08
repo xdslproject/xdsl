@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
+from xdsl.dialects.builtin import UnitAttr
 from xdsl.ir import (
     Attribute,
     Data,
@@ -799,6 +800,26 @@ class OptionalAttributeVariable(AttributeVariable, OptionalVariable):
       operand-directive ::= ( percent-ident )?
     The directive will request a space to be printed after.
     """
+
+
+class OptionalUnitAttrVariable(OptionalAttributeVariable):
+    """
+    An optional UnitAttr variable that holds no value and derives its meaning from its existence. Holds a parse
+    and print method to reflect this.
+
+      operand-directive ::= (`unit_attr` unit_attr^)?
+
+    Also see: https://mlir.llvm.org/docs/DefiningDialects/Operations/#unit-attributes
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        if self.is_property:
+            state.properties[self.name] = UnitAttr()
+        else:
+            state.attributes[self.name] = UnitAttr()
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        return
 
 
 @dataclass(frozen=True)

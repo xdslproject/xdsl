@@ -8,7 +8,7 @@ from typing import Annotated, Generic, TypeVar
 import pytest
 
 from xdsl.context import MLContext
-from xdsl.dialects.builtin import I32, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import I32, IntegerAttr, ModuleOp, UnitAttr
 from xdsl.dialects.test import Test, TestType
 from xdsl.ir import (
     Attribute,
@@ -449,6 +449,68 @@ def test_optional_property(program: str, generic_program: str):
 
     ctx = MLContext()
     ctx.load_op(OptionalPropertyOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.optional_unit_attr_prop",
+            '"test.optional_unit_attr_prop"() : () -> ()',
+        ),
+        (
+            "test.optional_unit_attr_prop unit_attr",
+            '"test.optional_unit_attr_prop"() <{"unit_attr"}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_unit_attr_property(program: str, generic_program: str):
+    """Test the parsing of optional UnitAttr operands"""
+
+    @irdl_op_definition
+    class OptionalUnitAttrPropertyOp(IRDLOperation):
+        name = "test.optional_unit_attr_prop"
+        unit_attr = opt_prop_def(UnitAttr)
+
+        assembly_format = "(`unit_attr` $unit_attr^)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalUnitAttrPropertyOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.optional_unit_attr",
+            '"test.optional_unit_attr"() : () -> ()',
+        ),
+        (
+            "test.optional_unit_attr unit_attr",
+            '"test.optional_unit_attr"() <{"unit_attr"}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_unit_attr_attribute(program: str, generic_program: str):
+    """Test the parsing of optional UnitAttr operands"""
+
+    @irdl_op_definition
+    class OptionalUnitAttrOp(IRDLOperation):
+        name = "test.optional_unit_attr"
+        unit_attr = opt_prop_def(UnitAttr)
+
+        assembly_format = "(`unit_attr` $unit_attr^)? attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalUnitAttrOp)
     ctx.load_dialect(Test)
 
     check_roundtrip(program, ctx)
