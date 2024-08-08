@@ -5,6 +5,7 @@ from typing import Any, TypeVar, cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
+from xdsl.dialects.experimental import dmp
 from xdsl.dialects.stencil import (
     AllocOp,
     ApplyOp,
@@ -188,6 +189,7 @@ class LoadBufferFoldPattern(RewritePattern):
             if underlying in o.operands
             and (not is_side_effect_free(o))
             and (o not in (load, op, user))
+            and not isinstance(o, dmp.SwapOp)
         ]
         if effecting:
             return
@@ -497,6 +499,29 @@ class CombineStoreFold(RewritePattern):
 
 
 @dataclass(frozen=True)
+class DistributedStencilBufferizePattern(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter):
+        # If this is a value-semantic swap, we can't rebuild it
+        if not isinstance(op.input_stencil.type, TempType):
+            return
+
+        load_op = op.input_stencil.owner
+        # We are interested in rebuilding swaps of loaded values
+        if not isinstance(load_op, LoadOp):
+            return
+
+        rewriter.replace_matched_op(
+            dmp.SwapOp(
+                operands=[load_op.field],
+                properties=op.properties,
+                attributes=op.attributes,
+            )
+        )
+
+
+@dataclass(frozen=True)
 class StencilBufferize(ModulePass):
     """
     Bufferize the stencil dialect, i.e., try to fold all loads, sotres, buffer and
@@ -519,6 +544,7 @@ class StencilBufferize(ModulePass):
                     ApplyLoadStoreFoldPattern(),
                     RemoveUnusedOperations(),
                     AllocUnused(),
+                    DistributedStencilBufferizePattern(),
                 ]
             )
         )

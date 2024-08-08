@@ -467,3 +467,27 @@ func.func @buffered_combine(%0 : !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      } to <[1, 2], [65, 66]>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
+
+func.func @dmp(%a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, %b : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
+  %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32> -> !stencil.temp<[0,2]x[0,1]x[0,511]xf32>
+  "dmp.swap"(%0) {"topo" = #dmp.topo<1022x510>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>]} : (!stencil.temp<[0,2]x[0,1]x[0,511]xf32>) -> ()
+  %1 = stencil.apply(%2 = %0 : !stencil.temp<[0,2]x[0,1]x[0,511]xf32>) -> (!stencil.temp<[0,1]x[0,1]x[0,510]xf32>) {
+    %3 = stencil.access %2[1, 0, 0] : !stencil.temp<[0,2]x[0,1]x[0,511]xf32>
+    %4 = stencil.access %2[0, 0, 1] : !stencil.temp<[0,2]x[0,1]x[0,511]xf32>
+    %5 = arith.addf %3, %4 : f32
+    stencil.return %5 : f32
+  }
+  stencil.store %1 to %b (<[0, 0, 0], [1, 1, 510]>) : !stencil.temp<[0,1]x[0,1]x[0,510]xf32> to !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>
+  func.return
+}
+
+// CHECK:         func.func @dmp(%a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, %b : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
+// CHECK-NEXT:      "dmp.swap"(%a) {"topo" = #dmp.topo<1022x510>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>]} : (!stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) -> ()
+// CHECK-NEXT:      stencil.apply(%0 = %a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) outs (%b : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
+// CHECK-NEXT:        %1 = stencil.access %0[1, 0, 0] : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>
+// CHECK-NEXT:        %2 = stencil.access %0[0, 0, 1] : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>
+// CHECK-NEXT:        %3 = arith.addf %1, %2 : f32
+// CHECK-NEXT:        stencil.return %3 : f32
+// CHECK-NEXT:      } to <[0, 0, 0], [1, 1, 510]>
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
