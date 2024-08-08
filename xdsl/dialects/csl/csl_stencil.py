@@ -366,7 +366,7 @@ class ApplyOp(IRDLOperation):
 
         if (len(self.res) == 0) == (len(self.dest) == 0):
             raise VerifyException(
-                "Expected stencil.apply to have at either results or dest specified"
+                "Expected stencil.apply to have either results or dest specified"
             )
 
     def get_rank(self) -> int:
