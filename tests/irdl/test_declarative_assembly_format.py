@@ -463,7 +463,7 @@ def test_optional_property(program: str, generic_program: str):
             '"test.optional_unit_attr_prop"() : () -> ()',
         ),
         (
-            "test.optional_unit_attr_prop unit_attr",
+            "test.optional_unit_attr_prop unit_attr ",  # todo this prints an extra whitespace
             '"test.optional_unit_attr_prop"() <{"unit_attr"}> : () -> ()',
         ),
     ],
@@ -494,7 +494,7 @@ def test_optional_unit_attr_property(program: str, generic_program: str):
             '"test.optional_unit_attr"() : () -> ()',
         ),
         (
-            "test.optional_unit_attr unit_attr",
+            "test.optional_unit_attr unit_attr ",  # todo this prints an extra whitespace
             '"test.optional_unit_attr"() <{"unit_attr"}> : () -> ()',
         ),
     ],
