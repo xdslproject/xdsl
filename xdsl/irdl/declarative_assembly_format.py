@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
+from xdsl.dialects.builtin import UnitAttr
 from xdsl.ir import (
     Attribute,
     Data,
@@ -772,15 +773,17 @@ class AttributeVariable(FormatDirective):
             state.attributes[self.name] = attr
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        if state.should_emit_space or not state.last_was_punctuation:
-            printer.print(" ")
-        state.should_emit_space = True
-        state.last_was_punctuation = False
-
         if self.is_property:
             attr = op.properties[self.name]
         else:
             attr = op.attributes[self.name]
+        if isinstance(attr, UnitAttr):
+            return
+
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
 
         if self.unique_type is not None:
             return cast(TypedAttribute[Attribute], attr).print_without_type(printer)

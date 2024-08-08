@@ -12,6 +12,7 @@ from enum import Enum, auto
 from itertools import pairwise
 from typing import cast
 
+import xdsl.dialects.builtin
 from xdsl.dialects.builtin import Builtin
 from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
@@ -387,6 +388,7 @@ class FormatParser(BaseParser):
                             unique_type = type_constraint.infer(ConstraintContext())
                 if (
                     unique_base is not None
+                    and unique_base != xdsl.dialects.builtin.UnitAttr
                     and unique_base in Builtin.attributes
                     and unique_type is None
                 ):
