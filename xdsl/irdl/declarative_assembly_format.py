@@ -804,7 +804,12 @@ class OptionalAttributeVariable(AttributeVariable, OptionalVariable):
 
 class OptionalUnitAttrVariable(OptionalAttributeVariable):
     """
-    An optional UnitAttr variable
+    An optional UnitAttr variable that holds no value and derives its meaning from its existence. Holds a parse
+    and print method to reflect this.
+
+      operand-directive ::= (`unit_attr` unit_attr^)?
+
+    Also see: https://mlir.llvm.org/docs/DefiningDialects/Operations/#unit-attributes
     """
 
     def parse(self, parser: Parser, state: ParsingState) -> None:
