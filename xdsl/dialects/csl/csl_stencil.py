@@ -19,6 +19,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
     ParameterDef,
@@ -201,12 +202,13 @@ class ApplyOp(IRDLOperation):
     name = "csl_stencil.apply"
 
     communicated_stencil = operand_def(
-        base(stencil.TempType[Attribute]) | base(memref.MemRefType[Attribute])
+        base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
     )
 
     iter_arg = operand_def(TensorType[Attribute])
 
     args = var_operand_def(Attribute)
+    dest = var_operand_def(stencil.FieldType)
 
     chunk_reduce = region_def()
     post_process = region_def()
@@ -217,7 +219,9 @@ class ApplyOp(IRDLOperation):
 
     num_chunks = prop_def(AnyIntegerAttr)
 
-    res = var_result_def(stencil.TempType)
+    bounds = opt_prop_def(stencil.StencilBoundsAttr)
+
+    res = var_result_def(stencil.StencilType)
 
     traits = frozenset(
         [
@@ -227,32 +231,40 @@ class ApplyOp(IRDLOperation):
         ]
     )
 
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
     def print(self, printer: Printer):
-        def print_arg(arg: tuple[SSAValue, Attribute]):
-            printer.print(arg[0])
+        def print_arg(arg: SSAValue):
+            printer.print(arg)
             printer.print(" : ")
-            printer.print(arg[1])
+            printer.print(arg.type)
 
         printer.print("(")
 
         # args required by function signature, plus optional args for regions
         args = [self.communicated_stencil, self.iter_arg, *self.args]
 
-        printer.print_list(
-            zip(args, (a.type for a in args)),
-            print_arg,
-        )
-        printer.print(") <")
-        printer.print_attr_dict(self.properties)
-        printer.print("> -> (")
-        printer.print_list((r.type for r in self.res), printer.print_attribute)
+        printer.print_list(args, print_arg)
+        if self.dest:
+            printer.print(") outs (")
+            printer.print_list(self.dest, print_arg)
+        else:
+            printer.print(") -> (")
+            printer.print_list((r.type for r in self.res), printer.print_attribute)
+
         printer.print(") ")
+        printer.print("<")
+        printer.print_attr_dict(self.properties)
+        printer.print("> ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print("(")
         printer.print_region(self.chunk_reduce, print_entry_block_args=True)
         printer.print(", ")
         printer.print_region(self.post_process, print_entry_block_args=True)
         printer.print(")")
+        if self.bounds is not None:
+            printer.print(" to ")
+            self.bounds.print_parameters(printer)
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -265,12 +277,22 @@ class ApplyOp(IRDLOperation):
 
         operands = parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_args)
 
-        props = parser.parse_optional_properties_dict()
+        if parser.parse_optional_punctuation("->"):
+            parser.parse_punctuation("(")
+            result_types = parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_attribute, parser.parse_attribute
+            )
+            destinations = []
+        else:
+            parser.parse_keyword("outs")
+            parser.parse_punctuation("(")
+            destinations = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parse_args
+            )
+            result_types = []
+        parser.parse_punctuation(")")
 
-        parser.parse_punctuation("->")
-        result_types = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_attribute
-        )
+        props = parser.parse_optional_properties_dict()
         attrs = parser.parse_optional_attr_dict_with_keyword()
         if attrs is not None:
             attrs = attrs.data
@@ -279,8 +301,12 @@ class ApplyOp(IRDLOperation):
         parser.parse_punctuation(",")
         post_process = parser.parse_region()
         parser.parse_punctuation(")")
+        if parser.parse_optional_keyword("to"):
+            props["bounds"] = stencil.StencilBoundsAttr.new(
+                stencil.StencilBoundsAttr.parse_parameters(parser)
+            )
         return cls(
-            operands=[operands[0], operands[1], operands[2:]],
+            operands=[operands[0], operands[1], operands[2:], destinations],
             result_types=[result_types],
             regions=[chunk_reduce, post_process],
             properties=props,
@@ -338,19 +364,17 @@ class ApplyOp(IRDLOperation):
                     f"Unexpected block argument type of post_process, got {arg.type} != {expected_type} at index {arg.index}"
                 )
 
-        if len(self.res) < 1:
+        if (len(self.res) == 0) == (len(self.dest) == 0):
             raise VerifyException(
-                f"Expected stencil.apply to have at least 1 result, got {len(self.res)}"
+                "Expected stencil.apply to have at either results or dest specified"
             )
-        res_type = cast(stencil.TempType[Attribute], self.res[0].type)
-        for other in self.res[1:]:
-            other = cast(stencil.TempType[Attribute], other.type)
-            if res_type.bounds != other.bounds:
-                raise VerifyException("Expected all output types bounds to be equals.")
 
     def get_rank(self) -> int:
-        res_type = self.res[0].type
-        assert isa(res_type, stencil.TempType[Attribute])
+        if self.dest:
+            res_type = self.dest[0].type
+        else:
+            res_type = self.res[0].type
+        assert isa(res_type, stencil.StencilType[Attribute])
         return res_type.get_num_dims()
 
     def get_accesses(self) -> Iterable[stencil.AccessPattern]:
@@ -394,7 +418,7 @@ class AccessOp(IRDLOperation):
 
     name = "csl_stencil.access"
     op = operand_def(
-        base(AnyMemRefType) | base(stencil.AnyTempType) | base(TensorType[Attribute])
+        base(AnyMemRefType) | base(stencil.StencilType) | base(TensorType[Attribute])
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
@@ -473,9 +497,11 @@ class AccessOp(IRDLOperation):
             props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
-        if isattr(res_type, base(stencil.AnyTempType)):
+        if isa(res_type, stencil.StencilType[Attribute]):
             return cls.build(
-                operands=[temp], result_types=[res_type.element_type], properties=props
+                operands=[temp],
+                result_types=[res_type.get_element_type()],
+                properties=props,
             )
         elif isattr(res_type, base(TensorType[Attribute])):
             return cls.build(
@@ -499,9 +525,9 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         if tuple(self.offset) == (0, 0):
-            if not isa(self.op.type, stencil.TempType[Attribute]):
+            if not isa(self.op.type, stencil.StencilType[Attribute]):
                 raise VerifyException(
-                    f"{type(self)} access to own data requires type stencil.TempType but found {self.op.type}"
+                    f"{type(self)} access to own data requires type stencil.StencilType but found {self.op.type}"
                 )
             assert self.result.type == self.op.type.get_element_type()
         else:
