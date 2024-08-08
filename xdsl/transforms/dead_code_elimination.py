@@ -30,6 +30,11 @@ def result_only_effects(rootOp: Operation) -> bool:
 
     cf MLIR's WouldOpBeTriviallyDead:
     https://mlir.llvm.org/doxygen/namespacemlir.html#a655db45ed8c23d04d5ed5ee0abe041ad
+
+    We have one key difference here:
+    - MLIR discard any allocation from an operation on its own result for this analysis
+    - xDSL discard any allocation effect of any nested operation on any value defined
+    by the root operation or its children.
     """
     effects = get_effects(rootOp)
     # If the operation has unknown effect, we safely assume it has observable ones
