@@ -562,16 +562,20 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block | Region,
-        result_types: Sequence[TempType[Attribute]],
+        result_types: Sequence[TempType[Attribute]] | None = None,
+        bounds: StencilBoundsAttr | None = None,
     ):
-
+        assert result_types or bounds
         if isinstance(body, Block):
             body = Region(body)
+
+        properties = {"bounds": bounds} if bounds else {}
 
         return ApplyOp.build(
             operands=[list(args), []],
             regions=[body],
             result_types=[result_types],
+            properties=properties,
         )
 
     def verify_(self) -> None:
