@@ -36,7 +36,7 @@ class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
         return (
             self.name == "T"
             and "M" in constraint_names
-            or super().can_infer(constraint_names)
+            or self.name in constraint_names
         )
 
     def infer(self, constraint_context: ConstraintContext) -> Attribute:
