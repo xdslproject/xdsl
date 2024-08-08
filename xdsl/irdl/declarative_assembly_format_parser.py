@@ -12,7 +12,7 @@ from enum import Enum, auto
 from itertools import pairwise
 from typing import cast
 
-from xdsl.dialects.builtin import Builtin
+from xdsl.dialects.builtin import Builtin, UnitAttr
 from xdsl.ir import Attribute, TypedAttribute
 from xdsl.irdl import (
     AttrOrPropDef,
@@ -45,6 +45,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalOperandVariable,
     OptionalResultTypeDirective,
     OptionalResultVariable,
+    OptionalUnitAttrVariable,
     PunctuationDirective,
     ResultTypeDirective,
     ResultVariable,
@@ -352,8 +353,9 @@ class FormatParser(BaseParser):
         if variable_name in attr_or_prop_by_name:
             attr_name = variable_name
             attr_or_prop = attr_or_prop_by_name[attr_name]
+            is_property = attr_or_prop == "property"
             if self.context == ParsingContext.TopLevel:
-                if attr_or_prop == "property":
+                if is_property:
                     if attr_name in self.seen_properties:
                         self.raise_error(f"property '{variable_name}' is already bound")
                     self.seen_properties.add(attr_name)
@@ -366,11 +368,16 @@ class FormatParser(BaseParser):
 
             attr_def = (
                 self.op_def.properties.get(attr_name)
-                if attr_or_prop == "property"
+                if is_property
                 else self.op_def.attributes.get(attr_name)
             )
             if isinstance(attr_def, AttrOrPropDef):
                 unique_base = attr_def.constr.get_unique_base()
+                if unique_base == UnitAttr:
+                    return OptionalUnitAttrVariable(
+                        variable_name, is_property, None, None
+                    )
+
                 # Always qualify builtin attributes
                 # This is technically an approximation, but appears to be good enough
                 # for xDSL right now.
@@ -400,7 +407,6 @@ class FormatParser(BaseParser):
                     if isinstance(attr_def, OptionalDef)
                     else AttributeVariable
                 )
-                is_property = attr_or_prop == "property"
                 return variable_type(
                     variable_name, is_property, unique_base, unique_type
                 )
