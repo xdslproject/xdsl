@@ -431,11 +431,6 @@ AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstr
 class UnitAttr(ParametrizedAttribute):
     name = "unit"
 
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        """Parse the attribute parameters."""
-        return []
-
 
 @irdl_attr_definition
 class LocationAttr(ParametrizedAttribute):
