@@ -436,10 +436,6 @@ class UnitAttr(ParametrizedAttribute):
         """Parse the attribute parameters."""
         return []
 
-    def print_parameters(self, printer: Printer) -> None:
-        """Print the attribute parameters."""
-        pass
-
 
 @irdl_attr_definition
 class LocationAttr(ParametrizedAttribute):
