@@ -6,17 +6,29 @@ WebAssembly Specification 2.0.
 
 The paragraphs prefixed by `wasm>` in the documentation of this dialect are
 excerpts from the WebAssembly Specification, which is licensed under the terms
-at the bottom of this file.
+described in the WASM-SPEC-LICENSE file.
 """
 
+from collections.abc import Sequence
 from io import BytesIO, StringIO
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 from typing_extensions import Self
 
+from xdsl.dialects.builtin import ArrayAttr
+from xdsl.dialects.wasm.attrs import (
+    FuncIdx,
+    WasmExport,
+    WasmImport,
+    WasmLimits,
+    WasmTableType,
+)
 from xdsl.irdl import (
+    Attribute,
     IRDLOperation,
     irdl_op_definition,
+    opt_prop_def,
+    prop_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -27,6 +39,9 @@ from .wat import WatPrintable, WatPrinter
 ##==------------------------------------------------------------------------==##
 # WebAssembly module
 ##==------------------------------------------------------------------------==##
+
+SECTIONS = ("tables", "mems", "start", "imports", "exports")
+ARRAY_SECTIONS = ("tables", "mems", "exports", "imports")
 
 
 @irdl_op_definition
@@ -41,30 +56,110 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
 
     name = "wasm.module"
 
+    tables: ArrayAttr[WasmTableType] = prop_def(ArrayAttr[WasmTableType])
+    mems: ArrayAttr[WasmLimits] = prop_def(ArrayAttr[WasmLimits])
+    exports: ArrayAttr[WasmExport] = prop_def(ArrayAttr[WasmExport])
+    imports: ArrayAttr[WasmImport] = prop_def(ArrayAttr[WasmImport])
+    start: FuncIdx | None = opt_prop_def(FuncIdx)
+
     def __init__(
         self,
+        *,
+        tables: Sequence[WasmTableType] | None = None,
+        mems: Sequence[WasmLimits] | None = None,
+        exports: Sequence[WasmExport] | None = None,
+        imports: Sequence[WasmImport] | None = None,
+        start: FuncIdx | None = None,
     ):
-        super().__init__()
+        properties: dict[str, Attribute] = {}
+        properties["tables"] = ArrayAttr(tables or ())
+        properties["mems"] = ArrayAttr(mems or ())
+        if start:
+            properties["start"] = start
+        properties["imports"] = ArrayAttr(imports or ())
+        properties["exports"] = ArrayAttr(exports or ())
+
+        super().__init__(properties=properties)
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
+        unordered_properties: dict[str, Attribute] = {}
+
+        def parse_section():
+            section = parser.parse_identifier("wasm module section name")
+            if section in unordered_properties:
+                parser.raise_error(
+                    f"wasm module section '{section}' is declared multiple times"
+                )
+            if section in ARRAY_SECTIONS:
+                unordered_properties[section] = ArrayAttr(
+                    parser.parse_comma_separated_list(
+                        Parser.Delimiter.SQUARE, lambda: parser.parse_attribute()
+                    )
+                )
+                return
+            if section == "start":
+                unordered_properties[section] = FuncIdx(
+                    parser.parse_integer(
+                        allow_boolean=False,
+                        allow_negative=False,
+                        context_msg="start function ID",
+                    ),
+                    32,
+                )
+                return
+            parser.raise_error(f"unknown wasm module section '{section}'")
+
+        parser.parse_punctuation("(")
+        while parser.parse_optional_punctuation(")") is None:
+            parse_section()
 
         attr_dict = parser.parse_optional_attr_dict_with_keyword()
 
-        op = cls()
+        properties: dict[str, Attribute] = {}
+        for section in SECTIONS:
+            if section in unordered_properties:
+                properties[section] = unordered_properties[section]
+                continue
+            if section in ARRAY_SECTIONS:
+                properties[section] = ArrayAttr(())
+                continue
 
-        if attr_dict is not None:
-            op.attributes |= attr_dict.data
-
-        return op
+        return cls.create(
+            properties=properties, attributes=attr_dict.data if attr_dict else {}
+        )
 
     def print(self, printer: Printer):
+        printer.print("(")
 
-        attr_dict = self.attributes
+        printed_one = False
 
-        if attr_dict:
-            printer.print_string(" attributes ")
-            printer.print_attr_dict(attr_dict)
+        def print_named_array(name: str) -> bool:
+            to_print = cast(ArrayAttr[Attribute], self.properties[name])
+            assert isinstance(to_print, ArrayAttr)
+            if len(to_print.data) == 0:
+                return False
+            printer.print(f"\n{name} [")
+            printer.print_list(to_print, lambda x: printer.print_attribute(x))
+            printer.print("]")
+            return True
+
+        with printer.indented():
+            printed_one |= print_named_array("tables")
+            printed_one |= print_named_array("mems")
+
+            if self.start is not None:
+                printer.print(f"\nstart {self.start.value.data}")
+                printed_one = True
+
+            printed_one |= print_named_array("imports")
+            printed_one |= print_named_array("exports")
+
+        if printed_one:
+            printer.print("\n")
+        printer.print(")")
+
+        printer.print_op_attributes(self.attributes, print_keyword=True)
 
     def encode(self, ctx: WasmBinaryEncodingContext, io: BinaryIO) -> None:
         # https://webassembly.github.io/spec/core/binary/modules.html#binary-module
@@ -73,9 +168,29 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
         io.write(magic)
         io.write(version)
 
+        # FIXME: implement encoder for module attributes
+        if (
+            len(self.tables.data)
+            + len(self.mems.data)
+            + len(self.exports)
+            + len(self.imports)
+            != 0
+        ):
+            raise NotImplementedError()
+
     def print_wat(self, printer: WatPrinter) -> None:
         with printer.in_parens():
             printer.print_string("module")
+
+            # FIXME: implement wat printer for module attributes
+            if (
+                len(self.tables.data)
+                + len(self.mems.data)
+                + len(self.exports)
+                + len(self.imports)
+                != 0
+            ):
+                raise NotImplementedError()
 
     def wasm(self) -> bytes:
         ctx = WasmBinaryEncodingContext()
@@ -90,61 +205,3 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
         self.print_wat(printer)
         res = io.getvalue()
         return res
-
-
-"""
---- Licensing Terms for the WebAssembly Specification
---- Only applies to the parts of the documentation specified in the header
---- of this file.
-
-WebAssembly Specification: https://webassembly.github.io/spec/core/index.html
-
-    Copyright © 2024 World Wide Web Consortium.
-    All Rights Reserved. This work is distributed under the
-    W3C® Software and Document License [1] in the hope that it
-    will be useful, but WITHOUT ANY WARRANTY; without even the
-    implied warranty of MERCHANTABILITY or FITNESS FOR A
-    PARTICULAR PURPOSE.
-
-    [1] https://www.w3.org/Consortium/Legal/copyright-software
-
-
-This work is being provided by the copyright holders under the following
-license.
-
-License
-
-By obtaining and/or copying this work, you (the licensee) agree that you
-have read, understood, and will comply with the following terms and conditions.
-
-Permission to copy, modify, and distribute this work, with or without
-modification, for any purpose and without fee or royalty is hereby granted,
-provided that you include the following on ALL copies of the work or portions
-thereof, including modifications:
-
-    - The full text of this NOTICE in a location viewable to users of the
-      redistributed or derivative work.
-    - Any pre-existing intellectual property disclaimers, notices, or terms and
-      conditions. If none exist, the W3C software and document short notice
-      should be included.
-    - Notice of any changes or modifications, through a copyright statement on
-      the new code or document such as "This software or document includes
-      material copied from or derived from [title and URI of the W3C document].
-      Copyright © [$year-of-document] World Wide Web Consortium.
-      https://www.w3.org/copyright/software-license-2023/"
-
-Disclaimers
-
-THIS WORK IS PROVIDED "AS IS," AND COPYRIGHT HOLDERS MAKE NO REPRESENTATIONS
-OR WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO, WARRANTIES OF
-MERCHANTABILITY OR FITNESS FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE
-SOFTWARE OR DOCUMENT WILL NOT INFRINGE ANY THIRD PARTY PATENTS, COPYRIGHTS,
-TRADEMARKS OR OTHER RIGHTS.
-
-COPYRIGHT HOLDERS WILL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL OR
-CONSEQUENTIAL DAMAGES ARISING OUT OF ANY USE OF THE SOFTWARE OR DOCUMENT.
-
-The name and trademarks of copyright holders may NOT be used in advertising or
-publicity pertaining to the work without specific, written prior permission.
-Title to copyright in this work will at all times remain with copyright holders.
-"""
