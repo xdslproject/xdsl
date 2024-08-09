@@ -99,8 +99,8 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %13:2 = "test.op"() : () -> (tensor<16xf32>, tensor<16x64xf32>)
 // CHECK-NEXT:    %broadcasted  = linalg.broadcast ins(%13#0 : tensor<16xf32>) outs(%13#1 : tensor<16x64xf32>) dimensions = [1]
 // CHECK-NEXT:    %{{.*}} = linalg.generic {indexing_maps = [#map1, #map1, #map1], iterator_types = ["parallel", "parallel"]} ins(%1#0, %1#0 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) {
-// CHECK-NEXT:    ^bb0(%in: f32, %in_0: f32, %out: f32):
-// CHECK-NEXT:      %{{.*}} = arith.addf %in, %in_0 : f32
+// CHECK-NEXT:    ^bb0(%in: f32, %in_1: f32, %out: f32):
+// CHECK-NEXT:      %{{.*}} = arith.addf %in, %in_1 : f32
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    } -> tensor<2x3xf32>
 // CHECK-NEXT:    %{{.*}} = linalg.sub ins(%{{.*}}, %{{.*}} : tensor<2x3xf32>, tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
