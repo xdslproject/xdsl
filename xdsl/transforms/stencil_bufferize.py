@@ -216,89 +216,94 @@ class ApplyStoreFoldPattern(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter):
-        stored = op.temp
+    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
+        apply = op
+        for temp_index, stored in enumerate(op.res):
+            stores = [
+                use.operation
+                for use in stored.uses
+                if isinstance(use.operation, StoreOp)
+            ]
+            if not stores:
+                continue
 
-        # We are looking for a stored result of an apply
-        if not isinstance(apply := stored.owner, ApplyOp):
-            return
+            store = stores[0]
 
-        # Check that the destination is not used between the apply and store.
-        dest = op.field
-        start = dest.owner
-        if isinstance(start, Block):
-            start = cast(Operation, start.first_op)
-        effecting = [
-            o
-            for o in walk_from_to(apply, op)
-            if might_effect(o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest)
-        ]
-        if effecting:
-            return
+            # Check that the destination is not used between the apply and store.
+            dest = store.field
+            start = dest.owner
+            if isinstance(start, Block):
+                start = cast(Operation, start.first_op)
+            effecting = [
+                o
+                for o in walk_from_to(apply, op)
+                if might_effect(
+                    o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest
+                )
+            ]
+            if effecting:
+                return
 
-        # Get the result index to help build the new apply
-        temp_index = apply.results.index(stored)
+            bounds = apply.get_bounds()
+            if not isinstance(bounds, StencilBoundsAttr):
+                raise ValueError(
+                    "Stencil shape inference must be ran before bufferization."
+                )
 
-        bounds = apply.get_bounds()
-        if not isinstance(bounds, StencilBoundsAttr):
-            raise ValueError(
-                "Stencil shape inference must be ran before bufferization."
+            new_apply = ApplyOp.build(
+                # We add a destination, corresponding to the removed result
+                operands=[apply.args, [*apply.dest, dest]],
+                # We only remove the considered result
+                result_types=[
+                    [
+                        r.type
+                        for r in apply.results[:temp_index]
+                        + apply.results[temp_index + 1 :]
+                    ]
+                ],
+                properties=apply.properties.copy() | {"bounds": bounds},
+                attributes=apply.attributes.copy(),
+                # The block signature is the same
+                regions=[
+                    Region(Block(arg_types=[SSAValue.get(a).type for a in apply.args])),
+                ],
             )
 
-        new_apply = ApplyOp.build(
-            # We add a destination, corresponding to the removed result
-            operands=[apply.args, [*apply.dest, dest]],
-            # We only remove the considered result
-            result_types=[
-                [
-                    r.type
-                    for r in apply.results[:temp_index]
-                    + apply.results[temp_index + 1 :]
-                ]
-            ],
-            properties=apply.properties.copy() | {"bounds": bounds},
-            attributes=apply.attributes.copy(),
-            # The block signature is the same
-            regions=[
-                Region(Block(arg_types=[SSAValue.get(a).type for a in apply.args])),
-            ],
-        )
+            # The body is the same
+            rewriter.inline_block(
+                apply.region.block,
+                InsertPoint.at_start(new_apply.region.block),
+                new_apply.region.block.args,
+            )
 
-        # The body is the same
-        rewriter.inline_block(
-            apply.region.block,
-            InsertPoint.at_start(new_apply.region.block),
-            new_apply.region.block.args,
-        )
+            # We swap the return's operand order, to make sure the order still matches destinations
+            # after bufferization
+            old_return = new_apply.region.block.last_op
+            assert isinstance(old_return, ReturnOp)
+            uf = old_return.unroll_factor
+            new_return_args = list(
+                old_return.arg[: uf * temp_index]
+                + old_return.arg[uf * (temp_index + 1) :]
+                + old_return.arg[uf * temp_index : uf * (temp_index + 1)]
+            )
+            new_return = ReturnOp.create(
+                operands=new_return_args,
+                properties=old_return.properties.copy(),
+                attributes=old_return.attributes.copy(),
+            )
+            rewriter.replace_op(old_return, new_return)
 
-        # We swap the return's operand order, to make sure the order still matches destinations
-        # after bufferization
-        old_return = new_apply.region.block.last_op
-        assert isinstance(old_return, ReturnOp)
-        uf = old_return.unroll_factor
-        new_return_args = list(
-            old_return.arg[: uf * temp_index]
-            + old_return.arg[uf * (temp_index + 1) :]
-            + old_return.arg[uf * temp_index : uf * (temp_index + 1)]
-        )
-        new_return = ReturnOp.create(
-            operands=new_return_args,
-            properties=old_return.properties.copy(),
-            attributes=old_return.attributes.copy(),
-        )
-        rewriter.replace_op(old_return, new_return)
+            # Create a load of the destination, for any other user of the result
+            load = LoadOp.get(dest, bounds.lb, bounds.ub)
 
-        # Create a load of the destination, for any other user of the result
-        load = LoadOp.get(dest, bounds.lb, bounds.ub)
-
-        rewriter.replace_op(
-            apply,
-            [new_apply, load],
-            new_apply.results[:temp_index]
-            + (load.res,)
-            + new_apply.results[temp_index:],
-        )
-        rewriter.erase_matched_op()
+            rewriter.replace_matched_op(
+                [new_apply, load],
+                new_apply.results[:temp_index]
+                + (load.res,)
+                + new_apply.results[temp_index:],
+            )
+            rewriter.erase_op(store)
+            return
 
 
 @dataclass(frozen=True)
