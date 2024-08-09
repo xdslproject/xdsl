@@ -63,7 +63,7 @@ class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
     value: ParameterDef[ArrayAttr[VariadicityAttr]]
 
     def __init__(self, variadicities: Iterable[VariadicityEnum]) -> None:
-        array_attr = ArrayAttr(map(lambda x: VariadicityAttr(x), variadicities))
+        array_attr = ArrayAttr(tuple(VariadicityAttr(x) for x in variadicities))
         super().__init__((array_attr,))
 
     @classmethod
