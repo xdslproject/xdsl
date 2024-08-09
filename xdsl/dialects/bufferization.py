@@ -30,7 +30,11 @@ from xdsl.utils.hints import isa
 
 class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
     """
-    Constraint to infer tensor shapes from memref shapes.
+    Constraint to infer tensor shapes from memref shapes, inferring ranked tensor from ranked memref
+    (and unranked from unranked, respectively).
+
+    Verification checks that attributes of the same variable name are either all ranked or all unranked,
+    and checks for matching element type, shape (ranked only), as well as verifying sub constraints.
     """
 
     def infer(self, constraint_context: ConstraintContext) -> Attribute:
