@@ -215,34 +215,33 @@ class ApplyStoreFoldPattern(RewritePattern):
     ```
     """
 
+    @staticmethod
+    def is_dest_safe(apply: ApplyOp, store: StoreOp) -> bool:
+        # Check that the destination is not used between the apply and store.
+        dest = store.field
+        start = dest.owner
+        if isinstance(start, Block):
+            start = cast(Operation, start.first_op)
+        effecting = [
+            o
+            for o in walk_from_to(apply, store)
+            if might_effect(o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest)
+        ]
+        return not effecting
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
         apply = op
+
         for temp_index, stored in enumerate(op.res):
             stores = [
                 use.operation
                 for use in stored.uses
                 if isinstance(use.operation, StoreOp)
+                and self.is_dest_safe(apply, use.operation)
             ]
             if not stores:
                 continue
-
-            store = stores[0]
-
-            # Check that the destination is not used between the apply and store.
-            dest = store.field
-            start = dest.owner
-            if isinstance(start, Block):
-                start = cast(Operation, start.first_op)
-            effecting = [
-                o
-                for o in walk_from_to(apply, op)
-                if might_effect(
-                    o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest
-                )
-            ]
-            if effecting:
-                return
 
             bounds = apply.get_bounds()
             if not isinstance(bounds, StencilBoundsAttr):
@@ -252,7 +251,10 @@ class ApplyStoreFoldPattern(RewritePattern):
 
             new_apply = ApplyOp.build(
                 # We add a destination, corresponding to the removed result
-                operands=[apply.args, [*apply.dest, dest]],
+                operands=[
+                    apply.args,
+                    (*apply.dest, *(store.field for store in stores)),
+                ],
                 # We only remove the considered result
                 result_types=[
                     [
@@ -284,7 +286,7 @@ class ApplyStoreFoldPattern(RewritePattern):
             new_return_args = list(
                 old_return.arg[: uf * temp_index]
                 + old_return.arg[uf * (temp_index + 1) :]
-                + old_return.arg[uf * temp_index : uf * (temp_index + 1)]
+                + old_return.arg[uf * temp_index : uf * (temp_index + 1)] * len(stores)
             )
             new_return = ReturnOp.create(
                 operands=new_return_args,
@@ -293,8 +295,8 @@ class ApplyStoreFoldPattern(RewritePattern):
             )
             rewriter.replace_op(old_return, new_return)
 
-            # Create a load of the destination, for any other user of the result
-            load = LoadOp.get(dest, bounds.lb, bounds.ub)
+            # Create a load of a destination, for any other user of the result
+            load = LoadOp.get(stores[0].field, bounds.lb, bounds.ub)
 
             rewriter.replace_matched_op(
                 [new_apply, load],
@@ -302,7 +304,8 @@ class ApplyStoreFoldPattern(RewritePattern):
                 + (load.res,)
                 + new_apply.results[temp_index:],
             )
-            rewriter.erase_op(store)
+            for store in stores:
+                rewriter.erase_op(store)
             return
 
 
