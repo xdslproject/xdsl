@@ -284,7 +284,7 @@ def _parse_argument(parser: Parser) -> tuple[VariadicityEnum, SSAValue]:
 def _print_argument(printer: Printer, data: tuple[VariadicityAttr, SSAValue]) -> None:
     variadicity = data[0].data
     if variadicity != VariadicityEnum.Single:
-        printer.print(variadicity)
+        printer.print(variadicity, " ")
     printer.print(data[1])
 
 
