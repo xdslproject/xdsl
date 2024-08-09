@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any
 
 from xdsl.dialects.builtin import (
     ContainerType,
@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
-    AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
     IRDLOperation,
@@ -25,34 +24,51 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
 class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
     """
-    Constraint to infer tensor shapes from memref shapes. Use `T` and `M` variable names for tensors and memrefs.
+    Constraint to infer tensor shapes from memref shapes.
     """
-
-    def __init__(self, name: Literal["T", "M"], constraint: AttrConstraint):
-        super().__init__(name, constraint)
-
-    def can_infer(self, constraint_names: set[str]) -> bool:
-        return (
-            self.name == "T"
-            and "M" in constraint_names
-            or self.name in constraint_names
-        )
 
     def infer(self, constraint_context: ConstraintContext) -> Attribute:
         if self.name in constraint_context.variables:
-            return constraint_context.variables[self.name]
-        if self.name == "T" and "M" in constraint_context.variables:
-            m_type = constraint_context.variables["M"]
+            m_type = constraint_context.variables[self.name]
             if isa(m_type, MemRefType[Attribute]):
                 return TensorType(m_type.get_element_type(), m_type.get_shape())
             if isa(m_type, UnrankedMemrefType[Attribute]):
                 return UnrankedTensorType(m_type.element_type)
         raise ValueError(f"Unexpected {self.name} - cannot infer attribute")
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if self.name in constraint_context.variables:
+            seen = constraint_context.variables[self.name]
+            if not (
+                isinstance(attr, ContainerType)
+                and isinstance(seen, ContainerType)
+                and attr.get_element_type() == seen.get_element_type()
+            ):
+                raise VerifyException(
+                    f"Unexpected {self.name} - cannot verify element type of attribute {attr}"
+                )
+            if (
+                isinstance(attr, ShapedType) != isinstance(seen, ShapedType)
+                or isinstance(attr, ShapedType)
+                and isinstance(seen, ShapedType)
+                and attr.get_shape() != seen.get_shape()
+            ):
+                raise VerifyException(
+                    f"Unexpected {self.name} - cannot verify shape of attribute {attr}"
+                )
+        elif isinstance(attr, ContainerType):
+            self.constraint.verify(attr, constraint_context)
+            constraint_context.variables[self.name] = attr
+        else:
+            raise VerifyException(
+                f"Unexpected {self.name} - attribute must be ContainerType"
+            )
 
 
 @irdl_op_definition
@@ -85,7 +101,7 @@ class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
     memref = operand_def(
-        TensorMemrefInferenceConstraint("M", AnyOf([MemRefType, UnrankedMemrefType]))
+        TensorMemrefInferenceConstraint("T", AnyOf([MemRefType, UnrankedMemrefType]))
     )
     tensor = result_def(
         TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
@@ -129,7 +145,7 @@ class ToMemrefOp(IRDLOperation):
         TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
     )
     memref = result_def(
-        TensorMemrefInferenceConstraint("M", AnyOf([MemRefType, UnrankedMemrefType]))
+        TensorMemrefInferenceConstraint("T", AnyOf([MemRefType, UnrankedMemrefType]))
     )
     read_only = opt_prop_def(UnitAttr)
 
