@@ -304,9 +304,9 @@ class OperandsOp(IRDLOperation):
         args_list = [
             (VariadicityEnum.Single, x) if isinstance(x, SSAValue) else x for x in args
         ]
-        operands = [x[1] for x in args_list]
+        operands = tuple(operand for _, operand in args_list)
         attributes = {
-            "variadicity": VariadicityArrayAttr(map(lambda x: x[0], args_list))
+            "variadicity": VariadicityArrayAttr(tuple(v for v, _ in args_list))
         }
         super().__init__(operands=[operands], attributes=attributes)
 
