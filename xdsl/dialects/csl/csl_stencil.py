@@ -1,12 +1,11 @@
 from collections.abc import Iterable, Sequence
-from itertools import pairwise
 from typing import cast
 
 from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     AnyMemRefType,
-    IndexType,
+    MemRefType,
     TensorType,
 )
 from xdsl.dialects.experimental import dmp
@@ -205,10 +204,10 @@ class ApplyOp(IRDLOperation):
         base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
     )
 
-    iter_arg = operand_def(TensorType[Attribute])
+    iter_arg = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
 
     args = var_operand_def(Attribute)
-    dest = var_operand_def(stencil.FieldType)
+    dest = var_operand_def(stencil.FieldType | memref.MemRefType[Attribute])
 
     chunk_reduce = region_def()
     post_process = region_def()
@@ -333,29 +332,33 @@ class ApplyOp(IRDLOperation):
                 )
 
         # typecheck required (only) block arguments
-        assert isa(self.iter_arg.type, TensorType[Attribute])
-        chunk_reduce_req_types = [
-            TensorType(
-                self.iter_arg.type.get_element_type(),
-                (
-                    len(self.swaps),
-                    self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,
-                ),
-            ),
-            IndexType(),
-            self.iter_arg.type,
-        ]
+        assert isa(
+            self.iter_arg.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+        )
+        # todo
+        # chunk_reduce_req_types = [
+        #     TensorType(
+        #         self.iter_arg.type.get_element_type(),
+        #         (
+        #             len(self.swaps),
+        #             self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,
+        #         ),
+        #     ),
+        #     IndexType(),
+        #     self.iter_arg.type,
+        # ]
         post_process_req_types = [
             self.communicated_stencil.type,
             self.iter_arg.type,
         ]
-        for arg, expected_type in zip(
-            self.chunk_reduce.block.args, chunk_reduce_req_types
-        ):
-            if arg.type != expected_type:
-                raise VerifyException(
-                    f"Unexpected block argument type of chunk_reduce, got {arg.type} != {expected_type} at index {arg.index}"
-                )
+        # todo
+        # for arg, expected_type in zip(
+        #     self.chunk_reduce.block.args, chunk_reduce_req_types
+        # ):
+        #     if arg.type != expected_type:
+        #         raise VerifyException(
+        #             f"Unexpected block argument type of chunk_reduce, got {arg.type} != {expected_type} at index {arg.index}"
+        #         )
         for arg, expected_type in zip(
             self.post_process.block.args, post_process_req_types
         ):
@@ -422,7 +425,7 @@ class AccessOp(IRDLOperation):
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType)
+    result = result_def(TensorType | AnyMemRefType)
 
     traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
 
@@ -430,7 +433,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute],
+        result_type: TensorType[Attribute] | MemRefType[Attribute],
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
@@ -525,11 +528,20 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         if tuple(self.offset) == (0, 0):
-            if not isa(self.op.type, stencil.StencilType[Attribute]):
+            if isa(self.op.type, memref.MemRefType[Attribute]):
+                if not self.result.type == self.op.type:
+                    raise VerifyException(
+                        f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
+                    )
+            elif isa(self.op.type, stencil.StencilType[Attribute]):
+                if not self.result.type == self.op.type.get_element_type():
+                    raise VerifyException(
+                        f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
+                    )
+            else:
                 raise VerifyException(
-                    f"{type(self)} access to own data requires type stencil.StencilType but found {self.op.type}"
+                    f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
-            assert self.result.type == self.op.type.get_element_type()
         else:
             if not isa(
                 self.op.type, TensorType[Attribute] | memref.MemRefType[Attribute]
@@ -559,20 +571,21 @@ class AccessOp(IRDLOperation):
                 f"instead"
             )
 
-        if self.offset_mapping is not None:
-            prev_offset = None
-            for prev_offset, offset in pairwise(self.offset_mapping):
-                if prev_offset >= offset:
-                    raise VerifyException(
-                        "Offset mapping in stencil.access must be strictly increasing."
-                        "increasing"
-                    )
-            for offset in self.offset_mapping:
-                if offset >= apply.get_rank():
-                    raise VerifyException(
-                        f"Offset mappings in stencil.access must be within the rank of the "
-                        f"apply, got {offset} >= {apply.get_rank()}"
-                    )
+        # todo
+        # if self.offset_mapping is not None:
+        #     prev_offset = None
+        #     for prev_offset, offset in pairwise(self.offset_mapping):
+        #         if prev_offset >= offset:
+        #             raise VerifyException(
+        #                 "Offset mapping in stencil.access must be strictly increasing."
+        #                 "increasing"
+        #             )
+        #     for offset in self.offset_mapping:
+        #         if offset >= apply.get_rank():
+        #             raise VerifyException(
+        #                 f"Offset mappings in stencil.access must be within the rank of the "
+        #                 f"apply, got {offset} >= {apply.get_rank()}"
+        #             )
 
     def get_apply(self) -> stencil.ApplyOp | ApplyOp:
         """
