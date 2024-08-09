@@ -207,7 +207,7 @@ class TileOp(IRDLOperation):
         self,
         target: SSAValue,
         dynamic_sizes: Sequence[SSAValue],
-        static_sizes: DenseArrayBase | list[int] | None = None,
+        static_sizes: DenseArrayBase | list[int],
         interchange: DenseArrayBase | list[int] | None = None,
         scalable_sizes: DenseArrayBase | list[int] | None = None,
     ):
@@ -230,7 +230,10 @@ class TileOp(IRDLOperation):
                 "interchange": interchange,
                 "scalable_sizes": scalable_sizes,
             },
-            result_types=[AnyOpType(), [AnyOpType()]],
+            result_types=[
+                AnyOpType(),
+                [AnyOpType() for i in range(len(static_sizes.as_tuple()))],
+            ],
         )
 
 
