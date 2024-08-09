@@ -471,7 +471,7 @@ class RISCVInstruction(RISCVAsmOperation, ABC):
         By default, the name of the instruction is the same as the name of the operation.
         """
 
-        return self.name.split(".", 1)[-1]
+        return Dialect.split_name(self.name)[1]
 
     def assembly_line(self) -> str | None:
         # default assembly code generator

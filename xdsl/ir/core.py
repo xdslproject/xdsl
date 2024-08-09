@@ -61,6 +61,14 @@ class Dialect:
     def name(self) -> str:
         return self._name
 
+    @staticmethod
+    def split_name(name: str) -> tuple[str, str]:
+        x = name.split(".", 1)
+        if len(x) == 2:
+            return (x[0], x[1])
+        else:
+            return (name, "")
+
 
 @dataclass(frozen=True)
 class Use:
@@ -1064,7 +1072,7 @@ class Operation(IRNode):
 
     @classmethod
     def dialect_name(cls) -> str:
-        return cls.name.split(".")[0]
+        return Dialect.split_name(cls.name)[0]
 
     def __eq__(self, other: object) -> bool:
         return self is other

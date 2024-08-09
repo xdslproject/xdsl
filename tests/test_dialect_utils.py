@@ -11,7 +11,7 @@ from xdsl.dialects.utils import (
     parse_dynamic_index_without_type,
     print_dynamic_index_list,
 )
-from xdsl.ir import SSAValue
+from xdsl.ir import Dialect, SSAValue
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.utils.test_value import TestSSAValue
@@ -152,3 +152,17 @@ def test_parse_dynamic_index_list_with_custom_delimiter():
     assert values[0] is test_values[0]
     assert values[1] is test_values[1]
     assert tuple(indices) == (dynamic_index, 42, dynamic_index)
+
+
+@pytest.mark.parametrize(
+    "name,expected_1,expected_2",
+    [
+        ("dialect.op_name", "dialect", "op_name"),
+        ("dialect", "dialect", ""),
+        ("dialect.op.name", "dialect", "op.name"),
+    ],
+)
+def test_split_name(name: str, expected_1: str, expected_2: str):
+    result_1, result_2 = Dialect.split_name(name)
+    assert result_1 == expected_1
+    assert result_2 == expected_2

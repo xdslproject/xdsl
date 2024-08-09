@@ -50,7 +50,9 @@ class IRDLFunctions(InterpreterFunctions):
         """
         Get an operation type by name from the interpreter's state
         """
-        ops = IRDLFunctions.get_dialect(interpreter, name.split(".", 1)[0]).operations
+        ops = IRDLFunctions.get_dialect(
+            interpreter, Dialect.split_name(name)[0]
+        ).operations
         for op in ops:
             if op.name == name:
                 return op
@@ -61,7 +63,9 @@ class IRDLFunctions(InterpreterFunctions):
         """
         Get an attribute type by name from the interpreter's state
         """
-        attrs = IRDLFunctions.get_dialect(interpreter, name.split(".", 1)[0]).attributes
+        attrs = IRDLFunctions.get_dialect(
+            interpreter, Dialect.split_name(name)[0]
+        ).attributes
         for attr in attrs:
             if attr.name == name:
                 if not issubclass(attr, ParametrizedAttribute):
