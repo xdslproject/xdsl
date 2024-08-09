@@ -2,8 +2,10 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from xdsl.ir import Dialect
+
 if TYPE_CHECKING:
-    from xdsl.ir import Attribute, Dialect, Operation
+    from xdsl.ir import Attribute, Operation
 
 
 @dataclass
@@ -122,7 +124,7 @@ class MLContext:
 
         # Otherwise, check if the operation dialect is registered.
         if "." in name:
-            dialect_name, _ = name.split(".", 1)
+            dialect_name, _ = Dialect.split_name(name)
             if (
                 dialect_name in self._registered_dialects
                 and dialect_name not in self._loaded_dialects
@@ -168,7 +170,7 @@ class MLContext:
             return self._loaded_attrs[name]
 
         # Otherwise, check if the attribute dialect is registered.
-        dialect_name, _ = name.split(".", 1)
+        dialect_name, _ = Dialect.split_name(name)
         if (
             dialect_name in self._registered_dialects
             and dialect_name not in self._loaded_dialects
