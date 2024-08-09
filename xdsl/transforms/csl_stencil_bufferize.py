@@ -106,7 +106,8 @@ class ApplyOpBufferize(RewritePattern):
         for idx, arg in enumerate(buf_apply_op.chunk_reduce.block.args):
             if idx in chunk_reduce_translate_idxs:
                 rewriter.insert_op(
-                    t := get_to_tensor(arg),
+                    # ensure iter_arg is writable
+                    t := get_to_tensor(arg, writable=idx == 2),
                     InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
                 )
                 chunk_reduce_arg_mapping.append(t.tensor)
@@ -117,7 +118,8 @@ class ApplyOpBufferize(RewritePattern):
         for idx, arg in enumerate(buf_apply_op.post_process.block.args):
             if idx in post_process_translate_idxs:
                 rewriter.insert_op(
-                    t := get_to_tensor(arg),
+                    # ensure iter_arg is writable
+                    t := get_to_tensor(arg, writable=idx == 1),
                     InsertPoint.at_end(buf_apply_op.post_process.block),
                 )
                 post_process_arg_mapping.append(t.tensor)
