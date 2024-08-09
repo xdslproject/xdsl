@@ -46,14 +46,6 @@ def field_from_temp(temp: TempType[_TypeElement]) -> FieldType[_TypeElement]:
     return FieldType[_TypeElement].new(temp.parameters)
 
 
-def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
-    """
-    Returns if the operation has the given side effects and no others.
-    """
-    effects = get_effects(op)
-    return effects is not None and all(e.kind == effect for e in effects)
-
-
 def might_effect(
     operation: Operation, effects: set[MemoryEffectKind], value: SSAValue
 ) -> bool:
