@@ -2,21 +2,24 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 
-from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
+from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr
 from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    EnumAttribute,
     OpResult,
     ParametrizedAttribute,
     Region,
+    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
 from xdsl.irdl import (
     IRDLOperation,
+    ParameterDef,
     VarOperand,
     attr_def,
     irdl_attr_definition,
@@ -26,7 +29,7 @@ from xdsl.irdl import (
     result_def,
     var_operand_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
@@ -35,10 +38,45 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 ################################################################################
 # Dialect, Operation, and Attribute definitions                                #
 ################################################################################
+
+
+class VariadicityEnum(StrEnum):
+    Single = "single"
+    Optional = "optional"
+    Variadic = "variadic"
+
+
+@irdl_attr_definition
+class VariadicityAttr(EnumAttribute[VariadicityEnum], SpacedOpaqueSyntaxAttribute):
+    name = "irdl.variadicity"
+
+
+@irdl_attr_definition
+class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
+    name = "irdl.variadicity_array"
+
+    value: ParameterDef[ArrayAttr[VariadicityAttr]]
+
+    def __init__(self, variadicities: Iterable[VariadicityEnum]) -> None:
+        array_attr = ArrayAttr(map(lambda x: VariadicityAttr(x), variadicities))
+        super().__init__((array_attr,))
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> tuple[ArrayAttr[VariadicityAttr]]:
+        data = parser.parse_comma_separated_list(
+            AttrParser.Delimiter.SQUARE, lambda: VariadicityAttr.parse_parameter(parser)
+        )
+        return (ArrayAttr(VariadicityAttr(x) for x in data),)
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("[")
+        printer.print_list(self.value, lambda var: var.print_parameter(printer))
+        printer.print_string("]")
 
 
 @irdl_attr_definition
@@ -113,6 +151,24 @@ class TypeOp(IRDLOperation):
         if not isinstance(dialect_op, DialectOp):
             raise ValueError("Tried to get qualified name of an unverified TypeOp")
         return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
+
+
+@irdl_op_definition
+class CPredOp(IRDLOperation):
+    """Constraints an attribute using a C++ predicate"""
+
+    name = "irdl.c_pred"
+
+    pred = attr_def(StringAttr)
+
+    output: OpResult = result_def(AttributeType())
+
+    assembly_format = "$pred attr-dict"
+
+    def __init__(self, pred: str | StringAttr):
+        if isinstance(pred, str):
+            pred = StringAttr(pred)
+        super().__init__(attributes={"pred": pred}, result_types=[AttributeType()])
 
 
 @irdl_op_definition
@@ -215,6 +271,23 @@ class OperationOp(IRDLOperation):
         return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
 
+def _parse_argument(parser: Parser) -> tuple[VariadicityEnum, SSAValue]:
+    variadicity = parser.parse_optional_str_enum(VariadicityEnum)
+    if variadicity is None:
+        variadicity = VariadicityEnum.Single
+
+    arg = parser.parse_operand()
+
+    return (variadicity, arg)
+
+
+def _print_argument(printer: Printer, data: tuple[VariadicityAttr, SSAValue]) -> None:
+    variadicity = data[0].data
+    if variadicity != VariadicityEnum.Single:
+        printer.print(variadicity)
+    printer.print(data[1])
+
+
 @irdl_op_definition
 class OperandsOp(IRDLOperation):
     """An operation operand definition."""
@@ -223,21 +296,34 @@ class OperandsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
+    variadicity = attr_def(VariadicityArrayAttr)
+
     traits = frozenset([HasParent(OperationOp)])
 
-    def __init__(self, args: Sequence[SSAValue]):
-        super().__init__(operands=[args])
+    def __init__(self, args: Sequence[tuple[VariadicityEnum, SSAValue] | SSAValue]):
+        args_list = [
+            (VariadicityEnum.Single, x) if isinstance(x, SSAValue) else x for x in args
+        ]
+        operands = [x[1] for x in args_list]
+        attributes = {
+            "variadicity": VariadicityArrayAttr(map(lambda x: x[0], args_list))
+        }
+        super().__init__(operands=[operands], attributes=attributes)
 
     @classmethod
     def parse(cls, parser: Parser) -> OperandsOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_operand
+            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
         )
         return OperandsOp(args)
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        printer.print_list(self.args, printer.print, ", ")
+        printer.print_list(
+            zip(self.variadicity.value, self.args),
+            lambda x: _print_argument(printer, x),
+            ", ",
+        )
         printer.print(")")
 
 
@@ -249,21 +335,34 @@ class ResultsOp(IRDLOperation):
 
     args: VarOperand = var_operand_def(AttributeType)
 
+    variadicity = attr_def(VariadicityArrayAttr)
+
     traits = frozenset([HasParent(OperationOp)])
 
-    def __init__(self, args: Sequence[SSAValue]):
-        super().__init__(operands=[args])
+    def __init__(self, args: Sequence[tuple[VariadicityEnum, SSAValue] | SSAValue]):
+        args_list = [
+            (VariadicityEnum.Single, x) if isinstance(x, SSAValue) else x for x in args
+        ]
+        operands = [x[1] for x in args_list]
+        attributes = {
+            "variadicity": VariadicityArrayAttr(map(lambda x: x[0], args_list))
+        }
+        super().__init__(operands=[operands], attributes=attributes)
 
     @classmethod
     def parse(cls, parser: Parser) -> ResultsOp:
         args = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN, parser.parse_operand
+            parser.Delimiter.PAREN, lambda: _parse_argument(parser)
         )
         return ResultsOp(args)
 
     def print(self, printer: Printer) -> None:
         printer.print("(")
-        printer.print_list(self.args, printer.print, ", ")
+        printer.print_list(
+            zip(self.variadicity.value, self.args),
+            lambda x: _print_argument(printer, x),
+            ", ",
+        )
         printer.print(")")
 
 
@@ -460,6 +559,7 @@ IRDL = Dialect(
     [
         DialectOp,
         TypeOp,
+        CPredOp,
         AttributeOp,
         BaseOp,
         ParametersOp,
@@ -472,5 +572,9 @@ IRDL = Dialect(
         AnyOfOp,
         AllOfOp,
     ],
-    [AttributeType],
+    [
+        AttributeType,
+        VariadicityAttr,
+        VariadicityArrayAttr,
+    ],
 )
