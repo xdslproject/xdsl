@@ -791,13 +791,21 @@ AnyTensorType: TypeAlias = TensorType[Attribute]
 
 
 @irdl_attr_definition
-class UnrankedTensorType(Generic[AttributeCovT], ParametrizedAttribute, TypeAttribute):
+class UnrankedTensorType(
+    Generic[AttributeCovT],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[AttributeCovT],
+):
     name = "unranked_tensor"
 
     element_type: ParameterDef[AttributeCovT]
 
     def __init__(self, element_type: AttributeCovT) -> None:
         super().__init__([element_type])
+
+    def get_element_type(self) -> AttributeCovT:
+        return self.element_type
 
 
 AnyUnrankedTensorType: TypeAlias = UnrankedTensorType[Attribute]
@@ -1570,7 +1578,10 @@ AnyMemRefType: TypeAlias = MemRefType[Attribute]
 
 @irdl_attr_definition
 class UnrankedMemrefType(
-    Generic[_UnrankedMemrefTypeElems], ParametrizedAttribute, TypeAttribute
+    Generic[_UnrankedMemrefTypeElems],
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[_UnrankedMemrefTypeElems],
 ):
     name = "unranked_memref"
 
@@ -1583,6 +1594,9 @@ class UnrankedMemrefType(
         memory_space: Attribute = NoneAttr(),
     ) -> UnrankedMemrefType[_UnrankedMemrefTypeElemsInit]:
         return UnrankedMemrefType([referenced_type, memory_space])
+
+    def get_element_type(self) -> _UnrankedMemrefTypeElems:
+        return self.element_type
 
 
 AnyUnrankedMemrefType: TypeAlias = UnrankedMemrefType[Attribute]

@@ -1,6 +1,6 @@
 from xdsl.context import MLContext
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 from xdsl.traits import (
@@ -30,9 +30,26 @@ def result_only_effects(rootOp: Operation) -> bool:
 
     cf MLIR's WouldOpBeTriviallyDead:
     https://mlir.llvm.org/doxygen/namespacemlir.html#a655db45ed8c23d04d5ed5ee0abe041ad
+
+    We have one key difference here:
+    - MLIR discard any allocation from an operation on its own result for this analysis
+    - xDSL discard any allocation effect of any nested operation on any value defined
+    by the root operation or its children.
     """
     effects = get_effects(rootOp)
-    return effects is not None and all(e == MemoryEffectKind.READ for e in effects)
+    # If the operation has unknown effect, we safely assume it has observable ones
+    return effects is not None and all(
+        # Read-only effect will not affect other operations
+        e.kind == MemoryEffectKind.READ
+        # Allocation of values defined by this operation or its children will not
+        # affect other operations
+        or (
+            e.kind == MemoryEffectKind.ALLOC
+            and isinstance(v := e.value, SSAValue)
+            and rootOp.is_ancestor(v.owner)
+        )
+        for e in effects
+    )
 
 
 class RemoveUnusedOperations(RewritePattern):
