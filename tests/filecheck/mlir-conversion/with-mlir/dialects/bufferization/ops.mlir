@@ -3,7 +3,7 @@
 module{
     %t = "bufferization.alloc_tensor"() <{"operandSegmentSizes" = array<i32: 0, 0, 0>}> : () -> tensor<10x20x30xf64>
     %m = "test.op"() : () -> memref<30x20x10xf32>
-    %m_t = bufferization.to_tensor"(%m) restrict writable : (memref<30x20x10xf32>) -> tensor<30x20x10xf32>
+    %m_t = bufferization.to_tensor %m restrict writable : memref<30x20x10xf32>
     %t_m = bufferization.to_memref %m_t read_only : memref<30x20x10xf32>
 }
 
