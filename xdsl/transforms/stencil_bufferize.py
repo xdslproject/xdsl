@@ -89,10 +89,6 @@ class ApplyBufferizePattern(RewritePattern):
 
         bounds = op.get_bounds()
 
-        # dests = [
-        #     AllocOp(result_types=[field_from_temp(cast(TempType[Attribute], r.type))])
-        #     for r in op.res
-        # ]
         args = [
             (
                 BufferOp.create(
@@ -104,10 +100,6 @@ class ApplyBufferizePattern(RewritePattern):
             )
             for o in op.args
         ]
-
-        # loads = [
-        #     LoadOp(operands=[d], result_types=[r.type]) for d, r in zip(dests, op.res)
-        # ]
 
         new = ApplyOp(
             operands=[args, op.dest],
