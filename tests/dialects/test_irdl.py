@@ -49,7 +49,7 @@ def test_named_region_op_init(
 
 def test_parameter_op_init():
     """
-    Test __init__ of ParametersOp, OperandsOp, ResultsOp.
+    Test __init__ of ParametersOp.
     """
 
     val1 = TestSSAValue(AttributeType())
@@ -65,7 +65,7 @@ def test_parameter_op_init():
 @pytest.mark.parametrize("op_type", [OperandsOp, ResultsOp])
 def test_parameters_init(op_type: type[OperandsOp | ResultsOp]):
     """
-    Test __init__ of ParametersOp, OperandsOp, ResultsOp.
+    Test __init__ of OperandsOp, ResultsOp.
     """
 
     val1 = TestSSAValue(AttributeType())
