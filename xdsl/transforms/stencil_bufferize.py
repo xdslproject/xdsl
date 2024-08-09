@@ -232,8 +232,8 @@ class ApplyStoreFoldPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
         apply = op
-
         for temp_index, stored in enumerate(op.res):
+            # We are looking for a result that is stored and foldable
             stores = [
                 use.operation
                 for use in stored.uses
@@ -250,7 +250,7 @@ class ApplyStoreFoldPattern(RewritePattern):
                 )
 
             new_apply = ApplyOp.build(
-                # We add a destination, corresponding to the removed result
+                # We add new destinations for each store of the removed result
                 operands=[
                     apply.args,
                     (*apply.dest, *(store.field for store in stores)),
