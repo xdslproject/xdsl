@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any
 
 from xdsl.dialects.builtin import (
@@ -16,7 +15,6 @@ from xdsl.irdl import (
     AnyOf,
     AttrSizedOperandSegments,
     ConstraintContext,
-    GenericAttrConstraint,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -30,58 +28,46 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
-@dataclass(frozen=True)
-class TensorMemrefInferenceConstraint(
-    GenericAttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
-):
+class TensorMemrefInferenceConstraint(VarConstraint[Attribute]):
     """
-    Constrain a ranked or unranked tensor type to be of same element type and shape as a
-    named ranked or unranked memref type.
+    Constraint to infer tensor shapes from memref shapes.
     """
-
-    memref_type_name: str
-
-    def can_infer(self, constraint_names: set[str]) -> bool:
-        return self.memref_type_name in constraint_names
 
     def infer(self, constraint_context: ConstraintContext) -> Attribute:
-        assert self.memref_type_name in constraint_context.variables
-        m_type = constraint_context.variables[self.memref_type_name]
-        if isa(m_type, MemRefType[Attribute]):
-            return TensorType(m_type.get_element_type(), m_type.get_shape())
-        elif isa(m_type, UnrankedMemrefType[Attribute]):
-            return UnrankedTensorType(m_type.get_element_type())
-        else:
-            raise ValueError(
-                f"Unexpected {self.memref_type_name} - cannot infer attribute"
-            )
+        if self.name in constraint_context.variables:
+            m_type = constraint_context.variables[self.name]
+            if isa(m_type, MemRefType[Attribute]):
+                return TensorType(m_type.get_element_type(), m_type.get_shape())
+            if isa(m_type, UnrankedMemrefType[Attribute]):
+                return UnrankedTensorType(m_type.element_type)
+        raise ValueError(f"Unexpected {self.name} - cannot infer attribute")
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        assert self.memref_type_name in constraint_context.variables
-        memref = constraint_context.variables[self.memref_type_name]
-        if isinstance(memref, MemRefType):
-            if not isinstance(attr, TensorType):
+        if self.name in constraint_context.variables:
+            seen = constraint_context.variables[self.name]
+            if not (
+                isinstance(attr, ContainerType)
+                and isinstance(seen, ContainerType)
+                and attr.get_element_type() == seen.get_element_type()
+            ):
                 raise VerifyException(
-                    "Expected ranked tensor to match the ranked memref"
+                    f"Unexpected {self.name} - cannot verify element type of attribute {attr}"
                 )
-            if not memref.get_shape() == attr.get_shape():
-                raise VerifyException("Expected tensor shape to match memref shape")
-            if not memref.get_element_type() == attr.get_element_type():
+            if (
+                isinstance(attr, ShapedType) != isinstance(seen, ShapedType)
+                or isinstance(attr, ShapedType)
+                and isinstance(seen, ShapedType)
+                and attr.get_shape() != seen.get_shape()
+            ):
                 raise VerifyException(
-                    "Expected tensor element type to match memref element type"
+                    f"Unexpected {self.name} - cannot verify shape of attribute {attr}"
                 )
-        elif isinstance(memref, UnrankedMemrefType):
-            if not isinstance(attr, UnrankedTensorType):
-                raise VerifyException(
-                    "Expected unranked tensor to match the unranked memref"
-                )
-            if not memref.get_element_type() == attr.get_element_type():
-                raise VerifyException(
-                    "Expected tensor element type to match memref element type"
-                )
+        elif isinstance(attr, ContainerType):
+            self.constraint.verify(attr, constraint_context)
+            constraint_context.variables[self.name] = attr
         else:
             raise VerifyException(
-                f"Expected {self.memref_type_name} to be ranked or unranked memref type"
+                f"Unexpected {self.name} - attribute must be ContainerType"
             )
 
 
@@ -114,8 +100,12 @@ class AllocTensorOp(IRDLOperation):
 class ToTensorOp(IRDLOperation):
     name = "bufferization.to_tensor"
 
-    memref = operand_def(VarConstraint("M", AnyOf([MemRefType, UnrankedMemrefType])))
-    tensor = result_def(TensorMemrefInferenceConstraint("M"))
+    memref = operand_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([MemRefType, UnrankedMemrefType]))
+    )
+    tensor = result_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+    )
     writable = opt_prop_def(UnitAttr)
     restrict = opt_prop_def(UnitAttr)
 
@@ -151,8 +141,12 @@ class ToTensorOp(IRDLOperation):
 class ToMemrefOp(IRDLOperation):
     name = "bufferization.to_memref"
 
-    tensor = operand_def(TensorMemrefInferenceConstraint("M"))
-    memref = result_def(VarConstraint("M", AnyOf([MemRefType, UnrankedMemrefType])))
+    tensor = operand_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([TensorType, UnrankedTensorType]))
+    )
+    memref = result_def(
+        TensorMemrefInferenceConstraint("T", AnyOf([MemRefType, UnrankedMemrefType]))
+    )
     read_only = opt_prop_def(UnitAttr)
 
     assembly_format = "$tensor (`read_only` $read_only^)?  `:` attr-dict type($memref)"
