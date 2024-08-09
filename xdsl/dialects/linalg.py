@@ -888,6 +888,68 @@ class MatmulOp(NamedOpBase):
         )
 
 
+@irdl_op_definition
+class QuantizedMatmulOp(NamedOpBase):
+    """
+    Performs a matrix multiplication of two 2D inputs.
+
+    See https://mlir.llvm.org/docs/Dialects/Linalg/#linalgquantized_matmul-linalgquantizedmatmulop
+
+    """
+
+    name = "linalg.quantized_matmul"
+
+    PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(
+                cast(AnyTensorType, output_type)
+                for output in outputs
+                if isinstance(output_type := output.type, TensorType)
+            )
+        else:
+            result_types = res
+
+        arg_types = self.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            o1 = arith.ExtSIOp(args[0], IntegerType(32))
+            o2 = arith.Subi(o1, args[2])
+            o3 = arith.ExtSIOp(args[1], IntegerType(32))
+            o4 = arith.Subi(o3, args[3])
+            o5 = arith.Muli(o2, o4)
+            o6 = arith.Addi(args[4], o5)
+            YieldOp(o6)
+
+        # add linalg.memoized_indexing_maps attribute
+        if not attributes:
+            attributes = {}
+        if "linalg.memoized_indexing_maps" not in attributes:
+            attributes["linalg.memoized_indexing_maps"] = ArrayAttr(
+                [
+                    AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
+                    AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
+                    AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
+                ]
+            )
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=hidden_region,
+        )
+
+
 class PoolingOpsBase(IRDLOperation, ABC):
     """Base class for linalg pooling operations."""
 
@@ -1111,6 +1173,7 @@ Linalg = Dialect(
         MulOp,
         TransposeOp,
         MatmulOp,
+        QuantizedMatmulOp,
         PoolingNchwMaxOp,
         Conv2DNchwFchwOp,
         BroadcastOp,
