@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, TypeVar, final
 
@@ -10,7 +10,7 @@ from xdsl.utils.exceptions import VerifyException
 
 if TYPE_CHECKING:
     from xdsl.dialects.builtin import StringAttr, SymbolRefAttr
-    from xdsl.ir import Attribute, Operation, Region
+    from xdsl.ir import Attribute, Operation, Region, SSAValue
     from xdsl.pattern_rewriter import RewritePattern
 
 
@@ -474,6 +474,23 @@ class MemoryEffectKind(Enum):
     """
 
 
+@dataclass(frozen=True)
+class EffectInstance:
+    """
+    An instance of a side effect.
+    """
+
+    kind: MemoryEffectKind
+    """
+    The kind of side effect.
+    """
+
+    value: SSAValue | SymbolRefAttr | None = field(default=None)
+    """
+    The value or symbol that is affected by the side effect, if known.
+    """
+
+
 class MemoryEffect(OpTrait):
     """
     A trait that enables operations to expose their side-effects or absence thereof.
@@ -481,7 +498,7 @@ class MemoryEffect(OpTrait):
 
     @classmethod
     @abc.abstractmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind] | None:
+    def get_effects(cls, op: Operation) -> set[EffectInstance] | None:
         """
         Returns the concrete side effects of the operation.
 
@@ -513,7 +530,8 @@ def only_has_effect(op: Operation, effect: MemoryEffectKind) -> bool:
     """
     Returns if the operation has the given side effects and no others.
     """
-    return get_effects(op) == {effect}
+    effects = get_effects(op)
+    return effects is not None and all(e.kind == effect for e in effects)
 
 
 def is_side_effect_free(op: Operation) -> bool:
@@ -524,9 +542,9 @@ def is_side_effect_free(op: Operation) -> bool:
     return effects is not None and len(effects) == 0
 
 
-def get_effects(op: Operation) -> set[MemoryEffectKind] | None:
+def get_effects(op: Operation) -> set[EffectInstance] | None:
     """
-    Helper to get known side effects of an operation, including recursive effects.
+    Helper to get known side effects of an operation.
     None means that the operation has unknown effects, for safety.
     """
 
@@ -534,7 +552,7 @@ def get_effects(op: Operation) -> set[MemoryEffectKind] | None:
     if not effect_interfaces:
         return None
 
-    effects = set[MemoryEffectKind]()
+    effects = set[EffectInstance]()
     for it in op.get_traits_of_type(MemoryEffect):
         it_effects = it.get_effects(op)
         if it_effects is None:
@@ -550,7 +568,7 @@ class NoMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
         return set()
 
 
@@ -560,8 +578,8 @@ class MemoryReadEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
-        return {MemoryEffectKind.READ}
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        return {EffectInstance(MemoryEffectKind.READ)}
 
 
 class MemoryWriteEffect(MemoryEffect):
@@ -570,8 +588,8 @@ class MemoryWriteEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
-        return {MemoryEffectKind.WRITE}
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        return {EffectInstance(MemoryEffectKind.WRITE)}
 
 
 class MemoryAllocEffect(MemoryEffect):
@@ -580,8 +598,8 @@ class MemoryAllocEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
-        return {MemoryEffectKind.ALLOC}
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        return {EffectInstance(MemoryEffectKind.ALLOC)}
 
 
 class MemoryFreeEffect(MemoryEffect):
@@ -590,8 +608,8 @@ class MemoryFreeEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[MemoryEffectKind]:
-        return {MemoryEffectKind.FREE}
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        return {EffectInstance(MemoryEffectKind.FREE)}
 
 
 class RecursiveMemoryEffect(MemoryEffect):
@@ -602,7 +620,7 @@ class RecursiveMemoryEffect(MemoryEffect):
 
     @classmethod
     def get_effects(cls, op: Operation):
-        effects = set[MemoryEffectKind]()
+        effects = set[EffectInstance]()
         for r in op.regions:
             for b in r.blocks:
                 for child_op in b.ops:
