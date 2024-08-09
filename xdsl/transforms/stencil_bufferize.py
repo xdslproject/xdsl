@@ -194,32 +194,24 @@ class LoadBufferFoldPattern(RewritePattern):
         rewriter.replace_matched_op(new_ops=[], new_results=[underlying])
 
 
-class ApplyLoadStoreFoldPattern(RewritePattern):
+class ApplyStoreFoldPattern(RewritePattern):
     """
-    If an allocated field is only used by an apply to write its output and loaded
-    to be stored in a destination field, make the apply work on the destination directly.
+    Fold stores of applys result
 
     Example:
     ```mlir
-    %temp = stencil.alloc : !stencil.field<[0,32]>
-    stencil.apply() outs (%temp : !stencil.field<[0,32]>) {
+    %temp = stencil.apply() -> (!stencil.temp<[0,32]>) {
         // [...]
     }
-    // [...  %dest not read]
-    %loaded = stencil.load %temp : !stencil.field<[0,32]> -> !stencil.temp<[0,32]>
     // [... %dest not read]
-    stencil.store %loaded to %dest (<[0], [32]>) : !stencil.temp<[0,32]> to !stencil.field<[-2,34]>
+    stencil.store %temp to %dest (<[0], [32]>) : !stencil.temp<[0,32]> to !stencil.field<[-2,34]>
     ```
     yields:
     ```mlir
-    // Will be simplified away by the canonicalizer
-    %temp = stencil.alloc : !stencil.field<[0,32]>
-    // Outputs on dest
-    stencil.apply() outs (%dest : !stencil.field<[0,32]>) {
+    // Outputs on dest directly
+    stencil.apply() outs (%dest : !stencil.field<[-2,34]>) {
         // [...]
     }
-    // Load same values from %dest instead for next operations
-    %loaded = stencil.load %dest : !stencil.field<[0,32]> -> !stencil.temp<[0,32]>
     ```
     """
 
@@ -227,7 +219,7 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
     def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter):
         stored = op.temp
 
-        # We are looking for a loaded destination of an apply
+        # We are looking for a stored result of an apply
         if not isinstance(apply := stored.owner, ApplyOp):
             return
 
@@ -244,6 +236,7 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
         if effecting:
             return
 
+        # Get the result index to help build the new apply
         temp_index = apply.results.index(stored)
 
         bounds = apply.get_bounds()
@@ -253,7 +246,9 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
             )
 
         new_apply = ApplyOp.build(
+            # We add a destination, corresponding to the removed result
             operands=[apply.args, [*apply.dest, dest]],
+            # We only remove the considered result
             result_types=[
                 [
                     r.type
@@ -263,17 +258,21 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
             ],
             properties=apply.properties.copy() | {"bounds": bounds},
             attributes=apply.attributes.copy(),
+            # The block signature is the same
             regions=[
                 Region(Block(arg_types=[SSAValue.get(a).type for a in apply.args])),
             ],
         )
 
+        # The body is the same
         rewriter.inline_block(
             apply.region.block,
             InsertPoint.at_start(new_apply.region.block),
             new_apply.region.block.args,
         )
 
+        # We swap the return's operand order, to make sure the order still matches destinations
+        # after bufferization
         old_return = new_apply.region.block.last_op
         assert isinstance(old_return, ReturnOp)
         uf = old_return.unroll_factor
@@ -287,9 +286,9 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
             properties=old_return.properties.copy(),
             attributes=old_return.attributes.copy(),
         )
-
         rewriter.replace_op(old_return, new_return)
 
+        # Create a load of the destination, for any other user of the result
         load = LoadOp.get(dest, bounds.lb, bounds.ub)
 
         rewriter.replace_op(
@@ -521,7 +520,7 @@ class StencilBufferize(ModulePass):
                     BufferAlloc(),
                     CombineStoreFold(),
                     LoadBufferFoldPattern(),
-                    ApplyLoadStoreFoldPattern(),
+                    ApplyStoreFoldPattern(),
                     RemoveUnusedOperations(),
                     ApplyUnusedResults(),
                 ]
