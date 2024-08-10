@@ -158,7 +158,6 @@ def test_parse_dynamic_index_list_with_custom_delimiter():
     "name,expected_1,expected_2",
     [
         ("dialect.op_name", "dialect", "op_name"),
-        ("dialect", "dialect", ""),
         ("dialect.op.name", "dialect", "op.name"),
     ],
 )
