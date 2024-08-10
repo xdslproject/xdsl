@@ -65,7 +65,8 @@ class Dialect:
     def split_name(name: str) -> tuple[str, str]:
         names = name.split(".", 1)
         assert len(names) == 2, f"Invalid operation or attribute name {name}"
-        return tuple(names)
+        first, second = names
+        return (first, second)
 
 
 @dataclass(frozen=True)
