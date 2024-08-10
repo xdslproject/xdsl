@@ -144,7 +144,7 @@ class OnnxFunctions(InterpreterFunctions):
             raise NotImplementedError("Only dense constant values implemented")
         shape = op.value.get_shape()
         data = [el.value.data for el in op.value.data]
-        data_ptr = ptr.TypedPtr.new(
+        data_ptr = ptr.TypedPtr[Any].new(
             data,
             xtype=xtype_for_el_type(
                 op.value.get_element_type(), interpreter.index_bitwidth
