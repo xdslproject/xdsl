@@ -30,7 +30,6 @@ dev = [
     "pre-commit==3.8.0",
     "ruff==0.5.6",
     "asv<0.7",
-    "isort==5.13.2",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.5.1",
     "pytest-asyncio==0.23.8",
@@ -90,9 +89,6 @@ typeCheckingMode = "strict"
     "tests/filecheck/frontend/programs/invalid.py",
     "xdsl/_version.py",
 ]
-
-[tool.isort]
-profile = "black"
 
 [tool.ruff]
 lint.select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
