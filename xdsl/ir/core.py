@@ -63,11 +63,9 @@ class Dialect:
 
     @staticmethod
     def split_name(name: str) -> tuple[str, str]:
-        x = name.split(".", 1)
-        if len(x) == 2:
-            return (x[0], x[1])
-        else:
-            return (name, "")
+        names = name.split(".", 1)
+        assert len(names) == 2, f"Invalid operation or attribute name {name}"
+        return tuple(names)
 
 
 @dataclass(frozen=True)
