@@ -95,8 +95,8 @@ typeCheckingMode = "strict"
 profile = "black"
 
 [tool.ruff]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
-ignore = [
+lint.select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
+lint.ignore = [
     "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
     "PT007", # https://beta.ruff.rs/docs/rules/pytest-parametrize-values-wrong-type/
@@ -107,7 +107,8 @@ ignore = [
 line-length = 300
 target-version = "py310"
 
-[tool.ruff.flake8-tidy-imports.banned-api]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
 "xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
@@ -121,7 +122,7 @@ target-version = "py310"
 "xdsl.ir.affine.affine_set".msg = "Use xdsl.ir.affine instead"
 
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403"]
 "tests/filecheck/frontend/programs/invalid.py" = ["F811", "F841"]
 "tests/filecheck/frontend/dialects/invalid.py" = ["F811"]
@@ -130,7 +131,7 @@ target-version = "py310"
 "_version.py" = ["ALL"]
 "**/{docs/marimo}/*" = ["E501"]
 
-[tool.ruff.mccabe]
+[tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.black]
