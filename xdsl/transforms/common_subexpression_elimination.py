@@ -110,7 +110,7 @@ def has_other_side_effecting_op_in_between(
     next_op = from_op
     while next_op is not to_op:
         effects = get_effects(next_op)
-        if effects is None or (MemoryEffectKind.WRITE in effects):
+        if effects is None or any(e.kind is MemoryEffectKind.WRITE for e in effects):
             return True
         next_op = next_op.next_op
         assert next_op is not None, "Incorrect order of ops in side-effect search"

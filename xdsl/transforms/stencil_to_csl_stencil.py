@@ -204,10 +204,9 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             swap.size[2] == uniform_size for swap in op.swaps
         ), "all swaps need to be of uniform size"
 
-        assert isinstance(op.input_stencil, OpResult)
-        assert isattr(
+        assert isa(
             op.input_stencil.type,
-            base(AnyMemRefType) | base(stencil.AnyTempType),
+            AnyMemRefType | stencil.StencilType[Attribute],
         )
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
@@ -216,7 +215,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
 
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
-            input_stencil=op.input_stencil.op,
+            input_stencil=op.input_stencil,
             topo=op.topo,
             swaps=[
                 csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
@@ -253,10 +252,12 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             # rebuild stencil.apply op
             r_types = [r.type for r in apply_op.results]
             assert isa(r_types, Sequence[stencil.TempType[Attribute]])
-            new_apply_op = stencil.ApplyOp.get(
-                [*apply_op.args, prefetch_op.result],
-                apply_op.detach_region(apply_op.region),
-                r_types,
+            new_apply_op = stencil.ApplyOp.build(
+                operands=[[*apply_op.args, prefetch_op.result], apply_op.dest],
+                regions=[apply_op.detach_region(apply_op.region)],
+                result_types=[r_types],
+                properties=apply_op.properties,
+                attributes=apply_op.attributes,
             )
             rewriter.replace_op(apply_op, new_apply_op)
 
@@ -508,17 +509,19 @@ class ConvertApplyOpPattern(RewritePattern):
                     iter_arg,
                     [op.operands[a.index] for a in chunk_reduce_used_block_args]
                     + [op.operands[a.index] for a in post_process_used_block_args],
+                    op.dest,
                 ],
                 properties={
                     "swaps": prefetch.op.swaps,
                     "topo": prefetch.op.topo,
                     "num_chunks": IntegerAttr(self.num_chunks, IntegerType(64)),
+                    "bounds": op.bounds,
                 },
                 regions=[
                     chunk_reduce,
                     post_process,
                 ],
-                result_types=[r.type for r in op.results],
+                result_types=[r.type for r in op.results] or [[]],
             )
         )
 
