@@ -14,7 +14,7 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: ${VENV_DIR}/ venv clean filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright tests-marimo tests-marimo-mlir
+.PHONY: ${VENV_DIR}/ venv clean clean-caches filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright tests-marimo tests-marimo-mlir
 .PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
@@ -26,9 +26,14 @@ ${VENV_DIR}/: requirements.txt
 # make sure `make venv` always works no matter what $VENV_DIR is
 venv: ${VENV_DIR}/
 
+# remove all caches
+clean-caches:
+	rm -rf .pytest_cache *.egg-info .coverage.*
+	find . -type f -name "*.cover" -delete
+
 # remove all caches and the venv
-clean:
-	rm -rf ${VENV_DIR} .pytest_cache *.egg-info .coverage.*
+clean: clean-caches
+	rm -rf ${VENV_DIR}
 
 # run filecheck tests
 filecheck:

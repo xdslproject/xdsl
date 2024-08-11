@@ -11,19 +11,6 @@ from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import cse
 
 
-class AllocUnused(RewritePattern):
-    """
-    Erase unsused `stencil.alloc`.
-
-    NB: This should be handled by main DCE, but requires value side-effects.
-    """
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: stencil.AllocOp, rewriter: PatternRewriter) -> None:
-        if not op.field.uses:
-            rewriter.erase_op(op)
-
-
 class ApplyRedundantOperands(RewritePattern):
     """
     Merge duplicate operands of a `stencil.apply`.

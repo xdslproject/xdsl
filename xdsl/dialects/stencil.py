@@ -58,12 +58,13 @@ from xdsl.parser import AttrParser, Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    EffectInstance,
     HasAncestor,
     HasCanonicalisationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
-    MemoryAllocEffect,
+    MemoryEffect,
     MemoryEffectKind,
     MemoryReadEffect,
     NoMemoryEffect,
@@ -427,9 +428,9 @@ class ApplyMemoryEffect(RecursiveMemoryEffect):
         effects = super().get_effects(op)
         if effects is not None:
             if len(cast(ApplyOp, op).dest) > 0:
-                effects.add(MemoryEffectKind.WRITE)
+                effects.add(EffectInstance(MemoryEffectKind.WRITE))
             if any(isinstance(o.type, FieldType) for o in op.operands):
-                effects.add(MemoryEffectKind.READ)
+                effects.add(EffectInstance(MemoryEffectKind.READ))
         return effects
 
 
@@ -647,12 +648,10 @@ class ApplyOp(IRDLOperation):
             yield AccessPattern(tuple(accesses))
 
 
-class AllocOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class AllocOpEffect(MemoryEffect):
     @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.stencil import AllocUnused
-
-        return (AllocUnused(),)
+    def get_effects(cls, op: Operation):
+        return {EffectInstance(MemoryEffectKind.ALLOC, cast(AllocOp, op).field)}
 
 
 @irdl_op_definition
@@ -663,7 +662,7 @@ class AllocOp(IRDLOperation):
 
     assembly_format = "attr-dict `:` type($field)"
 
-    traits = frozenset([MemoryAllocEffect(), AllocOpHasCanonicalizationPatternsTrait()])
+    traits = frozenset([AllocOpEffect()])
 
 
 @irdl_op_definition
