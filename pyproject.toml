@@ -79,7 +79,6 @@ typeCheckingMode = "strict"
     "xdsl/frontend/onnx/ir_builder.py",
     "xdsl/frontend/onnx/type.py",
     "xdsl/interpreters/experimental/wgpu.py",
-    "xdsl/interpreters/onnx.py",
 ]
 "ignore" = [
     "docs/marimo",
