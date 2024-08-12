@@ -18,23 +18,27 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
+from xdsl.utils.isa import isattr
 
 
-def tensor_to_memref(t: TensorType[Attribute]) -> memref.MemRefType[Attribute]:
+def tensor_to_memref_type(t: TensorType[Attribute]) -> memref.MemRefType[Attribute]:
+    """Type conversion from tensor to memref."""
     return memref.MemRefType(t.get_element_type(), t.get_shape())
 
 
-def get_to_memref(op: SSAValue) -> bufferization.ToMemrefOp:
+def to_memref_op(op: SSAValue) -> bufferization.ToMemrefOp:
+    """Creates a `bufferization.to_memref` operation."""
     assert isa(op.type, TensorType[Attribute])
     r_type = memref.MemRefType(
         op.type.get_element_type(), op.type.get_shape()
-    )  # todo strided+offset
+    )  # todo set strided+offset here?
     return bufferization.ToMemrefOp(operands=[op], result_types=[r_type])
 
 
-def get_to_tensor(
+def to_tensor_op(
     op: SSAValue, writable: bool = False, restrict: bool = True
 ) -> bufferization.ToTensorOp:
+    """Creates a `bufferization.to_tensor` operation."""
     assert isa(op.type, memref.MemRefType[Attribute])
     return bufferization.ToTensorOp(op, restrict, writable)
 
@@ -52,62 +56,76 @@ class StencilTypeConversion(TypeConversionPattern):
     def convert_type(
         self, typ: stencil.FieldType[TensorType[Attribute]]
     ) -> memref.MemRefType[Attribute]:
-        # todo should this convert to memref?
-        return tensor_to_memref(typ.get_element_type())
+        # todo should this convert to `memref` or `stencil.field<..xmemref<..>>`?
+        return tensor_to_memref_type(typ.get_element_type())
 
 
 @dataclass(frozen=True)
 class ApplyOpBufferize(RewritePattern):
+    """
+    Bufferizes csl_stencil.apply, rewriting args and block args, changing them from tensor to memref types.
+    For each converted arg, creates a `bufferization.to_memref` before the apply op.
+    For each converted block arg, creates a `bufferization.to_tensor` at the start of the block.
+    """
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.ApplyOp, rewriter: PatternRewriter, /):
         if isa(op.iter_arg.type, memref.MemRefType[Attribute]):
             return
-        buf_args: Sequence[SSAValue] = []
-        to_memrefs: Sequence[Operation] = [buf_iter_arg := get_to_memref(op.iter_arg)]
 
+        # convert args
+        buf_args: list[SSAValue] = []
+        to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.iter_arg)]
         for arg in op.args:
             if isa(arg.type, TensorType[Attribute]):
-                to_memrefs.append(new_arg := get_to_memref(arg))
+                to_memrefs.append(new_arg := to_memref_op(arg))
                 buf_args.append(new_arg.memref)
             else:
                 buf_args.append(arg)
 
-        chunk_reduce_translate_idxs: Sequence[int] = []
-        chunk_reduce_args: Sequence[Attribute] = []
-        for idx, arg in enumerate(op.chunk_reduce.block.args):
-            if isa(arg.type, TensorType[Attribute]):
-                if idx != 0:
-                    chunk_reduce_translate_idxs.append(idx)
-                chunk_reduce_args.append(tensor_to_memref(arg.type))
-            else:
-                chunk_reduce_args.append(arg.type)
-
-        post_process_translate_idxs: Sequence[int] = []
-        post_process_args: Sequence[Attribute] = []
-        for idx, arg in enumerate(op.post_process.block.args):
-            if isa(arg.type, TensorType[Attribute]):
-                post_process_translate_idxs.append(idx)
-                post_process_args.append(tensor_to_memref(arg.type))
-            else:
-                post_process_args.append(arg.type)
-
+        # create new op
         buf_apply_op = csl_stencil.ApplyOp(
             operands=[op.communicated_stencil, buf_iter_arg.memref, op.args, op.dest],
-            result_types=[t.type for t in op.results] or [[]],
+            result_types=[t.type for t in op.res] or [[]],
             regions=[
-                Region(Block(arg_types=chunk_reduce_args)),
-                Region(Block(arg_types=post_process_args)),
+                Region(
+                    Block(
+                        arg_types=[
+                            (
+                                tensor_to_memref_type(arg.type)
+                                if isattr(arg.type, TensorType)
+                                else arg.type
+                            )
+                            for arg in op.chunk_reduce.block.args
+                        ]
+                    )
+                ),
+                Region(
+                    Block(
+                        arg_types=[
+                            (
+                                tensor_to_memref_type(arg.type)
+                                if isattr(arg.type, TensorType)
+                                else arg.type
+                            )
+                            for arg in op.post_process.block.args
+                        ]
+                    )
+                ),
             ],
             properties=op.properties,
             attributes=op.attributes,
         )
 
+        # insert to_tensor ops and create arg mappings for block inlining
         chunk_reduce_arg_mapping: Sequence[SSAValue] = []
-        for idx, arg in enumerate(buf_apply_op.chunk_reduce.block.args):
-            if idx in chunk_reduce_translate_idxs:
+        for idx, (old_arg, arg) in enumerate(
+            zip(op.chunk_reduce.block.args, buf_apply_op.chunk_reduce.block.args)
+        ):
+            if isattr(old_arg.type, TensorType):
                 rewriter.insert_op(
                     # ensure iter_arg is writable
-                    t := get_to_tensor(arg, writable=idx == 2),
+                    t := to_tensor_op(arg, writable=idx == 2),
                     InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
                 )
                 chunk_reduce_arg_mapping.append(t.tensor)
@@ -115,17 +133,21 @@ class ApplyOpBufferize(RewritePattern):
                 chunk_reduce_arg_mapping.append(arg)
 
         post_process_arg_mapping: Sequence[SSAValue] = []
-        for idx, arg in enumerate(buf_apply_op.post_process.block.args):
-            if idx in post_process_translate_idxs:
+        for idx, (old_arg, arg) in enumerate(
+            zip(op.post_process.block.args, buf_apply_op.post_process.block.args)
+        ):
+            # arg0 has special meaning and does not need a `to_tensor` op
+            if isattr(old_arg.type, TensorType) and idx != 0:
                 rewriter.insert_op(
                     # ensure iter_arg is writable
-                    t := get_to_tensor(arg, writable=idx == 1),
+                    t := to_tensor_op(arg, writable=idx == 1),
                     InsertPoint.at_end(buf_apply_op.post_process.block),
                 )
                 post_process_arg_mapping.append(t.tensor)
             else:
                 post_process_arg_mapping.append(arg)
 
+        # inline blocks from old into new regions
         rewriter.inline_block(
             op.chunk_reduce.block,
             InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
@@ -138,11 +160,14 @@ class ApplyOpBufferize(RewritePattern):
             post_process_arg_mapping,
         )
 
+        # insert new op
         rewriter.replace_matched_op(new_ops=[*to_memrefs, buf_apply_op])
 
 
 @dataclass(frozen=True)
 class AccessOpBufferize(RewritePattern):
+    """Bufferizes AccessOp."""
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.AccessOp, rewriter: PatternRewriter, /):
         if not isa(op.result.type, TensorType[Attribute]):
@@ -152,23 +177,25 @@ class AccessOpBufferize(RewritePattern):
                 access := csl_stencil.AccessOp(
                     op.op,
                     op.offset,
-                    tensor_to_memref(op.result.type),
+                    tensor_to_memref_type(op.result.type),
                     op.offset_mapping,
                 ),
-                get_to_tensor(access.result),
+                to_tensor_op(access.result),
             ]
         )
 
 
 @dataclass(frozen=True)
 class YieldOpBufferize(RewritePattern):
+    """Bufferizes YieldOp."""
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
         to_memrefs: list[Operation] = []
         args: list[SSAValue] = []
         for arg in op.arguments:
             if isa(arg.type, TensorType[Attribute]):
-                to_memrefs.append(new_arg := get_to_memref(arg))
+                to_memrefs.append(new_arg := to_memref_op(arg))
                 args.append(new_arg.memref)
             else:
                 args.append(arg)
@@ -182,7 +209,7 @@ class YieldOpBufferize(RewritePattern):
 @dataclass(frozen=True)
 class FuncOpBufferize(RewritePattern):
     """
-    Replace the function_type and let the type conversion pass handle the block args.
+    Replace the function_type and let a separate type conversion pass handle the block args.
     """
 
     @op_type_rewrite_pattern
@@ -190,7 +217,7 @@ class FuncOpBufferize(RewritePattern):
         op.function_type = FunctionType.from_lists(
             [
                 (
-                    tensor_to_memref(t.get_element_type())
+                    tensor_to_memref_type(t.get_element_type())
                     if isa(t, stencil.FieldType[TensorType[Attribute]])
                     else t
                 )
@@ -198,7 +225,7 @@ class FuncOpBufferize(RewritePattern):
             ],
             [
                 (
-                    tensor_to_memref(t.get_element_type())
+                    tensor_to_memref_type(t.get_element_type())
                     if isa(t, stencil.FieldType[TensorType[Attribute]])
                     else t
                 )
@@ -210,7 +237,7 @@ class FuncOpBufferize(RewritePattern):
 @dataclass(frozen=True)
 class CslStencilBufferize(ModulePass):
     """
-    Bufferizes the csl_stencil dialect
+    Bufferizes the csl_stencil dialect.
     """
 
     name = "csl-stencil-bufferize"
