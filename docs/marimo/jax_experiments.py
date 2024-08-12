@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.7.11"
+__generated_with = "0.7.19"
 app = marimo.App(width="medium")
 
 
@@ -46,6 +46,19 @@ def __(get_linalg_module_str, jax, jnp, random):
         matmul_params,
         matmul_shapes,
     )
+
+
+@app.cell
+def __(matmul_data, matmul_jit):
+    lowered_matmul = matmul_jit.lower(*matmul_data)
+    lowered_matmul
+    return lowered_matmul,
+
+
+@app.cell
+def __(lowered_matmul, matmul_data):
+    lowered_matmul.compile()(*matmul_data)
+    return
 
 
 @app.cell
