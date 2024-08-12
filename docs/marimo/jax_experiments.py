@@ -85,7 +85,7 @@ def __():
             # ctx.load_all_available_dialects()
             # mhlo.register_mhlo_dialect(ctx)
             mhlo.register_mhlo_passes()
-            pipeline = PassManager.parse("builtin.module(func.func(hlo-legalize-to-linalg))")
+            pipeline = PassManager.parse("builtin.module(hlo-legalize-to-arithmetic,func.func(hlo-legalize-to-linalg))")
             pipeline.run(mhlo_module.operation)
 
         mhlo_module_str = f"{mhlo_module}"
