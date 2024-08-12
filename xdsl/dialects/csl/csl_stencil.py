@@ -5,6 +5,7 @@ from xdsl.dialects import builtin, memref, stencil
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     AnyMemRefType,
+    IndexType,
     MemRefType,
     TensorType,
 )
@@ -335,30 +336,28 @@ class ApplyOp(IRDLOperation):
         assert isa(
             self.iter_arg.type, TensorType[Attribute] | memref.MemRefType[Attribute]
         )
-        # todo
-        # chunk_reduce_req_types = [
-        #     TensorType(
-        #         self.iter_arg.type.get_element_type(),
-        #         (
-        #             len(self.swaps),
-        #             self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,
-        #         ),
-        #     ),
-        #     IndexType(),
-        #     self.iter_arg.type,
-        # ]
+        chunk_reduce_req_types = [
+            type(self.iter_arg.type)(
+                self.iter_arg.type.get_element_type(),
+                (
+                    len(self.swaps),
+                    self.iter_arg.type.get_shape()[0] // self.num_chunks.value.data,
+                ),
+            ),
+            IndexType(),
+            self.iter_arg.type,
+        ]
         post_process_req_types = [
             self.communicated_stencil.type,
             self.iter_arg.type,
         ]
-        # todo
-        # for arg, expected_type in zip(
-        #     self.chunk_reduce.block.args, chunk_reduce_req_types
-        # ):
-        #     if arg.type != expected_type:
-        #         raise VerifyException(
-        #             f"Unexpected block argument type of chunk_reduce, got {arg.type} != {expected_type} at index {arg.index}"
-        #         )
+        for arg, expected_type in zip(
+            self.chunk_reduce.block.args, chunk_reduce_req_types
+        ):
+            if arg.type != expected_type:
+                raise VerifyException(
+                    f"Unexpected block argument type of chunk_reduce, got {arg.type} != {expected_type} at index {arg.index}"
+                )
         for arg, expected_type in zip(
             self.post_process.block.args, post_process_req_types
         ):
