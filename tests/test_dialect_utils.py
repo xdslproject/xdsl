@@ -165,3 +165,11 @@ def test_split_name(name: str, expected_1: str, expected_2: str):
     result_1, result_2 = Dialect.split_name(name)
     assert result_1 == expected_1
     assert result_2 == expected_2
+
+
+def test_split_name_failure():
+    with pytest.raises(ValueError) as e:
+        Dialect.split_name("test")
+
+    print(e)
+    assert e.value.args[0] == ("Invalid operation or attribute name test.")
