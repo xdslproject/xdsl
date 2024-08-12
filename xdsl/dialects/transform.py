@@ -9,10 +9,11 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
-    IndexType,
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolRefAttr,
+    UnitAttr,
 )
 from xdsl.ir import (
     Attribute,
@@ -29,6 +30,7 @@ from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
     ParameterDef,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -75,6 +77,11 @@ class AnyValueType(TransformHandleType):
     """
 
     name = "transform.any_value"
+
+
+@irdl_attr_definition
+class AnyParamType(ParametrizedAttribute, TypeAttribute):
+    name = "transform.any_param"
 
 
 @irdl_attr_definition
@@ -127,6 +134,195 @@ class FailurePropagationModeAttr(
 AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
     Attribute, AnyOf([IntegerType, FailurePropagationModeAttr])
 ]
+
+
+@irdl_op_definition
+class GetConsumerOfResult(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult
+    """
+
+    name = "transform.get_consumers_of_result"
+
+    result_number = prop_def(AnyIntegerAttr)
+    target = operand_def(TransformHandleType)
+    consumers = var_result_def(TransformHandleType)
+
+
+@irdl_op_definition
+class GetDefiningOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_defining_op-transformgetdefiningop
+    """
+
+    name = "transform.get_defining_op"
+
+    target = operand_def(TransformHandleType)
+    result = result_def(TransformHandleType)
+
+
+# @irdl_op_definition
+# class GetOperandOp(IRDLOperation):
+#     """
+#     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_operand-transformgetoperandop
+#     """
+
+#     name = "transform.get_operand"
+
+#     raw_position_list = prop_def(DenseArrayBase)
+#     is_inverted = prop_def(UnitAttr)
+#     is_all = prop_def(UnitAttr)
+#     target = operand_def(TransformHandleType)
+#     result = result_def(TransformHandleType)
+
+
+@irdl_op_definition
+class GetParentOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_parent_op-transformgetparentop
+    """
+
+    name = "transform.get_parent_op"
+
+    isolated_from_above = opt_prop_def(UnitAttr)
+    allow_empty_results = opt_prop_def(UnitAttr)
+    op_name = opt_prop_def(StringAttr)
+    deduplicate = opt_prop_def(UnitAttr)
+    nth_parent = prop_def(AnyIntegerAttr)
+    target = operand_def(TransformHandleType)
+    parent_result = result_def(TransformHandleType)
+
+
+@irdl_op_definition
+class GetProducerOfOperand(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_producer_of_operand-transformgetproducerofoperand
+    """
+
+    name = "transform.get_producer_of_operand"
+
+    operand_number = prop_def(AnyIntegerAttr)
+    target = operand_def(TransformHandleType)
+    producer = var_result_def(TransformHandleType)
+
+
+@irdl_op_definition
+class GetResultOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_result-transformgetresultop
+    """
+
+    name = "transform.get_result"
+
+    result_number = prop_def(AnyIntegerAttr)
+    raw_position_list = opt_prop_def(DenseArrayBase)
+    is_inverted = opt_prop_def(UnitAttr)
+    is_all = opt_prop_def(UnitAttr)
+    target = operand_def(TransformHandleType)
+    result = result_def(TransformHandleType)
+
+
+@irdl_op_definition
+class GetTypeOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformget_type-transformgettypeop
+    """
+
+    name = "transform.get_type"
+
+    elemental = prop_def(UnitAttr)
+    value = operand_def(TransformHandleType)
+    type_param = result_def(TransformHandleType)
+
+
+@irdl_op_definition
+class IncludeOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transforminclude-transformincludeop
+    """
+
+    name = "transform.include"
+
+    target = prop_def(SymbolRefAttr)
+    failure_propagation_mode = prop_def(Attribute)
+    operands_input = var_operand_def(TransformHandleType)
+    result = var_result_def(TransformHandleType)
+
+
+@irdl_op_definition
+class MatchOperationEmptyOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_empty-transformmatchoperationemptyop
+    """
+
+    name = "transform.match.operation_empty"
+
+    operand_handle = operand_def(TransformHandleType)
+
+
+@irdl_op_definition
+class MatchOperationNameOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchoperation_name-transformmatchoperationnameop
+    """
+
+    name = "transform.match.operation_name"
+
+    op_names = prop_def(ArrayAttr[StringAttr])
+    operand_handle = operand_def(TransformHandleType)
+
+
+@irdl_op_definition
+class MatchParamCmpIOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformmatchparamcmpi-transformmatchparamcmpiop
+    """
+
+    name = "transform.match.param.cmpi"
+
+    predicate = prop_def(AnyIntegerAttr)  # Only 0, 1, 2, 3, 4, 5 are valid
+    param = operand_def(AnyParamType)
+    reference = operand_def(AnyParamType)
+
+
+@irdl_op_definition
+class MergeHandlesOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformmerge_handles-transformmergehandlesop
+    """
+
+    name = "transform.merge_handles"
+
+    deduplicate = opt_prop_def(UnitAttr)
+    handles = var_operand_def(TransformHandleType)
+    result = result_def(TransformHandleType)
+
+
+@irdl_op_definition
+class ParamConstantOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformparamconstant-transformparamconstantop
+    """
+
+    name = "transform.param.constant"
+
+    value = attr_def(Attribute)
+    param = result_def(ParamType)
+
+
+@irdl_op_definition
+class SplitHandleOp(IRDLOperation):
+    """
+    https://mlir.llvm.org/docs/Dialects/Transform/#transformsplit_handle-transformsplithandleop
+    """
+
+    name = "transform.split_handle"
+
+    pass_through_empty_handle = prop_def(AnyIntegerAttr)
+    fail_on_payload_too_small = prop_def(AnyIntegerAttr)
+    overflow_result = opt_prop_def(AnyIntegerAttr)
+    handle = operand_def(TransformHandleType)
+    results_ = var_result_def(TransformHandleType)
 
 
 @irdl_op_definition
@@ -213,15 +409,15 @@ class TileOp(IRDLOperation):
     ):
         if isinstance(static_sizes, list):
             static_sizes = DenseArrayBase.create_dense_int_or_index(
-                IndexType(), static_sizes
+                IntegerType(64), static_sizes
             )
         if isinstance(interchange, list):
             interchange = DenseArrayBase.create_dense_int_or_index(
-                IndexType(), interchange
+                IntegerType(64), interchange
             )
         if isinstance(scalable_sizes, list):
             scalable_sizes = DenseArrayBase.create_dense_int_or_index(
-                IndexType(), scalable_sizes
+                IntegerType(1), scalable_sizes
             )
         super().__init__(
             operands=(target, dynamic_sizes),
@@ -272,14 +468,14 @@ class TileToForallOp(IRDLOperation):
     ):
         if isinstance(static_num_threads, list):
             static_num_threads = DenseArrayBase.create_dense_int_or_index(
-                IndexType(), static_num_threads
+                IntegerType(64), static_num_threads
             )
         if isinstance(static_tile_sizes, list):
             static_tile_sizes = DenseArrayBase.create_dense_int_or_index(
-                IndexType(), static_tile_sizes
+                IntegerType(64), static_tile_sizes
             )
         if isinstance(mapping, list):
-            mapping = DenseArrayBase.create_dense_int_or_index(IndexType(), mapping)
+            mapping = DenseArrayBase.create_dense_int_or_index(IntegerType(64), mapping)
 
         super().__init__(
             operands=[
@@ -342,6 +538,20 @@ class CastOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
+        GetConsumerOfResult,
+        GetDefiningOp,
+        # GetOperandOp,
+        GetParentOp,
+        GetProducerOfOperand,
+        GetResultOp,
+        GetTypeOp,
+        IncludeOp,
+        MatchOperationEmptyOp,
+        MatchOperationNameOp,
+        MatchParamCmpIOp,
+        MergeHandlesOp,
+        ParamConstantOp,
+        SplitHandleOp,
         SequenceOp,
         YieldOp,
         TileOp,
@@ -355,6 +565,7 @@ Transform = Dialect(
         AffineMapType,
         AnyOpType,
         AnyValueType,
+        AnyParamType,
         OperationType,
         ParamType,
         TypeParamType,
