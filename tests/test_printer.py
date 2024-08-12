@@ -702,7 +702,7 @@ class CustomFormatAttr(ParametrizedAttribute):
 
 @irdl_op_definition
 class AnyOp(IRDLOperation):
-    name = "any"
+    name = "test.any"
 
 
 def test_custom_format_attr():
@@ -711,13 +711,13 @@ def test_custom_format_attr():
     """
     prog = """\
 "builtin.module"() ({
-  "any"() {"attr" = #test.custom<zero>} : () -> ()
+  "test.any"() {"attr" = #test.custom<zero>} : () -> ()
 }) : () -> ()
 """
 
     expected = """\
 "builtin.module"() ({
-  "any"() {"attr" = #test.custom<zero>} : () -> ()
+  "test.any"() {"attr" = #test.custom<zero>} : () -> ()
 }) : () -> ()"""
 
     ctx = MLContext()
