@@ -15,7 +15,7 @@ from xdsl.utils.exceptions import ParseError
 
 
 @irdl_op_definition
-class Unknown(IRDLOperation):
+class UnknownOp(IRDLOperation):
     name = "test.unknown"
     ops: VarOperand = var_operand_def(AnyAttr())
     res: VarOpResult = var_result_def(AnyAttr())
@@ -23,7 +23,7 @@ class Unknown(IRDLOperation):
 
 def check_error(prog: str, line: int, column: int, message: str):
     ctx = MLContext()
-    ctx.load_op(Unknown)
+    ctx.load_op(UnknownOp)
 
     parser = Parser(ctx, prog)
     with pytest.raises(ParseError, match=message) as e:
@@ -35,7 +35,7 @@ def check_error(prog: str, line: int, column: int, message: str):
 def test_parser_missing_equal():
     """Test a missing equal sign error."""
     ctx = MLContext()
-    ctx.load_op(Unknown)
+    ctx.load_op(UnknownOp)
 
     prog = """
 "test.unknown"() ({
@@ -48,7 +48,7 @@ def test_parser_missing_equal():
 def test_parser_redefined_value():
     """Test an SSA value redefinition error."""
     ctx = MLContext()
-    ctx.load_op(Unknown)
+    ctx.load_op(UnknownOp)
 
     prog = """
 "test.unknown"() ({
@@ -62,7 +62,7 @@ def test_parser_redefined_value():
 def test_parser_missing_operation_name():
     """Test a missing operation name error."""
     ctx = MLContext()
-    ctx.load_op(Unknown)
+    ctx.load_op(UnknownOp)
 
     prog = """
 "test.unknown"() ({
