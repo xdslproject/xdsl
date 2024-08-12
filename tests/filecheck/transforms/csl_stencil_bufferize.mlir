@@ -57,14 +57,15 @@ builtin.module {
 // CHECK-NEXT:       %22 = bufferization.to_tensor %21 restrict writable : memref<510xf32>
 // CHECK-NEXT:       %23 = csl_stencil.access %20[0, 0] : memref<512xf32>
 // CHECK-NEXT:       %24 = bufferization.to_tensor %23 restrict : memref<512xf32>
-// CHECK-NEXT:       %25 = arith.constant dense<1.666600e-01> : tensor<510xf32>
-// CHECK-NEXT:       %26 = "tensor.extract_slice"(%24) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %27 = "tensor.extract_slice"(%24) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %28 = arith.addf %22, %27 : tensor<510xf32>
-// CHECK-NEXT:       %29 = arith.addf %28, %26 : tensor<510xf32>
-// CHECK-NEXT:       %30 = arith.mulf %29, %25 : tensor<510xf32>
-// CHECK-NEXT:       %31 = bufferization.to_memref %30 : memref<510xf32>
-// CHECK-NEXT:       csl_stencil.yield %31 : memref<510xf32>
+// CHECK-NEXT:       %25 = arith.constant dense<1.666600e-01> : memref<510xf32>
+// CHECK-NEXT:       %26 = bufferization.to_tensor %25 restrict : memref<510xf32>
+// CHECK-NEXT:       %27 = "tensor.extract_slice"(%24) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %28 = "tensor.extract_slice"(%24) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %29 = arith.addf %22, %28 : tensor<510xf32>
+// CHECK-NEXT:       %30 = arith.addf %29, %27 : tensor<510xf32>
+// CHECK-NEXT:       %31 = arith.mulf %30, %26 : tensor<510xf32>
+// CHECK-NEXT:       %32 = bufferization.to_memref %31 : memref<510xf32>
+// CHECK-NEXT:       csl_stencil.yield %32 : memref<510xf32>
 // CHECK-NEXT:     }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }

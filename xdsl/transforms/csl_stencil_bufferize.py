@@ -2,9 +2,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
-from xdsl.dialects import bufferization, func, memref, stencil, tensor
+from xdsl.dialects import arith, bufferization, func, memref, stencil, tensor
 from xdsl.dialects.builtin import (
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     FunctionType,
     ModuleOp,
     TensorType,
@@ -264,6 +265,29 @@ class FuncOpBufferize(RewritePattern):
 
 
 @dataclass(frozen=True)
+class ArithConstBufferize(RewritePattern):
+    """
+    Bufferize arith tensor constants to prevent mlir bufferize from promoting them to globals.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: arith.Constant, rewriter: PatternRewriter, /):
+        if not isa(op.result.type, TensorType[Attribute]):
+            return
+        assert isinstance(op.value, DenseIntOrFPElementsAttr)
+        assert isa(op.value.type, TensorType[Attribute])
+        typ = DenseIntOrFPElementsAttr(
+            [tensor_to_memref_type(op.value.type), op.value.data]
+        )
+        rewriter.replace_matched_op(
+            [
+                c := arith.Constant(typ),
+                to_tensor_op(c.result),
+            ]
+        )
+
+
+@dataclass(frozen=True)
 class CslStencilBufferize(ModulePass):
     """
     Bufferizes the csl_stencil dialect.
@@ -282,6 +306,7 @@ class CslStencilBufferize(ModulePass):
                     AccessOpBufferize(),
                     YieldOpBufferize(),
                     FuncOpBufferize(),
+                    ArithConstBufferize(),
                 ]
             )
         )
