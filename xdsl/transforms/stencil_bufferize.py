@@ -49,6 +49,9 @@ def field_from_temp(temp: TempType[_TypeElement]) -> FieldType[_TypeElement]:
 def might_effect(
     operation: Operation, effects: set[MemoryEffectKind], value: SSAValue
 ) -> bool:
+    """
+    Return True if the operation might have any of the given effects on the given value.
+    """
     op_effects = get_effects(operation)
     return op_effects is None or any(
         e.kind in effects and e.value in (None, value) for e in op_effects
@@ -59,11 +62,8 @@ class ApplyBufferizePattern(RewritePattern):
     """
     Naive partial `stencil.apply` bufferization.
 
-    Just replace all operands with the field result of a stencil.buffer on them, meaning
-    "The buffer those value are allocated to"; and allocate buffers for every result,
-    loading them back after the apply, to keep types fine with users.
-
-    Point is to fold as much as possible all the allocations and loads.
+    Just replace all temp arguments with the field result of a stencil.buffer on them, meaning
+    "The buffer those value are allocated to".
 
     Example:
     ```mlir
@@ -74,11 +74,9 @@ class ApplyBufferizePattern(RewritePattern):
     yields:
     ```mlir
     %in_buf = stencil.buffer %in : !stencil.temp<[0,32]xf64> -> !stencil.field<[0,32]xf64>
-    %out_buf = stencil.alloc : !stencil.field<[0,32]>xf64
     stencil.apply(%0 = %in_buf : !stencil.field<[0,32]>xf64) outs (%out_buf : !stencil.field<[0,32]>xf64) {
         // [...]
     }
-    %out = stencil.load %out_buf : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>xf64
     ```
     """
 
