@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Sequence
+from itertools import pairwise
 from typing import cast
 
 from xdsl.dialects import builtin, memref, stencil
@@ -376,8 +377,11 @@ class ApplyOp(IRDLOperation):
             res_type = self.dest[0].type
         else:
             res_type = self.res[0].type
-        assert isa(res_type, stencil.StencilType[Attribute])
-        return res_type.get_num_dims()
+        if isa(res_type, stencil.StencilType[Attribute]):
+            return res_type.get_num_dims()
+        elif self.bounds:
+            return len(self.bounds.ub)
+        raise ValueError("Cannot derive rank")
 
     def get_accesses(self) -> Iterable[stencil.AccessPattern]:
         """
@@ -570,21 +574,20 @@ class AccessOp(IRDLOperation):
                 f"instead"
             )
 
-        # todo
-        # if self.offset_mapping is not None:
-        #     prev_offset = None
-        #     for prev_offset, offset in pairwise(self.offset_mapping):
-        #         if prev_offset >= offset:
-        #             raise VerifyException(
-        #                 "Offset mapping in stencil.access must be strictly increasing."
-        #                 "increasing"
-        #             )
-        #     for offset in self.offset_mapping:
-        #         if offset >= apply.get_rank():
-        #             raise VerifyException(
-        #                 f"Offset mappings in stencil.access must be within the rank of the "
-        #                 f"apply, got {offset} >= {apply.get_rank()}"
-        #             )
+        if self.offset_mapping is not None:
+            prev_offset = None
+            for prev_offset, offset in pairwise(self.offset_mapping):
+                if prev_offset >= offset:
+                    raise VerifyException(
+                        "Offset mapping in stencil.access must be strictly increasing."
+                        "increasing"
+                    )
+            for offset in self.offset_mapping:
+                if offset >= apply.get_rank():
+                    raise VerifyException(
+                        f"Offset mappings in stencil.access must be within the rank of the "
+                        f"apply, got {offset} >= {apply.get_rank()}"
+                    )
 
     def get_apply(self) -> stencil.ApplyOp | ApplyOp:
         """
