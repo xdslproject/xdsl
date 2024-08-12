@@ -5,7 +5,7 @@ from xdsl.context import MLContext
 from xdsl.dialects import bufferization, func, memref, stencil
 from xdsl.dialects.builtin import FunctionType, ModuleOp, TensorType
 from xdsl.dialects.csl import csl_stencil
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -88,30 +88,8 @@ class ApplyOpBufferize(RewritePattern):
             operands=[op.communicated_stencil, buf_iter_arg.memref, op.args, op.dest],
             result_types=[t.type for t in op.res] or [[]],
             regions=[
-                Region(
-                    Block(
-                        arg_types=[
-                            (
-                                tensor_to_memref_type(arg.type)
-                                if isattr(arg.type, TensorType)
-                                else arg.type
-                            )
-                            for arg in op.chunk_reduce.block.args
-                        ]
-                    )
-                ),
-                Region(
-                    Block(
-                        arg_types=[
-                            (
-                                tensor_to_memref_type(arg.type)
-                                if isattr(arg.type, TensorType)
-                                else arg.type
-                            )
-                            for arg in op.post_process.block.args
-                        ]
-                    )
-                ),
+                self._get_empty_bufferized_region(op.chunk_reduce.block.args),
+                self._get_empty_bufferized_region(op.post_process.block.args),
             ],
             properties=op.properties,
             attributes=op.attributes,
@@ -122,7 +100,8 @@ class ApplyOpBufferize(RewritePattern):
         for idx, (old_arg, arg) in enumerate(
             zip(op.chunk_reduce.block.args, buf_apply_op.chunk_reduce.block.args)
         ):
-            if isattr(old_arg.type, TensorType):
+            # arg0 has special meaning and does not need a `to_tensor` op
+            if isattr(old_arg.type, TensorType) and idx != 0:
                 rewriter.insert_op(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 2),
@@ -136,8 +115,7 @@ class ApplyOpBufferize(RewritePattern):
         for idx, (old_arg, arg) in enumerate(
             zip(op.post_process.block.args, buf_apply_op.post_process.block.args)
         ):
-            # arg0 has special meaning and does not need a `to_tensor` op
-            if isattr(old_arg.type, TensorType) and idx != 0:
+            if isattr(old_arg.type, TensorType):
                 rewriter.insert_op(
                     # ensure iter_arg is writable
                     t := to_tensor_op(arg, writable=idx == 1),
@@ -162,6 +140,22 @@ class ApplyOpBufferize(RewritePattern):
 
         # insert new op
         rewriter.replace_matched_op(new_ops=[*to_memrefs, buf_apply_op])
+
+    @staticmethod
+    def _get_empty_bufferized_region(args: Sequence[BlockArgument]) -> Region:
+        """Helper function to create a new region with bufferized arg types."""
+        return Region(
+            Block(
+                arg_types=[
+                    (
+                        tensor_to_memref_type(arg.type)
+                        if isattr(arg.type, TensorType)
+                        else arg.type
+                    )
+                    for arg in args
+                ]
+            )
+        )
 
 
 @dataclass(frozen=True)
