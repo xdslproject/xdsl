@@ -2,8 +2,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
-from xdsl.dialects import bufferization, func, memref, stencil
-from xdsl.dialects.builtin import FunctionType, ModuleOp, TensorType
+from xdsl.dialects import bufferization, func, memref, stencil, tensor
+from xdsl.dialects.builtin import (
+    DenseArrayBase,
+    FunctionType,
+    ModuleOp,
+    TensorType,
+    i64,
+)
 from xdsl.dialects.csl import csl_stencil
 from xdsl.ir import Attribute, Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
@@ -107,6 +113,12 @@ class ApplyOpBufferize(RewritePattern):
                     t := to_tensor_op(arg, writable=idx == 2),
                     InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
                 )
+                if idx == 2:
+                    offset_arg = buf_apply_op.chunk_reduce.block.args[1]
+                    rewriter.insert_op(
+                        self._build_extract_slice(op, t, offset_arg),
+                        InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
+                    )
                 chunk_reduce_arg_mapping.append(t.tensor)
             else:
                 chunk_reduce_arg_mapping.append(arg)
@@ -155,6 +167,29 @@ class ApplyOpBufferize(RewritePattern):
                     for arg in args
                 ]
             )
+        )
+
+    @staticmethod
+    def _build_extract_slice(
+        op: csl_stencil.ApplyOp, to_tensor: bufferization.ToTensorOp, offset: SSAValue
+    ) -> tensor.ExtractSliceOp:
+        """
+        Helper function to create an early tensor.extract_slice in the apply.chunk_reduce region needed for bufferization.
+        """
+
+        # this is the unbufferized `tensor<(neighbours)x(ZDim)x(type)>` value
+        assert isa(typ := op.chunk_reduce.block.args[0].type, TensorType[Attribute])
+
+        return tensor.ExtractSliceOp(
+            operands=[to_tensor.tensor, [offset], [], []],
+            result_types=[TensorType(typ.get_element_type(), typ.get_shape()[1:])],
+            properties={
+                "static_offsets": DenseArrayBase.from_list(
+                    i64, (memref.Subview.DYNAMIC_INDEX,)
+                ),
+                "static_sizes": DenseArrayBase.from_list(i64, typ.get_shape()[1:]),
+                "static_strides": DenseArrayBase.from_list(i64, (1,)),
+            },
         )
 
 
@@ -232,6 +267,8 @@ class FuncOpBufferize(RewritePattern):
 class CslStencilBufferize(ModulePass):
     """
     Bufferizes the csl_stencil dialect.
+
+    Creates a `tensor.extract_slice` op needed by `lift-arith-to-linalg` and should be run without `cse` in between.
     """
 
     name = "csl-stencil-bufferize"

@@ -37,33 +37,34 @@ builtin.module {
 // CHECK-NEXT:     csl_stencil.apply(%a : memref<512xf32>, %1 : memref<510xf32>) outs (%b : memref<512xf32>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, "operandSegmentSizes" = array<i32: 1, 1, 0, 1>}> ({
 // CHECK-NEXT:     ^0(%2 : memref<4x255xf32>, %3 : index, %4 : memref<510xf32>):
 // CHECK-NEXT:       %5 = bufferization.to_tensor %4 restrict writable : memref<510xf32>
-// CHECK-NEXT:       %6 = csl_stencil.access %2[1, 0] : memref<4x255xf32>
-// CHECK-NEXT:       %7 = bufferization.to_tensor %6 restrict : memref<255xf32>
-// CHECK-NEXT:       %8 = csl_stencil.access %2[-1, 0] : memref<4x255xf32>
-// CHECK-NEXT:       %9 = bufferization.to_tensor %8 restrict : memref<255xf32>
-// CHECK-NEXT:       %10 = csl_stencil.access %2[0, 1] : memref<4x255xf32>
-// CHECK-NEXT:       %11 = bufferization.to_tensor %10 restrict : memref<255xf32>
-// CHECK-NEXT:       %12 = csl_stencil.access %2[0, -1] : memref<4x255xf32>
-// CHECK-NEXT:       %13 = bufferization.to_tensor %12 restrict : memref<255xf32>
-// CHECK-NEXT:       %14 = arith.addf %13, %11 : tensor<255xf32>
-// CHECK-NEXT:       %15 = arith.addf %14, %9 : tensor<255xf32>
-// CHECK-NEXT:       %16 = arith.addf %15, %7 : tensor<255xf32>
-// CHECK-NEXT:       %17 = "tensor.insert_slice"(%16, %5, %3) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
-// CHECK-NEXT:       %18 = bufferization.to_memref %17 : memref<510xf32>
-// CHECK-NEXT:       csl_stencil.yield %18 : memref<510xf32>
+// CHECK-NEXT:       %6 = "tensor.extract_slice"(%5, %3) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>}> : (tensor<510xf32>, index) -> tensor<255xf32>
+// CHECK-NEXT:       %7 = csl_stencil.access %2[1, 0] : memref<4x255xf32>
+// CHECK-NEXT:       %8 = bufferization.to_tensor %7 restrict : memref<255xf32>
+// CHECK-NEXT:       %9 = csl_stencil.access %2[-1, 0] : memref<4x255xf32>
+// CHECK-NEXT:       %10 = bufferization.to_tensor %9 restrict : memref<255xf32>
+// CHECK-NEXT:       %11 = csl_stencil.access %2[0, 1] : memref<4x255xf32>
+// CHECK-NEXT:       %12 = bufferization.to_tensor %11 restrict : memref<255xf32>
+// CHECK-NEXT:       %13 = csl_stencil.access %2[0, -1] : memref<4x255xf32>
+// CHECK-NEXT:       %14 = bufferization.to_tensor %13 restrict : memref<255xf32>
+// CHECK-NEXT:       %15 = arith.addf %14, %12 : tensor<255xf32>
+// CHECK-NEXT:       %16 = arith.addf %15, %10 : tensor<255xf32>
+// CHECK-NEXT:       %17 = arith.addf %16, %8 : tensor<255xf32>
+// CHECK-NEXT:       %18 = "tensor.insert_slice"(%17, %5, %3) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
+// CHECK-NEXT:       %19 = bufferization.to_memref %18 : memref<510xf32>
+// CHECK-NEXT:       csl_stencil.yield %19 : memref<510xf32>
 // CHECK-NEXT:     }, {
-// CHECK-NEXT:     ^1(%19 : memref<512xf32>, %20 : memref<510xf32>):
-// CHECK-NEXT:       %21 = bufferization.to_tensor %20 restrict writable : memref<510xf32>
-// CHECK-NEXT:       %22 = csl_stencil.access %19[0, 0] : memref<512xf32>
-// CHECK-NEXT:       %23 = bufferization.to_tensor %22 restrict : memref<512xf32>
-// CHECK-NEXT:       %24 = arith.constant dense<1.666600e-01> : tensor<510xf32>
-// CHECK-NEXT:       %25 = "tensor.extract_slice"(%23) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %26 = "tensor.extract_slice"(%23) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:       %27 = arith.addf %21, %26 : tensor<510xf32>
-// CHECK-NEXT:       %28 = arith.addf %27, %25 : tensor<510xf32>
-// CHECK-NEXT:       %29 = arith.mulf %28, %24 : tensor<510xf32>
-// CHECK-NEXT:       %30 = bufferization.to_memref %29 : memref<510xf32>
-// CHECK-NEXT:       csl_stencil.yield %30 : memref<510xf32>
+// CHECK-NEXT:     ^1(%20 : memref<512xf32>, %21 : memref<510xf32>):
+// CHECK-NEXT:       %22 = bufferization.to_tensor %21 restrict writable : memref<510xf32>
+// CHECK-NEXT:       %23 = csl_stencil.access %20[0, 0] : memref<512xf32>
+// CHECK-NEXT:       %24 = bufferization.to_tensor %23 restrict : memref<512xf32>
+// CHECK-NEXT:       %25 = arith.constant dense<1.666600e-01> : tensor<510xf32>
+// CHECK-NEXT:       %26 = "tensor.extract_slice"(%24) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %27 = "tensor.extract_slice"(%24) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:       %28 = arith.addf %22, %27 : tensor<510xf32>
+// CHECK-NEXT:       %29 = arith.addf %28, %26 : tensor<510xf32>
+// CHECK-NEXT:       %30 = arith.mulf %29, %25 : tensor<510xf32>
+// CHECK-NEXT:       %31 = bufferization.to_memref %30 : memref<510xf32>
+// CHECK-NEXT:       csl_stencil.yield %31 : memref<510xf32>
 // CHECK-NEXT:     }) to <[0, 0], [1, 1]>
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
