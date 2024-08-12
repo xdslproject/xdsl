@@ -79,8 +79,7 @@ def test_tileop_init():
     printer = Printer()
     printer.print(tile_op)
     expected = """
-%0, %1 = "transform.structured.tile_using_for"(%2) <{"static_sizes" = array<index: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op)
-"""
+%0, %1, %2 = "transform.structured.tile_using_for"(%3) <{"static_sizes" = array<index: 8, 8>}> : (!transform.any_value) -> (!transform.any_op, !transform.any_op, !transform.any_op)"""
     assert_print_op(tile_op, expected, None)
     assert isinstance(tile_op.results[0], SSAValue)
 
@@ -299,4 +298,4 @@ def test_split_handle():
     assert isinstance(op.results[0], SSAValue)
 
 
-test_split_handle()
+test_tileop_init()
