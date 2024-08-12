@@ -120,8 +120,8 @@ class ModulePass(ABC):
         """
         This function takes a ModulePass and returns a PipelinePassSpec.
 
-        If `include_default` is `True`, then add arguments that are optional are not
-        included in the spec.
+        If `include_default` is `True`, then optional arguments are not included in the
+        spec.
         """
         # get all dataclass fields
         fields = dataclasses.fields(self)
