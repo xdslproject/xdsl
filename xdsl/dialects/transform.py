@@ -175,21 +175,6 @@ class GetDefiningOp(IRDLOperation):
         super().__init__(operands=[target], result_types=[AnyOpType()])
 
 
-# @irdl_op_definition
-# class GetOperandOp(IRDLOperation):
-#     """
-#     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_operand-transformgetoperandop
-#     """
-
-#     name = "transform.get_operand"
-
-#     raw_position_list = prop_def(DenseArrayBase)
-#     is_inverted = prop_def(UnitAttr)
-#     is_all = prop_def(UnitAttr)
-#     target = operand_def(TransformHandleType)
-#     result = result_def(TransformHandleType)
-
-
 @irdl_op_definition
 class GetParentOp(IRDLOperation):
     """
@@ -752,7 +737,6 @@ Transform = Dialect(
     [
         GetConsumerOfResult,
         GetDefiningOp,
-        # GetOperandOp,
         GetParentOp,
         GetProducerOfOperand,
         GetResultOp,
