@@ -80,7 +80,7 @@ def __():
 
         # print(mhlo_module)
 
-        with lowered.compiler_ir(dialect="stablehlo").context as ctx:
+        with mhlo_module.context as ctx:
             ctx.append_dialect_registry(mlir.upstream_dialects)
             # ctx.load_all_available_dialects()
             # mhlo.register_mhlo_dialect(ctx)
