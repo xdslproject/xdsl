@@ -51,7 +51,7 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
     if result_values:
         builder.insert(ResultsOp(result_values))
 
-    return OperationOp(op_def.name.split(".", 1)[1], Region([block]))
+    return OperationOp(Dialect.split_name(op_def.name)[1], Region([block]))
 
 
 def attr_def_to_irdl(
@@ -69,7 +69,7 @@ def attr_def_to_irdl(
         param_values.append(constraint_to_irdl(builder, param[1]))
     builder.insert(ParametersOp(param_values))
 
-    return AttributeOp(attr_def.name.split(".", 1)[1], Region([block]))
+    return AttributeOp(Dialect.split_name(attr_def.name)[1], Region([block]))
 
 
 def dialect_to_irdl(dialect: Dialect, name: str) -> DialectOp:
