@@ -46,7 +46,7 @@ class SimplePass(ModulePass):
 
 
 @pytest.mark.parametrize(
-    "test_pass, test_spec_with_default, test_spec_no_default",
+    "test_pass, test_spec",
     (
         (
             CustomPass(3, (1, 2), None, ("clown", "season")),
@@ -60,6 +60,26 @@ class SimplePass(ModulePass):
                     "optional_bool": (False,),
                 },
             ),
+        ),
+        (EmptyPass(), PipelinePassSpec("empty", {})),
+        (
+            SimplePass((3.14, 2.13), 2),
+            PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
+        ),
+    ),
+)
+def test_pass_to_spec_include_default(
+    test_pass: ModulePass,
+    test_spec: PipelinePassSpec,
+):
+    assert test_pass.pipeline_pass_spec(include_default=True) == test_spec
+
+
+@pytest.mark.parametrize(
+    "test_pass, test_spec",
+    (
+        (
+            CustomPass(3, (1, 2), None, ("clown", "season")),
             PipelinePassSpec(
                 "custom-pass",
                 {
@@ -69,19 +89,15 @@ class SimplePass(ModulePass):
                 },
             ),
         ),
-        (EmptyPass(), PipelinePassSpec("empty", {}), PipelinePassSpec("empty", {})),
+        (EmptyPass(), PipelinePassSpec("empty", {})),
         (
             SimplePass((3.14, 2.13), 2),
-            PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
             PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
         ),
     ),
 )
-def test_pass_to_spec_equality(
-    test_pass: ModulePass,
-    test_spec_with_default: PipelinePassSpec,
-    test_spec_no_default: PipelinePassSpec,
+def test_pass_to_spec_exclude_default(
+    test_pass: ModulePass, test_spec: PipelinePassSpec
 ):
-    assert test_pass.pipeline_pass_spec(include_default=True) == test_spec_with_default
-    assert test_pass.pipeline_pass_spec(include_default=False) == test_spec_no_default
-    assert test_pass.pipeline_pass_spec() == test_spec_no_default
+    assert test_pass.pipeline_pass_spec(include_default=False) == test_spec
+    assert test_pass.pipeline_pass_spec() == test_spec
