@@ -146,7 +146,18 @@ class GetConsumerOfResult(IRDLOperation):
 
     result_number = prop_def(AnyIntegerAttr)
     target = operand_def(TransformHandleType)
-    consumers = var_result_def(TransformHandleType)
+    consumers = result_def(TransformHandleType)
+
+    def __init__(
+        self,
+        result_number: int,
+        target: SSAValue,
+    ):
+        super().__init__(
+            properties={"result_number": IntegerAttr(result_number, IntegerType(64))},
+            operands=[target],
+            result_types=[AnyOpType()],
+        )
 
 
 @irdl_op_definition
@@ -159,6 +170,9 @@ class GetDefiningOp(IRDLOperation):
 
     target = operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
+
+    def __init__(self, target: SSAValue):
+        super().__init__(operands=[target], result_types=[AnyOpType()])
 
 
 # @irdl_op_definition
@@ -192,6 +206,29 @@ class GetParentOp(IRDLOperation):
     target = operand_def(TransformHandleType)
     parent_result = result_def(TransformHandleType)
 
+    def __init__(
+        self,
+        target: SSAValue,
+        isolated_from_above: bool = False,
+        allow_empty_results: bool = False,
+        op_name: str | None = None,
+        deduplicate: bool = False,
+        nth_parent: int | AnyIntegerAttr = 1,
+    ):
+        if isinstance(nth_parent, int):
+            nth_parent = IntegerAttr(nth_parent, IntegerType(64))
+        super().__init__(
+            properties={
+                "isolated_from_above": UnitAttr() if isolated_from_above else None,
+                "allow_empty_results": UnitAttr() if allow_empty_results else None,
+                "op_name": StringAttr(op_name) if op_name else None,
+                "deduplicate": UnitAttr() if deduplicate else None,
+                "nth_parent": nth_parent,
+            },
+            operands=[target],
+            result_types=[AnyOpType()],
+        )
+
 
 @irdl_op_definition
 class GetProducerOfOperand(IRDLOperation):
@@ -203,7 +240,20 @@ class GetProducerOfOperand(IRDLOperation):
 
     operand_number = prop_def(AnyIntegerAttr)
     target = operand_def(TransformHandleType)
-    producer = var_result_def(TransformHandleType)
+    producer = result_def(TransformHandleType)
+
+    def __init__(
+        self,
+        operand_number: int | AnyIntegerAttr,
+        target: SSAValue,
+    ):
+        if isinstance(operand_number, int):
+            operand_number = IntegerAttr(operand_number, IntegerType(64))
+        super().__init__(
+            properties={"operand_number": operand_number},
+            operands=[target],
+            result_types=[AnyOpType()],
+        )
 
 
 @irdl_op_definition
@@ -221,6 +271,31 @@ class GetResultOp(IRDLOperation):
     target = operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
 
+    def __init__(
+        self,
+        result_number: int | AnyIntegerAttr,
+        target: SSAValue,
+        raw_position_list: list[int] | DenseArrayBase | None = None,
+        is_inverted: bool = False,
+        is_all: bool = False,
+    ):
+        if isinstance(result_number, int):
+            result_number = IntegerAttr(result_number, IntegerType(64))
+        if isinstance(raw_position_list, list):
+            raw_position_list = DenseArrayBase.create_dense_int_or_index(
+                IntegerType(64), raw_position_list
+            )
+        super().__init__(
+            properties={
+                "result_number": result_number,
+                "raw_position_list": raw_position_list,
+                "is_inverted": UnitAttr() if is_inverted else None,
+                "is_all": UnitAttr() if is_all else None,
+            },
+            operands=[target],
+            result_types=[AnyValueType()],
+        )
+
 
 @irdl_op_definition
 class GetTypeOp(IRDLOperation):
@@ -233,6 +308,13 @@ class GetTypeOp(IRDLOperation):
     elemental = prop_def(UnitAttr)
     value = operand_def(TransformHandleType)
     type_param = result_def(TransformHandleType)
+
+    def __init__(self, elemental: bool, value: SSAValue):
+        super().__init__(
+            properties={"elemental": UnitAttr() if elemental else None},
+            operands=[value],
+            result_types=[AnyParamType()],
+        )
 
 
 @irdl_op_definition
@@ -248,6 +330,25 @@ class IncludeOp(IRDLOperation):
     operands_input = var_operand_def(TransformHandleType)
     result = var_result_def(TransformHandleType)
 
+    def __init__(
+        self,
+        target: str,
+        failure_propagation_mode: FailurePropagationModeAttr | AnyIntegerAttr | int,
+        operands_input: Sequence[SSAValue],
+    ):
+        if isinstance(failure_propagation_mode, int):
+            failure_propagation_mode = IntegerAttr(
+                failure_propagation_mode, IntegerType(1)
+            )
+        super().__init__(
+            properties={
+                "target": SymbolRefAttr(target),
+                "failure_propagation_mode": failure_propagation_mode,
+            },
+            operands=[operands_input],
+            result_types=[[input.type for input in operands_input]],
+        )
+
 
 @irdl_op_definition
 class MatchOperationEmptyOp(IRDLOperation):
@@ -258,6 +359,9 @@ class MatchOperationEmptyOp(IRDLOperation):
     name = "transform.match.operation_empty"
 
     operand_handle = operand_def(TransformHandleType)
+
+    def __init__(self, operand_handle: SSAValue):
+        super().__init__(operands=[operand_handle])
 
 
 @irdl_op_definition
@@ -270,6 +374,16 @@ class MatchOperationNameOp(IRDLOperation):
 
     op_names = prop_def(ArrayAttr[StringAttr])
     operand_handle = operand_def(TransformHandleType)
+
+    def __init__(
+        self, op_names: list[str] | ArrayAttr[StringAttr], operand_handle: SSAValue
+    ):
+        if isinstance(op_names, list):
+            op_names = ArrayAttr([StringAttr(name) for name in op_names])
+        super().__init__(
+            properties={"op_names": op_names},
+            operands=[operand_handle],
+        )
 
 
 @irdl_op_definition
@@ -284,6 +398,16 @@ class MatchParamCmpIOp(IRDLOperation):
     param = operand_def(AnyParamType)
     reference = operand_def(AnyParamType)
 
+    def __init__(
+        self, predicate: int | AnyIntegerAttr, param: SSAValue, reference: SSAValue
+    ):
+        if isinstance(predicate, int):
+            predicate = IntegerAttr(predicate, IntegerType(64))
+        super().__init__(
+            properties={"predicate": predicate},
+            operands=[param, reference],
+        )
+
 
 @irdl_op_definition
 class MergeHandlesOp(IRDLOperation):
@@ -297,6 +421,13 @@ class MergeHandlesOp(IRDLOperation):
     handles = var_operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
 
+    def __init__(self, handles: Sequence[SSAValue], deduplicate: bool = False):
+        super().__init__(
+            properties={"deduplicate": UnitAttr() if deduplicate else None},
+            operands=[handles],
+            result_types=[handles[0].type],
+        )
+
 
 @irdl_op_definition
 class ParamConstantOp(IRDLOperation):
@@ -308,6 +439,11 @@ class ParamConstantOp(IRDLOperation):
 
     value = attr_def(Attribute)
     param = result_def(ParamType)
+
+    def __init__(self, value: Attribute, param_type: TypeAttribute):
+        super().__init__(
+            properties={"value": value}, result_types=[ParamType(param_type)]
+        )
 
 
 @irdl_op_definition
@@ -323,6 +459,42 @@ class SplitHandleOp(IRDLOperation):
     overflow_result = opt_prop_def(AnyIntegerAttr)
     handle = operand_def(TransformHandleType)
     results_ = var_result_def(TransformHandleType)
+
+    def __init__(
+        self,
+        handle: SSAValue,
+        number_of_results: int,
+        pass_through_empty_handle: int | AnyIntegerAttr | bool = False,
+        fail_on_payload_too_small: int | AnyIntegerAttr | bool = False,
+        overflow_result: int | AnyIntegerAttr | None = None,
+    ):
+        if isinstance(pass_through_empty_handle, bool):
+            pass_through_empty_handle = IntegerAttr(
+                int(pass_through_empty_handle), IntegerType(1)
+            )
+        if isinstance(fail_on_payload_too_small, bool):
+            fail_on_payload_too_small = IntegerAttr(
+                int(fail_on_payload_too_small), IntegerType(1)
+            )
+        if isinstance(pass_through_empty_handle, int):
+            pass_through_empty_handle = IntegerAttr(
+                pass_through_empty_handle, IntegerType(1)
+            )
+        if isinstance(fail_on_payload_too_small, int):
+            fail_on_payload_too_small = IntegerAttr(
+                fail_on_payload_too_small, IntegerType(1)
+            )
+        if isinstance(overflow_result, int):
+            overflow_result = IntegerAttr(overflow_result, IntegerType(64))
+        super().__init__(
+            properties={
+                "pass_through_empty_handle": pass_through_empty_handle,
+                "fail_on_payload_too_small": fail_on_payload_too_small,
+                "overflow_result": overflow_result,
+            },
+            operands=[handle],
+            result_types=[[handle.type for _ in range(number_of_results)]],
+        )
 
 
 @irdl_op_definition
@@ -428,7 +600,7 @@ class TileOp(IRDLOperation):
             },
             result_types=[
                 AnyOpType(),
-                [AnyOpType() for i in range(len(static_sizes.as_tuple()))],
+                [AnyOpType() for _ in range(len(static_sizes.as_tuple()))],
             ],
         )
 
@@ -490,7 +662,7 @@ class TileToForallOp(IRDLOperation):
                 "static_tile_sizes": static_tile_sizes,
                 "mapping": mapping,
             },
-            result_types=[TransformHandleType(), TransformHandleType()],
+            result_types=[AnyOpType(), AnyOpType()],
         )
 
 
@@ -505,6 +677,15 @@ class SelectOp(IRDLOperation):
     op_name = prop_def(StringAttr)
     target = operand_def(TransformHandleType)
     result = result_def(TransformHandleType)
+
+    def __init__(self, op_name: str | StringAttr, target: SSAValue):
+        if isinstance(op_name, str):
+            op_name = StringAttr(op_name)
+        super().__init__(
+            properties={"op_name": op_name},
+            operands=[target],
+            result_types=[AnyOpType()],
+        )
 
 
 @irdl_op_definition
@@ -522,6 +703,34 @@ class NamedSequenceOp(IRDLOperation):
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     body = region_def("single_block")
 
+    def __init__(
+        self,
+        sym_name: str | StringAttr,
+        function_type: TypeAttribute,
+        body: Region,
+        sym_visibility: str | StringAttr | None = None,
+        arg_attrs: list[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
+        res_attrs: list[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
+    ):
+        if isinstance(sym_name, str):
+            sym_name = StringAttr(sym_name)
+        if isinstance(sym_visibility, str):
+            sym_visibility = StringAttr(sym_visibility)
+        if isinstance(arg_attrs, list):
+            arg_attrs = ArrayAttr(arg_attrs)
+        if isinstance(res_attrs, list):
+            res_attrs = ArrayAttr(res_attrs)
+        super().__init__(
+            properties={
+                "sym_name": sym_name,
+                "function_type": function_type,
+                "sym_visibility": sym_visibility,
+                "arg_attrs": arg_attrs,
+                "res_attrs": res_attrs,
+            },
+            regions=[body],
+        )
+
 
 @irdl_op_definition
 class CastOp(IRDLOperation):
@@ -533,6 +742,9 @@ class CastOp(IRDLOperation):
 
     input = operand_def(TransformHandleType)
     output = result_def(TransformHandleType)
+
+    def __init__(self, input: SSAValue):
+        super().__init__(operands=[input], result_types=[AnyOpType()])
 
 
 Transform = Dialect(
