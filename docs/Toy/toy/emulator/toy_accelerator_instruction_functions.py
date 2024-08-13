@@ -7,7 +7,6 @@ from xdsl.interpreters.riscv import RiscvFunctions
 
 @register_impls
 class ToyAcceleratorInstructionFunctions(RiscvFunctions):
-
     @impl(riscv.EcallOp)
     def run_ecall(
         self,

@@ -1611,7 +1611,6 @@ def test_type_conversion():
 
 
 def test_recursive_type_conversion_in_regions():
-
     prog = """\
 "builtin.module"() ({
   "func.func"() <{"function_type" = (memref<2x4xui16>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
@@ -1630,7 +1629,6 @@ def test_recursive_type_conversion_in_regions():
 """
 
     class IndexConversion(TypeConversionPattern):
-
         @attr_type_rewrite_pattern
         def convert_type(self, typ: IntegerType) -> IndexType:
             return IndexType()
@@ -1672,7 +1670,6 @@ def test_no_change():
 
 
 def test_error():
-
     prog = """\
 builtin.module {
   "test.op"() {"erroneous" = false} : () -> ()

@@ -200,7 +200,6 @@ class CSEDriver:
 
         # If we know the operation is side-effect free, we can just replace it
         if existing := self._known_ops.get(op):
-
             self._replace_and_delete(op, existing)
             return
 
@@ -210,7 +209,6 @@ class CSEDriver:
 
     def _simplify_block(self, block: Block):
         for op in block.ops:
-
             if op.regions:
                 might_be_isolated = isinstance(op, UnregisteredOp) or (
                     op.get_trait(IsolatedFromAbove) is not None
@@ -235,7 +233,6 @@ class CSEDriver:
             return
 
         if len(region.blocks) == 1:
-
             old_scope = self._known_ops
             self._known_ops = KnownOps(self._known_ops)
 

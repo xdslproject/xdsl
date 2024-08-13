@@ -219,7 +219,7 @@ class Builder(BuilderListener):
 
     @staticmethod
     def region(
-        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[Builder], None]
+        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[Builder], None],
     ) -> Callable[[_CallableRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
             return Builder._region_no_args(input)
@@ -294,7 +294,7 @@ class Builder(BuilderListener):
 
     @staticmethod
     def implicit_region(
-        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[], None]
+        input: Sequence[Attribute] | ArrayAttr[Attribute] | Callable[[], None],
     ) -> Callable[[_CallableImplicitRegionFuncType], Region] | Region:
         if isinstance(input, Callable):
             return Builder._implicit_region_no_args(input)

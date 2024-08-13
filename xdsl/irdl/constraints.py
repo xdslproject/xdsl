@@ -447,7 +447,6 @@ class MessageConstraint(GenericAttrConstraint[AttributeCovT]):
 
 
 class RangeConstraint(Generic[AttributeCovT], ABC):
-
     @abstractmethod
     def verify(
         self,

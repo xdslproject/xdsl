@@ -381,7 +381,7 @@ _OperationT = TypeVar("_OperationT", bound=Operation)
 
 
 def op_type_rewrite_pattern(
-    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None]
+    func: Callable[[_RewritePatternT, _OperationT, PatternRewriter], None],
 ) -> Callable[[_RewritePatternT, Operation, PatternRewriter], None]:
     """
     This function is intended to be used as a decorator on a RewritePatter
@@ -547,7 +547,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_type_rewrite_pattern(
-    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None]
+    func: Callable[[_TypeConversionPatternT, _AttributeT], _ConvertedT | None],
 ) -> Callable[[_TypeConversionPatternT, Attribute], Attribute | None]:
     """
     This function is intended to be used as a decorator on a TypeConversionPattern

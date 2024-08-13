@@ -351,7 +351,6 @@ class StreamingRegionOp(IRDLOperation):
 
 
 class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
-
     @classmethod
     def get_canonicalization_patterns(cls):
         from xdsl.transforms.canonicalization_patterns.memref_stream import (

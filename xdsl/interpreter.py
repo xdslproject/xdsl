@@ -182,7 +182,7 @@ def impl(
         )
 
     def annot(
-        func: NonTerminatorOpImpl[_FT, OperationInvT]
+        func: NonTerminatorOpImpl[_FT, OperationInvT],
     ) -> OpImpl[_FT, OperationInvT]:
         def impl(
             ft: _FT, interpreter: Interpreter, op: OperationInvT, values: PythonValues
@@ -242,7 +242,7 @@ def impl_cast(
     """
 
     def annot(
-        func: CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]
+        func: CastImpl[_FT, _AttributeInvT0, _AttributeInvT1],
     ) -> CastImpl[_FT, _AttributeInvT0, _AttributeInvT1]:
         setattr(func, _CAST_IMPL_TYPES, (input_type, output_type))
         return func
@@ -298,7 +298,7 @@ def impl_callable(
         raise ValueError("Operations that are not callable must use `impl` annotation")
 
     def annot(
-        impl: NonTerminatorOpImpl[_FT, OperationInvT]
+        impl: NonTerminatorOpImpl[_FT, OperationInvT],
     ) -> NonTerminatorOpImpl[_FT, OperationInvT]:
         setattr(impl, _CALLABLE_OP_TYPE, op_type)
         return impl

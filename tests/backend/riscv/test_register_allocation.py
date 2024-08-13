@@ -81,10 +81,8 @@ def test_default_reserved_registers():
 
 
 def test_allocate_with_inout_constraints():
-
     @irdl_op_definition
     class MyInstruction(riscv.RISCVAsmOperation, IRDLOperation):
-
         name = "riscv.my_instruction"
 
         rs0 = operand_def()
