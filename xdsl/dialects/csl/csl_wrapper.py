@@ -256,7 +256,7 @@ class ModuleOp(IRDLOperation):
 
         # verify that block args are of the right type for the provided params
         for arg, param in zip(
-            [a.type for a in self.layout_module.block.args[4:]],
+            self.layout_module.block.arg_types[4:],
             self.params,
             strict=True,
         ):
@@ -275,7 +275,7 @@ class ModuleOp(IRDLOperation):
         # verify that params and yielded arguments are typed correctly
         # these may be followed by input-output symbols which we cannot verify, therefore setting `strict=False`
         for got, (name, exp) in zip(
-            [a.type for a in self.program_module.block.args[2:]],
+            self.program_module.block.arg_types[2:],
             itertools.chain(
                 (
                     (param.key.data, cast(Attribute, param.type))

@@ -757,7 +757,7 @@ class YieldOp(IRDLOperation):
     def verify_(self) -> None:
         op = self.parent_op()
         if op is not None:
-            yield_type = tuple(o.type for o in self.values)
+            yield_type = self.values.types
             result_type = op.result_types
             if yield_type != result_type:
                 raise VerifyException(

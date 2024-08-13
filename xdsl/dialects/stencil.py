@@ -485,7 +485,7 @@ class ApplyOp(IRDLOperation):
 
         printer.print("(")
         printer.print_list(
-            zip(self.region.block.args, self.args, (a.type for a in self.args)),
+            zip(self.region.block.args, self.args, self.args.types),
             print_assign_argument,
         )
         if self.dest:
@@ -493,7 +493,7 @@ class ApplyOp(IRDLOperation):
             printer.print_list(self.dest, print_destination_operand)
         else:
             printer.print(") -> (")
-            printer.print_list((r.type for r in self.res), printer.print_attribute)
+            printer.print_list(self.res.types, printer.print_attribute)
         printer.print(") ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_region(self.region, print_entry_block_args=False)
@@ -1433,9 +1433,7 @@ class ReturnOp(IRDLOperation):
 
     def verify_(self) -> None:
         unroll_factor = self.unroll_factor
-        types = [
-            o.type.elem if isinstance(o.type, ResultType) else o.type for o in self.arg
-        ]
+        types = [ot.elem if isinstance(ot, ResultType) else ot for ot in self.arg.types]
         apply = cast(ApplyOp, self.parent_op())
         if len(apply.res) > 0:
             res_types = [

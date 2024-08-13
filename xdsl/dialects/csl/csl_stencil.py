@@ -251,7 +251,7 @@ class ApplyOp(IRDLOperation):
             printer.print_list(self.dest, print_arg)
         else:
             printer.print(") -> (")
-            printer.print_list((r.type for r in self.res), printer.print_attribute)
+            printer.print_list(self.res.types, printer.print_attribute)
 
         printer.print(") ")
         printer.print("<")
