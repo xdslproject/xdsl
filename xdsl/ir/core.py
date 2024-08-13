@@ -14,12 +14,10 @@ from typing import (
     NoReturn,
     Protocol,
     TypeVar,
+    cast,
     get_args,
     get_origin,
     overload,
-    Optional,
-    Union,
-    cast,
 )
 
 from typing_extensions import Self, deprecated
@@ -353,7 +351,7 @@ EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
 def _check_enum_constraints(
-    enum_class: type[Union[EnumAttribute[EnumType], BitEnumAttribute[EnumType]]]
+    enum_class: type[EnumAttribute[EnumType] | BitEnumAttribute[EnumType]],
 ) -> None:
     """
     This hook first checks two constraints, enforced to keep the implementation
@@ -424,8 +422,8 @@ class EnumAttribute(Data[EnumType]):
 
 class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
     enum_type: ClassVar[type[StrEnum]]
-    none_value: ClassVar[Optional[str]] = None
-    all_value: ClassVar[Optional[str]] = None
+    none_value: ClassVar[str | None] = None
+    all_value: ClassVar[str | None] = None
 
     def __init__(self, flags: None | Sequence[EnumType] | str) -> None:
         flags_: set[StrEnum]
@@ -464,7 +462,7 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
                 and parser.parse_optional_keyword(cls.all_value) is not None
             ):
                 return set(cast(Iterable[EnumType], cls.enum_type))
-            value = parser.parse_optional_enum_value(cls.enum_type)
+            value = parser.parse_optional_str_enum(cls.enum_type)
             if value is None:
                 return None
 
@@ -481,7 +479,7 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
                 and parser.parse_optional_keyword(cls.all_value) is not None
             ):
                 return set(cast(Iterable[EnumType], cls.enum_type))
-            value = parser.parse_enum_value(cls.enum_type)
+            value = parser.parse_str_enum(cls.enum_type)
             return {cast(type[EnumType], cls.enum_type)(value)}
 
         with parser.in_angle_brackets():
@@ -494,10 +492,10 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
                 return tuple()
 
             res = set[EnumType]()
-            
+
             for flag_set in flags:
                 res |= flag_set
-                
+
             return tuple(res)
 
     def print_parameter(self, printer: Printer):

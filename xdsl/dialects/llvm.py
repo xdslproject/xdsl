@@ -25,13 +25,14 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    BitEnumAttribute,
     Dialect,
     Operation,
     OpResult,
     ParametrizedAttribute,
     Region,
     SSAValue,
-    TypeAttribute, BitEnumAttribute,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     ConstraintVar,
@@ -1171,6 +1172,7 @@ class FastMathFlag(StrEnum):
 class FastMathAttrBase(BitEnumAttribute[FastMathFlag]):
     none_value = "none"
     all_value = "fast"
+
 
 @irdl_attr_definition
 class FastMathAttr(FastMathAttrBase):
