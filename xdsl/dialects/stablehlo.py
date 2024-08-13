@@ -35,7 +35,7 @@ class AbsOp(IRDLOperation):
     name = "stablehlo.abs"
 
     # TODO: Remove this constraint for complex types.
-    T = Annotated[TensorType, ConstraintVar("T")]
+    T = Annotated[AnyTensorType, ConstraintVar("T")]
 
     operand = operand_def(T)
     result = result_def(T)
