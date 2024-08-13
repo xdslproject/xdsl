@@ -53,15 +53,15 @@ class TransformHandleType(ParametrizedAttribute, TypeAttribute, ABC):
     pass
 
 
-class TransformOpHandleType(TransformHandleType):
+class TransformOpHandleType(TransformHandleType, ABC):
     pass
 
 
-class TransformValueHandleType(TransformHandleType):
+class TransformValueHandleType(TransformHandleType, ABC):
     pass
 
 
-class TransformParamHandleType(TransformHandleType):
+class TransformParamHandleType(TransformHandleType, ABC):
     pass
 
 
@@ -267,7 +267,7 @@ class GetResultOp(IRDLOperation):
     is_inverted = opt_prop_def(UnitAttr)
     is_all = opt_prop_def(UnitAttr)
     target = operand_def(TransformOpHandleType)
-    result = result_def(TransformOpHandleType)
+    result = result_def(TransformValueHandleType)
 
     def __init__(
         self,
