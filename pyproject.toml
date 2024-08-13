@@ -16,8 +16,6 @@ dynamic = ["version"]
 [project.optional-dependencies]
 dev = [
     "pip<25.0",
-    # Update precommit version when black updates
-    "black[jupyter]==24.8.0",
     "toml<0.11",
     "pytest-cov",
     "coverage<8.0.0",
@@ -142,15 +140,6 @@ max-complexity = 10
 
 [tool.ruff.format]
 exclude = ["versioneer.py", "xdsl/_version.py", "docs/marimo/**/*.py"]
-
-[tool.black]
-# When updating this list, please update `.pre-commit-config.yaml`
-exclude = """
-/(__pycache__|.asv|venv|build|tests/filecheck)/
-|versioneer.py$
-|xdsl/_version.py$
-|docs/marimo
-"""
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]
