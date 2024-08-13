@@ -64,7 +64,7 @@ def from_ndarray(
         | np.dtype[np.float64]
         | np.dtype[np.int32]
         | np.dtype[np.int64],
-    ]
+    ],
 ) -> ShapedArray[float] | ShapedArray[int]:
     return ShapedArray(
         ptr.TypedPtr(
@@ -204,7 +204,6 @@ class OnnxFunctions(InterpreterFunctions):
 
     @impl(onnx.Conv)
     def run_conv(self, interpreter: Interpreter, op: onnx.Conv, args: tuple[Any, ...]):
-
         # initialise the attributes used
         auto_pad = op.auto_pad.data
         strides: list[int] = [value.value.data for value in op.strides]

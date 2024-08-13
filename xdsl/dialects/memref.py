@@ -142,7 +142,6 @@ class Store(IRDLOperation):
 
 
 class AllocOpHasCanonicalizationPatterns(HasCanonicalisationPatternsTrait):
-
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import ElideUnusedAlloc
@@ -603,7 +602,6 @@ class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 @irdl_op_definition
 class Subview(IRDLOperation):
-
     DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
     """
     Constant value used to denote dynamic indices in offsets, sizes, and strides.

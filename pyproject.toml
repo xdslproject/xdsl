@@ -137,9 +137,11 @@ max-line-length = 300
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
 
-
 [tool.ruff.lint.mccabe]
 max-complexity = 10
+
+[tool.ruff.format]
+exclude = ["versioneer.py", "xdsl/_version.py", "docs/marimo/**/*.py"]
 
 [tool.black]
 # When updating this list, please update `.pre-commit-config.yaml`

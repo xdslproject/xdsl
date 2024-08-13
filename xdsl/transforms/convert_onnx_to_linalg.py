@@ -177,7 +177,6 @@ class ReshapeOpLowering(RewritePattern):
 class GemmOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, gemm: onnx.Gemm, rewriter: PatternRewriter, /):
-
         assert isinstance(tensor_a_type := gemm.tensor_a.type, TensorType)
         assert isinstance(tensor_b_type := gemm.tensor_b.type, TensorType)
         assert isinstance(tensor_c_type := gemm.tensor_c.type, TensorType)
@@ -356,7 +355,6 @@ class MaxPoolSingleOutOpLowering(RewritePattern):
 class ConvOpLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, conv: onnx.Conv, rewriter: PatternRewriter, /):
-
         dilations = tuple(value.value.data for value in conv.dilations.data)
         strides = tuple(value.value.data for value in conv.strides.data)
 

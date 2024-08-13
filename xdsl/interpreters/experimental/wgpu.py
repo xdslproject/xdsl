@@ -96,7 +96,7 @@ class WGPUFunctions(InterpreterFunctions):
                 "Only synchronous, known-sized gpu.alloc implemented yet."
             )
         memref_type = cast(MemRefType[Attribute], op.result.type)
-        match (memref_type.element_type):
+        match memref_type.element_type:
             case IndexType():
                 element_size = 4
             case _:
@@ -130,10 +130,11 @@ class WGPUFunctions(InterpreterFunctions):
 
         # Get device/source view
         memview = cast(
-            memoryview, self.device.queue.read_buffer(src)  # pyright: ignore
+            memoryview,
+            self.device.queue.read_buffer(src),  # pyright: ignore
         )
         dst_type = cast(MemRefType[Attribute], op.dst.type)
-        match (dst_type.element_type):
+        match dst_type.element_type:
             case IndexType():
                 format = "I"
             case _:
@@ -191,7 +192,8 @@ class WGPUFunctions(InterpreterFunctions):
             bind_group_layouts=[bind_group_layout]
         )
         bind_group = device.create_bind_group(  # pyright: ignore
-            layout=bind_group_layout, entries=bindings  # pyright: ignore
+            layout=bind_group_layout,
+            entries=bindings,  # pyright: ignore
         )
 
         # Create and run the pipeline

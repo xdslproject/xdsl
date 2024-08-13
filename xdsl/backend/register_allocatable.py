@@ -18,7 +18,6 @@ class RegisterConstraints(NamedTuple):
 
 
 class HasRegisterConstraints(abc.ABC):
-
     @abc.abstractmethod
     def get_register_constraints(self) -> RegisterConstraints:
         """

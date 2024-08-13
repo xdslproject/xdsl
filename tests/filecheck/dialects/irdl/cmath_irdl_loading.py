@@ -10,7 +10,6 @@ from xdsl.traits import SymbolTable
 # Test dynamically registering a dialect from an IRDL file
 
 if __name__ == "__main__":
-
     # Register all dialects for lazy-loading
     ctx = MLContext()
     for n, f in get_all_dialects().items():
