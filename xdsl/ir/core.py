@@ -615,11 +615,11 @@ class Operation(IRNode):
         return self.parent
 
     @property
-    def results_types(self) -> Sequence[Attribute]:
+    def result_types(self) -> Sequence[Attribute]:
         return tuple(r.type for r in self.results)
 
     @property
-    def operands_types(self) -> Sequence[Attribute]:
+    def operand_types(self) -> Sequence[Attribute]:
         return tuple(operand.type for operand in self.operands)
 
     def parent_op(self) -> Operation | None:
@@ -904,7 +904,7 @@ class Operation(IRNode):
             (value_mapper[operand] if operand in value_mapper else operand)
             for operand in self.operands
         ]
-        result_types = self.results_types
+        result_types = self.result_types
         attributes = self.attributes.copy()
         properties = self.properties.copy()
         successors = [
@@ -1223,7 +1223,7 @@ class Block(IRNode):
         self.add_ops(ops)
 
     @property
-    def args_types(self) -> Sequence[Attribute]:
+    def arg_types(self) -> Sequence[Attribute]:
         return tuple(arg.type for arg in self._args)
 
     @property

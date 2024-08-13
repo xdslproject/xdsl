@@ -143,13 +143,13 @@ class For(IRDLOperation):
                 "Expected as many upper bound operands as upper bound dimensions and symbols."
             )
         iter_types = tuple(op.type for op in self.inits)
-        if iter_types != self.results_types:
+        if iter_types != self.result_types:
             raise VerifyException(
                 "Expected all operands and result pairs to have matching types"
             )
         entry_block: Block = self.body.blocks[0]
         block_arg_types = (IndexType(), *iter_types)
-        arg_types = entry_block.args_types
+        arg_types = entry_block.arg_types
         if block_arg_types != arg_types:
             raise VerifyException(
                 "Expected BlockArguments to have the same types as the operands"

@@ -114,7 +114,7 @@ class FuncOp(IRDLOperation):
         # TODO: how to verify that there is a terminator?
         entry_block = self.body.blocks.first
         assert entry_block is not None
-        block_arg_types = entry_block.args_types
+        block_arg_types = entry_block.arg_types
         if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
                 "Expected entry block arguments to have the same types as the function "
@@ -225,7 +225,7 @@ class FuncOp(IRDLOperation):
         return_type = self.function_type.outputs.data
 
         if return_op is not None:
-            return_type = return_op.operands_types
+            return_type = return_op.operand_types
 
         self.properties["function_type"] = FunctionType.from_lists(
             [arg.type for arg in self.args],

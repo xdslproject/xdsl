@@ -151,7 +151,7 @@ class _FuncBase(IRDLOperation, ABC):
             return
 
         entry_block: Block = self.body.blocks[0]
-        block_arg_types = entry_block.args_types
+        block_arg_types = entry_block.arg_types
         if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
                 "Expected entry block arguments to have the same types as the function "
@@ -718,7 +718,7 @@ class ReturnOp(IRDLOperation):
         func_op = self.parent_op()
         assert isinstance(func_op, FuncOp) or isinstance(func_op, TaskOp)
 
-        if tuple(func_op.function_type.outputs.data) != self.operands_types:
+        if tuple(func_op.function_type.outputs.data) != self.operand_types:
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"
             )

@@ -285,7 +285,7 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
 
         new_load = LoadOp.create(
             operands=[op.field],
-            result_types=load.results_types,
+            result_types=load.result_types,
             attributes=load.attributes.copy(),
             properties=load.properties.copy(),
         )
@@ -306,13 +306,13 @@ class UpdateApplyArgs(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
         new_arg_types = tuple(o.type for o in op.args)
-        if new_arg_types == op.region.block.args_types:
+        if new_arg_types == op.region.block.arg_types:
             return
 
         new_block = Block(arg_types=new_arg_types)
         new_apply = ApplyOp.create(
             operands=op.operands,
-            result_types=op.results_types,
+            result_types=op.result_types,
             properties=op.properties.copy(),
             attributes=op.attributes.copy(),
             regions=[Region(new_block)],
@@ -406,7 +406,7 @@ class CombineStoreFold(RewritePattern):
             new_upper = op.upper
             new_lowerext = op.lowerext
             new_upperext = op.upperext
-            new_results_types = list(op.results_types)
+            new_results_types = list(op.result_types)
             new_results_types.pop(i)
 
             bounds = cast(StencilBoundsAttr, cast(TempType[Attribute], r.type).bounds)

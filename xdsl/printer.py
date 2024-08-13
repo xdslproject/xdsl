@@ -938,7 +938,7 @@ class Printer:
         self.print_string(")")
 
     def print_operation_type(self, op: Operation) -> None:
-        self.print_function_type(op.operands_types, op.results_types)
+        self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
             self.print_string(" loc(unknown)")
 

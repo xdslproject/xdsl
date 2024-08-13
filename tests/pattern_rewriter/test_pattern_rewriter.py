@@ -1075,7 +1075,7 @@ def test_move_region_contents_to_new_regions():
             old_op = next(ops_iter)
             assert isinstance(old_op, test.TestOp)
             new_region = rewriter.move_region_contents_to_new_regions(old_op.regions[0])
-            res_types = old_op.results_types
+            res_types = old_op.result_types
             new_op = test.TestOp.create(result_types=res_types, regions=[new_region])
             rewriter.insert_op(new_op, InsertPoint.after(old_op))
 

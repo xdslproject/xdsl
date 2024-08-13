@@ -42,7 +42,7 @@ class OperationInfo:
                 self.name,
                 sum(hash(i) for i in self.op.attributes.items()),
                 sum(hash(i) for i in self.op.properties.items()),
-                hash(self.op.results_types),
+                hash(self.op.result_types),
                 hash(self.op.operands),
             )
         )
@@ -55,7 +55,7 @@ class OperationInfo:
             and self.op.attributes == other.op.attributes
             and self.op.properties == other.op.properties
             and self.op.operands == other.op.operands
-            and self.op.results_types == other.op.results_types
+            and self.op.result_types == other.op.result_types
             and all(
                 s.is_structurally_equivalent(o)
                 for s, o in zip(self.op.regions, other.op.regions, strict=True)

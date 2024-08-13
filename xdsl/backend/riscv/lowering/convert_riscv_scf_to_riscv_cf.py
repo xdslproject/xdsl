@@ -81,7 +81,7 @@ class LowerRiscvScfForPattern(RewritePattern):
         body = op.body.blocks[0]
 
         # TODO: add method to rewriter
-        end_block = init_block.split_before(op, arg_types=body.args_types)
+        end_block = init_block.split_before(op, arg_types=body.arg_types)
 
         # The first argument of the loop body block is the loop counter by SCF invariant.
         loop_var_reg = body.args[0].type

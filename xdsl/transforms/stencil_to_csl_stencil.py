@@ -250,7 +250,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             )
 
             # rebuild stencil.apply op
-            r_types = apply_op.results_types
+            r_types = apply_op.result_types
             assert isa(r_types, Sequence[stencil.TempType[Attribute]])
             new_apply_op = stencil.ApplyOp.build(
                 operands=[[*apply_op.args, prefetch_op.result], apply_op.dest],
@@ -521,7 +521,7 @@ class ConvertApplyOpPattern(RewritePattern):
                     chunk_reduce,
                     post_process,
                 ],
-                result_types=[op.results_types],
+                result_types=[op.result_types],
             )
         )
 

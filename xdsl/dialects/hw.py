@@ -1230,7 +1230,7 @@ class InstanceOp(IRDLOperation):
         printer.print_list(
             zip(
                 (name.data for name in self.result_names),
-                self.results_types,
+                self.result_types,
             ),
             lambda x: print_output_port(*x),
         )

@@ -78,7 +78,7 @@ class StencilUnrollPattern(RewritePattern):
             return
 
         # Enforced by verification
-        res_types = op.results_types
+        res_types = op.result_types
         assert isa(res_types, Sequence[TempType[Attribute]])
         dim = res_types[0].get_num_dims()
 

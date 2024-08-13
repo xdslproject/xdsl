@@ -1390,7 +1390,7 @@ def irdl_op_verify_regions(
                 f"{len(region.blocks)} blocks"
             )
         if (first_block := region.blocks.first) is not None:
-            entry_args_types = first_block.args_types
+            entry_args_types = first_block.arg_types
             try:
                 region_def.entry_args.verify(entry_args_types, constraint_context)
             except Exception as e:

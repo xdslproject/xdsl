@@ -57,7 +57,7 @@ class ResultOp(IRDLOperation):
 def test_result_builder():
     op = ResultOp.build(result_types=[StringAttr("")])
     op.verify()
-    assert op.results_types == (StringAttr(""),)
+    assert op.result_types == (StringAttr(""),)
 
 
 def test_result_builder_exception():
@@ -79,7 +79,7 @@ def test_opt_result_builder():
     op1.verify()
     op2.verify()
     op3.verify()
-    assert op1.results_types == (StringAttr(""),)
+    assert op1.result_types == (StringAttr(""),)
     assert len(op2.results) == 0
     assert len(op3.results) == 0
 
@@ -99,7 +99,7 @@ class VarResultOp(IRDLOperation):
 def test_var_result_builder():
     op = VarResultOp.build(result_types=[[StringAttr("0"), StringAttr("1")]])
     op.verify()
-    assert op.results_types == (
+    assert op.result_types == (
         StringAttr("0"),
         StringAttr("1"),
     )
@@ -122,7 +122,7 @@ def test_two_var_result_builder():
         ]
     )
     op.verify()
-    assert op.results_types == (
+    assert op.result_types == (
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
@@ -142,7 +142,7 @@ def test_two_var_result_builder2():
         ]
     )
     op.verify()
-    assert op.results_types == (
+    assert op.result_types == (
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),
@@ -172,7 +172,7 @@ def test_var_mixed_builder():
         ]
     )
     op.verify()
-    assert op.results_types == (
+    assert op.result_types == (
         StringAttr("0"),
         StringAttr("1"),
         StringAttr("2"),

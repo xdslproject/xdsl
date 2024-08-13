@@ -488,7 +488,7 @@ def test_split_block_args():
 
     new_block = old_block.split_before(op, arg_types=(i32, i64))
 
-    arg_types = new_block.args_types
+    arg_types = new_block.arg_types
     assert arg_types == (i32, i64)
 
 

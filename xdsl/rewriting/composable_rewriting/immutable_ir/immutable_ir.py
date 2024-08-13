@@ -570,7 +570,7 @@ class IOperation:
             op.name,
             op_type,
             operands,
-            op.results_types,
+            op.result_types,
             properties,
             attributes,
             successors,
