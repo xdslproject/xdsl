@@ -401,7 +401,9 @@ class MatchParamCmpIOp(IRDLOperation):
 
     name = "transform.match.param.cmpi"
 
-    predicate = prop_def(AnyIntegerAttr)  # Only 0, 1, 2, 3, 4, 5 are valid
+    predicate = prop_def(
+        AnyIntegerAttr
+    )  # Valid values given in xdsl/xdsl/dialects/arith.py
     param = operand_def(TransformParamHandleType)
     reference = operand_def(TransformParamHandleType)
 
