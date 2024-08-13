@@ -132,6 +132,13 @@ class Rewriter:
         successors: Sequence[Block] | None = None,
         regions: Sequence[Region] | None = None,
     ):
+        """
+        Recreate an operation with any passed field updated. All other fields
+        are take from the original operation.
+
+        If all passed fields are already equals to the existing ones, also just skip and
+        prevent endless pattern recursion.
+        """
         if (
             (operands is None or operands == op.operands)
             and (result_types is None or result_types == op.result_types)
@@ -144,9 +151,11 @@ class Rewriter:
         new_op = op.create(
             operands=op.operands if operands is None else operands,
             result_types=op.result_types if result_types is None else result_types,
-            properties=op.properties.copy() if properties is None else properties,
-            attributes=op.attributes.copy() if attributes is None else attributes,
-            successors=op.successors.copy() if successors is None else successors,
+            # No need to copy the properties, attributes, regions: we replace the
+            # original op so it won't use them anymore!
+            properties=op.properties if properties is None else properties,
+            attributes=op.attributes if attributes is None else attributes,
+            successors=op.successors if successors is None else successors,
             regions=(
                 tuple(op.detach_region(0) for _ in op.regions)
                 if regions is None
