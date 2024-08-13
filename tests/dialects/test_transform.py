@@ -134,7 +134,7 @@ def test_get_type():
     value = test.TestOp(result_types=[transform.AnyValueType()]).results[0]
     assert_print_op(
         transform.GetTypeOp(elemental=False, value=value),
-        """%0 = "transform.get_type"(%1) : (!transform.any_value) -> !transform.any_param""",
+        """%0 = "transform.get_type"(%1) : (!transform.any_value) -> !transform.type""",
         None,
     )
 
