@@ -102,6 +102,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.pycodestyle]
+# TODO: remove this setting and go to default line length of 88
+# Removing this line length results in a large number of errors for doc strings, ideally
+# these should be ignored separately.
 max-line-length = 300
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
