@@ -244,7 +244,8 @@ class FuncOpBufferize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
-        op.function_type = FunctionType.from_lists(
+        props = op.properties.copy()
+        function_type = FunctionType.from_lists(
             [
                 (
                     tensor_to_memref_type(t.get_element_type())
@@ -261,6 +262,18 @@ class FuncOpBufferize(RewritePattern):
                 )
                 for t in op.function_type.outputs
             ],
+        )
+        if function_type == op.function_type:
+            return
+        props["function_type"] = function_type
+        rewriter.replace_matched_op(
+            func.FuncOp.build(
+                operands=op.operands,
+                result_types=[r.type for r in op.results],
+                regions=[op.detach_region(op.body)],
+                properties=props,
+                attributes=op.attributes.copy(),
+            )
         )
 
 
