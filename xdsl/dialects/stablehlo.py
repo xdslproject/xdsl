@@ -8,7 +8,7 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 
 from typing import Annotated
 
-from xdsl.dialects.builtin import TensorType
+from xdsl.dialects.builtin import AnyTensorType
 from xdsl.ir import Attribute, Dialect, SSAValue
 from xdsl.irdl import (
     ConstraintVar,
