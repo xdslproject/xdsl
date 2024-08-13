@@ -326,7 +326,7 @@ class Return(IRDLOperation):
         assert isinstance(func_op, FuncOp)
 
         function_return_types = func_op.function_type.outputs.data
-        return_types = tuple(arg.type for arg in self.arguments)
+        return_types = self.arguments.types
         if function_return_types != return_types:
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"

@@ -305,7 +305,10 @@ class VarOperandDef(OperandDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-VarOperand: TypeAlias = tuple[SSAValue, ...]
+class VarOperand(tuple[Operand, ...]):
+    @property
+    def types(self):
+        return tuple(o.type for o in self)
 
 
 @dataclass(init=False)
@@ -341,7 +344,10 @@ class VarResultDef(ResultDef, VariadicDef):
         self.constr = range_constr_coercion(attr)
 
 
-VarOpResult: TypeAlias = tuple[OpResult, ...]
+class VarOpResult(tuple[OpResult, ...]):
+    @property
+    def types(self):
+        return tuple(r.type for r in self)
 
 
 @dataclass(init=False)
@@ -1339,7 +1345,12 @@ def get_operand_result_or_region(
     construct: VarIRConstruct,
 ) -> (
     None
-    | SSAValue
+    | Operand
+    | VarOperand
+    | OptOperand
+    | OpResult
+    | VarOpResult
+    | OptOpResult
     | Sequence[SSAValue]
     | Sequence[OpResult]
     | Region
@@ -1374,7 +1385,13 @@ def get_operand_result_or_region(
             return args[begin_arg]
     if isinstance(defs[arg_def_idx][1], VariadicDef):
         arg_size = variadic_sizes[previous_var_args]
-        return args[begin_arg : begin_arg + arg_size]
+        values = args[begin_arg : begin_arg + arg_size]
+        if isinstance(defs[arg_def_idx][1], OperandDef):
+            return VarOperand(cast(Sequence[Operand], values))
+        elif isinstance(defs[arg_def_idx][1], ResultDef):
+            return VarOpResult(cast(Sequence[OpResult], values))
+        else:
+            return values
     else:
         return args[begin_arg]
 

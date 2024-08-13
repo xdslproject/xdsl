@@ -438,21 +438,13 @@ class TriggerOp(IRDLOperation):
         if m is None:
             raise VerifyException("Machine definition does not exist.")
 
-        if not (
-            [operand.type for operand in self.inputs]
-            == [result for result in m.function_type.inputs]
-            and len(self.inputs) == len(m.function_type.inputs)
-        ):
+        if self.inputs.types != tuple(result for result in m.function_type.inputs):
             raise VerifyException(
                 "TriggerOp input types must be consistent with the machine "
                 + str(m.sym_name)
             )
 
-        if not (
-            [operand.type for operand in self.outputs]
-            == [result for result in m.function_type.outputs]
-            and len(self.outputs) == len(m.function_type.outputs)
-        ):
+        if self.outputs.types != tuple(result for result in m.function_type.outputs):
             raise VerifyException(
                 "TriggerOp output types must be consistent with the machine "
                 + str(m.sym_name)
@@ -506,21 +498,15 @@ class HWInstanceOp(IRDLOperation):
     def verify_(self):
         m = SymbolTable.lookup_symbol(self, self.machine)
         if isinstance(m, MachineOp):
-            if not (
-                [operand.type for operand in self.inputs]
-                == [result for result in m.function_type.inputs]
-                and len(self.inputs) == len(m.function_type.inputs)
-            ):
+            if self.inputs.types != tuple(result for result in m.function_type.inputs):
                 raise VerifyException(
                     "HWInstanceOp "
                     + str(self.sym_name)
                     + " input type must be consistent with the machine "
                     + str(m.sym_name)
                 )
-            if not (
-                [operand.type for operand in self.outputs]
-                == [result for result in m.function_type.outputs]
-                and len(self.outputs) == len(m.function_type.outputs)
+            if self.outputs.types != tuple(
+                result for result in m.function_type.outputs
             ):
                 raise VerifyException(
                     "HWInstanceOp "

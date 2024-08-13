@@ -1301,7 +1301,7 @@ class OutputOp(IRDLOperation):
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_operand)
         printer.print(" : ")
-        printer.print_list((x.type for x in self.inputs), printer.print_attribute)
+        printer.print_list(self.inputs.types, printer.print_attribute)
 
 
 HW = Dialect(

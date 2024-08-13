@@ -93,7 +93,7 @@ class ApplyOpBufferize(RewritePattern):
         # create new op
         buf_apply_op = csl_stencil.ApplyOp(
             operands=[op.communicated_stencil, buf_iter_arg.memref, op.args, op.dest],
-            result_types=[t.type for t in op.res] or [[]],
+            result_types=op.res.types or [[]],
             regions=[
                 self._get_empty_bufferized_region(op.chunk_reduce.block.args),
                 self._get_empty_bufferized_region(op.post_process.block.args),
@@ -267,7 +267,7 @@ class FuncOpBufferize(RewritePattern):
         rewriter.replace_matched_op(
             func.FuncOp.build(
                 operands=op.operands,
-                result_types=[r.type for r in op.results],
+                result_types=op.result_types,
                 regions=[op.detach_region(op.body)],
                 properties={**op.properties, "function_type": function_type},
                 attributes=op.attributes.copy(),

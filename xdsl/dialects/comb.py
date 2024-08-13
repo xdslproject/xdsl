@@ -490,7 +490,7 @@ class ConcatOp(IRDLOperation):
         return ConcatOp(inputs, IntegerType(sum_of_width))
 
     def verify_(self) -> None:
-        sum_of_width = _get_sum_of_int_width([inp.type for inp in self.inputs])
+        sum_of_width = _get_sum_of_int_width(self.inputs.types)
         assert sum_of_width is not None
         assert isinstance(self.result.type, IntegerType)
         if sum_of_width != self.result.type.width.data:
@@ -519,7 +519,7 @@ class ConcatOp(IRDLOperation):
         printer.print(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
         printer.print(" : ")
-        printer.print_list([inp.type for inp in self.inputs], printer.print_attribute)
+        printer.print_list(self.inputs.types, printer.print_attribute)
 
 
 @irdl_op_definition

@@ -272,14 +272,8 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
             properties=apply.properties.copy(),
             attributes=apply.attributes.copy(),
             regions=[
-                Region(Block(arg_types=[SSAValue.get(a).type for a in apply.args])),
+                apply.detach_region(0),
             ],
-        )
-
-        rewriter.inline_block(
-            apply.region.block,
-            InsertPoint.at_start(new_apply.region.block),
-            new_apply.region.block.args,
         )
 
         new_load = LoadOp.create(
@@ -304,7 +298,7 @@ class UpdateApplyArgs(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
-        new_arg_types = tuple(o.type for o in op.args)
+        new_arg_types = op.args.types
         if new_arg_types == op.region.block.arg_types:
             return
 
