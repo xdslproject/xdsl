@@ -54,8 +54,8 @@ def test_sequence_init():
         ),
         """
         "transform.sequence"() <{"failure_propagation_mode" = 1 : i32, "operandSegmentSizes" = array<i32: 0, 0>}> ({
-        ^0(%0 : !transform.any_value, %1 : !transform.op<"linalg.matmul">):
-        }) : () -> ()
+^0(%0 : !transform.any_value, %1 : !transform.op<"linalg.matmul">):
+}) : () -> ()
         """,
         None,
     )
