@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p lift-arith-to-linalg | filecheck %s
+// RUN: xdsl-opt %s -p "lift-arith-to-linalg{strategy=from_partially_bufferized}" | filecheck %s
 
 builtin.module {
 // CHECK: builtin.module {
