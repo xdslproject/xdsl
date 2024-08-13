@@ -56,6 +56,12 @@ def __(matmul_data, matmul_jit):
 
 
 @app.cell
+def __(lowered_matmul):
+    type(lowered_matmul.compile()).__doc__
+    return
+
+
+@app.cell
 def __(lowered_matmul, matmul_data):
     lowered_matmul.compile()(*matmul_data)
     return
