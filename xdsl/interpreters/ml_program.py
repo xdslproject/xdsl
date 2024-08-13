@@ -16,7 +16,6 @@ from xdsl.traits import SymbolTable
 
 @register_impls
 class MLProgramFunctions(InterpreterFunctions):
-
     @impl(ml_program.GlobalLoadConstant)
     def run_global_load_constant(
         self,

@@ -422,7 +422,6 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 
 class ApplyMemoryEffect(RecursiveMemoryEffect):
-
     @classmethod
     def get_effects(cls, op: Operation):
         effects = super().get_effects(op)
@@ -1275,7 +1274,6 @@ class BufferOp(IRDLOperation):
 
 
 class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
-
     @staticmethod
     def matches(attr: TensorType[Attribute], other: Attribute) -> bool:
         return (

@@ -765,9 +765,7 @@ class Operation(IRNode):
         for idx, curr_region in enumerate(self.regions):
             if curr_region is region:
                 return idx
-        assert (
-            False
-        ), "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
+        assert False, "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
 
     def detach_region(self, region: int | Region) -> Region:
         """

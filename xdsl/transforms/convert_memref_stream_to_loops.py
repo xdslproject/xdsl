@@ -46,7 +46,6 @@ class LowerGenericOpPattern(RewritePattern):
     def match_and_rewrite(
         self, op: memref_stream.GenericOp, rewriter: PatternRewriter
     ) -> None:
-
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
             interleave_factor = op.bounds.data[-1].value.data
             rewriter.insert_op_before_matched_op(

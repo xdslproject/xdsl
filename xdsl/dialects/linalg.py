@@ -485,7 +485,6 @@ class NamedOpBase(IRDLOperation, ABC):
         return cls(ins, outs, res_types, attrs)
 
     def print(self, printer: Printer):
-
         extra_attrs = self.attributes.copy()
         if "indexing_maps" in extra_attrs:
             del extra_attrs["indexing_maps"]
@@ -752,7 +751,6 @@ class TransposeOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-
         assert isinstance(input_type := self.input.type, TensorType | MemRefType)
         assert isinstance(init_type := self.init.type, TensorType | MemRefType)
 
@@ -1084,7 +1082,6 @@ class BroadcastOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-
         assert isinstance(input_type := self.input.type, TensorType | MemRefType)
         assert isinstance(init_type := self.init.type, TensorType | MemRefType)
 

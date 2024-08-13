@@ -159,7 +159,6 @@ class LoadBufferFoldPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
-
         # If this is a value-semantic buffer, we can't fold it
         if not isinstance(op.res.type, FieldType):
             return
@@ -504,7 +503,6 @@ class StencilBufferize(ModulePass):
     name = "stencil-bufferize"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

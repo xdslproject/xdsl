@@ -117,7 +117,6 @@ class DimOp(IRDLOperation):
         return cls(source, index, attributes)
 
     def verify_(self):
-
         if isinstance((source_type := self.source.type), TensorType):
             if not len(source_type.get_shape()):
                 raise VerifyException("cannot get dim of 0-rank tensor")
@@ -234,9 +233,7 @@ class ReshapeOp(IRDLOperation):
             or not isinstance(shape_type := self.shape.type, TensorType)
             or not isinstance(res_type := self.result.type, TensorType)
         ):
-            assert (
-                False
-            ), "tensor elementwise operation operands and result must be of type TensorType"
+            assert False, "tensor elementwise operation operands and result must be of type TensorType"
 
         source_type = cast(TensorType[Attribute], source_type)
         shape_type = cast(TensorType[Attribute], shape_type)
@@ -290,7 +287,6 @@ class ExtractSliceOp(IRDLOperation):
         strides: Sequence[int] | None = None,
         reduce_rank: bool = False,
     ) -> ExtractSliceOp:
-
         if strides is None:
             strides = [1] * len(offsets)
         source_v = SSAValue.get(source)
@@ -344,7 +340,6 @@ class InsertSliceOp(IRDLOperation):
         strides: Sequence[Operand] | None = None,
         result_type: Attribute | None = None,
     ) -> InsertSliceOp:
-
         dims = len(static_sizes)
         offsets = [] if offsets is None else offsets
         sizes = [] if sizes is None else sizes
