@@ -245,7 +245,7 @@ class AllReduceOp(IRDLOperation):
                 f"{self.operand.type}. They must be the same type for gpu.all_reduce"
             )
 
-        non_empty_body = len(self.body.blocks) > 0
+        non_empty_body = bool(self.body.blocks)
         op_attr = self.op is not None
         if non_empty_body == op_attr:
             if op_attr:
