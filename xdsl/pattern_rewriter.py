@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
@@ -88,6 +88,55 @@ class PatternRewriter(PatternRewriterListener):
 
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
+
+    def update_op(
+        self,
+        op: Operation,
+        new_results: Sequence[SSAValue | None] | None = None,
+        safe_erase: bool = True,
+        *,
+        operands: Sequence[SSAValue] | None = None,
+        result_types: Sequence[Attribute] | None = None,
+        properties: Mapping[str, Attribute] | None = None,
+        attributes: Mapping[str, Attribute] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region] | None = None,
+    ):
+        self.has_done_action = Rewriter.update_op(
+            op,
+            new_results,
+            safe_erase,
+            operands=operands,
+            result_types=result_types,
+            properties=properties,
+            attributes=attributes,
+            successors=successors,
+            regions=regions,
+        )
+
+    def update_matched_op(
+        self,
+        new_results: Sequence[SSAValue | None] | None = None,
+        safe_erase: bool = True,
+        *,
+        operands: Sequence[SSAValue] | None = None,
+        result_types: Sequence[Attribute] | None = None,
+        properties: Mapping[str, Attribute] | None = None,
+        attributes: Mapping[str, Attribute] | None = None,
+        successors: Sequence[Block] | None = None,
+        regions: Sequence[Region] | None = None,
+    ):
+        self.update_op(
+            self.current_operation,
+            new_results,
+            safe_erase,
+            operands=operands,
+            result_types=result_types,
+            properties=properties,
+            attributes=attributes,
+            successors=successors,
+            regions=regions,
+        )
 
     def insert_op(
         self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
