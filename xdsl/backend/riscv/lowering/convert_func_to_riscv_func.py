@@ -31,7 +31,7 @@ class LowerFuncOp(RewritePattern):
         if (first_block := op.body.blocks.first) is not None:
             cast_block_args_from_a_regs(first_block, rewriter)
 
-            input_types = [arg.type for arg in first_block.args]
+            input_types = first_block.arg_types
         else:
             input_types = tuple(a_regs_for_types(op.function_type.inputs.data))
         result_types = list(a_regs_for_types(op.function_type.outputs.data))

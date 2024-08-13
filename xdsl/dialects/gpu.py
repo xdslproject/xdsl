@@ -245,7 +245,7 @@ class AllReduceOp(IRDLOperation):
                 f"{self.operand.type}. They must be the same type for gpu.all_reduce"
             )
 
-        non_empty_body = any(b.ops for b in self.body.blocks)
+        non_empty_body = bool(self.body.blocks)
         op_attr = self.op is not None
         if non_empty_body == op_attr:
             if op_attr:
@@ -258,9 +258,8 @@ class AllReduceOp(IRDLOperation):
                     "gpu.all_reduce need either a non empty body or an op attribute."
                 )
         if non_empty_body:
-            region_args = self.body.blocks[0].args
-            args_types = [r.type for r in region_args]
-            if args_types != [self.result.type, self.operand.type]:
+            args_types = self.body.blocks[0].arg_types
+            if args_types != (self.result.type, self.operand.type):
                 raise VerifyException(
                     f"Expected {[str(t) for t in [self.result.type, self.operand.type]]}, "
                     f"got {[str(t) for t in args_types]}. A gpu.all_reduce's body must "
@@ -431,7 +430,7 @@ class FuncOp(IRDLOperation):
     def verify_(self):
         entry_block: Block = self.body.blocks[0]
         function_inputs = self.function_type.inputs.data
-        block_arg_types = tuple(a.type for a in entry_block.args)
+        block_arg_types = entry_block.arg_types
         if function_inputs != block_arg_types:
             raise VerifyException(
                 "Expected first entry block arguments to have the same types as the "
@@ -558,9 +557,8 @@ class LaunchOp(IRDLOperation):
     def verify_(self) -> None:
         if not any(b.ops for b in self.body.blocks):
             raise VerifyException("gpu.launch requires a non-empty body.")
-        body_args = self.body.blocks[0].args
-        args_type = [a.type for a in body_args]
-        if args_type != [IndexType()] * 12:
+        args_type = self.body.blocks[0].arg_types
+        if args_type != (IndexType(),) * 12:
             raise VerifyException(
                 f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. "
                 "gpu.launch's body arguments are 12 index arguments, with 3 block "
@@ -759,8 +757,8 @@ class YieldOp(IRDLOperation):
     def verify_(self) -> None:
         op = self.parent_op()
         if op is not None:
-            yield_type = [o.type for o in self.values]
-            result_type = [r.type for r in op.results]
+            yield_type = tuple(o.type for o in self.values)
+            result_type = op.result_types
             if yield_type != result_type:
                 raise VerifyException(
                     f"Expected {[str(t) for t in result_type]}, got {[str(t) for t in yield_type]}. The gpu.yield values "

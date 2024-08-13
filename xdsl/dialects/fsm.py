@@ -205,11 +205,7 @@ class OutputOp(IRDLOperation):
             raise VerifyException("Transition regions should not output any value")
         while (parent := parent.parent_op()) is not None:
             if isinstance(parent, MachineOp):
-                if not (
-                    [operand.type for operand in self.operands]
-                    == [result for result in parent.function_type.outputs]
-                    and len(self.operands) == len(parent.function_type.outputs)
-                ):
+                if self.operand_types != parent.function_type.outputs.data:
                     raise VerifyException(
                         "OutputOp output type must be consistent with the machine "
                         + str(parent.sym_name)
