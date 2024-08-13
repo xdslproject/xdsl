@@ -21,10 +21,11 @@ builtin.module {
 
 
   func.func @choose_correct_tensor() {
+    // `to_tensor`s that are not writable should not be used in `outs`
     %t0, %t1, %t2, %m0 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, memref<8xf32>)
-    %not_this = bufferization.to_tensor %m0 restrict : memref<8xf32>
-    %this = bufferization.to_tensor %m0 restrict writable : memref<8xf32>
-    %also_not_this = bufferization.to_tensor %m0 restrict : memref<8xf32>
+    %0 = bufferization.to_tensor %m0 restrict : memref<8xf32>
+    %1 = bufferization.to_tensor %m0 restrict writable : memref<8xf32>
+    %2 = bufferization.to_tensor %m0 restrict : memref<8xf32>
     %3 = arith.addf %t0, %t1 : tensor<8xf32>
     %4 = arith.mulf %3, %t2 : tensor<8xf32>
     func.return
@@ -32,15 +33,16 @@ builtin.module {
 
 // CHECK-NEXT: func.func @choose_correct_tensor() {
 // CHECK-NEXT:   %t0, %t1, %t2, %m0 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, memref<8xf32>)
-// CHECK-NEXT:   %not_this = bufferization.to_tensor %m0 restrict : memref<8xf32>
-// CHECK-NEXT:   %this = bufferization.to_tensor %m0 restrict writable : memref<8xf32>
-// CHECK-NEXT:   %also_not_this = bufferization.to_tensor %m0 restrict : memref<8xf32>
-// CHECK-NEXT:   %0 = linalg.add ins(%t0, %t1 : tensor<8xf32>, tensor<8xf32>) outs(%this : tensor<8xf32>) -> tensor<8xf32>
+// CHECK-NEXT:   %0 = bufferization.to_tensor %m0 restrict : memref<8xf32>
+// CHECK-NEXT:   %1 = bufferization.to_tensor %m0 restrict writable : memref<8xf32>
+// CHECK-NEXT:   %2 = bufferization.to_tensor %m0 restrict : memref<8xf32>
+// CHECK-NEXT:   %0 = linalg.add ins(%t0, %t1 : tensor<8xf32>, tensor<8xf32>) outs(%1 : tensor<8xf32>) -> tensor<8xf32>
 // CHECK-NEXT:   %1 = linalg.mul ins(%0, %t2 : tensor<8xf32>, tensor<8xf32>) outs(%0 : tensor<8xf32>) -> tensor<8xf32>
 // CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 
   func.func @extract_slice() {
+    // check that we're using the correct `extract_slice`
     %t0, %t1, %t2, %m0 = "test.op"() : () -> (tensor<8xf32>, tensor<8xf32>, tensor<8xf32>, memref<16xf32>)
     %tensor = bufferization.to_tensor %m0 restrict writable : memref<16xf32>
     %slice = "tensor.extract_slice"(%tensor) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 8>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<16xf32>) -> tensor<8xf32>
