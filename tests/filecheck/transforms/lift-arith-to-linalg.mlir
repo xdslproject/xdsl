@@ -36,8 +36,8 @@ builtin.module {
 // CHECK-NEXT:   %0 = bufferization.to_tensor %m0 restrict : memref<8xf32>
 // CHECK-NEXT:   %1 = bufferization.to_tensor %m0 restrict writable : memref<8xf32>
 // CHECK-NEXT:   %2 = bufferization.to_tensor %m0 restrict : memref<8xf32>
-// CHECK-NEXT:   %0 = linalg.add ins(%t0, %t1 : tensor<8xf32>, tensor<8xf32>) outs(%1 : tensor<8xf32>) -> tensor<8xf32>
-// CHECK-NEXT:   %1 = linalg.mul ins(%0, %t2 : tensor<8xf32>, tensor<8xf32>) outs(%0 : tensor<8xf32>) -> tensor<8xf32>
+// CHECK-NEXT:   %3 = linalg.add ins(%t0, %t1 : tensor<8xf32>, tensor<8xf32>) outs(%1 : tensor<8xf32>) -> tensor<8xf32>
+// CHECK-NEXT:   %4 = linalg.mul ins(%3, %t2 : tensor<8xf32>, tensor<8xf32>) outs(%3 : tensor<8xf32>) -> tensor<8xf32>
 // CHECK-NEXT:   func.return
 // CHECK-NEXT: }
 
