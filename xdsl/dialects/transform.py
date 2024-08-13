@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
+    IntAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
@@ -52,6 +53,18 @@ class TransformHandleType(ParametrizedAttribute, TypeAttribute, ABC):
     pass
 
 
+class TransformOpHandleType(TransformHandleType):
+    pass
+
+
+class TransformValueHandleType(TransformHandleType):
+    pass
+
+
+class TransformParamHandleType(TransformHandleType):
+    pass
+
+
 @irdl_attr_definition
 class AffineMapType(TransformHandleType):
     """
@@ -62,7 +75,7 @@ class AffineMapType(TransformHandleType):
 
 
 @irdl_attr_definition
-class AnyOpType(TransformHandleType):
+class AnyOpType(TransformOpHandleType):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#anyoptype
     """
@@ -71,7 +84,7 @@ class AnyOpType(TransformHandleType):
 
 
 @irdl_attr_definition
-class AnyValueType(TransformHandleType):
+class AnyValueType(TransformValueHandleType):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#anyvaluetype
     """
@@ -80,12 +93,12 @@ class AnyValueType(TransformHandleType):
 
 
 @irdl_attr_definition
-class AnyParamType(ParametrizedAttribute, TypeAttribute):
+class AnyParamType(TransformParamHandleType):
     name = "transform.any_param"
 
 
 @irdl_attr_definition
-class OperationType(TransformHandleType):
+class OperationType(TransformOpHandleType):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#operationtype
     """
@@ -98,7 +111,7 @@ class OperationType(TransformHandleType):
 
 
 @irdl_attr_definition
-class ParamType(TransformHandleType):
+class ParamType(TransformParamHandleType):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#paramtype
     """
@@ -111,7 +124,7 @@ class ParamType(TransformHandleType):
 
 
 @irdl_attr_definition
-class TypeParamType(TransformHandleType):
+class TypeParamType(TransformParamHandleType):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#typeparamtype
     """
@@ -137,7 +150,7 @@ AnyIntegerOrFailurePropagationModeAttr: TypeAlias = Annotated[
 
 
 @irdl_op_definition
-class GetConsumerOfResult(IRDLOperation):
+class GetConsumersOfResult(IRDLOperation):
     """
     https://mlir.llvm.org/docs/Dialects/Transform/#transformget_consumers_of_result-transformgetconsumersofresult
     """
@@ -145,8 +158,8 @@ class GetConsumerOfResult(IRDLOperation):
     name = "transform.get_consumers_of_result"
 
     result_number = prop_def(AnyIntegerAttr)
-    target = operand_def(TransformHandleType)
-    consumers = result_def(TransformHandleType)
+    target = operand_def(TransformOpHandleType)
+    consumers = result_def(TransformOpHandleType)
 
     def __init__(
         self,
@@ -168,8 +181,8 @@ class GetDefiningOp(IRDLOperation):
 
     name = "transform.get_defining_op"
 
-    target = operand_def(TransformHandleType)
-    result = result_def(TransformHandleType)
+    target = operand_def(TransformValueHandleType)
+    result = result_def(TransformOpHandleType)
 
     def __init__(self, target: SSAValue):
         super().__init__(operands=[target], result_types=[AnyOpType()])
@@ -188,8 +201,8 @@ class GetParentOp(IRDLOperation):
     op_name = opt_prop_def(StringAttr)
     deduplicate = opt_prop_def(UnitAttr)
     nth_parent = prop_def(AnyIntegerAttr)
-    target = operand_def(TransformHandleType)
-    parent_result = result_def(TransformHandleType)
+    target = operand_def(TransformOpHandleType)
+    parent_result = result_def(TransformOpHandleType)
 
     def __init__(
         self,
@@ -224,8 +237,8 @@ class GetProducerOfOperand(IRDLOperation):
     name = "transform.get_producer_of_operand"
 
     operand_number = prop_def(AnyIntegerAttr)
-    target = operand_def(TransformHandleType)
-    producer = result_def(TransformHandleType)
+    target = operand_def(TransformOpHandleType)
+    producer = result_def(TransformOpHandleType)
 
     def __init__(
         self,
@@ -253,20 +266,22 @@ class GetResultOp(IRDLOperation):
     raw_position_list = opt_prop_def(DenseArrayBase)
     is_inverted = opt_prop_def(UnitAttr)
     is_all = opt_prop_def(UnitAttr)
-    target = operand_def(TransformHandleType)
-    result = result_def(TransformHandleType)
+    target = operand_def(TransformOpHandleType)
+    result = result_def(TransformOpHandleType)
 
     def __init__(
         self,
         result_number: int | AnyIntegerAttr,
         target: SSAValue,
-        raw_position_list: list[int] | DenseArrayBase | None = None,
+        raw_position_list: (
+            Sequence[int] | Sequence[IntAttr] | DenseArrayBase | None
+        ) = None,
         is_inverted: bool = False,
         is_all: bool = False,
     ):
         if isinstance(result_number, int):
             result_number = IntegerAttr(result_number, IntegerType(64))
-        if isinstance(raw_position_list, list):
+        if isinstance(raw_position_list, Sequence):
             raw_position_list = DenseArrayBase.create_dense_int_or_index(
                 IntegerType(64), raw_position_list
             )
@@ -291,14 +306,14 @@ class GetTypeOp(IRDLOperation):
     name = "transform.get_type"
 
     elemental = prop_def(UnitAttr)
-    value = operand_def(TransformHandleType)
-    type_param = result_def(TransformHandleType)
+    value = operand_def(TransformValueHandleType)
+    type_param = result_def(TransformParamHandleType)
 
     def __init__(self, elemental: bool, value: SSAValue):
         super().__init__(
             properties={"elemental": UnitAttr() if elemental else None},
             operands=[value],
-            result_types=[AnyParamType()],
+            result_types=[TypeParamType()],
         )
 
 
@@ -343,7 +358,7 @@ class MatchOperationEmptyOp(IRDLOperation):
 
     name = "transform.match.operation_empty"
 
-    operand_handle = operand_def(TransformHandleType)
+    operand_handle = operand_def(TransformOpHandleType)
 
     def __init__(self, operand_handle: SSAValue):
         super().__init__(operands=[operand_handle])
@@ -358,13 +373,20 @@ class MatchOperationNameOp(IRDLOperation):
     name = "transform.match.operation_name"
 
     op_names = prop_def(ArrayAttr[StringAttr])
-    operand_handle = operand_def(TransformHandleType)
+    operand_handle = operand_def(TransformOpHandleType)
 
     def __init__(
-        self, op_names: list[str] | ArrayAttr[StringAttr], operand_handle: SSAValue
+        self,
+        op_names: Sequence[str] | Sequence[StringAttr] | ArrayAttr[StringAttr],
+        operand_handle: SSAValue,
     ):
-        if isinstance(op_names, list):
-            op_names = ArrayAttr([StringAttr(name) for name in op_names])
+        if isinstance(op_names, Sequence):
+            op_names = ArrayAttr(
+                [
+                    StringAttr(name) if isinstance(name, str) else name
+                    for name in op_names
+                ]
+            )
         super().__init__(
             properties={"op_names": op_names},
             operands=[operand_handle],
@@ -380,8 +402,8 @@ class MatchParamCmpIOp(IRDLOperation):
     name = "transform.match.param.cmpi"
 
     predicate = prop_def(AnyIntegerAttr)  # Only 0, 1, 2, 3, 4, 5 are valid
-    param = operand_def(AnyParamType)
-    reference = operand_def(AnyParamType)
+    param = operand_def(TransformParamHandleType)
+    reference = operand_def(TransformParamHandleType)
 
     def __init__(
         self, predicate: int | AnyIntegerAttr, param: SSAValue, reference: SSAValue
@@ -560,19 +582,21 @@ class TileOp(IRDLOperation):
         self,
         target: SSAValue,
         dynamic_sizes: Sequence[SSAValue],
-        static_sizes: DenseArrayBase | list[int],
-        interchange: DenseArrayBase | list[int] | None = None,
-        scalable_sizes: DenseArrayBase | list[int] | None = None,
+        static_sizes: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
+        interchange: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None = None,
+        scalable_sizes: (
+            DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None
+        ) = None,
     ):
-        if isinstance(static_sizes, list):
+        if isinstance(static_sizes, Sequence):
             static_sizes = DenseArrayBase.create_dense_int_or_index(
                 IntegerType(64), static_sizes
             )
-        if isinstance(interchange, list):
+        if isinstance(interchange, Sequence):
             interchange = DenseArrayBase.create_dense_int_or_index(
                 IntegerType(64), interchange
             )
-        if isinstance(scalable_sizes, list):
+        if isinstance(scalable_sizes, Sequence):
             scalable_sizes = DenseArrayBase.create_dense_int_or_index(
                 IntegerType(1), scalable_sizes
             )
@@ -585,7 +609,14 @@ class TileOp(IRDLOperation):
             },
             result_types=[
                 AnyOpType(),
-                [AnyOpType() for _ in range(len(static_sizes.as_tuple()))],
+                [
+                    AnyOpType()
+                    for _ in range(
+                        len(static_sizes.as_tuple())
+                        if isinstance(static_sizes, DenseArrayBase)
+                        else 0
+                    )
+                ],
             ],
         )
 
@@ -619,19 +650,19 @@ class TileToForallOp(IRDLOperation):
         tile_sizes: Sequence[SSAValue],
         packed_num_threads: SSAValue | None,
         packed_tile_sizes: SSAValue | None,
-        static_num_threads: DenseArrayBase | list[int] | None,
-        static_tile_sizes: DenseArrayBase | list[int] | None,
-        mapping: DenseArrayBase | list[int] | None,
+        static_num_threads: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
+        static_tile_sizes: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
+        mapping: DenseArrayBase | Sequence[int] | Sequence[IntAttr] | None,
     ):
-        if isinstance(static_num_threads, list):
+        if isinstance(static_num_threads, Sequence):
             static_num_threads = DenseArrayBase.create_dense_int_or_index(
                 IntegerType(64), static_num_threads
             )
-        if isinstance(static_tile_sizes, list):
+        if isinstance(static_tile_sizes, Sequence):
             static_tile_sizes = DenseArrayBase.create_dense_int_or_index(
                 IntegerType(64), static_tile_sizes
             )
-        if isinstance(mapping, list):
+        if isinstance(mapping, Sequence):
             mapping = DenseArrayBase.create_dense_int_or_index(IntegerType(64), mapping)
 
         super().__init__(
@@ -694,16 +725,16 @@ class NamedSequenceOp(IRDLOperation):
         function_type: TypeAttribute,
         body: Region,
         sym_visibility: str | StringAttr | None = None,
-        arg_attrs: list[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
-        res_attrs: list[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
+        arg_attrs: Sequence[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
+        res_attrs: Sequence[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
-        if isinstance(arg_attrs, list):
+        if isinstance(arg_attrs, Sequence):
             arg_attrs = ArrayAttr(arg_attrs)
-        if isinstance(res_attrs, list):
+        if isinstance(res_attrs, Sequence):
             res_attrs = ArrayAttr(res_attrs)
         super().__init__(
             properties={
@@ -735,7 +766,7 @@ class CastOp(IRDLOperation):
 Transform = Dialect(
     "transform",
     [
-        GetConsumerOfResult,
+        GetConsumersOfResult,
         GetDefiningOp,
         GetParentOp,
         GetProducerOfOperand,
