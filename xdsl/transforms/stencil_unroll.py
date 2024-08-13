@@ -78,8 +78,8 @@ class StencilUnrollPattern(RewritePattern):
             return
 
         # Enforced by verification
-        res_types = [r.type for r in op.results]
-        assert isa(res_types, list[TempType[Attribute]])
+        res_types = op.results_types
+        assert isa(res_types, Sequence[TempType[Attribute]])
         dim = res_types[0].get_num_dims()
 
         # If unroll factors list is shorter than the dim, fill with ones from the front

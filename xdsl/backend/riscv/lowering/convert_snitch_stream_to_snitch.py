@@ -178,7 +178,7 @@ class LowerStreamingRegionOp(RewritePattern):
         block = op.body.block
 
         rewriter.insert_op_before_matched_op(
-            enable_op := snitch.SsrEnable(tuple(arg.type for arg in block.args))
+            enable_op := snitch.SsrEnable(block.args_types)
         )
 
         for val, arg in zip(enable_op.streams, block.args):

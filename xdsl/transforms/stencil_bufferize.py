@@ -1,6 +1,5 @@
 from collections.abc import Generator
 from dataclasses import dataclass
-from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.context import MLContext
@@ -286,7 +285,7 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
 
         new_load = LoadOp.create(
             operands=[op.field],
-            result_types=[r.type for r in load.results],
+            result_types=load.results_types,
             attributes=load.attributes.copy(),
             properties=load.properties.copy(),
         )
@@ -306,14 +305,14 @@ class UpdateApplyArgs(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
-        new_arg_types = [o.type for o in op.args]
-        if new_arg_types == [a.type for a in op.region.block.args]:
+        new_arg_types = tuple(o.type for o in op.args)
+        if new_arg_types == op.region.block.args_types:
             return
 
         new_block = Block(arg_types=new_arg_types)
         new_apply = ApplyOp.create(
             operands=op.operands,
-            result_types=[r.type for r in op.results],
+            result_types=op.results_types,
             properties=op.properties.copy(),
             attributes=op.attributes.copy(),
             regions=[Region(new_block)],
@@ -407,9 +406,8 @@ class CombineStoreFold(RewritePattern):
             new_upper = op.upper
             new_lowerext = op.lowerext
             new_upperext = op.upperext
-            new_results_types = [
-                r.type for r in chain(op.results[:i], op.results[i + 1 :])
-            ]
+            new_results_types = list(op.results_types)
+            new_results_types.pop(i)
 
             bounds = cast(StencilBoundsAttr, cast(TempType[Attribute], r.type).bounds)
             newub = list(bounds.ub)

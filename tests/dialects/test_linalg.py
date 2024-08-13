@@ -43,7 +43,7 @@ def test_matmul_on_memrefs():
 
     matmul_op = linalg.MatmulOp(inputs=(a.memref, b.memref), outputs=(c.memref,))
 
-    assert tuple(result.type for result in matmul_op.results) == ()
+    assert matmul_op.results_types == ()
 
 
 def test_loop_range_methods():

@@ -78,15 +78,13 @@ class LowerRiscvScfForPattern(RewritePattern):
         init_block = op.parent_block()
         assert init_block is not None
 
-        body_args = op.body.blocks[0].args
+        body = op.body.blocks[0]
 
         # TODO: add method to rewriter
-        end_block = init_block.split_before(
-            op, arg_types=(arg.type for arg in body_args)
-        )
+        end_block = init_block.split_before(op, arg_types=body.args_types)
 
         # The first argument of the loop body block is the loop counter by SCF invariant.
-        loop_var_reg = body_args[0].type
+        loop_var_reg = body.args[0].type
         assert isinstance(loop_var_reg, riscv.IntRegisterType)
 
         # Use the first block of the loop body as the condition block since it is the

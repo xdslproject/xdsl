@@ -39,7 +39,7 @@ def test_build_anr():
     assert anr.constraint_name == StringAttr("anr")
     assert anr.args == (type_val,)
     assert len(anr.results) == 1
-    assert [r.type for r in anr.results] == [attribute_type]
+    assert anr.results_types == (attribute_type,)
 
 
 def test_build_rewrite():
