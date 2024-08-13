@@ -244,7 +244,6 @@ class FuncOpBufferize(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
-        props = op.properties.copy()
         function_type = FunctionType.from_lists(
             [
                 (
@@ -265,13 +264,12 @@ class FuncOpBufferize(RewritePattern):
         )
         if function_type == op.function_type:
             return
-        props["function_type"] = function_type
         rewriter.replace_matched_op(
             func.FuncOp.build(
                 operands=op.operands,
                 result_types=[r.type for r in op.results],
                 regions=[op.detach_region(op.body)],
-                properties=props,
+                properties={**op.properties, "function_type": function_type},
                 attributes=op.attributes.copy(),
             )
         )
