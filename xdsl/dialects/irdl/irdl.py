@@ -46,9 +46,9 @@ from xdsl.utils.str_enum import StrEnum
 
 
 class VariadicityEnum(StrEnum):
-    Single = "single"
-    Optional = "optional"
-    Variadic = "variadic"
+    SINGLE = "single"
+    OPTIONAL = "optional"
+    VARIADIC = "variadic"
 
 
 @irdl_attr_definition
@@ -274,7 +274,7 @@ class OperationOp(IRDLOperation):
 def _parse_argument(parser: Parser) -> tuple[VariadicityEnum, SSAValue]:
     variadicity = parser.parse_optional_str_enum(VariadicityEnum)
     if variadicity is None:
-        variadicity = VariadicityEnum.Single
+        variadicity = VariadicityEnum.SINGLE
 
     arg = parser.parse_operand()
 
@@ -283,7 +283,7 @@ def _parse_argument(parser: Parser) -> tuple[VariadicityEnum, SSAValue]:
 
 def _print_argument(printer: Printer, data: tuple[VariadicityAttr, SSAValue]) -> None:
     variadicity = data[0].data
-    if variadicity != VariadicityEnum.Single:
+    if variadicity != VariadicityEnum.SINGLE:
         printer.print(variadicity, " ")
     printer.print(data[1])
 
@@ -302,7 +302,7 @@ class OperandsOp(IRDLOperation):
 
     def __init__(self, args: Sequence[tuple[VariadicityEnum, SSAValue] | SSAValue]):
         args_list = [
-            (VariadicityEnum.Single, x) if isinstance(x, SSAValue) else x for x in args
+            (VariadicityEnum.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
         ]
         operands = tuple(operand for _, operand in args_list)
         attributes = {
@@ -341,7 +341,7 @@ class ResultsOp(IRDLOperation):
 
     def __init__(self, args: Sequence[tuple[VariadicityEnum, SSAValue] | SSAValue]):
         args_list = [
-            (VariadicityEnum.Single, x) if isinstance(x, SSAValue) else x for x in args
+            (VariadicityEnum.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
         ]
         operands = [x[1] for x in args_list]
         attributes = {

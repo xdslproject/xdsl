@@ -70,12 +70,12 @@ def test_parameters_init(op_type: type[OperandsOp | ResultsOp]):
 
     val1 = TestSSAValue(AttributeType())
     val2 = TestSSAValue(AttributeType())
-    op = op_type([(VariadicityEnum.Single, val1), (VariadicityEnum.Optional, val2)])
+    op = op_type([(VariadicityEnum.SINGLE, val1), (VariadicityEnum.OPTIONAL, val2)])
     op2 = op_type.create(
         operands=[val1, val2],
         attributes={
             "variadicity": VariadicityArrayAttr(
-                (VariadicityEnum.Single, VariadicityEnum.Optional)
+                (VariadicityEnum.SINGLE, VariadicityEnum.OPTIONAL)
             )
         },
     )
