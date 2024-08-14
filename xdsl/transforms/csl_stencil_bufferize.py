@@ -114,12 +114,6 @@ class ApplyOpBufferize(RewritePattern):
                     t := to_tensor_op(arg, writable=idx == 2),
                     InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
                 )
-                # if idx == 2:
-                #     offset_arg = buf_apply_op.chunk_reduce.block.args[1]
-                #     rewriter.insert_op(
-                #         self._build_extract_slice(op, t, offset_arg),
-                #         InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
-                #     )
                 chunk_reduce_arg_mapping.append(t.tensor)
             else:
                 chunk_reduce_arg_mapping.append(arg)
