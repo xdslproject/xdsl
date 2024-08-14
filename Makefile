@@ -14,8 +14,10 @@ TESTS_COVERAGE_FILE = ${COVERAGE_FILE}.tests
 .ONESHELL:
 
 # these targets don't produce files:
-.PHONY: ${VENV_DIR}/ venv clean clean-caches filecheck pytest pytest-nb tests-toy tests rerun-notebooks precommit-install precommit black pyright tests-marimo tests-marimo-mlir
-.PHONY: coverage coverage-tests coverage-filecheck-tests coverage-report-html coverage-report-md
+.PHONY: ${VENV_DIR}/ venv clean clean-caches filecheck pytest pytest-nb tests-toy tests
+.PHONY: rerun-notebooks precommit-install precommit pyright tests-marimo
+.PHONY: tests-marimo-mlir coverage coverage-tests coverage-filecheck-tests
+.PHONY: coverage-report-html coverage-report-md
 
 # set up the venv with all dependencies for development
 ${VENV_DIR}/: requirements.txt
@@ -45,7 +47,9 @@ pytest:
 
 # run pytest on notebooks
 pytest-nb:
-	pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb --nbval-current-env
+	pytest -W error --nbval -vv docs \
+		--ignore=docs/mlir_interoperation.ipynb \
+		--nbval-current-env
 
 # run tests for Toy tutorial
 filecheck-toy:
@@ -89,7 +93,11 @@ tests: pytest tests-toy filecheck pytest-nb tests-marimo tests-marimo-mlir pyrig
 
 # re-generate the output from all jupyter notebooks in the docs directory
 rerun-notebooks:
-	jupyter nbconvert --ClearMetadataPreprocessor.enabled=True --inplace --to notebook --execute docs/*.ipynb docs/Toy/*.ipynb
+	jupyter nbconvert \
+		--ClearMetadataPreprocessor.enabled=True \
+		--inplace \
+		--to notebook \
+		--execute docs/*.ipynb docs/Toy/*.ipynb
 
 # set up all precommit hooks
 precommit-install:
@@ -104,12 +112,6 @@ pyright:
     # We make sure to generate the python typing stubs before running pyright
 	xdsl-stubgen
 	pyright $(shell git diff --staged --name-only  -- '*.py')
-
-# run black on all files currently staged
-black:
-	staged_files="$(shell git diff --staged --name-only)"
-	# run black on all of xdsl if no staged files exist
-	black $${staged_files:-xdsl}
 
 # run coverage over all tests and combine data files
 coverage: coverage-tests coverage-filecheck-tests
