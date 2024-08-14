@@ -36,7 +36,9 @@ def test_named_region_op_init(
     """
     op = op_type("cmath", Region(Block()))
     op2 = op_type(StringAttr("cmath"), Region(Block()))
-    op3 = op_type.create(attributes={"sym_name": StringAttr("cmath")}, regions=[Region(Block())])
+    op3 = op_type.create(
+        attributes={"sym_name": StringAttr("cmath")}, regions=[Region(Block())]
+    )
 
     assert op.is_structurally_equivalent(op2)
     assert op2.is_structurally_equivalent(op3)
@@ -71,7 +73,11 @@ def test_parameters_init(op_type: type[OperandsOp | ResultsOp]):
     op = op_type([(VariadicityAttr.SINGLE, val1), (VariadicityAttr.OPTIONAL, val2)])
     op2 = op_type.create(
         operands=[val1, val2],
-        attributes={"variadicity": VariadicityArrayAttr(ArrayAttr((VariadicityAttr.SINGLE, VariadicityAttr.OPTIONAL)))},
+        attributes={
+            "variadicity": VariadicityArrayAttr(
+                ArrayAttr((VariadicityAttr.SINGLE, VariadicityAttr.OPTIONAL))
+            )
+        },
     )
 
     assert op.is_structurally_equivalent(op2)
@@ -158,7 +164,9 @@ def test_any_all_of_init(op_type: type[AllOfOp | AnyOfOp]):
 @pytest.mark.parametrize("op_type", [OperationOp, TypeOp, AttributeOp])
 def test_qualified_name(op_type: type[OperationOp | TypeOp | AttributeOp]):
     """Test qualified_name property of OperationOp, TypeOp, AttributeOp."""
-    op = op_type.create(attributes={"sym_name": StringAttr("myname")}, regions=[Region(Block())])
+    op = op_type.create(
+        attributes={"sym_name": StringAttr("myname")}, regions=[Region(Block())]
+    )
     dialect = DialectOp("mydialect", Region(Block([op])))
     dialect.verify()
     assert op.qualified_name == "mydialect.myname"
