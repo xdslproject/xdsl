@@ -248,6 +248,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return SnitchStream
 
+    def get_stablehlo():
+        from xdsl.dialects.stablehlo import StableHLO
+
+        return StableHLO
+
     def get_stencil():
         from xdsl.dialects.stencil import Stencil
 
@@ -342,6 +347,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,
+        "stablehlo": get_stablehlo,
         "stencil": get_stencil,
         "stream": get_stream,
         "symref": get_symref,
