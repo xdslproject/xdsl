@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from typing import ClassVar
 
 from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr
 from xdsl.ir import (
@@ -55,6 +56,15 @@ class VariadicityEnum(StrEnum):
 class VariadicityAttr(EnumAttribute[VariadicityEnum], SpacedOpaqueSyntaxAttribute):
     name = "irdl.variadicity"
 
+    SINGLE: ClassVar[VariadicityAttr]
+    OPTIONAL: ClassVar[VariadicityAttr]
+    VARIADIC: ClassVar[VariadicityAttr]
+
+
+setattr(VariadicityAttr, "SINGLE", VariadicityAttr(VariadicityEnum.SINGLE))
+setattr(VariadicityAttr, "OPTIONAL", VariadicityAttr(VariadicityEnum.OPTIONAL))
+setattr(VariadicityAttr, "VARIADIC", VariadicityAttr(VariadicityEnum.VARIADIC))
+
 
 @irdl_attr_definition
 class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
@@ -62,9 +72,8 @@ class VariadicityArrayAttr(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute):
 
     value: ParameterDef[ArrayAttr[VariadicityAttr]]
 
-    def __init__(self, variadicities: Iterable[VariadicityEnum]) -> None:
-        array_attr = ArrayAttr(tuple(VariadicityAttr(x) for x in variadicities))
-        super().__init__((array_attr,))
+    def __init__(self, variadicities: ArrayAttr[VariadicityAttr]) -> None:
+        super().__init__((variadicities,))
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[ArrayAttr[VariadicityAttr]]:
@@ -271,14 +280,14 @@ class OperationOp(IRDLOperation):
         return f"{dialect_op.sym_name.data}.{self.sym_name.data}"
 
 
-def _parse_argument(parser: Parser) -> tuple[VariadicityEnum, SSAValue]:
+def _parse_argument(parser: Parser) -> tuple[VariadicityAttr, SSAValue]:
     variadicity = parser.parse_optional_str_enum(VariadicityEnum)
     if variadicity is None:
         variadicity = VariadicityEnum.SINGLE
 
     arg = parser.parse_operand()
 
-    return (variadicity, arg)
+    return (VariadicityAttr(variadicity), arg)
 
 
 def _print_argument(printer: Printer, data: tuple[VariadicityAttr, SSAValue]) -> None:
@@ -300,13 +309,15 @@ class OperandsOp(IRDLOperation):
 
     traits = frozenset([HasParent(OperationOp)])
 
-    def __init__(self, args: Sequence[tuple[VariadicityEnum, SSAValue] | SSAValue]):
+    def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
         args_list = [
-            (VariadicityEnum.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
+            (VariadicityAttr.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
         ]
         operands = tuple(operand for _, operand in args_list)
         attributes = {
-            "variadicity": VariadicityArrayAttr(tuple(v for v, _ in args_list))
+            "variadicity": VariadicityArrayAttr(
+                ArrayAttr(tuple(v for v, _ in args_list))
+            )
         }
         super().__init__(operands=[operands], attributes=attributes)
 
@@ -339,13 +350,15 @@ class ResultsOp(IRDLOperation):
 
     traits = frozenset([HasParent(OperationOp)])
 
-    def __init__(self, args: Sequence[tuple[VariadicityEnum, SSAValue] | SSAValue]):
+    def __init__(self, args: Sequence[tuple[VariadicityAttr, SSAValue] | SSAValue]):
         args_list = [
-            (VariadicityEnum.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
+            (VariadicityAttr.SINGLE, x) if isinstance(x, SSAValue) else x for x in args
         ]
         operands = [x[1] for x in args_list]
         attributes = {
-            "variadicity": VariadicityArrayAttr(map(lambda x: x[0], args_list))
+            "variadicity": VariadicityArrayAttr(
+                ArrayAttr(tuple(v for v, _ in args_list))
+            )
         }
         super().__init__(operands=[operands], attributes=attributes)
 
