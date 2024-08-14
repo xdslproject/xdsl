@@ -179,10 +179,7 @@ class EnumData(EnumAttribute[TestEnum], SpacedOpaqueSyntaxAttribute):
 def test_enum_attribute():
     """Test the definition of an EnumAttribute."""
     attr = EnumData(TestEnum.No)
-    stream = StringIO()
-    p = Printer(stream=stream)
-    p.print_attribute(attr)
-    assert stream.getvalue() == "#test<enum no>"
+    assert str(attr) == "#test<enum no>"
 
 
 def test_indirect_enum_guard():
@@ -231,11 +228,7 @@ class BitEnumData(BitEnumAttribute[TestEnum]):
 )
 def test_bit_enum_attribute(input: Sequence[TestEnum] | str, output: str):
     attr = BitEnumData(input)
-
-    stream = StringIO()
-    p = Printer(stream=stream)
-    p.print_attribute(attr)
-    assert stream.getvalue() == output
+    assert str(attr) == output
 
 
 def test_bit_enum_invalid_str():

@@ -445,12 +445,12 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
     all_value: ClassVar[str | None] = None
 
     def __init__(self, flags: None | Sequence[EnumType] | str) -> None:
-        flags_: set[StrEnum]
+        flags_: set[EnumType]
         match flags:
             case self.none_value | None:
                 flags_ = set()
             case self.all_value:
-                flags_ = set(self.enum_type)
+                flags_ = cast(set[EnumType], set(self.enum_type))
             case other if isinstance(other, str):
                 raise TypeError(
                     f"expected string parameter to be one of {self.none_value} or {self.all_value}, got {other}"
@@ -459,7 +459,7 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
                 assert not isinstance(other, str)
                 flags_ = set(other)
 
-        super().__init__(tuple(cast(set[EnumType], flags_)))
+        super().__init__(tuple(flags_))
 
     def __init_subclass__(cls) -> None:
         _check_enum_constraints(cls)
