@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
-from xdsl.dialects import arith, bufferization, func, memref, stencil, tensor
+from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -114,12 +114,12 @@ class ApplyOpBufferize(RewritePattern):
                     t := to_tensor_op(arg, writable=idx == 2),
                     InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
                 )
-                if idx == 2:
-                    offset_arg = buf_apply_op.chunk_reduce.block.args[1]
-                    rewriter.insert_op(
-                        self._build_extract_slice(op, t, offset_arg),
-                        InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
-                    )
+                # if idx == 2:
+                #     offset_arg = buf_apply_op.chunk_reduce.block.args[1]
+                #     rewriter.insert_op(
+                #         self._build_extract_slice(op, t, offset_arg),
+                #         InsertPoint.at_end(buf_apply_op.chunk_reduce.block),
+                #     )
                 chunk_reduce_arg_mapping.append(t.tensor)
             else:
                 chunk_reduce_arg_mapping.append(arg)
@@ -138,6 +138,9 @@ class ApplyOpBufferize(RewritePattern):
             else:
                 post_process_arg_mapping.append(arg)
 
+        assert isa(typ := op.chunk_reduce.block.args[0].type, TensorType[Attribute])
+        chunk_type = TensorType(typ.get_element_type(), typ.get_shape()[1:])
+
         # inline blocks from old into new regions
         rewriter.inline_block(
             op.chunk_reduce.block,
@@ -149,6 +152,10 @@ class ApplyOpBufferize(RewritePattern):
             op.post_process.block,
             InsertPoint.at_end(buf_apply_op.post_process.block),
             post_process_arg_mapping,
+        )
+
+        self._inject_iter_arg_into_linalg_outs(
+            buf_apply_op, rewriter, chunk_type, chunk_reduce_arg_mapping[2]
         )
 
         # insert new op
@@ -168,6 +175,58 @@ class ApplyOpBufferize(RewritePattern):
                     for arg in args
                 ]
             )
+        )
+
+    @staticmethod
+    def _inject_iter_arg_into_linalg_outs(
+        op: csl_stencil.ApplyOp,
+        rewriter: PatternRewriter,
+        chunk_type: TensorType[Attribute],
+        iter_arg: SSAValue,
+    ):
+        """
+        Finds a linalg op with `chunk_type` shape in `outs` and injects
+        an extracted slice of `iter_arg`. This is a work-around for the
+        way bufferization works, causing it to use `iter_arg` as an accumulator
+        and avoiding having an extra alloc + memref.copy.
+        """
+        linalg_op: linalg.NamedOpBase | None = None
+        for curr_op in op.chunk_reduce.block.ops:
+            if (
+                isinstance(curr_op, linalg.NamedOpBase)
+                and len(curr_op.outputs) > 0
+                and curr_op.outputs.types[0] == chunk_type
+            ):
+                linalg_op = curr_op
+                break
+
+        if linalg_op is None:
+            return
+
+        rewriter.replace_op(
+            linalg_op,
+            [
+                extract_slice_op := tensor.ExtractSliceOp(
+                    operands=[iter_arg, [op.chunk_reduce.block.args[1]], [], []],
+                    result_types=[chunk_type],
+                    properties={
+                        "static_offsets": DenseArrayBase.from_list(
+                            i64, (memref.Subview.DYNAMIC_INDEX,)
+                        ),
+                        "static_sizes": DenseArrayBase.from_list(
+                            i64, chunk_type.get_shape()
+                        ),
+                        "static_strides": DenseArrayBase.from_list(i64, (1,)),
+                    },
+                ),
+                type(linalg_op).build(
+                    operands=[linalg_op.inputs, extract_slice_op.results],
+                    result_types=linalg_op.result_types,
+                    properties=linalg_op.properties,
+                    attributes=linalg_op.attributes,
+                    regions=[linalg_op.detach_region(r) for r in linalg_op.regions],
+                ),
+            ],
         )
 
     @staticmethod
@@ -303,7 +362,8 @@ class CslStencilBufferize(ModulePass):
     """
     Bufferizes the csl_stencil dialect.
 
-    Creates a `tensor.extract_slice` op needed by `lift-arith-to-linalg` and should be run without `cse` in between.
+    Attempts to inject `csl_stencil.apply.chunk_reduce.iter_arg` into linalg compute ops `outs` within that region
+    for improved bufferization. Ideally be run after `--lift-arith-to-linalg`.
     """
 
     name = "csl-stencil-bufferize"
