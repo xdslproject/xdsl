@@ -127,7 +127,8 @@ To automate the formatting, we use pre-commit hooks from the
 make precommit-install
 # to run the hooks:
 make precommit
-# Alternatively, run `ruff format`
+# alternatively, run ruff directly:
+ruff format
 ```
 
 Furthermore, all python code must run through [pyright](https://github.com/microsoft/pyright)
