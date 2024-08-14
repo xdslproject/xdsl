@@ -421,6 +421,25 @@ class EnumAttribute(Data[EnumType]):
 
 
 class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
+    """
+    Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
+    defines parsing/printing automatically from its values.
+
+    Additionally, two values can be given to designate all/none bits being set.
+
+    example:
+    ```python
+    class MyBitEnum(StrEnum):
+        First = auto()
+        Second = auto()
+
+    class MyBitEnumAttribute(BitEnumAttribute[MyBitEnum]):
+        name = "example.my_bit_enum"
+        none_value = "none"
+        all_value = "all"
+
+    """
+
     enum_type: ClassVar[type[StrEnum]]
     none_value: ClassVar[str | None] = None
     all_value: ClassVar[str | None] = None
