@@ -11,7 +11,6 @@ from xdsl.utils.dialect_stub import DialectStubGenerator
 # Test dynamically generating Python type stubs for an irdl dialect.
 
 if __name__ == "__main__":
-
     # Register all dialects for lazy-loading
     ctx = MLContext()
     for n, f in get_all_dialects().items():

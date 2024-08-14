@@ -1,6 +1,5 @@
 from collections.abc import Generator
 from dataclasses import dataclass
-from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.context import MLContext
@@ -160,7 +159,6 @@ class LoadBufferFoldPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
-
         # If this is a value-semantic buffer, we can't fold it
         if not isinstance(op.res.type, FieldType):
             return
@@ -274,19 +272,13 @@ class ApplyLoadStoreFoldPattern(RewritePattern):
             properties=apply.properties.copy(),
             attributes=apply.attributes.copy(),
             regions=[
-                Region(Block(arg_types=[SSAValue.get(a).type for a in apply.args])),
+                apply.detach_region(0),
             ],
-        )
-
-        rewriter.inline_block(
-            apply.region.block,
-            InsertPoint.at_start(new_apply.region.block),
-            new_apply.region.block.args,
         )
 
         new_load = LoadOp.create(
             operands=[op.field],
-            result_types=[r.type for r in load.results],
+            result_types=load.result_types,
             attributes=load.attributes.copy(),
             properties=load.properties.copy(),
         )
@@ -306,14 +298,14 @@ class UpdateApplyArgs(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
-        new_arg_types = [o.type for o in op.args]
-        if new_arg_types == [a.type for a in op.region.block.args]:
+        new_arg_types = op.args.types
+        if new_arg_types == op.region.block.arg_types:
             return
 
         new_block = Block(arg_types=new_arg_types)
         new_apply = ApplyOp.create(
             operands=op.operands,
-            result_types=[r.type for r in op.results],
+            result_types=op.result_types,
             properties=op.properties.copy(),
             attributes=op.attributes.copy(),
             regions=[Region(new_block)],
@@ -407,9 +399,8 @@ class CombineStoreFold(RewritePattern):
             new_upper = op.upper
             new_lowerext = op.lowerext
             new_upperext = op.upperext
-            new_results_types = [
-                r.type for r in chain(op.results[:i], op.results[i + 1 :])
-            ]
+            new_results_types = list(op.result_types)
+            new_results_types.pop(i)
 
             bounds = cast(StencilBoundsAttr, cast(TempType[Attribute], r.type).bounds)
             newub = list(bounds.ub)
@@ -506,7 +497,6 @@ class StencilBufferize(ModulePass):
     name = "stencil-bufferize"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

@@ -614,6 +614,14 @@ class Operation(IRNode):
     def parent_node(self) -> IRNode | None:
         return self.parent
 
+    @property
+    def result_types(self) -> Sequence[Attribute]:
+        return tuple(r.type for r in self.results)
+
+    @property
+    def operand_types(self) -> Sequence[Attribute]:
+        return tuple(operand.type for operand in self.operands)
+
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
             return p.parent
@@ -757,9 +765,7 @@ class Operation(IRNode):
         for idx, curr_region in enumerate(self.regions):
             if curr_region is region:
                 return idx
-        assert (
-            False
-        ), "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
+        assert False, "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
 
     def detach_region(self, region: int | Region) -> Region:
         """
@@ -896,7 +902,7 @@ class Operation(IRNode):
             (value_mapper[operand] if operand in value_mapper else operand)
             for operand in self.operands
         ]
-        result_types = [res.type for res in self.results]
+        result_types = self.result_types
         attributes = self.attributes.copy()
         properties = self.properties.copy()
         successors = [
@@ -1213,6 +1219,10 @@ class Block(IRNode):
         self._last_op = None
 
         self.add_ops(ops)
+
+    @property
+    def arg_types(self) -> Sequence[Attribute]:
+        return tuple(arg.type for arg in self._args)
 
     @property
     def parent_node(self) -> IRNode | None:

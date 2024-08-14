@@ -16,8 +16,6 @@ dynamic = ["version"]
 [project.optional-dependencies]
 dev = [
     "pip<25.0",
-    # Update precommit version when black updates
-    "black[jupyter]==24.8.0",
     "toml<0.11",
     "pytest-cov",
     "coverage<8.0.0",
@@ -26,7 +24,7 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.0",
     "lit<19.0.0",
-    "marimo==0.7.19",
+    "marimo==0.7.20",
     "pre-commit==3.8.0",
     "ruff==0.5.7",
     "asv<0.7",
@@ -90,8 +88,12 @@ typeCheckingMode = "strict"
 ]
 
 [tool.ruff]
-lint.select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
-lint.ignore = [
+target-version = "py310"
+extend-include = ["*.ipynb", "*.pyi"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251"]
+ignore = [
     "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
     "PT007", # https://beta.ruff.rs/docs/rules/pytest-parametrize-values-wrong-type/
@@ -99,9 +101,12 @@ lint.ignore = [
     "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
     "PT015", # https://beta.ruff.rs/docs/rules/pytest-assert-always-false/
 ]
-line-length = 300
-target-version = "py310"
 
+[tool.ruff.lint.pycodestyle]
+# TODO: remove this setting and go to default line length of 88
+# Removing this line length results in a large number of errors for doc strings, ideally
+# these should be ignored separately.
+max-line-length = 300
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
@@ -130,22 +135,15 @@ target-version = "py310"
 "docs/mlir_interoperation.ipynb" = ["E402"]
 "docs/irdl.ipynb" = ["ALL"]
 "docs/database_example.ipynb" = ["ALL"]
-"**/{docs/marimo}/*" = ["E501"]
+"**/{docs/marimo}/*" = ["E501", "I001"]
 "_version.py" = ["ALL"]
 "__init__.py" = ["F403"]
-
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
-[tool.black]
-# When updating this list, please update `.pre-commit-config.yaml`
-exclude = """
-/(__pycache__|.asv|venv|build|tests/filecheck)/
-|versioneer.py$
-|xdsl/_version.py$
-|docs/marimo
-"""
+[tool.ruff.format]
+exclude = ["versioneer.py", "xdsl/_version.py", "docs/marimo/**/*.py"]
 
 [tool.pytest.ini_options]
 python_files = ["tests/*test_*.py", "docs/*test_*.py"]

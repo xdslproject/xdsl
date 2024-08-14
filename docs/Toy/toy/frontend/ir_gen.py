@@ -46,6 +46,7 @@ class IRGenError(Exception):
 @dataclass
 class ScopedSymbolTable:
     "A mapping from variable names to SSAValues, append-only"
+
     table: dict[str, SSAValue] = field(default_factory=dict)
 
     def __contains__(self, __o: object) -> bool:

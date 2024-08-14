@@ -30,7 +30,6 @@ from xdsl.traits import SymbolTable
 
 @register_impls
 class IRDLFunctions(InterpreterFunctions):
-
     @staticmethod
     def get_dialect(interpreter: Interpreter, name: str) -> Dialect:
         """
@@ -208,7 +207,6 @@ class IRDLFunctions(InterpreterFunctions):
     def run_parameters(
         self, interpreter: Interpreter, op: irdl.ParametersOp, args: PythonValues
     ):
-
         attr_op = cast(irdl.AttributeOp | irdl.TypeOp, op.parent_op())
         attr_name = attr_op.qualified_name
         self._get_attr_def(interpreter, attr_name).parameters = list(

@@ -364,8 +364,8 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
     assert inst_op.arg_names.data == (StringAttr("foo"), StringAttr("bar"))
     assert inst_op.result_names.data == (StringAttr("baz"), StringAttr("qux"))
 
-    assert [op.type for op in inst_op.operands] == [i32, i64]
-    assert [res.type for res in inst_op.results] == [i32, i64]
+    assert inst_op.operand_types == (i32, i64)
+    assert inst_op.result_types == (i32, i64)
 
 
 def test_hwmoduleop_hwmodulelike():

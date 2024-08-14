@@ -95,7 +95,6 @@ class FortranVariableFlags(Enum):
 
 @dataclass(frozen=True)
 class FortranVariableFlagsAttrBase(Data[tuple[FortranVariableFlags, ...]]):
-
     @property
     def flags(self) -> set[FortranVariableFlags]:
         """
