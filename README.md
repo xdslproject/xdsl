@@ -116,7 +116,7 @@ make tests
 
 ### Formatting and Typechecking
 
-All python code used in xDSL uses [black](https://github.com/psf/black) to
+All python code used in xDSL uses [ruff](https://docs.astral.sh/ruff/formatter/) to
 format the code in a uniform manner.
 
 To automate the formatting, we use pre-commit hooks from the
@@ -127,8 +127,8 @@ To automate the formatting, we use pre-commit hooks from the
 make precommit-install
 # to run the hooks:
 make precommit
-# alternatively, running black on all staged files:
-make black  # or simply black $(git diff --staged --name-only)
+# alternatively, run ruff directly:
+ruff format
 ```
 
 Furthermore, all python code must run through [pyright](https://github.com/microsoft/pyright)
