@@ -7,17 +7,19 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 """
 
 import abc
-from typing import Annotated
+from typing import Annotated, cast
 
-from xdsl.dialects.builtin import AnyTensorType
+from xdsl.dialects.builtin import AnyTensorType, DenseArrayBase, TensorType
 from xdsl.ir import Attribute, Dialect, SSAValue
 from xdsl.irdl import (
     ConstraintVar,
     IRDLOperation,
+    attr_def,
     irdl_op_definition,
     operand_def,
     result_def,
 )
+from xdsl.utils.exceptions import VerifyException
 
 # region Abstract Base Classes
 
@@ -126,6 +128,61 @@ class SubtractOp(ElementwiseBinaryOperation):
     name = "stablehlo.subtract"
 
 
+@irdl_op_definition
+class TransposeOp(IRDLOperation):
+    """
+    Permutes the dimensions of `operand` tensor using `permutation` and produces a
+    `result` tensor. More formally, `result[result_index] = operand[operand_index]`
+    where `result_index[d] = operand_index[permutation[d]]`.
+
+    https://github.com/openxla/stablehlo/blob/main/docs/spec.md#transpose
+    """
+
+    name = "stablehlo.transpose"
+
+    ElementType = Annotated[Attribute, ConstraintVar("ElementType")]
+
+    operand = operand_def(TensorType[ElementType])
+    result = result_def(TensorType[ElementType])
+    permutation = attr_def(DenseArrayBase)
+
+    def __init__(
+        self, operand: SSAValue, permutation: DenseArrayBase, result_type: Attribute
+    ):
+        super().__init__(
+            operands=(operand,),
+            result_types=(result_type,),
+            attributes={"permutation": permutation},
+        )
+
+    def get_permutation(self) -> tuple[int, ...]:
+        return cast(tuple[int, ...], self.permutation.as_tuple())
+
+    def verify_(self) -> None:
+        # Operand and result types are checked before the custom `verify_`
+        o_type = cast(TensorType[Attribute], self.operand.type)
+        r_type = cast(TensorType[Attribute], self.result.type)
+
+        o_shape = o_type.get_shape()
+        r_shape = r_type.get_shape()
+
+        # TODO: C1 - quantization
+        # C2: `permutation` is a permutation of `range(rank(operand))`
+        permutation = self.get_permutation()
+        if sorted(permutation) != list(range(len(o_shape))):
+            raise VerifyException(
+                f"Permutation {permutation} of transpose must be a permutation of "
+                f"range({len(o_shape)})"
+            )
+
+        # C3: `shape(result) = dim(operand, permutation...)`
+        for i, dim in enumerate(permutation):
+            if r_shape[i] != o_shape[dim]:
+                raise VerifyException(
+                    f"Permutation mismatch at dimension {i}, expected {o_shape[dim]}"
+                )
+
+
 StableHLO = Dialect(
     "stablehlo",
     [
@@ -133,6 +190,7 @@ StableHLO = Dialect(
         AddOp,
         MultiplyOp,
         SubtractOp,
+        TransposeOp,
     ],
     [],
 )
