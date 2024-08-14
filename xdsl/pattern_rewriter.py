@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import inspect
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import TypeVar, Union, final, get_args, get_origin
+from typing import (
+    Annotated,
+    Any,
+    TypeVar,
+    Union,
+    final,
+    get_args,
+    get_origin,
+)
 
 from typing_extensions import deprecated
 
@@ -75,6 +84,35 @@ class PatternRewriterListener(BuilderListener):
             )
 
 
+class _ModifyOpInPlaceWrapper:
+    _op: Operation
+    rebuild_result_types: Sequence[Attribute]
+
+    def __init__(self, op: Operation):
+        self.__dict__["_op"] = op
+        self.__dict__["rebuild_result_types"] = []
+
+    def __getattr__(self, __name: str):
+        if hasattr(self._op, __name):
+            return getattr(self._op, __name)
+        else:
+            raise AttributeError(f"No such field/method: {__name}")
+
+    def __setattr__(self, name: str, value: Any):
+        if name == "result_types":
+            self.__dict__["rebuild_result_types"] = value
+            return
+        if not hasattr(self._op, name):
+            raise AttributeError(f"No such field/method: {name}")
+
+
+_ModifyOpInPlaceT = TypeVar("_ModifyOpInPlaceT", bound=Operation)
+
+
+class _AssignableResultTypes:
+    result_types: Sequence[Attribute]
+
+
 @dataclass(eq=False)
 class PatternRewriter(PatternRewriterListener):
     """
@@ -88,6 +126,30 @@ class PatternRewriter(PatternRewriterListener):
 
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
+
+    @contextmanager
+    def modify_op_in_place(
+        self,
+        op: _ModifyOpInPlaceT,  # pyright: ignore [reportInvalidTypeVarUse]
+    ) -> Generator[Annotated[_AssignableResultTypes, _ModifyOpInPlaceT], None, None]:
+        wrap = _ModifyOpInPlaceWrapper(op)
+        try:
+            yield wrap  # pyright: ignore [reportGeneralTypeIssues]
+        finally:
+            # always assume changes
+            self.has_done_action = True
+            if wrap.rebuild_result_types:
+                new_op = op.create(
+                    operands=op.operands,
+                    result_types=wrap.rebuild_result_types,
+                    # No need to copy the properties, attributes, regions: we replace the
+                    # original op so it won't use them anymore!
+                    properties=op.properties,
+                    attributes=op.attributes,
+                    successors=op.successors,
+                    regions=tuple(op.detach_region(0) for _ in op.regions),
+                )
+                self.replace_op(op, new_op)
 
     def update_op(
         self,
