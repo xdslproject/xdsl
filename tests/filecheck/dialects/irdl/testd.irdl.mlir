@@ -144,5 +144,25 @@ builtin.module {
       irdl.operands(%0, single %0, optional %0, variadic %0)
       irdl.results(%0, single %0, optional %0, variadic %0)
     }
+
+    // CHECK:      irdl.operation @op_with_regions {
+    // CHECK-NEXT:   %{{.*}} = irdl.region
+    // CHECK-NEXT:   %{{.*}} = irdl.region()
+    // CHECK-NEXT:   %{{.*}} = irdl.is i32
+    // CHECK-NEXT:   %{{.*}} = irdl.is i64
+    // CHECK-NEXT:   %{{.*}} = irdl.region(%{{.*}}, %{{.*}})
+    // CHECK-NEXT:   %{{.*}} = irdl.region with size 3
+    // CHECK-NEXT:   irdl.regions(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}})
+    // CHECK-NEXT: }
+    irdl.operation @op_with_regions {
+      %r0 = irdl.region
+      %r1 = irdl.region()
+      %v0 = irdl.is i32
+      %v1 = irdl.is i64
+      %r2 = irdl.region(%v0, %v1)
+      %r3 = irdl.region with size 3
+
+      irdl.regions(%r0, %r1, %r2, %r3)
+    }
   }
 }

@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from types import NoneType
 from typing import ClassVar
 
-from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr
+from xdsl.dialects.builtin import (
+    I32,
+    ArrayAttr,
+    IntegerAttr,
+    StringAttr,
+    SymbolRefAttr,
+    UnitAttr,
+)
 from xdsl.ir import (
     Attribute,
     Block,
@@ -93,6 +101,13 @@ class AttributeType(ParametrizedAttribute, TypeAttribute):
     """Type of a attribute handle."""
 
     name = "irdl.attribute"
+
+
+@irdl_attr_definition
+class RegionType(ParametrizedAttribute, TypeAttribute):
+    """IRDL handle to a region definition"""
+
+    name = "irdl.region"
 
 
 @irdl_op_definition
@@ -379,6 +394,20 @@ class ResultsOp(IRDLOperation):
         printer.print(")")
 
 
+@irdl_op_definition
+class RegionsOp(IRDLOperation):
+    """Define the regions of an operation"""
+
+    name = "irdl.regions"
+
+    args = var_operand_def(RegionType())
+
+    assembly_format = "`(` $args `)` attr-dict"
+
+    def __init__(self, args: Sequence[SSAValue]):
+        super().__init__(operands=args)
+
+
 ################################################################################
 # Attribute constraints                                                        #
 ################################################################################
@@ -499,6 +528,45 @@ class ParametricOp(IRDLOperation):
 
 
 @irdl_op_definition
+class RegionOp(IRDLOperation):
+    """Define a region of an operation"""
+
+    name = "irdl.region"
+
+    entry_block_args = var_operand_def(AttributeType())
+
+    constrained_arguments = opt_attr_def(UnitAttr)
+
+    number_of_blocks = opt_attr_def(IntegerAttr[I32])
+
+    output = result_def(RegionType())
+
+    assembly_format = (
+        "(`(` $entry_block_args $constrained_arguments^ `)`)?"
+        "(`with` `size` $number_of_blocks^)? attr-dict"
+    )
+
+    def __init__(
+        self,
+        number_of_blocks: IntegerAttr[I32],
+        entry_block_args: Sequence[SSAValue],
+        constrained_arguments: UnitAttr | NoneType = None,
+    ):
+        attributes: dict[str, Attribute] = {
+            "number_of_blocks": number_of_blocks,
+        }
+        if isinstance(constrained_arguments, UnitAttr):
+            attributes["constrained_arguments"] = constrained_arguments
+        super().__init__(operands=entry_block_args, attributes=attributes)
+
+    def verify_(self) -> None:
+        if len(self.entry_block_args) > 0 and not self.constrained_arguments:
+            raise VerifyException(
+                "constrained_arguments must be set when specifying arguments"
+            )
+
+
+@irdl_op_definition
 class AnyOp(IRDLOperation):
     """Constraint an attribute/type to be any attribute/type instance."""
 
@@ -579,14 +647,17 @@ IRDL = Dialect(
         OperationOp,
         OperandsOp,
         ResultsOp,
+        RegionsOp,
         IsOp,
         ParametricOp,
+        RegionOp,
         AnyOp,
         AnyOfOp,
         AllOfOp,
     ],
     [
         AttributeType,
+        RegionType,
         VariadicityAttr,
         VariadicityArrayAttr,
     ],
