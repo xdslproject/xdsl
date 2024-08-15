@@ -424,7 +424,7 @@ class CallableOpInterface(OpTrait, abc.ABC):
 
 
 @dataclass(frozen=True)
-class HasCanonicalisationPatternsTrait(OpTrait):
+class HasCanonicalizationPatternsTrait(OpTrait):
     """
     Provides the rewrite passes to canonicalize an operation.
 
