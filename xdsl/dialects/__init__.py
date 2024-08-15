@@ -258,6 +258,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Stencil
 
+    def get_stim():
+        from xdsl.dialects.stim import Stim
+
     def get_stream():
         from xdsl.dialects.stream import Stream
 
