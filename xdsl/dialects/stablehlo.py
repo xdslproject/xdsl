@@ -166,8 +166,8 @@ class TransposeOp(IRDLOperation):
         o_shape = o_type.get_shape()
         r_shape = r_type.get_shape()
 
-        # TODO: C1 - quantization
-        # C2: `permutation` is a permutation of `range(rank(operand))`
+        # TODO: Quantization constraints
+        # `permutation` is a permutation of `range(rank(operand))`
         permutation = self.get_permutation()
         if sorted(permutation) != list(range(len(o_shape))):
             raise VerifyException(
@@ -175,7 +175,7 @@ class TransposeOp(IRDLOperation):
                 f"range({len(o_shape)})"
             )
 
-        # C3: `shape(result) = dim(operand, permutation...)`
+        # `shape(result) = dim(operand, permutation...)`
         for i, dim in enumerate(permutation):
             if r_shape[i] != o_shape[dim]:
                 raise VerifyException(
