@@ -1,9 +1,18 @@
 from dataclasses import dataclass
 
 from xdsl.context import MLContext
-from xdsl.dialects import linalg
-from xdsl.dialects.builtin import AnyMemRefType, Float16Type, Float32Type, ModuleOp
+from xdsl.dialects import arith, linalg
+from xdsl.dialects.builtin import (
+    AnyFloatAttr,
+    AnyIntegerAttr,
+    AnyMemRefType,
+    DenseIntOrFPElementsAttr,
+    Float16Type,
+    Float32Type,
+    ModuleOp,
+)
 from xdsl.dialects.csl import csl
+from xdsl.ir import OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -12,6 +21,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
@@ -40,17 +50,34 @@ class ConvertBinaryLinalgOp(RewritePattern):
                     f"Unsupported element type {op.outputs.types[0].get_element_type()}"
                 )
 
-        rewriter.replace_matched_op(
-            builtin(
-                operands=[
-                    [
-                        op.outputs[0],
-                        op.inputs[0],
-                        op.inputs[1],
-                    ]
-                ]
+        lhs = op.inputs[0]
+        rhs = op.inputs[1]
+
+        # binary functions translated here support mixing scalar and collection operands
+        # may need revisiting if more functions are translated
+        if scalar_const := self._get_scalar_const(lhs):
+            rewriter.insert_op(
+                const_op := arith.Constant(scalar_const), InsertPoint.before(op)
             )
-        )
+            lhs = const_op.result
+        elif scalar_const := self._get_scalar_const(rhs):
+            rewriter.insert_op(
+                const_op := arith.Constant(scalar_const), InsertPoint.before(op)
+            )
+            rhs = const_op.result
+
+        rewriter.replace_matched_op(builtin(operands=[[op.outputs[0], lhs, rhs]]))
+
+    @staticmethod
+    def _get_scalar_const(op: SSAValue) -> AnyFloatAttr | AnyIntegerAttr | None:
+        """Returns the value of a scalar arith.constant, or None if not a constant or not scalar)."""
+        if (
+            isinstance(op, OpResult)
+            and isinstance(op.op, arith.Constant)
+            and isa(val := op.op.value, DenseIntOrFPElementsAttr)
+            and val.data.data.count(val.data.data[0]) == len(val.data.data)
+        ):
+            return val.data.data[0]
 
 
 class ConvertLinalgAddPass(ConvertBinaryLinalgOp):
