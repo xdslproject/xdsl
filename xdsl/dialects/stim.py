@@ -1,22 +1,11 @@
-from xdsl.dialects.builtin import (
-    AnyMemRefType,
-    BoolAttr,
-    StringAttr,
-    IntegerAttr,
-    MemRefType,
-)
+
+from xdsl.ir.core import Dialect, Region
 
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
-    base,
-    irdl_attr_definition,
     irdl_op_definition,
-    operand_def,
-    prop_def,
-    result_def,
-    var_operand_def,
 )
+from xdsl.irdl.operations import region_def
 
 @irdl_op_definition
 class StimModuleOp(IRDLOperation):
@@ -30,8 +19,8 @@ class StimModuleOp(IRDLOperation):
 
     assembly_format = "$body attr-dict"
 
-    def __init__(self, body: body):
-        super().__init__(body=[body])
+    def __init__(self, body: Region):
+        super().__init__(regions =[body])
 
 Stim = Dialect(
     "stim",
