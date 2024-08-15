@@ -48,7 +48,6 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-
         attr_dict = parser.parse_optional_attr_dict_with_keyword()
 
         op = cls()
@@ -59,7 +58,6 @@ class WasmModule(IRDLOperation, WasmBinaryEncodable, WatPrintable):
         return op
 
     def print(self, printer: Printer):
-
         attr_dict = self.attributes
 
         if attr_dict:

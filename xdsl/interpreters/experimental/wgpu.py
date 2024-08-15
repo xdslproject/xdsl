@@ -2,8 +2,8 @@ from collections.abc import Sequence
 from io import StringIO
 from typing import Any, cast
 
-import wgpu  # pyright: ignore
-import wgpu.utils  # pyright: ignore
+import wgpu  # pyright: ignore[reportMissingTypeStubs]
+import wgpu.utils  # pyright: ignore[reportMissingTypeStubs]
 
 from xdsl.dialects import gpu
 from xdsl.dialects.builtin import IndexType
@@ -62,7 +62,11 @@ class WGPUFunctions(InterpreterFunctions):
             bindings.append(
                 {
                     "binding": i,
-                    "resource": {"buffer": buffer, "offset": 0, "size": buffer.size},
+                    "resource": {
+                        "buffer": buffer,
+                        "offset": 0,
+                        "size": buffer.size,  # pyright: ignore
+                    },
                 }
             )
 
@@ -96,7 +100,7 @@ class WGPUFunctions(InterpreterFunctions):
                 "Only synchronous, known-sized gpu.alloc implemented yet."
             )
         memref_type = cast(MemRefType[Attribute], op.result.type)
-        match (memref_type.element_type):
+        match memref_type.element_type:
             case IndexType():
                 element_size = 4
             case _:
@@ -130,17 +134,18 @@ class WGPUFunctions(InterpreterFunctions):
 
         # Get device/source view
         memview = cast(
-            memoryview, self.device.queue.read_buffer(src)  # pyright: ignore
+            memoryview,
+            self.device.queue.read_buffer(src),  # pyright: ignore
         )
         dst_type = cast(MemRefType[Attribute], op.dst.type)
-        match (dst_type.element_type):
+        match dst_type.element_type:
             case IndexType():
                 format = "I"
             case _:
                 raise NotImplementedError(
                     f"copy for element type {dst_type.element_type} not yet implemented."
                 )
-        memview = memview.cast(format, dst_type.get_shape())
+        memview = memview.cast(format, dst_type.get_shape())  # pyright: ignore
         for index in dst.indices():
             dst.store(index, memview.__getitem__(index))  # pyright: ignore
         return ()
@@ -191,7 +196,8 @@ class WGPUFunctions(InterpreterFunctions):
             bind_group_layouts=[bind_group_layout]
         )
         bind_group = device.create_bind_group(  # pyright: ignore
-            layout=bind_group_layout, entries=bindings  # pyright: ignore
+            layout=bind_group_layout,  # pyright: ignore
+            entries=bindings,
         )
 
         # Create and run the pipeline

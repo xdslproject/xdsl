@@ -552,9 +552,7 @@ class VariadicOperandTypeDirective(
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_list(
-            (o.type for o in getattr(op, self.name)), printer.print_attribute
-        )
+        printer.print_list(getattr(op, self.name).types, printer.print_attribute)
         state.last_was_punctuation = False
         state.should_emit_space = True
 
@@ -694,9 +692,7 @@ class VariadicResultTypeDirective(
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
-        printer.print_list(
-            (r.type for r in getattr(op, self.name)), printer.print_attribute
-        )
+        printer.print_list(getattr(op, self.name).types, printer.print_attribute)
         state.last_was_punctuation = False
         state.should_emit_space = True
 

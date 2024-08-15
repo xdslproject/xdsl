@@ -221,14 +221,14 @@ class Generic(IRDLOperation):
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         extra_attrs = self.attributes.copy()
@@ -485,7 +485,6 @@ class NamedOpBase(IRDLOperation, ABC):
         return cls(ins, outs, res_types, attrs)
 
     def print(self, printer: Printer):
-
         extra_attrs = self.attributes.copy()
         if "indexing_maps" in extra_attrs:
             del extra_attrs["indexing_maps"]
@@ -504,14 +503,14 @@ class NamedOpBase(IRDLOperation, ABC):
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if extra_attrs and not self.PRINT_ATTRS_IN_FRONT:
@@ -752,7 +751,6 @@ class TransposeOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-
         assert isinstance(input_type := self.input.type, TensorType | MemRefType)
         assert isinstance(init_type := self.init.type, TensorType | MemRefType)
 
@@ -1084,7 +1082,6 @@ class BroadcastOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-
         assert isinstance(input_type := self.input.type, TensorType | MemRefType)
         assert isinstance(init_type := self.init.type, TensorType | MemRefType)
 

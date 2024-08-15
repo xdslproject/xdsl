@@ -133,5 +133,16 @@ builtin.module {
       %2 = irdl.any_of(%0, %1)
       irdl.results(%2, %2)
     }
+
+    // CHECK:      irdl.operation @variadicity {
+    // CHECK-NEXT:   %{{.*}} = irdl.any
+    // CHECK-NEXT:   irdl.operands(%{{.*}}, %{{.*}}, optional %{{.*}}, variadic %{{.*}})
+    // CHECK-NEXT:   irdl.results(%{{.*}}, %{{.*}}, optional %{{.*}}, variadic %{{.*}})
+    // CHECK-NEXT: }
+    irdl.operation @variadicity {
+      %0 = irdl.any
+      irdl.operands(%0, single %0, optional %0, variadic %0)
+      irdl.results(%0, single %0, optional %0, variadic %0)
+    }
   }
 }

@@ -91,6 +91,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return common_subexpression_elimination.CommonSubexpressionElimination
 
+    def get_csl_stencil_bufferize():
+        from xdsl.transforms import csl_stencil_bufferize
+
+        return csl_stencil_bufferize.CslStencilBufferize
+
     def get_csl_stencil_to_csl_wrapper():
         from xdsl.transforms import csl_stencil_to_csl_wrapper
 
@@ -392,6 +397,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
+        "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
