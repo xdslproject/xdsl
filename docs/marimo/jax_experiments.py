@@ -100,5 +100,17 @@ def __():
     return PassManager, get_linalg_module_str, mhlo, mlir
 
 
+@app.cell
+def __():
+    from jax import make_jaxpr
+    return make_jaxpr,
+
+
+@app.cell
+def __(make_jaxpr, matmul, matmul_data):
+    type(make_jaxpr(matmul)(*matmul_data))
+    return
+
+
 if __name__ == "__main__":
     app.run()
