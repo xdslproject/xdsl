@@ -627,7 +627,7 @@ class Printer:
             assert shape is not None, "If shape is complete, then it cannot be None"
             if len(data) == 0:
                 pass
-            elif data.count(data[0]) == len(data):
+            elif attribute.is_splat or data.count(data[0]) == len(data):
                 print_one_elem(data[0])
             else:
                 print_dense_list(data, shape)

@@ -757,7 +757,7 @@ class AttrParser(BaseParser):
         if len(data_values) == 1:
             # Splat attribute case, same value everywhere,
             # Emit values repeatedly and emit empty shape
-            return [data_values[0]] * math.prod(type.get_shape()), []
+            return [data_values[0]], []
         return data_values, [num_chunks]
 
     def _parse_dense_literal_type(
@@ -842,7 +842,7 @@ class AttrParser(BaseParser):
                 value.to_type(self, type.element_type) for value in dense_values
             ]
             # Elements from _parse_tensor_literal need to be converted to values.
-            if shape:
+            if shape and len(data_values) > 1:
                 # Check that the shape matches the data when given a shaped data.
                 # For splat attributes any shape is fine
                 if type_shape != shape:
@@ -852,7 +852,6 @@ class AttrParser(BaseParser):
                     )
             else:
                 assert len(data_values) == 1, "Fatal error in parser"
-                data_values *= type_num_values
 
         return DenseIntOrFPElementsAttr.from_list(type, data_values)
 

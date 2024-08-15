@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -70,6 +71,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.isattr import isattr
 
 if TYPE_CHECKING:
@@ -1616,7 +1618,7 @@ class DenseIntOrFPElementsAttr(
         | RankedStructure[IndexType]
         | RankedStructure[AnyFloat]
     ]
-    data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
+    _data: ParameterDef[ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]]
 
     # The type stores the shape data
     def get_shape(self) -> tuple[int, ...] | None:
@@ -1626,6 +1628,32 @@ class DenseIntOrFPElementsAttr(
 
     def get_element_type(self) -> IntegerType | IndexType | AnyFloat:
         return self.type.get_element_type()
+
+    @property
+    def data(self) -> ArrayAttr[AnyIntegerAttr] | ArrayAttr[AnyFloatAttr]:
+        # todo this function exists for backwards compatibility in dealing with splat values
+        if splat := self.get_single_element():
+            if isa(self._data, ArrayAttr[AnyIntegerAttr]):
+                return ArrayAttr[AnyIntegerAttr](
+                    cast(
+                        Iterable[AnyIntegerAttr],
+                        [splat] * math.prod(self.type.get_shape()),
+                    )
+                )
+            return ArrayAttr[AnyFloatAttr](
+                cast(Iterable[AnyFloatAttr], [splat] * math.prod(self.type.get_shape()))
+            )
+        else:
+            return self._data
+
+    @property
+    def is_splat(self) -> bool:
+        return len(self._data) == 1
+
+    def get_single_element(self) -> AnyIntegerAttr | AnyFloatAttr | None:
+        """If `data` is a single element, return it, otherwise return None."""
+        if self.is_splat:
+            return self._data.data[0]
 
     @property
     def shape_is_complete(self) -> bool:
@@ -1641,7 +1669,7 @@ class DenseIntOrFPElementsAttr(
             n *= dim
 
         # Product of dimensions needs to equal length
-        return n == len(self.data.data)
+        return self.is_splat or n == len(self._data.data)
 
     @staticmethod
     def create_dense_index(

@@ -75,9 +75,9 @@ class ConvertBinaryLinalgOp(RewritePattern):
             isinstance(op, OpResult)
             and isinstance(op.op, arith.Constant)
             and isa(val := op.op.value, DenseIntOrFPElementsAttr)
-            and val.data.data.count(val.data.data[0]) == len(val.data.data)
+            and (single_element := val.get_single_element())
         ):
-            return val.data.data[0]
+            return single_element
 
 
 class ConvertLinalgAddPass(ConvertBinaryLinalgOp):

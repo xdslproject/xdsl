@@ -142,11 +142,10 @@ class CslPrintContext:
             case UnitAttr():
                 return ""
             case DenseIntOrFPElementsAttr():
-                data = init.data.data
                 assert (
-                    len(data) == 1
-                ), f"Memref global initialiser has to have 1 value, got {len(data)}"
-                return f" = @constants({type}, {self.attribute_value_to_str(data[0])})"
+                    data := init.get_single_element()
+                ), "Memref global initialiser has to have a single value"
+                return f" = @constants({type}, {self.attribute_value_to_str(data)})"
             case other:
                 return f"<unknown memref.global init type {other}>"
 
