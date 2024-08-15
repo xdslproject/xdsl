@@ -260,7 +260,7 @@ class ApplyNativeRewriteOp(IRDLOperation):
         printer.print(")")
         if len(self.results) != 0:
             printer.print(" : ")
-            printer.print_list([res.type for res in self.results], printer.print)
+            printer.print_list(self.result_types, printer.print)
 
 
 @irdl_op_definition

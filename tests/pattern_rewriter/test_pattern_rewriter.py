@@ -1075,7 +1075,7 @@ def test_move_region_contents_to_new_regions():
             old_op = next(ops_iter)
             assert isinstance(old_op, test.TestOp)
             new_region = rewriter.move_region_contents_to_new_regions(old_op.regions[0])
-            res_types = [r.type for r in old_op.results]
+            res_types = old_op.result_types
             new_op = test.TestOp.create(result_types=res_types, regions=[new_region])
             rewriter.insert_op(new_op, InsertPoint.after(old_op))
 
@@ -1611,7 +1611,6 @@ def test_type_conversion():
 
 
 def test_recursive_type_conversion_in_regions():
-
     prog = """\
 "builtin.module"() ({
   "func.func"() <{"function_type" = (memref<2x4xui16>) -> (), "sym_name" = "main", "sym_visibility" = "private"}> ({
@@ -1630,7 +1629,6 @@ def test_recursive_type_conversion_in_regions():
 """
 
     class IndexConversion(TypeConversionPattern):
-
         @attr_type_rewrite_pattern
         def convert_type(self, typ: IntegerType) -> IndexType:
             return IndexType()
@@ -1672,7 +1670,6 @@ def test_no_change():
 
 
 def test_error():
-
     prog = """\
 builtin.module {
   "test.op"() {"erroneous" = false} : () -> ()

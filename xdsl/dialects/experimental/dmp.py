@@ -101,7 +101,7 @@ class ExchangeDeclarationAttr(ParametrizedAttribute):
         dir_sign: Literal[1, -1],
         neighbor_offset: int = 1,
     ):
-        sizes = tuple(e - s for s, e, in points)
+        sizes = tuple(e - s for s, e in points)
         return cls(
             # get starting points
             tuple(s for s, _ in points),

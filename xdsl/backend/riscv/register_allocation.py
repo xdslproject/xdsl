@@ -270,7 +270,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         self.allocate(loop.step)
 
         # Reserve the loop carried variables for allocation within the body
-        regs = tuple(arg.type for arg in loop.iter_args)
+        regs = loop.iter_args.types
         assert all(isinstance(reg, IntRegisterType | FloatRegisterType) for reg in regs)
         regs = cast(tuple[IntRegisterType | FloatRegisterType], regs)
         with self.available_registers.reserve_registers(regs):
@@ -310,7 +310,7 @@ class RegisterAllocatorLivenessBlockNaive(RegisterAllocator):
         self.allocate(loop.max_rep)
 
         # Reserve the loop carried variables for allocation within the body
-        regs = tuple(arg.type for arg in loop.iter_args)
+        regs = loop.iter_args.types
         assert all(isinstance(reg, IntRegisterType | FloatRegisterType) for reg in regs)
         regs = cast(tuple[IntRegisterType | FloatRegisterType], regs)
         with self.available_registers.reserve_registers(regs):

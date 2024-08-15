@@ -142,7 +142,6 @@ class Store(IRDLOperation):
 
 
 class AllocOpHasCanonicalizationPatterns(HasCanonicalisationPatternsTrait):
-
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import ElideUnusedAlloc
@@ -298,7 +297,7 @@ class AllocaScopeReturnOp(IRDLOperation):
 
     def verify_(self) -> None:
         parent = cast(AllocaScopeOp, self.parent_op())
-        if any(op.type != res.type for op, res in zip(self.ops, parent.results)):
+        if self.ops.types != parent.result_types:
             raise VerifyException(
                 "Expected operand types to match parent's return types."
             )
@@ -603,7 +602,6 @@ class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
 
 @irdl_op_definition
 class Subview(IRDLOperation):
-
     DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
     """
     Constant value used to denote dynamic indices in offsets, sizes, and strides.

@@ -266,7 +266,6 @@ def prepare_apply_body(op: ApplyOp):
 
 @dataclass
 class BufferOpToMemref(RewritePattern):
-
     return_targets: dict[ApplyOp, list[SSAValue | None]]
 
     @op_type_rewrite_pattern

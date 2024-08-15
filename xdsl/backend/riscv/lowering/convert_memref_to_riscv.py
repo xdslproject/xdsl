@@ -39,7 +39,6 @@ from xdsl.utils.exceptions import DiagnosticException
 
 
 class ConvertMemrefAllocOp(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Alloc, rewriter: PatternRewriter) -> None:
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
@@ -322,7 +321,6 @@ class ConvertMemrefGetGlobalOp(RewritePattern):
 
 
 class ConvertMemrefSubviewOp(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.Subview, rewriter: PatternRewriter):
         # Assumes that the operation is valid, meaning that the subview is indeed a

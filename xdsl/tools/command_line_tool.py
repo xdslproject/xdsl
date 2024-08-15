@@ -91,6 +91,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return common_subexpression_elimination.CommonSubexpressionElimination
 
+    def get_csl_stencil_bufferize():
+        from xdsl.transforms import csl_stencil_bufferize
+
+        return csl_stencil_bufferize.CslStencilBufferize
+
     def get_csl_stencil_to_csl_wrapper():
         from xdsl.transforms import csl_stencil_to_csl_wrapper
 
@@ -135,6 +140,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms.lift_arith_to_linalg import LiftArithToLinalg
 
         return LiftArithToLinalg
+
+    def get_linalg_to_csl():
+        from xdsl.transforms.linalg_to_csl import LinalgToCsl
+
+        return LinalgToCsl
 
     def get_lower_affine():
         from xdsl.transforms import lower_affine
@@ -392,6 +402,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
+        "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
@@ -403,6 +414,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
+        "linalg-to-csl": get_linalg_to_csl,
         "lower-affine": get_lower_affine,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,

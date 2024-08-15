@@ -30,9 +30,9 @@ class AddArguments(Screen[str | None]):
 
     def on_mount(self) -> None:
         """Configure widgets in this application before it is first shown."""
-        self.query_one("#argument_text_area").border_title = (
-            "Provide arguments to apply to selected pass."
-        )
+        self.query_one(
+            "#argument_text_area"
+        ).border_title = "Provide arguments to apply to selected pass."
 
     @on(Button.Pressed, "#quit_screen_button")
     def exit_screen(self, event: Button.Pressed) -> None:

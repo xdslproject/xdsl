@@ -165,9 +165,7 @@ class ElementwiseBinOpBase(IRDLOperation, ABC):
             or not isinstance(rhs_type := self.rhs.type, TensorType)
             or not isinstance(res_type := self.res.type, TensorType)
         ):
-            assert (
-                False
-            ), "onnx elementwise binary operation operands and result must be of type TensorType"
+            assert False, "onnx elementwise binary operation operands and result must be of type TensorType"
         lhs_type = cast(TensorType[Attribute], lhs_type)
         rhs_type = cast(TensorType[Attribute], rhs_type)
         res_type = cast(TensorType[Attribute], res_type)
@@ -284,9 +282,7 @@ class Gemm(IRDLOperation):
             or not isinstance(tensor_c_type := self.tensor_c.type, TensorType)
             or not isinstance(res_tensor_type := self.res_tensor.type, TensorType)
         ):
-            assert (
-                False
-            ), "onnx elementwise operation operands and result must be of type TensorType"
+            assert False, "onnx elementwise operation operands and result must be of type TensorType"
 
         tensor_a_type = cast(TensorType[Attribute], tensor_a_type)
         tensor_b_type = cast(TensorType[Attribute], tensor_b_type)
@@ -371,9 +367,7 @@ class Reshape(IRDLOperation):
             or not isinstance(shape_type := self.shape.type, TensorType)
             or not isinstance(reshaped_type := self.reshaped.type, TensorType)
         ):
-            assert (
-                False
-            ), "onnx elementwise operation operands and result must be of type TensorType"
+            assert False, "onnx elementwise operation operands and result must be of type TensorType"
 
         data_type = cast(TensorType[Attribute], data_type)
         reshaped_type = cast(TensorType[Attribute], reshaped_type)
@@ -965,16 +959,13 @@ class Transpose(IRDLOperation):
         if not isinstance(
             tensor_input_type := self.tensor_input.type, TensorType
         ) or not isinstance(tensor_output_type := self.tensor_output.type, TensorType):
-            assert (
-                False
-            ), "onnx elementwise operation operands and result must be of type TensorType"
+            assert False, "onnx elementwise operation operands and result must be of type TensorType"
 
         tensor_input_shape = tensor_input_type.get_shape()
         tensor_output_shape = tensor_output_type.get_shape()
 
         # numbers in perm cannot be repeated
         if self.perm is not None:
-
             for _, int_attr in enumerate(self.perm.data):
                 attr_value = int_attr.value.data
                 count = self.perm.data.count(int_attr)
@@ -1051,9 +1042,7 @@ class Squeeze(IRDLOperation):
 
     def verify_(self) -> None:
         if not isinstance(input_tensor_type := self.input_tensor.type, TensorType):
-            assert (
-                False
-            ), "onnx elementwise operation operands and result must be of type TensorType"
+            assert False, "onnx elementwise operation operands and result must be of type TensorType"
 
         input_tensor_shape = input_tensor_type.get_shape()
 
@@ -1105,9 +1094,7 @@ class Sigmoid(IRDLOperation):
         if not isinstance(
             input_tensor_type := self.input_tensor.type, TensorType
         ) or not isinstance(output_tensor_type := self.output_tensor.type, TensorType):
-            assert (
-                False
-            ), "onnx elementwise operation operands and result must be of type TensorType"
+            assert False, "onnx elementwise operation operands and result must be of type TensorType"
 
         input_tensor_shape = input_tensor_type.get_shape()
         output_tensor_shape = output_tensor_type.get_shape()

@@ -42,7 +42,7 @@ class OperationInfo:
                 self.name,
                 sum(hash(i) for i in self.op.attributes.items()),
                 sum(hash(i) for i in self.op.properties.items()),
-                hash(tuple(i.type for i in self.op.results)),
+                hash(self.op.result_types),
                 hash(self.op.operands),
             )
         )
@@ -55,12 +55,10 @@ class OperationInfo:
             and self.op.attributes == other.op.attributes
             and self.op.properties == other.op.properties
             and self.op.operands == other.op.operands
-            and len(self.op.results) == len(other.op.results)
-            and all(r.type == o.type for r, o in zip(self.op.results, other.op.results))
-            and len(self.op.regions) == len(other.op.regions)
+            and self.op.result_types == other.op.result_types
             and all(
                 s.is_structurally_equivalent(o)
-                for s, o in zip(self.op.regions, other.op.regions)
+                for s, o in zip(self.op.regions, other.op.regions, strict=True)
             )
         )
 
@@ -200,7 +198,6 @@ class CSEDriver:
 
         # If we know the operation is side-effect free, we can just replace it
         if existing := self._known_ops.get(op):
-
             self._replace_and_delete(op, existing)
             return
 
@@ -210,7 +207,6 @@ class CSEDriver:
 
     def _simplify_block(self, block: Block):
         for op in block.ops:
-
             if op.regions:
                 might_be_isolated = isinstance(op, UnregisteredOp) or (
                     op.get_trait(IsolatedFromAbove) is not None
@@ -235,7 +231,6 @@ class CSEDriver:
             return
 
         if len(region.blocks) == 1:
-
             old_scope = self._known_ops
             self._known_ops = KnownOps(self._known_ops)
 

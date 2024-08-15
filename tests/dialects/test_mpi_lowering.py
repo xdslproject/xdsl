@@ -101,7 +101,7 @@ def test_lower_mpi_wait_with_status():
     assert call.callee.string_value() == "MPI_Wait"
     assert len(call.arguments) == 2
     assert isinstance(call.arguments[1], OpResult)
-    assert isinstance(call.arguments[1].op, llvm.AllocaOp)
+    assert isinstance(call.arguments[1].owner, llvm.AllocaOp)
 
 
 def test_lower_mpi_comm_rank():

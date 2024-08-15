@@ -202,7 +202,6 @@ def materialize_loop(
 
 @dataclass(frozen=True)
 class TileGenericPattern(RewritePattern):
-
     target_rank: int = field()
 
     @op_type_rewrite_pattern

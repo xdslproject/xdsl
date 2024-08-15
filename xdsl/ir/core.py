@@ -61,6 +61,15 @@ class Dialect:
     def name(self) -> str:
         return self._name
 
+    @staticmethod
+    def split_name(name: str) -> tuple[str, str]:
+        try:
+            names = name.split(".", 1)
+            first, second = names
+            return (first, second)
+        except ValueError as e:
+            raise ValueError(f"Invalid operation or attribute name {name}.") from e
+
 
 @dataclass(frozen=True)
 class Use:
@@ -341,6 +350,43 @@ class Data(Generic[DataElement], Attribute, ABC):
 EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
+def _check_enum_constraints(
+    enum_class: type[EnumAttribute[EnumType] | BitEnumAttribute[EnumType]],
+) -> None:
+    """
+    This hook first checks two constraints, enforced to keep the implementation
+    reasonable, until more complex use cases appear. It then stores the Enum type
+    used by the subclass to use in parsing/printing.
+
+    The constraints are:
+
+    - Only direct, specialized inheritance is allowed. That is, using a subclass
+    of EnumAttribute as a base class is *not supported*.
+      This simplifies type-hacking code and I don't see it being too restrictive
+      anytime soon.
+    - The StrEnum values must all be parsable as identifiers. This is to keep the
+    parsing code simple and efficient. This restriction is easier to lift, but I
+    haven't yet met an example use case where it matters, so I'm keeping it simple.
+    """
+    orig_bases = getattr(enum_class, "__orig_bases__")
+    enumattr = next(
+        b
+        for b in orig_bases
+        if get_origin(b) is EnumAttribute or get_origin(b) is BitEnumAttribute
+    )
+    enum_type = get_args(enumattr)[0]
+    if isinstance(enum_type, TypeVar):
+        raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
+
+    for v in enum_type:
+        if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
+            raise ValueError(
+                "All StrEnum values of an EnumAttribute must be parsable as an identifer."
+            )
+
+    enum_class.enum_type = enum_type
+
+
 class EnumAttribute(Data[EnumType]):
     """
     Core helper for Enum Attributes. Takes a StrEnum type parameter, and defines
@@ -364,34 +410,7 @@ class EnumAttribute(Data[EnumType]):
     enum_type: ClassVar[type[StrEnum]]
 
     def __init_subclass__(cls) -> None:
-        """
-        This hook first checks two constraints, enforced to keep the implementation
-        reasonable, until more complex use cases appear. It then stores the Enum type
-        used by the subclass to use in parsing/printing.
-
-        The constraints are:
-
-        - Only direct, specialized inheritance is allowed. That is, using a subclass
-        of EnumAttribute as a base class is *not supported*.
-          This simplifies type-hacking code and I don't see it being too restrictive
-          anytime soon.
-        - The StrEnum values must all be parsable as identifiers. This is to keep the
-        parsing code simple and efficient. This restriction is easier to lift, but I
-        haven't yet met an example use case where it matters, so I'm keeping it simple.
-        """
-        orig_bases = getattr(cls, "__orig_bases__")
-        enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
-        enum_type = get_args(enumattr)[0]
-        if isinstance(enum_type, TypeVar):
-            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
-
-        for v in enum_type:
-            if lexer.Lexer.bare_identifier_suffix_regex.fullmatch(v) is None:
-                raise ValueError(
-                    "All StrEnum values of an EnumAttribute must be parsable as an identifer."
-                )
-
-        cls.enum_type = enum_type
+        _check_enum_constraints(cls)
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print(self.data.value)
@@ -399,6 +418,117 @@ class EnumAttribute(Data[EnumType]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
         return cast(EnumType, parser.parse_str_enum(cls.enum_type))
+
+
+class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
+    """
+    Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
+    defines parsing/printing automatically from its values.
+
+    Additionally, two values can be given to designate all/none bits being set.
+
+    example:
+    ```python
+    class MyBitEnum(StrEnum):
+        First = auto()
+        Second = auto()
+
+    class MyBitEnumAttribute(BitEnumAttribute[MyBitEnum]):
+        name = "example.my_bit_enum"
+        none_value = "none"
+        all_value = "all"
+
+    """
+
+    enum_type: ClassVar[type[StrEnum]]
+    none_value: ClassVar[str | None] = None
+    all_value: ClassVar[str | None] = None
+
+    def __init__(self, flags: None | Sequence[EnumType] | str) -> None:
+        flags_: set[EnumType]
+        match flags:
+            case self.none_value | None:
+                flags_ = set()
+            case self.all_value:
+                flags_ = cast(set[EnumType], set(self.enum_type))
+            case other if isinstance(other, str):
+                raise TypeError(
+                    f"expected string parameter to be one of {self.none_value} or {self.all_value}, got {other}"
+                )
+            case other:
+                assert not isinstance(other, str)
+                flags_ = set(other)
+
+        super().__init__(tuple(flags_))
+
+    def __init_subclass__(cls) -> None:
+        _check_enum_constraints(cls)
+
+    @property
+    def flags(self) -> set[EnumType]:
+        return set(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[EnumType, ...]:
+        def parse_optional_element() -> set[EnumType] | None:
+            if (
+                cls.none_value is not None
+                and parser.parse_optional_keyword(cls.none_value) is not None
+            ):
+                return set()
+            if (
+                cls.all_value is not None
+                and parser.parse_optional_keyword(cls.all_value) is not None
+            ):
+                return set(cast(Iterable[EnumType], cls.enum_type))
+            value = parser.parse_optional_str_enum(cls.enum_type)
+            if value is None:
+                return None
+
+            return {cast(type[EnumType], cls.enum_type)(value)}
+
+        def parse_element() -> set[EnumType]:
+            if (
+                cls.none_value is not None
+                and parser.parse_optional_keyword(cls.none_value) is not None
+            ):
+                return set()
+            if (
+                cls.all_value is not None
+                and parser.parse_optional_keyword(cls.all_value) is not None
+            ):
+                return set(cast(Iterable[EnumType], cls.enum_type))
+            value = parser.parse_str_enum(cls.enum_type)
+            return {cast(type[EnumType], cls.enum_type)(value)}
+
+        with parser.in_angle_brackets():
+            flags: list[set[EnumType]] | None = (
+                parser.parse_optional_undelimited_comma_separated_list(
+                    parse_optional_element, parse_element
+                )
+            )
+            if flags is None:
+                return tuple()
+
+            res = set[EnumType]()
+
+            for flag_set in flags:
+                res |= flag_set
+
+            return tuple(res)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            if len(flags) == 0 and self.none_value is not None:
+                printer.print(self.none_value)
+            elif len(flags) == len(self.enum_type) and self.all_value is not None:
+                printer.print(self.all_value)
+            else:
+                # make sure we emit flags in a consistent order
+                printer.print(
+                    ",".join(flag.value for flag in self.enum_type if flag in flags)
+                )
 
 
 @dataclass(frozen=True, init=False)
@@ -605,6 +735,14 @@ class Operation(IRNode):
     def parent_node(self) -> IRNode | None:
         return self.parent
 
+    @property
+    def result_types(self) -> Sequence[Attribute]:
+        return tuple(r.type for r in self.results)
+
+    @property
+    def operand_types(self) -> Sequence[Attribute]:
+        return tuple(operand.type for operand in self.operands)
+
     def parent_op(self) -> Operation | None:
         if p := self.parent_region():
             return p.parent
@@ -748,9 +886,7 @@ class Operation(IRNode):
         for idx, curr_region in enumerate(self.regions):
             if curr_region is region:
                 return idx
-        assert (
-            False
-        ), "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
+        assert False, "The IR is corrupted. Operation seems to be the region's parent but still doesn't have the region attached to it."
 
     def detach_region(self, region: int | Region) -> Region:
         """
@@ -887,7 +1023,7 @@ class Operation(IRNode):
             (value_mapper[operand] if operand in value_mapper else operand)
             for operand in self.operands
         ]
-        result_types = [res.type for res in self.results]
+        result_types = self.result_types
         attributes = self.attributes.copy()
         properties = self.properties.copy()
         successors = [
@@ -1064,7 +1200,7 @@ class Operation(IRNode):
 
     @classmethod
     def dialect_name(cls) -> str:
-        return cls.name.split(".")[0]
+        return Dialect.split_name(cls.name)[0]
 
     def __eq__(self, other: object) -> bool:
         return self is other
@@ -1204,6 +1340,10 @@ class Block(IRNode):
         self._last_op = None
 
         self.add_ops(ops)
+
+    @property
+    def arg_types(self) -> Sequence[Attribute]:
+        return tuple(arg.type for arg in self._args)
 
     @property
     def parent_node(self) -> IRNode | None:

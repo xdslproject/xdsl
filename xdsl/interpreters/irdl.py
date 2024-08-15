@@ -30,7 +30,6 @@ from xdsl.traits import SymbolTable
 
 @register_impls
 class IRDLFunctions(InterpreterFunctions):
-
     @staticmethod
     def get_dialect(interpreter: Interpreter, name: str) -> Dialect:
         """
@@ -50,7 +49,9 @@ class IRDLFunctions(InterpreterFunctions):
         """
         Get an operation type by name from the interpreter's state
         """
-        ops = IRDLFunctions.get_dialect(interpreter, name.split(".", 1)[0]).operations
+        ops = IRDLFunctions.get_dialect(
+            interpreter, Dialect.split_name(name)[0]
+        ).operations
         for op in ops:
             if op.name == name:
                 return op
@@ -61,7 +62,9 @@ class IRDLFunctions(InterpreterFunctions):
         """
         Get an attribute type by name from the interpreter's state
         """
-        attrs = IRDLFunctions.get_dialect(interpreter, name.split(".", 1)[0]).attributes
+        attrs = IRDLFunctions.get_dialect(
+            interpreter, Dialect.split_name(name)[0]
+        ).attributes
         for attr in attrs:
             if attr.name == name:
                 if not issubclass(attr, ParametrizedAttribute):
@@ -204,7 +207,6 @@ class IRDLFunctions(InterpreterFunctions):
     def run_parameters(
         self, interpreter: Interpreter, op: irdl.ParametersOp, args: PythonValues
     ):
-
         attr_op = cast(irdl.AttributeOp | irdl.TypeOp, op.parent_op())
         attr_name = attr_op.qualified_name
         self._get_attr_def(interpreter, attr_name).parameters = list(
