@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from typing_extensions import deprecated
 
-from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
 
 
 @dataclass(frozen=True)
@@ -118,52 +118,6 @@ class Rewriter:
                     res.name_hint = op.results[0].name_hint
 
         block.erase_op(op, safe_erase=safe_erase)
-
-    @staticmethod
-    def update_op(
-        op: Operation,
-        new_results: Sequence[SSAValue | None] | None = None,
-        safe_erase: bool = True,
-        *,
-        operands: Sequence[SSAValue] | None = None,
-        result_types: Sequence[Attribute] | None = None,
-        properties: Mapping[str, Attribute] | None = None,
-        attributes: Mapping[str, Attribute] | None = None,
-        successors: Sequence[Block] | None = None,
-        regions: Sequence[Region] | None = None,
-    ):
-        """
-        Recreate an operation with any passed field updated. All other fields
-        are take from the original operation.
-
-        If all passed fields are already equals to the existing ones, also just skip and
-        prevent endless pattern recursion.
-        """
-        if (
-            (operands is None or operands == op.operands)
-            and (result_types is None or result_types == op.result_types)
-            and (properties is None or properties == op.properties)
-            and (attributes is None or attributes == op.attributes)
-            and (successors is None or successors == op.successors)
-            and (regions is None or regions == op.regions)
-        ):
-            return False
-        new_op = op.create(
-            operands=op.operands if operands is None else operands,
-            result_types=op.result_types if result_types is None else result_types,
-            # No need to copy the properties, attributes, regions: we replace the
-            # original op so it won't use them anymore!
-            properties=op.properties if properties is None else properties,
-            attributes=op.attributes if attributes is None else attributes,
-            successors=op.successors if successors is None else successors,
-            regions=(
-                tuple(op.detach_region(0) for _ in op.regions)
-                if regions is None
-                else regions
-            ),
-        )
-        Rewriter.replace_op(op, new_op, new_results, safe_erase)
-        return True
 
     @staticmethod
     def inline_block(
