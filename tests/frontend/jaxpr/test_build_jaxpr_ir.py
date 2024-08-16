@@ -26,7 +26,7 @@ def test_id():
     module_op = builder.ir_gen_module(id_jaxpr)
 
     assert str(module_op) == """\
-module {
+builtin.module {
   func.func public @main(%0 : tensor<5xf32>) -> tensor<5xf32> {
     func.return %0 : tensor<5xf32>
   }
