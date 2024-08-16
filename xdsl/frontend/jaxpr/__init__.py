@@ -1,11 +1,11 @@
-
 from dataclasses import dataclass
-from xdsl.builder import Builder
-from xdsl.dialects.builtin import Float32Type, FunctionType, ModuleOp, TensorType
+
 from jax._src.core import ClosedJaxpr
 
+from xdsl.builder import Builder
+from xdsl.dialects.builtin import Float32Type, FunctionType, ModuleOp, TensorType
 from xdsl.dialects.func import FuncOp, Return
-from xdsl.ir.core import Block, Region
+from xdsl.ir import Block, Region
 
 
 class IRGenError(Exception):
@@ -38,8 +38,6 @@ class IRGen:
         self.module = ModuleOp([])
         self.builder = Builder.at_end(self.module.body.blocks[0])
 
-
-
     def ir_gen_module(self, module_ast: ClosedJaxpr) -> ModuleOp:
         """
         Public API: convert the jaxpr (source file) to an MLIR
@@ -52,31 +50,40 @@ class IRGen:
         inputVars = module_ast.jaxpr.invars[0]
         outputVars = module_ast.jaxpr.outvars[0]
 
-        input_types = [TensorType(Float32Type(), [inputVars.aval.size]) for _ in range(len(module_ast.jaxpr.invars))]
-        output_types = [TensorType(Float32Type(), [outputVars.aval.size]) for _ in range(len(module_ast.jaxpr.outvars))]
+        input_types = [
+            TensorType(Float32Type(), [inputVars.aval.size])
+            for _ in range(len(module_ast.jaxpr.invars))
+        ]
+        output_types = [
+            TensorType(Float32Type(), [outputVars.aval.size])
+            for _ in range(len(module_ast.jaxpr.outvars))
+        ]
 
-        block = Block(arg_types=[TensorType(Float32Type(), [inputVars.aval.size]) for _ in range(len(module_ast.jaxpr.invars))])
+        block = Block(
+            arg_types=[
+                TensorType(Float32Type(), [inputVars.aval.size])
+                for _ in range(len(module_ast.jaxpr.invars))
+            ]
+        )
         self.builder = Builder.at_end(block)
 
         func_type = FunctionType.from_lists(input_types, output_types)
         # print(func_type)
 
         for eqn in module_ast.jaxpr.eqns:
-            raise NotImplementedError(
-                f"jax equation not implemented"
-            )
+            raise NotImplementedError("jax equation not implemented")
 
-        if (inputVars == outputVars):
+        if inputVars == outputVars:
             return_ssa = block.args[0]
             self.builder.insert(Return(return_ssa))
-        else: 
+        else:
             self.builder.insert(Return())
         self.builder = parent_builder
 
         func = self.builder.insert(
-            FuncOp("main", func_type, Region(block), visibility='public'))
+            FuncOp("main", func_type, Region(block), visibility="public")
+        )
         print(func.args)
         print(func)
 
         return self.module
-    

@@ -1,4 +1,3 @@
-
 import pytest
 
 from xdsl.frontend.jaxpr import IRGen
@@ -9,13 +8,12 @@ try:
 except ImportError as exc:
     print(exc)
     pytest.skip("jax is an optional dependency", allow_module_level=True)
-    
 
-five_ones = jnp.ones(5, dtype=jnp.float32) # pyright: ignore[reportUnknownMemberType]
+
+five_ones = jnp.ones(5, dtype=jnp.float32)  # pyright: ignore[reportUnknownMemberType]
 
 
 def test_id():
-    
     def id(a: jnp.ndarray) -> jnp.ndarray:
         return a
 
@@ -25,9 +23,12 @@ def test_id():
 
     module_op = builder.ir_gen_module(id_jaxpr)
 
-    assert str(module_op) == """\
+    assert (
+        str(module_op)
+        == """\
 builtin.module {
   func.func public @main(%0 : tensor<5xf32>) -> tensor<5xf32> {
     func.return %0 : tensor<5xf32>
   }
 }"""
+    )
