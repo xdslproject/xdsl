@@ -13,8 +13,6 @@ class CanonicalizeDmpSwap(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         keeps: list[dmp.ExchangeDeclarationAttr] = []
-        if op.swaps is None:
-            return
         for swap in op.swaps:
             if swap.elem_count > 0:
                 keeps.append(swap)

@@ -18,11 +18,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint, Rewriter
-from xdsl.transforms.experimental.dmp.decompositions import (
-    DomainDecompositionStrategy,
-    GridSlice2d,
-    GridSlice3d,
-)
 from xdsl.transforms.experimental.stencil_shape_inference import (
     StencilShapeInferencePass,
 )
@@ -35,7 +30,7 @@ _rank_dtype = builtin.i32
 
 @dataclass
 class ChangeStoreOpSizes(RewritePattern):
-    strategy: DomainDecompositionStrategy
+    strategy: dmp.DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
@@ -60,13 +55,11 @@ class AddHaloExchangeOps(RewritePattern):
     This rewrite adds a `stencil.halo_exchange` after each `stencil.load` op
     """
 
-    strategy: DomainDecompositionStrategy
+    strategy: dmp.DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
-        swap_op = dmp.SwapOp.get(op.res)
-        swap_op.topo = self.strategy.comm_layout()
-        swap_op.attributes["strat"] = self.strategy
+        swap_op = dmp.SwapOp.get(op.res, self.strategy)
         rewriter.insert_op_after_matched_op(swap_op)
 
 
@@ -77,8 +70,6 @@ class LowerHaloExchangeToMpi(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
-        assert op.swaps is not None
-        assert op.topo is not None
         exchanges = list(op.swaps)
 
         input_type = cast(ContainerType[Attribute], op.input_stencil.type)
@@ -89,7 +80,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
                     op.input_stencil,
                     exchanges,
                     input_type.get_element_type(),
-                    op.topo,
+                    op.strategy.comm_layout(),
                     emit_init=self.init,
                     emit_debug=self.debug_prints,
                 )
@@ -605,15 +596,10 @@ class DmpSwapShapeInference(RewritePattern):
         assert buff_lb is not None
         assert buff_ub is not None
 
-        assert "strat" in op.attributes
-        assert isinstance(
-            strategy := op.attributes["strat"], DomainDecompositionStrategy
-        )
-
         # drop 0 element exchanges
         op.swaps = builtin.ArrayAttr(
             exchange
-            for exchange in strategy.halo_exchange_defs(
+            for exchange in op.strategy.halo_exchange_defs(
                 dmp.ShapeAttr.from_index_attrs(
                     buff_lb=buff_lb,
                     core_lb=core_lb,
@@ -642,9 +628,9 @@ class DistributeStencilPass(DmpDecompositionPass):
 
     name = "distribute-stencil"
 
-    STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
-        "2d-grid": GridSlice2d,
-        "3d-grid": GridSlice3d,
+    STRATEGIES: ClassVar[dict[str, type[dmp.GridSlice2dAttr | dmp.GridSlice3dAttr]]] = {
+        "2d-grid": dmp.GridSlice2dAttr,
+        "3d-grid": dmp.GridSlice3dAttr,
     }
 
     slices: tuple[int, ...]
