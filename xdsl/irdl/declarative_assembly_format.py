@@ -822,13 +822,13 @@ class OptionalUnitAttrVariable(OptionalAttributeVariable):
 class WhitespaceDirective(FormatDirective):
     """
     A whitespace directive, with the following format:
-      whitespace-directive ::= `\n` | ` `
+      whitespace-directive ::= `\n` | ` ` | ``
     This directive is only applied during printing, and has no effect during
     parsing.
     The directive will not request any space to be printed after.
     """
 
-    whitespace: Literal[" ", "\n"]
+    whitespace: Literal[" ", "\n", ""]
     """The whitespace that should be printed."""
 
     def parse(self, parser: Parser, state: ParsingState) -> None:

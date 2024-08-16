@@ -523,9 +523,9 @@ class FormatParser(BaseParser):
             whitespace = self.lexer.input.content[
                 start_token.span.end : end_token.span.start
             ]
-            if whitespace != " ":
+            if whitespace != " " and whitespace != "":
                 self.raise_error(
-                    "unexpected whitespace in directive, only ` ` whitespace is allowed"
+                    "unexpected whitespace in directive, only ` ` or `` whitespace is allowed"
                 )
             return WhitespaceDirective(" ")
 
