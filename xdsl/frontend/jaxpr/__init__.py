@@ -70,7 +70,7 @@ class IRGen:
         func_type = FunctionType.from_lists(input_types, output_types)
         # print(func_type)
 
-        for eqn in module_ast.jaxpr.eqns:
+        for _ in module_ast.jaxpr.eqns:
             raise NotImplementedError("jax equation not implemented")
 
         if inputVars == outputVars:

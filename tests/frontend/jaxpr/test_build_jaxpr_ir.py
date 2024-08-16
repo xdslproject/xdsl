@@ -3,7 +3,7 @@ import pytest
 from xdsl.frontend.jaxpr import IRGen
 
 try:
-    from jax import make_jaxpr
+    from jax import make_jaxpr  # pyright: ignore[reportUnknownVariableType]
     from jax import numpy as jnp
 except ImportError as exc:
     print(exc)
