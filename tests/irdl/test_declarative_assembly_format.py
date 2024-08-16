@@ -1512,7 +1512,7 @@ def test_optional_group_variadic_result_anchor(
 @pytest.mark.parametrize(
     "format, error",
     (
-        ("()?", "An optional group cannot be empty"),
+        ("()?", "An optional group must have a non-whitespace directive"),
         ("(`keyword`)?", "Every optional group must have an anchor."),
         (
             "($args^ type($rets)^)?",
