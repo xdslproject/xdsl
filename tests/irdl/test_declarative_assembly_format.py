@@ -459,6 +459,37 @@ def test_optional_property(program: str, generic_program: str):
     "program, generic_program",
     [
         (
+            "test.optional_property()",
+            '"test.optional_property"() : () -> ()',
+        ),
+        (
+            "test.optional_property( prop i32 )",
+            '"test.optional_property"() <{"prop" = i32}> : () -> ()',
+        ),
+    ],
+)
+def test_optional_property_with_whitespace(program: str, generic_program: str):
+    """Test the parsing of optional operands"""
+
+    @irdl_op_definition
+    class OptionalPropertyOp(IRDLOperation):
+        name = "test.optional_property"
+        prop = opt_prop_def(Attribute)
+
+        assembly_format = "`(` (` ` `prop` $prop^ ` `)? `)` attr-dict"
+
+    ctx = MLContext()
+    ctx.load_op(OptionalPropertyOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
             "test.optional_unit_attr_prop",
             '"test.optional_unit_attr_prop"() : () -> ()',
         ),
@@ -603,6 +634,7 @@ def test_typed_attribute_variable(program: str, generic_program: str):
             "test.punctuation keyword, keyword",
         ),
         ("`keyword` ` ` `,` `keyword` attr-dict", "test.punctuation keyword , keyword"),
+        ("`keyword` `,` `` `keyword` attr-dict", "test.punctuation keyword,keyword"),
         (
             "`keyword` `\\n` `,` `keyword` attr-dict",
             "test.punctuation keyword\n, keyword",
