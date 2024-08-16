@@ -146,14 +146,14 @@ builtin.module {
     }
 
     // CHECK:      irdl.operation @op_with_regions {
-    // CHECK-NEXT:   %{{.*}} = irdl.region
-    // CHECK-NEXT:   %{{.*}} = irdl.region()
-    // CHECK-NEXT:   %{{.*}} = irdl.is i32
-    // CHECK-NEXT:   %{{.*}} = irdl.is i64
-    // CHECK-NEXT:   %{{.*}} = irdl.region(%{{.*}}, %{{.*}})
-    // CHECK-NEXT:   %{{.*}} = irdl.region with size 3
-    // CHECK-NEXT:   irdl.regions(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}})
-    // CHECK-NEXT: }
+    // CHECK-NEXT:    %r0 = irdl.region
+    // CHECK-NEXT:    %r1 = irdl.region()
+    // CHECK-NEXT:    %v0 = irdl.is i32
+    // CHECK-NEXT:    %v1 = irdl.is i64
+    // CHECK-NEXT:    %r2 = irdl.region(%v0, %v1)
+    // CHECK-NEXT:    %r3 = irdl.region with size 3
+    // CHECK-NEXT:    irdl.regions(%r0, %r1, %r2, %r3)
+    // CHECK-NEXT:  }
     irdl.operation @op_with_regions {
       %r0 = irdl.region
       %r1 = irdl.region()
