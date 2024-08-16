@@ -80,10 +80,8 @@ class IRGen:
             self.builder.insert(Return())
         self.builder = parent_builder
 
-        func = self.builder.insert(
+        self.builder.insert(
             FuncOp("main", func_type, Region(block), visibility="public")
         )
-        print(func.args)
-        print(func)
 
         return self.module
