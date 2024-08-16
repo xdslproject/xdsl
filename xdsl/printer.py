@@ -259,7 +259,7 @@ class Printer:
         print_value: Callable[[V], None],
         delimiter: str = ", ",
     ) -> None:
-        if len(elems) == 0:
+        if not elems:
             self.print("{}")
         else:
             self.print("{ ")
