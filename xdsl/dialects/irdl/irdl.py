@@ -433,8 +433,8 @@ class AttributesOp(IRDLOperation):
         printer.print(" ")
         printer.print_dictionary(
             dictionary,
-            lambda x: printer.print_attribute(x),
-            lambda x: printer.print_operand(x),
+            printer.print_attribute,
+            printer.print_operand,
         )
 
 
