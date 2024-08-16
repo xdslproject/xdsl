@@ -908,6 +908,7 @@ class KeywordDirective(OptionallyParsableDirective):
 @dataclass(frozen=True)
 class OptionalGroupDirective(FormatDirective):
     anchor: AnchorableDirective
+    then_whitespace: tuple[WhitespaceDirective, ...]
     then_first: OptionallyParsableDirective
     then_elements: tuple[FormatDirective, ...]
 
@@ -944,5 +945,9 @@ class OptionalGroupDirective(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if self.anchor.is_present(op):
-            for element in (self.then_first, *self.then_elements):
+            for element in (
+                *self.then_whitespace,
+                self.then_first,
+                *self.then_elements,
+            ):
                 element.print(printer, state, op)

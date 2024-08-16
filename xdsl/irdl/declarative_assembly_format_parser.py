@@ -487,12 +487,21 @@ class FormatParser(BaseParser):
                 anchor = then_elements[-1]
         self.parse_punctuation("?")
 
-        if not then_elements:
+        # Pull whitespace element of front, as they are not parsed
+        whitespace_counter = 0
+        while whitespace_counter < len(then_elements) and isinstance(
+            then_elements[whitespace_counter], WhitespaceDirective
+        ):
+            whitespace_counter += 1
+
+        if not then_elements[whitespace_counter:]:
             self.raise_error("An optional group cannot be empty")
         if anchor is None:
             self.raise_error("Every optional group must have an anchor.")
         # TODO: allow attribute and region variables when implemented.
-        if not isinstance(then_elements[0], OptionallyParsableDirective):
+        if not isinstance(
+            then_elements[whitespace_counter], OptionallyParsableDirective
+        ):
             self.raise_error(
                 "First element of an optional group must be optionally parsable."
             )
@@ -501,7 +510,12 @@ class FormatParser(BaseParser):
                 "An optional group's anchor must be an achorable directive."
             )
 
-        return OptionalGroupDirective(anchor, then_elements[0], then_elements[1:])
+        return OptionalGroupDirective(
+            anchor,
+            cast(tuple[WhitespaceDirective, ...], then_elements[:whitespace_counter]),
+            cast(OptionallyParsableDirective, then_elements[whitespace_counter]),
+            then_elements[whitespace_counter + 1 :],
+        )
 
     def parse_keyword_or_punctuation(self) -> FormatDirective:
         """
