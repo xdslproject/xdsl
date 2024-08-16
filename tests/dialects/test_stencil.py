@@ -756,7 +756,7 @@ builtin.module {
       %9 = arith.addf %8, %7 : f32
       stencil.return %9 : f32
     }
-    stencil.store %3 to %1 (<[0], [6]>) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
+    stencil.store %3 to %1(<[0], [6]>) : !stencil.temp<?xf32> to !stencil.field<[-1,7]xf32>
     func.return
   }
 }
