@@ -57,7 +57,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
     NoMemoryEffect,
@@ -141,7 +141,7 @@ class Store(IRDLOperation):
         return cls(operands=[value, ref, indices])
 
 
-class AllocOpHasCanonicalizationPatterns(HasCanonicalisationPatternsTrait):
+class AllocOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import ElideUnusedAlloc
@@ -590,7 +590,7 @@ class ExtractAlignedPointerAsIndexOp(IRDLOperation):
         )
 
 
-class MemrefHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class MemrefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.memref import (

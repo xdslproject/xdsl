@@ -35,7 +35,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
     Pure,
@@ -192,7 +192,7 @@ class If(IRDLOperation):
         )
 
 
-class ForOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class ForOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.scf import SimplifyTrivialLoops

@@ -60,7 +60,7 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     EffectInstance,
     HasAncestor,
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -404,7 +404,7 @@ class ResultType(ParametrizedAttribute, TypeAttribute):
         super().__init__([type])
 
 
-class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.stencil import (
@@ -653,7 +653,7 @@ class ApplyOp(IRDLOperation):
         if self.bounds is not None:
             return self.bounds
         else:
-            assert len(self.res) > 0
+            assert self.res
             res_type = cast(TempType[Attribute], self.res[0].type)
             return res_type.bounds
 
