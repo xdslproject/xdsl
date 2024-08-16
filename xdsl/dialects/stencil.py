@@ -653,7 +653,7 @@ class ApplyOp(IRDLOperation):
         if self.bounds is not None:
             return self.bounds
         else:
-            assert len(self.res) > 0
+            assert self.res
             res_type = cast(TempType[Attribute], self.res[0].type)
             return res_type.bounds
 
