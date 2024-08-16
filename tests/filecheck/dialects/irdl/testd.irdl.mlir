@@ -181,5 +181,12 @@ builtin.module {
         "attr2" = %1
       }
     }
+
+    // CHECK:      irdl.operation @no_attrs {
+    // CHECK-NEXT:   irdl.attributes
+    // CHECK-NEXT: }
+    irdl.operation @no_attrs {
+      irdl.attributes
+    }
   }
 }

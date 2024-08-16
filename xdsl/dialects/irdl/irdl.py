@@ -436,14 +436,16 @@ class AttributesOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> AttributesOp:
-        attributes = dict(
-            parser.parse_comma_separated_list(
-                parser.Delimiter.BRACES, lambda: _parse_attribute(parser)
-            )
+        tuples = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.BRACES, lambda: _parse_attribute(parser)
         )
-        return AttributesOp.get(attributes)
+        if tuples is None:
+            return AttributesOp.get(dict())
+        return AttributesOp.get(dict(tuples))
 
     def print(self, printer: Printer) -> None:
+        if not self.attribute_values:
+            return
         with printer.indented():
             printer.print_string(" {\n")
             printer.print_list(
