@@ -59,16 +59,10 @@ class IRGen:
             for _ in range(len(module_ast.jaxpr.outvars))
         ]
 
-        block = Block(
-            arg_types=[
-                TensorType(Float32Type(), [inputVars.aval.size])
-                for _ in range(len(module_ast.jaxpr.invars))
-            ]
-        )
+        block = Block(arg_types=input_types)
         self.builder = Builder.at_end(block)
 
         func_type = FunctionType.from_lists(input_types, output_types)
-        # print(func_type)
 
         for _ in module_ast.jaxpr.eqns:
             raise NotImplementedError("jax equation not implemented")
@@ -80,10 +74,8 @@ class IRGen:
             self.builder.insert(Return())
         self.builder = parent_builder
 
-        func = self.builder.insert(
+        self.builder.insert(
             FuncOp("main", func_type, Region(block), visibility="public")
         )
-        print(func.args)
-        print(func)
 
         return self.module
