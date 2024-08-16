@@ -66,6 +66,7 @@ class AddHaloExchangeOps(RewritePattern):
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
         swap_op = dmp.SwapOp.get(op.res)
         swap_op.topo = self.strategy.comm_layout()
+        swap_op.attributes["strat"] = self.strategy
         rewriter.insert_op_after_matched_op(swap_op)
 
 
@@ -577,7 +578,6 @@ class DmpSwapShapeInference:
     to attach the swap declarations.
     """
 
-    strategy: DomainDecompositionStrategy
     rewriter: Rewriter = field(default_factory=Rewriter)
 
     def match_and_rewrite(self, op: dmp.SwapOp):
@@ -608,10 +608,15 @@ class DmpSwapShapeInference:
         assert buff_lb is not None
         assert buff_ub is not None
 
+        assert "strat" in op.attributes
+        assert isinstance(
+            strategy := op.attributes["strat"], DomainDecompositionStrategy
+        )
+
         # drop 0 element exchanges
         op.swaps = builtin.ArrayAttr(
             exchange
-            for exchange in self.strategy.halo_exchange_defs(
+            for exchange in strategy.halo_exchange_defs(
                 dmp.ShapeAttr.from_index_attrs(
                     buff_lb=buff_lb,
                     core_lb=core_lb,
@@ -686,7 +691,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         # run the shape inference pass
         StencilShapeInferencePass().apply(ctx, op)
 
-        DmpSwapShapeInference(strategy).apply(op)
+        DmpSwapShapeInference().apply(op)
 
 
 @dataclass(frozen=True)
