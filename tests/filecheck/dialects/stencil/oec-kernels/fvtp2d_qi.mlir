@@ -1,6 +1,6 @@
 // RUN: XDSL_ROUNDTRIP
-// RUN: xdsl-opt %s -p stencil-storage-materialization,stencil-shape-inference | filecheck %s --check-prefix SHAPE
-// RUN: xdsl-opt %s -p stencil-storage-materialization,stencil-shape-inference,convert-stencil-to-ll-mlir | filecheck %s --check-prefix MLIR
+// RUN: xdsl-opt %s -p stencil-storage-materialization,shape-inference | filecheck %s --check-prefix SHAPE
+// RUN: xdsl-opt %s -p stencil-storage-materialization,shape-inference,convert-stencil-to-ll-mlir | filecheck %s --check-prefix MLIR
 
 func.func @fvtp2d_qi(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>, %arg2: !stencil.field<?x?x?xf64>, %arg3: !stencil.field<?x?x?xf64>, %arg4: !stencil.field<?x?x?xf64>, %arg5: !stencil.field<?x?x?xf64>, %arg6: !stencil.field<?x?x?xf64>) attributes {stencil.program} {
   %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
