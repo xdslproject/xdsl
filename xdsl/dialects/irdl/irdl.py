@@ -412,12 +412,21 @@ class AttributesOp(IRDLOperation):
 
     attribute_value_names = attr_def(ArrayAttr[StringAttr])
 
-    def __init__(self, attributes: dict[str, SSAValue]):
+    def __init__(
+        self,
+        attribute_values: Sequence[SSAValue],
+        attribute_value_names: ArrayAttr[StringAttr],
+    ):
+        super().__init__(
+            operands=(attribute_values,),
+            attributes={"attribute_value_names": attribute_value_names},
+        )
+
+    @classmethod
+    def get(cls, attributes: dict[str, SSAValue]) -> AttributesOp:
         operands = tuple(attributes.values())
         names = ArrayAttr(StringAttr(x) for x in attributes.keys())
-        super().__init__(
-            operands=(operands,), attributes={"attribute_value_names": names}
-        )
+        return AttributesOp(operands, names)
 
     @classmethod
     def parse(cls, parser: Parser) -> AttributesOp:
@@ -426,7 +435,7 @@ class AttributesOp(IRDLOperation):
                 parser.Delimiter.BRACES, lambda: _parse_attribute(parser)
             )
         )
-        return AttributesOp(attributes)
+        return AttributesOp.get(attributes)
 
     def print(self, printer: Printer) -> None:
         dictionary = dict(zip(self.attribute_value_names, self.attribute_values))
