@@ -103,10 +103,10 @@ builtin.module {
   }
 }
 
-// CHECK:           %4 = "stencil.load"(%2) : (!stencil.field<[0,68]x[0,68]x[0,68]xf64>) -> !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
-// CHECK-NEXT:      ^^^^^^^^^^^^^^^^^^^----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// CHECK-NEXT:      | Error while applying pattern: The stencil computation requires a field with lower bound at least #stencil.index<[-1, -1, 0]>, got #stencil.index<[0, 0, 0]>, min: #stencil.index<[-1, -1, 0]>
-// CHECK-NEXT:      -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// CHECK:               %4 = "stencil.load"(%2) : (!stencil.field<[0,68]x[0,68]x[0,68]xf64>) -> !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
+// CHECK-NEXT:          ^^^^^^^^^^^^^^^^^^^-----------------------------------------------------------
+// CHECK-NEXT:          | Operation does not verify: The stencil.load is too big for the loaded field.
+// CHECK-NEXT:          ------------------------------------------------------------------------------
 // -----
 
 builtin.module {

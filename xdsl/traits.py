@@ -440,23 +440,6 @@ class HasCanonicalizationPatternsTrait(OpTrait):
         raise NotImplementedError()
 
 
-@dataclass(frozen=True)
-class HasShapeInferencePatternsTrait(OpTrait):
-    """
-    Provides the rewrite passes to canonicalize an operation.
-
-    Each rewrite pattern must have the trait's op as root.
-    """
-
-    def verify(self, op: Operation) -> None:
-        return
-
-    @classmethod
-    @abc.abstractmethod
-    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        raise NotImplementedError()
-
-
 class MemoryEffectKind(Enum):
     """
     The kind of side effect an operation can have.
