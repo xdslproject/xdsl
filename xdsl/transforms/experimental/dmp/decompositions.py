@@ -1,15 +1,18 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from dataclasses import dataclass
 from typing import Literal
 
+from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr
 from xdsl.dialects.experimental import dmp
+from xdsl.ir import ParametrizedAttribute
+from xdsl.irdl import ParameterDef, irdl_attr_definition
 
 
-@dataclass
-class DomainDecompositionStrategy(ABC):
-    def __init__(self, _: tuple[int, ...]):
-        pass
+class DomainDecompositionStrategy(ParametrizedAttribute, ABC):
+    def __init__(self, topo: tuple[int, ...]):
+        super().__init__(
+            [ArrayAttr(IntAttr(i) for i in topo), BoolAttr.from_int_and_width(0, 1)]
+        )
 
     @abstractmethod
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
@@ -26,28 +29,38 @@ class DomainDecompositionStrategy(ABC):
         raise NotImplementedError("SlicingStrategy must implement comm_count!")
 
 
-@dataclass
+@irdl_attr_definition
 class GridSlice2d(DomainDecompositionStrategy):
     """
     Takes a grid with two or more dimensions, slices it along the first two into equally
     sized segments.
     """
 
-    topology: tuple[int, int]
+    name = "dmp.grid_slice_2d"
 
-    diagonals: bool = False
+    topology: ParameterDef[ArrayAttr[IntAttr]]
 
-    def __post_init__(self):
-        assert len(self.topology) >= 2, "GridSlice2d requires at least two dimensions"
+    diagonals: ParameterDef[BoolAttr]
+
+    # def _verify(self):
+    #     assert len(self.topology) >= 2, "GridSlice2d requires at least two dimensions"
+
+    def __init__(self, topo: tuple[int, ...]):
+        super().new(
+            [ArrayAttr(IntAttr(i) for i in topo), BoolAttr.from_int_and_width(0, 1)]
+        )
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 2, "GridSlice2d requires at least two dimensions"
         for size, node_count in zip(shape, self.topology):
             assert (
-                size % node_count == 0
+                size % node_count.data == 0
             ), "GridSlice2d requires domain be neatly divisible by shape"
         return (
-            *(size // node_count for size, node_count in zip(shape, self.topology)),
+            *(
+                size // node_count.data
+                for size, node_count in zip(shape, self.topology)
+            ),
             *(size for size in shape[2:]),
         )
 
@@ -62,30 +75,35 @@ class GridSlice2d(DomainDecompositionStrategy):
         assert not self.diagonals
 
     def comm_layout(self) -> dmp.RankTopoAttr:
-        return dmp.RankTopoAttr(self.topology)
+        return dmp.RankTopoAttr(self.topology.data)
 
 
-@dataclass
+@irdl_attr_definition
 class GridSlice3d(DomainDecompositionStrategy):
     """
     Takes a grid with two or more dimensions, slices it along the first three.
     """
 
-    topology: tuple[int, int, int]
+    name = "dmp.grid_slice_2d"
 
-    diagonals: bool = False
+    topology: ParameterDef[ArrayAttr[IntAttr]]
 
-    def __post_init__(self):
-        assert len(self.topology) >= 3, "GridSlice3d requires at least three dimensions"
+    diagonals: ParameterDef[BoolAttr]
+
+    # def _verify(self):
+    #     assert len(self.topology) >= 3, "GridSlice3d requires at least three dimensions"
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 3, "GridSlice3d requires at least two dimensions"
         for size, node_count in zip(shape, self.topology):
             assert (
-                size % node_count == 0
+                size % node_count.data == 0
             ), "GridSlice3d requires domain be neatly divisible by shape"
         return (
-            *(size // node_count for size, node_count in zip(shape, self.topology)),
+            *(
+                size // node_count.data
+                for size, node_count in zip(shape, self.topology)
+            ),
             *(size for size in shape[3:]),
         )
 
@@ -99,10 +117,10 @@ class GridSlice3d(DomainDecompositionStrategy):
         yield from _flat_face_exchanges_for_dim(shape, 2)
 
         # TOOD: add diagonals
-        assert not self.diagonals
+        assert not self.diagonals.value.data
 
     def comm_layout(self) -> dmp.RankTopoAttr:
-        return dmp.RankTopoAttr(self.topology)
+        return dmp.RankTopoAttr(self.topology.data)
 
 
 def _flat_face_exchanges_for_dim(
