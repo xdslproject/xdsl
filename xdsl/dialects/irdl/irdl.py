@@ -444,8 +444,6 @@ class AttributesOp(IRDLOperation):
         return AttributesOp.get(attributes)
 
     def print(self, printer: Printer) -> None:
-        if not self.attribute_values:
-            printer.print_string(" {}")
         with printer.indented():
             printer.print_string(" {\n")
             printer.print_list(
@@ -454,6 +452,15 @@ class AttributesOp(IRDLOperation):
                 ",\n",
             )
         printer.print_string("\n}")
+
+    def verify_(self) -> None:
+        if len(self.attribute_values) != len(self.attribute_value_names):
+            raise VerifyException(
+                (
+                    "The number of attribute names and their constraints must be the same",
+                    f"but got {len(self.attribute_value_names)} and {len(self.attribute_values)} respectively",
+                )
+            )
 
 
 @irdl_op_definition
