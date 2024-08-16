@@ -836,7 +836,7 @@ class WhitespaceDirective(FormatDirective):
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         printer.print(self.whitespace)
-        state.last_was_punctuation = len(self.whitespace) == 0
+        state.last_was_punctuation = self.whitespace == ""
         state.should_emit_space = False
 
 
