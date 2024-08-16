@@ -425,7 +425,7 @@ class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class ApplyOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.experimental.stencil_shape_inference import (
+        from xdsl.transforms.shape_inference_patterns.stencil import (
             ApplyOpShapeInference,
         )
 
@@ -756,7 +756,7 @@ class CastOp(IRDLOperation):
 class CombineOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.experimental.stencil_shape_inference import (
+        from xdsl.transforms.shape_inference_patterns.stencil import (
             CombineOpShapeInference,
         )
 
@@ -819,7 +819,7 @@ class CombineOp(IRDLOperation):
 class DynAccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls):
-        from xdsl.transforms.experimental.stencil_shape_inference import (
+        from xdsl.transforms.shape_inference_patterns.stencil import (
             DynAccessOpShapeInference,
         )
 
@@ -976,7 +976,7 @@ class IndexOp(IRDLOperation):
 class AccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.experimental.stencil_shape_inference import (
+        from xdsl.transforms.shape_inference_patterns.stencil import (
             AccessOpShapeInference,
         )
 
@@ -1193,7 +1193,7 @@ class AccessOp(IRDLOperation):
 class LoadOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.experimental.stencil_shape_inference import (
+        from xdsl.transforms.shape_inference_patterns.stencil import (
             LoadOpShapeInference,
         )
 
@@ -1279,7 +1279,7 @@ class LoadOp(IRDLOperation):
 class BufferOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.experimental.stencil_shape_inference import (
+        from xdsl.transforms.shape_inference_patterns.stencil import (
             BufferOpShapeInference,
         )
 
@@ -1375,7 +1375,7 @@ class TensorIgnoreSizeConstraint(VarConstraint[Attribute]):
 class StoreOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.experimental.stencil_shape_inference import (
+        from xdsl.transforms.shape_inference_patterns.stencil import (
             StoreOpShapeInference,
         )
 
