@@ -141,6 +141,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return LiftArithToLinalg
 
+    def get_linalg_to_csl():
+        from xdsl.transforms.linalg_to_csl import LinalgToCsl
+
+        return LinalgToCsl
+
     def get_lower_affine():
         from xdsl.transforms import lower_affine
 
@@ -409,6 +414,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
+        "linalg-to-csl": get_linalg_to_csl,
         "lower-affine": get_lower_affine,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,

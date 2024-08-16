@@ -41,7 +41,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasAncestor,
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -152,7 +152,7 @@ class PrefetchOp(IRDLOperation):
         )
 
 
-class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl_stencil import (
