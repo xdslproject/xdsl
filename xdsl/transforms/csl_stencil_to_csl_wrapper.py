@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import MLContext
-from xdsl.dialects import arith, builtin, func, stencil
-from xdsl.dialects.builtin import IntegerAttr, TensorType
+from xdsl.dialects import arith, builtin, func, memref, stencil
+from xdsl.dialects.builtin import IntegerAttr, StringAttr, TensorType, UnitAttr
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
-from xdsl.ir import Attribute, Operation
+from xdsl.ir import Attribute, BlockArgument, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -16,6 +16,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms import csl_stencil_bufferize
 from xdsl.utils.hints import isa
 
 
@@ -100,10 +101,8 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         self.initialise_layout_module(module_op)
         module_op.program_name = op.sym_name
 
-        # add yield op args (implicit) and func args (explicit) to program_module block args
-        module_op.update_program_block_args(
-            exported_symbols=[(arg.name_hint, arg.type) for arg in op.body.block.args]
-        )
+        # add yield op args to program_module block args
+        module_op.update_program_block_args()
 
         # replace func.return
         func_return = op.body.block.last_op
@@ -115,14 +114,15 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
 
         # set up main function and move func.func ops into this csl.func
         main_func = csl.FuncOp(op.sym_name.data, ((), None))
+        args_to_ops, arg_mappings = self._translate_function_args(op.args)
         rewriter.inline_block(
             op.body.block,
             InsertPoint.at_start(main_func.body.block),
-            module_op.exported_symbols,
+            arg_mappings,
         )
 
         # initialise program_module and add main func and empty yield op
-        self.initialise_program_module(module_op, add_ops=[main_func])
+        self.initialise_program_module(module_op, add_ops=[*args_to_ops, main_func])
 
         # replace (now empty) func by module wrapper
         rewriter.replace_matched_op(module_op)
@@ -135,6 +135,54 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
             if isinstance(apply_op, csl_stencil.ApplyOp):
                 result.append(apply_op)
         return result
+
+    def _translate_function_args(
+        self, args: Sequence[BlockArgument]
+    ) -> tuple[Sequence[Operation], Sequence[SSAValue]]:
+        """
+        Args of the top-level function act as the interface to the program and need to be translated to writable buffers.
+        """
+        arg_ops: list[Operation] = []
+        arg_op_mapping: list[SSAValue] = []
+        for arg in args:
+            arg_name = arg.name_hint or ("arg" + str(args.index(arg)))
+
+            if isa(arg.type, stencil.FieldType[TensorType[Attribute]]):
+                arg_t = csl_stencil_bufferize.tensor_to_memref_type(
+                    arg.type.get_element_type()
+                )
+                arg_ops.append(
+                    memref.Global.get(
+                        sym_name=StringAttr(arg_name),
+                        sym_type=csl_stencil_bufferize.tensor_to_memref_type(
+                            arg.type.get_element_type()
+                        ),
+                        initial_value=UnitAttr(),
+                        sym_visibility=StringAttr("public"),
+                        # constant: UnitAttr | None = None,
+                        # alignment: int | IntegerAttr[IntegerType] | None = None,
+                    )
+                )
+                arg_ops.append(get_global_op := memref.GetGlobal(arg_name, arg_t))
+                arg_ops.append(
+                    cast_op := builtin.UnrealizedConversionCastOp.get(
+                        [get_global_op], [arg.type]
+                    )
+                )
+                arg_op_mapping.append(cast_op.outputs[0])
+            elif isa(arg.type, memref.MemRefType[Attribute]):
+                arg_ops.append(
+                    memref.Global.get(
+                        sym_name=StringAttr(arg_name),
+                        sym_type=arg.type,
+                        initial_value=UnitAttr(),
+                        sym_visibility=StringAttr("public"),
+                    )
+                )
+                arg_ops.append(get_global_op := memref.GetGlobal(arg_name, arg.type))
+                arg_op_mapping.append(get_global_op.memref)
+
+        return arg_ops, arg_op_mapping
 
     def initialise_layout_module(self, module_op: csl_wrapper.ModuleOp):
         """Initialises the layout_module (wrapper block) by setting up (esp. stencil-related) program params"""
