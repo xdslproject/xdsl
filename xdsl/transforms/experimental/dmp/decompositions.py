@@ -42,8 +42,8 @@ class GridSlice2d(DomainDecompositionStrategy):
 
     diagonals: ParameterDef[BoolAttr]
 
-    # def _verify(self):
-    #     assert len(self.topology) >= 2, "GridSlice2d requires at least two dimensions"
+    def _verify(self):
+        assert len(self.topology) >= 2, "GridSlice2d requires at least two dimensions"
 
     def __init__(self, topo: tuple[int, ...]):
         super().new(
@@ -90,8 +90,8 @@ class GridSlice3d(DomainDecompositionStrategy):
 
     diagonals: ParameterDef[BoolAttr]
 
-    # def _verify(self):
-    #     assert len(self.topology) >= 3, "GridSlice3d requires at least three dimensions"
+    def _verify(self):
+        assert len(self.topology) >= 3, "GridSlice3d requires at least three dimensions"
 
     def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
         assert len(shape) >= 3, "GridSlice3d requires at least two dimensions"
