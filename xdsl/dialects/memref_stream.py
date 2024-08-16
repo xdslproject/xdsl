@@ -51,7 +51,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     IsTerminator,
     NoTerminator,
 )
@@ -350,7 +350,7 @@ class StreamingRegionOp(IRDLOperation):
         return generic
 
 
-class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls):
         from xdsl.transforms.canonicalization_patterns.memref_stream import (
