@@ -259,17 +259,12 @@ class Printer:
         print_value: Callable[[V], None],
         delimiter: str = ", ",
     ) -> None:
-        if not elems:
-            self.print("{}")
-        else:
-            self.print("{ ")
-            for i, (key, value) in enumerate(elems.items()):
-                if i:
-                    self.print_string(delimiter)
-                print_key(key)
-                self.print_string(" = ")
-                print_value(value)
-            self.print(" }")
+        for i, (key, value) in enumerate(elems.items()):
+            if i:
+                self.print_string(delimiter)
+            print_key(key)
+            self.print_string("=")
+            print_value(value)
 
     def _print_new_line(
         self, indent: int | None = None, print_message: bool = True

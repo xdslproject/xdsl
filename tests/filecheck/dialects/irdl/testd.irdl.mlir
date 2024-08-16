@@ -168,7 +168,10 @@ builtin.module {
     // CHECK:      irdl.operation @attr_op {
     // CHECK-NEXT:   %{{.*}} = irdl.any
     // CHECK-NEXT:   %{{.*}} = irdl.is i64
-    // CHECK-NEXT:   irdl.attributes { "attr1" = %{{.*}}, "attr2" = %{{.*}} }
+    // CHECK-NEXT:   irdl.attributes {
+    // CHECK-NEXT:     "attr1" = %{{.*}},
+    // CHECK-NEXT:     "attr2" = %{{.*}}
+    // CHECK-NEXT:   }
     // CHECK-NEXT: }
     irdl.operation @attr_op {
       %0 = irdl.any

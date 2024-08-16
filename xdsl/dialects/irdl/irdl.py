@@ -402,6 +402,12 @@ def _parse_attribute(parser: Parser) -> tuple[str, SSAValue]:
     return (key, arg)
 
 
+def _print_attribute(printer: Printer, item: tuple[StringAttr, SSAValue]):
+    printer.print_attribute(item[0])
+    printer.print(" = ")
+    printer.print_operand(item[1])
+
+
 @irdl_op_definition
 class AttributesOp(IRDLOperation):
     """Define the attributes of an operation"""
@@ -438,13 +444,16 @@ class AttributesOp(IRDLOperation):
         return AttributesOp.get(attributes)
 
     def print(self, printer: Printer) -> None:
-        dictionary = dict(zip(self.attribute_value_names, self.attribute_values))
-        printer.print(" ")
-        printer.print_dictionary(
-            dictionary,
-            printer.print_attribute,
-            printer.print_operand,
-        )
+        if not self.attribute_values:
+            printer.print_string(" {}")
+        with printer.indented():
+            printer.print_string(" {\n")
+            printer.print_list(
+                zip(self.attribute_value_names, self.attribute_values),
+                lambda x: _print_attribute(printer, x),
+                ",\n",
+            )
+        printer.print_string("\n}")
 
 
 @irdl_op_definition
