@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import prod
 from typing import ClassVar, TypeVar, cast
 
@@ -569,18 +569,15 @@ def collect_args_recursive(op: Operation) -> Iterable[Operation]:
 
 
 @dataclass
-class DmpSwapShapeInference:
+class DmpSwapShapeInference(RewritePattern):
     """
-    Not a rewrite pattern, as it's a bit more involved.
-
     This is applied after stencil shape inference has run. It will find the
     HaloSwapOps again, and use the results of the shape inference pass
     to attach the swap declarations.
     """
 
-    rewriter: Rewriter = field(default_factory=Rewriter)
-
-    def match_and_rewrite(self, op: dmp.SwapOp):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: dmp.SwapOp, rewrite: PatternRewriter):
         core_lb: stencil.IndexAttr | None = None
         core_ub: stencil.IndexAttr | None = None
 
@@ -626,11 +623,6 @@ class DmpSwapShapeInference:
             )
             if exchange.elem_count > 0
         )
-
-    def apply(self, module: builtin.ModuleOp):
-        for op in module.walk():
-            if isinstance(op, dmp.SwapOp):
-                self.match_and_rewrite(op)
 
 
 @dataclass(frozen=True)
@@ -691,7 +683,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         # run the shape inference pass
         StencilShapeInferencePass().apply(ctx, op)
 
-        DmpSwapShapeInference().apply(op)
+        PatternRewriteWalker(DmpSwapShapeInference()).rewrite_module(op)
 
 
 @dataclass(frozen=True)
