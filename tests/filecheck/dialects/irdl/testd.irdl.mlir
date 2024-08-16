@@ -164,5 +164,19 @@ builtin.module {
 
       irdl.regions(%r0, %r1, %r2, %r3)
     }
+
+    // CHECK:      irdl.operation @attr_op {
+    // CHECK-NEXT:   %{{.*}} = irdl.any
+    // CHECK-NEXT:   %{{.*}} = irdl.is i64
+    // CHECK-NEXT:   irdl.attributes { "attr1" = %{{.*}}, "attr2" = %{{.*}} }
+    // CHECK-NEXT: }
+    irdl.operation @attr_op {
+      %0 = irdl.any
+      %1 = irdl.is i64
+      irdl.attributes {
+        "attr1" = %0,
+        "attr2" = %1
+      }
+    }
   }
 }

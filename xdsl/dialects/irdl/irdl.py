@@ -394,6 +394,45 @@ class ResultsOp(IRDLOperation):
         printer.print(")")
 
 
+def _parse_attribute(parser: Parser) -> tuple[str, SSAValue]:
+    key = parser.parse_str_literal()
+    parser.parse_punctuation("=")
+    arg = parser.parse_operand()
+
+    return (key, arg)
+
+@irdl_op_definition
+class AttributesOp(IRDLOperation):
+    """Define the attributes of an operation"""
+
+    name = "irdl.attributes"
+
+    attribute_values = var_operand_def(AttributeType())
+
+    attribute_value_names = attr_def(ArrayAttr[StringAttr])
+
+    def __init__(self, attributes: dict[str, SSAValue]):
+        operands = tuple(attributes.values())
+        names = ArrayAttr(StringAttr(x) for x in attributes.keys())
+        super().__init__(
+            operands=(operands,), attributes={"attribute_value_names": names}
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> AttributesOp:
+        attributes = dict(
+            parser.parse_comma_separated_list(
+                parser.Delimiter.BRACES, lambda: _parse_attribute(parser)
+            )
+        )
+        return AttributesOp(attributes)
+
+    def print(self, printer: Printer) -> None:
+        dictionary = dict(zip(self.attribute_value_names, self.attribute_values))
+        printer.print(' ')
+        printer.print_dictionary(dictionary, lambda x: printer.print_attribute(x), lambda x: printer.print_operand(x))
+
+
 @irdl_op_definition
 class RegionsOp(IRDLOperation):
     """Define the regions of an operation"""
@@ -542,8 +581,8 @@ class RegionOp(IRDLOperation):
     output = result_def(RegionType())
 
     assembly_format = (
-        "(`(` $entry_block_args $constrained_arguments^ `)`)?"
-        "(`with` `size` $number_of_blocks^)? attr-dict"
+        "(```(` $entry_block_args $constrained_arguments^ `)`)?"
+        "(` ` `with` `size` $number_of_blocks^)? attr-dict"
     )
 
     def __init__(
@@ -647,6 +686,7 @@ IRDL = Dialect(
         OperationOp,
         OperandsOp,
         ResultsOp,
+        AttributesOp,
         RegionsOp,
         IsOp,
         ParametricOp,
