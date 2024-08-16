@@ -1518,7 +1518,10 @@ def test_optional_group_variadic_result_anchor(
             "($args^ type($rets)^)?",
             "An optional group can only have one anchor.",
         ),
-        ("(`keyword`^)?", "An optional group's anchor must be an achorable directive."),
+        (
+            "(`keyword`^)?",
+            "An optional group's anchor must be an anchorable directive.",
+        ),
         (
             "($mandatory_arg^)?",
             "First element of an optional group must be optionally parsable.",

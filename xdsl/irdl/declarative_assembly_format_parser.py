@@ -507,7 +507,7 @@ class FormatParser(BaseParser):
             )
         if not isinstance(anchor, AnchorableDirective):
             self.raise_error(
-                "An optional group's anchor must be an achorable directive."
+                "An optional group's anchor must be an anchorable directive."
             )
 
         return OptionalGroupDirective(
