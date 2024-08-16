@@ -561,7 +561,7 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block | Region,
-        result_types: Sequence[TempType[Attribute]] | None = None,
+        result_types: Sequence[TempType[Attribute]] = (),
         bounds: StencilBoundsAttr | None = None,
     ):
         assert result_types or bounds
