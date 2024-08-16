@@ -508,8 +508,8 @@ class FormatParser(BaseParser):
         Parse a keyword or a punctuation directive, with the following format:
           keyword-or-punctuation-directive ::= `\\`` (bare-ident | punctuation) `\\``
         """
-        self.parse_characters("`")
         start_token = self._current_token
+        self.parse_characters("`")
 
         # New line case
         if self.parse_optional_keyword("\\"):
@@ -518,8 +518,8 @@ class FormatParser(BaseParser):
             return WhitespaceDirective("\n")
 
         # Space case
+        end_token = self._current_token
         if self.parse_optional_characters("`"):
-            end_token = self._current_token
             whitespace = self.lexer.input.content[
                 start_token.span.end : end_token.span.start
             ]
@@ -527,7 +527,7 @@ class FormatParser(BaseParser):
                 self.raise_error(
                     "unexpected whitespace in directive, only ` ` or `` whitespace is allowed"
                 )
-            return WhitespaceDirective(" ")
+            return WhitespaceDirective(whitespace)
 
         # Punctuation case
         if self._current_token.kind.is_punctuation():
