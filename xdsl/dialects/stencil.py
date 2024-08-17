@@ -67,7 +67,6 @@ from xdsl.traits import (
     IsTerminator,
     MemoryEffect,
     MemoryEffectKind,
-    MemoryReadEffect,
     NoMemoryEffect,
     Pure,
     RecursiveMemoryEffect,
@@ -437,10 +436,11 @@ class ApplyMemoryEffect(RecursiveMemoryEffect):
     def get_effects(cls, op: Operation):
         effects = super().get_effects(op)
         if effects is not None:
-            if len(cast(ApplyOp, op).dest) > 0:
-                effects.add(EffectInstance(MemoryEffectKind.WRITE))
-            if any(isinstance(o.type, FieldType) for o in op.operands):
-                effects.add(EffectInstance(MemoryEffectKind.READ))
+            for d in cast(ApplyOp, op).dest:
+                effects.add(EffectInstance(MemoryEffectKind.WRITE, d))
+            for o in cast(ApplyOp, op).args:
+                if isinstance(o.type, FieldType):
+                    effects.add(EffectInstance(MemoryEffectKind.READ, o))
         return effects
 
 
@@ -573,17 +573,20 @@ class ApplyOp(IRDLOperation):
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block | Region,
-        result_types: Sequence[TempType[Attribute]],
+        result_types: Sequence[TempType[Attribute]] = (),
+        bounds: StencilBoundsAttr | None = None,
     ):
-        assert len(result_types) > 0
-
+        assert result_types or bounds
         if isinstance(body, Block):
             body = Region(body)
+
+        properties = {"bounds": bounds} if bounds else {}
 
         return ApplyOp.build(
             operands=[list(args), []],
             regions=[body],
             result_types=[result_types],
+            properties=properties,
         )
 
     def verify_(self) -> None:
@@ -657,6 +660,14 @@ class ApplyOp(IRDLOperation):
                     offsets = tuple(offsets[i] for i in access.offset_mapping)
                 accesses.append(offsets)
             yield AccessPattern(tuple(accesses))
+
+    def get_bounds(self):
+        if self.bounds is not None:
+            return self.bounds
+        else:
+            assert self.res
+            res_type = cast(TempType[Attribute], self.res[0].type)
+            return res_type.bounds
 
 
 class AllocOpEffect(MemoryEffect):
@@ -1200,6 +1211,12 @@ class LoadOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
         return (LoadOpShapeInference(),)
 
 
+class LoadOpMemoryEffect(MemoryEffect):
+    @classmethod
+    def get_effects(cls, op: Operation):
+        return {EffectInstance(MemoryEffectKind.READ, cast(LoadOp, op).field)}
+
+
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     """
@@ -1238,7 +1255,7 @@ class LoadOp(IRDLOperation):
 
     assembly_format = "$field attr-dict-with-keyword `:` type($field) `->` type($res)"
 
-    traits = frozenset([MemoryReadEffect(), LoadOpHasShapeInferencePatternsTrait()])
+    traits = frozenset([LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect()])
 
     @staticmethod
     def get(
@@ -1330,7 +1347,7 @@ class BufferOp(IRDLOperation):
         )
     )
 
-    assembly_format = "$temp attr-dict-with-keyword `:` type($temp)  `` `->` type($res)"
+    assembly_format = "$temp attr-dict-with-keyword `:` type($temp) `->` type($res)"
 
     traits = frozenset([Pure(), BufferOpHasShapeInferencePatternsTrait()])
 
@@ -1380,6 +1397,12 @@ class StoreOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
         )
 
         return (StoreOpShapeInference(),)
+
+
+class StoreOpMemoryEffect(MemoryEffect):
+    @classmethod
+    def get_effects(cls, op: Operation):
+        return {EffectInstance(MemoryEffectKind.WRITE, cast(StoreOp, op).field)}
 
 
 @irdl_op_definition
@@ -1434,7 +1457,7 @@ class StoreOp(IRDLOperation):
 
     assembly_format = "$temp `to` $field `` `(` $bounds `)` attr-dict-with-keyword `:` type($temp) `to` type($field)"
 
-    traits = frozenset([StoreOpHasShapeInferencePatternsTrait()])
+    traits = frozenset([StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect()])
 
     @staticmethod
     def get(

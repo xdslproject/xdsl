@@ -55,7 +55,7 @@ builtin.module {
 // CHECK-NEXT:          %24 = arith.mulf %23, %5 : tensor<510xf32>
 // CHECK-NEXT:          stencil.return %24 : tensor<510xf32>
 // CHECK-NEXT:        }
-// CHECK-NEXT:        stencil.store %3 to %2 (<[0, 0], [1022, 510]>) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:        stencil.store %3 to %2(<[0, 0], [1022, 510]>) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:        func.return
 // CHECK-NEXT:      }
 
@@ -107,7 +107,7 @@ builtin.module {
 // CHECK-NEXT:         %22 = arith.mulf %21, %3 : tensor<510xf32>
 // CHECK-NEXT:         stencil.return %22 : tensor<510xf32>
 // CHECK-NEXT:       }
-// CHECK-NEXT:       stencil.store %1 to %b (<[0, 0], [1022, 510]>) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:       stencil.store %1 to %b(<[0, 0], [1022, 510]>) : !stencil.temp<[0,1022]x[0,510]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:       func.return
 // CHECK-NEXT:     }
 
