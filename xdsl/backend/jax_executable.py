@@ -19,6 +19,7 @@ P = ParamSpec("P")
 R = TypeVar("R", bound=tuple[jnp.ndarray, ...] | jnp.ndarray)
 
 # JAX DTypeLike is currently broken
+# The np.dtype annotation in jax does not specify the generic parameter
 DTypeLike = (
     str  # like 'float32', 'int32'
     | type[Any]  # like np.float32, np.int32, float, int
@@ -38,6 +39,29 @@ def array(object: Any, dtype: DTypeLike | None = None, copy: bool = True) -> Arr
 
 
 class JaxExecutable:
+    """
+    A class wrapping a jax LoadedExecutable.
+
+    Usage:
+
+    ``` python
+    my_module_str =\"""
+    func.func @main(%arg0: tensor<5xf32>) -> tensor<5xf32> {
+        ...
+    }
+    \"""
+    my_module = parser.parse_module(my_module_str)
+    @JaxExecutable.compile(module)
+    def my_func(a: jax.Array) -> jax.Array: ...
+    ```
+    Note that the type of the function passed to the decorator is preserver, and can
+    influence the behaviour of the function.
+    Importantly, if the function has a single result, a one-element tuple or a single
+    JAX array may be used as the return type annotation.
+    The number of inputs and outputs of the `main` function in the module and the
+    function being wrapped must match, or a `ValueError` is raised.
+    """
+
     main_type: FunctionType
     loaded_executable: LoadedExecutable
 
@@ -50,32 +74,29 @@ class JaxExecutable:
     def execute(self, arguments: Sequence[Array]) -> list[Array]:
         return self.loaded_executable.execute(arguments)
 
+    @staticmethod
+    def compile(module: ModuleOp) -> "JaxExecutable":
+        func_op = SymbolTable.lookup_symbol(module, "main")
+        if func_op is None:
+            raise ValueError("No `main` function in module.")
+        if not isinstance(func_op, FuncOp):
+            raise ValueError("`main` operation is not a `func.func`.")
 
-def compile(module: ModuleOp) -> JaxExecutable:
-    func_op = SymbolTable.lookup_symbol(module, "main")
-    if func_op is None:
-        raise ValueError("No `main` function in module.")
-    if not isinstance(func_op, FuncOp):
-        raise ValueError("`main` operation is not a `func.func`.")
+        program = str(module)
 
-    program = str(module)
+        mlir_module = ir.Module.parse(program, context=mlir.make_ir_context())
+        bytecode = mlir.module_to_bytecode(mlir_module)
+        client = xla_bridge.backends()["cpu"]
+        loaded = client.compile(bytecode)
+        return JaxExecutable(func_op.function_type, loaded)
 
-    mlir_module = ir.Module.parse(program, context=mlir.make_ir_context())
-    bytecode = mlir.module_to_bytecode(mlir_module)
-    client = xla_bridge.backends()["cpu"]
-    loaded = client.compile(bytecode)
-    return JaxExecutable(func_op.function_type, loaded)
+    def __call__(self, stub: Callable[P, R]) -> Callable[P, R]:
+        func_type = self.main_type
+        loaded = self.loaded_executable
 
+        operand_types = func_type.inputs.data
+        result_types = func_type.outputs.data
 
-def jax_jit(module: ModuleOp) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    compiled = compile(module)
-    func_type = compiled.main_type
-    loaded = compiled.loaded_executable
-
-    operand_types = func_type.inputs.data
-    result_types = func_type.outputs.data
-
-    def wrapper(stub: Callable[P, R]) -> Callable[P, R]:
         sig = signature(stub)
 
         if len(sig.parameters) != len(operand_types):
@@ -121,5 +142,3 @@ def jax_jit(module: ModuleOp) -> Callable[[Callable[P, R]], Callable[P, R]]:
                 return result[0]
 
         return func
-
-    return wrapper

@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import ModuleOp, TensorType, i32
 
 pytest.importorskip("jax")
 
-from xdsl.backend.jax_jit import array, jax_jit  # noqa: E402
+from xdsl.backend.jax_executable import JaxExecutable, array  # noqa: E402
 
 
 def test_abs():
@@ -20,9 +20,9 @@ def test_abs():
 
     module = ModuleOp([main_op])
 
-    lazyjit = jax_jit(module)
+    executable = JaxExecutable.compile(module)
 
-    @lazyjit
+    @executable
     def abs_tuple(a: jax.Array) -> tuple[jax.Array]: ...
 
     assert abs_tuple(array(-2, dtype=jax.numpy.int32))[0] == array(
@@ -35,7 +35,7 @@ def test_abs():
         2, dtype=jax.numpy.int32
     )
 
-    @lazyjit
+    @executable
     def abs_one(a: jax.Array) -> jax.Array: ...
 
     assert abs_one(array(-2, dtype=jax.numpy.int32)) == array(2, dtype=jax.numpy.int32)
@@ -47,7 +47,7 @@ def test_no_main():
     module = ModuleOp([])
 
     with pytest.raises(ValueError, match="No `main` function in module"):
-        jax_jit(module)
+        JaxExecutable.compile(module)
 
 
 def test_fail():
@@ -61,5 +61,5 @@ def test_fail():
 
         module = ModuleOp([main_op])
 
-        @jax_jit(module)
+        @JaxExecutable.compile(module)
         def abs(a: jax.Array) -> tuple[jax.Array]: ...  # pyright: ignore[reportUnusedFunction]
