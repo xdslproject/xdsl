@@ -29,6 +29,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import HasShapeInferencePatternsTrait
 from xdsl.utils.hints import isa
 
 # helpers for named dimensions:
@@ -581,6 +582,14 @@ def _flat_face_exchanges_for_dim(
     )
 
 
+class SwapOpHasShapeInferencePatterns(HasShapeInferencePatternsTrait):
+    @classmethod
+    def get_shape_inference_patterns(cls):
+        from xdsl.transforms.shape_inference_patterns.dmp import DmpSwapShapeInference
+
+        return (DmpSwapShapeInference(),)
+
+
 @irdl_op_definition
 class SwapOp(IRDLOperation):
     """
@@ -597,9 +606,17 @@ class SwapOp(IRDLOperation):
 
     strategy = attr_def(DomainDecompositionStrategy)
 
+    traits = frozenset([SwapOpHasShapeInferencePatterns()])
+
     @staticmethod
     def get(input_stencil: SSAValue | Operation, strategy: DomainDecompositionStrategy):
-        return SwapOp.build(operands=[input_stencil], attributes={"strategy": strategy})
+        return SwapOp.build(
+            operands=[input_stencil],
+            attributes={
+                "strategy": strategy,
+                "swaps": builtin.ArrayAttr[ExchangeDeclarationAttr](()),
+            },
+        )
 
 
 DMP = Dialect(
