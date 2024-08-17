@@ -1,3 +1,5 @@
+import re
+
 import jax
 import pytest
 
@@ -53,6 +55,30 @@ def test_abs():
     assert abs_one(array(-2, dtype=jax.numpy.int32)) == array(2, dtype=jax.numpy.int32)
     assert abs_one(array(0, dtype=jax.numpy.int32)) == array(0, dtype=jax.numpy.int32)
     assert abs_one(array(2, dtype=jax.numpy.int32)) == array(2, dtype=jax.numpy.int32)
+
+
+def test_add_sub():
+    TI32 = TensorType(i32, ())
+
+    main_op = func.FuncOp("main", ((TI32, TI32), (TI32, TI32)))
+    with ImplicitBuilder(main_op.body) as (arg0, arg1):
+        res0 = stablehlo.AddOp(arg0, arg1).result
+        res1 = stablehlo.SubtractOp(arg0, arg1).result
+        func.Return(res0, res1)
+
+    module = ModuleOp([main_op])
+
+    executable = JaxExecutable.compile(module)
+
+    def a(i: int) -> jax.Array:
+        return array(i, dtype=jax.numpy.int32)
+
+    assert executable.execute([a(-2), a(-3)]) == [a(-5), a(1)]
+
+    @executable
+    def add_sub_tuple(a: jax.Array, b: jax.Array) -> tuple[jax.Array, jax.Array]: ...
+
+    assert add_sub_tuple(a(-2), a(-3)) == (a(-5), a(1))
 
 
 def test_no_main():
@@ -126,25 +152,6 @@ def test_parameter_annotation():
         def abs_wrong_annotation(a: int) -> jax.Array: ...  # pyright: ignore[reportUnusedFunction]
 
 
-def test_return_annotation_tuple_length():
-    TI32 = TensorType(i32, ())
-
-    main_op = func.FuncOp("main", ((TI32,), (TI32,)))
-    with ImplicitBuilder(main_op.body) as (arg,):
-        res = stablehlo.AbsOp(arg).result
-        func.Return(res)
-
-    module = ModuleOp([main_op])
-    executable = JaxExecutable.compile(module)
-
-    with pytest.raises(
-        NotImplementedError, match="Only return values of length 1 supported"
-    ):
-
-        @executable
-        def abs_wrong_tuple_length(a: jax.Array) -> tuple[jax.Array, jax.Array]: ...  # pyright: ignore[reportUnusedFunction]
-
-
 def test_return_annotation_tuple_type():
     TI32 = TensorType(i32, ())
 
@@ -157,7 +164,10 @@ def test_return_annotation_tuple_type():
     executable = JaxExecutable.compile(module)
 
     with pytest.raises(
-        NotImplementedError, match="Return annotation .* is not jnp.ndarray"
+        NotImplementedError,
+        match=re.escape(
+            "Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got tuple[int]."
+        ),
     ):
 
         @executable  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]

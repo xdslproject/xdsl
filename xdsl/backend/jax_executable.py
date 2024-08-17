@@ -115,19 +115,7 @@ class JaxExecutable:
         sig_return = sig.return_annotation
         sig_return_origin = get_origin(sig_return)
 
-        if sig_return_origin is tuple:
-            return_args = get_args(sig_return)
-            if len(return_args) != 1:
-                raise NotImplementedError("Only return values of length 1 supported")
-            if return_args[0] is not jnp.ndarray:
-                raise NotImplementedError(
-                    f"Return annotation {return_args[0]} is not jnp.ndarray"
-                )
-
-            def func(*args: P.args, **kwargs: P.kwargs) -> R:
-                result = loaded.execute(args)
-                return cast(R, tuple(result))
-        else:
+        if sig_return_origin is not tuple:
             if sig.return_annotation is not jnp.ndarray:
                 raise NotImplementedError(
                     f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}."
@@ -140,5 +128,15 @@ class JaxExecutable:
             def func(*args: P.args, **kwargs: P.kwargs) -> R:
                 result = loaded.execute(args)
                 return result[0]
+        else:
+            return_args = get_args(sig_return)
+            if not all(return_arg is jnp.ndarray for return_arg in return_args):
+                raise NotImplementedError(
+                    f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}."
+                )
+
+            def func(*args: P.args, **kwargs: P.kwargs) -> R:
+                result = loaded.execute(args)
+                return cast(R, tuple(result))
 
         return func
