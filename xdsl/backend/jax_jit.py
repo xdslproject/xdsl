@@ -1,10 +1,13 @@
 from collections.abc import Callable
 from inspect import signature
-from typing import ParamSpec, TypeVar, cast, get_args, get_origin
+from typing import Any, ParamSpec, TypeVar, cast, get_args, get_origin
 
 import jax.numpy as jnp
+import numpy as np
+from jax import Array
 from jax._src import xla_bridge
 from jax._src.interpreters import mlir
+from jax._src.typing import SupportsDType
 from jaxlib.mlir import ir
 
 from xdsl.dialects.builtin import ModuleOp
@@ -13,6 +16,24 @@ from xdsl.traits import SymbolTable
 
 P = ParamSpec("P")
 R = TypeVar("R", bound=tuple[jnp.ndarray, ...] | jnp.ndarray)
+
+# JAX DTypeLike is currently broken
+DTypeLike = (
+    str  # like 'float32', 'int32'
+    | type[Any]  # like np.float32, np.int32, float, int
+    | np.dtype[Any]  # like np.dtype('float32'), np.dtype('int32')
+    | SupportsDType  # like jnp.float32, jnp.int32
+)
+
+
+def array(object: Any, dtype: DTypeLike | None = None, copy: bool = True) -> Array:
+    """
+    Creates a jnp array with the passed-in parameters.
+
+    JAX type annotations are currently broken, as they don't provide a generic parameter to `np.dtype`.
+    This helper works around this issue.
+    """
+    return jnp.array(object, None, copy)  # pyright: ignore[reportUnknownMemberType]
 
 
 def jax_jit(module: ModuleOp) -> Callable[[Callable[P, R]], Callable[P, R]]:

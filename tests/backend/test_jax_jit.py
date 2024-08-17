@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import ModuleOp, TensorType, i32
 
 pytest.importorskip("jax")
 
-from xdsl.backend.jax_jit import jax_jit  # noqa: E402
+from xdsl.backend.jax_jit import array, jax_jit  # noqa: E402
 
 
 def test_abs():
@@ -25,28 +25,22 @@ def test_abs():
     @lazyjit
     def abs_tuple(a: jax.Array) -> tuple[jax.Array]: ...
 
-    assert abs_tuple(jax.numpy.array(-2, dtype=jax.numpy.int32))[0] == jax.numpy.array(
+    assert abs_tuple(array(-2, dtype=jax.numpy.int32))[0] == array(
         2, dtype=jax.numpy.int32
     )
-    assert abs_tuple(jax.numpy.array(0, dtype=jax.numpy.int32))[0] == jax.numpy.array(
+    assert abs_tuple(array(0, dtype=jax.numpy.int32))[0] == array(
         0, dtype=jax.numpy.int32
     )
-    assert abs_tuple(jax.numpy.array(2, dtype=jax.numpy.int32))[0] == jax.numpy.array(
+    assert abs_tuple(array(2, dtype=jax.numpy.int32))[0] == array(
         2, dtype=jax.numpy.int32
     )
 
     @lazyjit
     def abs_one(a: jax.Array) -> jax.Array: ...
 
-    assert abs_one(jax.numpy.array(-2, dtype=jax.numpy.int32)) == jax.numpy.array(
-        2, dtype=jax.numpy.int32
-    )
-    assert abs_one(jax.numpy.array(0, dtype=jax.numpy.int32)) == jax.numpy.array(
-        0, dtype=jax.numpy.int32
-    )
-    assert abs_one(jax.numpy.array(2, dtype=jax.numpy.int32)) == jax.numpy.array(
-        2, dtype=jax.numpy.int32
-    )
+    assert abs_one(array(-2, dtype=jax.numpy.int32)) == array(2, dtype=jax.numpy.int32)
+    assert abs_one(array(0, dtype=jax.numpy.int32)) == array(0, dtype=jax.numpy.int32)
+    assert abs_one(array(2, dtype=jax.numpy.int32)) == array(2, dtype=jax.numpy.int32)
 
 
 def test_no_main():
@@ -68,4 +62,4 @@ def test_fail():
         module = ModuleOp([main_op])
 
         @jax_jit(module)
-        def abs(a: jax.Array) -> tuple[jax.Array]: ...
+        def abs(a: jax.Array) -> tuple[jax.Array]: ...  # pyright: ignore[reportUnusedFunction]
