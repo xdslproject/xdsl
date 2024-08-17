@@ -36,38 +36,43 @@ def jax_jit(module: ModuleOp) -> Callable[[Callable[P, R]], Callable[P, R]]:
     def wrapper(stub: Callable[P, R]) -> Callable[P, R]:
         sig = signature(stub)
 
-        # Assert that the number of parameters matches
-        assert (
-            len(sig.parameters) == len(operand_types)
-        ), f"Number of parameters ({len(sig.parameters)}) does not match the number of operand types ({len(operand_types)})"
+        if len(sig.parameters) != len(operand_types):
+            raise ValueError(
+                f"Number of parameters ({len(sig.parameters)}) does not match the number of operand types ({len(operand_types)})"
+            )
 
         # Check that all parameters are annotated as jnp.ndarray
         for param in sig.parameters.values():
-            assert (
-                param.annotation == jnp.ndarray
-            ), f"Parameter {param.name} is not annotated as jnp.ndarray"
+            if param.annotation != jnp.ndarray:
+                raise NotImplementedError(
+                    f"Parameter {param.name} is not annotated as jnp.ndarray"
+                )
 
         # Check return annotation
         sig_return = sig.return_annotation
         sig_return_origin = get_origin(sig_return)
 
         if sig_return_origin is tuple:
-            args = get_args(sig_return)
-            if len(args) != 1:
+            return_args = get_args(sig_return)
+            if len(return_args) != 1:
                 raise NotImplementedError("Only return values of length 1 supported")
-            if args[0] is not jnp.ndarray:
-                raise ValueError(f"Return annotation {args[0]} is not jnp.ndarray")
+            if return_args[0] is not jnp.ndarray:
+                raise NotImplementedError(
+                    f"Return annotation {return_args[0]} is not jnp.ndarray"
+                )
 
             def func(*args: P.args, **kwargs: P.kwargs) -> R:
                 result = loaded.execute(args)
                 return cast(R, tuple(result))
         else:
-            assert (
-                sig.return_annotation == jnp.ndarray
-            ), "Return annotation is not jnp.ndarray"
-            assert (
-                len(result_types) == 1
-            ), f"Number of return values ({len(result_types)}) does not match the stub's return annotation"
+            if sig.return_annotation is not jnp.ndarray:
+                raise NotImplementedError(
+                    f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}."
+                )
+            if len(result_types) != 1:
+                raise ValueError(
+                    f"Number of return values ({len(result_types)}) does not match the stub's return annotation"
+                )
 
             def func(*args: P.args, **kwargs: P.kwargs) -> R:
                 result = loaded.execute(args)
