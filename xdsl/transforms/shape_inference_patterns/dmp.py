@@ -41,7 +41,6 @@ class DmpSwapShapeInference(RewritePattern):
         if core_lb is None or core_ub is None:
             return
 
-        # drop 0 element exchanges
         swaps = builtin.ArrayAttr(
             exchange
             for exchange in op.strategy.halo_exchange_defs(
@@ -52,6 +51,7 @@ class DmpSwapShapeInference(RewritePattern):
                     core_ub=core_ub,
                 )
             )
+            # drop empty exchanges
             if exchange.elem_count > 0
         )
         if swaps != op.swaps:
