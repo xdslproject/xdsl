@@ -480,8 +480,8 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
 
         yield from _flat_face_exchanges_for_dim(shape, 1)
 
-        # TOOD: add diagonals
-        assert not self.diagonals
+        if self.diagonals.value.data:
+            raise NotImplementedError("Diagonals support not implemented yet")
 
     def comm_layout(self) -> RankTopoAttr:
         return RankTopoAttr(self.topology.as_tuple())
@@ -530,8 +530,8 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
 
         yield from _flat_face_exchanges_for_dim(shape, 2)
 
-        # TOOD: add diagonals
-        assert not self.diagonals.value.data
+        if self.diagonals.value.data:
+            raise NotImplementedError("Diagonals support not implemented yet")
 
     def comm_layout(self) -> RankTopoAttr:
         return RankTopoAttr(self.topology.as_tuple())
