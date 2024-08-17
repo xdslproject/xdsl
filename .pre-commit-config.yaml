@@ -5,6 +5,8 @@ repos:
     rev: v4.6.0
     hooks:
     -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: mixed-line-ending
 -   repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.0
     hooks:

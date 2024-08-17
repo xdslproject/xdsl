@@ -50,4 +50,3 @@ riscv.assembly_section ".text" {
 // CHECK-NEXT:          riscv_func.return
 // CHECK-NEXT:      }
 // CHECK-NEXT:  }
-
