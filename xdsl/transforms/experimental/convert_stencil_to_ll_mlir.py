@@ -342,7 +342,6 @@ class AllocOpToMemref(RewritePattern):
 
 @dataclass
 class ApplyOpFieldSubviews(RewritePattern):
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
         args = [
