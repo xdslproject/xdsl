@@ -24,6 +24,16 @@ def test_abs():
 
     executable = JaxExecutable.compile(module)
 
+    assert executable.execute([array(-2, dtype=jax.numpy.int32)])[0] == array(
+        2, dtype=jax.numpy.int32
+    )
+    assert executable.execute([array(0, dtype=jax.numpy.int32)])[0] == array(
+        0, dtype=jax.numpy.int32
+    )
+    assert executable.execute([array(2, dtype=jax.numpy.int32)])[0] == array(
+        2, dtype=jax.numpy.int32
+    )
+
     @executable
     def abs_tuple(a: jax.Array) -> tuple[jax.Array]: ...
 
@@ -46,13 +56,10 @@ def test_abs():
 
 
 def test_no_main():
-    module = ModuleOp([])
-
     with pytest.raises(ValueError, match="No `main` function in module"):
+        module = ModuleOp([])
         JaxExecutable.compile(module)
 
-
-def test_fail():
     TI32 = TensorType(i32, ())
 
     with pytest.raises(ValueError, match="No `main` function in module"):
@@ -63,8 +70,7 @@ def test_fail():
 
         module = ModuleOp([main_op])
 
-        @JaxExecutable.compile(module)
-        def abs(a: jax.Array) -> tuple[jax.Array]: ...  # pyright: ignore[reportUnusedFunction]
+        JaxExecutable.compile(module)
 
 
 def test_main_not_func():
@@ -154,7 +160,7 @@ def test_return_annotation_tuple_type():
         NotImplementedError, match="Return annotation .* is not jnp.ndarray"
     ):
 
-        @executable  # pyright: ignore[reportArgumentType]
+        @executable  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
         def abs_wrong_tuple_type(a: jax.Array) -> tuple[int]: ...  # pyright: ignore[reportUnusedFunction]
 
 
@@ -174,7 +180,7 @@ def test_return_annotation_single():
         match="Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray",
     ):
 
-        @executable  # pyright: ignore[reportArgumentType]
+        @executable  # pyright: ignore[reportArgumentType, reportGeneralTypeIssues]
         def abs_wrong_single_type(a: jax.Array) -> int: ...  # pyright: ignore[reportUnusedFunction]
 
 
