@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from inspect import signature
 from typing import Any, ParamSpec, TypeVar, cast, get_args, get_origin
 
@@ -9,8 +9,9 @@ from jax._src import xla_bridge
 from jax._src.interpreters import mlir
 from jax._src.typing import SupportsDType
 from jaxlib.mlir import ir
+from jaxlib.xla_client import LoadedExecutable
 
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.traits import SymbolTable
 
@@ -36,7 +37,21 @@ def array(object: Any, dtype: DTypeLike | None = None, copy: bool = True) -> Arr
     return jnp.array(object, None, copy)  # pyright: ignore[reportUnknownMemberType]
 
 
-def jax_jit(module: ModuleOp) -> Callable[[Callable[P, R]], Callable[P, R]]:
+class JaxExecutable:
+    main_type: FunctionType
+    loaded_executable: LoadedExecutable
+
+    def __init__(
+        self, main_type: FunctionType, loaded_executable: LoadedExecutable
+    ) -> None:
+        self.main_type = main_type
+        self.loaded_executable = loaded_executable
+
+    def execute(self, arguments: Sequence[Array]) -> list[Array]:
+        return self.loaded_executable.execute(arguments)
+
+
+def compile(module: ModuleOp) -> JaxExecutable:
     func_op = SymbolTable.lookup_symbol(module, "main")
     if func_op is None:
         raise ValueError("No `main` function in module.")
@@ -49,8 +64,14 @@ def jax_jit(module: ModuleOp) -> Callable[[Callable[P, R]], Callable[P, R]]:
     bytecode = mlir.module_to_bytecode(mlir_module)
     client = xla_bridge.backends()["cpu"]
     loaded = client.compile(bytecode)
+    return JaxExecutable(func_op.function_type, loaded)
 
-    func_type = func_op.function_type
+
+def jax_jit(module: ModuleOp) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    compiled = compile(module)
+    func_type = compiled.main_type
+    loaded = compiled.loaded_executable
+
     operand_types = func_type.inputs.data
     result_types = func_type.outputs.data
 
