@@ -26,15 +26,15 @@ def test_abs():
 
     executable = JaxExecutable.compile(module)
 
-    assert executable.execute([array(-2, dtype=jax.numpy.int32)])[0] == array(
-        2, dtype=jax.numpy.int32
-    )
-    assert executable.execute([array(0, dtype=jax.numpy.int32)])[0] == array(
-        0, dtype=jax.numpy.int32
-    )
-    assert executable.execute([array(2, dtype=jax.numpy.int32)])[0] == array(
-        2, dtype=jax.numpy.int32
-    )
+    assert executable.execute([array(-2, dtype=jax.numpy.int32)]) == [
+        array(2, dtype=jax.numpy.int32)
+    ]
+    assert executable.execute([array(0, dtype=jax.numpy.int32)]) == [
+        array(0, dtype=jax.numpy.int32)
+    ]
+    assert executable.execute([array(2, dtype=jax.numpy.int32)]) == [
+        array(2, dtype=jax.numpy.int32)
+    ]
 
     @executable
     def abs_tuple(a: jax.Array) -> tuple[jax.Array]: ...
