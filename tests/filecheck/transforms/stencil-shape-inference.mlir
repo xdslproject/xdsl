@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p stencil-shape-inference --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p shape-inference --verify-diagnostics --split-input-file %s | filecheck %s
 
 builtin.module {
   func.func @different_input_offsets(%out : !stencil.field<[-4,68]xf64>, %left : !stencil.field<[-4,68]xf64>, %right : !stencil.field<[-4,68]xf64>) {

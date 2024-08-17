@@ -18,9 +18,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint, Rewriter
-from xdsl.transforms.experimental.stencil_shape_inference import (
-    StencilShapeInferencePass,
-)
+from xdsl.transforms.shape_inference import ShapeInferencePass
 from xdsl.utils.hints import isa
 
 _T = TypeVar("_T", bound=Attribute)
@@ -667,7 +665,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         ).rewrite_module(op)
 
         # run the shape inference pass
-        StencilShapeInferencePass().apply(ctx, op)
+        ShapeInferencePass().apply(ctx, op)
 
         PatternRewriteWalker(DmpSwapShapeInference()).rewrite_module(op)
 
