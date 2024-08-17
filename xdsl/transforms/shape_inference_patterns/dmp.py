@@ -11,9 +11,7 @@ from xdsl.utils.hints import isa
 
 class DmpSwapShapeInference(RewritePattern):
     """
-    This is applied after stencil shape inference has run. It will find the
-    HaloSwapOps again, and use the results of the shape inference pass
-    to attach the swap declarations.
+    Infer the exact exchanges this `dmp.swap` needs to perform.
     """
 
     @op_type_rewrite_pattern
