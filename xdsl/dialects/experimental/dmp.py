@@ -608,21 +608,21 @@ class SwapOp(IRDLOperation):
 
     traits = frozenset([SwapOpHasShapeInferencePatterns()])
 
-    def _verify(self) -> None:
+    def verify_(self) -> None:
         if self.swapped_values:
-            if isinstance(self.input_stencil, stencil.FieldType):
+            if isinstance(self.input_stencil.type, stencil.FieldType):
                 raise VerifyException(
                     "dmp.swap_op cannot have a result if input is a field"
                 )
         else:
-            if isinstance(self.input_stencil, stencil.TempType):
+            if isinstance(self.input_stencil.type, stencil.TempType):
                 raise VerifyException(
                     "dmp.swap_op must have a result if input is a temporary"
                 )
 
     @staticmethod
     def get(input_stencil: SSAValue | Operation, strategy: DomainDecompositionStrategy):
-        input_type = SSAValue.get(input_stencil)
+        input_type = SSAValue.get(input_stencil).type
 
         result_types = (
             input_type if isa(input_type, stencil.TempType[Attribute]) else None

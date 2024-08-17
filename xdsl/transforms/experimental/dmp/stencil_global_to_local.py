@@ -56,7 +56,13 @@ class AddHaloExchangeOps(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
         swap_op = dmp.SwapOp.get(op.res, self.strategy)
+        assert swap_op.swapped_values
         rewriter.insert_op_after_matched_op(swap_op)
+        for use in op.res.uses.copy():
+            if use.operation is swap_op:
+                continue
+            use.operation.operands[use.index] = swap_op.swapped_values
+            rewriter.handle_operation_modification(use.operation)
 
 
 @dataclass
