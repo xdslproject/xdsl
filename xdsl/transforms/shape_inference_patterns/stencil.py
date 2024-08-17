@@ -1,6 +1,5 @@
-from collections.abc import Iterable
 from functools import reduce
-from typing import TypeVar, cast
+from typing import cast
 
 from xdsl.dialects.stencil import (
     AccessOp,
@@ -15,48 +14,13 @@ from xdsl.dialects.stencil import (
     StoreOp,
     TempType,
 )
-from xdsl.ir import Attribute, Block, Operation, SSAValue
+from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
-
-_OpT = TypeVar("_OpT", bound=Operation)
-
-
-def all_matching_uses(
-    op_res: Iterable[SSAValue], op_type: type[_OpT]
-) -> Iterable[_OpT]:
-    for res in op_res:
-        for use in res.uses:
-            if isinstance(use.operation, op_type):
-                yield use.operation
-
-
-def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
-    """
-    This method infers the core size (as used in DimsHelper)
-    from an LoadOp by walking the def-use chain down to the `apply`
-    """
-    applies: list[ApplyOp] = list(all_matching_uses([op.res], ApplyOp))
-    assert len(applies) > 0, "Load must be followed by Apply!"
-
-    shape_lb: None | IndexAttr = None
-    shape_ub: None | IndexAttr = None
-
-    for apply in applies:
-        # assert apply.lb is not None and apply.ub is not None
-        assert apply.res
-        res_type = cast(TempType[Attribute], apply.res[0])
-        assert isinstance(res_type.bounds, StencilBoundsAttr)
-        shape_lb = IndexAttr.min(res_type.bounds.lb, shape_lb)
-        shape_ub = IndexAttr.max(res_type.bounds.ub, shape_ub)
-
-    assert shape_lb is not None
-    assert shape_ub is not None
-    return shape_lb, shape_ub
 
 
 def modify_value_type(value: SSAValue, new_type: Attribute, rewriter: PatternRewriter):

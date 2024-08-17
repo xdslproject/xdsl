@@ -124,10 +124,6 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
             ]
         )
 
-    @staticmethod
-    def size_from_bounds(lb: IndexAttr, ub: IndexAttr) -> list[int]:
-        return [ub - lb for lb, ub in zip(lb, ub)]
-
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
@@ -462,8 +458,6 @@ class ApplyOp(IRDLOperation):
 
     name = "stencil.apply"
 
-    B = Annotated[Attribute, ConstraintVar("B")]
-
     args: VarOperand = var_operand_def(Attribute)
     dest = var_operand_def(FieldType)
     region: Region = region_def()
@@ -627,13 +621,6 @@ class ApplyOp(IRDLOperation):
         else:
             assert self.bounds is not None
             return len(self.bounds.lb)
-
-    def get_num_results(self) -> int:
-        res = len(self.res)
-        if res > 0:
-            return res
-        else:
-            return len(self.dest)
 
     def get_accesses(self) -> Iterable[AccessPattern]:
         """
