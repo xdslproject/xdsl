@@ -187,7 +187,7 @@ class StreamOpLowering(RewritePattern):
             )
             arg.replace_by(cast_op.results[0])
             cast_op.operands = (arg,)
-            rewriter.modify_value_type(arg, stream_type)
+            rewriter.modify_block_argument_type(arg, stream_type)
 
 
 def strides_for_affine_map(
