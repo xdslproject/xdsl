@@ -2,8 +2,6 @@ from collections.abc import Iterable
 from functools import reduce
 from typing import TypeVar, cast
 
-from xdsl.context import MLContext
-from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
@@ -18,11 +16,8 @@ from xdsl.dialects.stencil import (
     TempType,
 )
 from xdsl.ir import Attribute, Block, Operation, SSAValue
-from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
-    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
@@ -268,24 +263,3 @@ class BufferOpShapeInference(RewritePattern):
             return
         op.temp.type = op.res.type
         update_result_size(op.temp, res_bounds, rewriter)
-
-
-ShapeInference = GreedyRewritePatternApplier(
-    [
-        AccessOpShapeInference(),
-        ApplyOpShapeInference(),
-        BufferOpShapeInference(),
-        CombineOpShapeInference(),
-        DynAccessOpShapeInference(),
-        LoadOpShapeInference(),
-        StoreOpShapeInference(),
-    ]
-)
-
-
-class StencilShapeInferencePass(ModulePass):
-    name = "stencil-shape-inference"
-
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        inference_walker = PatternRewriteWalker(ShapeInference)
-        inference_walker.rewrite_module(op)
