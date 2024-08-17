@@ -12,6 +12,7 @@ from xdsl.dialects.stencil import (
     FieldType,
     IndexAttr,
     LoadOp,
+    ReturnOp,
     StencilBoundsAttr,
     StoreOp,
     TempType,
@@ -32,7 +33,8 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.traits import is_side_effect_free
+from xdsl.traits import MemoryEffectKind, get_effects
+from xdsl.transforms.canonicalization_patterns.stencil import ApplyUnusedResults
 from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.utils.hints import isa
 
@@ -43,15 +45,24 @@ def field_from_temp(temp: TempType[_TypeElement]) -> FieldType[_TypeElement]:
     return FieldType[_TypeElement].new(temp.parameters)
 
 
+def might_effect(
+    operation: Operation, effects: set[MemoryEffectKind], value: SSAValue
+) -> bool:
+    """
+    Return True if the operation might have any of the given effects on the given value.
+    """
+    op_effects = get_effects(operation)
+    return op_effects is None or any(
+        e.kind in effects and e.value in (None, value) for e in op_effects
+    )
+
+
 class ApplyBufferizePattern(RewritePattern):
     """
     Naive partial `stencil.apply` bufferization.
 
-    Just replace all operands with the field result of a stencil.buffer on them, meaning
-    "The buffer those value are allocated to"; and allocate buffers for every result,
-    loading them back after the apply, to keep types fine with users.
-
-    Point is to fold as much as possible all the allocations and loads.
+    Just replace all temp arguments with the field result of a stencil.buffer on them, meaning
+    "The buffer those value are allocated to".
 
     Example:
     ```mlir
@@ -62,26 +73,20 @@ class ApplyBufferizePattern(RewritePattern):
     yields:
     ```mlir
     %in_buf = stencil.buffer %in : !stencil.temp<[0,32]xf64> -> !stencil.field<[0,32]xf64>
-    %out_buf = stencil.alloc : !stencil.field<[0,32]>xf64
     stencil.apply(%0 = %in_buf : !stencil.field<[0,32]>xf64) outs (%out_buf : !stencil.field<[0,32]>xf64) {
         // [...]
     }
-    %out = stencil.load %out_buf : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>xf64
     ```
     """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
-        if not op.res:
+        if all(not isinstance(o.type, TempType) for o in op.args):
             return
 
-        bounds = cast(TempType[Attribute], op.res[0].type).bounds
+        bounds = op.get_bounds()
 
-        dests = [
-            AllocOp(result_types=[field_from_temp(cast(TempType[Attribute], r.type))])
-            for r in op.res
-        ]
-        operands = [
+        args = [
             (
                 BufferOp.create(
                     operands=[o],
@@ -90,28 +95,18 @@ class ApplyBufferizePattern(RewritePattern):
                 if isa(o.type, TempType[Attribute])
                 else o
             )
-            for o in op.operands
-        ]
-
-        loads = [
-            LoadOp(operands=[d], result_types=[r.type]) for d, r in zip(dests, op.res)
+            for o in op.args
         ]
 
         new = ApplyOp(
-            operands=[operands, dests],
-            regions=[Region(Block(arg_types=[SSAValue.get(a).type for a in operands]))],
-            result_types=[[]],
+            operands=[args, op.dest],
+            regions=[op.detach_region(0)],
+            result_types=[op.res.types],
             properties={"bounds": bounds},
-        )
-        rewriter.inline_block(
-            op.region.block,
-            InsertPoint.at_start(new.region.block),
-            new.region.block.args,
         )
 
         rewriter.replace_matched_op(
-            [*(o for o in operands if isinstance(o, Operation)), *dests, new, *loads],
-            [SSAValue.get(l) for l in loads],
+            [*(o for o in args if isinstance(o, Operation)), new]
         )
 
 
@@ -182,9 +177,7 @@ class LoadBufferFoldPattern(RewritePattern):
         effecting = [
             o
             for o in walk_from_to(load, user)
-            if underlying in o.operands
-            and (not is_side_effect_free(o))
-            and (o not in (load, op, user))
+            if might_effect(o, {MemoryEffectKind.WRITE}, underlying)
         ]
         if effecting:
             return
@@ -192,100 +185,119 @@ class LoadBufferFoldPattern(RewritePattern):
         rewriter.replace_matched_op(new_ops=[], new_results=[underlying])
 
 
-class ApplyLoadStoreFoldPattern(RewritePattern):
+class ApplyStoreFoldPattern(RewritePattern):
     """
-    If an allocated field is only used by an apply to write its output and loaded
-    to be stored in a destination field, make the apply work on the destination directly.
+    Fold stores of applys result
 
     Example:
     ```mlir
-    %temp = stencil.alloc : !stencil.field<[0,32]>
-    stencil.apply() outs (%temp : !stencil.field<[0,32]>) {
+    %temp = stencil.apply() -> (!stencil.temp<[0,32]>) {
         // [...]
     }
-    // [... %temp, %dest not affected]
-    %loaded = stencil.load %temp : !stencil.field<[0,32]> -> !stencil.temp<[0,32]>
-    // [... %dest not affected]
-    stencil.store %loaded to %dest (<[0], [32]>) : !stencil.temp<[0,32]> to !stencil.field<[-2,34]>
+    // [... %dest not read]
+    stencil.store %temp to %dest (<[0], [32]>) : !stencil.temp<[0,32]> to !stencil.field<[-2,34]>
     ```
     yields:
     ```mlir
-    // Will be simplified away by the canonicalizer
-    %temp = stencil.alloc : !stencil.field<[0,32]>
-    // Outputs on dest
-    stencil.apply() outs (%dest : !stencil.field<[0,32]>) {
+    // Outputs on dest directly
+    stencil.apply() outs (%dest : !stencil.field<[-2,34]>) {
         // [...]
     }
-    // Load same values from %dest instead for next operations
-    %loaded = stencil.load %dest : !stencil.field<[0,32]> -> !stencil.temp<[0,32]>
     ```
     """
 
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: StoreOp, rewriter: PatternRewriter):
-        temp = op.temp
-
-        # We are looking for a loaded destination of an apply
-        if not isinstance(load := temp.owner, LoadOp):
-            return
-
-        infield = load.field
-
-        other_uses = [u for u in infield.uses if u.operation is not load]
-
-        if len(other_uses) != 1:
-            return
-
-        other_use = other_uses.pop()
-
-        if not isinstance(
-            apply := other_use.operation, ApplyOp
-        ) or other_use.index < len(apply.args):
-            print(other_use)
-            print()
-            return
-
-        # Get first occurence of the field, to walk from it
-        start = op.field.owner
+    @staticmethod
+    def is_dest_safe(apply: ApplyOp, store: StoreOp) -> bool:
+        # Check that the destination is not used between the apply and store.
+        dest = store.field
+        start = dest.owner
         if isinstance(start, Block):
-            if start is not op.parent:
-                return
             start = cast(Operation, start.first_op)
         effecting = [
             o
-            for o in walk_from_to(start, op)
-            if infield in o.operands
-            and (not is_side_effect_free(o))
-            and (o not in (load, apply))
+            for o in walk_from_to(apply, store)
+            if might_effect(o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest)
         ]
-        if effecting:
-            print("effecting: ", effecting)
-            print(load)
+        return not effecting
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter):
+        apply = op
+        for temp_index, stored in enumerate(op.res):
+            # We are looking for a result that is stored and foldable
+            stores = [
+                use.operation
+                for use in stored.uses
+                if isinstance(use.operation, StoreOp)
+                and self.is_dest_safe(apply, use.operation)
+            ]
+            if not stores:
+                continue
+
+            bounds = apply.get_bounds()
+            if not isinstance(bounds, StencilBoundsAttr):
+                raise ValueError(
+                    "Stencil shape inference must be ran before bufferization."
+                )
+
+            new_apply = ApplyOp.build(
+                # We add new destinations for each store of the removed result
+                operands=[
+                    apply.args,
+                    (*apply.dest, *(store.field for store in stores)),
+                ],
+                # We only remove the considered result
+                result_types=[
+                    [
+                        r.type
+                        for r in apply.results[:temp_index]
+                        + apply.results[temp_index + 1 :]
+                    ]
+                ],
+                properties=apply.properties.copy() | {"bounds": bounds},
+                attributes=apply.attributes.copy(),
+                # The block signature is the same
+                regions=[
+                    Region(Block(arg_types=[SSAValue.get(a).type for a in apply.args])),
+                ],
+            )
+
+            # The body is the same
+            rewriter.inline_block(
+                apply.region.block,
+                InsertPoint.at_start(new_apply.region.block),
+                new_apply.region.block.args,
+            )
+
+            # We swap the return's operand order, to make sure the order still matches destinations
+            # after bufferization
+            old_return = new_apply.region.block.last_op
+            assert isinstance(old_return, ReturnOp)
+            uf = old_return.unroll_factor
+            new_return_args = list(
+                old_return.arg[: uf * temp_index]
+                + old_return.arg[uf * (temp_index + 1) :]
+                + old_return.arg[uf * temp_index : uf * (temp_index + 1)] * len(stores)
+            )
+            new_return = ReturnOp.create(
+                operands=new_return_args,
+                properties=old_return.properties.copy(),
+                attributes=old_return.attributes.copy(),
+            )
+            rewriter.replace_op(old_return, new_return)
+
+            # Create a load of a destination, for any other user of the result
+            load = LoadOp.get(stores[0].field, bounds.lb, bounds.ub)
+
+            rewriter.replace_matched_op(
+                [new_apply, load],
+                new_apply.results[:temp_index]
+                + (load.res,)
+                + new_apply.results[temp_index:],
+            )
+            for store in stores:
+                rewriter.erase_op(store)
             return
-
-        new_operands = list(apply.operands)
-        new_operands[other_use.index] = op.field
-
-        new_apply = ApplyOp.create(
-            operands=new_operands,
-            result_types=[],
-            properties=apply.properties.copy(),
-            attributes=apply.attributes.copy(),
-            regions=[
-                apply.detach_region(0),
-            ],
-        )
-
-        new_load = LoadOp.create(
-            operands=[op.field],
-            result_types=load.result_types,
-            attributes=load.attributes.copy(),
-            properties=load.properties.copy(),
-        )
-
-        rewriter.replace_op(apply, new_apply)
-        rewriter.replace_op(load, new_load)
-        rewriter.erase_op(op)
 
 
 @dataclass(frozen=True)
@@ -505,8 +517,9 @@ class StencilBufferize(ModulePass):
                     BufferAlloc(),
                     CombineStoreFold(),
                     LoadBufferFoldPattern(),
-                    ApplyLoadStoreFoldPattern(),
+                    ApplyStoreFoldPattern(),
                     RemoveUnusedOperations(),
+                    ApplyUnusedResults(),
                 ]
             )
         )
