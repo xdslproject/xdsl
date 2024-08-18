@@ -667,14 +667,13 @@ def test_block_argument_type_change():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.modify_block_argument_type(
-                    matched_op.regs[0].blocks[0].args[0], i64
-                )
+                rewriter.modify_value_type(matched_op.regs[0].blocks[0].args[0], i64)
 
     rewrite_and_compare(
         prog,
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        op_modified=1,
     )
 
 
@@ -1423,7 +1422,7 @@ def test_type_conversion():
         op_inserted=5,
         op_removed=5,
         op_replaced=5,
-        op_modified=4,
+        op_modified=5,
     )
     rewrite_and_compare(
         prog,
@@ -1432,7 +1431,7 @@ def test_type_conversion():
         op_inserted=5,
         op_removed=5,
         op_replaced=5,
-        op_modified=4,
+        op_modified=5,
     )
     rewrite_and_compare(
         prog,
@@ -1443,7 +1442,7 @@ def test_type_conversion():
         op_inserted=5,
         op_removed=5,
         op_replaced=5,
-        op_modified=4,
+        op_modified=5,
     )
 
     non_rec_expected = """\
@@ -1467,7 +1466,7 @@ def test_type_conversion():
         op_inserted=2,
         op_removed=2,
         op_replaced=2,
-        op_modified=3,
+        op_modified=4,
     )
     rewrite_and_compare(
         prog,
@@ -1476,7 +1475,7 @@ def test_type_conversion():
         op_inserted=2,
         op_removed=2,
         op_replaced=2,
-        op_modified=3,
+        op_modified=4,
     )
     rewrite_and_compare(
         prog,
@@ -1485,7 +1484,7 @@ def test_type_conversion():
         op_inserted=2,
         op_removed=2,
         op_replaced=2,
-        op_modified=3,
+        op_modified=4,
     )
 
     expected = """\
@@ -1640,6 +1639,7 @@ def test_recursive_type_conversion_in_regions():
         op_inserted=1,
         op_removed=1,
         op_replaced=1,
+        op_modified=1,
     )
 
 
