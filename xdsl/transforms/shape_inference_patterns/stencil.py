@@ -14,28 +14,13 @@ from xdsl.dialects.stencil import (
     StoreOp,
     TempType,
 )
-from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.ir import Attribute, SSAValue
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
 from xdsl.utils.hints import isa
-
-
-def modify_value_type(value: SSAValue, new_type: Attribute, rewriter: PatternRewriter):
-    """Modify the type of a value, triggering more rewrites on its uses and owner."""
-    rewriter.has_done_action = True
-    value.type = new_type
-
-    for use in value.uses:
-        rewriter.handle_operation_modification(use.operation)
-
-    owner = value.owner
-    if isinstance(owner, Block):
-        owner = owner.parent_op()
-    if owner is not None:
-        rewriter.handle_operation_modification(owner)
 
 
 def update_result_size(
@@ -67,14 +52,14 @@ def update_result_size(
                 newsize, cast(TempType[Attribute], res.type).element_type
             )
             if newtype != res.type:
-                modify_value_type(res, newtype, rewriter)
+                rewriter.modify_value_type(res, newtype)
             for use in res.uses:
                 if isinstance(use.operation, BufferOp):
                     update_result_size(use.operation.res, newsize, rewriter)
     newsize = size | cast(TempType[Attribute], value.type).bounds
     newtype = TempType(newsize, cast(TempType[Attribute], value.type).element_type)
     if newtype != value.type:
-        modify_value_type(value, newtype, rewriter)
+        rewriter.modify_value_type(value, newtype)
 
 
 class CombineOpShapeInference(RewritePattern):
