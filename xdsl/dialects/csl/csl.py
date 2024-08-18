@@ -18,6 +18,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
+    AnyMemRefType,
     ArrayAttr,
     BoolAttr,
     ContainerType,
@@ -1008,7 +1009,9 @@ class BuiltinDsdOp(IRDLOperation, ABC):
             sig_typ: Attribute | type[Attribute],
         ) -> bool:
             if isinstance(sig_typ, type):
-                return isinstance(op_typ, sig_typ)
+                return (
+                    sig_typ == DsdType and isa(op_typ, AnyMemRefType)
+                ) or isinstance(op_typ, sig_typ)
             else:
                 return op_typ == sig_typ
 

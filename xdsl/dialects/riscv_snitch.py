@@ -55,7 +55,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
     Pure,
@@ -67,7 +67,7 @@ from xdsl.utils.exceptions import VerifyException
 # region Snitch Extensions
 
 
-class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class ScfgwOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (

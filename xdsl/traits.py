@@ -424,7 +424,7 @@ class CallableOpInterface(OpTrait, abc.ABC):
 
 
 @dataclass(frozen=True)
-class HasCanonicalisationPatternsTrait(OpTrait):
+class HasCanonicalizationPatternsTrait(OpTrait):
     """
     Provides the rewrite passes to canonicalize an operation.
 
@@ -437,6 +437,23 @@ class HasCanonicalisationPatternsTrait(OpTrait):
     @classmethod
     @abc.abstractmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class HasShapeInferencePatternsTrait(OpTrait):
+    """
+    Provides the rewrite passes to shape infer an operation.
+
+    Each rewrite pattern must have the trait's op as root.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    @abc.abstractmethod
+    def get_shape_inference_patterns(cls) -> tuple[RewritePattern, ...]:
         raise NotImplementedError()
 
 

@@ -23,9 +23,7 @@ from xdsl.transforms.experimental.dmp.decompositions import (
     GridSlice2d,
     GridSlice3d,
 )
-from xdsl.transforms.experimental.stencil_shape_inference import (
-    StencilShapeInferencePass,
-)
+from xdsl.transforms.shape_inference import ShapeInferencePass
 from xdsl.utils.hints import isa
 
 _T = TypeVar("_T", bound=Attribute)
@@ -684,7 +682,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         ).rewrite_module(op)
 
         # run the shape inference pass
-        StencilShapeInferencePass().apply(ctx, op)
+        ShapeInferencePass().apply(ctx, op)
 
         DmpSwapShapeInference(strategy).apply(op)
 

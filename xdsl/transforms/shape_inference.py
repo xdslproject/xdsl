@@ -8,31 +8,29 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
 )
-from xdsl.traits import HasCanonicalizationPatternsTrait
-from xdsl.transforms.dead_code_elimination import dce
+from xdsl.traits import HasShapeInferencePatternsTrait
 
 
-class CanonicalizationRewritePattern(RewritePattern):
-    """Rewrite pattern that applies a canonicalization pattern."""
+class ShapeInferenceRewritePattern(RewritePattern):
+    """Rewrite pattern that applies a shape inference pattern."""
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        trait = op.get_trait(HasCanonicalizationPatternsTrait)
+        trait = op.get_trait(HasShapeInferencePatternsTrait)
         if trait is None:
             return
-        patterns = trait.get_canonicalization_patterns()
+        patterns = trait.get_shape_inference_patterns()
         if len(patterns) == 1:
             patterns[0].match_and_rewrite(op, rewriter)
             return
         GreedyRewritePatternApplier(list(patterns)).match_and_rewrite(op, rewriter)
 
 
-class CanonicalizePass(ModulePass):
+class ShapeInferencePass(ModulePass):
     """
-    Applies all canonicalization patterns.
+    Applies all shape inference patterns.
     """
 
-    name = "canonicalize"
+    name = "shape-inference"
 
     def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        PatternRewriteWalker(CanonicalizationRewritePattern()).rewrite_module(op)
-        dce(op)
+        PatternRewriteWalker(ShapeInferenceRewritePattern()).rewrite_module(op)

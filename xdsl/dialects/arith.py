@@ -41,7 +41,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     ConstantLike,
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
 )
@@ -262,7 +262,7 @@ FloatingPointLikeBinaryOp = BinaryOperationWithFastMath[
 IntegerBinaryOp = BinaryOperation[IntegerType]
 
 
-class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.arith import AddImmediateZero
