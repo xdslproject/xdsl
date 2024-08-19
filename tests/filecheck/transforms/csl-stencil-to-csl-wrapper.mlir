@@ -56,38 +56,44 @@ builtin.module {
 // CHECK-NEXT:     %25 = arith.ori %24, %22 : i1
 // CHECK-NEXT:     "csl_wrapper.yield"(%14, %13, %25) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:   }, {
-// CHECK-NEXT:   ^1(%26 : i16, %27 : i16, %28 : i16, %29 : i16, %30 : i16, %31 : i16, %32 : i16, %memcpy_params : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %isBorderRegionPE : i1, %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>):
+// CHECK-NEXT:   ^1(%26 : i16, %27 : i16, %28 : i16, %29 : i16, %30 : i16, %31 : i16, %32 : i16, %memcpy_params : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %isBorderRegionPE : i1):
 // CHECK-NEXT:     %33 = "csl_wrapper.import"(%memcpy_params) <{"module" = "<memcpy/memcpy>", "fields" = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{"module" = "stencil_comms.csl", "fields" = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
+// CHECK-NEXT:     "memref.global"() <{"sym_name" = "a", "type" = memref<512xf32>, "initial_value", "sym_visibility" = "public"}> : () -> ()
+// CHECK-NEXT:     %35 = memref.get_global @a : memref<512xf32>
+// CHECK-NEXT:     %a = builtin.unrealized_conversion_cast %35 : memref<512xf32> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:     "memref.global"() <{"sym_name" = "b", "type" = memref<512xf32>, "initial_value", "sym_visibility" = "public"}> : () -> ()
+// CHECK-NEXT:     %36 = memref.get_global @b : memref<512xf32>
+// CHECK-NEXT:     %b = builtin.unrealized_conversion_cast %36 : memref<512xf32> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:     csl.func @gauss_seidel() {
-// CHECK-NEXT:       %35 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-// CHECK-NEXT:       %36 = tensor.empty() : tensor<510xf32>
-// CHECK-NEXT:       %37 = csl_stencil.apply(%35 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %36 : tensor<510xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>}> ({
-// CHECK-NEXT:       ^2(%38 : tensor<4x255xf32>, %39 : index, %40 : tensor<510xf32>):
-// CHECK-NEXT:         %41 = csl_stencil.access %38[1, 0] : tensor<4x255xf32>
-// CHECK-NEXT:         %42 = csl_stencil.access %38[-1, 0] : tensor<4x255xf32>
-// CHECK-NEXT:         %43 = csl_stencil.access %38[0, 1] : tensor<4x255xf32>
-// CHECK-NEXT:         %44 = csl_stencil.access %38[0, -1] : tensor<4x255xf32>
-// CHECK-NEXT:         %45 = arith.addf %44, %43 : tensor<255xf32>
-// CHECK-NEXT:         %46 = arith.addf %45, %42 : tensor<255xf32>
-// CHECK-NEXT:         %47 = arith.addf %46, %41 : tensor<255xf32>
-// CHECK-NEXT:         %48 = "tensor.insert_slice"(%47, %40, %39) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
-// CHECK-NEXT:         csl_stencil.yield %48 : tensor<510xf32>
+// CHECK-NEXT:       %37 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:       %38 = tensor.empty() : tensor<510xf32>
+// CHECK-NEXT:       %39 = csl_stencil.apply(%37 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %38 : tensor<510xf32>) -> (!stencil.temp<[0,1]x[0,1]xtensor<510xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "operandSegmentSizes" = array<i32: 1, 1, 0, 0>}> ({
+// CHECK-NEXT:       ^2(%40 : tensor<4x255xf32>, %41 : index, %42 : tensor<510xf32>):
+// CHECK-NEXT:         %43 = csl_stencil.access %40[1, 0] : tensor<4x255xf32>
+// CHECK-NEXT:         %44 = csl_stencil.access %40[-1, 0] : tensor<4x255xf32>
+// CHECK-NEXT:         %45 = csl_stencil.access %40[0, 1] : tensor<4x255xf32>
+// CHECK-NEXT:         %46 = csl_stencil.access %40[0, -1] : tensor<4x255xf32>
+// CHECK-NEXT:         %47 = arith.addf %46, %45 : tensor<255xf32>
+// CHECK-NEXT:         %48 = arith.addf %47, %44 : tensor<255xf32>
+// CHECK-NEXT:         %49 = arith.addf %48, %43 : tensor<255xf32>
+// CHECK-NEXT:         %50 = "tensor.insert_slice"(%49, %42, %41) <{"static_offsets" = array<i64: 0>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
+// CHECK-NEXT:         csl_stencil.yield %50 : tensor<510xf32>
 // CHECK-NEXT:       }, {
-// CHECK-NEXT:       ^3(%49 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %50 : tensor<510xf32>):
-// CHECK-NEXT:         %51 = csl_stencil.access %49[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-// CHECK-NEXT:         %52 = csl_stencil.access %49[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
-// CHECK-NEXT:         %53 = arith.constant 1.666600e-01 : f32
-// CHECK-NEXT:         %54 = "tensor.extract_slice"(%51) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:         %55 = "tensor.extract_slice"(%52) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
-// CHECK-NEXT:         %56 = arith.addf %50, %55 : tensor<510xf32>
-// CHECK-NEXT:         %57 = arith.addf %56, %54 : tensor<510xf32>
-// CHECK-NEXT:         %58 = tensor.empty() : tensor<510xf32>
-// CHECK-NEXT:         %59 = linalg.fill ins(%53 : f32) outs(%58 : tensor<510xf32>) -> tensor<510xf32>
-// CHECK-NEXT:         %60 = arith.mulf %57, %59 : tensor<510xf32>
-// CHECK-NEXT:         csl_stencil.yield %60 : tensor<510xf32>
+// CHECK-NEXT:       ^3(%51 : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>, %52 : tensor<510xf32>):
+// CHECK-NEXT:         %53 = csl_stencil.access %51[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:         %54 = csl_stencil.access %51[0, 0] : !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:         %55 = arith.constant 1.666600e-01 : f32
+// CHECK-NEXT:         %56 = "tensor.extract_slice"(%53) <{"static_offsets" = array<i64: 1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:         %57 = "tensor.extract_slice"(%54) <{"static_offsets" = array<i64: -1>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, "operandSegmentSizes" = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
+// CHECK-NEXT:         %58 = arith.addf %52, %57 : tensor<510xf32>
+// CHECK-NEXT:         %59 = arith.addf %58, %56 : tensor<510xf32>
+// CHECK-NEXT:         %60 = tensor.empty() : tensor<510xf32>
+// CHECK-NEXT:         %61 = linalg.fill ins(%55 : f32) outs(%60 : tensor<510xf32>) -> tensor<510xf32>
+// CHECK-NEXT:         %62 = arith.mulf %59, %61 : tensor<510xf32>
+// CHECK-NEXT:         csl_stencil.yield %62 : tensor<510xf32>
 // CHECK-NEXT:       })
-// CHECK-NEXT:       stencil.store %37 to %b(<[0, 0], [1, 1]>) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
+// CHECK-NEXT:       stencil.store %39 to %b(<[0, 0], [1, 1]>) : !stencil.temp<[0,1]x[0,1]xtensor<510xf32>> to !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     "csl_wrapper.yield"() <{"fields" = []}> : () -> ()
