@@ -169,5 +169,3 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:       "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) {"sym_name" = "simd", "function_type" = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
-
-

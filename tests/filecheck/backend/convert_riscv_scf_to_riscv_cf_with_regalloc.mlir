@@ -32,4 +32,3 @@ builtin.module {
 // CHECK-NEXT:      riscv_func.return %11 : !riscv.reg<t0>
 // CHECK-NEXT:    }
 // CHECK-NEXT:   }
-
