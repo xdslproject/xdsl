@@ -1270,7 +1270,7 @@ def test_multiple_optional_regions():
     ):
 
         @irdl_op_definition
-        class OptionalOperandsOp(IRDLOperation):
+        class OptionalOperandsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.optional_regions"
             region1 = opt_region_def()
             region2 = opt_region_def()
