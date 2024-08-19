@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from xdsl.dialects.arith import Constant
@@ -17,6 +19,7 @@ from xdsl.irdl import (
     OptOpResult,
     OptRegion,
     OptSuccessor,
+    SameVariadicOperandSize,
     Successor,
     VarOperand,
     VarOpResult,
@@ -310,6 +313,33 @@ def test_two_var_operand_prop_builder2():
     assert op2.properties[
         AttrSizedOperandSegments.attribute_name
     ] == DenseArrayBase.from_list(i32, [1, 3])
+
+
+@irdl_op_definition
+class SameSizeVarOperandOp(IRDLOperation):
+    name = "test.same_size_var_operand_op"
+
+    op1: VarOperand = var_operand_def(StringAttr)
+    op2: VarOperand = var_operand_def(StringAttr)
+    irdl_options = [SameVariadicOperandSize()]
+
+
+def test_same_size_operand_builder():
+    op1 = ResultOp.build(result_types=[StringAttr("0")]).res
+    op2 = SameSizeVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
+    op2.verify()
+    assert tuple(op2.operands) == (op1, op1, op1, op1)
+    op2 = SameSizeVarOperandOp.create(operands=[op1, op1, op1, op1])
+    op2.verify()
+    assert (op2.op1, op2.op2) == ((op1, op1), (op1, op1))
+
+
+def test_same_size_operand_builder2():
+    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    with pytest.raises(
+        ValueError, match=re.escape("Variadic operands have different sizes: [1, 3]")
+    ):
+        SameSizeVarOperandOp.build(operands=[[op1], [op1, op1, op1]])
 
 
 ################################################################################
