@@ -1735,7 +1735,7 @@ def irdl_op_arg_definition(
         not any(isinstance(o, arg_size_option) for o in op_def.options)
     ):
         arg_size_option_name = type(arg_size_option).__name__
-        raise Exception(
+        raise PyRDLOpDefinitionError(
             f"Operation {op_def.name} defines more than two variadic "
             f"{get_construct_name(construct)}s, but do not define the "
             f"{arg_size_option_name} PyRDL option."

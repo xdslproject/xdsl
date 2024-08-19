@@ -9,6 +9,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from os import stat
+from re import A
 from typing import Any, Literal, cast
 
 from xdsl.dialects.builtin import UnitAttr
@@ -18,7 +20,9 @@ from xdsl.ir import (
     ParametrizedAttribute,
     SSAValue,
     TypedAttribute,
+    Region,
 )
+from xdsl.ir.core import Block, Operation
 from xdsl.irdl import (
     ConstraintContext,
     IRDLOperation,
@@ -48,19 +52,21 @@ class ParsingState:
     operands: list[UnresolvedOperand | None | list[UnresolvedOperand | None]]
     operand_types: list[Attribute | None | list[Attribute | None]]
     result_types: list[Attribute | None | list[Attribute | None]]
+    regions: list[Region | None | list[Region | None]] 
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     constraint_context: ConstraintContext
 
     def __init__(self, op_def: OpDef):
-        if op_def.regions or op_def.successors:
+        if op_def.successors:
             raise NotImplementedError(
-                "Operation definitions with regions "
-                "or successors are not yet supported"
+                "Operation definitions with "
+                "successors are not yet supported"
             )
         self.operands = [None] * len(op_def.operands)
         self.operand_types = [None] * len(op_def.operands)
         self.result_types = [None] * len(op_def.results)
+        self.regions = [None] * len(op_def.regions)
         self.attributes = {}
         self.properties = {}
         self.constraint_context = ConstraintContext()
@@ -159,11 +165,16 @@ class FormatProgram:
             properties = state.properties
         else:
             properties = op_def.split_properties(state.attributes)
+
+        # Get the regions and cast them to the type needed in op_type
+        regions = cast(Sequence[Region | Sequence[Operation] | Sequence[Block] | Sequence[Region | Sequence[Operation] | Sequence[Block]] | None], state.regions)
+
         return op_type.build(
             result_types=result_types,
             operands=operands,
             attributes=state.attributes,
             properties=properties,
+            regions= regions,
         )
 
     def assign_constraint_variables(
@@ -722,6 +733,79 @@ class OptionalResultTypeDirective(
             state.last_was_punctuation = False
             state.should_emit_space = True
 
+@dataclass(frozen=True)
+class RegionVariable(VariableDirective):
+    """
+    A region variable, with the following format:
+      region-directive ::= dollar-ident
+    The directive will request a space to be printed after.
+    """
+
+    def parse(self, parser: Parser, state: ParsingState) -> None:
+        region = parser.parse_region()
+        state.regions[self.index] = region
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        printer.print_region(getattr(op, self.name))
+        state.last_was_punctuation = False
+        state.should_emit_space = True
+
+
+@dataclass(frozen=True)
+class VariadicRegionVariable(
+    VariadicVariable, VariableDirective, OptionallyParsableDirective
+):
+    """
+    A variadic region variable, with the following format:
+      region-directive ::= ( percent-ident ( `,` percent-id )* )?
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        regions : list[Region] = []
+        current_region = parser.parse_optional_region()
+        while current_region is not None:
+            regions.append(current_region)
+            current_region = parser.parse_optional_region()
+
+        state.regions[self.index] = cast(list[Region | None], regions)
+        return bool(regions)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        breakpoint()
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        region = getattr(op, self.name)
+        if region:
+            printer.print_list(region, printer.print_region, delimiter=" ")
+            state.last_was_punctuation = False
+            state.should_emit_space = True
+
+
+class OptionalRegionVariable(OptionalVariable, OptionallyParsableDirective):
+    """
+    An optional region variable, with the following format:
+      region-directive ::= ( percent-ident )?
+    The directive will request a space to be printed after.
+    """
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        region = parser.parse_optional_region()
+        if region is None:
+            region = list[Region | None]()
+        state.regions[self.index] = region
+        return bool(region)
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if state.should_emit_space or not state.last_was_punctuation:
+            printer.print(" ")
+        region = getattr(op, self.name)
+        if region:
+            printer.print_region(region)
+            state.last_was_punctuation = False
+            state.should_emit_space = True
 
 @dataclass(frozen=True)
 class AttributeVariable(FormatDirective):
