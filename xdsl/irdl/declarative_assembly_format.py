@@ -742,7 +742,7 @@ class OptionalResultTypeDirective(
 
 
 @dataclass(frozen=True)
-class RegionVariable(VariableDirective):
+class RegionVariable(VariableDirective, OptionallyParsableDirective):
     """
     A region variable, with the following format:
       region-directive ::= dollar-ident
@@ -752,6 +752,11 @@ class RegionVariable(VariableDirective):
     def parse(self, parser: Parser, state: ParsingState) -> None:
         region = parser.parse_region()
         state.regions[self.index] = region
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        region = parser.parse_optional_region()
+        state.regions[self.index] = region
+        return region is not None
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         if state.should_emit_space or not state.last_was_punctuation:
@@ -767,7 +772,7 @@ class VariadicRegionVariable(
 ):
     """
     A variadic region variable, with the following format:
-      region-directive ::= ( percent-ident ( `,` percent-id )* )?
+      region-directive ::= ( dollar-ident ( `,` dollar-id )* )?
     The directive will request a space to be printed after.
     """
 
@@ -794,7 +799,7 @@ class VariadicRegionVariable(
 class OptionalRegionVariable(OptionalVariable, OptionallyParsableDirective):
     """
     An optional region variable, with the following format:
-      region-directive ::= ( percent-ident )?
+      region-directive ::= ( dollar-ident )?
     The directive will request a space to be printed after.
     """
 

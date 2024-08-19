@@ -132,8 +132,6 @@ class FormatParser(BaseParser):
     """The region variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
     """True if the attribute dictionary has already been parsed."""
-    has_attr_dict_with_keyword: bool = field(default=False)
-    """True if the attr-dict directive was with keyword."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
     """Indicates if the parser is nested in a particular directive."""
     type_resolutions: dict[
@@ -195,6 +193,10 @@ class FormatParser(BaseParser):
                 ):
                     self.raise_error(
                         "A variadic operand variable cannot be followed by another variadic operand variable."
+                    )
+                case AttrDictDirective(), RegionVariable() if not (a.with_keyword):
+                    self.raise_error(
+                        "An `attr-dict' directive without keyword cannot be directly followed by a region variable as it is ambiguous."
                     )
                 case _:
                     pass
@@ -379,16 +381,6 @@ class FormatParser(BaseParser):
             if variable_name != region_name:
                 continue
             self.seen_regions[idx] = True
-            if not self.has_attr_dict:
-                self.raise_error(
-                    "'attr-dict' directive must appear"
-                    f"before regions, found region'{region_name}'"
-                )
-            if not self.has_attr_dict_with_keyword:
-                self.raise_error(
-                    "'attr-dict' directive must be 'attr-dict-with-keyword'"
-                    "if regions present."
-                )
             match region_def:
                 case OptRegionDef():
                     return OptionalRegionVariable(variable_name, idx)
@@ -628,7 +620,6 @@ class FormatParser(BaseParser):
                 "in the assembly format description"
             )
         self.has_attr_dict = True
-        self.has_attr_dict_with_keyword = with_keyword
         print_properties = any(
             isinstance(option, ParsePropInAttrDict) for option in self.op_def.options
         )
