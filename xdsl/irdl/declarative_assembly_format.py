@@ -774,7 +774,6 @@ class VariadicRegionVariable(
         return bool(regions)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        breakpoint()
         if state.should_emit_space or not state.last_was_punctuation:
             printer.print(" ")
         region = getattr(op, self.name)
