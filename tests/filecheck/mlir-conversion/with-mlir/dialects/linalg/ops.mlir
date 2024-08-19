@@ -113,4 +113,3 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %19 = "test.op"() : () -> tensor<64x4096xi32>
 // CHECK-NEXT:    %20 = linalg.quantized_matmul ins(%18#0, %18#1, %c0_i32, %c0_i32_0 : tensor<64x9216xi8>, tensor<9216x4096xi8>, i32, i32) outs(%19 : tensor<64x4096xi32>) -> tensor<64x4096xi32>
 // CHECK-NEXT:  }
-
