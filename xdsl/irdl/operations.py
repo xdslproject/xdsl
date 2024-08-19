@@ -249,25 +249,31 @@ class AttrSizedSuccessorSegments(AttrSizedSegments):
     """Name of the attribute containing the variadic successor sizes."""
 
 
-class SameVariadicResultSize(IRDLOption):
+class SameVariadicSize(IRDLOption):
+    """
+    All variadic definitions should have the same size.
+    """
+
+
+class SameVariadicResultSize(SameVariadicSize):
     """
     All variadic results should have the same size.
     """
 
 
-class SameVariadicOperandSize(IRDLOption):
+class SameVariadicOperandSize(SameVariadicSize):
     """
     All variadic operands should have the same size.
     """
 
 
-class SameVariadicRegionSize(IRDLOption):
+class SameVariadicRegionSize(SameVariadicSize):
     """
     All variadic regions should have the same size.
     """
 
 
-class SameVariadicSuccessorSize(IRDLOption):
+class SameVariadicSuccessorSize(SameVariadicSize):
     """
     All variadic successors should have the same size.
     """
@@ -1759,45 +1765,34 @@ def irdl_op_init(
                         raise ValueError(
                             f"Unexpected option {option} in operation definition {op_def}."
                         )
-            case SameVariadicOperandSize():
+            case SameVariadicSize():
+                match option:
+                    case SameVariadicOperandSize():
+                        sizes = operand_sizes
+                        construct = VarIRConstruct.OPERAND
+                    case SameVariadicResultSize():
+                        sizes = result_sizes
+                        construct = VarIRConstruct.RESULT
+                    case SameVariadicRegionSize():
+                        sizes = region_sizes
+                        construct = VarIRConstruct.REGION
+                    case SameVariadicSuccessorSize():
+                        sizes = successor_sizes
+                        construct = VarIRConstruct.SUCCESSOR
+                    case _:
+                        raise ValueError(
+                            f"Unexpected option {option} in operation definition {op_def}."
+                        )
                 variadic_sizes = [
                     size
-                    for (size, def_) in zip(operand_sizes, op_def.operands)
-                    if isinstance(def_[1], VariadicDef)
-                ]
-                if any(size != variadic_sizes[0] for size in variadic_sizes[1:]):
-                    raise ValueError(
-                        f"Variadic operands have different sizes: {variadic_sizes}"
+                    for (size, def_) in zip(
+                        sizes, get_construct_defs(op_def, construct)
                     )
-            case SameVariadicResultSize():
-                variadic_sizes = [
-                    size
-                    for (size, def_) in zip(result_sizes, op_def.results)
                     if isinstance(def_[1], VariadicDef)
                 ]
                 if any(size != variadic_sizes[0] for size in variadic_sizes[1:]):
                     raise ValueError(
-                        f"Variadic results have different sizes: {variadic_sizes}"
-                    )
-            case SameVariadicRegionSize():
-                variadic_sizes = [
-                    size
-                    for (size, def_) in zip(region_sizes, op_def.regions)
-                    if isinstance(def_[1], VariadicDef)
-                ]
-                if any(size != variadic_sizes[0] for size in variadic_sizes[1:]):
-                    raise ValueError(
-                        f"Variadic regions have different sizes: {variadic_sizes}"
-                    )
-            case SameVariadicSuccessorSize():
-                variadic_sizes = [
-                    size
-                    for (size, def_) in zip(successor_sizes, op_def.successors)
-                    if isinstance(def_[1], VariadicDef)
-                ]
-                if any(size != variadic_sizes[0] for size in variadic_sizes[1:]):
-                    raise ValueError(
-                        f"Variadic successors have different sizes: {variadic_sizes}"
+                        f"Variadic {get_construct_name(construct)}s have different sizes: {variadic_sizes}"
                     )
             case _:
                 pass
