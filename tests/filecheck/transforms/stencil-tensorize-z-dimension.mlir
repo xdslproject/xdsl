@@ -111,5 +111,18 @@ builtin.module {
 // CHECK-NEXT:       func.return
 // CHECK-NEXT:     }
 
+
+  func.func @dmp_swap(%a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>, %b : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32>) {
+    %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]x[-1,511]xf32> -> !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+    %1 = "dmp.swap"(%0) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>]} : (!stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>) -> !stencil.temp<[-1,2]x[-1,2]x[-1,511]xf32>
+    func.return
+  }
+
+// CHECK:       func.func @dmp_swap(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
+// CHECK-NEXT:    %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:    %1 = "dmp.swap"(%0) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, "swaps" = []} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
+// CHECK-NEXT:    func.return
+// CHECK-NEXT:  }
+
 }
 // CHECK-NEXT:    }
