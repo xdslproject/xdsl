@@ -624,19 +624,26 @@ class SwapOp(IRDLOperation):
                 )
 
     @staticmethod
-    def get(input_stencil: SSAValue | Operation, strategy: DomainDecompositionStrategy):
+    def get(
+        input_stencil: SSAValue | Operation,
+        strategy: DomainDecompositionStrategy,
+        swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] | None = None,
+    ):
         input_type = SSAValue.get(input_stencil).type
 
         result_types = (
             input_type if isa(input_type, stencil.TempType[Attribute]) else None
         )
 
+        if swaps is None:
+            swaps = builtin.ArrayAttr[ExchangeDeclarationAttr](())
+
         return SwapOp.build(
             operands=[input_stencil],
             result_types=[result_types],
             attributes={
                 "strategy": strategy,
-                "swaps": builtin.ArrayAttr[ExchangeDeclarationAttr](()),
+                "swaps": swaps,
             },
         )
 
