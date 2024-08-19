@@ -159,8 +159,6 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
                         ),
                         initial_value=UnitAttr(),
                         sym_visibility=StringAttr("public"),
-                        # constant: UnitAttr | None = None,
-                        # alignment: int | IntegerAttr[IntegerType] | None = None,
                     )
                 )
                 arg_ops.append(get_global_op := memref.GetGlobal(arg_name, arg_t))
