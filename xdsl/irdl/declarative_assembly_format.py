@@ -21,12 +21,10 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.irdl import (
-    Block,
     ConstraintContext,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
-    Operation,
     OptionalDef,
     VariadicDef,
     VarIRConstruct,
@@ -51,7 +49,7 @@ class ParsingState:
     operands: list[UnresolvedOperand | None | list[UnresolvedOperand | None]]
     operand_types: list[Attribute | None | list[Attribute | None]]
     result_types: list[Attribute | None | list[Attribute | None]]
-    regions: list[Region | None | list[Region | None]]
+    regions: list[Region | None | list[Region]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     constraint_context: ConstraintContext
@@ -164,24 +162,12 @@ class FormatProgram:
         else:
             properties = op_def.split_properties(state.attributes)
 
-        # Get the regions and cast them to the type needed in op_type
-        regions = cast(
-            Sequence[
-                Region
-                | Sequence[Operation]
-                | Sequence[Block]
-                | Sequence[Region | Sequence[Operation] | Sequence[Block]]
-                | None
-            ],
-            state.regions,
-        )
-
         return op_type.build(
             result_types=result_types,
             operands=operands,
             attributes=state.attributes,
             properties=properties,
-            regions=regions,
+            regions=state.regions,
         )
 
     def assign_constraint_variables(
@@ -783,7 +769,7 @@ class VariadicRegionVariable(
             regions.append(current_region)
             current_region = parser.parse_optional_region()
 
-        state.regions[self.index] = cast(list[Region | None], regions)
+        state.regions[self.index] = regions
         return bool(regions)
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
@@ -806,7 +792,7 @@ class OptionalRegionVariable(OptionalVariable, OptionallyParsableDirective):
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         region = parser.parse_optional_region()
         if region is None:
-            region = list[Region | None]()
+            region = list[Region]()
         state.regions[self.index] = region
         return bool(region)
 
