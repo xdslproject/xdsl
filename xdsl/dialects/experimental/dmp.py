@@ -22,14 +22,15 @@ from xdsl.irdl import (
     Operand,
     ParameterDef,
     attr_def,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import HasShapeInferencePatternsTrait
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 # helpers for named dimensions:
@@ -585,9 +586,12 @@ def _flat_face_exchanges_for_dim(
 class SwapOpHasShapeInferencePatterns(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls):
-        from xdsl.transforms.shape_inference_patterns.dmp import DmpSwapShapeInference
+        from xdsl.transforms.shape_inference_patterns.dmp import (
+            DmpSwapShapeInference,
+            DmpSwapSwapsInference,
+        )
 
-        return (DmpSwapShapeInference(),)
+        return (DmpSwapShapeInference(), DmpSwapSwapsInference())
 
 
 @irdl_op_definition
@@ -598,9 +602,8 @@ class SwapOp(IRDLOperation):
 
     name = "dmp.swap"
 
-    input_stencil: Operand = operand_def(
-        base(stencil.AnyTempType) | base(builtin.AnyMemRefType)
-    )
+    input_stencil: Operand = operand_def(stencil.StencilType[Attribute])
+    swapped_values = opt_result_def(stencil.TempType[Attribute])
 
     swaps = attr_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
@@ -608,10 +611,29 @@ class SwapOp(IRDLOperation):
 
     traits = frozenset([SwapOpHasShapeInferencePatterns()])
 
+    def verify_(self) -> None:
+        if self.swapped_values:
+            if isinstance(self.input_stencil.type, stencil.FieldType):
+                raise VerifyException(
+                    "dmp.swap_op cannot have a result if input is a field"
+                )
+        else:
+            if isinstance(self.input_stencil.type, stencil.TempType):
+                raise VerifyException(
+                    "dmp.swap_op must have a result if input is a temporary"
+                )
+
     @staticmethod
     def get(input_stencil: SSAValue | Operation, strategy: DomainDecompositionStrategy):
+        input_type = SSAValue.get(input_stencil).type
+
+        result_types = (
+            input_type if isa(input_type, stencil.TempType[Attribute]) else None
+        )
+
         return SwapOp.build(
             operands=[input_stencil],
+            result_types=[result_types],
             attributes={
                 "strategy": strategy,
                 "swaps": builtin.ArrayAttr[ExchangeDeclarationAttr](()),
