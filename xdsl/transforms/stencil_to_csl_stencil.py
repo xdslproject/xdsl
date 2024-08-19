@@ -230,7 +230,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         )
 
         # a little hack to get around a check that prevents replacing a no-results op with an n-results op
-        rewriter.replace_matched_op(prefetch_op, new_results=[])
+        rewriter.replace_matched_op(prefetch_op, new_results=[op.input_stencil])
 
         # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
         uses = list(op.input_stencil.uses)

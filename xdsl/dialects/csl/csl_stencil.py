@@ -124,7 +124,7 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        base(stencil.TempType[Attribute])
+        base(stencil.StencilType[Attribute])
         | base(memref.MemRefType[Attribute])
         | base(TensorType[Attribute])
     )
