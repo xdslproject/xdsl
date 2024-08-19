@@ -11,6 +11,23 @@ from xdsl.utils.hints import isa
 
 class DmpSwapShapeInference(RewritePattern):
     """
+    Infer the shape of the `dmp.swap` operation.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: dmp.SwapOp, rewrite: PatternRewriter):
+        if not op.swapped_values:
+            return
+        swap_t = op.swapped_values.type
+        if not isinstance(swap_t, stencil.TempType):
+            return
+        if op.input_stencil.type != swap_t:
+            op.input_stencil.type = swap_t
+            rewrite.handle_operation_modification(op)
+
+
+class DmpSwapSwapsInference(RewritePattern):
+    """
     Infer the exact exchanges this `dmp.swap` needs to perform.
     """
 
@@ -19,7 +36,10 @@ class DmpSwapShapeInference(RewritePattern):
         core_lb: stencil.IndexAttr | None = None
         core_ub: stencil.IndexAttr | None = None
 
-        for use in op.input_stencil.uses:
+        if not op.swapped_values:
+            return
+
+        for use in op.swapped_values.uses:
             if not isinstance(use.operation, stencil.ApplyOp):
                 continue
             assert use.operation.res

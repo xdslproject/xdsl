@@ -586,9 +586,12 @@ def _flat_face_exchanges_for_dim(
 class SwapOpHasShapeInferencePatterns(HasShapeInferencePatternsTrait):
     @classmethod
     def get_shape_inference_patterns(cls):
-        from xdsl.transforms.shape_inference_patterns.dmp import DmpSwapShapeInference
+        from xdsl.transforms.shape_inference_patterns.dmp import (
+            DmpSwapShapeInference,
+            DmpSwapSwapsInference,
+        )
 
-        return (DmpSwapShapeInference(),)
+        return (DmpSwapShapeInference(), DmpSwapSwapsInference())
 
 
 @irdl_op_definition
