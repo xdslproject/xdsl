@@ -27,4 +27,3 @@
 "test.op"() {"angle" = !quantum.angle<-pi>} : () -> ()
 
 // CHECK-NEXT: "test.op"() {"angle" = !quantum.angle<pi>} : () -> ()
-
