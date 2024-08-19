@@ -131,7 +131,7 @@ class FormatParser(BaseParser):
     seen_regions: list[bool]
     """The region variables that are already parsed."""
     has_attr_dict: bool = field(default=False)
-    """True if the attribute dictionary has already been parsed.""" 
+    """True if the attribute dictionary has already been parsed."""
     has_attr_dict_with_keyword: bool = field(default=False)
     """True if the attr-dict directive was with keyword."""
     context: ParsingContext = field(default=ParsingContext.TopLevel)
@@ -321,7 +321,6 @@ class FormatParser(BaseParser):
                     "directive to the custom assembly format."
                 )
 
-
     def parse_optional_variable(
         self,
     ) -> VariableDirective | AttributeVariable | None:
@@ -374,7 +373,7 @@ class FormatParser(BaseParser):
                 return VariadicResultVariable(variable_name, idx)
             else:
                 return ResultVariable(variable_name, idx)
-        
+
         # Check if the variable is a region
         for idx, (region_name, region_def) in enumerate(self.op_def.regions):
             if variable_name != region_name:

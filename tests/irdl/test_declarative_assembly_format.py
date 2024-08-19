@@ -1089,9 +1089,11 @@ def test_optional_result(format: str, program: str, generic_program: str):
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
 
+
 ################################################################################
 # Regions                                                                     #
 ################################################################################
+
 
 def test_missing_region():
     """Test that regions should be parsed."""
@@ -1104,9 +1106,13 @@ def test_missing_region():
 
             assembly_format = "attr-dict-with-keyword"
 
+
 def test_region_missing_keyword():
     """Test that regions require the 'attr-dict-with-keyword' directive."""
-    with pytest.raises(PyRDLOpDefinitionError, match="'attr-dict' directive must be 'attr-dict-with-keyword'"):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="'attr-dict' directive must be 'attr-dict-with-keyword'",
+    ):
 
         @irdl_op_definition
         class NoRegionTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
@@ -1115,9 +1121,12 @@ def test_region_missing_keyword():
 
             assembly_format = "attr-dict $region"
 
+
 def test_region_before_attr():
     """Test that regions should appear after the 'attr-dict-with-keyword' directive."""
-    with pytest.raises(PyRDLOpDefinitionError, match="'attr-dict' directive must appear"):
+    with pytest.raises(
+        PyRDLOpDefinitionError, match="'attr-dict' directive must appear"
+    ):
 
         @irdl_op_definition
         class NoRegionTypeOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
@@ -1125,7 +1134,6 @@ def test_region_before_attr():
             region = region_def()
 
             assembly_format = "$region attr-dict-with-keyword"
-
 
 
 @irdl_op_definition
@@ -1146,7 +1154,7 @@ class TypedAttributeOp(IRDLOperation):
         ),
         (
             "attr-dict-with-keyword $fst $snd",
-            'test.two_regions {\n  test.typed_attr 3\n} {\n  test.typed_attr 3\n}',
+            "test.two_regions {\n  test.typed_attr 3\n} {\n  test.typed_attr 3\n}",
             '"test.two_regions"() ({ test.typed_attr 3}, { test.typed_attr 3}) : () -> ()',
         ),
         (
@@ -1158,7 +1166,7 @@ class TypedAttributeOp(IRDLOperation):
 )
 def test_regions(format: str, program: str, generic_program: str):
     """Test the parsing of regions"""
-    
+
     @irdl_op_definition
     class TwoRegionsOp(IRDLOperation):
         name = "test.two_regions"
@@ -1174,6 +1182,7 @@ def test_regions(format: str, program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
 
 @pytest.mark.parametrize(
     "format, program, generic_program",
@@ -1250,20 +1259,23 @@ def test_optional_region(format: str, program: str, generic_program: str):
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
 
+
 def test_multiple_optional_regions():
     """Test the parsing of multiple optional regions"""
 
     """Test that multiple optional regions requires the ABCMeta PyRDL option."""
-    with pytest.raises(PyRDLOpDefinitionError, match='Operation test.optional_regions defines more than two variadic regions'):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="Operation test.optional_regions defines more than two variadic regions",
+    ):
+
         @irdl_op_definition
         class OptionalOperandsOp(IRDLOperation):
             name = "test.optional_regions"
             region1 = opt_region_def()
             region2 = opt_region_def()
 
-            assembly_format = (
-                "attr-dict-with-keyword $region1 $region2"
-            )
+            assembly_format = "attr-dict-with-keyword $region1 $region2"
 
 
 ################################################################################

@@ -9,8 +9,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from os import stat
-from re import A
 from typing import Any, Literal, cast
 
 from xdsl.dialects.builtin import UnitAttr
@@ -18,16 +16,17 @@ from xdsl.ir import (
     Attribute,
     Data,
     ParametrizedAttribute,
+    Region,
     SSAValue,
     TypedAttribute,
-    Region,
 )
-from xdsl.ir.core import Block, Operation
 from xdsl.irdl import (
+    Block,
     ConstraintContext,
     IRDLOperation,
     IRDLOperationInvT,
     OpDef,
+    Operation,
     OptionalDef,
     VariadicDef,
     VarIRConstruct,
@@ -52,7 +51,7 @@ class ParsingState:
     operands: list[UnresolvedOperand | None | list[UnresolvedOperand | None]]
     operand_types: list[Attribute | None | list[Attribute | None]]
     result_types: list[Attribute | None | list[Attribute | None]]
-    regions: list[Region | None | list[Region | None]] 
+    regions: list[Region | None | list[Region | None]]
     attributes: dict[str, Attribute]
     properties: dict[str, Attribute]
     constraint_context: ConstraintContext
@@ -60,8 +59,7 @@ class ParsingState:
     def __init__(self, op_def: OpDef):
         if op_def.successors:
             raise NotImplementedError(
-                "Operation definitions with "
-                "successors are not yet supported"
+                "Operation definitions with " "successors are not yet supported"
             )
         self.operands = [None] * len(op_def.operands)
         self.operand_types = [None] * len(op_def.operands)
@@ -167,14 +165,23 @@ class FormatProgram:
             properties = op_def.split_properties(state.attributes)
 
         # Get the regions and cast them to the type needed in op_type
-        regions = cast(Sequence[Region | Sequence[Operation] | Sequence[Block] | Sequence[Region | Sequence[Operation] | Sequence[Block]] | None], state.regions)
+        regions = cast(
+            Sequence[
+                Region
+                | Sequence[Operation]
+                | Sequence[Block]
+                | Sequence[Region | Sequence[Operation] | Sequence[Block]]
+                | None
+            ],
+            state.regions,
+        )
 
         return op_type.build(
             result_types=result_types,
             operands=operands,
             attributes=state.attributes,
             properties=properties,
-            regions= regions,
+            regions=regions,
         )
 
     def assign_constraint_variables(
@@ -733,6 +740,7 @@ class OptionalResultTypeDirective(
             state.last_was_punctuation = False
             state.should_emit_space = True
 
+
 @dataclass(frozen=True)
 class RegionVariable(VariableDirective):
     """
@@ -764,7 +772,7 @@ class VariadicRegionVariable(
     """
 
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
-        regions : list[Region] = []
+        regions: list[Region] = []
         current_region = parser.parse_optional_region()
         while current_region is not None:
             regions.append(current_region)
@@ -805,6 +813,7 @@ class OptionalRegionVariable(OptionalVariable, OptionallyParsableDirective):
             printer.print_region(region)
             state.last_was_punctuation = False
             state.should_emit_space = True
+
 
 @dataclass(frozen=True)
 class AttributeVariable(FormatDirective):
