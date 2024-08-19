@@ -18,8 +18,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint, Rewriter
-from xdsl.transforms.shape_inference import ShapeInferencePass
-from xdsl.utils.hints import isa
 
 _T = TypeVar("_T", bound=Attribute)
 
@@ -557,58 +555,6 @@ def collect_args_recursive(op: Operation) -> Iterable[Operation]:
     yield op
 
 
-@dataclass
-class DmpSwapShapeInference(RewritePattern):
-    """
-    This is applied after stencil shape inference has run. It will find the
-    HaloSwapOps again, and use the results of the shape inference pass
-    to attach the swap declarations.
-    """
-
-    @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: dmp.SwapOp, rewrite: PatternRewriter):
-        core_lb: stencil.IndexAttr | None = None
-        core_ub: stencil.IndexAttr | None = None
-
-        for use in op.input_stencil.uses:
-            if not isinstance(use.operation, stencil.ApplyOp):
-                continue
-            assert use.operation.res
-            res_type = cast(stencil.TempType[Attribute], use.operation.res[0].type)
-            assert isinstance(res_type.bounds, stencil.StencilBoundsAttr)
-            core_lb = res_type.bounds.lb
-            core_ub = res_type.bounds.ub
-            break
-
-        # this shouldn't have changed since the op was created!
-        temp = op.input_stencil.type
-        assert isa(temp, stencil.TempType[Attribute])
-        assert isinstance(temp.bounds, stencil.StencilBoundsAttr)
-        buff_lb = temp.bounds.lb
-        buff_ub = temp.bounds.ub
-
-        # fun fact: pyright does not understand this:
-        # assert None not in (core_lb, core_ub, buff_lb, buff_ub)
-        assert core_lb is not None
-        assert core_ub is not None
-        assert buff_lb is not None
-        assert buff_ub is not None
-
-        # drop 0 element exchanges
-        op.swaps = builtin.ArrayAttr(
-            exchange
-            for exchange in op.strategy.halo_exchange_defs(
-                dmp.ShapeAttr.from_index_attrs(
-                    buff_lb=buff_lb,
-                    core_lb=core_lb,
-                    buff_ub=buff_ub,
-                    core_ub=core_ub,
-                )
-            )
-            if exchange.elem_count > 0
-        )
-
-
 @dataclass(frozen=True)
 class DmpDecompositionPass(ModulePass, ABC):
     """
@@ -663,11 +609,6 @@ class DistributeStencilPass(DmpDecompositionPass):
             GreedyRewritePatternApplier(rewrites),
             apply_recursively=False,
         ).rewrite_module(op)
-
-        # run the shape inference pass
-        ShapeInferencePass().apply(ctx, op)
-
-        PatternRewriteWalker(DmpSwapShapeInference()).rewrite_module(op)
 
 
 @dataclass(frozen=True)
