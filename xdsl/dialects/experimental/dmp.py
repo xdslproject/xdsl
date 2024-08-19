@@ -600,11 +600,20 @@ class SwapOpHasShapeInferencePatterns(HasShapeInferencePatternsTrait):
 
 
 class SwapOpMemoryEffect(MemoryEffect):
+    """
+    Side effect implementation of dmp.swap.
+    """
+
     @classmethod
     def get_effects(cls, op: Operation) -> set[EffectInstance]:
         op = cast(SwapOp, op)
+        # If it's operating in value-semantic mode, it has no side effects.
         if op.swapped_values:
             return set()
+        # If it's operating in reference-semantic mode, it reads and writes to its field.
+        # TODO: consider the empty swaps case at some point.
+        # Right now, it relies on it before inferring them, so not very safe.
+        # But it could be an elegant way to generically simplify those.
         return {
             EffectInstance(MemoryEffectKind.WRITE, op.input_stencil),
             EffectInstance(MemoryEffectKind.READ, op.input_stencil),
