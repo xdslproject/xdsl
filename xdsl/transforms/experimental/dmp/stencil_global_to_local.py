@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import prod
 from typing import ClassVar, TypeVar, cast
 
@@ -18,11 +18,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint, Rewriter
-from xdsl.transforms.experimental.dmp.decompositions import (
-    DomainDecompositionStrategy,
-    GridSlice2d,
-    GridSlice3d,
-)
 from xdsl.transforms.shape_inference import ShapeInferencePass
 from xdsl.utils.hints import isa
 
@@ -33,7 +28,7 @@ _rank_dtype = builtin.i32
 
 @dataclass
 class ChangeStoreOpSizes(RewritePattern):
-    strategy: DomainDecompositionStrategy
+    strategy: dmp.DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
@@ -58,12 +53,11 @@ class AddHaloExchangeOps(RewritePattern):
     This rewrite adds a `stencil.halo_exchange` after each `stencil.load` op
     """
 
-    strategy: DomainDecompositionStrategy
+    strategy: dmp.DomainDecompositionStrategy
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
-        swap_op = dmp.SwapOp.get(op.res)
-        swap_op.topo = self.strategy.comm_layout()
+        swap_op = dmp.SwapOp.get(op.res, self.strategy)
         rewriter.insert_op_after_matched_op(swap_op)
 
 
@@ -74,8 +68,6 @@ class LowerHaloExchangeToMpi(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
-        assert op.swaps is not None
-        assert op.topo is not None
         exchanges = list(op.swaps)
 
         input_type = cast(ContainerType[Attribute], op.input_stencil.type)
@@ -86,7 +78,7 @@ class LowerHaloExchangeToMpi(RewritePattern):
                     op.input_stencil,
                     exchanges,
                     input_type.get_element_type(),
-                    op.topo,
+                    op.strategy.comm_layout(),
                     emit_init=self.init,
                     emit_debug=self.debug_prints,
                 )
@@ -566,19 +558,15 @@ def collect_args_recursive(op: Operation) -> Iterable[Operation]:
 
 
 @dataclass
-class DmpSwapShapeInference:
+class DmpSwapShapeInference(RewritePattern):
     """
-    Not a rewrite pattern, as it's a bit more involved.
-
     This is applied after stencil shape inference has run. It will find the
     HaloSwapOps again, and use the results of the shape inference pass
     to attach the swap declarations.
     """
 
-    strategy: DomainDecompositionStrategy
-    rewriter: Rewriter = field(default_factory=Rewriter)
-
-    def match_and_rewrite(self, op: dmp.SwapOp):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: dmp.SwapOp, rewrite: PatternRewriter):
         core_lb: stencil.IndexAttr | None = None
         core_ub: stencil.IndexAttr | None = None
 
@@ -609,7 +597,7 @@ class DmpSwapShapeInference:
         # drop 0 element exchanges
         op.swaps = builtin.ArrayAttr(
             exchange
-            for exchange in self.strategy.halo_exchange_defs(
+            for exchange in op.strategy.halo_exchange_defs(
                 dmp.ShapeAttr.from_index_attrs(
                     buff_lb=buff_lb,
                     core_lb=core_lb,
@@ -619,11 +607,6 @@ class DmpSwapShapeInference:
             )
             if exchange.elem_count > 0
         )
-
-    def apply(self, module: builtin.ModuleOp):
-        for op in module.walk():
-            if isinstance(op, dmp.SwapOp):
-                self.match_and_rewrite(op)
 
 
 @dataclass(frozen=True)
@@ -643,9 +626,9 @@ class DistributeStencilPass(DmpDecompositionPass):
 
     name = "distribute-stencil"
 
-    STRATEGIES: ClassVar[dict[str, type[DomainDecompositionStrategy]]] = {
-        "2d-grid": GridSlice2d,
-        "3d-grid": GridSlice3d,
+    STRATEGIES: ClassVar[dict[str, type[dmp.GridSlice2dAttr | dmp.GridSlice3dAttr]]] = {
+        "2d-grid": dmp.GridSlice2dAttr,
+        "3d-grid": dmp.GridSlice3dAttr,
     }
 
     slices: tuple[int, ...]
@@ -684,7 +667,7 @@ class DistributeStencilPass(DmpDecompositionPass):
         # run the shape inference pass
         ShapeInferencePass().apply(ctx, op)
 
-        DmpSwapShapeInference(strategy).apply(op)
+        PatternRewriteWalker(DmpSwapShapeInference()).rewrite_module(op)
 
 
 @dataclass(frozen=True)

@@ -10,7 +10,8 @@ makes them run on node clusters.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from abc import ABC
+from collections.abc import Iterable, Sequence
 from math import prod
 from typing import Literal
 
@@ -20,11 +21,11 @@ from xdsl.irdl import (
     IRDLOperation,
     Operand,
     ParameterDef,
+    attr_def,
     base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
@@ -392,7 +393,7 @@ class RankTopoAttr(ParametrizedAttribute):
 
     shape: ParameterDef[builtin.DenseArrayBase]
 
-    def __init__(self, shape: Sequence[int]):
+    def __init__(self, shape: Sequence[int] | Sequence[builtin.IntAttr]):
         if len(shape) < 1:
             raise ValueError("dmp.grid must have at least one dimension!")
         super().__init__([builtin.DenseArrayBase.from_list(builtin.i64, shape)])
@@ -426,6 +427,160 @@ class RankTopoAttr(ParametrizedAttribute):
         printer.print_string(">")
 
 
+class DomainDecompositionStrategy(ParametrizedAttribute, ABC):
+    def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
+        raise NotImplementedError("SlicingStrategy must implement calc_resize!")
+
+    def halo_exchange_defs(self, shape: ShapeAttr) -> Iterable[ExchangeDeclarationAttr]:
+        raise NotImplementedError("SlicingStrategy must implement halo_exchange_defs!")
+
+    def comm_layout(self) -> RankTopoAttr:
+        raise NotImplementedError("SlicingStrategy must implement comm_count!")
+
+
+@irdl_attr_definition
+class GridSlice2dAttr(DomainDecompositionStrategy):
+    """
+    Takes a grid with two or more dimensions, slices it along the first two into equally
+    sized segments.
+    """
+
+    name = "dmp.grid_slice_2d"
+
+    topology: ParameterDef[RankTopoAttr]
+
+    diagonals: ParameterDef[builtin.BoolAttr]
+
+    def __init__(self, topo: tuple[int, ...]):
+        super().__init__(
+            [RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)]
+        )
+
+    def _verify(self):
+        assert (
+            len(self.topology.as_tuple()) >= 2
+        ), "GridSlice2d requires at least two dimensions"
+
+    def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
+        assert len(shape) >= 2, "GridSlice2d requires at least two dimensions"
+        for size, node_count in zip(shape, self.topology.as_tuple()):
+            assert (
+                size % node_count == 0
+            ), "GridSlice2d requires domain be neatly divisible by shape"
+        return (
+            *(
+                size // node_count
+                for size, node_count in zip(shape, self.topology.as_tuple())
+            ),
+            *(size for size in shape[2:]),
+        )
+
+    def halo_exchange_defs(self, shape: ShapeAttr) -> Iterable[ExchangeDeclarationAttr]:
+        yield from _flat_face_exchanges_for_dim(shape, 0)
+
+        yield from _flat_face_exchanges_for_dim(shape, 1)
+
+        if self.diagonals.value.data:
+            raise NotImplementedError("Diagonals support not implemented yet")
+
+    def comm_layout(self) -> RankTopoAttr:
+        return RankTopoAttr(self.topology.as_tuple())
+
+
+@irdl_attr_definition
+class GridSlice3dAttr(DomainDecompositionStrategy):
+    """
+    Takes a grid with two or more dimensions, slices it along the first three.
+    """
+
+    name = "dmp.grid_slice_3d"
+
+    topology: ParameterDef[RankTopoAttr]
+
+    diagonals: ParameterDef[builtin.BoolAttr]
+
+    def __init__(self, topo: tuple[int, ...]):
+        super().__init__(
+            [RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1)]
+        )
+
+    def _verify(self):
+        assert (
+            len(self.topology.as_tuple()) >= 3
+        ), "GridSlice3d requires at least three dimensions"
+
+    def calc_resize(self, shape: tuple[int, ...]) -> tuple[int, ...]:
+        assert len(shape) >= 3, "GridSlice3d requires at least two dimensions"
+        for size, node_count in zip(shape, self.topology.as_tuple()):
+            assert (
+                size % node_count == 0
+            ), "GridSlice3d requires domain be neatly divisible by shape"
+        return (
+            *(
+                size // node_count
+                for size, node_count in zip(shape, self.topology.as_tuple())
+            ),
+            *(size for size in shape[3:]),
+        )
+
+    def halo_exchange_defs(self, shape: ShapeAttr) -> Iterable[ExchangeDeclarationAttr]:
+        yield from _flat_face_exchanges_for_dim(shape, 0)
+
+        yield from _flat_face_exchanges_for_dim(shape, 1)
+
+        yield from _flat_face_exchanges_for_dim(shape, 2)
+
+        if self.diagonals.value.data:
+            raise NotImplementedError("Diagonals support not implemented yet")
+
+    def comm_layout(self) -> RankTopoAttr:
+        return RankTopoAttr(self.topology.as_tuple())
+
+
+def _flat_face_exchanges_for_dim(
+    shape: ShapeAttr, axis: int
+) -> tuple[ExchangeDeclarationAttr, ExchangeDeclarationAttr]:
+    """
+    Generate the two exchange delcarations to exchange the faces on the
+    axis "axis".
+    """
+    dimensions = shape.dims
+    assert axis <= dimensions
+
+    def coords(where: Literal["start", "end"]):
+        for d in range(dimensions):
+            # for the dim we want to exchange, return either start or end halo region
+            if d == axis:
+                if where == "start":
+                    # "start" halo goes from buffer start to core start
+                    yield shape.buffer_start(d), shape.core_start(d)
+                else:
+                    # "end" halo goes from core end to buffer end
+                    yield shape.core_end(d), shape.buffer_end(d)
+            else:
+                # for the sliced regions, "extrude" from core
+                # this way we don't exchange edges
+                yield shape.core_start(d), shape.core_end(d)
+
+    ex1_coords = tuple(coords("end"))
+    ex2_coords = tuple(coords("start"))
+
+    return (
+        # towards positive dim:
+        ExchangeDeclarationAttr.from_points(
+            ex1_coords,
+            axis,
+            dir_sign=1,
+        ),
+        # towards negative dim:
+        ExchangeDeclarationAttr.from_points(
+            ex2_coords,
+            axis,
+            dir_sign=-1,
+        ),
+    )
+
+
 @irdl_op_definition
 class SwapOp(IRDLOperation):
     """
@@ -438,15 +593,13 @@ class SwapOp(IRDLOperation):
         base(stencil.AnyTempType) | base(builtin.AnyMemRefType)
     )
 
-    swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] | None = opt_attr_def(
-        builtin.ArrayAttr[ExchangeDeclarationAttr]
-    )
+    swaps = attr_def(builtin.ArrayAttr[ExchangeDeclarationAttr])
 
-    topo: RankTopoAttr | None = opt_attr_def(RankTopoAttr)
+    strategy = attr_def(DomainDecompositionStrategy)
 
     @staticmethod
-    def get(input_stencil: SSAValue | Operation):
-        return SwapOp.build(operands=[input_stencil])
+    def get(input_stencil: SSAValue | Operation, strategy: DomainDecompositionStrategy):
+        return SwapOp.build(operands=[input_stencil], attributes={"strategy": strategy})
 
 
 DMP = Dialect(
@@ -458,5 +611,7 @@ DMP = Dialect(
         ExchangeDeclarationAttr,
         ShapeAttr,
         RankTopoAttr,
+        GridSlice2dAttr,
+        GridSlice3dAttr,
     ],
 )
