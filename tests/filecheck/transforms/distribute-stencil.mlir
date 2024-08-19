@@ -1,5 +1,6 @@
 // RUN: xdsl-opt %s -p "distribute-stencil{strategy=3d-grid slices=2,2,2}" | filecheck %s
 // RUN: xdsl-opt %s -p "distribute-stencil{strategy=3d-grid slices=2,2,2},shape-inference" | filecheck %s --check-prefix SHAPE
+// RUN: xdsl-opt %s -p "distribute-stencil{strategy=3d-grid slices=2,2,2},shape-inference,stencil-bufferize" | filecheck %s --check-prefix BUFF
 
   func.func @offsets(%27 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %28 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %29 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
     %33 = stencil.load %27 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<?x?x?xf64>
@@ -65,6 +66,25 @@
 // SHAPE-NEXT:      stencil.store %6 to %2(<[0, 0, 0], [32, 32, 32]>) : !stencil.temp<[0,32]x[0,32]x[0,32]xf64> to !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
+
+// BUFF:         func.func @offsets(%0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+// BUFF-NEXT:      "dmp.swap"(%0) {"strategy" = #dmp.grid_slice_3d<#dmp.topo<2x2x2>, false>, "swaps" = [#dmp.exchange<at [32, 0, 0] size [1, 32, 32] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 32, 32] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 32, 0] size [32, 1, 32] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [32, 1, 32] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
+// BUFF-NEXT:      stencil.apply(%3 = %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) outs (%1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+// BUFF-NEXT:        %4 = stencil.access %3[-1, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// BUFF-NEXT:        %5 = stencil.access %3[1, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// BUFF-NEXT:        %6 = stencil.access %3[0, 1, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// BUFF-NEXT:        %7 = stencil.access %3[0, -1, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// BUFF-NEXT:        %8 = stencil.access %3[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// BUFF-NEXT:        %9 = arith.addf %4, %5 : f64
+// BUFF-NEXT:        %10 = arith.addf %6, %7 : f64
+// BUFF-NEXT:        %11 = arith.addf %9, %10 : f64
+// BUFF-NEXT:        %cst = arith.constant -4.000000e+00 : f64
+// BUFF-NEXT:        %12 = arith.mulf %8, %cst : f64
+// BUFF-NEXT:        %13 = arith.addf %12, %11 : f64
+// BUFF-NEXT:        stencil.return %13, %12 : f64, f64
+// BUFF-NEXT:      } to <[0, 0, 0], [32, 32, 32]>
+// BUFF-NEXT:      func.return
+// BUFF-NEXT:    }
 
   func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x64x64xf64>, %dyn_field : !stencil.field<?x?x?xf64>, %sta_field : !stencil.field<[-2,62]x[0,64]x[2,66]xf64>) {
     stencil.external_store %dyn_field to %dyn_mem : !stencil.field<?x?x?xf64> to memref<?x?x?xf64>

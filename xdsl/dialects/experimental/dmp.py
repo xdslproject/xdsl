@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Iterable, Sequence
 from math import prod
-from typing import Literal
+from typing import Literal, cast
 
 from xdsl.dialects import builtin, stencil
 from xdsl.ir import Attribute, Dialect, Operation, ParametrizedAttribute, SSAValue
@@ -29,7 +29,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import HasShapeInferencePatternsTrait
+from xdsl.traits import (
+    EffectInstance,
+    HasShapeInferencePatternsTrait,
+    MemoryEffect,
+    MemoryEffectKind,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -594,6 +599,18 @@ class SwapOpHasShapeInferencePatterns(HasShapeInferencePatternsTrait):
         return (DmpSwapShapeInference(), DmpSwapSwapsInference())
 
 
+class SwapOpMemoryEffect(MemoryEffect):
+    @classmethod
+    def get_effects(cls, op: Operation) -> set[EffectInstance]:
+        op = cast(SwapOp, op)
+        if op.swapped_values:
+            return set()
+        return {
+            EffectInstance(MemoryEffectKind.WRITE, op.input_stencil),
+            EffectInstance(MemoryEffectKind.READ, op.input_stencil),
+        }
+
+
 @irdl_op_definition
 class SwapOp(IRDLOperation):
     """
@@ -609,7 +626,7 @@ class SwapOp(IRDLOperation):
 
     strategy = attr_def(DomainDecompositionStrategy)
 
-    traits = frozenset([SwapOpHasShapeInferencePatterns()])
+    traits = frozenset([SwapOpHasShapeInferencePatterns(), SwapOpMemoryEffect()])
 
     def verify_(self) -> None:
         if self.swapped_values:
