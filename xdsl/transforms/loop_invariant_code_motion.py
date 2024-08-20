@@ -10,8 +10,6 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.traits import (
     IsTerminator,
-    Pure,
-    RecursiveMemoryEffect,
     # is_side_effect_free,
     # only_has_effect,
 )
@@ -51,44 +49,6 @@ def canBeHoisted(op: Operation, region_target: Region) -> bool | None:
     return True
 
 
-def move_Out_of_Region(op: Operation, region: Region):
-    print("hoisted op: ", op.name)
-
-
-def isDefinedOutsideOfRegoin(op: Operation, region: Region) -> bool | None:
-    return not op.is_ancestor(region)
-
-
-def isMemoryEffectFree(op: Operation) -> bool | None:
-    if not op.has_trait(Pure):
-        return False
-    # Have a close look if the op might have side effects.
-    if not op.has_trait(RecursiveMemoryEffect):
-        return True
-    elif not op.has_trait(RecursiveMemoryEffect):
-        return False
-
-    for regions in op.regions:
-        for ops in regions.ops:
-            if not ops.has_trait(Pure):
-                return False
-
-
-def isSpeculatable(op: Operation) -> bool | None:
-    if not op.has_trait(Pure):
-        return False
-    # Have a close look if the op might have side effects.
-    if not op.has_trait(RecursiveMemoryEffect):
-        return True
-    elif not op.has_trait(RecursiveMemoryEffect):
-        return False
-
-    for regions in op.regions:
-        for ops in regions.ops:
-            if not ops.has_trait(Pure):
-                return False
-
-
 class LoopsInvariantCodeMotion(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.For, rewriter: PatternRewriter) -> None:
@@ -108,19 +68,17 @@ class LoopsInvariantCodeMotion(RewritePattern):
                     # Skip ops that have already been moved. Check if the op can be hoisted.
                     if oper.parent_region() != region:
                         continue
-                    if not (isMemoryEffectFree(oper) and isSpeculatable(oper)) or not (
-                        canBeHoisted(oper, region)
-                    ):
+                    if not canBeHoisted(oper, region):
                         continue
-                    print("Moving loop-invariant op: ", oper)
-                    move_Out_of_Region(oper, region)
+                    print("Can be hoisted op: ", oper)
+
                     numMoved = numMoved + 1
                     if not isinstance(oper, scf.Yield):
                         for user in oper.results[0].uses:
                             if user.operation.parent_region is region:
                                 worklist.append(user.operation)
 
-        print(numMoved)
+        # print(numMoved)
 
 
 class ScfForLoopInavarintCodeMotionPass(ModulePass):
