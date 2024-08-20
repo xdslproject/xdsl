@@ -544,7 +544,7 @@ class ApplyOpToHLS(RewritePattern):
 
                 if n_dims == 3:
                     stream = self.shift_streams[current_stream][k]
-                    rewriter.modify_block_argument_type(
+                    rewriter.modify_value_type(
                         apply_clone.region.block.args[i], stream.results[0].type
                     )
 

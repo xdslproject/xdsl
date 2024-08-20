@@ -51,7 +51,7 @@ class JaxExecutable:
     }
     \"""
     my_module = parser.parse_module(my_module_str)
-    @JaxExecutable.compile(module)
+    @JaxExecutable.compile(my_module)
     def my_func(a: jax.Array) -> jax.Array: ...
     ```
     Note that the type of the function passed to the decorator is preserver, and can

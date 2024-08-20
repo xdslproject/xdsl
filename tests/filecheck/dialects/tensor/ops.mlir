@@ -22,5 +22,3 @@
 // CHECK-GENERIC-NEXT:   %cast1 = "tensor.cast"(%tensor) : (tensor<?x?xf32>) -> tensor<4x4xf32>
 // CHECK-GENERIC-NEXT:   %cast2 = "tensor.cast"(%tensor) {"hello" = "world"} : (tensor<?x?xf32>) -> tensor<4x4xf32>
 // CHECK-GENERIC-NEXT: }) : () -> ()
-
-

@@ -147,7 +147,6 @@ class ModuleOp(IRDLOperation):
     The program module has the following args (in order):
       * general params:        `width` and `height` followed by everything specified in `params`
       * params from layout:    everything defined by `layout_yield_op.fields`
-      * input-output symbols:  any arg from the function lowered into this op, which are exported symbols supporting host-device transfers
     """
 
     name = "csl_wrapper.module"
@@ -210,7 +209,6 @@ class ModuleOp(IRDLOperation):
     def update_program_block_args(
         self,
         yield_args: Iterable[tuple[str, SSAValue]] | None = None,
-        exported_symbols: Iterable[tuple[str | None, Attribute]] | None = None,
     ):
         """
         Update `program_module` BlockArguments by adding
@@ -231,14 +229,6 @@ class ModuleOp(IRDLOperation):
                 op.type, len(self.program_module.block.args)
             )
             arg.name_hint = name
-
-        if exported_symbols is not None:
-            for nam, typ in exported_symbols:
-                arg = self.program_module.block.insert_arg(
-                    typ, len(self.program_module.block.args)
-                )
-                if nam is not None:
-                    arg.name_hint = nam
 
     def verify_(self):
         # verify that names are unique

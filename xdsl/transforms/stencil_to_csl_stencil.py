@@ -186,7 +186,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         # remove op if it contains no swaps
-        if op.swaps is None or len(op.swaps) == 0:
+        if len(op.swaps) == 0:
             rewriter.erase_matched_op(False)
             return
 
@@ -211,12 +211,14 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         assert isa(
             t_type := op.input_stencil.type.get_element_type(), TensorType[Attribute]
         )
-        assert op.topo is not None, f"topology on {type(op)} is not given"
+        assert (
+            op.strategy.comm_layout() is not None
+        ), f"topology on {type(op)} is not given"
 
         # when translating swaps, remove third dimension
         prefetch_op = csl_stencil.PrefetchOp(
             input_stencil=op.input_stencil,
-            topo=op.topo,
+            topo=op.strategy.comm_layout(),
             swaps=[
                 csl_stencil.ExchangeDeclarationAttr(swap.neighbor[:2])
                 for swap in op.swaps
@@ -227,8 +229,12 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             ),
         )
 
-        # a little hack to get around a check that prevents replacing a no-results op with an n-results op
-        rewriter.replace_matched_op(prefetch_op, new_results=[])
+        # if the rewriter needs a result, use `input_stencil` as a drop-in replacement
+        # prefetch_op produces a result that needs to be handled separately
+        # note, that only un-bufferized dmp.swaps produce a result
+        rewriter.replace_matched_op(
+            prefetch_op, new_results=[op.input_stencil] if op.swapped_values else []
+        )
 
         # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
         uses = list(op.input_stencil.uses)

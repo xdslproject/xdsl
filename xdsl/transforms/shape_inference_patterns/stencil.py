@@ -2,8 +2,6 @@ from collections.abc import Iterable
 from functools import reduce
 from typing import TypeVar, cast
 
-from xdsl.context import MLContext
-from xdsl.dialects import builtin
 from xdsl.dialects.stencil import (
     AccessOp,
     ApplyOp,
@@ -18,15 +16,11 @@ from xdsl.dialects.stencil import (
     TempType,
 )
 from xdsl.ir import Attribute, Operation, SSAValue
-from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
-    PatternRewriteWalker,
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import assert_subset
 from xdsl.utils.hints import isa
 
 _OpT = TypeVar("_OpT", bound=Operation)
@@ -65,7 +59,9 @@ def infer_core_size(op: LoadOp) -> tuple[IndexAttr, IndexAttr]:
     return shape_lb, shape_ub
 
 
-def update_result_size(value: SSAValue, size: StencilBoundsAttr):
+def update_result_size(
+    value: SSAValue, size: StencilBoundsAttr, rewriter: PatternRewriter
+):
     """
     Wrapper for corner-case result size updating.
     On the general case, just update the result's type.
@@ -88,18 +84,18 @@ def update_result_size(value: SSAValue, size: StencilBoundsAttr):
             ),
         )
         for res in apply.res:
-            res.type = TempType(
+            newtype = TempType(
                 newsize, cast(TempType[Attribute], res.type).element_type
             )
+            if newtype != res.type:
+                rewriter.modify_value_type(res, newtype)
             for use in res.uses:
                 if isinstance(use.operation, BufferOp):
-                    update_result_size(use.operation.res, newsize)
+                    update_result_size(use.operation.res, newsize, rewriter)
     newsize = size | cast(TempType[Attribute], value.type).bounds
     newtype = TempType(newsize, cast(TempType[Attribute], value.type).element_type)
-    value.type = newtype
-    for use in value.uses:
-        if isinstance(use.operation, ApplyOp):
-            use.operation.region.block.args[use.index].type = newtype
+    if newtype != value.type:
+        rewriter.modify_value_type(value, newtype)
 
 
 class CombineOpShapeInference(RewritePattern):
@@ -119,14 +115,15 @@ class CombineOpShapeInference(RewritePattern):
         upperext_bounds = [
             cast(TempType[Attribute], r.type).bounds for r in upperext_res
         ]
-        assert isa(combined_bounds, list[StencilBoundsAttr])
-        assert isa(lowerext_bounds, list[StencilBoundsAttr])
-        assert isa(upperext_bounds, list[StencilBoundsAttr])
 
-        lower_bounds = list[StencilBoundsAttr]()
-        upper_bounds = list[StencilBoundsAttr]()
+        lower_bounds = list[StencilBoundsAttr | None]()
+        upper_bounds = list[StencilBoundsAttr | None]()
 
         for c in combined_bounds:
+            if not isinstance(c, StencilBoundsAttr):
+                lower_bounds.append(None)
+                upper_bounds.append(None)
+                continue
             newub = list(c.ub)
             newub[op.dim.value.data] = op.index.value.data
             newl = StencilBoundsAttr.new((c.lb, IndexAttr.get(*newub)))
@@ -139,29 +136,37 @@ class CombineOpShapeInference(RewritePattern):
 
         # Handle combined lower results
         for b, l in zip(lower_bounds, op.lower, strict=True):
+            if b is None:
+                continue
             assert isa(l.type, TempType[Attribute])
-            update_result_size(l, l.type.bounds | b)
+            update_result_size(l, l.type.bounds | b, rewriter)
 
         # Handle combined upper results
         for b, u in zip(upper_bounds, op.upper, strict=True):
+            if b is None:
+                continue
             assert isa(u.type, TempType[Attribute])
-            update_result_size(u, u.type.bounds | b)
+            update_result_size(u, u.type.bounds | b, rewriter)
 
         # Handle lowerext results
         for r, o in zip(lowerext_bounds, op.lowerext, strict=True):
+            if not isinstance(r, StencilBoundsAttr):
+                continue
             assert isa(o.type, TempType[Attribute])
             newub = list(r.ub)
             newub[op.dim.value.data] = op.index.value.data
             newl = StencilBoundsAttr.new((r.lb, IndexAttr.get(*newub)))
-            update_result_size(o, o.type.bounds | newl)
+            update_result_size(o, o.type.bounds | newl, rewriter)
 
         # Handle upperext results
         for r, o in zip(upperext_bounds, op.upperext, strict=True):
+            if not isinstance(r, StencilBoundsAttr):
+                continue
             assert isa(o.type, TempType[Attribute])
             newlb = list(r.lb)
             newlb[op.dim.value.data] = op.index.value.data
             newu = StencilBoundsAttr.new((IndexAttr.get(*newlb), r.ub))
-            update_result_size(o, o.type.bounds | newu)
+            update_result_size(o, o.type.bounds | newu, rewriter)
 
 
 class LoadOpShapeInference(RewritePattern):
@@ -172,8 +177,6 @@ class LoadOpShapeInference(RewritePattern):
         temp = op.res.type
         assert isa(temp, TempType[Attribute])
 
-        assert_subset(field, temp)
-
 
 class StoreOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
@@ -181,7 +184,7 @@ class StoreOpShapeInference(RewritePattern):
         temp = op.temp.type
         assert isa(temp, TempType[Attribute])
 
-        update_result_size(op.temp, temp.bounds | op.bounds)
+        update_result_size(op.temp, temp.bounds | op.bounds, rewriter)
 
 
 class AccessOpShapeInference(RewritePattern):
@@ -194,9 +197,12 @@ class AccessOpShapeInference(RewritePattern):
         temp_type = op.temp.type
 
         output_size = apply.res[0].type.bounds
-        assert isinstance(output_size, StencilBoundsAttr)
+        if not isinstance(output_size, StencilBoundsAttr):
+            return
 
-        update_result_size(op.temp, temp_type.bounds | output_size + op.offset)
+        update_result_size(
+            op.temp, temp_type.bounds | output_size + op.offset, rewriter
+        )
 
 
 class DynAccessOpShapeInference(RewritePattern):
@@ -209,10 +215,13 @@ class DynAccessOpShapeInference(RewritePattern):
 
         temp_type = op.temp.type
         output_size = apply.res[0].type.bounds
-        assert isinstance(output_size, StencilBoundsAttr)
+        if not isinstance(output_size, StencilBoundsAttr):
+            return
 
         update_result_size(
-            op.temp, temp_type.bounds | output_size + op.lb | output_size + op.ub
+            op.temp,
+            temp_type.bounds | output_size + op.lb | output_size + op.ub,
+            rewriter,
         )
 
 
@@ -223,39 +232,19 @@ class ApplyOpShapeInference(RewritePattern):
             if isa(arg.type, TempType[Attribute]) and isinstance(
                 arg.type.bounds, StencilBoundsAttr
             ):
-                update_result_size(op.operands[i], arg.type.bounds)
+                assert isa(ot := op.operands[i].type, TempType[Attribute])
+                new_bounds = arg.type.bounds | ot.bounds
+                if new_bounds != ot.bounds:
+                    update_result_size(op.operands[i], new_bounds, rewriter)
+                if new_bounds != arg.type.bounds:
+                    update_result_size(arg, new_bounds, rewriter)
 
 
 class BufferOpShapeInference(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
         res_bounds = cast(TempType[Attribute], op.res.type).bounds
-        assert isinstance(res_bounds, StencilBoundsAttr)
+        if not isinstance(res_bounds, StencilBoundsAttr):
+            return
         op.temp.type = op.res.type
-        update_result_size(op.temp, res_bounds)
-
-
-ShapeInference = GreedyRewritePatternApplier(
-    [
-        AccessOpShapeInference(),
-        ApplyOpShapeInference(),
-        BufferOpShapeInference(),
-        CombineOpShapeInference(),
-        DynAccessOpShapeInference(),
-        LoadOpShapeInference(),
-        StoreOpShapeInference(),
-    ]
-)
-
-
-class StencilShapeInferencePass(ModulePass):
-    name = "stencil-shape-inference"
-
-    def apply(self, ctx: MLContext, op: builtin.ModuleOp) -> None:
-        inference_walker = PatternRewriteWalker(
-            ShapeInference,
-            apply_recursively=False,
-            walk_reverse=True,
-            walk_regions_first=True,
-        )
-        inference_walker.rewrite_module(op)
+        update_result_size(op.temp, res_bounds, rewriter)

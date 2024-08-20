@@ -55,5 +55,3 @@ func.func @test() {
 // CHECK-GENERIC-NEXT:     "func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) : () -> ()
 // CHECK-GENERIC-NEXT: }) : () -> ()
-
-
