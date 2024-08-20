@@ -18,6 +18,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.transforms.experimental.convert_stencil_to_ll_mlir import StencilToMemRefType
 
 _T = TypeVar("_T", bound=Attribute)
 
@@ -376,10 +377,23 @@ def generate_memcpy(
     `field` as specified by `ex`
 
     """
-    field_type = cast(memref.MemRefType[Attribute], field.type)
+    field_type = cast(stencil.FieldType[Attribute], field.type)
+    assert isinstance(field_type.bounds, stencil.StencilBoundsAttr)
+    memref_type = StencilToMemRefType(field_type)
+
+    uc = builtin.UnrealizedConversionCastOp.get([field], result_type=[memref_type])
+
+    memref_val = uc.results[0]
+
+    offset = stencil.IndexAttr.get(*ex.offset) - field_type.bounds.lb
 
     subview = memref.Subview.from_static_parameters(
-        field, field_type, ex.offset, ex.size, [1] * len(ex.offset), reduce_rank=True
+        memref_val,
+        memref_type,
+        tuple(offset),
+        ex.size,
+        [1] * len(ex.offset),
+        reduce_rank=True,
     )
     if receive:
         copy = memref.CopyOp(buffer, subview)
@@ -387,6 +401,7 @@ def generate_memcpy(
         copy = memref.CopyOp(subview, buffer)
 
     return [
+        uc,
         subview,
         copy,
     ]
