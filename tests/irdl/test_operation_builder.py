@@ -44,6 +44,7 @@ from xdsl.irdl import (
     var_successor_def,
 )
 from xdsl.traits import IsTerminator
+from xdsl.utils.exceptions import VerifyException
 
 ################################################################################
 #                                 Results                                      #
@@ -319,27 +320,36 @@ def test_two_var_operand_prop_builder2():
 class SameSizeVarOperandOp(IRDLOperation):
     name = "test.same_size_var_operand_op"
 
-    op1: VarOperand = var_operand_def(StringAttr)
-    op2: VarOperand = var_operand_def(StringAttr)
+    var1 = var_operand_def()
+    op1 = operand_def()
+    var2 = var_operand_def()
     irdl_options = [SameVariadicOperandSize()]
 
 
 def test_same_size_operand_builder():
     op1 = ResultOp.build(result_types=[StringAttr("0")]).res
-    op2 = SameSizeVarOperandOp.build(operands=[[op1, op1], [op1, op1]])
+    op2 = SameSizeVarOperandOp.build(operands=[[op1, op1], op1, [op1, op1]])
     op2.verify()
-    assert tuple(op2.operands) == (op1, op1, op1, op1)
-    op2 = SameSizeVarOperandOp.create(operands=[op1, op1, op1, op1])
+    assert tuple(op2.operands) == (op1, op1, op1, op1, op1)
+    op2 = SameSizeVarOperandOp.create(operands=[op1, op1, op1, op1, op1])
     op2.verify()
-    assert (op2.op1, op2.op2) == ((op1, op1), (op1, op1))
+    assert (op2.var1, op2.op1, op2.var2) == ((op1, op1), op1, (op1, op1))
 
 
 def test_same_size_operand_builder2():
-    op1 = ResultOp.build(result_types=[StringAttr("0")])
+    op1 = ResultOp.build(result_types=[StringAttr("0")]).res
     with pytest.raises(
         ValueError, match=re.escape("Variadic operands have different sizes: [1, 3]")
     ):
-        SameSizeVarOperandOp.build(operands=[[op1], [op1, op1, op1]])
+        SameSizeVarOperandOp.build(operands=[[op1], op1, [op1, op1, op1]])
+    op2 = SameSizeVarOperandOp.create(operands=[op1, op1, op1, op1])
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "Operation does not verify: Operation has 3 operands for 2 variadic operands marked as having the same size."
+        ),
+    ):
+        op2.verify()
 
 
 ################################################################################

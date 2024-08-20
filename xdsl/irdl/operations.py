@@ -1394,7 +1394,11 @@ def get_variadic_sizes(
     if option:
         non_variadic_defs = len(defs) - len(variadic_defs)
         variadic_args = len(args) - non_variadic_defs
-        assert variadic_args % len(variadic_defs) == 0, "Insightful error message"
+        if variadic_args % len(variadic_defs):
+            name = get_construct_name(construct)
+            raise VerifyException(
+                f"Operation has {variadic_args} {name}s for {len(variadic_defs)} variadic {name}s marked as having the same size."
+            )
         return [variadic_args // len(variadic_defs)] * len(variadic_defs)
 
     # Unreachable, all cases should have been handled.
