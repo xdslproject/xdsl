@@ -161,7 +161,6 @@ class FormatProgram:
             properties = state.properties
         else:
             properties = op_def.split_properties(state.attributes)
-
         return op_type.build(
             result_types=result_types,
             operands=operands,
