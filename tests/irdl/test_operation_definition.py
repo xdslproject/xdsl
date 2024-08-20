@@ -669,3 +669,18 @@ Operation does not verify: region #0 entry arguments do not verify:
 Expected attribute i32 but got i64""",
     ):
         op.verify()
+
+
+class OptionlessMultipleVarOp(IRDLOperation):
+    name = "test.multiple_var_op"
+
+    optional = opt_operand_def()
+    variadic = var_operand_def()
+
+
+def test_no_multiple_var_option():
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="Operation test.multiple_var_op defines more than two variadic operands, but do not define any of SameVariadicOperandSize or AttrSizedOperandSegments PyRDL options.",
+    ):
+        irdl_op_definition(OptionlessMultipleVarOp)
