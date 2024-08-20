@@ -57,7 +57,7 @@ class ParsingState:
     def __init__(self, op_def: OpDef):
         if op_def.successors:
             raise NotImplementedError(
-                "Operation definitions with " "successors are not yet supported"
+                "Operation definitions with successors are not yet supported"
             )
         self.operands = [None] * len(op_def.operands)
         self.operand_types = [None] * len(op_def.operands)
