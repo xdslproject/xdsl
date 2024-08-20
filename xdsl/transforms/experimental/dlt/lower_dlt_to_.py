@@ -185,6 +185,64 @@ class DLTGetRewriter(RewritePattern):
 
 
 @dataclass
+class DLTGetSRewriter(RewritePattern):
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, get_op: dlt.GetSOp, rewriter: PatternRewriter):
+        assert isinstance(get_op.tree.type, dlt.PtrType)
+        input_type = cast(dlt.PtrType, get_op.tree.type)
+        assert isinstance(input_type, dlt.PtrType)
+        get_type = assert_type(get_op.get_type, dlt.AcceptedTypes)
+        assert get_op.res.type == get_op.get_type
+        assert isinstance(get_type, dlt.AcceptedTypes)
+
+        ops = []
+        llvm_in_ptr_type = Semantic_Map.get_data_type_from_dlt_ptr(input_type)
+        cast_input_op = UnrealizedConversionCastOp.get(get_op.tree, llvm_in_ptr_type)
+        ops.append(cast_input_op)
+        llvm_dlt_ptr_in = cast_input_op.outputs[0]
+
+        get_data_ptr_op = llvm.ExtractValueOp(
+            DenseArrayBase.from_list(i64, [0]),
+            llvm_dlt_ptr_in,
+            llvm.LLVMPointerType.opaque(),
+        )
+        ops.append(get_data_ptr_op)
+        llvm_data_ptr = get_data_ptr_op.res
+
+        get_ops, get_res, get_found = Semantic_Map.get_getter_for(
+            input_type.layout,
+            get_type,
+            set(input_type.filled_members),
+            {
+                dim: PtrCarriedIndexGetter(llvm_dlt_ptr_in, input_type, dim=dim)
+                for dim in input_type.filled_dimensions
+            },
+            ExtentResolver(
+                {
+                    extent: PtrCarriedExtentGetter(
+                        llvm_dlt_ptr_in, input_type, extent=extent
+                    )
+                    for extent in input_type.filled_extents
+                },
+                get_op.get_scope()
+            ),
+            llvm_data_ptr,
+        )
+        ops.extend(get_ops)
+
+        bool_ops, get_found = layout_llvm_semantics._make_bool_ssa(get_found)
+        ops.extend(bool_ops)
+
+        zero_ops, zero_val = layout_llvm_semantics._get_packed_zero_for_accepted_type(get_type)
+        ops.extend(zero_ops)
+
+        ops.append(select_op := arith.Select(get_found, get_res, zero_val))
+        gets_res = select_op.result
+        rewriter.replace_matched_op(ops, [gets_res, get_found])
+
+
+@dataclass
 class DLTSetRewriter(RewritePattern):
 
     @op_type_rewrite_pattern
@@ -809,7 +867,7 @@ class LowerDLTPass(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
-                [DLTSelectRewriter(), DLTGetRewriter(), DLTSetRewriter()]
+                [DLTSelectRewriter(), DLTGetRewriter(), DLTGetSRewriter(), DLTSetRewriter()]
             )
         )
         walker.rewrite_module(op)

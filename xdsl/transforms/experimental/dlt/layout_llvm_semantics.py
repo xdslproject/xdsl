@@ -2925,6 +2925,8 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         input_ptr: SSAValue,
     ) -> list[Operation]:
         ops = []
+        zero_cmp_ops, is_non_zero = _compare_is_non_zero(set_val)
+        ops.extend(zero_cmp_ops)
 
         # 1) Get the members and dim_mapping used in the direct child
         direct_parts_ops, direct_members, direct_dim_mapping, direct_data_ptr = (
@@ -2946,6 +2948,10 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
         ops.extend(direct_get_ops)
         bool_ops, index_range_found = _make_bool_ssa(index_range_found)
         ops.extend(bool_ops)
+
+        must_start_set_cond_op = arith.OrI(index_range_found, is_non_zero)
+        ops.append(must_start_set_cond_op)
+        if_must_start_set_ops = []
 
         # 3) if the direct child doesn't have a range, we must ask it to make one.
         if_index_range_found_true = [scf.Yield(index_range)]
@@ -2975,15 +2981,15 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             if_index_range_found_true,
             if_index_range_found_false,
         )
-        ops.append(if_index_range_found_op)
+        if_must_start_set_ops.append(if_index_range_found_op)
         true_index_range = if_index_range_found_op.output[0]
 
         # 4) with the index-range, we must look for the matching element in the sparse index buffer
         extract_ops, start, end = _extract_indices_from_index_range(true_index_range)
-        ops.extend(extract_ops)
+        if_must_start_set_ops.extend(extract_ops)
 
         idx_buffer_ptr_op = llvm.LoadOp(input_ptr, llvm.LLVMPointerType.opaque())
-        ops.append(idx_buffer_ptr_op)
+        if_must_start_set_ops.append(idx_buffer_ptr_op)
         idx_buffer_ptr = idx_buffer_ptr_op.dereferenced_value
 
         while_op, index_is_found, index = UnpackCOOSemantics.loop_to_find_index(
@@ -2993,22 +2999,26 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             idx_buffer_ptr,
             dim_mapping,
         )
-        ops.append(while_op)
+        if_must_start_set_ops.append(while_op)
         # index_is_found iff we find an index tuple that matches the sparse dimension values from dim_mapping index
         # will be the index offset in the index-buffer (and data-buffer) of the match if there is one, else it will
         # be the index it was expected to be (i.e. the index where the loop stopped because either the range ran out,
         # or the index tuples got larger than the values in dim_mapping)
+
+        must_do_set_cond_op = arith.OrI(index_is_found, is_non_zero)
+        if_must_start_set_ops.append(must_do_set_cond_op)
+        if_must_do_set_ops = []
 
         # 5) Now get the data buffer ptr
         ptr_size = _get_accepted_type_size(IndexType()).sum()
         data_buffer_ptr_ops, data_buffer_ptr_ptr = ptr_size.add_to_llvm_pointer(
             input_ptr
         )
-        ops.extend(data_buffer_ptr_ops)
+        if_must_do_set_ops.extend(data_buffer_ptr_ops)
         data_buffer_ptr_op = llvm.LoadOp(
             data_buffer_ptr_ptr, llvm.LLVMPointerType.opaque()
         )
-        ops.append(data_buffer_ptr_op)
+        if_must_do_set_ops.append(data_buffer_ptr_op)
         data_buffer_ptr = data_buffer_ptr_op.dereferenced_value
 
         # 6) If index is found we can get the ptr for the child, else we need to reallocate and move lots of indices
@@ -3176,7 +3186,14 @@ class IndexingSemantics(DirectLayoutNodeSemantics[dlt.IndexingLayoutAttr]):
             if_found_true,
             if_found_false,
         )
-        ops.append(if_found_op)
+        if_must_do_set_ops.append(if_found_op)
+        if_must_do_set_ops.append(scf.Yield())
+        if_must_do_set_op = scf.If(must_do_set_cond_op.result, [], if_must_do_set_ops)
+        if_must_start_set_ops.append(if_must_do_set_op)
+
+        if_must_start_set_ops.append(scf.Yield())
+        if_must_do_set_op = scf.If(must_start_set_cond_op.result, [], if_must_start_set_ops)
+        ops.append(if_must_do_set_op)
         return ops
 
     def _get_fill_value_getter(
@@ -5000,19 +5017,10 @@ class ValueMapInitialiser(Initialiser):
                         get_op = dlt.GetOp(inner_loop_tensor_arg, base_type)
                         inner_if_not_found.append(get_op)
                         # non-zero condition:
-                        if isinstance(base_type, builtin.AnyFloat):
-                            zero = arith.Constant(builtin.FloatAttr(0.0, base_type))
-                            cond_op = arith.Cmpf(zero.result, get_op.res, "une")
-                            inner_if_not_found.append(zero)
-                            inner_if_not_found.append(cond_op)
-                        elif isinstance(base_type, builtin.AnySignlessIntegerOrIndexType):
-                            zero = arith.Constant(builtin.IntegerAttr(0, base_type))
-                            cond_op = arith.Cmpi(zero.result, get_op.res, "ne")
-                            inner_if_not_found.append(zero)
-                            inner_if_not_found.append(cond_op)
-                        else:
-                            raise NotImplementedError()
-                        inner_if_not_found.append(scf.Yield(cond_op.result))
+                        zero_cmp_ops, is_non_zero = _compare_is_non_zero(get_op.res)
+                        inner_if_not_found.extend(zero_cmp_ops)
+
+                        inner_if_not_found.append(scf.Yield(is_non_zero))
                         inner_if_op = scf.If(inner_loop_if_found_non_zero, [IntegerType(1)], [scf.Yield(true_op.result)], inner_if_not_found)
                         inner_loop_block.add_op(inner_if_op)
                         inner_loop_block.add_op(dlt.IterateYieldOp(inner_if_op.output[0]))
@@ -5185,6 +5193,18 @@ def _get_packed_zero_for_accepted_type(
         return [op] + pack_ops, zero
     else:
         raise ValueError(f"Cannot get zero for base element: {t}")
+
+def _compare_is_non_zero(value: SSAValue) -> tuple[list[Operation], SSAValue]:
+    assert isinstance(value.type, dlt.AcceptedTypes)
+    ops, zero_val = _get_packed_zero_for_accepted_type(value.type)
+    if isinstance(value.type, builtin.AnyFloat):
+        cond_op = arith.Cmpf(zero_val, value, "une")
+        return ops + [cond_op], cond_op.result
+    elif isinstance(value.type, builtin.AnySignlessIntegerOrIndexType):
+        cond_op = arith.Cmpi(zero_val, value, "ne")
+        return ops + [cond_op], cond_op.result
+    else:
+        raise NotImplementedError()
 
 
 def _make_iterate(

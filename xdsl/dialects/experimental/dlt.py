@@ -2430,6 +2430,36 @@ class GetOp(DTLLayoutScopedOp):
         if self.get_type != elem.base_type:
             raise VerifyException(f"{self.name} cannot get {self.get_type} from {elem}")
 
+@irdl_op_definition
+class GetSOp(DTLLayoutScopedOp):
+    name = "dlt.gets"  # take a PtrType that points only to primitives (no member fields or dimensions) and get the value
+    tree: Operand = operand_def(PtrType)
+    get_type: AcceptedTypes = attr_def(AcceptedTypes)
+    res: OpResult = result_def(AcceptedTypes)
+    found: OpResult = result_def(IntegerType(1))
+
+    def __init__(self, tree: SSAValue, get_type: AcceptedTypes):
+        super().__init__(
+            operands=[tree], result_types=[get_type, IntegerType(1)], attributes={"get_type": get_type}
+        )
+
+    def verify_(self) -> None:
+        ptr_type = cast(PtrType, self.tree.type)
+        elem = ptr_type.contents_type.get_single_element()
+        if elem is None:
+            raise VerifyException(
+                f"{self.name} cannot get into ptr that has more than one element"
+            )
+        if len(elem.dimensions) > 0:
+            raise VerifyException(
+                f"{self.name} cannot get into ptr that has dimensions"
+            )
+        if len(elem.member_specifiers) > 0:
+            raise VerifyException(
+                f"{self.name} cannot get into ptr that has unspecified members"
+            )
+        if self.get_type != elem.base_type:
+            raise VerifyException(f"{self.name} cannot get {self.get_type} from {elem}")
 
 @irdl_op_definition
 class SetOp(DTLLayoutScopedOp):
@@ -3232,6 +3262,7 @@ DLT = Dialect(
         LayoutScopeOp,
         SelectOp,
         GetOp,
+        GetSOp,
         SetOp,
         CopyOp,
         ClearOp,
