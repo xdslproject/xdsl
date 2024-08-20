@@ -213,11 +213,9 @@ class ApplyStoreFoldPattern(RewritePattern):
     def is_dest_safe(apply: ApplyOp, store: StoreOp) -> bool:
         # Check that the destination is not used between the apply and store.
         dest = store.field
-        if apply.next_op is None:
-            return True
         effecting = [
             o
-            for o in walk_from_to(apply.next_op, store)
+            for o in walk_from_to(apply, store)
             if might_effect(o, {MemoryEffectKind.READ, MemoryEffectKind.WRITE}, dest)
         ]
         return not effecting
