@@ -600,11 +600,20 @@ class SwapOpHasShapeInferencePatterns(HasShapeInferencePatternsTrait):
 
 
 class SwapOpMemoryEffect(MemoryEffect):
+    """
+    Side effect implementation of dmp.swap.
+    """
+
     @classmethod
     def get_effects(cls, op: Operation) -> set[EffectInstance]:
         op = cast(SwapOp, op)
+        # If it's operating in value-semantic mode, it has no side effects.
         if op.swapped_values:
             return set()
+        # If it's operating in reference-semantic mode, it reads and writes to its field.
+        # TODO: consider the empty swaps case at some point.
+        # Right now, it relies on it before inferring them, so not very safe.
+        # But it could be an elegant way to generically simplify those.
         return {
             EffectInstance(MemoryEffectKind.WRITE, op.input_stencil),
             EffectInstance(MemoryEffectKind.READ, op.input_stencil),
@@ -641,19 +650,26 @@ class SwapOp(IRDLOperation):
                 )
 
     @staticmethod
-    def get(input_stencil: SSAValue | Operation, strategy: DomainDecompositionStrategy):
+    def get(
+        input_stencil: SSAValue | Operation,
+        strategy: DomainDecompositionStrategy,
+        swaps: builtin.ArrayAttr[ExchangeDeclarationAttr] | None = None,
+    ):
         input_type = SSAValue.get(input_stencil).type
 
         result_types = (
             input_type if isa(input_type, stencil.TempType[Attribute]) else None
         )
 
+        if swaps is None:
+            swaps = builtin.ArrayAttr[ExchangeDeclarationAttr](())
+
         return SwapOp.build(
             operands=[input_stencil],
             result_types=[result_types],
             attributes={
                 "strategy": strategy,
-                "swaps": builtin.ArrayAttr[ExchangeDeclarationAttr](()),
+                "swaps": swaps,
             },
         )
 
