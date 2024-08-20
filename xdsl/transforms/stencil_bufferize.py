@@ -213,6 +213,9 @@ class ApplyStoreFoldPattern(RewritePattern):
     def is_dest_safe(apply: ApplyOp, store: StoreOp) -> bool:
         # Check that the destination is not used between the apply and store.
         dest = store.field
+        start = dest.owner
+        if isinstance(start, Block):
+            start = cast(Operation, start.first_op)
         effecting = [
             o
             for o in walk_from_to(apply, store)
