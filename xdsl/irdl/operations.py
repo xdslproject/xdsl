@@ -1391,7 +1391,7 @@ def get_variadic_sizes(
     # If the operation has to related SameSize option, equally distribute the
     # variadic arguments between the variadic definitions.
     option = next((o for o in op_def.options if isinstance(o, same_size_option)), None)
-    if option:
+    if option is not None:
         non_variadic_defs = len(defs) - len(variadic_defs)
         variadic_args = len(args) - non_variadic_defs
         if variadic_args % len(variadic_defs):
