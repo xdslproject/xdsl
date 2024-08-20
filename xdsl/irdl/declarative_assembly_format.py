@@ -757,7 +757,7 @@ class VariadicRegionVariable(
 ):
     """
     A variadic region variable, with the following format:
-      region-directive ::= ( dollar-ident ( `,` dollar-id )* )?
+      region-directive ::= dollar-ident
     The directive will request a space to be printed after.
     """
 
@@ -784,7 +784,7 @@ class VariadicRegionVariable(
 class OptionalRegionVariable(OptionalVariable, OptionallyParsableDirective):
     """
     An optional region variable, with the following format:
-      region-directive ::= ( dollar-ident )?
+      region-directive ::= dollar-ident
     The directive will request a space to be printed after.
     """
 
