@@ -1,5 +1,6 @@
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Callable, Sequence
+from inspect import signature
+from typing import Any, ParamSpec, TypeVar, cast, get_args, get_origin
 
 import jax.numpy as jnp
 import numpy as np
@@ -13,6 +14,9 @@ from jaxlib.xla_client import LoadedExecutable
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp
 from xdsl.traits import SymbolTable
+
+P = ParamSpec("P")
+R = TypeVar("R", bound=tuple[jnp.ndarray, ...] | jnp.ndarray)
 
 # JAX DTypeLike is currently broken
 # The np.dtype annotation in jax does not specify the generic parameter
@@ -85,3 +89,54 @@ class JaxExecutable:
         client = xla_bridge.backends()["cpu"]
         loaded = client.compile(bytecode)
         return JaxExecutable(func_op.function_type, loaded)
+
+    def __call__(self, stub: Callable[P, R]) -> Callable[P, R]:
+        func_type = self.main_type
+        loaded = self.loaded_executable
+
+        operand_types = func_type.inputs.data
+        result_types = func_type.outputs.data
+
+        sig = signature(stub)
+
+        if len(sig.parameters) != len(operand_types):
+            raise ValueError(
+                f"Number of parameters ({len(sig.parameters)}) does not match the number of operand types ({len(operand_types)})"
+            )
+
+        # Check that all parameters are annotated as jnp.ndarray
+        for param in sig.parameters.values():
+            if param.annotation != jnp.ndarray:
+                raise NotImplementedError(
+                    f"Parameter {param.name} is not annotated as jnp.ndarray"
+                )
+
+        # Check return annotation
+        sig_return = sig.return_annotation
+        sig_return_origin = get_origin(sig_return)
+
+        if sig_return_origin is not tuple:
+            if sig.return_annotation is not jnp.ndarray:
+                raise NotImplementedError(
+                    f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}."
+                )
+            if len(result_types) != 1:
+                raise ValueError(
+                    f"Number of return values ({len(result_types)}) does not match the stub's return annotation"
+                )
+
+            def func(*args: P.args, **kwargs: P.kwargs) -> R:
+                result = loaded.execute(args)
+                return result[0]
+        else:
+            return_args = get_args(sig_return)
+            if not all(return_arg is jnp.ndarray for return_arg in return_args):
+                raise NotImplementedError(
+                    f"Return annotation is must be jnp.ndarray or a tuple of jnp.ndarray, got {sig_return}."
+                )
+
+            def func(*args: P.args, **kwargs: P.kwargs) -> R:
+                result = loaded.execute(args)
+                return cast(R, tuple(result))
+
+        return func
