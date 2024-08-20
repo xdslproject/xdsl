@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir | filecheck %s
+// RUN: xdsl-opt %s -p convert-stencil-to-ll-mlir --split-input-file --verify-diagnostics | filecheck %s
 
 builtin.module {
 // CHECK: builtin.module {
@@ -844,3 +844,54 @@ func.func @buffered_combine(%115 : !stencil.field<?x?xf64>) {
 
 }
 // CHECK-NEXT: }
+
+// -----
+
+  func.func @stencil_double_store(%93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
+    %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
+      %x_1 = stencil.index 0 <[1, 1, 1]>
+      %y_1 = stencil.index 1 <[-1, -1, -1]>
+      %z_1 = stencil.index 2 <[0, 0, 0]>
+      %xy_1 = arith.addi %x_1, %y_1 : index
+      %xyz_1 = arith.addi %xy_1, %z_1 : index
+      stencil.return %xyz_1 : index
+    }
+    stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    %95 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
+      %x_1 = stencil.index 0 <[1, 1, 1]>
+      %y_1 = stencil.index 1 <[-1, -1, -1]>
+      %z_1 = stencil.index 2 <[0, 0, 0]>
+      %xy_1 = arith.addi %x_1, %y_1 : index
+      %xyz_1 = arith.addi %xy_1, %z_1 : index
+      stencil.return %xyz_1 : index
+    }
+    stencil.store %95 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    func.return
+  }
+
+// CHECK:           "stencil.store"(%2, %0) {"bounds" = #stencil.bounds<[0, 0, 0], [64, 64, 64]>} : (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>, !stencil.field<[0,64]x[0,64]x[0,64]xindex>) -> ()
+// CHECK-NEXT:      ^^^^^^^^^^^^^^^-------------------------------------------------------------------------------------------------------------------------
+// CHECK-NEXT:      | Error while applying pattern: Cannot lower directly if storing to the same field multiple times! Try running `stencil-bufferize` before.
+// CHECK-NEXT:      ----------------------------------------------------------------------------------------------------------------------------------------
+
+// -----
+
+  func.func @stencil_load_store(%93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
+    %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
+      %x_1 = stencil.index 0 <[1, 1, 1]>
+      %y_1 = stencil.index 1 <[-1, -1, -1]>
+      %z_1 = stencil.index 2 <[0, 0, 0]>
+      %xy_1 = arith.addi %x_1, %y_1 : index
+      %xyz_1 = arith.addi %xy_1, %z_1 : index
+      stencil.return %xyz_1 : index
+    }
+    stencil.store %94 to %93 (<[0, 0, 0], [64, 64, 64]>) : !stencil.temp<[0,64]x[0,64]x[0,64]xindex> to !stencil.field<[0,64]x[0,64]x[0,64]xindex>
+    %95 = stencil.load %93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex> -> !stencil.temp<[0,64]x[0,64]x[0,64]xindex>
+    "test.op"(%95) : (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) -> ()
+    func.return
+  }
+
+// CHECK:           %2 = "stencil.load"(%0) : (!stencil.field<[0,64]x[0,64]x[0,64]xindex>) -> !stencil.temp<[0,64]x[0,64]x[0,64]xindex>
+// CHECK-NEXT:      ^^^^^^^^^^^^^^^^^^^-----------------------------------------------------------------------------------------------------------------
+// CHECK-NEXT:      | Error while applying pattern: Cannot lower directly if loading and storing the same field! Try running `stencil-bufferize` before.
+// CHECK-NEXT:      ------------------------------------------------------------------------------------------------------------------------------------
