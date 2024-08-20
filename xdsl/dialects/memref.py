@@ -36,11 +36,11 @@ from xdsl.dialects.utils import (
 from xdsl.ir import Attribute, Dialect, Operation, OpResult, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    AttrSizedResultSegments,
     ConstraintVar,
     IRDLOperation,
     Operand,
     ParsePropInAttrDict,
+    SameVariadicResultSize,
     VarOperand,
     VarOpResult,
     base,
@@ -548,7 +548,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     traits = frozenset([NoMemoryEffect()])
 
-    irdl_options = [AttrSizedResultSegments()]
+    irdl_options = [SameVariadicResultSize()]
 
     def __init__(self, source: SSAValue | Operation):
         """
