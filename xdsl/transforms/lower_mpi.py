@@ -1,4 +1,5 @@
 from abc import ABC
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import prod
 from typing import TypeVar, cast
@@ -753,7 +754,9 @@ class MpiAddExternalFuncDefs(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, module: builtin.ModuleOp, rewriter: PatternRewriter, /):
         # collect all func calls to MPI functions
-        funcs_to_emit: dict[str, tuple[list[Attribute], list[Attribute]]] = dict()
+        funcs_to_emit: dict[str, tuple[Sequence[Attribute], Sequence[Attribute]]] = (
+            dict()
+        )
 
         for op in module.walk():
             if not isinstance(op, func.Call):
@@ -761,8 +764,8 @@ class MpiAddExternalFuncDefs(RewritePattern):
             if op.callee.string_value() not in self.mpi_func_call_names:
                 continue
             funcs_to_emit[op.callee.string_value()] = (
-                [arg.type for arg in op.arguments],
-                [res.type for res in op.results],
+                op.arguments.types,
+                op.result_types,
             )
 
         # for each func found, add a FuncOp to the top of the module.

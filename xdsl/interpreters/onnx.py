@@ -1,6 +1,7 @@
 from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 
 from xdsl.dialects import onnx
 from xdsl.dialects.builtin import TensorType
@@ -34,7 +35,7 @@ def to_dtype(
 
 
 def from_dtype(
-    dtype: type[np.float32] | type[np.float64] | type[np.int32] | type[np.int64],
+    dtype: npt.DTypeLike,
 ) -> ptr.XType[float] | ptr.XType[int]:
     if dtype == np.float32:
         return ptr.float32
@@ -50,7 +51,7 @@ def from_dtype(
 
 def to_ndarray(
     shaped_array: ShapedArray[int] | ShapedArray[float],
-) -> np.ndarray[Any, np.dtype[np.float64 | np.float32 | np.int64 | np.int32]]:
+) -> npt.NDArray[np.float32 | np.float64 | np.int32 | np.int64]:
     dtype = to_dtype(shaped_array.data_ptr.xtype)
     flat = np.frombuffer(shaped_array.data_ptr.raw.memory, dtype)
     shaped = flat.reshape(shaped_array.shape)
@@ -58,18 +59,12 @@ def to_ndarray(
 
 
 def from_ndarray(
-    ndarray: np.ndarray[
-        Any,
-        np.dtype[np.float32]
-        | np.dtype[np.float64]
-        | np.dtype[np.int32]
-        | np.dtype[np.int64],
-    ]
+    ndarray: npt.NDArray[np.number[Any]],
 ) -> ShapedArray[float] | ShapedArray[int]:
     return ShapedArray(
         ptr.TypedPtr(
             ptr.RawPtr(bytearray(ndarray.data)),
-            xtype=from_dtype(ndarray.dtype.type),
+            xtype=from_dtype(np.dtype(ndarray.dtype)),
         ),
         list(ndarray.shape),
     )
@@ -204,7 +199,6 @@ class OnnxFunctions(InterpreterFunctions):
 
     @impl(onnx.Conv)
     def run_conv(self, interpreter: Interpreter, op: onnx.Conv, args: tuple[Any, ...]):
-
         # initialise the attributes used
         auto_pad = op.auto_pad.data
         strides: list[int] = [value.value.data for value in op.strides]

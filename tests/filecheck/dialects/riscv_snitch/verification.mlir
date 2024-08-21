@@ -59,4 +59,3 @@
 }) {"stagger_mask" = #builtin.int<0>, "stagger_count" = #builtin.int<0>} : (!riscv.reg<a0>, !riscv.freg<fa0>) -> !riscv.freg<fa0>
 
 // CHECK: Operation does not verify: Expected !riscv.freg<fa0>, got !riscv.freg<fa1>. The riscv_snitch.frep's riscv_snitch.frep_yield must match carriedvariables types.
-

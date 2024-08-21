@@ -91,6 +91,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return common_subexpression_elimination.CommonSubexpressionElimination
 
+    def get_csl_stencil_bufferize():
+        from xdsl.transforms import csl_stencil_bufferize
+
+        return csl_stencil_bufferize.CslStencilBufferize
+
     def get_csl_stencil_to_csl_wrapper():
         from xdsl.transforms import csl_stencil_to_csl_wrapper
 
@@ -135,6 +140,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms.lift_arith_to_linalg import LiftArithToLinalg
 
         return LiftArithToLinalg
+
+    def get_linalg_to_csl():
+        from xdsl.transforms.linalg_to_csl import LinalgToCsl
+
+        return LinalgToCsl
 
     def get_lower_affine():
         from xdsl.transforms import lower_affine
@@ -310,10 +320,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_scf_to_asm.LowerScfForToLabels
 
-    def get_stencil_shape_inference():
-        from xdsl.transforms.experimental import stencil_shape_inference
+    def get_shape_inference():
+        from xdsl.transforms.shape_inference import ShapeInferencePass
 
-        return stencil_shape_inference.StencilShapeInferencePass
+        return ShapeInferencePass
 
     def get_stencil_storage_materialization():
         from xdsl.transforms.experimental import stencil_storage_materialization
@@ -397,6 +407,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "inline-snrt": get_convert_snrt_to_riscv,
         "convert-stencil-to-ll-mlir": get_convert_stencil_to_ll_mlir,
         "cse": get_cse,
+        "csl-stencil-bufferize": get_csl_stencil_bufferize,
         "csl-stencil-to-csl-wrapper": get_csl_stencil_to_csl_wrapper,
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
@@ -408,6 +419,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "hls-convert-stencil-to-ll-mlir": get_hls_convert_stencil_to_ll_mlir,
         "apply-individual-rewrite": get_individual_rewrite,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
+        "linalg-to-csl": get_linalg_to_csl,
         "lower-affine": get_lower_affine,
         "lower-hls": get_lower_hls,
         "lower-mpi": get_lower_mpi,
@@ -433,7 +445,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "snitch-allocate-registers": get_snitch_register_allocation,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
-        "stencil-shape-inference": get_stencil_shape_inference,
+        "shape-inference": get_shape_inference,
         "stencil-storage-materialization": get_stencil_storage_materialization,
         "stencil-tensorize-z-dimension": get_stencil_tensorize_z_dimension,
         "stencil-to-csl-stencil": get_stencil_to_csl_stencil,

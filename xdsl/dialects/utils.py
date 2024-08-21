@@ -167,7 +167,9 @@ def print_func_op_like(
         printer.print_region(body, False, False)
 
 
-def parse_func_op_like(parser: Parser, *, reserved_attr_names: Sequence[str]) -> tuple[
+def parse_func_op_like(
+    parser: Parser, *, reserved_attr_names: Sequence[str]
+) -> tuple[
     str,
     Sequence[Attribute],
     Sequence[Attribute],

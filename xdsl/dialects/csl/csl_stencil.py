@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     AnyMemRefType,
     IndexType,
+    MemRefType,
     TensorType,
 )
 from xdsl.dialects.experimental import dmp
@@ -40,7 +41,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasAncestor,
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -123,7 +124,7 @@ class PrefetchOp(IRDLOperation):
     name = "csl_stencil.prefetch"
 
     input_stencil = operand_def(
-        base(stencil.TempType[Attribute])
+        base(stencil.StencilType[Attribute])
         | base(memref.MemRefType[Attribute])
         | base(TensorType[Attribute])
     )
@@ -151,7 +152,7 @@ class PrefetchOp(IRDLOperation):
         )
 
 
-class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
+class ApplyOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.csl_stencil import (
@@ -205,10 +206,10 @@ class ApplyOp(IRDLOperation):
         base(stencil.StencilType[Attribute]) | base(memref.MemRefType[Attribute])
     )
 
-    iter_arg = operand_def(TensorType[Attribute])
+    iter_arg = operand_def(TensorType[Attribute] | memref.MemRefType[Attribute])
 
     args = var_operand_def(Attribute)
-    dest = var_operand_def(stencil.FieldType)
+    dest = var_operand_def(stencil.FieldType | memref.MemRefType[Attribute])
 
     chunk_reduce = region_def()
     post_process = region_def()
@@ -250,7 +251,7 @@ class ApplyOp(IRDLOperation):
             printer.print_list(self.dest, print_arg)
         else:
             printer.print(") -> (")
-            printer.print_list((r.type for r in self.res), printer.print_attribute)
+            printer.print_list(self.res.types, printer.print_attribute)
 
         printer.print(") ")
         printer.print("<")
@@ -333,9 +334,11 @@ class ApplyOp(IRDLOperation):
                 )
 
         # typecheck required (only) block arguments
-        assert isa(self.iter_arg.type, TensorType[Attribute])
+        assert isa(
+            self.iter_arg.type, TensorType[Attribute] | memref.MemRefType[Attribute]
+        )
         chunk_reduce_req_types = [
-            TensorType(
+            type(self.iter_arg.type)(
                 self.iter_arg.type.get_element_type(),
                 (
                     len(self.swaps),
@@ -374,8 +377,11 @@ class ApplyOp(IRDLOperation):
             res_type = self.dest[0].type
         else:
             res_type = self.res[0].type
-        assert isa(res_type, stencil.StencilType[Attribute])
-        return res_type.get_num_dims()
+        if isa(res_type, stencil.StencilType[Attribute]):
+            return res_type.get_num_dims()
+        elif self.bounds:
+            return len(self.bounds.ub)
+        raise ValueError("Cannot derive rank")
 
     def get_accesses(self) -> Iterable[stencil.AccessPattern]:
         """
@@ -422,7 +428,7 @@ class AccessOp(IRDLOperation):
     )
     offset = prop_def(stencil.IndexAttr)
     offset_mapping = opt_prop_def(stencil.IndexAttr)
-    result = result_def(TensorType)
+    result = result_def(TensorType | AnyMemRefType)
 
     traits = frozenset([HasAncestor(stencil.ApplyOp, ApplyOp), Pure()])
 
@@ -430,7 +436,7 @@ class AccessOp(IRDLOperation):
         self,
         op: Operand,
         offset: stencil.IndexAttr,
-        result_type: TensorType[Attribute],
+        result_type: TensorType[Attribute] | MemRefType[Attribute],
         offset_mapping: stencil.IndexAttr | None = None,
     ):
         super().__init__(
@@ -525,11 +531,20 @@ class AccessOp(IRDLOperation):
 
     def verify_(self) -> None:
         if tuple(self.offset) == (0, 0):
-            if not isa(self.op.type, stencil.StencilType[Attribute]):
+            if isa(self.op.type, memref.MemRefType[Attribute]):
+                if not self.result.type == self.op.type:
+                    raise VerifyException(
+                        f"{type(self)} access to own data requires{self.op.type} but found {self.result.type}"
+                    )
+            elif isa(self.op.type, stencil.StencilType[Attribute]):
+                if not self.result.type == self.op.type.get_element_type():
+                    raise VerifyException(
+                        f"{type(self)} access to own data requires{self.op.type.get_element_type()} but found {self.result.type}"
+                    )
+            else:
                 raise VerifyException(
-                    f"{type(self)} access to own data requires type stencil.StencilType but found {self.op.type}"
+                    f"{type(self)} access to own data requires type stencil.StencilType or memref.MemRefType but found {self.op.type}"
                 )
-            assert self.result.type == self.op.type.get_element_type()
         else:
             if not isa(
                 self.op.type, TensorType[Attribute] | memref.MemRefType[Attribute]

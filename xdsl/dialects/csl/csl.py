@@ -18,6 +18,7 @@ from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     AnyFloatAttr,
     AnyIntegerAttr,
+    AnyMemRefType,
     ArrayAttr,
     BoolAttr,
     ContainerType,
@@ -151,7 +152,7 @@ class _FuncBase(IRDLOperation, ABC):
             return
 
         entry_block: Block = self.body.blocks[0]
-        block_arg_types = [arg.type for arg in entry_block.args]
+        block_arg_types = entry_block.arg_types
         if self.function_type.inputs.data != tuple(block_arg_types):
             raise VerifyException(
                 "Expected entry block arguments to have the same types as the function "
@@ -718,9 +719,7 @@ class ReturnOp(IRDLOperation):
         func_op = self.parent_op()
         assert isinstance(func_op, FuncOp) or isinstance(func_op, TaskOp)
 
-        if tuple(func_op.function_type.outputs) != tuple(
-            val.type for val in self.operands
-        ):
+        if tuple(func_op.function_type.outputs.data) != self.operand_types:
             raise VerifyException(
                 "Expected arguments to have the same types as the function output types"
             )
@@ -1010,7 +1009,9 @@ class BuiltinDsdOp(IRDLOperation, ABC):
             sig_typ: Attribute | type[Attribute],
         ) -> bool:
             if isinstance(sig_typ, type):
-                return isinstance(op_typ, sig_typ)
+                return (
+                    sig_typ == DsdType and isa(op_typ, AnyMemRefType)
+                ) or isinstance(op_typ, sig_typ)
             else:
                 return op_typ == sig_typ
 

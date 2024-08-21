@@ -3,8 +3,8 @@ We use pyclip to copy text to the local pasteboard, but pyclip does not have typ
 annotations. We add our own mirror of the copy function here.
 """
 
-from pyclip import copy  # pyright: ignore
+import pyclip  # pyright: ignore[reportMissingTypeStubs]
 
 
 def pyclip_copy(text: str) -> None:
-    copy(text)
+    pyclip.copy(text)  # pyright: ignore[reportUnknownMemberType]

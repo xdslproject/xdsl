@@ -158,7 +158,6 @@ def test_interpreter_data():
 
 
 def test_run_op_interpreter_args():
-
     @dataclass
     @register_impls
     class TestFunctions(InterpreterFunctions):
@@ -217,7 +216,6 @@ def test_mixed_values():
     @dataclass
     @register_impls
     class TestFuncA(InterpreterFunctions):
-
         @impl_attr(IndexType)
         def index_value(
             self, interpreter: Interpreter, attr: Attribute, attr_type: IndexType
@@ -227,7 +225,6 @@ def test_mixed_values():
     @dataclass
     @register_impls
     class TestFuncB(InterpreterFunctions):
-
         @impl_attr(IntegerType)
         def index_value(
             self, interpreter: Interpreter, attr: Attribute, attr_type: IntegerType

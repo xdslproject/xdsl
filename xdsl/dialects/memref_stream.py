@@ -51,7 +51,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
-    HasCanonicalisationPatternsTrait,
+    HasCanonicalizationPatternsTrait,
     IsTerminator,
     NoTerminator,
 )
@@ -265,14 +265,14 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.attributes:
@@ -350,8 +350,7 @@ class StreamingRegionOp(IRDLOperation):
         return generic
 
 
-class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalisationPatternsTrait):
-
+class GenericOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls):
         from xdsl.transforms.canonicalization_patterns.memref_stream import (
@@ -533,14 +532,14 @@ class GenericOp(IRDLOperation):
             printer.print_string(" ins(")
             printer.print_list(self.inputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((i.type for i in self.inputs), printer.print_attribute)
+            printer.print_list(self.inputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.outputs:
             printer.print_string(" outs(")
             printer.print_list(self.outputs, printer.print_ssa_value)
             printer.print_string(" : ")
-            printer.print_list((o.type for o in self.outputs), printer.print_attribute)
+            printer.print_list(self.outputs.types, printer.print_attribute)
             printer.print_string(")")
 
         if self.inits:
