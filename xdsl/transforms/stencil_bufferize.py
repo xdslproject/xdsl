@@ -1,15 +1,18 @@
 from collections.abc import Generator
 from dataclasses import dataclass
+from itertools import chain
 from typing import Any, TypeVar, cast
 
 from xdsl.context import MLContext
 from xdsl.dialects import builtin
 from xdsl.dialects.experimental.dmp import SwapOp
 from xdsl.dialects.stencil import (
+    AccessOp,
     AllocOp,
     ApplyOp,
     BufferOp,
     CombineOp,
+    DynAccessOp,
     FieldType,
     IndexAttr,
     LoadOp,
@@ -135,6 +138,24 @@ def walk_from_to(a: Operation, b: Operation, *, inclusive: bool = False):
         yield o
 
 
+def is_inplace(apply: ApplyOp, field: SSAValue):
+    # Get all block arguments matching this field
+    field_args = set(
+        apply.region.block.args[i] for (i, a) in enumerate(apply.args) if a is field
+    )
+    # Is there any non-zero access on those arguments?
+    return not any(
+        access
+        for access in apply.walk()
+        if isinstance(access, AccessOp)
+        and access.temp in field_args
+        and any(o != 0 for o in access.offset)
+        or isinstance(access, DynAccessOp)
+        and access.temp in field_args
+        and any(o != 0 for o in chain(access.lb, access.ub))
+    )
+
+
 class LoadBufferFoldPattern(RewritePattern):
     """
     Fold a reference-semantic `stencil.buffer` of a `stencil.load` to the underlying
@@ -184,6 +205,15 @@ class LoadBufferFoldPattern(RewritePattern):
             for o in walk_from_to(load, last_user, inclusive=True)
             if might_effect(o, {MemoryEffectKind.WRITE}, underlying)
         ]
+        # import pdb
+
+        # pdb.set_trace()
+        if (
+            effecting
+            and isinstance(effecting[-1], ApplyOp)
+            and is_inplace(effecting[-1], op.res)
+        ):
+            effecting.pop()
         if effecting:
             return
 
