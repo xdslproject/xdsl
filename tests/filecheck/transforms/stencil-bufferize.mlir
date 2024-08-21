@@ -445,6 +445,28 @@ func.func @buffered_combine(%0 : !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
+func.func @increment_n(%0 : !stencil.field<[0,64]x[0,64]xf64>, %n : f64) {
+  %load = stencil.load %0 : !stencil.field<[0,64]x[0,64]xf64> -> !stencil.temp<[0,64]x[0,64]xf64>
+  %inplace = stencil.apply(%load_arg = %load : !stencil.temp<[0,64]x[0,64]xf64>, %nn = %n : f64) -> (!stencil.temp<[0,64]x[0,64]xf64>) {
+    %acc = stencil.access %load_arg[0, 0] : !stencil.temp<[0,64]x[0,64]xf64>
+    %inc = arith.addf %acc, %nn : f64
+    stencil.return %inc : f64
+  }
+  stencil.store %inplace to %0(<[0, 0], [64, 64]>) : !stencil.temp<[0,64]x[0,64]xf64> to !stencil.field<[0,64]x[0,64]xf64>
+  func.return
+}
+
+// CHECK:         func.func @increment_n(%0 : !stencil.field<[0,64]x[0,64]xf64>, %n : f64) {
+// CHECK-NEXT:      %load = stencil.load %0 : !stencil.field<[0,64]x[0,64]xf64> -> !stencil.temp<[0,64]x[0,64]xf64>
+// CHECK-NEXT:      %inplace = stencil.buffer %load : !stencil.temp<[0,64]x[0,64]xf64> -> !stencil.field<[0,64]x[0,64]xf64>
+// CHECK-NEXT:      stencil.apply(%load_arg = %inplace : !stencil.field<[0,64]x[0,64]xf64>, %nn = %n : f64) outs (%0 : !stencil.field<[0,64]x[0,64]xf64>) {
+// CHECK-NEXT:        %acc = stencil.access %load_arg[0, 0] : !stencil.field<[0,64]x[0,64]xf64>
+// CHECK-NEXT:        %inc = arith.addf %acc, %nn : f64
+// CHECK-NEXT:        stencil.return %inc : f64
+// CHECK-NEXT:      } to <[0, 0], [64, 64]>
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+
 func.func @gauss_seidel_func(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
   %0 = stencil.load %a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>> -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>
   %1 = "dmp.swap"(%0) {"strategy" = #dmp.grid_slice_2d<#dmp.topo<1022x510>, false>, "swaps" = [#dmp.exchange<at [1, 0, 0] size [1, 1, 510] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 1, 510] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 1, 0] size [1, 1, 510] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [1, 1, 510] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>) -> !stencil.temp<[-1,2]x[-1,2]xtensor<512xf32>>

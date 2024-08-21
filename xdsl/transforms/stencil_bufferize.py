@@ -122,13 +122,15 @@ def walk_from(a: Operation) -> Generator[Operation, Any, None]:
         a = a.next_op
 
 
-def walk_from_to(a: Operation, b: Operation):
+def walk_from_to(a: Operation, b: Operation, *, inclusive: bool = False):
     """
     Walk through all operations recursively inside a or its block, until b is met, if
     ever.
     """
     for o in walk_from(a):
         if o == b:
+            if inclusive:
+                yield o
             return
         yield o
 
@@ -179,7 +181,7 @@ class LoadBufferFoldPattern(RewritePattern):
 
         effecting = [
             o
-            for o in walk_from_to(load, last_user)
+            for o in walk_from_to(load, last_user, inclusive=True)
             if might_effect(o, {MemoryEffectKind.WRITE}, underlying)
         ]
         if effecting:
